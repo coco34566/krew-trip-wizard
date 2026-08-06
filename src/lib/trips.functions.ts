@@ -108,6 +108,14 @@ export const createTrip = createServerFn({ method: "POST" })
     });
     if (prefs.error) throw prefs.error;
 
+    await supabase.from("trip_participants").insert({
+      trip_id: trip.data.id,
+      user_id: userId,
+      email: (context.claims.email as string | undefined) ?? "",
+      display_name: null,
+      status: "accepte",
+    });
+
     return { tripId: trip.data.id as string };
   });
 
