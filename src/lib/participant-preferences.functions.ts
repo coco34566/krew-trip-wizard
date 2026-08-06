@@ -22,6 +22,10 @@ export const participantPreferencesSchema = z.object({
 
 export type ParticipantPreferencesInput = z.infer<typeof participantPreferencesSchema>;
 
+function normalizeEmail(email: string | undefined | null) {
+  return typeof email === "string" ? email.trim().toLowerCase() : undefined;
+}
+
 export const getMyParticipantPreferences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
@@ -37,14 +41,16 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
     if (!trip.data) throw new Error("Voyage introuvable");
 
     // Authorization: only the trip owner or a participant (by user_id or email) can access the questionnaire
-    const email = context.claims?.email as string | undefined;
+    const emailRaw = context.claims?.email as string | undefined;
+    const email = normalizeEmail(emailRaw);
     if (trip.data.owner_id !== userId) {
       if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire (email manquant)");
       const participantCheck = await supabase
         .from("trip_participants")
         .select("id, user_id, email")
         .eq("trip_id", data.tripId)
-        .or(`user_id.eq.${userId},email.eq.${email}`)
+        // case-insensitive email match
+        .or(`user_id.eq.${userId},email.ilike.${email}`)
         .maybeSingle();
       if (participantCheck.error) throw participantCheck.error;
       if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire");
@@ -67,12 +73,16 @@ export async function attachParticipantToTrip(
   userId: string,
   userEmail: string | undefined | null,
 ) {
-  if (!userEmail) throw new Error("User email missing from context.claims.email");
+  const email = normalizeEmail(userEmail);
+  if (!email) throw new Error("User email missing from context.claims.email");
 
+  // Update using case-insensitive email match to avoid casing issues
   const { data: updatedRows, error: updateError } = await supabase
     .from("trip_participants")
     .update({ user_id: userId, status: "accepte" })
-    .match({ trip_id: tripId, email: userEmail, user_id: null })
+    .eq("trip_id", tripId)
+    .ilike("email", email)
+    .is("user_id", null)
     .select();
 
   if (updateError) throw updateError;
@@ -98,7 +108,7 @@ export async function listUnansweredParticipants(supabase: any, tripId: string) 
   const [participantsRes, prefsRes] = await Promise.all([
     supabase
       .from("trip_participants")
-      .select("id, user_id, email, display_name, status")
+      .select("id, user_id, email, display_name, status, created_at")
       .eq("trip_id", tripId),
     supabase.from("trip_participant_preferences").select("user_id, submitted_at, updated_at").eq("trip_id", tripId),
   ]);
@@ -129,14 +139,15 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
 
-    const email = context.claims?.email as string | undefined;
+    const emailRaw = context.claims?.email as string | undefined;
+    const email = normalizeEmail(emailRaw);
     if (tripRes.data.owner_id !== userId) {
       if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire (email manquant)");
       const participantCheck = await supabase
         .from("trip_participants")
         .select("id")
         .eq("trip_id", data.tripId)
-        .or(`user_id.eq.${userId},email.eq.${email}`)
+        .or(`user_id.eq.${userId},email.ilike.${email}`)
         .maybeSingle();
       if (participantCheck.error) throw participantCheck.error;
       if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire");
@@ -150,7 +161,13 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     }
 
     // Attach participant if there's a matching unclaimed invitation
-    await attachParticipantToTrip(supabase, data.tripId, userId, context.claims?.email);
+    try {
+      await attachParticipantToTrip(supabase, data.tripId, userId, emailRaw);
+    } catch (e) {
+      // attachParticipantToTrip throws if no pending invite exists; this is acceptable in some flows
+      // We swallow the error here to allow users that are already attached (or owner) to continue.
+      // If you prefer strict behavior, rethrow the error.
+    }
 
     // Check if a preference row already exists to set submitted_at vs updated_at
     const existingPref = await supabase
