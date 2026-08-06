@@ -52,7 +52,7 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
 
     const prefs = await supabase
       .from("trip_participant_preferences")
-      .select("*")
+      .select("*, submitted_at, updated_at")
       .eq("trip_id", data.tripId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -90,6 +90,34 @@ export async function attachParticipantToTrip(
   return updatedRows[0];
 }
 
+/**
+ * Return participants (id, user_id, email, display_name, status) who have not answered the questionnaire yet.
+ * Includes both claimed participants (user_id present but no preferences) and unclaimed invites (user_id null).
+ */
+export async function listUnansweredParticipants(supabase: any, tripId: string) {
+  const [participantsRes, prefsRes] = await Promise.all([
+    supabase
+      .from("trip_participants")
+      .select("id, user_id, email, display_name, status")
+      .eq("trip_id", tripId),
+    supabase.from("trip_participant_preferences").select("user_id, submitted_at, updated_at").eq("trip_id", tripId),
+  ]);
+  if (participantsRes.error) throw participantsRes.error;
+  if (prefsRes.error) throw prefsRes.error;
+
+  const participants = participantsRes.data ?? [];
+  const answeredUserIds = new Set((prefsRes.data ?? []).map((p: any) => p.user_id).filter(Boolean));
+
+  const unanswered = participants.filter((p: any) => {
+    // If participant has a user_id, check if their user_id is in the answered set
+    if (p.user_id) return !answeredUserIds.has(p.user_id);
+    // If participant has no user_id (unclaimed invite), consider them unanswered
+    return true;
+  });
+
+  return unanswered;
+}
+
 export const submitParticipantPreferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => participantPreferencesSchema.parse(data))
@@ -114,27 +142,54 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire");
     }
 
+    // Validation: prevent inconsistent partial submissions
+    const min = (data as any).durationNightsMin;
+    const max = (data as any).durationNightsMax;
+    if (typeof min === "number" && typeof max === "number" && min > max) {
+      throw new Error("Validation error: durationNightsMin cannot be greater than durationNightsMax");
+    }
+
+    // Attach participant if there's a matching unclaimed invitation
     await attachParticipantToTrip(supabase, data.tripId, userId, context.claims?.email);
 
-    const { error } = await supabase.from("trip_participant_preferences").upsert(
-      {
-        trip_id: data.tripId,
-        user_id: userId,
-        ambiances: data.ambiances,
-        activity_categories: data.activityCategories,
-        budget_max: data.budgetMax ?? null,
-        budget_priority: data.budgetPriority,
-        duration_nights_min: data.durationNightsMin ?? null,
-        duration_nights_max: data.durationNightsMax ?? null,
-        desired_destination: data.desiredDestination ?? null,
-        excluded_destinations: data.excludedDestinations,
-        dietary_constraints: data.dietaryConstraints,
-        mobility_notes: data.mobilityNotes ?? null,
-        free_text: data.freeText ?? null,
-        submitted_at: new Date().toISOString(),
-      },
-      { onConflict: "trip_id,user_id" },
-    );
+    // Check if a preference row already exists to set submitted_at vs updated_at
+    const existingPref = await supabase
+      .from("trip_participant_preferences")
+      .select("submitted_at, updated_at")
+      .eq("trip_id", data.tripId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existingPref.error) throw existingPref.error;
+
+    const now = new Date().toISOString();
+
+    const payload: any = {
+      trip_id: data.tripId,
+      user_id: userId,
+      ambiances: (data as any).ambiances,
+      activity_categories: (data as any).activityCategories,
+      budget_max: (data as any).budgetMax ?? null,
+      budget_priority: (data as any).budgetPriority,
+      duration_nights_min: (data as any).durationNightsMin ?? null,
+      duration_nights_max: (data as any).durationNightsMax ?? null,
+      desired_destination: (data as any).desiredDestination ?? null,
+      excluded_destinations: (data as any).excludedDestinations,
+      dietary_constraints: (data as any).dietaryConstraints,
+      mobility_notes: (data as any).mobilityNotes ?? null,
+      free_text: (data as any).freeText ?? null,
+    };
+
+    if (existingPref.data) {
+      // existing row -> mark updated_at
+      payload.submitted_at = existingPref.data.submitted_at ?? now;
+      payload.updated_at = now;
+    } else {
+      // new submission
+      payload.submitted_at = now;
+      payload.updated_at = null;
+    }
+
+    const { error } = await supabase.from("trip_participant_preferences").upsert(payload, { onConflict: "trip_id,user_id" });
     if (error) throw error;
 
     return { ok: true };
@@ -147,18 +202,26 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
     const { supabase } = context;
     const [participants, preferences] = await Promise.all([
       supabase.from("trip_participants").select("id, user_id, email, display_name, status").eq("trip_id", data.tripId),
-      supabase.from("trip_participant_preferences").select("user_id").eq("trip_id", data.tripId),
+      supabase
+        .from("trip_participant_preferences")
+        .select("user_id, submitted_at, updated_at")
+        .eq("trip_id", data.tripId),
     ]);
     if (participants.error) throw participants.error;
     if (preferences.error) throw preferences.error;
 
-    const answered = new Set((preferences.data ?? []).map((p: any) => p.user_id));
+    const prefMap = new Map<string, any>();
+    for (const p of (preferences.data ?? []) as any[]) {
+      prefMap.set(p.user_id, p);
+    }
+
     return {
       total: participants.data?.length ?? 0,
-      answered: answered.size,
+      answered: prefMap.size,
       participants: (participants.data ?? []).map((p: any) => ({
         ...p,
-        hasAnswered: p.user_id ? answered.has(p.user_id) : false,
+        hasAnswered: p.user_id ? prefMap.has(p.user_id) : false,
+        answeredAt: p.user_id && prefMap.has(p.user_id) ? (prefMap.get(p.user_id).updated_at ?? prefMap.get(p.user_id).submitted_at) : null,
       })),
     };
   });
