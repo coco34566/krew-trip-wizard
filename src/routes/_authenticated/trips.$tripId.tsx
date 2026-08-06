@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -127,6 +127,11 @@ function TripDetail() {
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="size-4" /> départ {trip.departure_city}
             </span>
+          </div>
+          <div className="mt-4">
+            <Link to="/trips/$tripId/questionnaire" params={{ tripId }}>
+              <Button variant="outline">Répondre à mon questionnaire</Button>
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-2">
