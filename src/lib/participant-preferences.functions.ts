@@ -47,17 +47,42 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
     return { trip: trip.data, preferences: prefs.data ?? null };
   });
 
+export async function attachParticipantToTrip(
+  supabase: any,
+  tripId: string,
+  userId: string,
+  userEmail: string | undefined | null,
+) {
+  if (!userEmail) throw new Error("User email missing from context.claims.email");
+
+  const { data: updatedRows, error: updateError } = await supabase
+    .from("trip_participants")
+    .update({ user_id: userId, status: "accepte" })
+    .match({ trip_id: tripId, email: userEmail, user_id: null })
+    .select();
+
+  if (updateError) throw updateError;
+
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error(`No pending invitation found for email ${userEmail} on trip ${tripId}`);
+  }
+
+  if (updatedRows.length > 1) {
+    throw new Error(
+      `Multiple pending invitations matched for email ${userEmail} on trip ${tripId}`,
+    );
+  }
+
+  return updatedRows[0];
+}
+
 export const submitParticipantPreferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => participantPreferencesSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    await supabase
-      .from("trip_participants")
-      .update({ user_id: userId, status: "accepte" })
-      .eq("trip_id", data.tripId)
-      .is("user_id", null);
+    await attachParticipantToTrip(supabase, data.tripId, userId, context.claims?.email);
 
     const { error } = await supabase.from("trip_participant_preferences").upsert(
       {
@@ -95,11 +120,11 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
     if (participants.error) throw participants.error;
     if (preferences.error) throw preferences.error;
 
-    const answered = new Set((preferences.data ?? []).map((p) => p.user_id));
+    const answered = new Set((preferences.data ?? []).map((p: any) => p.user_id));
     return {
       total: participants.data?.length ?? 0,
       answered: answered.size,
-      participants: (participants.data ?? []).map((p) => ({
+      participants: (participants.data ?? []).map((p: any) => ({
         ...p,
         hasAnswered: p.user_id ? answered.has(p.user_id) : false,
       })),
