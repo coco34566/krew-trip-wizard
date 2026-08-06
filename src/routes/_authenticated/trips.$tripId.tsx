@@ -1,3 +1,4 @@
+// src/routes/_authenticated/trips.$tripId.tsx
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +19,7 @@ import {
   selectRecommendation,
   toggleVote,
 } from "@/lib/trips.functions";
+import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
 import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { cn } from "@/lib/utils";
@@ -58,6 +60,7 @@ function TripDetail() {
   const invite = useServerFn(inviteParticipant);
   const removeGuest = useServerFn(removeParticipant);
   const regenerate = useServerFn(generateRecommendations);
+  const searchExternal = useServerFn(searchExternalForTrip);
   const [email, setEmail] = useState("");
 
   const queryKey = ["trip", tripId];
@@ -93,6 +96,18 @@ function TripDetail() {
     onSuccess: () => {
       toast.success("Nouvelles propositions générées");
       refresh();
+    },
+  });
+
+  const searchExternalMutation = useMutation({
+    mutationFn: () => searchExternal({ data: { tripId } }),
+    onSuccess: (res: any) => {
+      toast.success(`Hébergements importés (${res?.accommodationsCount ?? 0})`);
+      refresh();
+    },
+    onError: (err: any) => {
+      console.error("Recherche externe échouée", err);
+      toast.error("Recherche externe échouée");
     },
   });
 
@@ -139,13 +154,23 @@ function TripDetail() {
             {TRIP_STATUS_LABELS[trip.status] ?? trip.status}
           </Badge>
           {data.isOwner ? (
-            <Button
-              variant="glass"
-              onClick={() => regenerateMutation.mutate()}
-              disabled={regenerateMutation.isPending}
-            >
-              {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />} Regénérer
-            </Button>
+            <>
+              <Button
+                variant="glass"
+                onClick={() => regenerateMutation.mutate()}
+                disabled={regenerateMutation.isPending}
+              >
+                {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />} Regénérer
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => searchExternalMutation.mutate()}
+                disabled={searchExternalMutation.isPending}
+              >
+                {searchExternalMutation.isPending ? <Loader2 className="animate-spin" /> : <MapPin />} Rechercher hébergements & activités
+              </Button>
+            </>
           ) : null}
         </div>
       </div>
@@ -214,7 +239,7 @@ function TripDetail() {
                       </p>
                       <p className="text-sm text-muted-foreground">
                         <Star className="mr-1 inline size-3.5" />
-                        {reco.accommodations.rating} · à {reco.accommodations.distance_center_km} km du centre ·{" "}
+                        {reco.accommodations.rating} · à {reco.accommodations.distance_center_km} km du centre · {" "}
                         {formatEuro(Number(reco.accommodations.price_per_night_per_person))} / nuit / pers.
                       </p>
                     </div>
