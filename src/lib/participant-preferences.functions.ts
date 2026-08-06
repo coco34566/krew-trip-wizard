@@ -30,11 +30,25 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
 
     const trip = await supabase
       .from("trips")
-      .select("id, name, event_type, departure_city")
+      .select("id, name, event_type, departure_city, owner_id")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
+
+    // Authorization: only the trip owner or a participant (by user_id or email) can access the questionnaire
+    const email = context.claims?.email as string | undefined;
+    if (trip.data.owner_id !== userId) {
+      if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire (email manquant)");
+      const participantCheck = await supabase
+        .from("trip_participants")
+        .select("id, user_id, email")
+        .eq("trip_id", data.tripId)
+        .or(`user_id.eq.${userId},email.eq.${email}`)
+        .maybeSingle();
+      if (participantCheck.error) throw participantCheck.error;
+      if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire");
+    }
 
     const prefs = await supabase
       .from("trip_participant_preferences")
