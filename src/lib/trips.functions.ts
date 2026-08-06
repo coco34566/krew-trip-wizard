@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildProposals } from "@/lib/krew/engine";
 import { loadTravelCatalog } from "@/lib/krew/providers.server";
-import { tripInputSchema, buildScoringContext, serializeProposal } from "@/lib/krew/trip-service";
+import { tripInputSchema, buildScoringContext, serializeProposal, aggregateParticipantPreferences } from "@/lib/krew/trip-service";
 
 export const listMyTrips = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -130,13 +130,33 @@ export const generateRecommendations = createServerFn({ method: "POST" })
     ]);
     if (trip.error) throw trip.error;
 
-    const ctx = buildScoringContext(trip.data, preferences.data);
+    // Use aggregated participant preferences when available
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    let prefsToUse = preferences.data ?? null;
+    if (aggregated.participantsCount && aggregated.participantsCount > 0) {
+      prefsToUse = {
+        ...preferences.data,
+        ambiance_frequencies: aggregated.ambianceFrequencies,
+        activity_category_frequencies: aggregated.activityCategoryFrequencies,
+        max_budget: aggregated.aggregatedBudget ?? preferences.data?.max_budget ?? trip.data.budget_per_person,
+        duration_nights: preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
+        required_amenities: aggregated.requiredAmenities,
+        min_accommodation_rating: aggregated.minAccommodationRating,
+        travel_pace: aggregated.medianTravelPace,
+      } as any;
+    }
+
+    const ctx = buildScoringContext(trip.data, prefsToUse);
     const catalog = await loadTravelCatalog(supabase, {
       maxDistanceKm: ctx.maxDistanceKm,
       excludedCountries: ctx.excludedCountries,
       participants: ctx.participants,
       nights: ctx.nights,
       startDate: trip.data.start_date,
+      // pass-through aggregation hints
+      dateFlexDays: aggregated.dateFlexDays ?? undefined,
+      requiredAmenities: aggregated.requiredAmenities ?? undefined,
+      minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
     });
     const proposals = buildProposals(catalog, ctx, 3);
 
