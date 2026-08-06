@@ -96,6 +96,24 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    // Authorization: ensure the user is owner or a listed participant (by user_id or email)
+    const tripRes = await supabase.from("trips").select("id, owner_id").eq("id", data.tripId).maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+
+    const email = context.claims?.email as string | undefined;
+    if (tripRes.data.owner_id !== userId) {
+      if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire (email manquant)");
+      const participantCheck = await supabase
+        .from("trip_participants")
+        .select("id")
+        .eq("trip_id", data.tripId)
+        .or(`user_id.eq.${userId},email.eq.${email}`)
+        .maybeSingle();
+      if (participantCheck.error) throw participantCheck.error;
+      if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire");
+    }
+
     await attachParticipantToTrip(supabase, data.tripId, userId, context.claims?.email);
 
     const { error } = await supabase.from("trip_participant_preferences").upsert(
