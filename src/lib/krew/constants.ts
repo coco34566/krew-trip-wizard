@@ -79,6 +79,27 @@ export function categoryLabel(value: string) {
   return ACTIVITY_CATEGORIES.find((a) => a.value === value)?.label ?? value;
 }
 
+// Nouveaux référentiels pour les champs ajoutés
+export const TRAVEL_PACE = [
+  { value: "plein_programme", label: "Plein programme" },
+  { value: "equilibre", label: "Équilibré" },
+  { value: "chill", label: "Chill" },
+] as const;
+
+export const TIME_SLOTS = [
+  { value: "matin", label: "Matin" },
+  { value: "apres_midi", label: "Après-midi" },
+  { value: "soir", label: "Soir" },
+] as const;
+
+export const AMENITIES = [
+  { value: "piscine", label: "Piscine" },
+  { value: "climatisation", label: "Climatisation" },
+  { value: "cuisine", label: "Cuisine" },
+  { value: "acces_pmr", label: "Accès PMR" },
+  { value: "ascenseur", label: "Ascenseur" },
+] as const;
+
 export const formatEuro = (value: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(
     Math.round(value),
