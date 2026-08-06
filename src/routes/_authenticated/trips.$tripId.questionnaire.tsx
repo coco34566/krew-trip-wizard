@@ -87,7 +87,15 @@ function ParticipantQuestionnaire() {
           setFreeText(preferences.free_text ?? "");
         }
       })
-      .catch((e) => toast.error(e.message ?? "Impossible de charger le questionnaire"))
+      .catch((e: any) => {
+        // If server returned a 403-like error, show a clear message and redirect
+        if (typeof e?.message === "string" && e.message.startsWith("403 Forbidden")) {
+          toast.error("Vous n'êtes pas autorisé·e à accéder à ce questionnaire.");
+          navigate({ to: "/trips" });
+          return;
+        }
+        toast.error(e?.message ?? "Impossible de charger le questionnaire");
+      })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
@@ -117,7 +125,12 @@ function ParticipantQuestionnaire() {
       });
       toast.success("Tes réponses sont enregistrées !");
       navigate({ to: "/trips/$tripId", params: { tripId } });
-    } catch (e) {
+    } catch (e: any) {
+      if (typeof e?.message === "string" && e.message.startsWith("403 Forbidden")) {
+        toast.error("Vous n'êtes pas autorisé·e à soumettre ce questionnaire.");
+        navigate({ to: "/trips" });
+        return;
+      }
       toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement");
     } finally {
       setSubmitting(false);
