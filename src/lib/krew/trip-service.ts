@@ -54,7 +54,7 @@ type PreferencesRow = {
   max_budget: number | null;
 } | null;
 
-export function buildScoringContext(trip: TripRow, prefs: PreferencesRow): ScoringContext {
+export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Record<string, any>): ScoringContext {
   const startMonth = trip.start_date
     ? new Date(trip.start_date).getMonth() + 1
     : new Date().getMonth() + 1;
@@ -70,6 +70,14 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow): Scori
     letKrewDecide: prefs?.let_krew_decide ?? true,
     needsCityCenter: prefs?.needs_city_center ?? true,
     startMonth,
+    travelPace: prefs?.travel_pace ?? null,
+    dateFlexDays: prefs?.date_flex_days ?? null,
+    minAccommodationRating:
+      prefs?.min_accommodation_rating != null ? Number(prefs.min_accommodation_rating) : null,
+    minGroupBudget: prefs?.min_group_budget != null ? Number(prefs.min_group_budget) : null,
+    dealBreakerAmbiances: prefs?.deal_breaker_ambiances ?? [],
+    dealBreakerDestinations: prefs?.deal_breaker_destinations ?? [],
+    individualPreferences: prefs?.individual_preferences ?? [],
   };
 }
 
@@ -99,6 +107,8 @@ type ParticipantPrefRow = {
   duration_nights_max: number | null;
   desired_destination: string | null;
   departure_city: string | null;
+  excluded_destinations: string[] | null;
+  deal_breaker_ambiances: string[] | null;
 };
 
 function frequencies(values: string[]): Record<string, number> {
@@ -127,7 +137,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "ambiances, activity_categories, budget_max, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city",
+      "ambiances, activity_categories, budget_max, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances",
     )
     .eq("trip_id", tripId);
   if (res.error) throw res.error;
@@ -168,6 +178,26 @@ export async function aggregateParticipantPreferences(
       .sort((a, b) => b[1] - a[1])
       .map(([key]) => key);
 
+  const dealBreakerAmbiances = Array.from(
+    new Set(rows.flatMap((r) => r.deal_breaker_ambiances ?? []).filter(Boolean)),
+  );
+  const dealBreakerDestinations = Array.from(
+    new Set(
+      rows
+        .flatMap((r) => r.excluded_destinations ?? [])
+        .map((s) => String(s).trim())
+        .filter(Boolean),
+    ),
+  );
+
+  const individualPreferences = rows.map((r) => ({
+    ambiances: r.ambiances ?? [],
+    activityCategories: r.activity_categories ?? [],
+    budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
+    dealBreakerAmbiances: r.deal_breaker_ambiances ?? [],
+    dealBreakerDestinations: (r.excluded_destinations ?? []).map((s) => String(s).trim()).filter(Boolean),
+  }));
+
   return {
     participantsCount: rows.length,
     ambianceFrequencies,
@@ -175,6 +205,8 @@ export async function aggregateParticipantPreferences(
     ambiances: byFrequency(ambianceFrequencies).slice(0, 4),
     activityCategories: byFrequency(activityCategoryFrequencies),
     aggregatedBudget: budgets.length ? Math.round(median(budgets) as number) : null,
+    /** Budget du participant le plus contraint. */
+    minGroupBudget: budgets.length ? Math.round(Math.min(...budgets)) : null,
     minAccommodationRating: ratings.length ? Math.max(...ratings) : null,
     requiredAmenities: Array.from(new Set(rows.flatMap((r) => r.required_amenities ?? []))),
     medianTravelPace: byFrequency(paceFreq)[0] ?? null,
@@ -182,6 +214,9 @@ export async function aggregateParticipantPreferences(
     desiredDestination: byFrequency(destinationFrequencies)[0] ?? null,
     /** Villes de départ distinctes avec effectif (questionnaires individuels). */
     departureOrigins,
+    dealBreakerAmbiances,
+    dealBreakerDestinations,
+    individualPreferences,
   };
 }
 
@@ -274,6 +309,11 @@ export async function generateRecommendationsForTrip(
       required_amenities: aggregated.requiredAmenities,
       min_accommodation_rating: aggregated.minAccommodationRating,
       travel_pace: aggregated.medianTravelPace,
+      date_flex_days: aggregated.dateFlexDays,
+      min_group_budget: aggregated.minGroupBudget,
+      deal_breaker_ambiances: aggregated.dealBreakerAmbiances,
+      deal_breaker_destinations: aggregated.dealBreakerDestinations,
+      individual_preferences: aggregated.individualPreferences,
     } as any;
   }
 
