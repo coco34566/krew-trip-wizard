@@ -313,12 +313,19 @@ function ParticipantQuestionnaire() {
           <div>
             <Label className="mb-2 block">Budget max par personne : {formatEuro(budgetMax)} *</Label>
             <Slider
-              min={100}
-              max={3000}
-              step={50}
+              min={150}
+              max={1500}
+              step={25}
               value={[budgetMax]}
               onValueChange={([v]) => setBudgetMax(v ?? budgetMax)}
             />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[250, 400, 600, 900].map((n) => (
+                <Chip key={n} active={budgetMax === n} onClick={() => setBudgetMax(n)}>
+                  {n} €
+                </Chip>
+              ))}
+            </div>
           </div>
           <div>
             <Label className="mb-2 block">Ce budget, c&apos;est plutôt…</Label>
@@ -346,7 +353,7 @@ function ParticipantQuestionnaire() {
             </Label>
             <Slider
               min={1}
-              max={14}
+              max={10}
               step={1}
               value={durationNights}
               onValueChange={(v) => {
