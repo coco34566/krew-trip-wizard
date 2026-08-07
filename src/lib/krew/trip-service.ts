@@ -75,9 +75,20 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Recor
     minAccommodationRating:
       prefs?.min_accommodation_rating != null ? Number(prefs.min_accommodation_rating) : null,
     minGroupBudget: prefs?.min_group_budget != null ? Number(prefs.min_group_budget) : null,
+    vetoBudgetMax: prefs?.veto_budget_max != null ? Number(prefs.veto_budget_max) : null,
+    hasBudgetVeto: Boolean(prefs?.has_budget_veto),
     dealBreakerAmbiances: prefs?.deal_breaker_ambiances ?? [],
     dealBreakerDestinations: prefs?.deal_breaker_destinations ?? [],
     individualPreferences: prefs?.individual_preferences ?? [],
+    dietaryConstraints: prefs?.dietary_constraints ?? [],
+    preferredTimeSlots: prefs?.preferred_time_slots ?? [],
+    acceptsSharedRoom: prefs?.accepts_shared_room ?? true,
+    roomTypePreferences: prefs?.room_type_preferences ?? [],
+    needsAccessibility: Boolean(prefs?.needs_accessibility),
+    maxTravelDurationHours:
+      prefs?.max_travel_duration_hours != null ? Number(prefs.max_travel_duration_hours) : null,
+    planeRefused: Boolean(prefs?.plane_refused),
+    blackoutDates: prefs?.blackout_dates ?? [],
   };
 }
 
@@ -96,9 +107,11 @@ export function serializeProposal(tripId: string, proposal: Proposal) {
 }
 
 type ParticipantPrefRow = {
+  user_id?: string | null;
   ambiances: string[] | null;
   activity_categories: string[] | null;
   budget_max: number | string | null;
+  budget_priority: string | null;
   date_flex_days: number | null;
   required_amenities: string[] | null;
   min_accommodation_rating: number | string | null;
@@ -109,6 +122,16 @@ type ParticipantPrefRow = {
   departure_city: string | null;
   excluded_destinations: string[] | null;
   deal_breaker_ambiances: string[] | null;
+  accepts_shared_room: boolean | null;
+  room_type_preference: string | null;
+  preferred_time_slots: string[] | null;
+  dietary_constraints: string[] | null;
+  mobility_notes: string | null;
+  accessibility_needs: boolean | null;
+  departure_airport_or_station: string | null;
+  transport_mode_accepted: string[] | null;
+  max_travel_duration_hours: number | string | null;
+  blackout_dates: string[] | null;
 };
 
 function frequencies(values: string[]): Record<string, number> {
@@ -137,7 +160,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "ambiances, activity_categories, budget_max, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances",
+      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates",
     )
     .eq("trip_id", tripId);
   if (res.error) throw res.error;
@@ -190,13 +213,93 @@ export async function aggregateParticipantPreferences(
     ),
   );
 
+  // Veto budget : si un participant a budget_priority = veto, son budget_max est un plafond dur
+  const vetoBudgets = rows
+    .filter((r) => String(r.budget_priority ?? "").toLowerCase() === "veto")
+    .map((r) => Number(r.budget_max ?? 0))
+    .filter((n) => n > 0);
+  const vetoBudgetMax = vetoBudgets.length ? Math.min(...vetoBudgets) : null;
+  const hasBudgetVeto = vetoBudgets.length > 0;
+
+  const dietaryConstraints = Array.from(
+    new Set(rows.flatMap((r) => r.dietary_constraints ?? []).filter(Boolean)),
+  );
+  const preferredTimeSlots = (() => {
+    const freq: Record<string, number> = {};
+    for (const r of rows) for (const s of r.preferred_time_slots ?? []) freq[s] = (freq[s] ?? 0) + 1;
+    return Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k]) => k);
+  })();
+
+  const acceptsSharedRoom = rows.length
+    ? rows.every((r) => r.accepts_shared_room === true)
+    : true;
+  const roomTypePreferences = Array.from(
+    new Set(rows.map((r) => r.room_type_preference).filter((x): x is string => Boolean(x))),
+  );
+  const needsAccessibility =
+    rows.some((r) => r.accessibility_needs === true) ||
+    rows.some((r) => Boolean((r.mobility_notes ?? "").trim()));
+
+  const maxTravelHoursList = rows
+    .map((r) => Number(r.max_travel_duration_hours ?? 0))
+    .filter((n) => n > 0);
+  const maxTravelDurationHours = maxTravelHoursList.length
+    ? Math.min(...maxTravelHoursList)
+    : null;
+
+  const transportModes = Array.from(
+    new Set(rows.flatMap((r) => r.transport_mode_accepted ?? []).filter(Boolean)),
+  );
+  // Si quelqu'un n'accepte que le train, le groupe doit en tenir compte
+  const planeRefused = rows.some((r) => {
+    const modes = (r.transport_mode_accepted ?? []).map((m) => m.toLowerCase());
+    return modes.length > 0 && !modes.includes("avion") && !modes.includes("peu importe");
+  });
+
+  const blackoutDates = Array.from(
+    new Set(rows.flatMap((r) => (r.blackout_dates ?? []).map((d) => String(d).slice(0, 10)))),
+  ).sort();
+
+  const departureStations = rows
+    .map((r) => ({
+      city: (r.departure_city ?? "").trim(),
+      station: (r.departure_airport_or_station ?? "").trim(),
+    }))
+    .filter((x) => x.city || x.station);
+
   const individualPreferences = rows.map((r) => ({
     ambiances: r.ambiances ?? [],
     activityCategories: r.activity_categories ?? [],
     budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
+    budgetPriority: r.budget_priority ?? "preference",
     dealBreakerAmbiances: r.deal_breaker_ambiances ?? [],
-    dealBreakerDestinations: (r.excluded_destinations ?? []).map((s) => String(s).trim()).filter(Boolean),
+    dealBreakerDestinations: (r.excluded_destinations ?? [])
+      .map((s) => String(s).trim())
+      .filter(Boolean),
+    transportModes: r.transport_mode_accepted ?? ["peu importe"],
+    maxTravelHours: Number(r.max_travel_duration_hours ?? 0) || null,
   }));
+
+  // Incohérences détectées (pour l'organisateur)
+  const inconsistencies: { userId: string | null; message: string }[] = [];
+  for (const r of rows) {
+    const desired = (r.desired_destination ?? "").trim();
+    const excluded = (r.excluded_destinations ?? []).map((s) => String(s).trim().toLowerCase());
+    if (desired && excluded.some((e) => e && desired.toLowerCase().includes(e))) {
+      inconsistencies.push({
+        userId: r.user_id ?? null,
+        message: `destination souhaitée « ${desired} » aussi dans les exclusions`,
+      });
+    }
+    if (String(r.budget_priority ?? "").toLowerCase() === "veto" && !(Number(r.budget_max) > 0)) {
+      inconsistencies.push({
+        userId: r.user_id ?? null,
+        message: `veto budget sans budget_max renseigné`,
+      });
+    }
+  }
 
   return {
     participantsCount: rows.length,
@@ -205,18 +308,32 @@ export async function aggregateParticipantPreferences(
     ambiances: byFrequency(ambianceFrequencies).slice(0, 4),
     activityCategories: byFrequency(activityCategoryFrequencies),
     aggregatedBudget: budgets.length ? Math.round(median(budgets) as number) : null,
-    /** Budget du participant le plus contraint. */
     minGroupBudget: budgets.length ? Math.round(Math.min(...budgets)) : null,
+    /** Plafond veto (prioritaire sur médiane pour hardBudgetFits). */
+    vetoBudgetMax,
+    hasBudgetVeto,
     minAccommodationRating: ratings.length ? Math.max(...ratings) : null,
     requiredAmenities: Array.from(new Set(rows.flatMap((r) => r.required_amenities ?? []))),
     medianTravelPace: byFrequency(paceFreq)[0] ?? null,
     dateFlexDays: flex.length ? Math.min(...flex) : null,
     desiredDestination: byFrequency(destinationFrequencies)[0] ?? null,
-    /** Villes de départ distinctes avec effectif (questionnaires individuels). */
     departureOrigins,
     dealBreakerAmbiances,
     dealBreakerDestinations,
     individualPreferences,
+    dietaryConstraints,
+    preferredTimeSlots,
+    acceptsSharedRoom,
+    roomTypePreferences,
+    needsAccessibility,
+    maxTravelDurationHours,
+    transportModes,
+    planeRefused,
+    blackoutDates,
+    departureStations,
+    inconsistencies,
+    vetoCount: vetoBudgets.length,
+    exclusionCount: dealBreakerDestinations.length,
   };
 }
 
@@ -277,10 +394,108 @@ async function enrichCatalogWithExternalApis(
   return providerErrors;
 }
 
+
+export type GenerationReadiness = {
+  canGenerate: boolean;
+  answered: number;
+  expected: number;
+  missingLabels: string[];
+  inconsistencies: { userId: string | null; message: string }[];
+  quality: {
+    answered: number;
+    expected: number;
+    vetoCount: number;
+    exclusionCount: number;
+    hasBudgetVeto: boolean;
+    dealBreakerAmbiances: number;
+  };
+  message?: string;
+};
+
+const MIN_ANSWERS = 2;
+const MIN_ANSWER_RATIO = 0.4;
+
+export async function assessGenerationReadiness(
+  supabase: SupabaseClient,
+  tripId: string,
+): Promise<GenerationReadiness> {
+  const [trip, participants, prefs, aggregated] = await Promise.all([
+    supabase.from("trips").select("participants_count").eq("id", tripId).single(),
+    supabase
+      .from("trip_participants")
+      .select("id, user_id, email, display_name, status")
+      .eq("trip_id", tripId),
+    supabase.from("trip_participant_preferences").select("user_id").eq("trip_id", tripId),
+    aggregateParticipantPreferences(supabase, tripId),
+  ]);
+  if (trip.error) throw trip.error;
+  if (participants.error) throw participants.error;
+  if (prefs.error) throw prefs.error;
+
+  const expected = Math.max(
+    Number(trip.data?.participants_count) || 0,
+    (participants.data ?? []).length,
+    1,
+  );
+  const answeredIds = new Set(
+    (prefs.data ?? []).map((p: any) => p.user_id).filter(Boolean),
+  );
+  const answered = answeredIds.size;
+
+  const missingLabels = (participants.data ?? [])
+    .filter((p: any) => p.user_id && !answeredIds.has(p.user_id))
+    .map((p: any) => p.display_name || p.email || "Participant")
+    .concat(
+      // places non encore rattachées
+      (participants.data ?? [])
+        .filter((p: any) => !p.user_id)
+        .map((p: any) => `${p.email || "invité"} (pas encore rejoint)`),
+    );
+
+  // Aussi compter les "places" attendues non pourvues
+  const stillNeeded = Math.max(0, expected - answered);
+
+  const minRequired = Math.max(MIN_ANSWERS, Math.ceil(expected * MIN_ANSWER_RATIO));
+  let canGenerate = answered >= minRequired;
+  let message: string | undefined;
+  if (!canGenerate) {
+    message = `En attente de plus de réponses (min. ${minRequired}, ${answered} reçue${answered > 1 ? "s" : ""}).`;
+  }
+
+  return {
+    canGenerate,
+    answered,
+    expected,
+    missingLabels: missingLabels.slice(0, 20),
+    inconsistencies: aggregated.inconsistencies ?? [],
+    quality: {
+      answered,
+      expected,
+      vetoCount: aggregated.vetoCount ?? 0,
+      exclusionCount: aggregated.exclusionCount ?? 0,
+      hasBudgetVeto: Boolean(aggregated.hasBudgetVeto),
+      dealBreakerAmbiances: (aggregated.dealBreakerAmbiances ?? []).length,
+    },
+    message,
+  };
+}
+
 export async function generateRecommendationsForTrip(
   supabase: SupabaseClient,
   tripId: string,
+  options?: { force?: boolean },
 ) {
+  const readiness = await assessGenerationReadiness(supabase, tripId);
+  if (!options?.force && !readiness.canGenerate) {
+    return {
+      count: 0,
+      skipped: true,
+      readiness,
+      providerErrors: [] as string[],
+      shortlist: [] as string[],
+    };
+  }
+
   const [trip, preferences] = await Promise.all([
     supabase.from("trips").select("*").eq("id", tripId).single(),
     supabase.from("trip_preferences").select("*").eq("trip_id", tripId).maybeSingle(),
@@ -310,10 +525,30 @@ export async function generateRecommendationsForTrip(
       min_accommodation_rating: aggregated.minAccommodationRating,
       travel_pace: aggregated.medianTravelPace,
       date_flex_days: aggregated.dateFlexDays,
-      min_group_budget: aggregated.minGroupBudget,
+      min_group_budget: aggregated.vetoBudgetMax ?? aggregated.minGroupBudget,
+      veto_budget_max: aggregated.vetoBudgetMax,
+      has_budget_veto: aggregated.hasBudgetVeto,
       deal_breaker_ambiances: aggregated.dealBreakerAmbiances,
       deal_breaker_destinations: aggregated.dealBreakerDestinations,
       individual_preferences: aggregated.individualPreferences,
+      dietary_constraints: aggregated.dietaryConstraints,
+      preferred_time_slots: aggregated.preferredTimeSlots,
+      accepts_shared_room: aggregated.acceptsSharedRoom,
+      room_type_preferences: aggregated.roomTypePreferences,
+      needs_accessibility: aggregated.needsAccessibility,
+      needs_city_center: aggregated.needsAccessibility
+        ? true
+        : preferences.data?.needs_city_center ?? true,
+      max_travel_duration_hours: aggregated.maxTravelDurationHours,
+      plane_refused: aggregated.planeRefused,
+      blackout_dates: aggregated.blackoutDates,
+      // Distance max resserrée si durée trajet max renseignée (~80 km/h équivalent)
+      max_distance_km: aggregated.maxTravelDurationHours
+        ? Math.min(
+            Number(preferences.data?.max_distance_km ?? 2000),
+            Math.round(Number(aggregated.maxTravelDurationHours) * 90),
+          )
+        : preferences.data?.max_distance_km ?? undefined,
     } as any;
   }
 
@@ -326,6 +561,15 @@ export async function generateRecommendationsForTrip(
   }
 
   const ctx = buildScoringContext(trip.data, prefsToUse);
+  // Fusion exclusions individuelles + trip-level
+  const mergedExcluded = Array.from(
+    new Set([
+      ...(ctx.excludedCountries ?? []),
+      ...(aggregated.dealBreakerDestinations ?? []),
+    ]),
+  );
+  ctx.excludedCountries = mergedExcluded;
+  if (aggregated.needsAccessibility) ctx.needsCityCenter = true;
   const catalogQuery = {
     maxDistanceKm: ctx.maxDistanceKm,
     excludedCountries: ctx.excludedCountries,
@@ -554,5 +798,6 @@ export async function generateRecommendationsForTrip(
     apiAccommodations: apiAccIds.size,
     transportQuotes: Object.keys(transportByDestinationId).length,
     departureOrigins: originsForQuote,
+    readiness,
   };
 }
