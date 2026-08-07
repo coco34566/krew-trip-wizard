@@ -76,6 +76,12 @@ const AuthenticatedTripsNewRoute = AuthenticatedTripsNewRouteImport.update({
   path: '/trips/new',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTripsTripIdIndexRoute =
+  AuthenticatedTripsTripIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
 const AuthenticatedTripsTripIdQuestionnaireRoute =
   AuthenticatedTripsTripIdQuestionnaireRouteImport.update({
     id: '/questionnaire',
