@@ -83,7 +83,7 @@ export function serializeProposal(tripId: string, proposal: Proposal) {
     activity_ids: proposal.activities.map((a) => a.id),
   };
 }
-/** Réponse individuelle au questionnaire (colonnes de `trip_participant_preferences`). */
+
 type ParticipantPrefRow = {
   ambiances: string[] | null;
   activity_categories: string[] | null;
@@ -150,23 +150,20 @@ export async function aggregateParticipantPreferences(
     activityCategoryFrequencies,
     ambiances: byFrequency(ambianceFrequencies).slice(0, 4),
     activityCategories: byFrequency(activityCategoryFrequencies),
-    /** Budget du groupe : le plus contraignant raisonnable (médiane basse). */
     aggregatedBudget: budgets.length ? Math.round(median(budgets) as number) : null,
     minAccommodationRating: ratings.length ? Math.max(...ratings) : null,
     requiredAmenities: Array.from(new Set(rows.flatMap((r) => r.required_amenities ?? []))),
     medianTravelPace: byFrequency(paceFreq)[0] ?? null,
     dateFlexDays: flex.length ? Math.min(...flex) : null,
-    /** Destination la plus citée parmi les réponses individuelles (mode). */
     desiredDestination: byFrequency(destinationFrequencies)[0] ?? null,
   };
 }
 
 /**
- * Résout la destination souhaitée d'un voyage :
- * 1. celle saisie par l'organisateur à la création (`trip_preferences`) ;
- * 2. sinon, la plus citée dans les questionnaires individuels des participants.
- * Renvoie `null` si personne n'a exprimé de destination précise (le groupe
- * laisse Krew décider).
+ * Résout la destination souhaitée :
+ * 1. trip_preferences (organisateur)
+ * 2. recommandation validée (is_selected)
+ * 3. mode des questionnaires participants
  */
 export async function resolveDesiredDestination(
   supabase: { from: (table: string) => any },
@@ -180,8 +177,43 @@ export async function resolveDesiredDestination(
   if (prefsRes.error) throw prefsRes.error;
   if (prefsRes.data?.desired_destination) return prefsRes.data.desired_destination as string;
 
+  const selectedRes = await supabase
+    .from("recommendations")
+    .select("destinations(name)")
+    .eq("trip_id", tripId)
+    .eq("is_selected", true)
+    .maybeSingle();
+  if (selectedRes.error) throw selectedRes.error;
+  const selectedName = (selectedRes.data as any)?.destinations?.name;
+  if (typeof selectedName === "string" && selectedName.trim()) return selectedName.trim();
+
   const aggregated = await aggregateParticipantPreferences(supabase, tripId);
   return aggregated.desiredDestination;
+}
+
+/** Enrichit le catalogue via les APIs pour une liste de destinations (max 5). */
+async function enrichCatalogWithExternalApis(
+  supabase: SupabaseClient,
+  tripId: string,
+  destinationNames: string[],
+): Promise<string[]> {
+  if (!destinationNames.length) return [];
+
+  const { refreshExternalCatalogForTrip } = await import("@/lib/external/search-hotels.functions");
+  const providerErrors: string[] = [];
+
+  for (const destName of destinationNames.slice(0, 5)) {
+    try {
+      const externalRes = await refreshExternalCatalogForTrip(supabase, tripId, destName);
+      if (externalRes.providerErrors?.length) {
+        providerErrors.push(...externalRes.providerErrors.map((e) => `${destName}: ${e}`));
+      }
+    } catch (e) {
+      providerErrors.push(`${destName}: ${String(e).slice(0, 200)}`);
+    }
+  }
+
+  return providerErrors;
 }
 
 export async function generateRecommendationsForTrip(
@@ -195,21 +227,8 @@ export async function generateRecommendationsForTrip(
   if (trip.error) throw trip.error;
 
   const aggregated = await aggregateParticipantPreferences(supabase, tripId);
-  const resolvedDestination = preferences.data?.desired_destination || aggregated.desiredDestination || null;
-
-  // Si le groupe vise une destination précise, on rafraîchit d'abord le
-  // catalogue (hôtels Booking/Hotels.com/Kayak + activités réelles) avant de
-  // scorer, pour que les suggestions ne restent pas sur les données de seed.
-  const providerErrors: string[] = [];
-  if (resolvedDestination) {
-    try {
-      const { refreshExternalCatalogForTrip } = await import("@/lib/external/search-hotels.functions");
-      const externalRes = await refreshExternalCatalogForTrip(supabase, tripId, resolvedDestination);
-      if (externalRes.providerErrors?.length) providerErrors.push(...externalRes.providerErrors);
-    } catch (e) {
-      providerErrors.push(`recherche externe: ${String(e).slice(0, 200)}`);
-    }
-  }
+  const resolvedDestination =
+    preferences.data?.desired_destination || aggregated.desiredDestination || null;
 
   let prefsToUse = preferences.data ?? null;
   if (aggregated.participantsCount && aggregated.participantsCount > 0) {
@@ -228,9 +247,7 @@ export async function generateRecommendationsForTrip(
       travel_pace: aggregated.medianTravelPace,
     } as any;
   }
-  // La destination résolue (organisateur ou vote des participants) prime
-  // toujours sur celle de `trip_preferences` seule, et active le filtre de
-  // scoring correspondant même si `let_krew_decide` n'a pas été décoché.
+
   if (resolvedDestination) {
     prefsToUse = {
       ...prefsToUse,
@@ -240,16 +257,30 @@ export async function generateRecommendationsForTrip(
   }
 
   const ctx = buildScoringContext(trip.data, prefsToUse);
-  const catalog = await loadTravelCatalog(supabase, {
+  const catalogQuery = {
     maxDistanceKm: ctx.maxDistanceKm,
     excludedCountries: ctx.excludedCountries,
     participants: ctx.participants,
     nights: ctx.nights,
-    startDate: trip.data.start_date,
+    startDate: trip.data.start_date as string | null,
     dateFlexDays: aggregated.dateFlexDays ?? undefined,
     requiredAmenities: aggregated.requiredAmenities ?? undefined,
     minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
-  });
+  };
+
+  // 1) Shortlist : destination forcée OU top 5 seed scorées sur le profil groupe
+  const seedCatalog = await loadTravelCatalog(supabase, catalogQuery);
+  const shortlistNames: string[] = resolvedDestination
+    ? [resolvedDestination]
+    : buildProposals(seedCatalog, { ...ctx, letKrewDecide: true, desiredDestination: null }, 5).map(
+        (p) => p.destination.name,
+      );
+
+  // 2) Appels API (hôtels + activités + météo) pour chaque candidate
+  const providerErrors = await enrichCatalogWithExternalApis(supabase, tripId, shortlistNames);
+
+  // 3) Catalogue enrichi + scoring final
+  const catalog = await loadTravelCatalog(supabase, catalogQuery);
   const proposals = buildProposals(catalog, ctx, 3);
 
   const deleted = await supabase.from("recommendations").delete().eq("trip_id", tripId);
@@ -264,5 +295,5 @@ export async function generateRecommendationsForTrip(
   const updated = await supabase.from("trips").update({ status: "propositions" }).eq("id", tripId);
   if (updated.error) throw updated.error;
 
-  return { count: rows.length, providerErrors };
+  return { count: rows.length, providerErrors, shortlist: shortlistNames };
 }
