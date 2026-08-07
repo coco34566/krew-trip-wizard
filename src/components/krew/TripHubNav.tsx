@@ -81,15 +81,11 @@ export function TripHubNav({
 
         const routeTo = STEP_ROUTE[step.id];
         if (routeTo) {
+          const href = routeTo.replace("$tripId", tripId);
           return (
-            <Link
-              key={step.id}
-              to={routeTo as any}
-              params={{ tripId }}
-              className="no-underline"
-            >
+            <a key={step.id} href={href} className="no-underline">
               {content}
-            </Link>
+            </a>
           );
         }
 
