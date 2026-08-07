@@ -578,10 +578,10 @@ function TripDetail() {
       </TripHubDashboard>
 
       {/* Résumé live + partage WhatsApp */}
-      <section className="mt-6 rounded-3xl border border-border bg-card p-5 shadow-sm">
+      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
               <Wallet className="size-5 text-primary" />
               Résumé du voyage
             </h2>
@@ -668,9 +668,9 @@ function TripDetail() {
 
 
 
-      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5" id="hub-dates">
+      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24" id="hub-dates">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
             <CalendarDays className="size-5 text-primary" />
             1. Dates du groupe
           </h2>
@@ -790,10 +790,10 @@ function TripDetail() {
       
 
 
-      <section id="hub-destination" className="mt-10 space-y-6">
+      <section id="hub-destination" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-semibold">2. Destinations proposées</h2>
+            <h2 className="font-display text-xl font-semibold tracking-tight">2. Destinations proposées</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Score, budget moyen et activités — votez, l&apos;orga valide.
             </p>
@@ -987,10 +987,10 @@ function TripDetail() {
 
       {/* 3. Planning jour par jour */}
       {destinationSelected ? (
-        <section id="hub-activities-plan" className="mt-10 space-y-4 scroll-mt-24">
+        <section id="hub-activities-plan" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-semibold">3. Planning du séjour</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight">3. Planning du séjour</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Resto, activités et bars pour chaque jour — basé sur les dates, la destination et les préférences.
               </p>
@@ -1033,7 +1033,7 @@ function TripDetail() {
                   key={day.day}
                   className="rounded-3xl border border-border bg-card p-5 shadow-sm"
                 >
-                  <h3 className="font-display text-lg font-semibold">
+                  <h3 className="font-display text-xl font-semibold tracking-tight">
                     Jour {day.day}
                     {day.date
                       ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
@@ -1122,10 +1122,10 @@ function TripDetail() {
 
       {/* 4. Hôtels (vote groupe) */}
       {destinationSelected ? (
-        <section id="hub-logistics" className="mt-10 space-y-4 scroll-mt-24">
+        <section id="hub-logistics" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-semibold">4. Hôtels — vote du groupe</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight">4. Hôtels — vote du groupe</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Chacun vote pour un hébergement. L&apos;orga réserve celui qui a le plus de voix.
               </p>
@@ -1236,10 +1236,10 @@ function TripDetail() {
 
       {/* 5. Transports — choix perso par ville */}
       {destinationSelected ? (
-        <section id="hub-transports" className="mt-10 space-y-4 scroll-mt-24">
+        <section id="hub-transports" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-semibold">5. Transports A/R</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight">5. Transports A/R</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Choisis ton trajet selon ta ville de départ. Les autres venant de la même ville
                 voient ton choix (mode, horaire).
@@ -1282,7 +1282,7 @@ function TripDetail() {
                       key={city}
                       className="rounded-3xl border border-border bg-card p-4 sm:p-5"
                     >
-                      <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+                      <h3 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
                         <Plane className="size-4 text-primary" />
                         Depuis {city}
                       </h3>
@@ -1379,9 +1379,9 @@ function TripDetail() {
 
       {(trip.celebrated_person ||
         ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
-        <section className="mt-6 space-y-3 rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5">
+        <section className="mt-8 space-y-4 rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
+            <h2 className="font-display text-xl font-semibold tracking-tight">Préférences de la star</h2>
             <a
               href={`/trips/${tripId}/star`}
               className="text-sm font-medium text-primary hover:underline"
@@ -1418,8 +1418,8 @@ function TripDetail() {
         </section>
       )}
 
-      <section id="invite-section" className="mt-12 scroll-mt-24">
-        <h2 className="font-display text-2xl font-semibold">Inviter la bande</h2>
+      <section id="invite-section" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+        <h2 className="font-display text-xl font-semibold tracking-tight">Inviter la bande</h2>
         <div className="mt-4 rounded-2xl border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">
             Envoie ce lien (WhatsApp, SMS, Instagram…) — tes amis rejoignent le voyage et répondent au questionnaire.
@@ -1526,7 +1526,7 @@ function TripDetail() {
         </ul>
       </section>
       {data.isOwner && trip.status !== "annule" ? (
-        <section className="mt-16 border-t border-border pt-10">
+        <section className="mt-10 space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">Zone organisateur</p>
           <div className="flex flex-wrap gap-2">
             <Button
