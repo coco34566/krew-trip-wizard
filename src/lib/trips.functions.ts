@@ -80,8 +80,8 @@ export const createTrip = createServerFn({ method: "POST" })
         start_date: data.startDate ?? null,
         end_date: data.endDate ?? null,
         participants_count: data.participants,
-        budget_per_person: data.budgetPerPerson,
-        departure_city: data.departureCity,
+        budget_per_person: data.budgetPerPerson ?? 400,
+        departure_city: data.departureCity || "Paris",
         status: "en_preparation",
       })
       .select("*")
