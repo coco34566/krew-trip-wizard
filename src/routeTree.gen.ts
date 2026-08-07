@@ -22,6 +22,7 @@ import { Route as AuthenticatedTripsNewRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTripsTripIdQuestionnaireRouteImport } from './routes/_authenticated/trips.$tripId.questionnaire'
 import { Route as AuthenticatedTripsTripIdRecapRouteImport } from './routes/_authenticated/trips.$tripId.recap'
 import { Route as AuthenticatedTripsTripIdAvailabilityRouteImport } from './routes/_authenticated/trips.$tripId.availability'
+import { Route as AuthenticatedTripsTripIdStarRouteImport } from './routes/_authenticated/trips.$tripId.star'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -89,6 +90,12 @@ const AuthenticatedTripsTripIdAvailabilityRoute =
   AuthenticatedTripsTripIdAvailabilityRouteImport.update({
     id: '/availability',
     path: '/availability',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdStarRoute =
+  AuthenticatedTripsTripIdStarRouteImport.update({
+    id: '/star',
+    path: '/star',
     getParentRoute: () => AuthenticatedTripsTripIdRoute,
   } as any)
 
@@ -214,6 +221,7 @@ interface AuthenticatedTripsTripIdRouteChildren {
   AuthenticatedTripsTripIdQuestionnaireRoute: typeof AuthenticatedTripsTripIdQuestionnaireRoute
   AuthenticatedTripsTripIdRecapRoute: typeof AuthenticatedTripsTripIdRecapRoute
   AuthenticatedTripsTripIdAvailabilityRoute: typeof AuthenticatedTripsTripIdAvailabilityRoute
+  AuthenticatedTripsTripIdStarRoute: typeof AuthenticatedTripsTripIdStarRoute
 }
 
 const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildren =
@@ -222,6 +230,7 @@ const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildr
       AuthenticatedTripsTripIdQuestionnaireRoute,
     AuthenticatedTripsTripIdRecapRoute: AuthenticatedTripsTripIdRecapRoute,
     AuthenticatedTripsTripIdAvailabilityRoute: AuthenticatedTripsTripIdAvailabilityRoute,
+    AuthenticatedTripsTripIdStarRoute: AuthenticatedTripsTripIdStarRoute,
   }
 
 const AuthenticatedTripsTripIdRouteWithChildren =
