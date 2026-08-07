@@ -82,6 +82,9 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Recor
     dealBreakerAmbiances: prefs?.deal_breaker_ambiances ?? [],
     dealBreakerDestinations: prefs?.deal_breaker_destinations ?? [],
     individualPreferences: prefs?.individual_preferences ?? [],
+    starWantedActivities: prefs?.star_wanted_activities ?? [],
+    starDealBreakers: prefs?.star_deal_breakers ?? [],
+    starWeight: prefs?.star_weight ?? 1,
     dietaryConstraints: prefs?.dietary_constraints ?? [],
     preferredTimeSlots: prefs?.preferred_time_slots ?? [],
     acceptsSharedRoom: prefs?.accepts_shared_room ?? true,
@@ -280,18 +283,66 @@ export async function aggregateParticipantPreferences(
     }))
     .filter((x) => x.city || x.station);
 
-  const individualPreferences = rows.map((r) => ({
-    ambiances: r.ambiances ?? [],
-    activityCategories: r.activity_categories ?? [],
-    budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
-    budgetPriority: r.budget_priority ?? "preference",
-    dealBreakerAmbiances: r.deal_breaker_ambiances ?? [],
-    dealBreakerDestinations: (r.excluded_destinations ?? [])
-      .map((s) => String(s).trim())
-      .filter(Boolean),
-    transportModes: r.transport_mode_accepted ?? ["peu importe"],
-    maxTravelHours: Number(r.max_travel_duration_hours ?? 0) || null,
-  }));
+  // Star : charge préférences + poids
+  let starWantedActivities: string[] = [];
+  let starDealBreakers: string[] = [];
+  let starWeight = 1;
+  let starUserId: string | null = null;
+  let celebratedPerson: string | null = null;
+  try {
+    const tripMeta = await supabase
+      .from("trips")
+      .select("event_type, celebrated_person, has_star, star_user_id")
+      .eq("id", tripId)
+      .maybeSingle();
+    const et = String(tripMeta.data?.event_type ?? "").toLowerCase();
+    celebratedPerson = (tripMeta.data?.celebrated_person as string) || null;
+    starUserId = (tripMeta.data as any)?.star_user_id ?? null;
+    const hasStar =
+      Boolean((tripMeta.data as any)?.has_star) ||
+      Boolean(celebratedPerson) ||
+      ["evg", "evjf", "anniversaire", "retraite"].includes(et);
+    // Poids auto : Star plus forte pour EVG/EVJF/anniv/retraite, égalité sinon
+    if (hasStar && ["evg", "evjf", "anniversaire", "retraite"].includes(et)) {
+      starWeight = et === "anniversaire" ? 2.2 : 2.8;
+    } else {
+      starWeight = 1;
+    }
+    const starPrefs = await supabase
+      .from("trip_star_preferences")
+      .select("*")
+      .eq("trip_id", tripId)
+      .maybeSingle();
+    if (starPrefs.data) {
+      starWantedActivities = starPrefs.data.wanted_activities ?? [];
+      starDealBreakers = starPrefs.data.deal_breakers ?? [];
+      if (!starUserId && starPrefs.data.user_id) starUserId = starPrefs.data.user_id;
+    }
+  } catch {
+    /* table absente → ignore */
+  }
+
+  const individualPreferences = rows.map((r) => {
+    const uid = (r.user_id as string) || null;
+    const isStar =
+      Boolean(starUserId && uid && uid === starUserId) ||
+      // fallback : si un seul participant et celebrated_person → pas de match user
+      false;
+    return {
+      ambiances: r.ambiances ?? [],
+      activityCategories: r.activity_categories ?? [],
+      budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
+      budgetPriority: r.budget_priority ?? "preference",
+      dealBreakerAmbiances: r.deal_breaker_ambiances ?? [],
+      dealBreakerDestinations: (r.excluded_destinations ?? [])
+        .map((s) => String(s).trim())
+        .filter(Boolean),
+      transportModes: r.transport_mode_accepted ?? ["peu importe"],
+      maxTravelHours: Number(r.max_travel_duration_hours ?? 0) || null,
+      isStar,
+      weight: isStar ? starWeight : 1,
+    };
+  });
 
   // Incohérences détectées (pour l'organisateur)
   const inconsistencies: { userId: string | null; message: string }[] = [];
@@ -332,6 +383,10 @@ export async function aggregateParticipantPreferences(
     dealBreakerAmbiances,
     dealBreakerDestinations,
     individualPreferences,
+    starWantedActivities,
+    starDealBreakers,
+    starWeight,
+    celebratedPerson,
     dietaryConstraints,
     preferredTimeSlots,
     acceptsSharedRoom,
@@ -542,6 +597,9 @@ export async function generateRecommendationsForTrip(
       deal_breaker_ambiances: aggregated.dealBreakerAmbiances,
       deal_breaker_destinations: aggregated.dealBreakerDestinations,
       individual_preferences: aggregated.individualPreferences,
+      star_wanted_activities: aggregated.starWantedActivities,
+      star_deal_breakers: aggregated.starDealBreakers,
+      star_weight: aggregated.starWeight,
       dietary_constraints: aggregated.dietaryConstraints,
       preferred_time_slots: aggregated.preferredTimeSlots,
       accepts_shared_room: aggregated.acceptsSharedRoom,
