@@ -518,6 +518,62 @@ function TripDetail() {
         )}
       </section>
 
+
+      {/* Résumé disponibilités du groupe */}
+      <section className="mt-8 space-y-3 rounded-3xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg font-semibold">Disponibilités du groupe</h2>
+          <a
+            href={`/trips/${tripId}/availability`}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            {availData?.mine ? "Modifier mes dispos" : "Indiquer mes dispos"} →
+          </a>
+        </div>
+        {(availData as any)?.schemaMissing ? (
+          <p className="text-sm text-destructive">
+            Table dispos absente en base — exécute le SQL trip_availability dans Lovable.
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1} personnes
+              ont répondu
+              {availData?.windows?.[0]
+                ? ` · meilleure date : ${new Date(availData.windows[0].start).toLocaleDateString("fr-FR")} → ${new Date(availData.windows[0].end).toLocaleDateString("fr-FR")} (${Math.round((availData.windows[0].coverageRatio ?? 0) * 100)} %)`
+                : " · pas encore de date commune"}
+            </p>
+            <ul className="space-y-2">
+              {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
+                <li
+                  key={`${w.start}-${w.end}`}
+                  className="rounded-2xl border border-border/70 bg-surface/30 px-4 py-3 text-sm"
+                >
+                  <p className="font-medium">
+                    {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
+                    {new Date(w.start).toLocaleDateString("fr-FR")} →{" "}
+                    {new Date(w.end).toLocaleDateString("fr-FR")}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {w.covered}/{w.total} peuvent
+                    </span>
+                  </p>
+                  {(w.availablePeople?.length ?? 0) > 0 ? (
+                    <p className="mt-1 text-xs text-lagoon">
+                      ✅ {w.availablePeople.map((p: any) => p.name).join(", ")}
+                    </p>
+                  ) : null}
+                  {(w.unavailablePeople?.length ?? 0) > 0 ? (
+                    <p className="mt-0.5 text-xs text-destructive/90">
+                      ❌ {w.unavailablePeople.map((p: any) => p.name).join(", ")}
+                    </p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+
       <section id="invite-section" className="mt-12 scroll-mt-24">
         <h2 className="font-display text-2xl font-semibold">Inviter la bande</h2>
         <div className="mt-4 rounded-2xl border border-border bg-card p-4">
