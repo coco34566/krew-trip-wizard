@@ -933,7 +933,7 @@ function TripDetail() {
             <div>
               <h2 className="font-display text-2xl font-semibold">5. Hôtels & transports</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Offres scorées selon budget, type de chambre, départ de chacun et refus avion.
+                Plusieurs hôtels + A/R avion, train, bus et voiture avec prix indicatifs et liens de réservation.
               </p>
             </div>
             {data.isOwner ? (
@@ -1052,7 +1052,11 @@ function TripDetail() {
                             </span>
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {tr.label} · {tr.mode}
+                            <span className="font-medium text-foreground/80">
+                              {tr.modeLabel || tr.mode}
+                            </span>
+                            {" · "}
+                            {tr.label}
                           </p>
                           {tr.note ? (
                             <p className="text-xs text-amber-700 dark:text-amber-400">{tr.note}</p>
