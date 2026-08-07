@@ -307,27 +307,57 @@ function activitiesPerDayForPace(travelPace?: string | null): number {
  * Couverture de catégories d'abord : 1 activité min par wantedCategory si budget le permet,
  * puis complétion par note.
  */
+function activityMatchScore(
+  a: ActivityRecord,
+  wantedCategories: string[],
+  starWanted: string[],
+): number {
+  let s = Number(a.rating ?? 0) * 0.15;
+  if (wantedCategories.includes(a.category)) s += 1.2;
+  const blob = `${a.name} ${a.category}`.toLowerCase();
+  for (const w of starWanted) {
+    const needle = String(w).toLowerCase().replace(/_/g, " ");
+    if (!needle) continue;
+    if (blob.includes(needle) || a.category === w) s += 2.0; // Star prioritaire
+    else if (needle.split(" ").some((tok) => tok.length > 3 && blob.includes(tok))) s += 1.0;
+  }
+  return s;
+}
+
+/**
+ * Phase 2 scoring — activités :
+ * maximise la couverture des catégories groupe + boost des envies Star, dans le budget restant.
+ */
 function pickActivities(
   pool: ActivityRecord[],
   wantedCategories: string[],
   nights: number,
   budgetForActivities: number,
   travelPace?: string | null,
+  starWantedActivities?: string[] | null,
 ): ActivityRecord[] {
   const perDay = activitiesPerDayForPace(travelPace);
   const maxCount = Math.max(perDay, (nights + 1) * perDay - (travelPace === "chill" ? 1 : 0));
   const picked: ActivityRecord[] = [];
   let spent = 0;
   const used = new Set<string>();
+  const starWanted = starWantedActivities ?? [];
 
-  const byRating = (a: ActivityRecord, b: ActivityRecord) => b.rating - a.rating;
+  const rank = (a: ActivityRecord, b: ActivityRecord) =>
+    activityMatchScore(b, wantedCategories, starWanted) -
+    activityMatchScore(a, wantedCategories, starWanted);
 
-  // Phase 1 — couverture
-  for (const cat of wantedCategories) {
+  // 1) Priorité aux envies Star (si renseignées)
+  for (const w of starWanted) {
     if (picked.length >= maxCount) break;
+    const needle = String(w).toLowerCase().replace(/_/g, " ");
     const candidates = pool
-      .filter((a) => a.category === cat && !used.has(a.id))
-      .sort(byRating);
+      .filter((a) => !used.has(a.id))
+      .filter((a) => {
+        const blob = `${a.name} ${a.category}`.toLowerCase();
+        return blob.includes(needle) || a.category === w;
+      })
+      .sort(rank);
     const best = candidates[0];
     if (!best) continue;
     if (spent + best.price_per_person > budgetForActivities && picked.length >= 1) continue;
@@ -336,24 +366,33 @@ function pickActivities(
     spent += best.price_per_person;
   }
 
-  // Phase 2 — complétion
-  const ranked = [...pool]
-    .filter((a) => !used.has(a.id))
-    .sort((a, b) => {
-      const aw = wantedCategories.includes(a.category) ? 1 : 0;
-      const bw = wantedCategories.includes(b.category) ? 1 : 0;
-      if (aw !== bw) return bw - aw;
-      return b.rating - a.rating;
-    });
-
-  for (const activity of ranked) {
+  // 2) Couverture des catégories d'activités du groupe
+  for (const cat of wantedCategories) {
     if (picked.length >= maxCount) break;
-    if (spent + activity.price_per_person > budgetForActivities && picked.length >= Math.max(1, perDay)) continue;
-    picked.push(activity);
-    spent += activity.price_per_person;
+    const candidates = pool
+      .filter((a) => a.category === cat && !used.has(a.id))
+      .sort(rank);
+    const best = candidates[0];
+    if (!best) continue;
+    if (spent + best.price_per_person > budgetForActivities && picked.length >= 1) continue;
+    picked.push(best);
+    used.add(best.id);
+    spent += best.price_per_person;
   }
+
+  // 3) Complétion par score de match global
+  const ranked = [...pool].filter((a) => !used.has(a.id)).sort(rank);
+  for (const a of ranked) {
+    if (picked.length >= maxCount) break;
+    if (spent + a.price_per_person > budgetForActivities && picked.length >= 1) continue;
+    picked.push(a);
+    used.add(a.id);
+    spent += a.price_per_person;
+  }
+
   return picked;
 }
+
 
 function momentOrder(preferred?: string[] | null): string[] {
   const base = ["Matin", "Après-midi", "Soirée"];
@@ -552,12 +591,14 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         return restoA - restoB;
       });
     }
+    // Phase 2 : activités scorées sur préférences groupe + boost Star
     const activities = pickActivities(
       activityPool,
       ctx.activityCategories,
       ctx.nights,
       budgetForActivities,
       ctx.travelPace,
+      ctx.starWantedActivities,
     );
     const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
     const totalPerPerson = transport + lodging + food + activitiesCost;
