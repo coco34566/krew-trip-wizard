@@ -33,6 +33,19 @@ Hosts utilisés dans le code (override optionnel via secrets si besoin) :
 - `kiwi-com-cheap-flights.p.rapidapi.com`
 - `openmeteo-weather-api.p.rapidapi.com` (si utilisé)
 
+### Lovable AI (shortlist destinations + rationales)
+
+| Secret | Rôle |
+|--------|------|
+| `LOVABLE_API_KEY` | **Géré auto** par Lovable Cloud — ne pas créer à la main |
+| `LOVABLE_AI_MODEL` | Optionnel (défaut `google/gemini-2.5-flash`) |
+
+Gateway : `https://ai.gateway.lovable.dev/v1/chat/completions`  
+Connecteur **AI** doit être autorisé (Connectors → AI).  
+Consomme des **crédits Lovable** (Run credits).
+
+### LLM externes (optionnel, si pas Lovable AI)
+
 ### LLM rationales (optionnel)
 
 Sans clé → fallback texte template du moteur (0 token).
