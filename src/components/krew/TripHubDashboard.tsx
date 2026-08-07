@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TripHubNav, ComingSoonGrid } from "@/components/krew/TripHubNav";
+import { TripHubNav } from "@/components/krew/TripHubNav";
 import { buildTripSteps } from "@/lib/krew/availability";
 import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
@@ -329,13 +329,6 @@ export function TripHubDashboard({
 
       {children}
 
-      <section className="space-y-3">
-        <h2 className="font-display text-xl font-semibold">Après la destination</h2>
-        <p className="text-sm text-muted-foreground">
-          Mon Voyage reste le centre de vie du séjour. Modules prêts à activer.
-        </p>
-        <ComingSoonGrid />
-      </section>
     </div>
   );
 }
