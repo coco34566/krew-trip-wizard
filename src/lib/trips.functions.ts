@@ -119,9 +119,21 @@ export const createTrip = createServerFn({ method: "POST" })
 
 export const generateRecommendations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), force: z.boolean().optional() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    return generateRecommendationsForTrip(context.supabase, data.tripId, {
+      force: data.force,
+    });
+  });
+
+export const getGenerationReadiness = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    return generateRecommendationsForTrip(context.supabase, data.tripId);
+    const { assessGenerationReadiness } = await import("@/lib/krew/trip-service");
+    return assessGenerationReadiness(context.supabase, data.tripId);
   });
 
 export const inviteParticipant = createServerFn({ method: "POST" })
