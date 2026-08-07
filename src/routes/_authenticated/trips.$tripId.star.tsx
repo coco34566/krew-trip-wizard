@@ -127,13 +127,7 @@ function StarQuestionnaire() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <Link
-        to="/trips/$tripId"
-        params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
-      >
-        <ArrowLeft className="size-4" /> Retour à Mon Voyage
-      </Link>
+      <a href={`/trips/${tripId}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"><ArrowLeft className="size-4" /> Retour à Mon Voyage</a>
 
       <h1 className="mt-4 font-display text-3xl font-bold tracking-tight">
         Préférences de la star
