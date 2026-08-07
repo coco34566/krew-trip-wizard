@@ -23,6 +23,7 @@ import { Route as AuthenticatedTripsTripIdQuestionnaireRouteImport } from './rou
 import { Route as AuthenticatedTripsTripIdRecapRouteImport } from './routes/_authenticated/trips.$tripId.recap'
 import { Route as AuthenticatedTripsTripIdAvailabilityRouteImport } from './routes/_authenticated/trips.$tripId.availability'
 import { Route as AuthenticatedTripsTripIdStarRouteImport } from './routes/_authenticated/trips.$tripId.star'
+import { Route as AuthenticatedTripsTripIdInviteRouteImport } from './routes/_authenticated/trips.$tripId.invite'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -96,6 +97,12 @@ const AuthenticatedTripsTripIdStarRoute =
   AuthenticatedTripsTripIdStarRouteImport.update({
     id: '/star',
     path: '/star',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdInviteRoute =
+  AuthenticatedTripsTripIdInviteRouteImport.update({
+    id: '/invite',
+    path: '/invite',
     getParentRoute: () => AuthenticatedTripsTripIdRoute,
   } as any)
 
@@ -222,6 +229,7 @@ interface AuthenticatedTripsTripIdRouteChildren {
   AuthenticatedTripsTripIdRecapRoute: typeof AuthenticatedTripsTripIdRecapRoute
   AuthenticatedTripsTripIdAvailabilityRoute: typeof AuthenticatedTripsTripIdAvailabilityRoute
   AuthenticatedTripsTripIdStarRoute: typeof AuthenticatedTripsTripIdStarRoute
+  AuthenticatedTripsTripIdInviteRoute: typeof AuthenticatedTripsTripIdInviteRoute
 }
 
 const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildren =
@@ -231,6 +239,7 @@ const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildr
     AuthenticatedTripsTripIdRecapRoute: AuthenticatedTripsTripIdRecapRoute,
     AuthenticatedTripsTripIdAvailabilityRoute: AuthenticatedTripsTripIdAvailabilityRoute,
     AuthenticatedTripsTripIdStarRoute: AuthenticatedTripsTripIdStarRoute,
+    AuthenticatedTripsTripIdInviteRoute: AuthenticatedTripsTripIdInviteRoute,
   }
 
 const AuthenticatedTripsTripIdRouteWithChildren =
