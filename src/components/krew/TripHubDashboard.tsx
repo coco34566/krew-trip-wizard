@@ -42,11 +42,6 @@ type Props = {
   children?: React.ReactNode;
 };
 
-function getJoinUrl(tripId: string) {
-  if (typeof window === "undefined") return "";
-  return `${window.location.origin}/join/${tripId}`;
-}
-
 export function TripHubDashboard({
   tripId,
   trip,
@@ -127,7 +122,7 @@ export function TripHubDashboard({
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Parcours du groupe
         </h2>
-        <TripHubNav tripId={tripId} steps={steps} onInviteClick={handleInviteClick} />
+        <TripHubNav tripId={tripId} steps={steps} />
       </section>
 
       {/* Résumé des retours x/N */}
