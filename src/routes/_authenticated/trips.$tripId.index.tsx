@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
 import { getTripAvailability } from "@/lib/availability.functions";
+import { getStarPreferences } from "@/lib/star-preferences.functions";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
@@ -108,6 +109,13 @@ function TripDetail() {
   const { data: myPrefsData } = useQuery({
     queryKey: ["my-participant-prefs", tripId],
     queryFn: () => fetchMyPrefs({ data: { tripId } }),
+    enabled: Boolean(tripId),
+    retry: false,
+  });
+  const fetchStar = useServerFn(getStarPreferences);
+  const { data: starData } = useQuery({
+    queryKey: ["star-prefs", tripId],
+    queryFn: () => fetchStar({ data: { tripId } }),
     enabled: Boolean(tripId),
     retry: false,
   });
@@ -216,6 +224,7 @@ function TripDetail() {
         provisionalCoverage={availData?.windows?.[0]?.coverageRatio}
         myAvailabilityDone={Boolean(availData?.mine)}
         myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
+        starDone={Boolean(starData?.preferences)}
         hasRecommendations={recommendations.length > 0}
         destinationSelected={recommendations.some((r) => r.is_selected)}
         topScores={recommendations.slice(0, 3).map((r) => ({
@@ -573,6 +582,46 @@ function TripDetail() {
           </>
         )}
       </section>
+
+
+      {/* Résumé préférences de la star */}
+      {(trip.celebrated_person ||
+        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
+        <section className="mt-6 space-y-3 rounded-3xl border border-border bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
+            <a
+              href={`/trips/${tripId}/star`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {starData?.preferences ? "Modifier" : "Remplir"} →
+            </a>
+          </div>
+          {starData?.preferences ? (
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">
+                  {trip.celebrated_person || "Personne principale"}
+                </span>{" "}
+                — questionnaire enregistré
+              </p>
+              {(starData.preferences.wantedActivities?.length ?? 0) > 0 ? (
+                <p>✅ Envies : {starData.preferences.wantedActivities.join(", ")}</p>
+              ) : null}
+              {(starData.preferences.dealBreakers?.length ?? 0) > 0 ? (
+                <p>⛔ À éviter : {starData.preferences.dealBreakers.join(", ")}</p>
+              ) : null}
+              {(starData.preferences.ambiances?.length ?? 0) > 0 ? (
+                <p>✨ Ambiances : {starData.preferences.ambiances.join(", ")}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Pas encore rempli — ce questionnaire pèse plus fort dans les suggestions Krew.
+            </p>
+          )}
+        </section>
+      )}
 
       <section id="invite-section" className="mt-12 scroll-mt-24">
         <h2 className="font-display text-2xl font-semibold">Inviter la bande</h2>
