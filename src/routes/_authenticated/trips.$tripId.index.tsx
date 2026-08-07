@@ -796,7 +796,9 @@ function TripDetail() {
                 </div>
               </article>
             );
-          })
+          })}
+          </div>
+          </>
         )}
       </section>
 
