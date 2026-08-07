@@ -318,11 +318,40 @@ function TripDetail() {
                     <div className="mt-5 rounded-2xl border border-border bg-surface/40 p-4">
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Budget estimé</p>
                       <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                        <p>Transport : {formatEuro(reco.budget.transport)}</p>
+                        <p>
+                          Transport : {formatEuro(reco.budget.transport)}
+                          <span className="block text-xs text-muted-foreground">moy. / pers.</span>
+                        </p>
                         <p>Hébergement : {formatEuro(reco.budget.accommodation)}</p>
                         <p>Activités : {formatEuro(reco.budget.activities)}</p>
                         <p>Restauration : {formatEuro(reco.budget.food)}</p>
                       </div>
+                      {reco.budget.transportByOrigin && reco.budget.transportByOrigin.length > 1 ? (
+                        <div className="mt-3 rounded-xl border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
+                          <p className="mb-1 font-medium text-foreground">Transport par ville de départ</p>
+                          <ul className="space-y-0.5">
+                            {reco.budget.transportByOrigin.map((o) => (
+                              <li key={o.city}>
+                                {o.city} × {o.count} → {formatEuro(o.pricePerPerson)} A/R / pers.
+                                <span className="text-muted-foreground/80">
+                                  {" "}
+                                  (sous-total {formatEuro(o.pricePerPerson * o.count)})
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          {typeof reco.budget.transportGroup === "number" ? (
+                            <p className="mt-1">
+                              Transport groupe : {formatEuro(reco.budget.transportGroup)}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : typeof reco.budget.transportGroup === "number" &&
+                        reco.budget.transportGroup > 0 ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Transport groupe : {formatEuro(reco.budget.transportGroup)}
+                        </p>
+                      ) : null}
                       <Separator className="my-3" />
                       <p className="font-display text-lg font-semibold">
                         {formatEuro(reco.budget.totalPerPerson)} / personne
