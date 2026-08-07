@@ -179,12 +179,30 @@ export function buildTripSteps(input: {
   hasRecommendations: boolean;
   destinationSelected: boolean;
 }): TripStep[] {
-  const inviteDone = input.participantsJoined >= Math.min(2, input.participantsExpected);
+  // L'invitation est la 1ère étape à la création : on la marque faite dès qu'on a
+  // progressé (dispos / prefs / reco) ou dès qu'au moins 2 personnes ont rejoint.
+  const expected = Math.max(1, input.participantsExpected || 1);
+  const inviteDone =
+    input.participantsJoined >= Math.min(2, expected) ||
+    input.availabilityAnswered > 0 ||
+    input.questionnaireAnswered > 0 ||
+    input.hasRecommendations ||
+    input.destinationSelected;
   const availDone =
-    input.availabilityAnswered >= Math.max(2, Math.ceil(input.participantsExpected * 0.4));
+    input.availabilityAnswered >= Math.max(1, Math.ceil(expected * 0.4));
   const questDone =
-    input.questionnaireAnswered >= Math.max(2, Math.ceil(input.participantsExpected * 0.4));
+    input.questionnaireAnswered >= Math.max(1, Math.ceil(expected * 0.4));
   const destDone = input.destinationSelected;
+
+  // Une seule étape "active" à la fois (la première non terminée)
+  const inviteStatus = inviteDone ? "done" : "active";
+  const availStatus = availDone ? "done" : inviteDone ? "active" : "todo";
+  const questStatus = questDone ? "done" : availDone ? "active" : "todo";
+  const destStatus = destDone
+    ? "done"
+    : questDone || input.hasRecommendations
+      ? "active"
+      : "todo";
 
   return [
     {
@@ -192,28 +210,28 @@ export function buildTripSteps(input: {
       label: "Inviter",
       description: "Réunir le groupe",
       href: "/invite",
-      status: inviteDone ? "done" : "active",
+      status: inviteStatus,
     },
     {
       id: "availability",
       label: "Disponibilités",
       description: "Trouver la date",
       href: "/availability",
-      status: !inviteDone ? "todo" : availDone ? "done" : "active",
+      status: availStatus,
     },
     {
       id: "questionnaire",
       label: "Préférences",
       description: "Questionnaire",
       href: "/questionnaire",
-      status: !availDone && !questDone ? "todo" : questDone ? "done" : "active",
+      status: questStatus,
     },
     {
       id: "destination",
       label: "Destination",
       description: "Propositions Krew",
       href: "",
-      status: destDone ? "done" : questDone || input.hasRecommendations ? "active" : "todo",
+      status: destStatus,
     },
     {
       id: "organize",
