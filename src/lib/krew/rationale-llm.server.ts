@@ -60,6 +60,20 @@ function getLlmConfig(): {
   baseUrl: string;
   model: string;
 } | null {
+  // Lovable AI natif d'abord
+  if (process.env.LOVABLE_API_KEY) {
+    return {
+      apiKey: process.env.LOVABLE_API_KEY,
+      baseUrl: (process.env.LOVABLE_AI_BASE_URL || "https://ai.gateway.lovable.dev/v1").replace(
+        /\/$/,
+        "",
+      ),
+      model:
+        process.env.LLM_RATIONALE_MODEL ||
+        process.env.LOVABLE_AI_MODEL ||
+        "google/gemini-2.5-flash",
+    };
+  }
   const apiKey =
     process.env.OPENAI_API_KEY ||
     process.env.GROQ_API_KEY ||
