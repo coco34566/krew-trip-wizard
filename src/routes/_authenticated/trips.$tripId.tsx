@@ -27,8 +27,7 @@ import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { cn } from "@/lib/utils";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
-import { ComingSoonGrid, TripHubNav } from "@/components/krew/TripHubNav";
-import { buildTripSteps } from "@/lib/krew/availability";
+import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
 import { getTripAvailability } from "@/lib/availability.functions";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId")({
@@ -186,50 +185,25 @@ function TripDetail() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm uppercase tracking-wide text-muted-foreground">{eventTypeLabel(trip.event_type)}</p>
-          <h1 className="mt-1 text-3xl font-bold sm:text-4xl">{trip.name}</h1>
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Users className="size-4" /> {trip.participants_count} pers.
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Wallet className="size-4" /> {formatEuro(Number(trip.budget_per_person))} / pers.
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="size-4" /> départ {trip.departure_city}
-            </span>
-          </div>
-          <div className="mt-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Link to="/trips/$tripId/questionnaire" params={{ tripId }}>
-                <Button variant="outline">
-                  Questionnaire — répondre ou modifier
-                </Button>
-              </Link>
-              {progress ? (
-                <span className="text-sm text-muted-foreground">
-                  {progress.answered}/{progress.total} ont répondu au questionnaire
-                  {progress.total > 0 && progress.answered >= progress.total ? " · complet 🎉" : ""}
-                </span>
-              ) : null}
-              {(data.isOwner ||
-                (progress && progress.total > 0 && progress.answered >= progress.total) ||
-                recommendations.length > 0) && (
-                <Button asChild variant="hero" size="sm">
-                  <Link to="/trips/$tripId/recap" params={{ tripId }}>
-                    <ClipboardList /> Récap du groupe
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={trip.status === "valide" ? "success" : "lagoon"}>
-            {TRIP_STATUS_LABELS[trip.status] ?? trip.status}
-          </Badge>
+      <TripHubDashboard
+        tripId={tripId}
+        trip={trip}
+        isOwner={data.isOwner}
+        participantsCount={(data.participants?.length ?? trip.participants_count) || 1}
+        progressAnswered={progress?.answered ?? 0}
+        progressTotal={progress?.total ?? trip.participants_count ?? 1}
+        availabilityAnswered={availData?.answered ?? 0}
+        availabilityExpected={availData?.expected ?? trip.participants_count ?? 1}
+        provisionalStart={availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date}
+        provisionalCoverage={availData?.windows?.[0]?.coverageRatio}
+        hasRecommendations={recommendations.length > 0}
+        destinationSelected={recommendations.some((r) => r.is_selected)}
+        topScores={recommendations.slice(0, 3).map((r) => ({
+          name: r.destinations?.name ?? "Destination",
+          score: r.score,
+        }))}
+      >
+        <div className="flex flex-wrap gap-2">
           {data.isOwner ? (
             <>
               <Button
@@ -237,64 +211,26 @@ function TripDetail() {
                 onClick={() => regenerateMutation.mutate()}
                 disabled={regenerateMutation.isPending}
               >
-                {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />} Regénérer
+                {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}{" "}
+                Régénérer les propositions
               </Button>
-
               <Button
                 variant="outline"
                 onClick={() => searchExternalMutation.mutate()}
                 disabled={searchExternalMutation.isPending}
               >
-                {searchExternalMutation.isPending ? <Loader2 className="animate-spin" /> : <MapPin />} Rechercher hébergements & activités
+                {searchExternalMutation.isPending ? <Loader2 className="animate-spin" /> : <MapPin />}{" "}
+                Hébergements & activités
               </Button>
             </>
           ) : null}
-        </div>
-      </div>
-
-      
-      {/* Hub — progression du voyage */}
-      <section className="mt-8 space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="lagoon">{eventTypeLabel(trip.event_type)}</Badge>
-          {(trip as any).celebrated_person ? (
-            <Badge variant="muted">⭐ {(trip as any).celebrated_person}</Badge>
-          ) : null}
-          {availData?.windows?.[0] ? (
-            <Badge variant="success">
-              Date {availData.answered < availData.expected ? "provisoire" : ""} :{" "}
-              {new Date(availData.windows[0].start).toLocaleDateString("fr-FR")}
-            </Badge>
-          ) : null}
-        </div>
-        <TripHubNav
-          tripId={tripId}
-          steps={buildTripSteps({
-            tripId,
-            participantsJoined: (data.participants?.length ?? trip.participants_count) || 1,
-            participantsExpected: trip.participants_count || 1,
-            availabilityAnswered: availData?.answered ?? 0,
-            questionnaireAnswered: progress?.answered ?? 0,
-            hasRecommendations: recommendations.length > 0,
-            destinationSelected: recommendations.some((r) => r.is_selected),
-          })}
-        />
-        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
-            <Link to="/trips/$tripId/availability" params={{ tripId }}>
-              Disponibilités du groupe
+            <Link to="/trips/$tripId/recap" params={{ tripId }}>
+              <ClipboardList /> Récap du groupe
             </Link>
           </Button>
-          {(trip as any).celebrated_person ||
-          ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type)) ? (
-            <Button asChild variant="outline" size="sm">
-              <Link to="/trips/$tripId/star" params={{ tripId }}>
-                ⭐ Questionnaire Star
-              </Link>
-            </Button>
-          ) : null}
         </div>
-      </section>
+      </TripHubDashboard>
 
 {costSplitData?.isSelected && costSplitData.split ? (
         <section className="mt-10">
@@ -335,7 +271,7 @@ function TripDetail() {
         </div>
       ) : null}
 
-      <section className="mt-10 space-y-6">
+      <section id="hub-destination" className="mt-10 space-y-6">
         <h2 className="font-display text-2xl font-semibold">Les propositions de Krew</h2>
         {recommendations.length === 0 ? (
           <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -619,15 +555,6 @@ function TripDetail() {
             ))
           )}
         </ul>
-      </section>
-
-      <section id="hub-organize" className="mt-14 space-y-4">
-        <h2 className="font-display text-2xl font-semibold">Organisation du séjour</h2>
-        <p className="text-sm text-muted-foreground">
-          Après le choix de la destination, ces modules vivront sur le hub. Architecture prête —
-          activation progressive.
-        </p>
-        <ComingSoonGrid />
       </section>
     </main>
   );
