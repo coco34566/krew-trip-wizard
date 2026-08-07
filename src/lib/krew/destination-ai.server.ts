@@ -1,16 +1,13 @@
 /**
- * Shortlist destinations via LLM — budget tokens minimal.
+ * Shortlist destinations via LLM — priorite Lovable AI (peu de tokens).
  *
- * Stratégie anti-tokens :
- *  - 1 seul appel par génération
- *  - prompt système court + user = JSON compact (pas de prose)
- *  - sortie = 6–8 noms de villes + 1 motif court
- *  - cache mémoire par empreinte des critères (évite de rappeler pour le même groupe)
- *  - modèle cheap (gpt-4o-mini / llama / grok selon env)
+ * 1) Lovable AI gateway : LOVABLE_API_KEY (injecte auto Cloud / Edge)
+ *    POST https://ai.gateway.lovable.dev/v1/chat/completions
+ *    modele cheap : google/gemini-2.5-flash (override LLM_DISCOVERY_MODEL)
+ * 2) Sinon OpenAI / Groq / xAI si cles presentes
+ * 3) Sinon caller → scoring local
  *
- * Env (mêmes que rationale-llm) :
- *  OPENAI_API_KEY | GROQ_API_KEY | XAI_API_KEY | LLM_API_KEY
- *  LLM_RATIONALE_MODEL / LLM_RATIONALE_BASE_URL
+ * Anti-tokens : JSON compact, max_tokens 280, cache 6h.
  */
 
 export type AiDiscoveryInput = {
@@ -47,30 +44,61 @@ Règles:
 - Diversifie (pas 3 villes du même pays)
 - why ≤ 8 mots`;
 
-function getLlmConfig(): { apiKey: string; baseUrl: string; model: string } | null {
-  const apiKey =
-    process.env.OPENAI_API_KEY ||
-    process.env.GROQ_API_KEY ||
-    process.env.XAI_API_KEY ||
-    process.env.LLM_API_KEY;
-  if (!apiKey) return null;
-  const baseUrl = (
-    process.env.LLM_DISCOVERY_BASE_URL ||
-    process.env.LLM_RATIONALE_BASE_URL ||
-    (process.env.GROQ_API_KEY ? "https://api.groq.com/openai/v1" : null) ||
-    (process.env.XAI_API_KEY ? "https://api.x.ai/v1" : null) ||
-    "https://api.openai.com/v1"
-  ).replace(/\/$/, "");
-  const model =
-    process.env.LLM_DISCOVERY_MODEL ||
-    process.env.LLM_RATIONALE_MODEL ||
-    (process.env.GROQ_API_KEY ? "llama-3.1-8b-instant" : null) ||
-    (process.env.XAI_API_KEY ? "grok-2-latest" : null) ||
-    "gpt-4o-mini";
-  return { apiKey, baseUrl, model };
+type LlmConfig = {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  provider: "lovable" | "openai" | "groq" | "xai" | "custom";
+};
+
+function getLlmConfig(): LlmConfig | null {
+  // 1) Lovable AI natif (Cloud)
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  if (lovableKey) {
+    return {
+      apiKey: lovableKey,
+      baseUrl: (
+        process.env.LOVABLE_AI_BASE_URL || "https://ai.gateway.lovable.dev/v1"
+      ).replace(/\/$/, ""),
+      model:
+        process.env.LLM_DISCOVERY_MODEL ||
+        process.env.LOVABLE_AI_MODEL ||
+        "google/gemini-2.5-flash",
+      provider: "lovable",
+    };
+  }
+
+  // 2) Providers externes (optionnel)
+  if (process.env.GROQ_API_KEY) {
+    return {
+      apiKey: process.env.GROQ_API_KEY,
+      baseUrl: "https://api.groq.com/openai/v1",
+      model: process.env.LLM_DISCOVERY_MODEL || "llama-3.1-8b-instant",
+      provider: "groq",
+    };
+  }
+  if (process.env.XAI_API_KEY) {
+    return {
+      apiKey: process.env.XAI_API_KEY,
+      baseUrl: "https://api.x.ai/v1",
+      model: process.env.LLM_DISCOVERY_MODEL || "grok-2-latest",
+      provider: "xai",
+    };
+  }
+  if (process.env.OPENAI_API_KEY || process.env.LLM_API_KEY) {
+    return {
+      apiKey: (process.env.OPENAI_API_KEY || process.env.LLM_API_KEY) as string,
+      baseUrl: (process.env.LLM_RATIONALE_BASE_URL || "https://api.openai.com/v1").replace(
+        /\/$/,
+        "",
+      ),
+      model: process.env.LLM_DISCOVERY_MODEL || process.env.LLM_RATIONALE_MODEL || "gpt-4o-mini",
+      provider: "openai",
+    };
+  }
+  return null;
 }
 
-/** Empreinte stable pour cache (même critères → pas de 2e appel). */
 function fingerprint(input: AiDiscoveryInput): string {
   return JSON.stringify({
     e: input.eventType || "",
@@ -90,10 +118,9 @@ function fingerprint(input: AiDiscoveryInput): string {
 }
 
 const cache = new Map<string, { at: number; cities: AiCandidate[] }>();
-const CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6 h
+const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 
 function compactUser(input: AiDiscoveryInput): string {
-  // JSON minimal — chaque caractère compte
   const o: Record<string, unknown> = {
     event: (input.eventType || "groupe").slice(0, 20),
     n: input.participants,
@@ -137,18 +164,24 @@ function parseCities(raw: string): AiCandidate[] {
 }
 
 /**
- * Shortlist IA (ou null si pas de clé / échec → caller fait fallback local).
+ * Shortlist IA — Lovable AI en premier.
  */
 export async function discoverDestinationsWithAi(
   input: AiDiscoveryInput,
-): Promise<{ cities: AiCandidate[]; usedLlm: boolean; error?: string; cached?: boolean }> {
+): Promise<{
+  cities: AiCandidate[];
+  usedLlm: boolean;
+  provider?: string;
+  error?: string;
+  cached?: boolean;
+}> {
   const cfg = getLlmConfig();
   if (!cfg) return { cities: [], usedLlm: false, error: "no_llm_key" };
 
   const fp = fingerprint(input);
   const hit = cache.get(fp);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-    return { cities: hit.cities, usedLlm: true, cached: true };
+    return { cities: hit.cities, usedLlm: true, provider: cfg.provider, cached: true };
   }
 
   const user = compactUser(input);
@@ -163,7 +196,7 @@ export async function discoverDestinationsWithAi(
       body: JSON.stringify({
         model: cfg.model,
         temperature: 0.4,
-        max_tokens: 280, // sortie courte volontaire
+        max_tokens: 280,
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: user },
@@ -175,6 +208,7 @@ export async function discoverDestinationsWithAi(
       return {
         cities: [],
         usedLlm: false,
+        provider: cfg.provider,
         error: `llm_http_${res.status}:${errText.slice(0, 120)}`,
       };
     }
@@ -184,14 +218,20 @@ export async function discoverDestinationsWithAi(
     const content = json.choices?.[0]?.message?.content ?? "";
     const cities = parseCities(content);
     if (!cities.length) {
-      return { cities: [], usedLlm: false, error: "llm_empty_parse" };
+      return {
+        cities: [],
+        usedLlm: false,
+        provider: cfg.provider,
+        error: "llm_empty_parse",
+      };
     }
     cache.set(fp, { at: Date.now(), cities });
-    return { cities, usedLlm: true };
+    return { cities, usedLlm: true, provider: cfg.provider };
   } catch (e) {
     return {
       cities: [],
       usedLlm: false,
+      provider: cfg.provider,
       error: String(e).slice(0, 160),
     };
   }
