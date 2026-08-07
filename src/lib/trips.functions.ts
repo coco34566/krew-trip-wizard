@@ -4,6 +4,26 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateRecommendationsForTrip, tripInputSchema } from "@/lib/krew/trip-service";
 
+
+/** Libellé de stade aligné sur le parcours hub (pas le status enum brut). */
+function computeJourneyStage(input: {
+  status?: string | null;
+  datesLocked: boolean;
+  destinationSelected: boolean;
+  hasItinerary: boolean;
+  startDate?: string | null;
+}): string {
+  const st = String(input.status ?? "").toLowerCase();
+  if (st === "annule") return "Annulé";
+  if (input.hasItinerary || (input.destinationSelected && st === "valide")) {
+    return "Organisation du séjour";
+  }
+  if (input.destinationSelected) return "Destination choisie · organisation";
+  if (input.datesLocked) return "Choix de la destination";
+  if (input.startDate) return "Validation des dates";
+  return "Collecte des dispos & préférences";
+}
+
 export const listMyTrips = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -44,9 +64,76 @@ export const listMyTrips = createServerFn({ method: "GET" })
         String((p.trips as any).status ?? "") !== "annule" &&
         String(p.status ?? "") !== "refuse",
     );
+
+    // Enrichir avec le stade réel du parcours (dates / destination / organisation)
+    const allTripIds = [
+      ...trips.map((row: any) => row.id as string),
+      ...invited.map((p: any) => (p.trips as any)?.id as string).filter(Boolean),
+    ];
+    const uniqueIds = [...new Set(allTripIds)];
+
+    const stageByTrip: Record<
+      string,
+      { destinationSelected: boolean; hasItinerary: boolean }
+    > = {};
+    for (const id of uniqueIds) {
+      stageByTrip[id] = { destinationSelected: false, hasItinerary: false };
+    }
+
+    if (uniqueIds.length) {
+      const [selRecos, tripExtras] = await Promise.all([
+        supabase
+          .from("recommendations")
+          .select("trip_id")
+          .in("trip_id", uniqueIds)
+          .eq("is_selected", true),
+        supabase.from("trips").select("id, dates_locked, group_itinerary, start_date").in("id", uniqueIds),
+      ]);
+      for (const r of selRecos.data ?? []) {
+        const tid = (r as any).trip_id as string;
+        if (stageByTrip[tid]) stageByTrip[tid].destinationSelected = true;
+      }
+      for (const row of tripExtras.data ?? []) {
+        const tid = (row as any).id as string;
+        if (!stageByTrip[tid]) continue;
+        stageByTrip[tid].hasItinerary = Boolean((row as any).group_itinerary?.days?.length);
+        // merge dates_locked onto trip rows below via stage map + raw fields
+        (stageByTrip[tid] as any).datesLocked = Boolean((row as any).dates_locked);
+        (stageByTrip[tid] as any).startDate = (row as any).start_date ?? null;
+      }
+    }
+
+    const attachStage = (row: any) => {
+      const s = stageByTrip[row.id] || {
+        destinationSelected: false,
+        hasItinerary: false,
+        datesLocked: Boolean(row.dates_locked),
+        startDate: row.start_date ?? null,
+      };
+      const datesLocked = Boolean((s as any).datesLocked ?? row.dates_locked);
+      const destinationSelected = Boolean(s.destinationSelected);
+      const hasItinerary = Boolean(s.hasItinerary);
+      return {
+        ...row,
+        dates_locked: datesLocked,
+        destination_selected: destinationSelected,
+        has_itinerary: hasItinerary,
+        journey_stage: computeJourneyStage({
+          status: row.status,
+          datesLocked,
+          destinationSelected,
+          hasItinerary,
+          startDate: row.start_date ?? (s as any).startDate,
+        }),
+      };
+    };
+
     return {
-      trips,
-      invitations: invited,
+      trips: trips.map(attachStage),
+      invitations: invited.map((p: any) => ({
+        ...p,
+        trips: p.trips ? attachStage(p.trips) : p.trips,
+      })),
     };
   });
 
