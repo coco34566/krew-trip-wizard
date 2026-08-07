@@ -70,10 +70,13 @@ export async function refreshExternalCatalogForTrip(
     .replace(/(^-|-$)/g, "");
 
   const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? "";
+  // Hosts optionnels — défauts dans DEFAULT_RAPIDAPI_HOSTS (travel-providers.server.ts)
   const providerConfig = {
     rapidApiKey,
-    hotelsHost: process.env["HOTELS_RAPIDAPI_HOST"],
+    hotelsHost: process.env["HOTELS_RAPIDAPI_HOST"] ?? process.env["HOTELS_COM_RAPIDAPI_HOST"],
+    hotelsComHost: process.env["HOTELS_COM_RAPIDAPI_HOST"] ?? process.env["HOTELS_RAPIDAPI_HOST"],
     bookingHost: process.env["BOOKING_RAPIDAPI_HOST"],
+    expediaHost: process.env["EXPEDIA_RAPIDAPI_HOST"],
     kayakHost: process.env["KAYAK_RAPIDAPI_HOST"],
     tripadvisorHost: process.env["TRIPADVISOR_RAPIDAPI_HOST"],
     klookHost: process.env["KLOOK_RAPIDAPI_HOST"],
