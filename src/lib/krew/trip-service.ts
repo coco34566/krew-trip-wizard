@@ -189,7 +189,38 @@ export async function aggregateParticipantPreferences(
       "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates",
     )
     .eq("trip_id", tripId);
-  if (res.error) throw res.error;
+  if (res.error) {
+    console.error("aggregateParticipantPreferences", res.error.message);
+    return {
+      participantsCount: 0,
+      ambiances: [] as string[],
+      activityCategories: [] as string[],
+      aggregatedBudget: null as number | null,
+      minGroupBudget: null as number | null,
+      vetoBudgetMax: null as number | null,
+      hasBudgetVeto: false,
+      requiredAmenities: [] as string[],
+      minAccommodationRating: null as number | null,
+      medianTravelPace: null as string | null,
+      dateFlexDays: 0,
+      desiredDestination: null as string | null,
+      dealBreakerAmbiances: [] as string[],
+      dealBreakerDestinations: [] as string[],
+      individualPreferences: [] as any[],
+      starWantedActivities: [] as string[],
+      starDealBreakers: [] as string[],
+      starWeight: 1,
+      dietaryConstraints: [] as string[],
+      preferredTimeSlots: [] as string[],
+      departureOrigins: [] as { city: string; count: number }[],
+      departureAirport: null as string | null,
+      transportModes: [] as string[],
+      maxTravelHours: null as number | null,
+      inconsistencies: [] as { userId: string | null; message: string }[],
+      vetoCount: 0,
+      exclusionCount: 0,
+    };
+  }
 
   const rows = (res.data ?? []) as ParticipantPrefRow[];
   const ambianceFrequencies = frequencies(rows.flatMap((r) => r.ambiances ?? []));
@@ -501,7 +532,7 @@ export type GenerationReadiness = {
   message?: string;
 };
 
-const MIN_ANSWERS = 2;
+const MIN_ANSWERS = 1;
 const MIN_ANSWER_RATIO = 0.4;
 
 export async function assessGenerationReadiness(
@@ -635,6 +666,16 @@ export async function generateRecommendationsForTrip(
   if (trip.error) throw trip.error;
 
   const aggregated = await aggregateParticipantPreferences(supabase, tripId);
+
+  // Nuits = dates validées (start/end) si présentes, sinon durée questionnaire
+  let lockedNights: number | null = null;
+  const sd = trip.data.start_date as string | null;
+  const ed = trip.data.end_date as string | null;
+  if (sd && ed) {
+    const ms = new Date(ed + "T12:00:00Z").getTime() - new Date(sd + "T12:00:00Z").getTime();
+    const days = Math.round(ms / (24 * 3600 * 1000));
+    if (days >= 1) lockedNights = days;
+  }
   const resolvedDestination =
     preferences.data?.desired_destination || aggregated.desiredDestination || null;
 
@@ -652,7 +693,7 @@ export async function generateRecommendationsForTrip(
         aggregated.aggregatedBudget ??
         preferences.data?.max_budget ??
         trip.data.budget_per_person,
-      duration_nights: preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
+      duration_nights: lockedNights ?? preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
       required_amenities: aggregated.requiredAmenities,
       min_accommodation_rating: aggregated.minAccommodationRating,
       travel_pace: aggregated.medianTravelPace,
