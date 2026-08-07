@@ -1099,3 +1099,282 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
 
     return { ok: true, usedLlm: result.usedLlm, slot: result.slot, itinerary };
   });
+
+/** Reco hôtels + transports adaptés aux préférences, pour la destination validée. */
+export const proposeStayAndTransport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), refreshExternal: z.boolean().optional() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+    const trip = tripRes.data as any;
+
+    const selected = await supabase
+      .from("recommendations")
+      .select("id, accommodation_id, destination_id, destinations(id, name, country, distance_from_paris_km)")
+      .eq("trip_id", data.tripId)
+      .eq("is_selected", true)
+      .maybeSingle();
+    if (selected.error) throw selected.error;
+    if (!selected.data) {
+      throw new Error("Valide d'abord une destination");
+    }
+
+    const dest = (selected.data as any).destinations;
+    const destName = dest?.name || "Destination";
+    const destId = dest?.id || (selected.data as any).destination_id;
+    const distanceKm = Number(dest?.distance_from_paris_km) || 800;
+
+    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+
+    // Optionnel : rafraîchir APIs hébergements
+    let providerErrors: string[] = [];
+    if (data.refreshExternal !== false) {
+      try {
+        const { refreshExternalCatalogForTrip } = await import(
+          "@/lib/external/search-hotels.functions"
+        );
+        const ext = await refreshExternalCatalogForTrip(supabase, data.tripId, destName);
+        if (ext?.providerErrors?.length) providerErrors = ext.providerErrors;
+      } catch (e) {
+        providerErrors.push(String(e).slice(0, 160));
+      }
+    }
+
+    // ——— Hôtels scorés ———
+    let hotelsQuery = supabase
+      .from("accommodations")
+      .select("*")
+      .order("rating", { ascending: false })
+      .limit(40);
+    if (destId) {
+      hotelsQuery = hotelsQuery.eq("destination_id", destId);
+    } else {
+      hotelsQuery = hotelsQuery.ilike("name", `%${destName}%`);
+    }
+    const hotelsRes = await hotelsQuery;
+    if (hotelsRes.error) throw hotelsRes.error;
+
+    const budget =
+      Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400;
+    const nights = (() => {
+      if (trip.start_date && trip.end_date) {
+        const ms =
+          new Date(trip.end_date + "T12:00:00Z").getTime() -
+          new Date(trip.start_date + "T12:00:00Z").getTime();
+        const d = Math.round(ms / (24 * 3600 * 1000));
+        if (d >= 1) return d;
+      }
+      return Number(trip.duration_nights) || 2;
+    })();
+    const lodgingBudget = Math.max(40, budget * 0.35); // ~35% budget / nuit perso indicatif
+    const minRating = Number(aggregated.minAccommodationRating) || 0;
+    const roomPrefs = (aggregated.roomTypePreferences ?? []).map((x: string) =>
+      String(x).toLowerCase(),
+    );
+    const sharedOk = aggregated.acceptsSharedRoom !== false;
+    const needsCenter = Boolean(aggregated.needsAccessibility) || true;
+
+    type HotelCard = {
+      id: string;
+      name: string;
+      type: string;
+      rating: number;
+      pricePerNight: number;
+      totalEstimate: number;
+      distanceCenterKm: number | null;
+      score: number;
+      reasons: string[];
+      bookingUrl?: string | null;
+      source?: string | null;
+    };
+
+    const hotels: HotelCard[] = (hotelsRes.data ?? []).map((h: any) => {
+      const price = Number(h.price_per_night_per_person ?? h.price_per_night ?? 0) || 60;
+      const rating = Number(h.rating ?? 0);
+      const dist =
+        h.distance_center_km != null ? Number(h.distance_center_km) : null;
+      const reasons: string[] = [];
+      let score = 0.4;
+
+      // budget fit
+      if (price <= lodgingBudget) {
+        score += 0.25;
+        reasons.push("dans le budget hébergement");
+      } else if (price <= lodgingBudget * 1.25) {
+        score += 0.1;
+        reasons.push("légèrement au-dessus du budget hébergement");
+      } else {
+        score -= 0.15;
+        reasons.push("au-dessus du budget hébergement");
+      }
+
+      if (minRating > 0 && rating >= minRating) {
+        score += 0.15;
+        reasons.push(`note ≥ ${minRating}`);
+      } else if (rating >= 4) {
+        score += 0.12;
+        reasons.push("bien noté");
+      }
+
+      const typeBlob = `${h.type ?? ""} ${h.name ?? ""}`.toLowerCase();
+      if (!sharedOk && /dortoir|hostel|auberge|shared/.test(typeBlob)) {
+        score -= 0.25;
+        reasons.push("dortoir (groupe préfère privé)");
+      }
+      if (roomPrefs.length) {
+        const hit = roomPrefs.some(
+          (p) => typeBlob.includes(p) || typeBlob.includes(p.replace("à ", "")),
+        );
+        if (hit) {
+          score += 0.12;
+          reasons.push("type de chambre adapté");
+        }
+      }
+      if (needsCenter && dist != null && dist <= 2) {
+        score += 0.1;
+        reasons.push("proche du centre");
+      }
+      if (h.source === "rapidapi" || h.booking_url) {
+        score += 0.05;
+        reasons.push("offre live");
+      }
+
+      return {
+        id: h.id,
+        name: h.name,
+        type: h.type ?? "hébergement",
+        rating,
+        pricePerNight: Math.round(price),
+        totalEstimate: Math.round(price * nights),
+        distanceCenterKm: dist,
+        score: Math.round(Math.max(0, Math.min(1, score)) * 100) / 100,
+        reasons: reasons.slice(0, 4),
+        bookingUrl: h.booking_url ?? h.url ?? null,
+        source: h.source ?? null,
+      };
+    });
+
+    hotels.sort((a, b) => b.score - a.score || b.rating - a.rating);
+    const topHotels = hotels.slice(0, 6);
+
+    // ——— Transports par ville de départ ———
+    const tripOrigin = (trip.departure_city as string) || "Paris";
+    const origins =
+      aggregated.departureOrigins?.length > 0
+        ? aggregated.departureOrigins
+        : [{ city: tripOrigin, count: Math.max(1, trip.participants_count || 2) }];
+    const planeRefused = Boolean(aggregated.planeRefused);
+    const modes = (aggregated.transportModes ?? []) as string[];
+
+    const checkin =
+      (trip.start_date as string) ||
+      new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
+    const checkout =
+      (trip.end_date as string) ||
+      new Date(new Date(checkin).getTime() + nights * 86400000).toISOString().slice(0, 10);
+
+    const { searchTransportRoundTrip, estimateTransportFromDistance } = await import(
+      "@/integrations/external/transport.server"
+    );
+
+    const transports: {
+      city: string;
+      count: number;
+      pricePerPerson: number;
+      mode: string;
+      label: string;
+      url: string | null;
+      note?: string;
+    }[] = [];
+
+    for (const origin of origins.slice(0, 5)) {
+      let quote: any = null;
+      let note: string | undefined;
+      if (planeRefused || modes.includes("train") || modes.includes("voiture")) {
+        // estimate rail/car for short-mid distance
+        const est = estimateTransportFromDistance(
+          Math.min(distanceKm, planeRefused ? 900 : distanceKm),
+        );
+        const mode = planeRefused
+          ? distanceKm <= 500
+            ? "train"
+            : "train/car"
+          : modes[0] || "mixte";
+        quote = {
+          pricePerPerson: est,
+          mode,
+          label: planeRefused
+            ? `Sans avion depuis ${origin.city}`
+            : `Transport estimé depuis ${origin.city}`,
+          url: null,
+        };
+        note = planeRefused ? "avion refusé par le groupe — estimation train/route" : undefined;
+      }
+      if (!planeRefused) {
+        try {
+          const apiQuote = await searchTransportRoundTrip({
+            originCity: origin.city,
+            destinationCity: destName,
+            departDate: checkin,
+            returnDate: checkout,
+            adults: Math.min(Math.max(1, origin.count), 9),
+            distanceKm,
+          });
+          if (apiQuote && apiQuote.pricePerPerson > 0) {
+            quote = {
+              pricePerPerson: apiQuote.pricePerPerson,
+              mode: apiQuote.mode || "flight",
+              label: apiQuote.label || `Vol depuis ${origin.city}`,
+              url: apiQuote.url ?? null,
+            };
+            note = undefined;
+          }
+        } catch (e) {
+          if (!quote) {
+            const est = estimateTransportFromDistance(distanceKm);
+            quote = {
+              pricePerPerson: est,
+              mode: "estimate",
+              label: `Estimation depuis ${origin.city}`,
+              url: null,
+            };
+            note = String(e).slice(0, 80);
+          }
+        }
+      }
+      if (quote) {
+        transports.push({
+          city: origin.city,
+          count: origin.count,
+          pricePerPerson: Math.round(quote.pricePerPerson),
+          mode: quote.mode,
+          label: quote.label,
+          url: quote.url,
+          note,
+        });
+      }
+    }
+
+    const logistics = {
+      destination: destName,
+      nights,
+      hotels: topHotels,
+      transports,
+      providerErrors,
+      generatedAt: new Date().toISOString(),
+    };
+
+    // Persiste pour affichage hub (tous les membres)
+    await supabase
+      .from("trips")
+      .update({ group_logistics: logistics, updated_at: new Date().toISOString() } as any)
+      .eq("id", data.tripId);
+
+    return { ok: true, logistics };
+  });
