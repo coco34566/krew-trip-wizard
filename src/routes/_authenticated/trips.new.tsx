@@ -169,12 +169,21 @@ function NewTripWizard() {
           availabilityNotes: form.availabilityNotes || undefined,
         },
       });
-      await generate({ data: { tripId } });
-      toast.success("Vos propositions Krew sont prêtes !");
+      try {
+        await generate({ data: { tripId } });
+        toast.success("Voyage créé — propositions Krew prêtes !");
+      } catch (genErr) {
+        console.error(genErr);
+        toast.success("Voyage créé. Tu pourras régénérer les propositions depuis la fiche.");
+      }
       navigate({ to: "/trips/$tripId", params: { tripId } });
     } catch (error) {
       console.error(error);
-      toast.error("Impossible de générer le voyage. Réessayez dans un instant.");
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "Impossible de créer le voyage. Réessayez.";
+      toast.error(String(msg).slice(0, 180));
     } finally {
       setSubmitting(false);
     }
