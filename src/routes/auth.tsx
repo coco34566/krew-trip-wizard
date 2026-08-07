@@ -89,7 +89,7 @@ function AuthPage() {
     <main className="relative flex min-h-screen items-center justify-center bg-hero-gradient px-4 py-12">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-8 flex justify-center">
-          <Logo className="text-2xl" />
+          <Logo size="lg" withTagline />
         </Link>
         <div className="glass-panel rounded-3xl p-6 shadow-elevated sm:p-8">
           <Tabs defaultValue="signin">
