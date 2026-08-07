@@ -306,79 +306,9 @@ function TripDetail() {
           score: r.score,
         }))}
       >
-        <div className="flex flex-wrap gap-2">
-          {data.isOwner ? (
-            <>
-              <Button
-                variant="glass"
-                onClick={() => regenerateMutation.mutate()}
-                disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)}
-                title={
-                  readiness && !readiness.canGenerate
-                    ? readiness.message ?? "Complète la checklist avant de générer"
-                    : undefined
-                }
-              >
-                {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}{" "}
-                Régénérer les propositions
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => searchExternalMutation.mutate()}
-                disabled={searchExternalMutation.isPending}
-              >
-                {searchExternalMutation.isPending ? <Loader2 className="animate-spin" /> : <MapPin />}{" "}
-                Hébergements & activités
-              </Button>
-            </>
-          ) : null}
-          <Button asChild variant="outline" size="sm">
-            <Link to="/trips/$tripId/recap" params={{ tripId }}>
-              <ClipboardList /> Récap du groupe
-            </Link>
-          </Button>
-          {data.isOwner && trip.status !== "annule" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-destructive/40 text-destructive hover:bg-destructive/10"
-              disabled={cancelMutation.isPending}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    "Annuler ce voyage ? Il disparaîtra de tes voyages actifs (tu pourras le supprimer définitivement ensuite si besoin).",
-                  )
-                ) {
-                  cancelMutation.mutate(false);
-                }
-              }}
-            >
-              Annuler le voyage
-            </Button>
-          ) : null}
-          {data.isOwner ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              disabled={cancelMutation.isPending}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    "Supprimer DÉFINITIVEMENT ce voyage et toutes ses données ? Irréversible.",
-                  )
-                ) {
-                  cancelMutation.mutate(true);
-                }
-              }}
-            >
-              Supprimer définitivement
-            </Button>
-          ) : null}
-        </div>
       </TripHubDashboard>
 
-      {readiness ? (
+{readiness ? (
         <div className="mt-8 space-y-3 rounded-2xl border border-border bg-surface/40 px-4 py-4 text-sm">
           <p className="font-medium">Statut des questionnaires</p>
           <ul className="space-y-1.5 text-muted-foreground">
@@ -411,447 +341,7 @@ function TripDetail() {
         </div>
       ) : null}
 
-
-      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-            <CalendarDays className="size-5 text-primary" />
-            Dates du groupe
-          </h2>
-          <a
-            href={`/trips/${tripId}/availability`}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Voir le calendrier →
-          </a>
-        </div>
-
-        {(availData as any)?.schemaMissing ? (
-          <p className="text-sm text-destructive">
-            Table dispos absente — exécute le SQL trip_availability dans Lovable.
-          </p>
-        ) : (trip as any).dates_locked || availData?.trip?.datesLocked ? (
-          <div className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3">
-            <p className="flex items-center gap-2 font-semibold text-foreground">
-              <Lock className="size-4 text-lagoon" />
-              Dates validées
-            </p>
-            <p className="mt-1 text-sm">
-              {new Date(
-                ((trip as any).start_date || availData?.trip?.lockedStart) + "T12:00:00",
-              ).toLocaleDateString("fr-FR")}
-              {" → "}
-              {new Date(
-                ((trip as any).end_date || availData?.trip?.lockedEnd) + "T12:00:00",
-              ).toLocaleDateString("fr-FR")}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Ces dates alimentent les recherches API (vols, hébergements, activités).
-            </p>
-            {data.isOwner ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                disabled={unlockDatesMutation.isPending}
-                onClick={() => {
-                  if (window.confirm("Déverrouiller les dates pour en choisir d'autres ?")) {
-                    unlockDatesMutation.mutate();
-                  }
-                }}
-              >
-                {unlockDatesMutation.isPending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Unlock className="size-3.5" />
-                )}
-                Déverrouiller
-              </Button>
-            ) : null}
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1}{" "}
-              dispos reçues. L&apos;organisateur valide une fenêtre pour lancer les destinations.
-            </p>
-            <ul className="space-y-2">
-              {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
-                <li
-                  key={`${w.start}-${w.end}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">
-                      {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
-                      {new Date(w.start + "T12:00:00").toLocaleDateString("fr-FR")} →{" "}
-                      {new Date(w.end + "T12:00:00").toLocaleDateString("fr-FR")}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {w.covered}/{w.total} · {Math.round((w.coverageRatio ?? 0) * 100)} %
-                      </span>
-                    </p>
-                    {(w.availablePeople?.length ?? 0) > 0 ? (
-                      <p className="mt-0.5 text-xs text-lagoon">
-                        ✅ {w.availablePeople.map((p: any) => p.name).join(", ")}
-                      </p>
-                    ) : null}
-                    {(w.unavailablePeople?.length ?? 0) > 0 ? (
-                      <p className="mt-0.5 text-xs text-destructive/90">
-                        ❌ {w.unavailablePeople.map((p: any) => p.name).join(", ")}
-                      </p>
-                    ) : null}
-                  </div>
-                  {data.isOwner ? (
-                    <Button
-                      size="sm"
-                      variant={i === 0 ? "default" : "outline"}
-                      disabled={chooseDatesMutation.isPending}
-                      onClick={() =>
-                        chooseDatesMutation.mutate({ start: w.start, end: w.end })
-                      }
-                    >
-                      {chooseDatesMutation.isPending ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Lock className="size-3.5" />
-                      )}
-                      Valider ces dates
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
-              {(availData?.windows ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Pas encore de fenêtre commune — attends plus de réponses dispos.
-                </p>
-              ) : null}
-            </ul>
-          </>
-        )}
-      </section>
-
-
-
-      
-      
-      {(trip.celebrated_person ||
-        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
-        <section className="mt-6 space-y-3 rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
-            <a
-              href={`/trips/${tripId}/star`}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              {starData?.preferences ? "Modifier" : "Remplir"} →
-            </a>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Ces réponses pèsent ~×2,5 à ×3,2 dans le scoring par rapport aux autres participants.
-          </p>
-          {starData?.preferences ? (
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <p>
-                <span className="font-medium text-foreground">
-                  {trip.celebrated_person || "Personne principale"}
-                </span>{" "}
-                — questionnaire enregistré
-              </p>
-              {(starData.preferences.wantedActivities?.length ?? 0) > 0 ? (
-                <p>✅ Envies : {starData.preferences.wantedActivities.join(", ")}</p>
-              ) : null}
-              {(starData.preferences.dealBreakers?.length ?? 0) > 0 ? (
-                <p>⛔ À éviter : {starData.preferences.dealBreakers.join(", ")}</p>
-              ) : null}
-              {(starData.preferences.ambiances?.length ?? 0) > 0 ? (
-                <p>✨ Ambiances : {starData.preferences.ambiances.join(", ")}</p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Pas encore rempli — à faire avant de générer les destinations pour bien pondérer.
-            </p>
-          )}
-        </section>
-      )}
-
-
-      {/* CTA génération destinations */}
-      {data.isOwner ? (
-        <section className="mt-8 rounded-3xl border border-primary/30 bg-primary/5 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-display text-lg font-semibold">Suggestions de destinations</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Basées sur les préférences du groupe + la date validée.
-              </p>
-            </div>
-            <Button
-              variant="hero"
-              size="lg"
-              onClick={() => regenerateMutation.mutate()}
-              disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : true)}
-              title={
-                readiness && !readiness.canGenerate
-                  ? readiness.message ?? "Complète dispos, préférences et valide les dates"
-                  : undefined
-              }
-            >
-              {regenerateMutation.isPending ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Sparkles />
-              )}
-              Générer les propositions
-            </Button>
-          </div>
-          {readiness && !readiness.canGenerate ? (
-            <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
-              {readiness.message}
-            </p>
-          ) : readiness?.canGenerate ? (
-            <p className="mt-3 text-sm text-lagoon">
-              Prêt — le scoring utilisera les budgets, ambiances, hébergements, villes de départ et la date verrouillée.
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-
-
-      <section id="hub-destination" className="mt-10 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-display text-2xl font-semibold">1. Destinations proposées</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Votez pour vos destinations préférées
-              {data.isOwner
-                ? " — l'organisateur valide ensuite le choix du groupe."
-                : " — l'organisateur validera le choix final."}
-            </p>
-          </div>
-          {data.isOwner ? (
-            <Button
-              variant="hero"
-              onClick={() => regenerateMutation.mutate()}
-              disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)}
-              title={
-                readiness && !readiness.canGenerate
-                  ? readiness.message ?? "Questionnaires incomplets"
-                  : undefined
-              }
-            >
-              {regenerateMutation.isPending ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Sparkles />
-              )}
-              {recommendations.length ? "Régénérer" : "Générer les propositions"}
-            </Button>
-          ) : null}
-        </div>
-        {recommendations.length === 0 ? (
-          <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            {data.isOwner
-              ? readiness?.canGenerate
-                ? "Prêt : clique sur « Générer les propositions » pour lancer Krew."
-                : "Complète les questionnaires et valide les dates pour générer des destinations."
-              : "L'organisateur générera bientôt les propositions de destinations."}
-          </p>
-        ) : (
-          recommendations.map((reco, index) => {
-            const recoVotes = votes.filter((v) => v.recommendation_id === reco.id);
-            const hasVoted = recoVotes.some((v) => v.user_id === data.userId);
-            const recoActivities = activities.filter((a) => (reco.activity_ids ?? []).includes(a.id));
-            return (
-              <article
-                key={reco.id}
-                className={cn(
-                  "overflow-hidden rounded-3xl border bg-card shadow-elevated",
-                  reco.is_selected ? "border-lagoon" : "border-border",
-                )}
-              >
-                {reco.destinations?.image_url ? (
-                  <img
-                    src={reco.destinations.image_url}
-                    alt={`Vue de ${reco.destinations.name}`}
-                    loading="lazy"
-                    className="h-48 w-full object-cover"
-                  />
-                ) : null}
-                <div className="p-6">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Proposition {index + 1} · {reco.destinations?.country}
-                      </p>
-                      <h3 className="font-display text-2xl font-semibold">{reco.destinations?.name}</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {reco.is_selected ? <Badge variant="success">Choix du groupe</Badge> : null}
-                      <Badge variant="lagoon">{Math.round(reco.score)} %</Badge>
-                    </div>
-                  </div>
-
-                  {reco.rationale ? <p className="mt-3 text-sm text-muted-foreground">{reco.rationale}</p> : null}
-
-                  {reco.match_reasons?.length ? (
-                    <ul className="mt-4 flex flex-wrap gap-2">
-                      {reco.match_reasons.map((reason) => (
-                        <li
-                          key={reason}
-                          className="rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted-foreground"
-                        >
-                          {reason}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-
-                  {reco.accommodations ? (
-                    <div className="mt-5 rounded-2xl border border-border bg-surface/40 p-4">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Hébergement</p>
-                      <p className="mt-1 font-medium">
-                        {reco.accommodations.name} · {reco.accommodations.type}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        <Star className="mr-1 inline size-3.5" />
-                        {reco.accommodations.rating} · à {reco.accommodations.distance_center_km} km du centre · {" "}
-                        {formatEuro(Number(reco.accommodations.price_per_night_per_person))} / nuit / pers.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {recoActivities.length ? (
-                    <div className="mt-5">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Aperçu activités (vote après validation de la destination)
-                      </p>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        {recoActivities.map((a: any) => (
-                          <div
-                            key={a.id}
-                            className="rounded-2xl border border-border bg-surface/40 px-3 py-2 text-sm"
-                          >
-                            <p className="font-medium">{a.name}</p>
-                            <p className="text-muted-foreground">
-                              {categoryLabel(a.category)} · {formatEuro(Number(a.price_per_person))} / pers.
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {reco.itinerary?.length ? (
-                    <div className="mt-5">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Programme</p>
-                      <div className="mt-2 space-y-3">
-                        {reco.itinerary.map((day) => (
-                          <div key={day.day} className="rounded-2xl border border-border p-4">
-                            <p className="font-medium">
-                              Jour {day.day} — {day.title}
-                            </p>
-                            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                              {day.slots.map((slot, i) => (
-                                <li key={`${day.day}-${i}`}>
-                                  <span className="font-medium text-foreground">{slot.moment}</span> · {slot.label}
-                                  {slot.detail ? ` — ${slot.detail}` : ""}
-                                  {slot.price ? ` (${formatEuro(slot.price)})` : ""}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {reco.budget ? (
-                    <div className="mt-5 rounded-2xl border border-border bg-surface/40 p-4">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Budget estimé</p>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                        <p>
-                          Transport : {formatEuro(reco.budget.transport)}
-                          <span className="block text-xs text-muted-foreground">moy. / pers.</span>
-                        </p>
-                        {(reco.budget as any).budgetFitTotal ? (
-                          <p className="col-span-2 text-xs text-muted-foreground sm:col-span-4">
-                            {(reco.budget as any).hardBudgetFits === false
-                              ? "⚠️ "
-                              : "✅ "}
-                            Dans le budget de {(reco.budget as any).budgetFitCount}/
-                            {(reco.budget as any).budgetFitTotal} participants
-                          </p>
-                        ) : null}
-                        <p>Hébergement : {formatEuro(reco.budget.accommodation)}</p>
-                        <p>Activités : {formatEuro(reco.budget.activities)}</p>
-                        <p>Restauration : {formatEuro(reco.budget.food)}</p>
-                      </div>
-                      {reco.budget.transportByOrigin && reco.budget.transportByOrigin.length > 1 ? (
-                        <div className="mt-3 rounded-xl border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
-                          <p className="mb-1 font-medium text-foreground">Transport par ville de départ</p>
-                          <ul className="space-y-0.5">
-                            {reco.budget.transportByOrigin.map((o) => (
-                              <li key={o.city}>
-                                {o.city} × {o.count} → {formatEuro(o.pricePerPerson)} A/R / pers.
-                                <span className="text-muted-foreground/80">
-                                  {" "}
-                                  (sous-total {formatEuro(o.pricePerPerson * o.count)})
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          {typeof reco.budget.transportGroup === "number" ? (
-                            <p className="mt-1">
-                              Transport groupe : {formatEuro(reco.budget.transportGroup)}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : typeof reco.budget.transportGroup === "number" &&
-                        reco.budget.transportGroup > 0 ? (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Transport groupe : {formatEuro(reco.budget.transportGroup)}
-                        </p>
-                      ) : null}
-                      <Separator className="my-3" />
-                      <p className="font-display text-lg font-semibold">
-                        {formatEuro(reco.budget.totalPerPerson)} / personne
-                        <span className="ml-2 text-sm font-normal text-muted-foreground">
-                          soit {formatEuro(reco.budget.totalGroup)} pour le groupe
-                        </span>
-                      </p>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <Button
-                      variant={hasVoted ? "lagoon" : "glass"}
-                      onClick={() => voteMutation.mutate(reco.id)}
-                      disabled={voteMutation.isPending}
-                    >
-                      <Heart className={cn(hasVoted && "fill-current")} />{" "}
-                      {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
-                    </Button>
-                    {data.isOwner && !reco.is_selected ? (
-                      <Button
-                        variant="hero"
-                        onClick={() => selectMutation.mutate(reco.id)}
-                        disabled={selectMutation.isPending}
-                      >
-                        <CheckCircle2 /> Choisir cette destination
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              </article>
-            );
-          })
-        )}
-      </section>
-
-      {/* Résumé + validation des dates */}
-
-
+{/* Résumé + validation des dates */}
 
       {/* 2. Vote activités — une fois la destination validée */}
       {destinationSelected ? (
@@ -952,13 +442,73 @@ function TripDetail() {
             })()}
           </div>
         </section>
-      ) : recommendations.length > 0 ? (
-        <p className="mt-6 text-sm text-muted-foreground">
-          Les votes sur les activités s&apos;ouvriront quand l&apos;organisateur aura validé une destination.
-        </p>
-      ) : null}
 
-      <section id="invite-section" className="mt-12 scroll-mt-24">
+{/* CTA génération destinations */}
+      {data.isOwner ? (
+        <section className="mt-8 rounded-3xl border border-primary/30 bg-primary/5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Suggestions de destinations</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Basées sur les préférences du groupe + la date validée.
+              </p>
+            </div>
+            <Button
+              variant="hero"
+              size="lg"
+              onClick={() => regenerateMutation.mutate()}
+              disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : true)}
+              title={
+                readiness && !readiness.canGenerate
+                  ? readiness.message ?? "Complète dispos, préférences et valide les dates"
+                  : undefined
+              }
+            >
+              {regenerateMutation.isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Sparkles />
+              )}
+              Générer les propositions
+            </Button>
+          </div>
+          {readiness && !readiness.canGenerate ? (
+            <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+              {readiness.message}
+            </p>
+          ) : readiness?.canGenerate ? (
+            <p className="mt-3 text-sm text-lagoon">
+              Prêt — le scoring utilisera les budgets, ambiances, hébergements, villes de départ et la date verrouillée.
+            </p>
+          ) : null}
+
+{(trip.celebrated_person ||
+        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
+        <section className="mt-6 space-y-3 rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
+            <a
+              href={`/trips/${tripId}/star`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {starData?.preferences ? "Modifier" : "Remplir"} →
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Ces réponses pèsent ~×2,5 à ×3,2 dans le scoring par rapport aux autres participants.
+          </p>
+          {starData?.preferences ? (
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">
+                  {trip.celebrated_person || "Personne principale"}
+                </span>{" "}
+                — questionnaire enregistré
+              </p>
+              {(starData.preferences.wantedActivities?.length ?? 0) > 0 ? (
+                <p>✅ Envies : {starData.preferences.wantedActivities.join(", ")}
+
+<section id="invite-section" className="mt-12 scroll-mt-24">
         <h2 className="font-display text-2xl font-semibold">Inviter la bande</h2>
         <div className="mt-4 rounded-2xl border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">
@@ -1054,6 +604,44 @@ function TripDetail() {
           )}
         </ul>
       </section>
+
+      {data.isOwner && trip.status !== "annule" ? (
+        <section className="mt-16 border-t border-border pt-8">
+          <p className="text-sm text-muted-foreground mb-3">Zone organisateur</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive"
+              disabled={cancelMutation.isPending}
+              onClick={() => {
+                if (window.confirm("Annuler ce voyage ? Il disparaîtra de la liste active.")) {
+                  cancelMutation.mutate(false);
+                }
+              }}
+            >
+              Annuler le voyage
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-destructive"
+              disabled={cancelMutation.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Supprimer DÉFINITIVEMENT ce voyage et toutes ses données ? Irréversible.",
+                  )
+                ) {
+                  cancelMutation.mutate(true);
+                }
+              }}
+            >
+              Supprimer définitivement
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
+
     </main>
   );
 }
