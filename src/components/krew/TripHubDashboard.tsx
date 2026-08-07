@@ -330,6 +330,9 @@ export function TripHubDashboard({
   const datesLocked = Boolean(
     (trip as any).dates_locked || (trip as any).datesLocked,
   );
+  const hasItinerary = Boolean(
+    (trip as any).group_itinerary?.days?.length,
+  );
 
   const steps = buildTripSteps({
     tripId,
@@ -340,6 +343,7 @@ export function TripHubDashboard({
     datesLocked,
     hasRecommendations,
     destinationSelected,
+    hasItinerary,
   });
 
   const theme = eventTypeLabel(trip.event_type);
