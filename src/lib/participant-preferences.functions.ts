@@ -78,11 +78,18 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
 
     const prefs = await supabase
       .from("trip_participant_preferences")
-      .select("*, submitted_at, updated_at")
+      .select("*")
       .eq("trip_id", data.tripId)
       .eq("user_id", userId)
       .maybeSingle();
-    if (prefs.error) throw prefs.error;
+    if (prefs.error) {
+      const msg = String(prefs.error.message || prefs.error);
+      if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
+        // Table absente : on laisse le formulaire vide plutôt que de planter la page
+        return { trip: trip.data, preferences: null, schemaMissing: true };
+      }
+      throw prefs.error;
+    }
 
     return { trip: trip.data, preferences: prefs.data ?? null };
   });
