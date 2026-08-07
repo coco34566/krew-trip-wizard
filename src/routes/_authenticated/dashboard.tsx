@@ -6,7 +6,7 @@ import { CalendarDays, MapPin, Plus, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listMyTrips } from "@/lib/trips.functions";
+import { listMyTrips, listMyPriceWatches } from "@/lib/trips.functions";
 import { eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -72,6 +72,12 @@ function TripCard({ trip, invited = false }: { trip: TripRow; invited?: boolean 
 
 function Dashboard() {
   const fetchTrips = useServerFn(listMyTrips);
+  const { data: watchData } = useQuery({
+    queryKey: ["price-watches"],
+    queryFn: () => listWatches({}),
+    retry: false,
+  });
+
   const { data, isLoading } = useQuery({ queryKey: ["my-trips"], queryFn: () => fetchTrips() });
 
   const trips = (data?.trips ?? []) as TripRow[];
@@ -84,6 +90,35 @@ function Dashboard() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold sm:text-4xl">Mes voyages</h1>
+
+      {(watchData?.watches?.length ?? 0) > 0 ? (
+        <div className="price-watch-banner mt-6 space-y-2 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm">
+          {(watchData?.watches ?? []).slice(0, 5).map((w: any) => {
+            const when = w.last_checked_at
+              ? new Date(w.last_checked_at).toLocaleDateString("fr-FR", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "—";
+            const tripName = (w.trips as any)?.name ?? "Voyage";
+            const dest = w.destination_name ?? "destination";
+            return (
+              <p key={w.id}>
+                💡 Pensez à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
+                bougent vite. Dernière vérif. : {when}.{" "}
+                <Link
+                  to="/trips/$tripId/recap"
+                  params={{ tripId: w.trip_id }}
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Ouvrir le récap
+                </Link>
+              </p>
+            );
+          })}
+        </div>
+      ) : null}
           <p className="mt-1 text-muted-foreground">Vos projets en cours, validés et les invitations reçues.</p>
         </div>
         <Button asChild variant="hero">
