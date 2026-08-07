@@ -81,25 +81,33 @@ export function TripHubDashboard({
   const theme = eventTypeLabel(trip.event_type);
 
   async function handleInviteClick() {
-    const url = getJoinUrl(tripId);
+    const url =
+      getJoinUrl(tripId) ||
+      (typeof window !== "undefined"
+        ? `${window.location.origin}/join/${tripId}`
+        : `/join/${tripId}`);
     try {
       if (url) {
         await navigator.clipboard.writeText(url);
         setInviteCopied(true);
-        toast.success("Lien d'invitation copié", { description: url });
+        toast.success("Lien copié — ouverture WhatsApp…", { description: url });
         setTimeout(() => setInviteCopied(false), 2000);
       }
     } catch {
-      toast.message("Lien d'invitation", { description: url || `/join/${tripId}` });
+      toast.message("Lien d'invitation", { description: url });
     }
-    // Scroller vers la section invite en bas de la page Mon Voyage
+    const text =
+      `Salut ! On organise « ${trip.name} » avec Krew ✈️\n\n` +
+      `Clique ici pour rejoindre et indiquer tes dispos :\n${url}`;
+    if (typeof window !== "undefined") {
+      window.open(
+        `https://wa.me/?text=${encodeURIComponent(text)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    }
     const el = document.getElementById("invite-section");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else {
-      // Si on n'est pas sur Mon Voyage, aller sur Mon Voyage avec ancre
-      window.location.href = `/trips/${tripId}#invite-section`;
-    }
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
