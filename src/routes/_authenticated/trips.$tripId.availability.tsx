@@ -125,7 +125,7 @@ function AvailabilityPage() {
       </Link>
 
       <header className="mt-4">
-        <p className="text-xs font-medium uppercase tracking-wider text-primary">Étape disponibilités</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-primary">Disponibilités · résumé live</p>
         <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">{data.trip.name}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {data.answered}/{data.expected} ont indiqué leurs dates · résultat{" "}
@@ -137,7 +137,7 @@ function AvailabilityPage() {
         <div className="flex items-start gap-3">
           <CalendarDays className="mt-0.5 size-5 text-primary" />
           <div>
-            <h2 className="font-semibold">Résultat provisoire du groupe</h2>
+            <h2 className="font-semibold">Résumé des disponibilités</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Meilleure fenêtre actuelle : <strong className="text-foreground">{provisionalLabel}</strong>
             </p>
