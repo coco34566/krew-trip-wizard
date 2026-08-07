@@ -559,13 +559,17 @@ function TripDetail() {
         progressTotal={progress?.expected ?? progress?.total ?? trip.participants_count ?? 1}
         availabilityAnswered={availData?.answered ?? 0}
         availabilityExpected={availData?.expected ?? trip.participants_count ?? 1}
-        provisionalStart={availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date}
+        provisionalStart={trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date}
         provisionalCoverage={availData?.windows?.[0]?.coverageRatio}
         myAvailabilityDone={Boolean(availData?.mine)}
         myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
         starDone={Boolean(starData?.preferences)}
         hasRecommendations={recommendations.length > 0}
         destinationSelected={recommendations.some((r) => r.is_selected)}
+        destinationName={
+          recommendations.find((r) => r.is_selected)?.destinations?.name ?? null
+        }
+        liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
         topScores={recommendations.slice(0, 3).map((r) => ({
           name: r.destinations?.name ?? "Destination",
           score: r.score,
