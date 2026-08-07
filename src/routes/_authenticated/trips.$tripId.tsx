@@ -194,7 +194,9 @@ function TripDetail() {
           <div className="mt-4">
             <div className="flex flex-wrap items-center gap-3">
               <Link to="/trips/$tripId/questionnaire" params={{ tripId }}>
-                <Button variant="outline">Répondre à mon questionnaire</Button>
+                <Button variant="outline">
+                  Questionnaire — répondre ou modifier
+                </Button>
               </Link>
               {progress ? (
                 <span className="text-sm text-muted-foreground">
