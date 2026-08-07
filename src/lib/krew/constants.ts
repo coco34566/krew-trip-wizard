@@ -9,6 +9,44 @@ export const EVENT_TYPES = [
   { value: "anniversaire", label: "Anniversaire", emoji: "🎂" },
   { value: "weekend", label: "Week-end entre amis", emoji: "🌴" },
   { value: "voyage_groupe", label: "Voyage de groupe", emoji: "✈️" },
+  { value: "famille", label: "Voyage famille", emoji: "👨‍👩‍👧‍👦" },
+  { value: "seminaire", label: "Séminaire", emoji: "💼" },
+  { value: "retraite", label: "Départ à la retraite", emoji: "🎉" },
+  { value: "autre", label: "Autre", emoji: "✨" },
+] as const;
+
+/** Types d'événement où une "Star" (personne principale) a du sens. */
+export const STAR_EVENT_TYPES = new Set([
+  "evg",
+  "evjf",
+  "anniversaire",
+  "retraite",
+]);
+
+export const STAR_WANTED_ACTIVITIES = [
+  "sport",
+  "plage",
+  "randonnée",
+  "spa",
+  "bateau",
+  "ski",
+  "karting",
+  "soirée",
+  "gastronomie",
+  "musée",
+  "shopping",
+  "nature",
+] as const;
+
+export const STAR_DEAL_BREAKERS = [
+  "déguisement",
+  "strip-tease",
+  "activités extrêmes",
+  "musée",
+  "camping",
+  "foule",
+  "sport intense",
+  "long trajet",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number]["value"];
