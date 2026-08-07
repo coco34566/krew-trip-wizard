@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { buildProposals, type Proposal, type ScoringContext } from "./engine";
 import { loadTravelCatalog } from "./providers.server";
+import { discoverCandidateDestinations } from "./destination-discovery.server";
 
 export const tripInputSchema = z.object({
   name: z.string().min(2).max(120),
@@ -275,15 +276,34 @@ export async function generateRecommendationsForTrip(
     minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
   };
 
-  // 1) Shortlist : destination forcée OU top 5 seed
-  const seedCatalog = await loadTravelCatalog(supabase, catalogQuery);
-  const shortlistNames: string[] = resolvedDestination
-    ? [resolvedDestination]
-    : buildProposals(seedCatalog, { ...ctx, letKrewDecide: true, desiredDestination: null }, 5).map(
-        (p) => p.destination.name,
-      );
+  // 1) Shortlist dynamique : destination forcée OU découverte par critères (plus de seed)
+  let shortlistNames: string[];
+  if (resolvedDestination) {
+    shortlistNames = [resolvedDestination];
+  } else {
+    const candidates = discoverCandidateDestinations(
+      {
+        ambiances: ctx.ambiances,
+        activityCategories: ctx.activityCategories,
+        budgetPerPerson: ctx.budgetPerPerson,
+        maxDistanceKm: ctx.maxDistanceKm,
+        nights: ctx.nights,
+        startMonth: ctx.startMonth,
+        excludedCountries: ctx.excludedCountries,
+        departureCity: (trip.data.departure_city as string) || "Paris",
+        participants: ctx.participants,
+        eventType: (trip.data.event_type as string) || undefined,
+      },
+      6,
+    );
+    shortlistNames = candidates.map((c) => c.name);
+    // Fallback de sécurité si aucun candidat (critères trop stricts)
+    if (!shortlistNames.length) {
+      shortlistNames = ["Barcelone", "Budapest", "Lisbonne"];
+    }
+  }
 
-  // 2) APIs logements + activités (Booking, TripAdvisor, …)
+  // 2) APIs logements + activités (Booking, TripAdvisor, …) pour chaque candidate
   const providerErrors = await enrichCatalogWithExternalApis(supabase, tripId, shortlistNames);
 
   // 3) Catalogue enrichi
