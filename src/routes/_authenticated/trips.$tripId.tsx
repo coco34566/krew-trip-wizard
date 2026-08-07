@@ -27,13 +27,16 @@ import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { cn } from "@/lib/utils";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
+import { ComingSoonGrid, TripHubNav } from "@/components/krew/TripHubNav";
+import { buildTripSteps } from "@/lib/krew/availability";
+import { getTripAvailability } from "@/lib/availability.functions";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId")({
   head: () => ({
     meta: [
-      { title: "Détail du voyage — Krew" },
+      { title: "Hub du voyage — Krew" },
       { name: "description", content: "Propositions Krew, planning jour par jour, budget détaillé et votes du groupe." },
-      { property: "og:title", content: "Détail du voyage — Krew" },
+      { property: "og:title", content: "Hub du voyage — Krew" },
       { property: "og:description", content: "Comparez les propositions et validez le voyage avec votre groupe." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -74,6 +77,13 @@ function TripDetail() {
   const fetchProgress = useServerFn(getParticipantsProgress);
   const searchExternal = useServerFn(searchExternalForTrip);
   const fetchSplit = useServerFn(getCostSplit);
+  const fetchAvail = useServerFn(getTripAvailability);
+  const { data: availData } = useQuery({
+    queryKey: ["trip-availability", tripId],
+    queryFn: () => fetchAvail({ data: { tripId } }),
+    enabled: Boolean(tripId),
+    retry: false,
+  });
   const { data: costSplitData } = useQuery({
     queryKey: ["cost-split", tripId],
     queryFn: () => fetchSplit({ data: { tripId } }),
@@ -242,7 +252,43 @@ function TripDetail() {
         </div>
       </div>
 
-      {costSplitData?.isSelected && costSplitData.split ? (
+      
+      {/* Hub — progression du voyage */}
+      <section className="mt-8 space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="lagoon">{eventTypeLabel(trip.event_type)}</Badge>
+          {(trip as any).celebrated_person ? (
+            <Badge variant="muted">⭐ {(trip as any).celebrated_person}</Badge>
+          ) : null}
+          {availData?.windows?.[0] ? (
+            <Badge variant="success">
+              Date {availData.answered < availData.expected ? "provisoire" : ""} :{" "}
+              {new Date(availData.windows[0].start).toLocaleDateString("fr-FR")}
+            </Badge>
+          ) : null}
+        </div>
+        <TripHubNav
+          tripId={tripId}
+          steps={buildTripSteps({
+            tripId,
+            participantsJoined: (data.participants?.length ?? trip.participants_count) || 1,
+            participantsExpected: trip.participants_count || 1,
+            availabilityAnswered: availData?.answered ?? 0,
+            questionnaireAnswered: progress?.answered ?? 0,
+            hasRecommendations: recommendations.length > 0,
+            destinationSelected: recommendations.some((r) => r.is_selected),
+          })}
+        />
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/trips/$tripId/availability" params={{ tripId }}>
+              Disponibilités du groupe
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+{costSplitData?.isSelected && costSplitData.split ? (
         <section className="mt-10">
           <CostSplitCard split={costSplitData.split} tripName={trip.name} />
         </section>
