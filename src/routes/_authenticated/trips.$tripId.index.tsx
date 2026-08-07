@@ -335,8 +335,6 @@ function TripDetail() {
         </div>
       </TripHubDashboard>
 
-
-      {/* Statut de complétion des questionnaires */}
       {readiness ? (
         <div className="mt-8 space-y-3 rounded-2xl border border-border bg-surface/40 px-4 py-4 text-sm">
           <p className="font-medium">Statut des questionnaires</p>
@@ -370,12 +368,126 @@ function TripDetail() {
         </div>
       ) : null}
 
-      <section className="mt-10">
-          <CostSplitCard split={costSplitData.split} tripName={trip.name} />
-        </section>
 
-      {(trip.celebrated_person ||
-        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
+      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+            <CalendarDays className="size-5 text-primary" />
+            Dates du groupe
+          </h2>
+          <a
+            href={`/trips/${tripId}/availability`}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Voir le calendrier →
+          </a>
+        </div>
+
+        {(availData as any)?.schemaMissing ? (
+          <p className="text-sm text-destructive">
+            Table dispos absente — exécute le SQL trip_availability dans Lovable.
+          </p>
+        ) : (trip as any).dates_locked || availData?.trip?.datesLocked ? (
+          <div className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3">
+            <p className="flex items-center gap-2 font-semibold text-foreground">
+              <Lock className="size-4 text-lagoon" />
+              Dates validées
+            </p>
+            <p className="mt-1 text-sm">
+              {new Date(
+                ((trip as any).start_date || availData?.trip?.lockedStart) + "T12:00:00",
+              ).toLocaleDateString("fr-FR")}
+              {" → "}
+              {new Date(
+                ((trip as any).end_date || availData?.trip?.lockedEnd) + "T12:00:00",
+              ).toLocaleDateString("fr-FR")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ces dates alimentent les recherches API (vols, hébergements, activités).
+            </p>
+            {data.isOwner ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                disabled={unlockDatesMutation.isPending}
+                onClick={() => {
+                  if (window.confirm("Déverrouiller les dates pour en choisir d'autres ?")) {
+                    unlockDatesMutation.mutate();
+                  }
+                }}
+              >
+                {unlockDatesMutation.isPending ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Unlock className="size-3.5" />
+                )}
+                Déverrouiller
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1}{" "}
+              dispos reçues. L&apos;organisateur valide une fenêtre pour lancer les destinations.
+            </p>
+            <ul className="space-y-2">
+              {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
+                <li
+                  key={`${w.start}-${w.end}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm">
+                      {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
+                      {new Date(w.start + "T12:00:00").toLocaleDateString("fr-FR")} →{" "}
+                      {new Date(w.end + "T12:00:00").toLocaleDateString("fr-FR")}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {w.covered}/{w.total} · {Math.round((w.coverageRatio ?? 0) * 100)} %
+                      </span>
+                    </p>
+                    {(w.availablePeople?.length ?? 0) > 0 ? (
+                      <p className="mt-0.5 text-xs text-lagoon">
+                        ✅ {w.availablePeople.map((p: any) => p.name).join(", ")}
+                      </p>
+                    ) : null}
+                    {(w.unavailablePeople?.length ?? 0) > 0 ? (
+                      <p className="mt-0.5 text-xs text-destructive/90">
+                        ❌ {w.unavailablePeople.map((p: any) => p.name).join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                  {data.isOwner ? (
+                    <Button
+                      size="sm"
+                      variant={i === 0 ? "default" : "outline"}
+                      disabled={chooseDatesMutation.isPending}
+                      onClick={() =>
+                        chooseDatesMutation.mutate({ start: w.start, end: w.end })
+                      }
+                    >
+                      {chooseDatesMutation.isPending ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Lock className="size-3.5" />
+                      )}
+                      Valider ces dates
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+              {(availData?.windows ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Pas encore de fenêtre commune — attends plus de réponses dispos.
+                </p>
+              ) : null}
+            </ul>
+          </>
+        )}
+      </section>
+
+
         <section className="mt-6 space-y-3 rounded-3xl border border-border bg-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
@@ -411,6 +523,7 @@ function TripDetail() {
           )}
         </section>
       )}
+
 
       <section id="hub-destination" className="mt-10 space-y-6">
         <h2 className="font-display text-2xl font-semibold">Les propositions de Krew</h2>
@@ -602,228 +715,6 @@ function TripDetail() {
       </section>
 
       {/* Résumé + validation des dates */}
-      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-            <CalendarDays className="size-5 text-primary" />
-            Dates du groupe
-          </h2>
-          <a
-            href={`/trips/${tripId}/availability`}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Voir le calendrier →
-          </a>
-        </div>
-
-        {(availData as any)?.schemaMissing ? (
-          <p className="text-sm text-destructive">
-            Table dispos absente — exécute le SQL trip_availability dans Lovable.
-          </p>
-        ) : (trip as any).dates_locked || availData?.trip?.datesLocked ? (
-          <div className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3">
-            <p className="flex items-center gap-2 font-semibold text-foreground">
-              <Lock className="size-4 text-lagoon" />
-              Dates validées
-            </p>
-            <p className="mt-1 text-sm">
-              {new Date(
-                ((trip as any).start_date || availData?.trip?.lockedStart) + "T12:00:00",
-              ).toLocaleDateString("fr-FR")}
-              {" → "}
-              {new Date(
-                ((trip as any).end_date || availData?.trip?.lockedEnd) + "T12:00:00",
-              ).toLocaleDateString("fr-FR")}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Ces dates alimentent les recherches API (vols, hébergements, activités).
-            </p>
-            {data.isOwner ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                disabled={unlockDatesMutation.isPending}
-                onClick={() => {
-                  if (window.confirm("Déverrouiller les dates pour en choisir d'autres ?")) {
-                    unlockDatesMutation.mutate();
-                  }
-                }}
-              >
-                {unlockDatesMutation.isPending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Unlock className="size-3.5" />
-                )}
-                Déverrouiller
-              </Button>
-            ) : null}
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1}{" "}
-              dispos reçues. L&apos;organisateur valide une fenêtre pour lancer les destinations.
-            </p>
-            <ul className="space-y-2">
-              {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
-                <li
-                  key={`${w.start}-${w.end}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">
-                      {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
-                      {new Date(w.start + "T12:00:00").toLocaleDateString("fr-FR")} →{" "}
-                      {new Date(w.end + "T12:00:00").toLocaleDateString("fr-FR")}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {w.covered}/{w.total} · {Math.round((w.coverageRatio ?? 0) * 100)} %
-                      </span>
-                    </p>
-                    {(w.availablePeople?.length ?? 0) > 0 ? (
-                      <p className="mt-0.5 text-xs text-lagoon">
-                        ✅ {w.availablePeople.map((p: any) => p.name).join(", ")}
-                      </p>
-                    ) : null}
-                    {(w.unavailablePeople?.length ?? 0) > 0 ? (
-                      <p className="mt-0.5 text-xs text-destructive/90">
-                        ❌ {w.unavailablePeople.map((p: any) => p.name).join(", ")}
-                      </p>
-                    ) : null}
-                  </div>
-                  {data.isOwner ? (
-                    <Button
-                      size="sm"
-                      variant={i === 0 ? "default" : "outline"}
-                      disabled={chooseDatesMutation.isPending}
-                      onClick={() =>
-                        chooseDatesMutation.mutate({ start: w.start, end: w.end })
-                      }
-                    >
-                      {chooseDatesMutation.isPending ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Lock className="size-3.5" />
-                      )}
-                      Valider ces dates
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
-              {(availData?.windows ?? []).length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Pas encore de fenêtre commune — attends plus de réponses dispos.
-                </p>
-              ) : null}
-            </ul>
-          </>
-        )}
-      </section>
-
-      {/* Résumé disponibilités du groupe */}
-      <section className="mt-8 space-y-3 rounded-3xl border border-border bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-lg font-semibold">Disponibilités du groupe</h2>
-          <a
-            href={`/trips/${tripId}/availability`}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            {availData?.mine ? "Modifier mes dispos" : "Indiquer mes dispos"} →
-          </a>
-        </div>
-        {(availData as any)?.schemaMissing ? (
-          <p className="text-sm text-destructive">
-            Table dispos absente en base — exécute le SQL trip_availability dans Lovable.
-          </p>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">
-              {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1} personnes
-              ont répondu
-              {(availData?.expected ?? trip.participants_count ?? 1) - (availData?.answered ?? 0) > 0
-                ? ` · ${(availData?.expected ?? trip.participants_count ?? 1) - (availData?.answered ?? 0)} en attente`
-                : " · complet"}
-              {availData?.windows?.[0]
-                ? ` · meilleure date : ${new Date(availData.windows[0].start).toLocaleDateString("fr-FR")} → ${new Date(availData.windows[0].end).toLocaleDateString("fr-FR")} (${Math.round((availData.windows[0].coverageRatio ?? 0) * 100)} %)`
-                : " · pas encore de date commune"}
-            </p>
-            <ul className="space-y-2">
-              {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
-                <li
-                  key={`${w.start}-${w.end}`}
-                  className="rounded-2xl border border-border/70 bg-surface/30 px-4 py-3 text-sm"
-                >
-                  <p className="font-medium">
-                    {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
-                    {new Date(w.start).toLocaleDateString("fr-FR")} →{" "}
-                    {new Date(w.end).toLocaleDateString("fr-FR")}
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {w.covered}/{w.total} peuvent
-                    </span>
-                  </p>
-                  {(w.availablePeople?.length ?? 0) > 0 ? (
-                    <p className="mt-1 text-xs text-lagoon">
-                      ✅ {w.availablePeople.map((p: any) => p.name).join(", ")}
-                    </p>
-                  ) : null}
-                  {(w.unavailablePeople?.length ?? 0) > 0 ? (
-                    <p className="mt-0.5 text-xs text-destructive/90">
-                      ❌ {w.unavailablePeople.map((p: any) => p.name).join(", ")}
-                    </p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
-
-      {/* Résumé préférences de la star */}
-      {(trip.celebrated_person ||
-        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
-        <section className="mt-6 space-y-3 rounded-3xl border border-border bg-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
-            <a
-              href={`/trips/${tripId}/star`}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              {starData?.preferences ? "Modifier" : "Remplir"} →
-            </a>
-          </div>
-          {starData?.preferences ? (
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <p>
-                <span className="font-medium text-foreground">
-                  {trip.celebrated_person || "Personne principale"}
-                </span>{" "}
-                — questionnaire enregistré
-              </p>
-              {(starData.preferences.wantedActivities?.length ?? 0) > 0 ? (
-                <p>✅ Envies : {starData.preferences.wantedActivities.join(", ")}</p>
-              ) : null}
-              {(starData.preferences.dealBreakers?.length ?? 0) > 0 ? (
-                <p>⛔ À éviter : {starData.preferences.dealBreakers.join(", ")}</p>
-              ) : null}
-              {(starData.preferences.ambiances?.length ?? 0) > 0 ? (
-                <p>✨ Ambiances : {starData.preferences.ambiances.join(", ")}</p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Pas encore rempli — ce questionnaire pèse plus fort dans les suggestions Krew.
-            </p>
-          )}
-        </section>
-      )}
-
-      
-
-      {costSplitData?.isSelected && costSplitData.split ? (
-        <section className="mt-10">
-          <CostSplitCard split={costSplitData.split} tripName={trip.name} />
-        </section>
-      ) : null}
 
 
       <section id="invite-section" className="mt-12 scroll-mt-24">
