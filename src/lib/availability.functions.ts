@@ -94,11 +94,9 @@ export const getTripAvailability = createServerFn({ method: "GET" })
     const mine = (rows.data ?? []).find((r: any) => r.user_id === userId) ?? null;
 
     const answered = entries.length;
-    const expected = Math.max(
-      Number(trip.data.participants_count) || 0,
-      (participants.data ?? []).length,
-      1,
-    );
+    const joined = (participants.data ?? []).length;
+    // Dénominateur = taille de groupe prévue (ex. 6), pas seulement les déjà rejoints
+    const expected = Math.max(Number(trip.data.participants_count) || 0, joined, 1);
 
     const datesLocked = Boolean((trip.data as any).dates_locked);
 
