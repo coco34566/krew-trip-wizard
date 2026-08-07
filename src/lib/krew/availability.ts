@@ -19,6 +19,10 @@ export type DateWindow = {
   total: number;
   coverageRatio: number;
   score: number;
+  /** userIds qui PEUVENT participer sur cette fenêtre */
+  availableUserIds: string[];
+  /** userIds qui NE PEUVENT PAS (dispos incompatibles / bloquées) */
+  unavailableUserIds: string[];
 };
 
 function parseDay(iso: string): number {
@@ -45,7 +49,7 @@ function eachDay(start: string, end: string): string[] {
 
 /** Une fenêtre est OK pour un participant si aucun jour n'est blocked et
  *  (available vide = tout OK hors blocked) OU chaque jour est available / dans flex. */
-function windowOkFor(entry: AvailabilityEntry, start: string, end: string): boolean {
+export function windowOkFor(entry: AvailabilityEntry, start: string, end: string): boolean {
   const days = eachDay(start, end);
   const blocked = new Set(entry.blockedDates.map((d) => d.slice(0, 10)));
   for (const d of days) {
@@ -111,9 +115,13 @@ export function rankDateWindows(
   while (parseDay(cursor) <= parseDay(hardEnd)) {
     const start = cursor;
     const end = addDaysIso(start, nights);
-    const covered = entries.filter((e) => windowOkFor(e, start, end)).length;
+    const availableUserIds = entries.filter((e) => windowOkFor(e, start, end)).map((e) => e.userId);
+    const unavailableUserIds = entries
+      .filter((e) => !windowOkFor(e, start, end))
+      .map((e) => e.userId);
+    const covered = availableUserIds.length;
     const total = entries.length;
-    const coverageRatio = covered / total;
+    const coverageRatio = total ? covered / total : 0;
     // Score : couverture + bonus week-end (ven/sam départ)
     const dow = new Date(start + "T12:00:00Z").getUTCDay();
     const weekendBonus = dow === 5 || dow === 6 ? 0.05 : 0;
@@ -127,6 +135,8 @@ export function rankDateWindows(
         total,
         coverageRatio,
         score: Math.round(score * 10) / 10,
+        availableUserIds,
+        unavailableUserIds,
       });
     }
     cursor = addDaysIso(cursor, 1);
