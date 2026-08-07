@@ -981,151 +981,11 @@ function TripDetail() {
 
       </section>
 
-      {/* Résumé + validation des dates */}
-
-
-
-      {/* 3. Planning jour par jour */}
-      {destinationSelected ? (
-        <section id="hub-activities-plan" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight">3. Planning du séjour</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Resto, activités et bars pour chaque jour — basé sur les dates, la destination et les préférences.
-              </p>
-            </div>
-            {data.isOwner ? (
-              <Button
-                variant="hero"
-                disabled={itineraryMutation.isPending}
-                onClick={() => itineraryMutation.mutate()}
-              >
-                {itineraryMutation.isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Sparkles />
-                )}
-                {(trip as any).group_itinerary?.days?.length
-                  ? "Régénérer tout le planning"
-                  : "Générer le planning"}
-              </Button>
-            ) : null}
-          </div>
-
-          {!(trip as any).group_itinerary?.days?.length ? (
-            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              {data.isOwner
-                ? "Génère un planning complet (arrivée → départ) avec restos, activités et bars."
-                : "L'organisateur générera bientôt le planning du séjour."}
-            </p>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Source :{" "}
-                {(trip as any).group_itinerary?.source === "ai" ? "IA Lovable" : "modèle local"}
-                {(trip as any).group_itinerary?.destination
-                  ? ` · ${(trip as any).group_itinerary.destination}`
-                  : ""}
-              </p>
-              {((trip as any).group_itinerary.days as any[]).map((day: any) => (
-                <article
-                  key={day.day}
-                  className="rounded-3xl border border-border bg-card p-5 shadow-sm"
-                >
-                  <h3 className="font-display text-xl font-semibold tracking-tight">
-                    Jour {day.day}
-                    {day.date
-                      ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "short",
-                        })}`
-                      : ""}
-                  </h3>
-                  <ul className="mt-3 space-y-2">
-                    {(day.slots ?? []).map((slot: any, slotIndex: number) => {
-                      const Icon =
-                        slot.type === "resto"
-                          ? Utensils
-                          : slot.type === "bar"
-                            ? Wine
-                            : slot.type === "activite"
-                              ? Camera
-                              : CalendarDays;
-                      return (
-                        <li
-                          key={`${day.day}-${slotIndex}`}
-                          className="flex flex-wrap items-start justify-between gap-2 rounded-2xl border border-border/60 bg-surface/40 px-3 py-2.5"
-                        >
-                          <div className="flex gap-2.5 min-w-0">
-                            <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
-                            <div className="min-w-0">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                                {slot.time ? (
-                                  <span className="mr-1.5 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 font-semibold tabular-nums text-primary normal-case tracking-normal">
-                                    {slot.time}
-                                  </span>
-                                ) : null}
-                                {slot.moment}
-                                {slot.type ? ` · ${slot.type}` : ""}
-                              </p>
-                              <p className="font-medium text-sm">{slot.label}</p>
-                              {slot.detail ? (
-                                <p className="text-xs text-muted-foreground">{slot.detail}</p>
-                              ) : null}
-                              {slot.priceHint != null ? (
-                                <p className="text-xs text-muted-foreground">
-                                  ~{formatEuro(Number(slot.priceHint))} / pers.
-                                </p>
-                              ) : null}
-                              {slot.url ? (
-                                <a
-                                  href={slot.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="mt-0.5 inline-block text-xs font-medium text-primary hover:underline"
-                                >
-                                  Voir / réserver →
-                                </a>
-                              ) : null}
-                            </div>
-                          </div>
-                          {data.isOwner ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={slotMutation.isPending}
-                              onClick={() =>
-                                slotMutation.mutate({ day: day.day, slotIndex })
-                              }
-                              title="Proposer une autre option pour ce créneau seulement"
-                            >
-                              {slotMutation.isPending ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : (
-                                <RefreshCw className="size-3.5" />
-                              )}
-                              Autre option
-                            </Button>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      ) : null}
-
-      {/* 4. Hôtels (vote groupe) */}
       {destinationSelected ? (
         <section id="hub-logistics" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight">4. Hôtels — vote du groupe</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight">3. Hôtels — vote du groupe</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Chacun vote pour un hébergement. L&apos;orga réserve celui qui a le plus de voix.
               </p>
@@ -1234,12 +1094,11 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {/* 5. Transports — choix perso par ville */}
       {destinationSelected ? (
         <section id="hub-transports" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight">5. Transports A/R</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight">4. Transports A/R</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Choisis ton trajet selon ta ville de départ. Les autres venant de la même ville
                 voient ton choix (mode, horaire).
@@ -1375,6 +1234,154 @@ function TripDetail() {
           )}
         </section>
       ) : null}
+
+      {destinationSelected ? (
+        <section id="hub-activities-plan" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-semibold tracking-tight">5. Planning du séjour</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Resto, activités et bars pour chaque jour — basé sur les dates, la destination et les préférences.
+              </p>
+            </div>
+            {data.isOwner ? (
+              <Button
+                variant="hero"
+                disabled={itineraryMutation.isPending}
+                onClick={() => itineraryMutation.mutate()}
+              >
+                {itineraryMutation.isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Sparkles />
+                )}
+                {(trip as any).group_itinerary?.days?.length
+                  ? "Régénérer tout le planning"
+                  : "Générer le planning"}
+              </Button>
+            ) : null}
+          </div>
+
+          {!(trip as any).group_itinerary?.days?.length ? (
+            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              {data.isOwner
+                ? "Génère un planning complet (arrivée → départ) avec restos, activités et bars."
+                : "L'organisateur générera bientôt le planning du séjour."}
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Source :{" "}
+                {(trip as any).group_itinerary?.source === "ai" ? "IA Lovable" : "modèle local"}
+                {(trip as any).group_itinerary?.destination
+                  ? ` · ${(trip as any).group_itinerary.destination}`
+                  : ""}
+              </p>
+              {((trip as any).group_itinerary.days as any[]).map((day: any) => (
+                <article
+                  key={day.day}
+                  className="rounded-3xl border border-border bg-card p-5 shadow-sm"
+                >
+                  <h3 className="font-display text-xl font-semibold tracking-tight">
+                    Jour {day.day}
+                    {day.date
+                      ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "short",
+                        })}`
+                      : ""}
+                  </h3>
+                  <ul className="mt-3 space-y-2">
+                    {(day.slots ?? []).map((slot: any, slotIndex: number) => {
+                      const Icon =
+                        slot.type === "resto"
+                          ? Utensils
+                          : slot.type === "bar"
+                            ? Wine
+                            : slot.type === "activite"
+                              ? Camera
+                              : CalendarDays;
+                      return (
+                        <li
+                          key={`${day.day}-${slotIndex}`}
+                          className="flex flex-wrap items-start justify-between gap-2 rounded-2xl border border-border/60 bg-surface/40 px-3 py-2.5"
+                        >
+                          <div className="flex gap-2.5 min-w-0">
+                            <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
+                            <div className="min-w-0">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                {slot.time ? (
+                                  <span className="mr-1.5 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 font-semibold tabular-nums text-primary normal-case tracking-normal">
+                                    {slot.time}
+                                  </span>
+                                ) : null}
+                                {slot.moment}
+                                {slot.type ? ` · ${slot.type}` : ""}
+                              </p>
+                              <p className="font-medium text-sm">{slot.label}</p>
+                              {slot.detail ? (
+                                <p className="text-xs text-muted-foreground">{slot.detail}</p>
+                              ) : null}
+                              {slot.priceHint != null ? (
+                                <p className="text-xs text-muted-foreground">
+                                  ~{formatEuro(Number(slot.priceHint))} / pers.
+                                </p>
+                              ) : null}
+                              {slot.url ? (
+                                <a
+                                  href={slot.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-0.5 inline-block text-xs font-medium text-primary hover:underline"
+                                >
+                                  Voir / réserver →
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
+                          {data.isOwner ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={slotMutation.isPending}
+                              onClick={() =>
+                                slotMutation.mutate({ day: day.day, slotIndex })
+                              }
+                              title="Proposer une autre option pour ce créneau seulement"
+                            >
+                              {slotMutation.isPending ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <RefreshCw className="size-3.5" />
+                              )}
+                              Autre option
+                            </Button>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+
+      {/* Résumé + validation des dates */}
+
+
+
+      {/* 3. Planning jour par jour */}
+      
+
+      {/* 4. Hôtels (vote groupe) */}
+      
+
+      {/* 5. Transports — choix perso par ville */}
+      
 
 
       {(trip.celebrated_person ||
