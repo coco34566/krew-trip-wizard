@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays, RefreshCw, Utensils, Wine, Camera } from "lucide-react";
+import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays, RefreshCw, Utensils, Wine, Camera, Plane, Hotel, Train } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
   finalizeSelectedActivities,
   generateGroupItinerary,
   regenerateItinerarySlot,
+  proposeStayAndTransport,
   cancelTrip,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress, getMyParticipantPreferences } from "@/lib/participant-preferences.functions";
@@ -189,6 +190,20 @@ function TripDetail() {
     },
     onError: (e: any) =>
       toast.error(String(e?.message ?? "Régénération impossible").slice(0, 140)),
+  });
+
+  const proposeLogisticsFn = useServerFn(proposeStayAndTransport);
+  const logisticsMutation = useMutation({
+    mutationFn: () => proposeLogisticsFn({ data: { tripId, refreshExternal: true } }),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      const nH = res?.logistics?.hotels?.length ?? 0;
+      const nT = res?.logistics?.transports?.length ?? 0;
+      toast.success(`Logistique : ${nH} hôtels · ${nT} trajets`);
+      document.getElementById("hub-logistics")?.scrollIntoView({ behavior: "smooth" });
+    },
+    onError: (e: any) =>
+      toast.error(String(e?.message ?? "Recherche logistique impossible").slice(0, 160)),
   });
 
   const selectMutation = useMutation({
