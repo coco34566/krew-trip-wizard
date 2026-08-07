@@ -76,6 +76,7 @@ export const createTrip = createServerFn({ method: "POST" })
         name: data.name,
         event_type: data.eventType,
         celebrated_person: data.celebratedPerson ?? null,
+        has_star: Boolean(data.celebratedPerson) || ["evg", "evjf", "anniversaire", "retraite"].includes(String(data.eventType)),
         start_date: data.startDate ?? null,
         end_date: data.endDate ?? null,
         participants_count: data.participants,
