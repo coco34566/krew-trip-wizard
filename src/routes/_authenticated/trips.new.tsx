@@ -70,8 +70,8 @@ const INITIAL: FormState = {
   celebratedPerson: "",
   startDate: "",
   endDate: "",
-  participants: 10,
-  budgetPerPerson: 350,
+  participants: PARTICIPANTS_DEFAULT,
+  budgetPerPerson: 400,
   departureCity: "Paris",
   averageAge: 30,
   relation: "Amis proches",
@@ -79,9 +79,9 @@ const INITIAL: FormState = {
   activityCategories: ["soirees", "gastronomie"],
   desiredDestination: "",
   letKrewDecide: true,
-  maxDistanceKm: 2000,
+  maxDistanceKm: 1500,
   excludedCountries: "",
-  durationNights: 2,
+  durationNights: 3,
   needsCityCenter: true,
   mobilityNotes: "",
   dietaryConstraints: [],
@@ -228,13 +228,23 @@ function NewTripWizard() {
           <div className="space-y-8">
             <div className="space-y-3">
               <Label>Nombre de participants : {form.participants}</Label>
+              <p className="text-xs text-muted-foreground">
+                Typiquement 4 à 10 pour un EVG / week-end — max {PARTICIPANTS_MAX}.
+              </p>
               <Slider
-                min={2}
-                max={40}
+                min={PARTICIPANTS_MIN}
+                max={PARTICIPANTS_MAX}
                 step={1}
                 value={[form.participants]}
-                onValueChange={([v]) => set("participants", v ?? 2)}
+                onValueChange={([v]) => set("participants", v ?? PARTICIPANTS_MIN)}
               />
+              <div className="flex flex-wrap gap-2">
+                {[4, 6, 8, 10, 12, 15].map((n) => (
+                  <Chip key={n} active={form.participants === n} onClick={() => set("participants", n)}>
+                    {n}
+                  </Chip>
+                ))}
+              </div>
             </div>
             <div className="space-y-3">
               <Label>Âge moyen du groupe : {form.averageAge} ans</Label>
@@ -298,10 +308,24 @@ function NewTripWizard() {
               </div>
             )}
             <div className="space-y-3">
-              <Label>Distance maximale depuis le départ : {form.maxDistanceKm} km</Label>
+              <Label>Zone de recherche : {form.maxDistanceKm} km max</Label>
+              <p className="text-xs text-muted-foreground">
+                Filtre les destinations et évite les vols trop longs pour le budget.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {DISTANCE_PRESETS.map((d) => (
+                  <Chip
+                    key={d.value}
+                    active={form.maxDistanceKm === d.value}
+                    onClick={() => set("maxDistanceKm", d.value)}
+                  >
+                    {d.label}
+                  </Chip>
+                ))}
+              </div>
               <Slider
                 min={200}
-                max={6000}
+                max={3000}
                 step={100}
                 value={[form.maxDistanceKm]}
                 onValueChange={([v]) => set("maxDistanceKm", v ?? 200)}
@@ -318,22 +342,46 @@ function NewTripWizard() {
             </div>
             <div className="space-y-3">
               <Label>Durée du séjour : {form.durationNights} nuit(s)</Label>
+              <p className="text-xs text-muted-foreground">
+                Sert aux dates check-in / check-out hôtels (Booking, Hotels.com…).
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[2, 3, 4, 5, 7].map((n) => (
+                  <Chip key={n} active={form.durationNights === n} onClick={() => set("durationNights", n)}>
+                    {n} nuit{n > 1 ? "s" : ""}
+                  </Chip>
+                ))}
+              </div>
               <Slider
                 min={1}
-                max={14}
+                max={10}
                 step={1}
                 value={[form.durationNights]}
                 onValueChange={([v]) => set("durationNights", v ?? 1)}
               />
             </div>
             <div className="space-y-3">
-              <Label>Budget maximum par personne : {formatEuro(form.budgetPerPerson)}</Label>
+              <Label>Budget max / personne (tout compris) : {formatEuro(form.budgetPerPerson)}</Label>
+              <p className="text-xs text-muted-foreground">
+                Vols + hébergement + activités + resto — utilisé pour filtrer les offres API.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {BUDGET_PRESETS.map((b) => (
+                  <Chip
+                    key={b.value}
+                    active={form.budgetPerPerson === b.value}
+                    onClick={() => set("budgetPerPerson", b.value)}
+                  >
+                    {b.label} ({b.hint})
+                  </Chip>
+                ))}
+              </div>
               <Slider
-                min={100}
-                max={3000}
+                min={150}
+                max={1500}
                 step={25}
                 value={[form.budgetPerPerson]}
-                onValueChange={([v]) => set("budgetPerPerson", v ?? 100)}
+                onValueChange={([v]) => set("budgetPerPerson", v ?? 150)}
               />
             </div>
           </div>
