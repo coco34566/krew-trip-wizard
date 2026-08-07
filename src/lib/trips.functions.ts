@@ -8,25 +8,41 @@ export const listMyTrips = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [owned, invitations] = await Promise.all([
-      supabase
+    // Tous les voyages dont tu es owner — on filtre seulement les vraiment annulés côté app
+    let owned = await supabase
+      .from("trips")
+      .select("*")
+      .eq("owner_id", userId)
+      .order("created_at", { ascending: false });
+
+    // Si filtre status pose problème (enum), retente sans
+    if (owned.error) {
+      console.error("listMyTrips owned", owned.error.message);
+      owned = await supabase
         .from("trips")
-        .select("*")
+        .select("id, name, event_type, status, participants_count, created_at, owner_id, start_date, end_date")
         .eq("owner_id", userId)
-        .neq("status", "annule")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("trip_participants")
-        .select("*, trips(*)")
-        .or(`user_id.eq.${userId},email.eq.${(context.claims?.email as string | undefined)?.toLowerCase() ?? ""}`)
-        .neq("status", "refuse")
-        .order("created_at", { ascending: false }),
-    ]);
+        .order("created_at", { ascending: false });
+    }
     if (owned.error) throw owned.error;
-    // Conserve tous les voyages dont tu es owner (hors annulés)
-    const trips = (owned.data ?? []).filter((t: any) => t && t.status !== "annule");
+
+    const invitations = await supabase
+      .from("trip_participants")
+      .select("*, trips(*)")
+      .or(
+        `user_id.eq.${userId},email.eq.${(context.claims?.email as string | undefined)?.toLowerCase() ?? ""}`,
+      )
+      .order("created_at", { ascending: false });
+
+    const trips = (owned.data ?? []).filter(
+      (row: any) => row && String(row.status ?? "") !== "annule",
+    );
     const invited = (invitations.data ?? []).filter(
-      (p) => p.trips && (p.trips as { owner_id: string }).owner_id !== userId,
+      (p: any) =>
+        p.trips &&
+        (p.trips as { owner_id: string }).owner_id !== userId &&
+        String((p.trips as any).status ?? "") !== "annule" &&
+        String(p.status ?? "") !== "refuse",
     );
     return {
       trips,
@@ -91,8 +107,8 @@ export const createTrip = createServerFn({ method: "POST" })
       Boolean(data.celebratedPerson) ||
       ["evg", "evjf", "anniversaire", "retraite"].includes(String(data.eventType));
 
-    // Payload de base (colonnes toujours présentes dans le schéma historique)
-    const basePayload: Record<string, unknown> = {
+    // Payloads progressifs : on élargit le fallback si le schéma Lovable est incomplet
+    const fullPayload: Record<string, unknown> = {
       owner_id: userId,
       name: data.name,
       event_type: data.eventType,
@@ -103,24 +119,36 @@ export const createTrip = createServerFn({ method: "POST" })
       budget_per_person: data.budgetPerPerson ?? 400,
       departure_city: data.departureCity || "Paris",
       status: "en_preparation",
+      has_star: wantsStar,
+    };
+    const midPayload: Record<string, unknown> = {
+      owner_id: userId,
+      name: data.name,
+      event_type: data.eventType,
+      celebrated_person: data.celebratedPerson ?? null,
+      participants_count: data.participants,
+      budget_per_person: data.budgetPerPerson ?? 400,
+      departure_city: data.departureCity || "Paris",
+      status: "en_preparation",
+    };
+    const minimalPayload: Record<string, unknown> = {
+      owner_id: userId,
+      name: data.name,
+      event_type: data.eventType,
+      participants_count: data.participants ?? 2,
     };
 
-    // Essaie d'abord avec has_star (migration hub) ; si colonne absente, réessaie sans
-    let trip = await supabase
-      .from("trips")
-      .insert({ ...basePayload, has_star: wantsStar } as any)
-      .select("*")
-      .single();
-
+    let trip = await supabase.from("trips").insert(fullPayload as any).select("*").single();
     if (trip.error) {
-      const msg = String(trip.error.message || trip.error);
-      if (msg.includes("has_star") || msg.includes("schema cache") || msg.includes("column")) {
-        trip = await supabase.from("trips").insert(basePayload as any).select("*").single();
-      }
+      trip = await supabase.from("trips").insert(midPayload as any).select("*").single();
+    }
+    if (trip.error) {
+      trip = await supabase.from("trips").insert(minimalPayload as any).select("*").single();
     }
     if (trip.error) {
       throw new Error(
-        `Création voyage impossible: ${trip.error.message || JSON.stringify(trip.error)}`,
+        `Création voyage impossible: ${trip.error.message || JSON.stringify(trip.error)}. ` +
+          "Vérifie le SQL trips (RLS insert + colonnes) dans Lovable.",
       );
     }
     if (!trip.data?.id) {
@@ -131,20 +159,23 @@ export const createTrip = createServerFn({ method: "POST" })
       trip_id: trip.data.id,
       average_age: data.averageAge ?? null,
       relation: data.relation ?? null,
-      ambiances: data.ambiances,
-      activity_categories: data.activityCategories,
+      ambiances: data.ambiances ?? [],
+      activity_categories: data.activityCategories ?? [],
       desired_destination: data.desiredDestination ?? null,
-      let_krew_decide: data.letKrewDecide,
-      max_distance_km: data.maxDistanceKm,
-      excluded_countries: data.excludedCountries,
-      duration_nights: data.durationNights,
+      let_krew_decide: data.letKrewDecide ?? true,
+      max_distance_km: data.maxDistanceKm ?? null,
+      excluded_countries: data.excludedCountries ?? [],
+      duration_nights: data.durationNights ?? 2,
       max_budget: data.maxBudget ?? null,
-      needs_city_center: data.needsCityCenter,
+      needs_city_center: data.needsCityCenter ?? false,
       mobility_notes: data.mobilityNotes ?? null,
-      dietary_constraints: data.dietaryConstraints,
+      dietary_constraints: data.dietaryConstraints ?? [],
       availability_notes: data.availabilityNotes ?? null,
     });
-    if (prefs.error) throw prefs.error;
+    // Ne pas annuler le voyage si la table prefs est absente / partielle
+    if (prefs.error) {
+      console.error("trip_preferences insert skipped", prefs.error.message);
+    }
 
     const organizerName = (data as any).organizerFirstName
       ? String((data as any).organizerFirstName).trim()
