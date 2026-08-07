@@ -72,7 +72,8 @@ export function TripHubNav({
               {!isLast ? (
                 <div
                   className={cn(
-                    "absolute left-[calc(50%+18px)] right-[-50%] top-4 h-0.5 -translate-y-1/2",
+                    // Ligne d'une pastille à la suivante uniquement (pas au-delà)
+                    "pointer-events-none absolute left-1/2 top-[1.125rem] z-0 h-0.5 w-full -translate-y-1/2",
                     isDone ? "bg-emerald-500" : "bg-border",
                   )}
                   aria-hidden
