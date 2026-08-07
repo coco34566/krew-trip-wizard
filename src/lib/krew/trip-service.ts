@@ -15,7 +15,7 @@ export const tripInputSchema = z.object({
   celebratedPerson: z.string().max(120).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
-  participants: z.number().int().min(2).max(80),
+  participants: z.number().int().min(2).max(25),
   budgetPerPerson: z.number().min(50).max(20000),
   departureCity: z.string().min(2).max(80),
   averageAge: z.number().int().min(16).max(99).optional(),
