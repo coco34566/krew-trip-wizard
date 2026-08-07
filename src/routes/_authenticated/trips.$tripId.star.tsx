@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/star")({
   head: () => ({
-    meta: [{ title: "Questionnaire Star — Krew" }],
+    meta: [{ title: "Préférences de la star — Krew" }],
   }),
   component: StarQuestionnaire,
 });
@@ -92,7 +92,7 @@ function StarQuestionnaire() {
         },
       }),
     onSuccess: (res) => {
-      toast.success(res.isUpdate ? "Préférences Star mises à jour" : "Préférences Star enregistrées");
+      toast.success(res.isUpdate ? "Préférences de la star mises à jour" : "Préférences de la star enregistrées");
       queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
@@ -112,11 +112,11 @@ function StarQuestionnaire() {
     return (
       <main className="mx-auto max-w-2xl px-4 py-10 text-center">
         <p className="text-muted-foreground">
-          Ce type de voyage n’a pas de personne principale (Star).
+          Ce type de voyage n’a pas de personne principale (star).
         </p>
         <Button asChild variant="outline" className="mt-4">
           <Link to="/trips/$tripId" params={{ tripId }}>
-            Retour au hub
+            Retour à Mon Voyage
           </Link>
         </Button>
       </main>
@@ -132,11 +132,11 @@ function StarQuestionnaire() {
         params={{ tripId }}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
       >
-        <ArrowLeft className="size-4" /> Retour au hub
+        <ArrowLeft className="size-4" /> Retour à Mon Voyage
       </Link>
 
       <h1 className="mt-4 font-display text-3xl font-bold tracking-tight">
-        Questionnaire Star
+        Préférences de la star
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Complément dédié à <strong>{starName}</strong> — ne remplace pas le questionnaire du groupe.
@@ -200,7 +200,7 @@ function StarQuestionnaire() {
         onClick={() => mutation.mutate()}
       >
         {mutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}
-        {data.preferences ? "Mettre à jour" : "Enregistrer le questionnaire Star"}
+        {data.preferences ? "Mettre à jour" : "Enregistrer les préférences de la star"}
       </Button>
     </main>
   );
