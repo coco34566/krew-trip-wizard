@@ -22,7 +22,7 @@ import {
   toggleVote,
   cancelTrip,
 } from "@/lib/trips.functions";
-import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
+import { getParticipantsProgress, getMyParticipantPreferences } from "@/lib/participant-preferences.functions";
 import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
 import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
@@ -103,6 +103,13 @@ function TripDetail() {
   const { data: progress } = useQuery({
     queryKey: progressQueryKey,
     queryFn: () => fetchProgress({ data: { tripId } }),
+  });
+  const fetchMyPrefs = useServerFn(getMyParticipantPreferences);
+  const { data: myPrefsData } = useQuery({
+    queryKey: ["my-participant-prefs", tripId],
+    queryFn: () => fetchMyPrefs({ data: { tripId } }),
+    enabled: Boolean(tripId),
+    retry: false,
   });
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey });
@@ -207,6 +214,8 @@ function TripDetail() {
         availabilityExpected={availData?.expected ?? trip.participants_count ?? 1}
         provisionalStart={availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date}
         provisionalCoverage={availData?.windows?.[0]?.coverageRatio}
+        myAvailabilityDone={Boolean(availData?.mine)}
+        myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
         hasRecommendations={recommendations.length > 0}
         destinationSelected={recommendations.some((r) => r.is_selected)}
         topScores={recommendations.slice(0, 3).map((r) => ({
