@@ -37,6 +37,7 @@ function JoinTripPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [firstName, setFirstName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,9 +53,13 @@ function JoinTripPage() {
       navigate({ to: "/auth", search: { next } as any });
       return;
     }
+    if (!firstName.trim()) {
+      toast.error("Indique ton prénom pour que le groupe sache qui tu es");
+      return;
+    }
     setJoining(true);
     try {
-      await doJoin({ data: { tripId } });
+      await doJoin({ data: { tripId, firstName: firstName.trim() } });
       toast.success("Bienvenue dans le voyage !");
       navigate({ to: "/trips/$tripId/availability", params: { tripId } });
     } catch (e: any) {
@@ -113,9 +118,26 @@ function JoinTripPage() {
             </ul>
 
             <p className="text-center text-sm text-muted-foreground">
-              Rejoins le groupe : la première étape est d'indiquer tes disponibilités, puis tes préférences.
+              Rejoins le groupe : commence par ton prénom, puis tes disponibilités et préférences.
               Krew proposera ensuite des destinations adaptées à tout le monde.
             </p>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="join-firstname" className="text-sm font-medium">
+                Ton prénom
+              </label>
+              <input
+                id="join-firstname"
+                className="flex h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
+                placeholder="Ex. Léa"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                autoComplete="given-name"
+              />
+              <p className="text-xs text-muted-foreground">
+                Pour savoir qui est qui (organisateur, star, participants).
+              </p>
+            </div>
 
             <Button
               variant="hero"
