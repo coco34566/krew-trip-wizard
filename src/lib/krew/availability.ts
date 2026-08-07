@@ -161,6 +161,8 @@ export type TripStepId =
   | "questionnaire"
   | "dates"
   | "destination"
+  | "hotels"
+  | "transport"
   | "organize";
 
 export type TripStep = {
@@ -177,27 +179,37 @@ export function buildTripSteps(input: {
   participantsExpected: number;
   availabilityAnswered: number;
   questionnaireAnswered: number;
-  /** Dates validées / verrouillées par l'organisateur */
   datesLocked: boolean;
   hasRecommendations: boolean;
   destinationSelected: boolean;
-  /** Planning généré → organisation bien engagée */
+  /** Au moins un vote hôtel (ou hôtel plébiscité) */
+  hotelVoted?: boolean;
+  /** Au moins un trajet choisi par un participant */
+  transportPicked?: boolean;
+  /** Planning généré */
   hasItinerary?: boolean;
 }): TripStep[] {
-  // Mode test : 1 réponse suffit
   const minAnswers = 1;
 
-  // Faits bruts
   let availDone = input.availabilityAnswered >= minAnswers;
   let questDone = input.questionnaireAnswered >= minAnswers;
   let datesDone = Boolean(input.datesLocked);
   let destDone = Boolean(input.destinationSelected);
+  let hotelDone = Boolean(input.hotelVoted);
+  let transportDone = Boolean(input.transportPicked);
   let orgDone = Boolean(input.hasItinerary);
 
-  // Cascade arrière : si on est plus loin dans le projet, les étapes
-  // précédentes sont forcément "faites" (évite destination verrouillée
-  // alors qu'on est déjà en organisation).
-  if (orgDone) destDone = true;
+  // Cascade : une étape avancée valide les précédentes
+  if (orgDone) {
+    transportDone = true;
+    hotelDone = true;
+    destDone = true;
+  }
+  if (transportDone) {
+    hotelDone = true;
+    destDone = true;
+  }
+  if (hotelDone) destDone = true;
   if (destDone) {
     datesDone = true;
     questDone = true;
@@ -216,24 +228,11 @@ export function buildTripSteps(input: {
     datesDone ||
     destDone;
 
-  // Une seule étape "active" = la première non terminée
   function statusFor(done: boolean, prereqDone: boolean): TripStep["status"] {
     if (done) return "done";
-    if (!prereqDone) return "soon"; // verrouillée tant que la précédente n'est pas OK
+    if (!prereqDone) return "soon";
     return "active";
   }
-
-  const inviteStatus = inviteDone ? "done" : "active";
-  const availStatus = statusFor(availDone, inviteDone);
-  const questStatus = statusFor(questDone, availDone);
-  const datesStatus = statusFor(datesDone, questDone);
-  const destStatus = statusFor(destDone, datesDone);
-  // Organisation : active dès destination choisie, done si planning généré
-  const organizeStatus: TripStep["status"] = orgDone
-    ? "done"
-    : destDone
-      ? "active"
-      : "soon";
 
   return [
     {
@@ -241,49 +240,63 @@ export function buildTripSteps(input: {
       label: "Inviter",
       description: "Lien du groupe",
       href: "/invite",
-      status: inviteStatus,
+      status: inviteDone ? "done" : "active",
     },
     {
       id: "availability",
       label: "Disponibilités",
       description: "Chacun indique ses dates",
       href: "/availability",
-      status: availStatus,
+      status: statusFor(availDone, inviteDone),
     },
     {
       id: "questionnaire",
       label: "Préférences",
       description: "Envies & budget",
       href: "/questionnaire",
-      status: questStatus,
+      status: statusFor(questDone, availDone),
     },
     {
       id: "dates",
       label: "Dates validées",
       description: "L'orga verrouille le week-end",
       href: "",
-      status: datesStatus,
+      status: statusFor(datesDone, questDone),
     },
     {
       id: "destination",
       label: "Destination",
-      description: destDone
-        ? "Choix validé"
-        : datesDone
-          ? "Propositions Krew"
-          : "Après dates validées",
+      description: destDone ? "Choix validé" : datesDone ? "Propositions Krew" : "Après dates",
       href: "",
-      status: destStatus,
+      status: statusFor(destDone, datesDone),
+    },
+    {
+      id: "hotels",
+      label: "Hôtels",
+      description: hotelDone ? "Vote enregistré" : destDone ? "Vote du groupe" : "Après destination",
+      href: "",
+      status: statusFor(hotelDone, destDone),
+    },
+    {
+      id: "transport",
+      label: "Transport",
+      description: transportDone
+        ? "Trajets choisis"
+        : hotelDone
+          ? "Choix par ville"
+          : "Après hôtels",
+      href: "",
+      status: statusFor(transportDone, hotelDone),
     },
     {
       id: "organize",
       label: "Organisation",
       description: orgDone
         ? "Planning en place"
-        : destDone
-          ? "Planning & logistique"
-          : "Après destination",
-      status: organizeStatus,
+        : transportDone
+          ? "Planning & activités"
+          : "Après transport",
+      status: statusFor(orgDone, transportDone),
     },
   ];
 }
