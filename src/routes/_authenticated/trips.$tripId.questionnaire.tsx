@@ -32,6 +32,20 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/questionnair
   component: ParticipantQuestionnaire,
 });
 
+const LODGING_TYPES = [
+  { value: "hotel", label: "Hôtel" },
+  { value: "airbnb", label: "Airbnb" },
+  { value: "maison", label: "Maison / villa" },
+  { value: "peu_importe", label: "Peu importe" },
+] as const;
+
+const ROOM_TYPES = [
+  { value: "solo", label: "Chambre solo" },
+  { value: "double", label: "Chambre à deux" },
+  { value: "dortoir", label: "Dortoir" },
+  { value: "peu_importe", label: "Peu importe" },
+] as const;
+
 const BUDGET_PRIORITIES = [
   { value: "veto", label: "Bloquant — je ne peux vraiment pas dépasser" },
   { value: "must_have", label: "Incontournable pour moi" },
@@ -111,9 +125,8 @@ function ParticipantQuestionnaire() {
   const [desiredDestination, setDesiredDestination] = useState("");
   const [excludedDestinations, setExcludedDestinations] = useState("");
 
-  const [acceptsSharedRoom, setAcceptsSharedRoom] = useState(false);
-  const [requiredAmenities, setRequiredAmenities] = useState<string[]>([]);
-  const [minAccommodationRating, setMinAccommodationRating] = useState(3.5);
+  const [lodgingTypes, setLodgingTypes] = useState<string[]>(["peu_importe"]);
+  const [roomType, setRoomType] = useState<string>("peu_importe");
 
   const [dietaryConstraints, setDietaryConstraints] = useState<string[]>([]);
   const [mobilityNotes, setMobilityNotes] = useState("");
@@ -153,8 +166,14 @@ function ParticipantQuestionnaire() {
           setFreeText(preferences.free_text ?? "");
           setDepartureCity(preferences.departure_city ?? dep);
           setDateFlexDays(preferences.date_flex_days ?? 2);
-          setAcceptsSharedRoom(Boolean(preferences.accepts_shared_room));
-          setRequiredAmenities(preferences.required_amenities ?? []);
+          setRoomType((preferences as any).room_type_preference || (preferences.accepts_shared_room ? "double" : "solo"));
+          {
+            const am = preferences.required_amenities ?? [];
+            const known = am.filter((x: string) =>
+              ["hotel", "airbnb", "maison", "peu_importe"].includes(x),
+            );
+            setLodgingTypes(known.length ? known : ["peu_importe"]);
+          }
           setMinAccommodationRating(Number(preferences.min_accommodation_rating ?? 3.5));
           setTravelPace(preferences.travel_pace ?? "equilibre");
           setPreferredTimeSlots(preferences.preferred_time_slots ?? []);
@@ -222,9 +241,10 @@ function ParticipantQuestionnaire() {
           departureCity: departureCity.trim(),
           departureFlexKm: 0,
           dateFlexDays,
-          acceptsSharedRoom,
-          requiredAmenities,
-          minAccommodationRating,
+          acceptsSharedRoom: roomType === "double" || roomType === "dortoir" || roomType === "peu_importe",
+          roomTypePreference: roomType,
+          requiredAmenities: lodgingTypes,
+          minAccommodationRating: undefined,
           travelPace: travelPace as "plein_programme" | "equilibre" | "chill",
           preferredTimeSlots,
         },
@@ -576,42 +596,43 @@ function ParticipantQuestionnaire() {
         </div>
         <Section
           title="4. Hébergement"
-          hint="Transmis aux recherches Booking / Hotels.com / Expedia."
+          hint="Simple : type de logement + type de chambre pour filtrer les API."
         >
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setAcceptsSharedRoom(!acceptsSharedRoom)}
-              className={cn(
-                "rounded-xl border px-4 py-2 text-sm",
-                acceptsSharedRoom
-                  ? "border-primary bg-primary/15"
-                  : "border-border bg-surface/60 text-muted-foreground",
-              )}
-            >
-              {acceptsSharedRoom ? "OK chambre partagée" : "Préfère chambre individuelle"}
-            </button>
-          </div>
           <div>
-            <Label className="mb-2 block">
-              Note mini hébergement : {minAccommodationRating.toFixed(1)} / 5
-            </Label>
-            <Slider
-              min={0}
-              max={5}
-              step={0.5}
-              value={[minAccommodationRating]}
-              onValueChange={([v]) => setMinAccommodationRating(v ?? 3.5)}
-            />
-          </div>
-          <div>
-            <Label className="mb-2 block">Équipements souhaités</Label>
+            <Label className="mb-2 block">Type de logement</Label>
             <div className="flex flex-wrap gap-2">
-              {AMENITIES.map((a) => (
+              {LODGING_TYPES.map((a) => (
                 <Chip
                   key={a.value}
-                  active={requiredAmenities.includes(a.value)}
-                  onClick={() => toggle(requiredAmenities, setRequiredAmenities, a.value)}
+                  active={lodgingTypes.includes(a.value)}
+                  onClick={() => {
+                    if (a.value === "peu_importe") {
+                      setLodgingTypes(["peu_importe"]);
+                      return;
+                    }
+                    setLodgingTypes((prev) => {
+                      const without = prev.filter((x) => x !== "peu_importe");
+                      if (without.includes(a.value)) {
+                        const next = without.filter((x) => x !== a.value);
+                        return next.length ? next : ["peu_importe"];
+                      }
+                      return [...without, a.value];
+                    });
+                  }}
+                >
+                  {a.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Chambre</Label>
+            <div className="flex flex-wrap gap-2">
+              {ROOM_TYPES.map((a) => (
+                <Chip
+                  key={a.value}
+                  active={roomType === a.value}
+                  onClick={() => setRoomType(a.value)}
                 >
                   {a.label}
                 </Chip>
