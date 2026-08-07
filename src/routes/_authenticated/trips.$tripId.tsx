@@ -102,12 +102,23 @@ function TripDetail() {
   const searchExternalMutation = useMutation({
     mutationFn: () => searchExternal({ data: { tripId } }),
     onSuccess: (res: any) => {
-      toast.success(`Hébergements importés (${res?.accommodationsCount ?? 0})`);
+      if (res?.ok === false) {
+        toast.warning(res.message ?? "Aucune donnée externe récupérée");
+        return;
+      }
+      toast.success(
+        `${res.destination} : ${res.accommodationsCount} hébergements comparés${
+          res.comparedProviders?.length ? ` (${res.comparedProviders.join(", ")})` : ""
+        }, ${res.activitiesCount} activités · ${res.weatherSummary}`,
+      );
+      if (res.providerErrors?.length) {
+        console.warn("Sources indisponibles", res.providerErrors);
+      }
       refresh();
     },
     onError: (err: any) => {
       console.error("Recherche externe échouée", err);
-      toast.error("Recherche externe échouée");
+      toast.error(err?.message ?? "Recherche externe échouée");
     },
   });
 

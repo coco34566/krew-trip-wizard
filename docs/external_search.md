@@ -1,29 +1,43 @@
-# External search integration (Hotels.com via RapidAPI)
+# Données externes : destinations, météo, saisonnalité et prix comparés
 
-This document explains how the Hotels.com RapidAPI provider integration works and how to test it.
+## Sources
 
-Environment variables
-- HOTELS_RAPIDAPI_KEY: your RapidAPI key (secret)
-- HOTELS_RAPIDAPI_HOST: the RapidAPI host (e.g. hotels4.p.rapidapi.com). Default is hotels4.p.rapidapi.com
+| Donnée | Source | Clé requise |
+| --- | --- | --- |
+| Géocodage (coordonnées, pays) | Open-Meteo Geocoding | non |
+| Météo prévisionnelle (J+15) | Open-Meteo Forecast | non |
+| Saisonnalité (normales mensuelles 3 ans, meilleurs mois) | Open-Meteo Archive/ERA5 | non |
+| Hôtels Hotels.com / Expedia | RapidAPI `hotels4` | `HOTELS_RAPIDAPI_KEY` |
+| Hôtels Booking.com | RapidAPI `booking-com15` | idem |
+| Hôtels Kayak | RapidAPI `kayak-hotel-search` | idem |
+| Hôtels + attractions TripAdvisor | RapidAPI `tripadvisor16` | idem |
+| Activités Klook | RapidAPI `klook-api` | idem |
 
-Server-side function
-- src/lib/external/search-hotels.functions.ts
-  - Aggregates participant preferences for a trip
-  - Calls the RapidAPI hotels provider
-  - Maps & upserts accommodations into the `accommodations` table
+## Variables d'environnement
 
-Provider wrapper
-- src/integrations/external/hotels.rapidapi.ts
-  - Minimal wrapper around the RapidAPI endpoint `properties/list`.
-  - The response shape varies by RapidAPI product; the mapper in the server function is defensive.
+- `HOTELS_RAPIDAPI_KEY` — clé RapidAPI partagée par tous les connecteurs.
+- `HOTELS_RAPIDAPI_HOST`, `BOOKING_RAPIDAPI_HOST`, `KAYAK_RAPIDAPI_HOST`,
+  `TRIPADVISOR_RAPIDAPI_HOST`, `KLOOK_RAPIDAPI_HOST` — hosts optionnels si vous
+  utilisez d'autres produits RapidAPI équivalents.
 
-Local test
-- Set the env vars (HOTELS_RAPIDAPI_KEY and optionally HOTELS_RAPIDAPI_HOST)
-- Run: node --loader ts-node/esm scripts/search-sample.ts (or compile and run)
+Chaque source est indépendante : celles auxquelles le compte RapidAPI n'est pas
+abonné renvoient une erreur qui est collectée dans `providerErrors` sans bloquer
+les autres.
 
-How to use in the app
-- On a trip page (owner only) click: "Rechercher hébergements & activités". That will call the server function and upsert accommodations, then you can run "Regénérer" to include the new accommodations into proposals.
+## Code
 
-Notes & next steps
-- The provider mapping is intentionally permissive: please test with real RapidAPI responses and provide sample payloads if fields are missing or mapping needs tuning.
-- Add caching / rate-limiting if you expect many requests.
+- `src/integrations/external/geo-weather.server.ts` — géocodage, climat, distance depuis Paris.
+- `src/integrations/external/travel-providers.server.ts` — connecteurs hôtels/activités + fusion et comparaison de prix par établissement.
+- `src/lib/external/search-hotels.functions.ts` — server function `searchExternalForTrip` : lit le voyage sous RLS, appelle les sources, puis upsert dans `destinations` / `accommodations` / `activities` (clé `source` + `external_id`).
+
+## Stockage des prix comparés
+
+`accommodations.price_offers` (jsonb) contient la liste `{ provider, pricePerNight, currency, url }`
+triée du moins cher au plus cher ; `best_provider` et `booking_url` pointent la meilleure offre.
+`activities.booking_url` renvoie vers la fiche Klook/TripAdvisor.
+`destinations.climate` stocke les normales mensuelles et la prévision météo.
+
+## Utilisation
+
+Sur la page d'un voyage (propriétaire) : « Rechercher hébergements & activités »,
+puis « Regénérer » pour intégrer les nouvelles données au scoring.
