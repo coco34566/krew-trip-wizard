@@ -43,7 +43,7 @@ export const getTripDetail = createServerFn({ method: "GET" })
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
 
-    const [preferences, participants, recommendations, votes] = await Promise.all([
+    const [preferences, participants, recommendations, votes, activityVotes] = await Promise.all([
       supabase.from("trip_preferences").select("*").eq("trip_id", data.tripId).maybeSingle(),
       supabase.from("trip_participants").select("*").eq("trip_id", data.tripId).order("created_at"),
       supabase
@@ -52,9 +52,10 @@ export const getTripDetail = createServerFn({ method: "GET" })
         .eq("trip_id", data.tripId)
         .order("score", { ascending: false }),
       supabase.from("recommendation_votes").select("*").eq("trip_id", data.tripId),
+      supabase.from("activity_votes").select("*").eq("trip_id", data.tripId),
     ]);
 
-    const activityIds = (recommendations.data ?? []).flatMap((r) => r.activity_ids ?? []);
+    const activityIds = (recommendations.data ?? []).flatMap((r: any) => r.activity_ids ?? []);
     const activities = activityIds.length
       ? await supabase.from("activities").select("*").in("id", activityIds)
       : { data: [], error: null };
@@ -68,6 +69,7 @@ export const getTripDetail = createServerFn({ method: "GET" })
       recommendations: recommendations.data ?? [],
       activities: activities.data ?? [],
       votes: votes.data ?? [],
+      activityVotes: activityVotes.error ? [] : (activityVotes.data ?? []),
     };
   });
 
@@ -805,4 +807,69 @@ export const cancelTrip = createServerFn({ method: "POST" })
       .eq("owner_id", userId);
     if (error) throw error;
     return { ok: true, mode: "cancelled" as const };
+  });
+
+/** Vote pour une activité (toggle) — tous les membres. */
+export const toggleActivityVote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), activityId: z.string().uuid() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const existing = await supabase
+      .from("activity_votes")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .eq("activity_id", data.activityId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existing.error) throw existing.error;
+    if (existing.data) {
+      const { error } = await supabase.from("activity_votes").delete().eq("id", existing.data.id);
+      if (error) throw error;
+      return { voted: false };
+    }
+    const { error } = await supabase.from("activity_votes").insert({
+      trip_id: data.tripId,
+      activity_id: data.activityId,
+      user_id: userId,
+    });
+    if (error) throw error;
+    return { voted: true };
+  });
+
+/** Orga : fige les activités retenues (top votes ou sélection manuelle). */
+export const finalizeSelectedActivities = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        activityIds: z.array(z.string().uuid()).default([]),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("id, owner_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+    if (trip.data.owner_id !== userId) {
+      throw new Error("403 Forbidden: seul l'organisateur peut valider les activités");
+    }
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        selected_activity_ids: data.activityIds,
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", data.tripId)
+      .eq("owner_id", userId);
+    if (error) throw error;
+    return { ok: true, activityIds: data.activityIds };
   });
