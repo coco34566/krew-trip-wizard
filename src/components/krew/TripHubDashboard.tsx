@@ -77,28 +77,42 @@ export function TripHubDashboard({
   
   return (
     <div className="space-y-8">
-      {/* Hero thème */}
-      <header className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-primary/15 via-card to-lagoon/10 p-6 sm:p-8">
-        <div className="pointer-events-none absolute -right-8 -top-8 size-40 rounded-full bg-primary/20 blur-3xl" />
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">{theme}</p>
-        <h1 className="mt-2 font-display text-3xl font-bold tracking-tight sm:text-4xl">
-          {trip.name}
-        </h1>
-        {trip.celebrated_person ? (
-          <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Star className="size-4 text-amber-500" /> Pour {trip.celebrated_person}
-          </p>
-        ) : null}
-
-        <div className="mt-6 flex flex-wrap gap-3 text-sm">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-1">
-            <Users className="size-3.5" /> {trip.participants_count} pers.
+      {/* Hero image + titre */}
+      <header className="relative overflow-hidden rounded-3xl border border-border shadow-elevated">
+        <div className="relative h-44 sm:h-56 md:h-64">
+          <img
+            src={heroImageForEvent(trip.event_type)}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            loading="eager"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/40 to-black/20" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent" />
+          <div className="relative z-10 flex h-full flex-col justify-end p-5 sm:p-7 md:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
+              {theme}
+            </p>
+            <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl">
+              {trip.name}
+            </h1>
+            {trip.celebrated_person ? (
+              <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-white/90">
+                <Star className="size-4 fill-amber-400 text-amber-400" /> Pour{" "}
+                {trip.celebrated_person}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 border-t border-border/60 bg-card/95 px-5 py-3.5 sm:px-7">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
+            <Users className="size-3.5 text-primary" /> {trip.participants_count} pers.
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-1">
-            <Wallet className="size-3.5" /> {formatEuro(Number(trip.budget_per_person))} / pers.
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
+            <Wallet className="size-3.5 text-primary" />{" "}
+            {formatEuro(Number(trip.budget_per_person))} / pers.
           </span>
           {provisionalStart ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/40 bg-lagoon/10 px-3 py-1">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/40 bg-lagoon/10 px-3 py-1 text-sm">
               <CalendarDays className="size-3.5" />
               {availabilityAnswered < availabilityExpected ? "Date provisoire · " : "Date · "}
               {new Date(provisionalStart).toLocaleDateString("fr-FR")}
@@ -107,13 +121,11 @@ export function TripHubDashboard({
                 : ""}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-1 text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm text-muted-foreground">
               <CalendarDays className="size-3.5" /> Date à définir
             </span>
           )}
-          <Badge variant={trip.status === "valide" ? "success" : "lagoon"}>
-            {trip.status}
-          </Badge>
+          <Badge variant={trip.status === "valide" ? "success" : "lagoon"}>{trip.status}</Badge>
         </div>
       </header>
 
