@@ -786,117 +786,12 @@ function TripDetail() {
 
 
 
-      {/* 2. Vote activités — une fois la destination validée */}
-      {destinationSelected ? (
-        <section className="mt-10 space-y-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="font-display text-2xl font-semibold">3. Activités proposées</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Votez pour les activités qui vous tentent
-                {data.isOwner
-                  ? " — validez ensuite la sélection finale."
-                  : " — l'organisateur validera la sélection finale."}
-              </p>
-            </div>
-            {data.isOwner ? (
-              <Button
-                variant="hero"
-                disabled={finalizeActivitiesMutation.isPending}
-                onClick={() => {
-                  // Top activités par votes (au moins 1 vote), sinon toutes celles de la reco sélectionnée
-                  const selectedReco = recommendations.find((r) => r.is_selected);
-                  const ids = selectedReco?.activity_ids ?? [];
-                  const ranked = [...ids].sort((a, b) => {
-                    const va = activityVotes.filter((v) => v.activity_id === a).length;
-                    const vb = activityVotes.filter((v) => v.activity_id === b).length;
-                    return vb - va;
-                  });
-                  const withVotes = ranked.filter(
-                    (id) => activityVotes.some((v) => v.activity_id === id),
-                  );
-                  const finalIds = withVotes.length ? withVotes : ranked;
-                  finalizeActivitiesMutation.mutate(finalIds);
-                }}
-              >
-                {finalizeActivitiesMutation.isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <CheckCircle2 />
-                )}
-                Valider les activités
-              </Button>
-            ) : null}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(() => {
-              const selectedReco = recommendations.find((r) => r.is_selected);
-              const ids = (selectedReco?.activity_ids ?? []) as string[];
-              const list = activities.filter((a: any) => ids.includes(a.id));
-              if (!list.length) {
-                return (
-                  <p className="col-span-full text-sm text-muted-foreground">
-                    Aucune activité liée à cette destination pour l&apos;instant.
-                  </p>
-                );
-              }
-              return list
-                .slice()
-                .sort((a: any, b: any) => {
-                  const va = activityVotes.filter((v) => v.activity_id === a.id).length;
-                  const vb = activityVotes.filter((v) => v.activity_id === b.id).length;
-                  return vb - va;
-                })
-                .map((a: any) => {
-                  const aVotes = activityVotes.filter((v) => v.activity_id === a.id);
-                  const iVoted = aVotes.some((v) => v.user_id === data.userId);
-                  const isFinal = selectedActivityIds.has(a.id);
-                  return (
-                    <div
-                      key={a.id}
-                      className={cn(
-                        "rounded-2xl border bg-card p-4 shadow-sm",
-                        isFinal ? "border-lagoon bg-lagoon/5" : "border-border",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium">{a.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {categoryLabel(a.category)} · {formatEuro(Number(a.price_per_person))} / pers.
-                          </p>
-                        </div>
-                        {isFinal ? <Badge variant="success">Retenue</Badge> : null}
-                      </div>
-                      <div className="mt-3 flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant={iVoted ? "lagoon" : "outline"}
-                          disabled={activityVoteMutation.isPending}
-                          onClick={() => activityVoteMutation.mutate(a.id)}
-                        >
-                          <Heart className={cn("size-3.5", iVoted && "fill-current")} />
-                          {iVoted ? "Mon vote" : "Voter"} · {aVotes.length}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                });
-            })()}
-          </div>
-        </section>
-      ) : recommendations.length > 0 ? (
-        <p className="mt-6 text-sm text-muted-foreground">
-          Les votes sur les activités s&apos;ouvriront quand l&apos;organisateur aura validé une destination.
-        </p>
-      ) : null}
-
-      {/* 4. Planning jour par jour */}
+      {/* 3. Planning jour par jour */}
       {destinationSelected ? (
         <section id="hub-activities-plan" className="mt-10 space-y-4 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-semibold">4. Planning du séjour</h2>
+              <h2 className="font-display text-2xl font-semibold">3. Planning du séjour</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Resto, activités et bars pour chaque jour — basé sur les dates, la destination et les préférences.
               </p>
@@ -1011,7 +906,7 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {/* 5. Hôtels & transports */}
+      {/* 4. Hôtels & transports */}
       {destinationSelected ? (
         <section id="hub-logistics" className="mt-10 space-y-4 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
