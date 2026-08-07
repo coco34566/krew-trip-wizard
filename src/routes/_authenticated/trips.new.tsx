@@ -34,6 +34,7 @@ function NewTripPage() {
   const [eventType, setEventType] = useState("weekend");
   const [participants, setParticipants] = useState(PARTICIPANTS_DEFAULT);
   const [celebratedPerson, setCelebratedPerson] = useState("");
+  const [organizerFirstName, setOrganizerFirstName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const needsStar = STAR_EVENT_TYPES.has(eventType as any);
@@ -44,8 +45,12 @@ function NewTripPage() {
       toast.error("Donne un nom au voyage (2 caractères min.)");
       return;
     }
+    if (!organizerFirstName.trim()) {
+      toast.error("Indique ton prénom (organisateur)");
+      return;
+    }
     if (needsStar && !celebratedPerson.trim()) {
-      toast.error("Indique le prénom de la personne principale");
+      toast.error("Indique le prénom de la personne principale (Star)");
       return;
     }
     setSubmitting(true);
@@ -55,6 +60,7 @@ function NewTripPage() {
           name: name.trim(),
           eventType: eventType as any,
           participants,
+          organizerFirstName: organizerFirstName.trim(),
           celebratedPerson: celebratedPerson.trim() || undefined,
           budgetPerPerson: 400,
           departureCity: "Paris",
@@ -105,6 +111,20 @@ function NewTripPage() {
               onChange={(e) => setName(e.target.value)}
               autoFocus
             />
+          </div>
+
+          <div>
+            <Label htmlFor="orga">Ton prénom (organisateur)</Label>
+            <Input
+              id="orga"
+              className="mt-1.5"
+              placeholder="Ex. Camille"
+              value={organizerFirstName}
+              onChange={(e) => setOrganizerFirstName(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pour que le groupe sache qui organise, et pour te reconnaître dans les réponses.
+            </p>
           </div>
 
           <div>
