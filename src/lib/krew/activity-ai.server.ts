@@ -1,7 +1,8 @@
 /**
- * Génération d'itinéraire activités via Lovable AI (peu de tokens).
- * - 1 appel pour le planning complet (resto + activités + bars par jour)
- * - 1 appel ultra-court pour régénérer UN seul créneau
+ * Génération d'itinéraire via Lovable AI (prompt structuré + scoring).
+ * - Planning complet : resto / activités / bars logiques jour par jour
+ * - Régénération d'un créneau isolé
+ * Chaque slot peut porter une URL (site, Google Maps, réservation)
  */
 
 export type ActivitySlotType = "resto" | "activite" | "bar" | "transport" | "libre";
@@ -12,6 +13,8 @@ export type ActivitySlot = {
   label: string;
   detail?: string;
   priceHint?: number;
+  /** Lien utile : site officiel, Google Maps, OpenTable, etc. */
+  url?: string | null;
 };
 
 export type ItineraryDayPlan = {
@@ -43,6 +46,11 @@ export type ActivityAiInput = {
   dietaryConstraints?: string[];
   travelPace?: string | null;
   preferredTimeSlots?: string[];
+  /** Raisons de match scoring de la destination choisie */
+  matchReasons?: string[];
+  destinationScore?: number | null;
+  /** Labels d'activités déjà scorées pour cette reco */
+  scoredActivityLabels?: string[];
 };
 
 type LlmConfig = {
@@ -92,23 +100,37 @@ function getLlmConfig(): LlmConfig | null {
   return null;
 }
 
-const SYSTEM_FULL = `Tu es Krew, planificateur de week-end groupe.
-Réponds UNIQUEMENT en JSON:
-{"days":[{"day":1,"slots":[{"moment":"Matin|Midi|Après-midi|Soir","type":"resto|activite|bar|transport|libre","label":"...","detail":"...","priceHint":0}]}]}
-Règles:
-- Remplis chaque jour (arrivée → départ)
-- Mélange resto, activité, bar selon rythme
-- Labels concrets pour la destination
-- priceHint €/pers optionnel
-- Pas de markdown`;
+const SYSTEM_FULL = `Tu es Krew, expert en organisation de séjours de groupe (EVG, EVJF, week-end amis).
+Tu construis un planning JOUR PAR JOUR réaliste et agréable pour la destination choisie.
 
-const SYSTEM_SLOT = `Tu proposes UNE alternative d'activité pour un créneau.
-JSON uniquement: {"moment":"...","type":"resto|activite|bar|libre","label":"...","detail":"...","priceHint":0}
-Concret, adapté à la ville, différent de l'existant.`;
+Réponds UNIQUEMENT en JSON valide, sans markdown :
+{"days":[{"day":1,"slots":[{"moment":"Matin|Midi|Après-midi|Soir","type":"resto|activite|bar|transport|libre","label":"nom concret","detail":"pourquoi / quartier / pour qui","priceHint":25,"url":"https://..."}]}]}
+
+Règles métier :
+1. Logique temporelle : jour 1 = arrivée + installation ; dernier jour = matin plus léger + départ possible.
+2. Alternance saine : ne pas enchaîner 3 restos ; chaque jour typique = 1 resto midi OU soir + 1 activité + 1 bar/soirée si le rythme le permet.
+3. Ancrage SCORING : priorise les ambiances, catégories d'activités et envies star fournies dans le contexte JSON. Si "match" / "star" / "acts" sont présents, au moins 60% des créneaux doivent y coller.
+4. Noms CONCRETS (pas "restaurant local") : vrais styles ou lieux plausibles pour la ville (ex. "Tapas au Born", "Boat party Port Vell").
+5. url : quand possible, un lien utile (Google Maps recherche du lieu+ville, site officiel, TripAdvisor, ou page réservation). Format https:// uniquement. Si inconnu, omets le champ.
+6. priceHint = estimation € / personne pour ce créneau, cohérente avec le budget global.
+7. Respecte contraintes alimentaires (diet) pour les restos.
+8. Rythme : chill = 2–3 slots/jour ; normal = 3–4 ; intense = 4–5.
+9. Langue des labels/details : français.
+10. Pas de texte hors JSON.`;
+
+const SYSTEM_SLOT = `Tu proposes UNE alternative pour un créneau d'itinéraire de groupe.
+JSON uniquement, sans markdown :
+{"moment":"Midi|Après-midi|Soir","type":"resto|activite|bar|libre","label":"...","detail":"...","priceHint":0,"url":"https://..."}
+Doit être concret pour la ville, différent de l'existant, aligné sur les envies (vibe/acts/star).
+url = lien utile si possible (Maps / site).`;
+
+function mapsUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
 
 function compactCtx(input: ActivityAiInput): Record<string, unknown> {
   const o: Record<string, unknown> = {
-    city: input.destination.slice(0, 40),
+    city: input.destination.slice(0, 48),
     nights: input.nights,
     n: input.participants,
     budget: Math.round(input.budgetPerPerson),
@@ -116,16 +138,24 @@ function compactCtx(input: ActivityAiInput): Record<string, unknown> {
   if (input.country) o.country = String(input.country).slice(0, 30);
   if (input.startDate) o.from = input.startDate;
   if (input.endDate) o.to = input.endDate;
-  if (input.eventType) o.event = String(input.eventType).slice(0, 20);
-  if (input.ambiances?.length) o.vibe = input.ambiances.slice(0, 4);
-  if (input.activityCategories?.length) o.acts = input.activityCategories.slice(0, 6);
-  if (input.starWanted?.length) o.star = input.starWanted.slice(0, 4);
+  if (input.eventType) o.event = String(input.eventType).slice(0, 24);
+  if (input.ambiances?.length) o.vibe = input.ambiances.slice(0, 5);
+  if (input.activityCategories?.length) o.acts = input.activityCategories.slice(0, 8);
+  if (input.starWanted?.length) o.star = input.starWanted.slice(0, 5);
   if (input.dietaryConstraints?.length) o.diet = input.dietaryConstraints.slice(0, 4);
   if (input.travelPace) o.pace = input.travelPace;
+  if (input.matchReasons?.length) o.match = input.matchReasons.slice(0, 6);
+  if (input.destinationScore != null) o.score = Math.round(Number(input.destinationScore));
+  if (input.scoredActivityLabels?.length) o.seedActs = input.scoredActivityLabels.slice(0, 8);
   return o;
 }
 
-async function chatJson(cfg: LlmConfig, system: string, user: string, maxTokens: number): Promise<string> {
+async function chatJson(
+  cfg: LlmConfig,
+  system: string,
+  user: string,
+  maxTokens: number,
+): Promise<string> {
   const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -134,7 +164,7 @@ async function chatJson(cfg: LlmConfig, system: string, user: string, maxTokens:
     },
     body: JSON.stringify({
       model: cfg.model,
-      temperature: 0.5,
+      temperature: 0.55,
       max_tokens: maxTokens,
       messages: [
         { role: "system", content: system },
@@ -161,36 +191,48 @@ function extractJson(raw: string): unknown {
   }
 }
 
-function normalizeSlot(s: any): ActivitySlot | null {
-  if (!s || typeof s !== "object") return null;
-  const label = String(s.label || "").trim();
+function normalizeSlot(raw: any, city: string): ActivitySlot | null {
+  if (!raw || typeof raw !== "object") return null;
+  const label = String(raw.label || raw.name || "").trim();
   if (!label) return null;
-  const typeRaw = String(s.type || "activite").toLowerCase();
-  const type: ActivitySlotType = ["resto", "activite", "bar", "transport", "libre"].includes(typeRaw)
-    ? (typeRaw as ActivitySlotType)
-    : "activite";
+  const type = String(raw.type || "activite").toLowerCase() as ActivitySlotType;
+  const allowed: ActivitySlotType[] = ["resto", "activite", "bar", "transport", "libre"];
+  const t = allowed.includes(type) ? type : "activite";
+  let url: string | null = null;
+  if (typeof raw.url === "string" && raw.url.startsWith("http")) {
+    url = raw.url.slice(0, 300);
+  } else if (t === "resto" || t === "activite" || t === "bar") {
+    url = mapsUrl(`${label} ${city}`);
+  }
+  const price =
+    raw.priceHint != null
+      ? Number(raw.priceHint)
+      : raw.price != null
+        ? Number(raw.price)
+        : undefined;
   return {
-    moment: String(s.moment || "Après-midi").slice(0, 24),
-    type,
+    moment: String(raw.moment || "Après-midi").slice(0, 24),
+    type: t,
     label: label.slice(0, 80),
-    detail: s.detail ? String(s.detail).slice(0, 120) : undefined,
-    priceHint: typeof s.priceHint === "number" ? Math.round(s.priceHint) : undefined,
+    detail: raw.detail ? String(raw.detail).slice(0, 160) : undefined,
+    priceHint: Number.isFinite(price) ? Math.round(price!) : undefined,
+    url,
   };
 }
 
-function addDays(iso: string, n: number): string {
+function addDays(iso: string, days: number): string {
   const d = new Date(iso + "T12:00:00Z");
-  d.setUTCDate(d.getUTCDate() + n);
+  d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
 
-/** Fallback local si pas d'IA */
-export function buildLocalItinerary(input: ActivityAiInput, seedLabels: string[] = []): GroupItinerary {
+function buildLocalItinerary(input: ActivityAiInput, seedLabels: string[]): GroupItinerary {
   const daysCount = Math.max(1, input.nights + 1);
-  const pace = input.travelPace || "equilibre";
+  const pace = String(input.travelPace || "normal").toLowerCase();
   const slotsPerDay = pace === "chill" ? 2 : pace === "intense" ? 4 : 3;
   const pool = [
     ...seedLabels,
+    ...(input.scoredActivityLabels || []),
     ...(input.starWanted || []),
     ...(input.activityCategories || []).map((c) => c.replace(/_/g, " ")),
   ].filter(Boolean);
@@ -212,44 +254,43 @@ export function buildLocalItinerary(input: ActivityAiInput, seedLabels: string[]
         type: "transport",
         label: `Arrivée à ${input.destination}`,
         detail: "Transfert & installation",
+        url: mapsUrl(`${input.destination} centre`),
       });
     }
+    const lunchLabel = `Déjeuner — ${input.destination}`;
     slots.push({
       moment: "Midi",
       type: "resto",
-      label: `Déjeuner local — ${input.destination}`,
+      label: lunchLabel,
       detail: input.dietaryConstraints?.length
         ? `Contraintes: ${input.dietaryConstraints.slice(0, 2).join(", ")}`
         : "Cuisine locale",
       priceHint: Math.min(35, Math.round(input.budgetPerPerson * 0.08)),
+      url: mapsUrl(`restaurant ${input.destination}`),
     });
     if (slotsPerDay >= 2) {
+      const lab = nextLabel(`Expérience — ${input.destination}`);
       slots.push({
         moment: "Après-midi",
         type: "activite",
-        label: nextLabel(`Visite / expérience — ${input.destination}`),
-        detail: "Selon envies du groupe",
+        label: lab,
+        detail: (input.matchReasons || []).slice(0, 1).join("") || "Selon envies du groupe",
         priceHint: Math.min(50, Math.round(input.budgetPerPerson * 0.12)),
+        url: mapsUrl(`${lab} ${input.destination}`),
       });
     }
     if (slotsPerDay >= 3) {
+      const isLast = day === daysCount;
+      const lab = isLast
+        ? `Dîner de clôture — ${input.destination}`
+        : nextLabel(`Soirée — ${input.destination}`);
       slots.push({
         moment: "Soir",
-        type: day === daysCount ? "resto" : "bar",
-        label:
-          day === daysCount
-            ? `Dîner de clôture — ${input.destination}`
-            : nextLabel(`Bar / soirée — ${input.destination}`),
-        detail: day === daysCount ? "Ambiance groupe" : "Ambiance nocturne",
+        type: isLast ? "resto" : "bar",
+        label: lab,
+        detail: isLast ? "Ambiance groupe" : "Ambiance nocturne",
         priceHint: Math.min(40, Math.round(input.budgetPerPerson * 0.1)),
-      });
-    }
-    if (day === daysCount) {
-      slots.push({
-        moment: "Fin de journée",
-        type: "transport",
-        label: "Retour",
-        detail: "Check-out & trajet retour",
+        url: mapsUrl(`${lab}`),
       });
     }
     days.push({ day, date, slots });
@@ -264,40 +305,46 @@ export function buildLocalItinerary(input: ActivityAiInput, seedLabels: string[]
   };
 }
 
+function parseDaysFromLlm(parsed: any, input: ActivityAiInput): ItineraryDayPlan[] | null {
+  const rawDays = parsed?.days;
+  if (!Array.isArray(rawDays) || !rawDays.length) return null;
+  const days: ItineraryDayPlan[] = [];
+  rawDays.forEach((d: any, idx: number) => {
+    const dayNum = Number(d.day) || idx + 1;
+    const date = input.startDate ? addDays(input.startDate, dayNum - 1) : null;
+    const slots = (Array.isArray(d.slots) ? d.slots : [])
+      .map((s: any) => normalizeSlot(s, input.destination))
+      .filter(Boolean) as ActivitySlot[];
+    if (slots.length) days.push({ day: dayNum, date, slots });
+  });
+  return days.length ? days : null;
+}
+
 export async function generateItineraryWithAi(
   input: ActivityAiInput,
   seedLabels: string[] = [],
 ): Promise<{ itinerary: GroupItinerary; usedLlm: boolean; error?: string }> {
   const cfg = getLlmConfig();
+  const mergedSeeds = [...seedLabels, ...(input.scoredActivityLabels || [])];
+
   if (!cfg) {
-    return { itinerary: buildLocalItinerary(input, seedLabels), usedLlm: false, error: "no_llm_key" };
+    return { itinerary: buildLocalItinerary(input, mergedSeeds), usedLlm: false, error: "no_llm_key" };
   }
+
+  const ctx = compactCtx({ ...input, scoredActivityLabels: mergedSeeds });
+  const user = `Contexte scoring + séjour (JSON compact):\n${JSON.stringify(ctx)}\n\nGénère le planning complet pour ${input.nights + 1} jour(s) à ${input.destination}. Priorise match/star/acts/seedActs.`;
+
   try {
-    const user = JSON.stringify({
-      ...compactCtx(input),
-      seeds: seedLabels.slice(0, 8),
-      fill: "chaque jour: resto + activite + bar si possible",
-    });
-    const raw = await chatJson(cfg, SYSTEM_FULL, user, 700);
-    const parsed = extractJson(raw) as { days?: any[] } | null;
-    if (!parsed?.days?.length) {
+    const raw = await chatJson(cfg, SYSTEM_FULL, user, 1800);
+    const parsed = extractJson(raw);
+    const days = parseDaysFromLlm(parsed, input);
+    if (!days) {
       return {
-        itinerary: buildLocalItinerary(input, seedLabels),
+        itinerary: buildLocalItinerary(input, mergedSeeds),
         usedLlm: false,
         error: "llm_empty_parse",
       };
     }
-    const days: ItineraryDayPlan[] = parsed.days.map((d, i) => {
-      const dayNum = Number(d.day) || i + 1;
-      const slots = (Array.isArray(d.slots) ? d.slots : [])
-        .map(normalizeSlot)
-        .filter(Boolean) as ActivitySlot[];
-      return {
-        day: dayNum,
-        date: input.startDate ? addDays(input.startDate, dayNum - 1) : null,
-        slots: slots.length ? slots : buildLocalItinerary(input, seedLabels).days[i]?.slots ?? [],
-      };
-    });
     return {
       itinerary: {
         destination: input.destination,
@@ -310,7 +357,7 @@ export async function generateItineraryWithAi(
     };
   } catch (e) {
     return {
-      itinerary: buildLocalItinerary(input, seedLabels),
+      itinerary: buildLocalItinerary(input, mergedSeeds),
       usedLlm: false,
       error: String(e).slice(0, 160),
     };
@@ -319,34 +366,30 @@ export async function generateItineraryWithAi(
 
 export async function regenerateSlotWithAi(
   input: ActivityAiInput,
-  current: ActivitySlot,
-  avoidLabels: string[] = [],
+  existing: ActivitySlot,
+  day: number,
 ): Promise<{ slot: ActivitySlot; usedLlm: boolean; error?: string }> {
-  const cfg = getLlmConfig();
   const fallback: ActivitySlot = {
-    moment: current.moment,
-    type: current.type,
-    label: `${current.type === "resto" ? "Autre resto" : current.type === "bar" ? "Autre bar" : "Autre activité"} — ${input.destination}`,
-    detail: "Option alternative",
-    priceHint: current.priceHint,
+    ...existing,
+    label: `${existing.label} (alt.)`,
+    url: existing.url || mapsUrl(`${existing.label} ${input.destination}`),
   };
+  const cfg = getLlmConfig();
   if (!cfg) return { slot: fallback, usedLlm: false, error: "no_llm_key" };
+
+  const ctx = compactCtx(input);
+  const user = `Ville: ${input.destination}. Jour ${day}. Créneau actuel: ${JSON.stringify({
+    moment: existing.moment,
+    type: existing.type,
+    label: existing.label,
+  })}. Contexte: ${JSON.stringify(ctx)}. Propose une alternative.`;
+
   try {
-    const user = JSON.stringify({
-      city: input.destination,
-      replace: { moment: current.moment, type: current.type, was: current.label },
-      avoid: avoidLabels.slice(0, 6),
-      vibe: input.ambiances.slice(0, 3),
-      acts: input.activityCategories.slice(0, 4),
-      star: (input.starWanted || []).slice(0, 3),
-      diet: (input.dietaryConstraints || []).slice(0, 3),
-    });
-    const raw = await chatJson(cfg, SYSTEM_SLOT, user, 120);
-    const parsed = extractJson(raw);
-    const slot = normalizeSlot(parsed);
+    const raw = await chatJson(cfg, SYSTEM_SLOT, user, 280);
+    const parsed = extractJson(raw) as any;
+    const slot = normalizeSlot(parsed, input.destination);
     if (!slot) return { slot: fallback, usedLlm: false, error: "llm_empty_parse" };
-    if (!slot.moment) slot.moment = current.moment;
-    if (!slot.type) slot.type = current.type;
+    if (!slot.moment) slot.moment = existing.moment;
     return { slot, usedLlm: true };
   } catch (e) {
     return { slot: fallback, usedLlm: false, error: String(e).slice(0, 160) };
