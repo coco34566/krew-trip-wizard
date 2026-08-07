@@ -357,7 +357,7 @@ function TripDetail() {
       >
       </TripHubDashboard>
 
-      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5">
+      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5" id="hub-dates">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-lg font-semibold flex items-center gap-2">
             <CalendarDays className="size-5 text-primary" />
