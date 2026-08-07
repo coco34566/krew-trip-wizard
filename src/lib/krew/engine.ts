@@ -124,7 +124,10 @@ function ambianceScore(dest: DestinationRecord, ambiances: string[]): number {
     const col = AMBIANCE_SCORE_COLUMN[a as Ambiance];
     return col ? Number((dest as unknown as Record<string, number>)[col] ?? 0) : 0;
   });
-  return values.reduce((a, b) => a + b, 0) / values.length;
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  // Destinations découvertes dynamiquement n'ont pas encore de scores seed → neutre
+  if (avg === 0) return 0.55;
+  return avg;
 }
 
 function seasonScore(dest: DestinationRecord, month: number): number {
