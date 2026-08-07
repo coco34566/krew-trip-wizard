@@ -351,6 +351,15 @@ function TripDetail() {
                           Transport : {formatEuro(reco.budget.transport)}
                           <span className="block text-xs text-muted-foreground">moy. / pers.</span>
                         </p>
+                        {(reco.budget as any).budgetFitTotal ? (
+                          <p className="col-span-2 text-xs text-muted-foreground sm:col-span-4">
+                            {(reco.budget as any).hardBudgetFits === false
+                              ? "⚠️ "
+                              : "✅ "}
+                            Dans le budget de {(reco.budget as any).budgetFitCount}/
+                            {(reco.budget as any).budgetFitTotal} participants
+                          </p>
+                        ) : null}
                         <p>Hébergement : {formatEuro(reco.budget.accommodation)}</p>
                         <p>Activités : {formatEuro(reco.budget.activities)}</p>
                         <p>Restauration : {formatEuro(reco.budget.food)}</p>
