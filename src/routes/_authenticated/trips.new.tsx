@@ -15,8 +15,13 @@ import { createTrip, generateRecommendations } from "@/lib/trips.functions";
 import {
   ACTIVITY_CATEGORIES,
   AMBIANCES,
+  BUDGET_PRESETS,
   DIETARY_OPTIONS,
+  DISTANCE_PRESETS,
   EVENT_TYPES,
+  PARTICIPANTS_DEFAULT,
+  PARTICIPANTS_MAX,
+  PARTICIPANTS_MIN,
   formatEuro,
 } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
