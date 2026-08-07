@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check } from "lucide-react";
+import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -180,6 +180,15 @@ function TripDetail() {
                   {progress.total > 0 && progress.answered >= progress.total ? " · complet 🎉" : ""}
                 </span>
               ) : null}
+              {(data.isOwner ||
+                (progress && progress.total > 0 && progress.answered >= progress.total) ||
+                recommendations.length > 0) && (
+                <Button asChild variant="hero" size="sm">
+                  <Link to="/trips/$tripId/recap" params={{ tripId }}>
+                    <ClipboardList /> Récap du groupe
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
         </div>
