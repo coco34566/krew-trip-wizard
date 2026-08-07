@@ -56,7 +56,7 @@ function JoinTripPage() {
     try {
       await doJoin({ data: { tripId } });
       toast.success("Bienvenue dans le voyage !");
-      navigate({ to: "/trips/$tripId/questionnaire", params: { tripId } });
+      navigate({ to: "/trips/$tripId/availability", params: { tripId } });
     } catch (e: any) {
       toast.error(e?.message ?? "Impossible de rejoindre ce voyage");
     } finally {
@@ -113,8 +113,8 @@ function JoinTripPage() {
             </ul>
 
             <p className="text-center text-sm text-muted-foreground">
-              Rejoins le groupe, réponds au questionnaire : Krew proposera des destinations adaptées
-              à tout le monde.
+              Rejoins le groupe : la première étape est d'indiquer tes disponibilités, puis tes préférences.
+              Krew proposera ensuite des destinations adaptées à tout le monde.
             </p>
 
             <Button
@@ -129,7 +129,7 @@ function JoinTripPage() {
               ) : (
                 <Sparkles className="mr-2 size-4" />
               )}
-              {isAuthenticated ? "Rejoindre le voyage" : "Se connecter pour rejoindre"}
+              {isAuthenticated ? "Rejoindre et indiquer mes dispos" : "Se connecter pour rejoindre"}
             </Button>
 
             {!isAuthenticated ? (
