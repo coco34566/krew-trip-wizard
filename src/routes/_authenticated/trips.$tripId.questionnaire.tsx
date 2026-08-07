@@ -97,8 +97,6 @@ function ParticipantQuestionnaire() {
   const [transportModeAccepted, setTransportModeAccepted] = useState<string[]>(["peu importe"]);
   const [maxTravelDurationHours, setMaxTravelDurationHours] = useState(6);
   const [accessibilityNeeds, setAccessibilityNeeds] = useState(false);
-  const [blackoutDates, setBlackoutDates] = useState("");
-
   const [activityCategories, setActivityCategories] = useState<string[]>([]);
   const [travelPace, setTravelPace] = useState<string>("equilibre");
   const [preferredTimeSlots, setPreferredTimeSlots] = useState<string[]>([]);
@@ -138,7 +136,6 @@ function ParticipantQuestionnaire() {
           setTransportModeAccepted((preferences as any).transport_mode_accepted?.length ? (preferences as any).transport_mode_accepted : ["peu importe"]);
           setMaxTravelDurationHours(Number((preferences as any).max_travel_duration_hours) || 6);
           setAccessibilityNeeds(Boolean((preferences as any).accessibility_needs));
-          setBlackoutDates(((preferences as any).blackout_dates ?? []).join(", "));
           setActivityCategories(preferences.activity_categories ?? []);
           setBudgetMax(Number(preferences.budget_max ?? 400));
           setBudgetPriority(
@@ -212,10 +209,6 @@ function ParticipantQuestionnaire() {
           transportModeAccepted,
           maxTravelDurationHours,
           accessibilityNeeds,
-          blackoutDates: blackoutDates
-            .split(/[,;]/)
-            .map((s) => s.trim())
-            .filter(Boolean),
           budgetPriority,
           activityCategories,
           budgetMax,
@@ -581,16 +574,6 @@ function ParticipantQuestionnaire() {
             {accessibilityNeeds ? "Besoin d'accessibilité PMR" : "Pas de besoin PMR particulier"}
           </button>
         </div>
-        <div className="space-y-2">
-          <Label>Dates d'indisponibilité (blackout)</Label>
-          <Input
-            value={blackoutDates}
-            onChange={(e) => setBlackoutDates(e.target.value)}
-            placeholder="2026-09-12, 2026-09-13"
-          />
-          <p className="text-xs text-muted-foreground">Dates précises où tu n'es pas dispo (AAAA-MM-JJ).</p>
-        </div>
-
         <Section
           title="4. Hébergement"
           hint="Transmis aux recherches Booking / Hotels.com / Expedia."
