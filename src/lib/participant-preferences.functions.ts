@@ -217,6 +217,12 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       min_accommodation_rating: (data as any).minAccommodationRating ?? null,
       travel_pace: (data as any).travelPace ?? null,
       deal_breaker_ambiances: (data as any).dealBreakerAmbiances ?? [],
+      departure_airport_or_station: (data as any).departureAirportOrStation ?? null,
+      transport_mode_accepted: (data as any).transportModeAccepted ?? ["peu importe"],
+      max_travel_duration_hours: (data as any).maxTravelDurationHours ?? null,
+      accessibility_needs: (data as any).accessibilityNeeds ?? false,
+      blackout_dates: (data as any).blackoutDates ?? [],
+      budget_priority: (data as any).budgetPriority ?? "preference",
       preferred_time_slots: (data as any).preferredTimeSlots ?? [],
     };
 
