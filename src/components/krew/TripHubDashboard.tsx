@@ -318,12 +318,17 @@ export function TripHubDashboard({
   children,
 }: Props) {
 
+  const datesLocked = Boolean(
+    (trip as any).dates_locked || (trip as any).datesLocked,
+  );
+
   const steps = buildTripSteps({
     tripId,
     participantsJoined: participantsCount,
     participantsExpected: trip.participants_count || 1,
     availabilityAnswered,
     questionnaireAnswered: progressAnswered,
+    datesLocked,
     hasRecommendations,
     destinationSelected,
   });
