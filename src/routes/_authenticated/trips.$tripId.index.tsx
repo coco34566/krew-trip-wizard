@@ -476,47 +476,7 @@ function TripDetail() {
       </section>
 
 
-      {/* CTA génération destinations */}
-      {data.isOwner ? (
-        <section className="mt-8 rounded-3xl border border-primary/30 bg-primary/5 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-display text-lg font-semibold">Suggestions de destinations</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Basées sur les préférences du groupe + la date validée.
-              </p>
-            </div>
-            <Button
-              variant="hero"
-              size="lg"
-              onClick={() => regenerateMutation.mutate()}
-              disabled={regenerateMutation.isPending}
-              title={
-                readiness && !readiness.canGenerate
-                  ? readiness.message ?? "Complète dispos, préférences et valide les dates"
-                  : undefined
-              }
-            >
-              {regenerateMutation.isPending ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Sparkles />
-              )}
-              Générer les propositions
-            </Button>
-          </div>
-          {readiness && !readiness.canGenerate ? (
-            <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
-              Mode test : génération possible même si la checklist n&apos;est pas complète
-              {readiness.message ? ` (${readiness.message})` : ""}.
-            </p>
-          ) : readiness?.canGenerate ? (
-            <p className="mt-3 text-sm text-lagoon">
-              Prêt — le scoring utilisera les budgets, ambiances, hébergements, villes de départ et la date verrouillée.
-            </p>
-          ) : null}
-        </section>
-      ) : null}
+      
 
 
       <section id="hub-destination" className="mt-10 space-y-6">
