@@ -1388,7 +1388,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         totalEstimate: seedPrices[1]! * nights,
         distanceCenterKm: null,
         score: 0.78,
-        reasons: ["comparateur Booking", "dates préremplies"],
+        reasons: ["comparateur Booking", "dates préremplies", "prix indicatif — confirmer sur Booking"],
         bookingUrl: bookingSearchUrl(destName),
         links: [
           { label: "Booking", url: bookingSearchUrl(destName) },
