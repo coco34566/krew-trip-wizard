@@ -34,7 +34,34 @@ export const getTripAvailability = createServerFn({ method: "GET" })
       flexDays: Number(r.flex_days ?? 0),
     }));
 
-    const windows = rankDateWindows(entries, nights, 5);
+    const windowsRaw = rankDateWindows(entries, nights, 5);
+    const nameByUser = new Map<string, string>();
+    for (const p of participants.data ?? []) {
+      const uid = p.user_id as string | null;
+      if (!uid) continue;
+      const label =
+        (p.display_name as string | null)?.trim() ||
+        (p.email as string | null)?.split("@")[0] ||
+        "Participant";
+      nameByUser.set(uid, label);
+    }
+    // Inclure les user_id qui ont répondu même sans ligne participants (ex. owner)
+    for (const e of entries) {
+      if (!nameByUser.has(e.userId)) nameByUser.set(e.userId, "Participant");
+    }
+
+    const windows = windowsRaw.map((w) => ({
+      ...w,
+      availablePeople: w.availableUserIds.map((id) => ({
+        userId: id,
+        name: nameByUser.get(id) ?? "Participant",
+      })),
+      unavailablePeople: w.unavailableUserIds.map((id) => ({
+        userId: id,
+        name: nameByUser.get(id) ?? "Participant",
+      })),
+    }));
+
     const mine = (rows.data ?? []).find((r: any) => r.user_id === userId) ?? null;
 
     const answered = entries.length;
