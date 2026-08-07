@@ -524,10 +524,7 @@ function TripDetail() {
           <div>
             <h2 className="font-display text-2xl font-semibold">2. Destinations proposées</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Votez pour vos destinations préférées
-              {data.isOwner
-                ? " — l'organisateur valide ensuite le choix du groupe."
-                : " — l'organisateur validera le choix final."}
+              Score, budget moyen et activités — votez, l&apos;orga valide.
             </p>
           </div>
           {data.isOwner ? (
@@ -559,9 +556,11 @@ function TripDetail() {
         ) : (
           <>
           {destinationSelected ? (
-            <p className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">
-              Destination validée — les {Math.max(0, recommendations.length - 1)} autres options restent visibles
-              {data.isOwner ? " ; tu peux en choisir une autre à tout moment." : "."}
+            <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
+              Destination validée — {Math.max(0, recommendations.length - 1)} autre
+              {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
+              {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
+              {data.isOwner ? " (change possible)." : "."}
             </p>
           ) : null}
           <div className="grid gap-4 lg:grid-cols-1">
@@ -570,194 +569,135 @@ function TripDetail() {
             .map((reco, index) => {
             const recoVotes = votes.filter((v) => v.recommendation_id === reco.id);
             const hasVoted = recoVotes.some((v) => v.user_id === data.userId);
-            const recoActivities = activities.filter((a) => (reco.activity_ids ?? []).includes(a.id));
+            const recoActivities = activities
+              .filter((a) => (reco.activity_ids ?? []).includes(a.id))
+              .slice(0, 3);
+            const budgetTotal =
+              reco.budget != null
+                ? Number(reco.budget.transport || 0) +
+                  Number(reco.budget.accommodation || 0) +
+                  Number(reco.budget.activities || 0) +
+                  Number(reco.budget.food || 0)
+                : null;
+            const reasons = (reco.match_reasons ?? []).slice(0, 4);
             return (
               <article
                 key={reco.id}
                 className={cn(
-                  "overflow-hidden rounded-3xl border bg-card shadow-elevated transition",
+                  "rounded-2xl border bg-card p-4 shadow-sm transition sm:p-5",
                   reco.is_selected
-                    ? "border-emerald-500 ring-2 ring-emerald-500/25"
-                    : destinationSelected
-                      ? "border-border opacity-95"
-                      : "border-border",
+                    ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                    : "border-border",
                 )}
               >
-                {reco.destinations?.image_url ? (
-                  <img
-                    src={reco.destinations.image_url}
-                    alt={`Vue de ${reco.destinations.name}`}
-                    loading="lazy"
-                    className="h-48 w-full object-cover"
-                  />
-                ) : null}
-                <div className="p-6">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Proposition {index + 1} · {reco.destinations?.country}
-                      </p>
-                      <h3 className="font-display text-2xl font-semibold">{reco.destinations?.name}</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {reco.is_selected ? <Badge variant="success">Choix du groupe</Badge> : null}
-                      <Badge variant="lagoon">{Math.round(reco.score)} %</Badge>
-                    </div>
-                  </div>
-
-                  {reco.rationale ? <p className="mt-3 text-sm text-muted-foreground">{reco.rationale}</p> : null}
-
-                  {reco.match_reasons?.length ? (
-                    <ul className="mt-4 flex flex-wrap gap-2">
-                      {reco.match_reasons.map((reason) => (
-                        <li
-                          key={reason}
-                          className="rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted-foreground"
-                        >
-                          {reason}
-                        </li>
-                      ))}
-                    </ul>
+                <div className="flex gap-3 sm:gap-4">
+                  {reco.destinations?.image_url ? (
+                    <img
+                      src={reco.destinations.image_url}
+                      alt=""
+                      loading="lazy"
+                      className="hidden h-24 w-24 shrink-0 rounded-xl object-cover sm:block"
+                    />
                   ) : null}
-
-                  {reco.accommodations ? (
-                    <div className="mt-5 rounded-2xl border border-border bg-surface/40 p-4">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Hébergement</p>
-                      <p className="mt-1 font-medium">
-                        {reco.accommodations.name} · {reco.accommodations.type}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        <Star className="mr-1 inline size-3.5" />
-                        {reco.accommodations.rating} · à {reco.accommodations.distance_center_km} km du centre · {" "}
-                        {formatEuro(Number(reco.accommodations.price_per_night_per_person))} / nuit / pers.
-                      </p>
-                    </div>
-                  ) : null}
-
-                  {recoActivities.length ? (
-                    <div className="mt-5">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Aperçu activités (vote après validation de la destination)
-                      </p>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        {recoActivities.map((a: any) => (
-                          <div
-                            key={a.id}
-                            className="rounded-2xl border border-border bg-surface/40 px-3 py-2 text-sm"
-                          >
-                            <p className="font-medium">{a.name}</p>
-                            <p className="text-muted-foreground">
-                              {categoryLabel(a.category)} · {formatEuro(Number(a.price_per_person))} / pers.
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {reco.itinerary?.length ? (
-                    <div className="mt-5">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Programme</p>
-                      <div className="mt-2 space-y-3">
-                        {reco.itinerary.map((day) => (
-                          <div key={day.day} className="rounded-2xl border border-border p-4">
-                            <p className="font-medium">
-                              Jour {day.day} — {day.title}
-                            </p>
-                            <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                              {day.slots.map((slot, i) => (
-                                <li key={`${day.day}-${i}`}>
-                                  <span className="font-medium text-foreground">{slot.moment}</span> · {slot.label}
-                                  {slot.detail ? ` — ${slot.detail}` : ""}
-                                  {slot.price ? ` (${formatEuro(slot.price)})` : ""}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {reco.budget ? (
-                    <div className="mt-5 rounded-2xl border border-border bg-surface/40 p-4">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Budget estimé</p>
-                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                        <p>
-                          Transport : {formatEuro(reco.budget.transport)}
-                          <span className="block text-xs text-muted-foreground">moy. / pers.</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          #{index + 1}
+                          {reco.destinations?.country ? ` · ${reco.destinations.country}` : ""}
                         </p>
-                        {(reco.budget as any).budgetFitTotal ? (
-                          <p className="col-span-2 text-xs text-muted-foreground sm:col-span-4">
-                            {(reco.budget as any).hardBudgetFits === false
-                              ? "⚠️ "
-                              : "✅ "}
-                            Dans le budget de {(reco.budget as any).budgetFitCount}/
-                            {(reco.budget as any).budgetFitTotal} participants
-                          </p>
+                        <h3 className="font-display text-xl font-semibold leading-tight">
+                          {reco.destinations?.name}
+                        </h3>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {reco.is_selected ? (
+                          <Badge variant="success">Choisie</Badge>
                         ) : null}
-                        <p>Hébergement : {formatEuro(reco.budget.accommodation)}</p>
-                        <p>Activités : {formatEuro(reco.budget.activities)}</p>
-                        <p>Restauration : {formatEuro(reco.budget.food)}</p>
+                        <Badge variant="lagoon">{Math.round(reco.score)} %</Badge>
                       </div>
-                      {reco.budget.transportByOrigin && reco.budget.transportByOrigin.length > 1 ? (
-                        <div className="mt-3 rounded-xl border border-border/50 bg-background/40 px-3 py-2 text-xs text-muted-foreground">
-                          <p className="mb-1 font-medium text-foreground">Transport par ville de départ</p>
-                          <ul className="space-y-0.5">
-                            {reco.budget.transportByOrigin.map((o) => (
-                              <li key={o.city}>
-                                {o.city} × {o.count} → {formatEuro(o.pricePerPerson)} A/R / pers.
-                                <span className="text-muted-foreground/80">
-                                  {" "}
-                                  (sous-total {formatEuro(o.pricePerPerson * o.count)})
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                          {typeof reco.budget.transportGroup === "number" ? (
-                            <p className="mt-1">
-                              Transport groupe : {formatEuro(reco.budget.transportGroup)}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : typeof reco.budget.transportGroup === "number" &&
-                        reco.budget.transportGroup > 0 ? (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Transport groupe : {formatEuro(reco.budget.transportGroup)}
-                        </p>
-                      ) : null}
-                      <Separator className="my-3" />
-                      <p className="font-display text-lg font-semibold">
-                        {formatEuro(reco.budget.totalPerPerson)} / personne
-                        <span className="ml-2 text-sm font-normal text-muted-foreground">
-                          soit {formatEuro(reco.budget.totalGroup)} pour le groupe
-                        </span>
-                      </p>
                     </div>
-                  ) : null}
 
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
-                    <Button
-                      variant={hasVoted ? "lagoon" : "glass"}
-                      onClick={() => voteMutation.mutate(reco.id)}
-                      disabled={voteMutation.isPending}
-                    >
-                      <Heart className={cn(hasVoted && "fill-current")} />{" "}
-                      {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
-                    </Button>
-                    {data.isOwner && reco.is_selected ? (
-                      <Button variant="outline" disabled className="border-emerald-500 text-emerald-700">
-                        <CheckCircle2 className="size-4" /> Destination choisie
-                      </Button>
-                    ) : data.isOwner ? (
-                      <Button
-                        variant={destinationSelected ? "outline" : "hero"}
-                        onClick={() => selectMutation.mutate(reco.id)}
-                        disabled={selectMutation.isPending}
-                      >
-                        <CheckCircle2 /> {destinationSelected ? "Changer pour celle-ci" : "Choisir cette destination"}
-                      </Button>
+                    {/* Budget moyen */}
+                    {budgetTotal != null && budgetTotal > 0 ? (
+                      <p className="mt-2 text-sm">
+                        <span className="font-semibold text-foreground">
+                          ~{formatEuro(budgetTotal)}
+                        </span>
+                        <span className="text-muted-foreground"> / pers. tout compris</span>
+                        {(reco.budget as any)?.budgetFitTotal ? (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            · budget OK pour {(reco.budget as any).budgetFitCount}/
+                            {(reco.budget as any).budgetFitTotal}
+                          </span>
+                        ) : null}
+                      </p>
                     ) : null}
+
+                    {/* Pourquoi ça match le groupe */}
+                    {reasons.length ? (
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {reasons.map((reason: string) => (
+                          <li
+                            key={reason}
+                            className="rounded-full bg-primary/8 px-2.5 py-0.5 text-[11px] text-foreground/80"
+                          >
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : reco.rationale ? (
+                      <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                        {reco.rationale}
+                      </p>
+                    ) : null}
+
+                    {/* 2–3 activités */}
+                    {recoActivities.length ? (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground/80">À faire · </span>
+                        {recoActivities
+                          .map(
+                            (a: any) =>
+                              `${a.name}${a.price_per_person ? ` (${formatEuro(Number(a.price_per_person))})` : ""}`,
+                          )
+                          .join(" · ")}
+                      </p>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={hasVoted ? "lagoon" : "outline"}
+                        disabled={voteMutation.isPending}
+                        onClick={() => voteMutation.mutate(reco.id)}
+                      >
+                        <Heart className={cn("size-3.5", hasVoted && "fill-current")} />
+                        {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
+                      </Button>
+                      {data.isOwner && reco.is_selected ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled
+                          className="border-emerald-500 text-emerald-700"
+                        >
+                          <CheckCircle2 className="size-3.5" /> Destination choisie
+                        </Button>
+                      ) : data.isOwner ? (
+                        <Button
+                          size="sm"
+                          variant={destinationSelected ? "outline" : "hero"}
+                          onClick={() => selectMutation.mutate(reco.id)}
+                          disabled={selectMutation.isPending}
+                        >
+                          <CheckCircle2 className="size-3.5" />
+                          {destinationSelected
+                            ? "Changer pour celle-ci"
+                            : "Choisir cette destination"}
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </article>
@@ -766,6 +706,7 @@ function TripDetail() {
           </div>
           </>
         )}
+
       </section>
 
       {/* Résumé + validation des dates */}
