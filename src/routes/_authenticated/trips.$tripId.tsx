@@ -20,6 +20,7 @@ import {
   removeParticipant,
   selectRecommendation,
   toggleVote,
+  cancelTrip,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
@@ -132,6 +133,16 @@ function TripDetail() {
     mutationFn: (participantId: string) => removeGuest({ data: { participantId } }),
     onSuccess: refresh,
   });
+  const cancelFn = useServerFn(cancelTrip);
+  const cancelMutation = useMutation({
+    mutationFn: (hardDelete?: boolean) =>
+      cancelFn({ data: { tripId, hardDelete: Boolean(hardDelete) } }),
+    onSuccess: (res) => {
+      toast.success(res.mode === "deleted" ? "Voyage supprimé" : "Voyage annulé");
+      window.location.href = "/dashboard";
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 120)),
+  });
   const regenerateMutation = useMutation({
     mutationFn: () => regenerate({ data: { tripId, force: false } }),
     onSuccess: (res: any) => {
@@ -229,6 +240,44 @@ function TripDetail() {
               <ClipboardList /> Récap du groupe
             </Link>
           </Button>
+          {data.isOwner && trip.status !== "annule" ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-destructive/40 text-destructive hover:bg-destructive/10"
+              disabled={cancelMutation.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Annuler ce voyage ? Il disparaîtra de tes voyages actifs (tu pourras le supprimer définitivement ensuite si besoin).",
+                  )
+                ) {
+                  cancelMutation.mutate(false);
+                }
+              }}
+            >
+              Annuler le voyage
+            </Button>
+          ) : null}
+          {data.isOwner ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              disabled={cancelMutation.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Supprimer DÉFINITIVEMENT ce voyage et toutes ses données ? Irréversible.",
+                  )
+                ) {
+                  cancelMutation.mutate(true);
+                }
+              }}
+            >
+              Supprimer définitivement
+            </Button>
+          ) : null}
         </div>
       </TripHubDashboard>
 
