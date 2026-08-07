@@ -891,6 +891,277 @@ function TripDetail() {
         </p>
       ) : null}
 
+      {/* 4. Planning jour par jour */}
+      {destinationSelected ? (
+        <section id="hub-activities-plan" className="mt-10 space-y-4 scroll-mt-24">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-2xl font-semibold">4. Planning du séjour</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Resto, activités et bars pour chaque jour — basé sur les dates, la destination et les préférences.
+              </p>
+            </div>
+            {data.isOwner ? (
+              <Button
+                variant="hero"
+                disabled={itineraryMutation.isPending}
+                onClick={() => itineraryMutation.mutate()}
+              >
+                {itineraryMutation.isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Sparkles />
+                )}
+                {(trip as any).group_itinerary?.days?.length
+                  ? "Régénérer tout le planning"
+                  : "Générer le planning"}
+              </Button>
+            ) : null}
+          </div>
+
+          {!(trip as any).group_itinerary?.days?.length ? (
+            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              {data.isOwner
+                ? "Génère un planning complet (arrivée → départ) avec restos, activités et bars."
+                : "L'organisateur générera bientôt le planning du séjour."}
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Source :{" "}
+                {(trip as any).group_itinerary?.source === "ai" ? "IA Lovable" : "modèle local"}
+                {(trip as any).group_itinerary?.destination
+                  ? ` · ${(trip as any).group_itinerary.destination}`
+                  : ""}
+              </p>
+              {((trip as any).group_itinerary.days as any[]).map((day: any) => (
+                <article
+                  key={day.day}
+                  className="rounded-3xl border border-border bg-card p-5 shadow-sm"
+                >
+                  <h3 className="font-display text-lg font-semibold">
+                    Jour {day.day}
+                    {day.date
+                      ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "short",
+                        })}`
+                      : ""}
+                  </h3>
+                  <ul className="mt-3 space-y-2">
+                    {(day.slots ?? []).map((slot: any, slotIndex: number) => {
+                      const Icon =
+                        slot.type === "resto"
+                          ? Utensils
+                          : slot.type === "bar"
+                            ? Wine
+                            : slot.type === "activite"
+                              ? Camera
+                              : CalendarDays;
+                      return (
+                        <li
+                          key={`${day.day}-${slotIndex}`}
+                          className="flex flex-wrap items-start justify-between gap-2 rounded-2xl border border-border/60 bg-surface/40 px-3 py-2.5"
+                        >
+                          <div className="flex gap-2.5 min-w-0">
+                            <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
+                            <div className="min-w-0">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                {slot.moment}
+                                {slot.type ? ` · ${slot.type}` : ""}
+                              </p>
+                              <p className="font-medium text-sm">{slot.label}</p>
+                              {slot.detail ? (
+                                <p className="text-xs text-muted-foreground">{slot.detail}</p>
+                              ) : null}
+                              {slot.priceHint != null ? (
+                                <p className="text-xs text-muted-foreground">
+                                  ~{formatEuro(Number(slot.priceHint))} / pers.
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                          {data.isOwner ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={slotMutation.isPending}
+                              onClick={() =>
+                                slotMutation.mutate({ day: day.day, slotIndex })
+                              }
+                              title="Proposer une autre option pour ce créneau seulement"
+                            >
+                              {slotMutation.isPending ? (
+                                <Loader2 className="size-3.5 animate-spin" />
+                              ) : (
+                                <RefreshCw className="size-3.5" />
+                              )}
+                              Autre option
+                            </Button>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {/* 5. Hôtels & transports */}
+      {destinationSelected ? (
+        <section id="hub-logistics" className="mt-10 space-y-4 scroll-mt-24">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-2xl font-semibold">5. Hôtels & transports</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Offres scorées selon budget, type de chambre, départ de chacun et refus avion.
+              </p>
+            </div>
+            {data.isOwner ? (
+              <Button
+                variant="hero"
+                disabled={logisticsMutation.isPending}
+                onClick={() => logisticsMutation.mutate()}
+              >
+                {logisticsMutation.isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Hotel />
+                )}
+                {(trip as any).group_logistics?.hotels?.length
+                  ? "Actualiser hôtels & trajets"
+                  : "Chercher hôtels & trajets"}
+              </Button>
+            ) : null}
+          </div>
+
+          {!(trip as any).group_logistics ? (
+            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              {data.isOwner
+                ? "Lance la recherche pour proposer des hébergements et des trajets adaptés à chaque ville de départ."
+                : "L'organisateur lancera la recherche hôtels & transports."}
+            </p>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+                  <Hotel className="size-4 text-primary" /> Hébergements recommandés
+                </h3>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {((trip as any).group_logistics.hotels ?? []).map((h: any) => (
+                    <article
+                      key={h.id}
+                      className="rounded-2xl border border-border bg-card p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{h.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {h.type}
+                            {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
+                            {h.distanceCenterKm != null
+                              ? ` · ${h.distanceCenterKm} km centre`
+                              : ""}
+                          </p>
+                        </div>
+                        <Badge variant="secondary">{Math.round((h.score ?? 0) * 100)}%</Badge>
+                      </div>
+                      <p className="mt-2 text-sm">
+                        {formatEuro(h.pricePerNight)} / nuit / pers.
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · ~{formatEuro(h.totalEstimate)} séjour
+                        </span>
+                      </p>
+                      {(h.reasons ?? []).length ? (
+                        <ul className="mt-2 text-xs text-muted-foreground space-y-0.5">
+                          {h.reasons.slice(0, 3).map((r: string, i: number) => (
+                            <li key={i}>✓ {r}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {h.bookingUrl ? (
+                        <a
+                          href={h.bookingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                        >
+                          Voir l&apos;offre →
+                        </a>
+                      ) : null}
+                    </article>
+                  ))}
+                  {!(trip as any).group_logistics.hotels?.length ? (
+                    <p className="text-sm text-muted-foreground col-span-full">
+                      Aucun hôtel en catalogue pour cette destination pour l&apos;instant.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+                  <Plane className="size-4 text-primary" /> Transports par ville de départ
+                </h3>
+                <ul className="mt-3 space-y-2">
+                  {((trip as any).group_logistics.transports ?? []).map((tr: any, i: number) => (
+                    <li
+                      key={`${tr.city}-${i}`}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-3"
+                    >
+                      <div className="flex items-start gap-2">
+                        {tr.mode === "flight" ? (
+                          <Plane className="mt-0.5 size-4 text-primary" />
+                        ) : (
+                          <Train className="mt-0.5 size-4 text-primary" />
+                        )}
+                        <div>
+                          <p className="font-medium text-sm">
+                            {tr.city}
+                            <span className="text-muted-foreground font-normal">
+                              {" "}
+                              · {tr.count} pers.
+                            </span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {tr.label} · {tr.mode}
+                          </p>
+                          {tr.note ? (
+                            <p className="text-xs text-amber-700 dark:text-amber-400">{tr.note}</p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold">{formatEuro(tr.pricePerPerson)}</p>
+                        <p className="text-xs text-muted-foreground">/ pers. A/R</p>
+                        {tr.url ? (
+                          <a
+                            href={tr.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Réserver →
+                          </a>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                  {!(trip as any).group_logistics.transports?.length ? (
+                    <p className="text-sm text-muted-foreground">Aucun trajet calculé.</p>
+                  ) : null}
+                </ul>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
+
       {(trip.celebrated_person ||
         ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
         <section className="mt-6 space-y-3 rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5">
