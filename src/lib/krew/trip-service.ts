@@ -698,8 +698,22 @@ export async function generateRecommendationsForTrip(
 
   // Nuits = dates validées (start/end) si présentes, sinon durée questionnaire
   let lockedNights: number | null = null;
-  const sd = trip.data.start_date as string | null;
-  const ed = trip.data.end_date as string | null;
+  let sd = trip.data.start_date as string | null;
+  let ed = trip.data.end_date as string | null;
+  // Mode test (force) : dates fictives si absentes pour pouvoir scorer
+  if (options?.force && (!sd || !ed)) {
+    const d0 = new Date();
+    d0.setDate(d0.getDate() + 28);
+    // prochain vendredi
+    d0.setDate(d0.getDate() + ((5 - d0.getDay() + 7) % 7));
+    sd = d0.toISOString().slice(0, 10);
+    const d1 = new Date(d0);
+    d1.setDate(d1.getDate() + 2);
+    ed = d1.toISOString().slice(0, 10);
+    // n'écrit pas en base — uniquement pour le scoring de cette génération
+    (trip.data as any).start_date = sd;
+    (trip.data as any).end_date = ed;
+  }
   if (sd && ed) {
     const ms = new Date(ed + "T12:00:00Z").getTime() - new Date(sd + "T12:00:00Z").getTime();
     const days = Math.round(ms / (24 * 3600 * 1000));
