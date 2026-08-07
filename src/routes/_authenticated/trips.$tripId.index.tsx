@@ -20,6 +20,8 @@ import {
   removeParticipant,
   selectRecommendation,
   toggleVote,
+  toggleActivityVote,
+  finalizeSelectedActivities,
   cancelTrip,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress, getMyParticipantPreferences } from "@/lib/participant-preferences.functions";
@@ -135,6 +137,27 @@ function TripDetail() {
     mutationFn: (recommendationId: string) => vote({ data: { tripId, recommendationId } }),
     onSuccess: refresh,
   });
+
+  const activityVoteFn = useServerFn(toggleActivityVote);
+  const finalizeActivitiesFn = useServerFn(finalizeSelectedActivities);
+  const activityVoteMutation = useMutation({
+    mutationFn: (activityId: string) =>
+      activityVoteFn({ data: { tripId, activityId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Vote activité impossible").slice(0, 120)),
+  });
+  const finalizeActivitiesMutation = useMutation({
+    mutationFn: (activityIds: string[]) =>
+      finalizeActivitiesFn({ data: { tripId, activityIds } }),
+    onSuccess: () => {
+      toast.success("Activités validées pour le voyage");
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Validation impossible").slice(0, 120)),
+  });
+
   const selectMutation = useMutation({
     mutationFn: (recommendationId: string) => select({ data: { tripId, recommendationId } }),
     onSuccess: () => {
@@ -238,6 +261,15 @@ function TripDetail() {
   const recommendations = data.recommendations as unknown as Recommendation[];
   const activities = data.activities as { id: string; name: string; category: string; price_per_person: number; rating: number }[];
   const votes = data.votes as { recommendation_id: string; user_id: string }[];
+  const activityVotes = ((data as any).activityVotes ?? []) as {
+    activity_id: string;
+    user_id: string;
+  }[];
+  const selectedActivityIds = new Set<string>(
+    ((trip as any).selected_activity_ids ?? []) as string[],
+  );
+  const destinationSelected = recommendations.some((r) => r.is_selected);
+
   const participants = data.participants as { id: string; email: string; display_name: string | null; status: string }[];
 
   return (
@@ -526,10 +558,43 @@ function TripDetail() {
 
 
       <section id="hub-destination" className="mt-10 space-y-6">
-        <h2 className="font-display text-2xl font-semibold">Les propositions de Krew</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-display text-2xl font-semibold">1. Destinations proposées</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Votez pour vos destinations préférées
+              {data.isOwner
+                ? " — l'organisateur valide ensuite le choix du groupe."
+                : " — l'organisateur validera le choix final."}
+            </p>
+          </div>
+          {data.isOwner ? (
+            <Button
+              variant="hero"
+              onClick={() => regenerateMutation.mutate()}
+              disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)}
+              title={
+                readiness && !readiness.canGenerate
+                  ? readiness.message ?? "Questionnaires incomplets"
+                  : undefined
+              }
+            >
+              {regenerateMutation.isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Sparkles />
+              )}
+              {recommendations.length ? "Régénérer" : "Générer les propositions"}
+            </Button>
+          ) : null}
+        </div>
         {recommendations.length === 0 ? (
           <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Aucune proposition pour l'instant. Lancez une génération pour obtenir des destinations.
+            {data.isOwner
+              ? readiness?.canGenerate
+                ? "Prêt : clique sur « Générer les propositions » pour lancer Krew."
+                : "Complète les questionnaires et valide les dates pour générer des destinations."
+              : "L'organisateur générera bientôt les propositions de destinations."}
           </p>
         ) : (
           recommendations.map((reco, index) => {
@@ -597,10 +662,15 @@ function TripDetail() {
 
                   {recoActivities.length ? (
                     <div className="mt-5">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Activités sélectionnées</p>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Aperçu activités (vote après validation de la destination)
+                      </p>
                       <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        {recoActivities.map((a) => (
-                          <div key={a.id} className="rounded-2xl border border-border p-3 text-sm">
+                        {recoActivities.map((a: any) => (
+                          <div
+                            key={a.id}
+                            className="rounded-2xl border border-border bg-surface/40 px-3 py-2 text-sm"
+                          >
                             <p className="font-medium">{a.name}</p>
                             <p className="text-muted-foreground">
                               {categoryLabel(a.category)} · {formatEuro(Number(a.price_per_person))} / pers.
@@ -698,11 +768,15 @@ function TripDetail() {
                       onClick={() => voteMutation.mutate(reco.id)}
                       disabled={voteMutation.isPending}
                     >
-                      <Heart className={cn(hasVoted && "fill-current")} /> {recoVotes.length} vote
-                      {recoVotes.length > 1 ? "s" : ""}
+                      <Heart className={cn(hasVoted && "fill-current")} />{" "}
+                      {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
                     </Button>
                     {data.isOwner && !reco.is_selected ? (
-                      <Button variant="hero" onClick={() => selectMutation.mutate(reco.id)} disabled={selectMutation.isPending}>
+                      <Button
+                        variant="hero"
+                        onClick={() => selectMutation.mutate(reco.id)}
+                        disabled={selectMutation.isPending}
+                      >
                         <CheckCircle2 /> Choisir cette destination
                       </Button>
                     ) : null}
@@ -716,6 +790,112 @@ function TripDetail() {
 
       {/* Résumé + validation des dates */}
 
+
+
+      {/* 2. Vote activités — une fois la destination validée */}
+      {destinationSelected ? (
+        <section className="mt-10 space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-2xl font-semibold">2. Activités proposées</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Votez pour les activités qui vous tentent
+                {data.isOwner
+                  ? " — validez ensuite la sélection finale."
+                  : " — l'organisateur validera la sélection finale."}
+              </p>
+            </div>
+            {data.isOwner ? (
+              <Button
+                variant="hero"
+                disabled={finalizeActivitiesMutation.isPending}
+                onClick={() => {
+                  // Top activités par votes (au moins 1 vote), sinon toutes celles de la reco sélectionnée
+                  const selectedReco = recommendations.find((r) => r.is_selected);
+                  const ids = selectedReco?.activity_ids ?? [];
+                  const ranked = [...ids].sort((a, b) => {
+                    const va = activityVotes.filter((v) => v.activity_id === a).length;
+                    const vb = activityVotes.filter((v) => v.activity_id === b).length;
+                    return vb - va;
+                  });
+                  const withVotes = ranked.filter(
+                    (id) => activityVotes.some((v) => v.activity_id === id),
+                  );
+                  const finalIds = withVotes.length ? withVotes : ranked;
+                  finalizeActivitiesMutation.mutate(finalIds);
+                }}
+              >
+                {finalizeActivitiesMutation.isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <CheckCircle2 />
+                )}
+                Valider les activités
+              </Button>
+            ) : null}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(() => {
+              const selectedReco = recommendations.find((r) => r.is_selected);
+              const ids = (selectedReco?.activity_ids ?? []) as string[];
+              const list = activities.filter((a: any) => ids.includes(a.id));
+              if (!list.length) {
+                return (
+                  <p className="col-span-full text-sm text-muted-foreground">
+                    Aucune activité liée à cette destination pour l&apos;instant.
+                  </p>
+                );
+              }
+              return list
+                .slice()
+                .sort((a: any, b: any) => {
+                  const va = activityVotes.filter((v) => v.activity_id === a.id).length;
+                  const vb = activityVotes.filter((v) => v.activity_id === b.id).length;
+                  return vb - va;
+                })
+                .map((a: any) => {
+                  const aVotes = activityVotes.filter((v) => v.activity_id === a.id);
+                  const iVoted = aVotes.some((v) => v.user_id === data.userId);
+                  const isFinal = selectedActivityIds.has(a.id);
+                  return (
+                    <div
+                      key={a.id}
+                      className={cn(
+                        "rounded-2xl border bg-card p-4 shadow-sm",
+                        isFinal ? "border-lagoon bg-lagoon/5" : "border-border",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{a.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {categoryLabel(a.category)} · {formatEuro(Number(a.price_per_person))} / pers.
+                          </p>
+                        </div>
+                        {isFinal ? <Badge variant="success">Retenue</Badge> : null}
+                      </div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant={iVoted ? "lagoon" : "outline"}
+                          disabled={activityVoteMutation.isPending}
+                          onClick={() => activityVoteMutation.mutate(a.id)}
+                        >
+                          <Heart className={cn("size-3.5", iVoted && "fill-current")} />
+                          {iVoted ? "Mon vote" : "Voter"} · {aVotes.length}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                });
+            })()}
+          </div>
+        </section>
+      ) : recommendations.length > 0 ? (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Les votes sur les activités s&apos;ouvriront quand l&apos;organisateur aura validé une destination.
+        </p>
+      ) : null}
 
       <section id="invite-section" className="mt-12 scroll-mt-24">
         <h2 className="font-display text-2xl font-semibold">Inviter la bande</h2>
