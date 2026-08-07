@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { buildProposals, type Proposal, type ScoringContext } from "./engine";
 import { loadTravelCatalog } from "./providers.server";
 import { discoverCandidateDestinations, listCityProfilesForNames } from "./destination-discovery.server";
+import { discoverDestinationsWithAi } from "./destination-ai.server";
 
 export const tripInputSchema = z.object({
   name: z.string().min(2).max(120),
@@ -817,38 +818,61 @@ export async function generateRecommendationsForTrip(
     minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
   };
 
-  // 1) Shortlist SCORÉE (outil de scoring phase 1) — pas de liste fixe Barcelone/Budapest/Lisbonne
+  // 1) Shortlist : IA (peu de tokens) si clé dispo, sinon scoring local (pas de fallback 3 villes fixes)
   let shortlistNames: string[];
   let discoveryMeta: { name: string; affinity: number; reason: string }[] = [];
+  let discoverySource: "forced" | "ai" | "local" = "local";
   if (resolvedDestination) {
     shortlistNames = [resolvedDestination];
     discoveryMeta = [{ name: resolvedDestination, affinity: 100, reason: "destination demandée" }];
+    discoverySource = "forced";
   } else {
     const primaryDeparture =
       (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
       (trip.data.departure_city as string) ||
       "Paris";
-    const candidates = discoverCandidateDestinations(
-      {
-        ambiances: ctx.ambiances,
-        activityCategories: ctx.activityCategories,
-        budgetPerPerson: Number(ctx.budgetPerPerson) || 400,
-        maxDistanceKm: ctx.maxDistanceKm,
-        nights: ctx.nights,
-        startMonth: ctx.startMonth,
-        excludedCountries: ctx.excludedCountries,
-        departureCity: primaryDeparture,
-        participants: ctx.participants,
-        eventType: (trip.data.event_type as string) || undefined,
-      },
-      10,
-    );
-    discoveryMeta = candidates.map((c) => ({
-      name: c.name,
-      affinity: c.affinity,
-      reason: c.reason,
-    }));
-    shortlistNames = candidates.map((c) => c.name);
+
+    const discoveryInput = {
+      ambiances: ctx.ambiances,
+      activityCategories: ctx.activityCategories,
+      budgetPerPerson: Number(ctx.budgetPerPerson) || 400,
+      maxDistanceKm: ctx.maxDistanceKm,
+      nights: ctx.nights,
+      startMonth: ctx.startMonth,
+      excludedCountries: ctx.excludedCountries,
+      departureCity: primaryDeparture,
+      participants: ctx.participants,
+      eventType: (trip.data.event_type as string) || undefined,
+      planeRefused: Boolean((aggregated as any).planeRefused),
+      maxTravelHours: (aggregated as any).maxTravelDurationHours ?? null,
+      starWanted: aggregated.starWantedActivities ?? [],
+      starDealBreakers: aggregated.starDealBreakers ?? [],
+    };
+
+    // IA d'abord (1 appel JSON compact + cache 6h)
+    const ai = await discoverDestinationsWithAi(discoveryInput);
+    if (ai.usedLlm && ai.cities.length) {
+      discoverySource = "ai";
+      discoveryMeta = ai.cities.map((c) => ({
+        name: c.name,
+        affinity: c.affinity,
+        reason: c.reason + (ai.cached ? " · cache" : " · IA"),
+      }));
+      shortlistNames = ai.cities.map((c) => c.name);
+    } else {
+      // Fallback local scoré (profils) — uniquement si pas d'IA
+      const candidates = discoverCandidateDestinations(discoveryInput, 10);
+      discoveryMeta = candidates.map((c) => ({
+        name: c.name,
+        affinity: c.affinity,
+        reason: c.reason,
+      }));
+      shortlistNames = candidates.map((c) => c.name);
+      if (ai.error) {
+        // non bloquant — visible côté logs / providerErrors
+        console.warn("[discovery] AI unavailable:", ai.error);
+      }
+    }
   }
 
   // 1b) Matérialise les destinations scorées en catalogue (sinon l'enrichissement / scoring n'a rien à scorer)
@@ -899,6 +923,13 @@ export async function generateRecommendationsForTrip(
   }
 
   // 2) Enrichissement API (hôtels / activités réels) UNIQUEMENT sur la shortlist scorée
+  if (discoverySource === "ai") {
+    // trace légère pour debug orga
+    console.info("[discovery] shortlist IA:", shortlistNames.join(", "));
+  } else if (discoverySource === "local") {
+    console.info("[discovery] shortlist locale scorée:", shortlistNames.join(", "));
+  }
+
   const providerErrors = await enrichCatalogWithExternalApis(
     supabase,
     tripId,
