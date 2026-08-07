@@ -245,6 +245,23 @@ export function TripHubDashboard({
             icon: ClipboardList,
             mineDone: myPreferencesDone,
           },
+          {
+            to: "/trips/$tripId/star" as const,
+            title: "Préférences de la star",
+            desc: starDone
+              ? trip.celebrated_person
+                ? `Rempli · ${trip.celebrated_person} · poids ×2.5+ dans le scoring`
+                : "Rempli · poids renforcé dans le scoring"
+              : trip.celebrated_person
+                ? `À compléter · ${trip.celebrated_person}`
+                : "Questionnaire dédié · pondération renforcée",
+            icon: Star,
+            mineDone: starDone,
+            hide: !(
+              trip.celebrated_person ||
+              ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))
+            ),
+          },
         ]
           .filter((c) => !c.hide)
           .map((c) => {
@@ -253,6 +270,8 @@ export function TripHubDashboard({
                 ? `/trips/${tripId}/availability`
                 : c.to === "/trips/$tripId/questionnaire"
                   ? `/trips/${tripId}/questionnaire`
+                  : c.to === "/trips/$tripId/star"
+                    ? `/trips/${tripId}/star`
                     : `/trips/${tripId}`;
             return (
               <a
