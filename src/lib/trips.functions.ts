@@ -55,21 +55,29 @@ export const getTripDetail = createServerFn({ method: "GET" })
       supabase.from("activity_votes").select("*").eq("trip_id", data.tripId),
     ]);
 
-    const activityIds = (recommendations.data ?? []).flatMap((r: any) => r.activity_ids ?? []);
-    const activities = activityIds.length
-      ? await supabase.from("activities").select("*").in("id", activityIds)
-      : { data: [], error: null };
+    // Ne pas faire planter le hub si une table optionnelle manque
+    const recos = recommendations.error ? [] : (recommendations.data ?? []);
+    const voteRows = votes.error ? [] : (votes.data ?? []);
+    const activityVoteRows = activityVotes.error ? [] : (activityVotes.data ?? []);
+    const participantRows = participants.error ? [] : (participants.data ?? []);
+
+    const activityIds = recos.flatMap((r: any) => r.activity_ids ?? []);
+    let activityRows: any[] = [];
+    if (activityIds.length) {
+      const activities = await supabase.from("activities").select("*").in("id", activityIds);
+      activityRows = activities.error ? [] : (activities.data ?? []);
+    }
 
     return {
       trip: trip.data,
       isOwner: trip.data.owner_id === userId,
       userId,
-      preferences: preferences.data ?? null,
-      participants: participants.data ?? [],
-      recommendations: recommendations.data ?? [],
-      activities: activities.data ?? [],
-      votes: votes.data ?? [],
-      activityVotes: activityVotes.error ? [] : (activityVotes.data ?? []),
+      preferences: preferences.error ? null : (preferences.data ?? null),
+      participants: participantRows,
+      recommendations: recos,
+      activities: activityRows,
+      votes: voteRows,
+      activityVotes: activityVoteRows,
     };
   });
 
