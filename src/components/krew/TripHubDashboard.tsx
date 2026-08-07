@@ -207,21 +207,30 @@ export function TripHubDashboard({
           },
         ]
           .filter((c) => !c.hide)
-          .map((c) => (
-            <Link
-              key={c.to}
-              to={c.to}
-              params={{ tripId }}
-              className={cn(
-                "group rounded-2xl border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-glow",
-                c.mineDone ? "border-lagoon/40 bg-lagoon/5" : "border-border",
-              )}
-            >
-              <c.icon className="size-5 text-primary" />
-              <p className="mt-3 font-semibold group-hover:text-primary">{c.title}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{c.desc}</p>
-            </Link>
-          ))}
+          .map((c) => {
+            const href =
+              c.to === "/trips/$tripId/availability"
+                ? `/trips/${tripId}/availability`
+                : c.to === "/trips/$tripId/questionnaire"
+                  ? `/trips/${tripId}/questionnaire`
+                  : c.to === "/trips/$tripId/star"
+                    ? `/trips/${tripId}/star`
+                    : `/trips/${tripId}`;
+            return (
+              <a
+                key={c.to}
+                href={href}
+                className={cn(
+                  "group rounded-2xl border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-glow",
+                  c.mineDone ? "border-lagoon/40 bg-lagoon/5" : "border-border",
+                )}
+              >
+                <c.icon className="size-5 text-primary" />
+                <p className="mt-3 font-semibold group-hover:text-primary">{c.title}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{c.desc}</p>
+              </a>
+            );
+          })}
       </section>
 
       {/* Scores live */}
