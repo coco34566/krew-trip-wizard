@@ -1,13 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2, CalendarDays, Lock, Unlock, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  CalendarDays,
+  Lock,
+  Unlock,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -30,16 +39,88 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/availability
   component: AvailabilityPage,
 });
 
-function parseDateList(raw: string): string[] {
-  return raw
-    .split(/[,;\s]+/)
-    .map((s) => s.trim())
-    .filter((s) => /^\d{4}-\d{2}-\d{2}/.test(s))
-    .map((s) => s.slice(0, 10));
+type DayMode = "available" | "blocked" | null;
+
+function toISO(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function startOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function addMonths(d: Date, n: number) {
+  return new Date(d.getFullYear(), d.getMonth() + n, 1);
 }
 
 function formatRange(start: string, end: string) {
   return `${new Date(start).toLocaleDateString("fr-FR")} → ${new Date(end).toLocaleDateString("fr-FR")}`;
+}
+
+function monthLabel(d: Date) {
+  return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+}
+
+/** Grille calendrier d'un mois — clic pour basculer disponible / impossible */
+function MonthGrid({
+  month,
+  selection,
+  onToggle,
+}: {
+  month: Date;
+  selection: Map<string, DayMode>;
+  onToggle: (iso: string) => void;
+}) {
+  const first = startOfMonth(month);
+  const startWeekday = (first.getDay() + 6) % 7; // lundi = 0
+  const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const todayISO = toISO(new Date());
+
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < startWeekday; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push(new Date(month.getFullYear(), month.getMonth(), d));
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface/40 p-3">
+      <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
+        {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
+          <span key={i}>{d}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((date, i) => {
+          if (!date) return <span key={`e-${i}`} />;
+          const iso = toISO(date);
+          const mode = selection.get(iso) ?? null;
+          const isPast = iso < todayISO;
+          return (
+            <button
+              key={iso}
+              type="button"
+              disabled={isPast}
+              onClick={() => onToggle(iso)}
+              className={cn(
+                "aspect-square rounded-xl text-sm font-medium transition",
+                isPast && "cursor-not-allowed opacity-30",
+                !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary",
+                mode === "available" && "bg-lagoon text-white shadow-sm hover:bg-lagoon/90",
+                mode === "blocked" && "bg-destructive/90 text-white hover:bg-destructive",
+                iso === todayISO && !mode && "ring-1 ring-primary/50",
+              )}
+            >
+              {date.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function AvailabilityPage() {
@@ -55,93 +136,147 @@ function AvailabilityPage() {
     queryFn: () => fetchAvail({ data: { tripId } }),
   });
 
-  const [availableRaw, setAvailableRaw] = useState("");
-  const [blockedRaw, setBlockedRaw] = useState("");
+  /** iso → available | blocked */
+  const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
   const [flexDays, setFlexDays] = useState(1);
   const [notes, setNotes] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [monthOffset, setMonthOffset] = useState(0);
+  /** Mode de clic : dispo (vert) ou impossible (rouge) */
+  const [paintMode, setPaintMode] = useState<"available" | "blocked">("available");
 
   useEffect(() => {
     if (data?.mine && !hydrated) {
-      setAvailableRaw((data.mine.availableDates ?? []).join(", "));
-      setBlockedRaw((data.mine.blockedDates ?? []).join(", "));
+      const m = new Map<string, DayMode>();
+      for (const d of data.mine.availableDates ?? []) m.set(d.slice(0, 10), "available");
+      for (const d of data.mine.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
+      setSelection(m);
       setFlexDays(data.mine.flexDays ?? 1);
       setNotes(data.mine.notes ?? "");
       setHydrated(true);
     }
-  }, [data?.mine, hydrated]);
+  }, [data, hydrated]);
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
-    queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-  };
+  const availableDates = useMemo(
+    () =>
+      [...selection.entries()]
+        .filter(([, v]) => v === "available")
+        .map(([k]) => k)
+        .sort(),
+    [selection],
+  );
+  const blockedDates = useMemo(
+    () =>
+      [...selection.entries()]
+        .filter(([, v]) => v === "blocked")
+        .map(([k]) => k)
+        .sort(),
+    [selection],
+  );
+
+  function toggleDay(iso: string) {
+    setSelection((prev) => {
+      const next = new Map(prev);
+      const cur = next.get(iso) ?? null;
+      if (paintMode === "available") {
+        if (cur === "available") next.delete(iso);
+        else next.set(iso, "available");
+      } else {
+        if (cur === "blocked") next.delete(iso);
+        else next.set(iso, "blocked");
+      }
+      return next;
+    });
+  }
+
+  function selectWeekendsInView() {
+    setSelection((prev) => {
+      const next = new Map(prev);
+      for (const month of months) {
+        const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+        for (let d = 1; d <= days; d++) {
+          const date = new Date(month.getFullYear(), month.getMonth(), d);
+          const iso = toISO(date);
+          if (iso < toISO(new Date())) continue;
+          const wd = date.getDay();
+          if (wd === 0 || wd === 6) {
+            if (paintMode === "available") next.set(iso, "available");
+            else next.set(iso, "blocked");
+          }
+        }
+      }
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelection(new Map());
+  }
+
+  const baseMonth = startOfMonth(new Date());
+  const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
 
   const mutation = useMutation({
     mutationFn: () =>
       submit({
         data: {
           tripId,
-          availableDates: parseDateList(availableRaw),
-          blockedDates: parseDateList(blockedRaw),
+          availableDates,
+          blockedDates,
           flexDays,
-          notes: notes.trim() || undefined,
+          notes: notes || undefined,
         },
       }),
-    onSuccess: (res) => {
-      toast.success(res.isUpdate ? "Disponibilités mises à jour" : "Disponibilités enregistrées");
-      invalidate();
+    onSuccess: () => {
+      toast.success(
+        availableDates.length
+          ? `${availableDates.length} date(s) dispo enregistrée(s)`
+          : "Disponibilités enregistrées",
+      );
+      queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
     },
-    onError: (e: any) => {
-      const msg = String(e?.message ?? e);
-      if (msg.includes("trip_availability") || msg.includes("schema")) {
-        toast.error("Table disponibilités absente — applique la migration SQL");
-      } else {
-        toast.error(msg.slice(0, 120) || "Enregistrement impossible");
-      }
-    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 160)),
   });
 
   const chooseMutation = useMutation({
-    mutationFn: (w: { start: string; end: string }) =>
-      choose({ data: { tripId, startDate: w.start, endDate: w.end } }),
-    onSuccess: (res) => {
-      toast.success(
-        `Date verrouillée : ${formatRange(res.startDate, res.endDate)} — les recherches API utiliseront cette fenêtre`,
-      );
-      invalidate();
+    mutationFn: (payload: { start: string; end: string }) =>
+      choose({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
+    onSuccess: () => {
+      toast.success("Date verrouillée — les recherches API utiliseront cette fenêtre");
+      queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
-    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 140)),
+    onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 120)),
   });
 
   const unlockMutation = useMutation({
     mutationFn: () => unlock({ data: { tripId } }),
     onSuccess: () => {
-      toast.success("Dates déverrouillées — tu peux en choisir une autre");
-      invalidate();
+      toast.success("Date déverrouillée");
+      queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
-    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 140)),
+    onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 120)),
   });
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-3xl space-y-4 px-4 py-10">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full rounded-3xl" />
+      <main className="mx-auto max-w-3xl px-4 py-10">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="mt-6 h-40 w-full rounded-3xl" />
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10 text-center text-sm text-muted-foreground">
-        {(error as Error)?.message ?? "Impossible de charger les disponibilités."}
-        <div className="mt-4">
-          <Button asChild variant="outline">
-            <Link to="/trips/$tripId" params={{ tripId }}>
-              Retour au hub
-            </Link>
-          </Button>
-        </div>
+      <main className="mx-auto max-w-3xl px-4 py-10">
+        <p className="text-destructive">{(error as any)?.message ?? "Impossible de charger"}</p>
+        <Button asChild className="mt-4" variant="outline">
+          <Link to="/trips/$tripId" params={{ tripId }}>
+            Retour
+          </Link>
+        </Button>
       </main>
     );
   }
@@ -152,19 +287,14 @@ function AvailabilityPage() {
       ? formatRange(data.trip.lockedStart, data.trip.lockedEnd)
       : null;
 
-  const provisionalLabel = data.windows[0]
-    ? formatRange(data.windows[0].start, data.windows[0].end)
-    : "Pas encore de fenêtre commune";
-
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <Link
-        to="/trips/$tripId"
-        params={{ tripId }}
+      <a
+        href={`/trips/${tripId}`}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au hub
-      </Link>
+      </a>
 
       <header className="mt-4">
         <p className="text-xs font-medium uppercase tracking-wider text-primary">
@@ -172,10 +302,183 @@ function AvailabilityPage() {
         </p>
         <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">{data.trip.name}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {data.answered}/{data.expected} ont indiqué leurs dates · résultat{" "}
-          {data.answered < data.expected ? "provisoire" : "à jour"}
+          {data.answered}/{data.expected} ont indiqué leurs dates
         </p>
       </header>
+
+      {/* Formulaire ultra simple */}
+      <section className="mt-6 space-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm">
+        <div>
+          <h2 className="font-display text-lg font-semibold">Mes disponibilités</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux.
+          </p>
+        </div>
+
+        {/* Mode peinture */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPaintMode("available")}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition",
+              paintMode === "available"
+                ? "border-lagoon bg-lagoon text-white"
+                : "border-border bg-background text-muted-foreground hover:border-lagoon/50",
+            )}
+          >
+            <span className="size-2.5 rounded-full bg-current" /> Je suis dispo
+          </button>
+          <button
+            type="button"
+            onClick={() => setPaintMode("blocked")}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition",
+              paintMode === "blocked"
+                ? "border-destructive bg-destructive text-white"
+                : "border-border bg-background text-muted-foreground hover:border-destructive/50",
+            )}
+          >
+            <span className="size-2.5 rounded-full bg-current" /> Impossible
+          </button>
+        </div>
+
+        {/* Navigation mois */}
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}
+            disabled={monthOffset <= 0}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <p className="text-xs text-muted-foreground">Fais défiler les mois →</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setMonthOffset((o) => o + 1)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {months.map((m) => (
+            <MonthGrid
+              key={toISO(m)}
+              month={m}
+              selection={selection}
+              onToggle={toggleDay}
+            />
+          ))}
+        </div>
+
+        {/* Actions rapides */}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={selectWeekendsInView}>
+            Tous les week-ends affichés
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
+            Tout effacer
+          </Button>
+        </div>
+
+        {/* Chips résumé */}
+        <div className="space-y-2">
+          <div>
+            <p className="text-xs font-medium text-lagoon">
+              Dispo ({availableDates.length})
+            </p>
+            {availableDates.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Aucune date sélectionnée</p>
+            ) : (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {availableDates.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => toggleDay(d)}
+                    className="inline-flex items-center gap-1 rounded-full bg-lagoon/15 px-2.5 py-1 text-xs text-foreground"
+                  >
+                    {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
+                    <X className="size-3 opacity-60" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {blockedDates.length > 0 ? (
+            <div>
+              <p className="text-xs font-medium text-destructive">
+                Impossible ({blockedDates.length})
+              </p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {blockedDates.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => toggleDay(d)}
+                    className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs"
+                  >
+                    {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}
+                    <X className="size-3 opacity-60" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <Label className="mb-2 block">Flexibilité : ± {flexDays} jour(s)</Label>
+          <Slider
+            min={0}
+            max={7}
+            step={1}
+            value={[flexDays]}
+            onValueChange={([v]) => setFlexDays(v ?? 0)}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Tu peux glisser d&apos;un ou deux jours autour si besoin.
+          </p>
+        </div>
+
+        <div>
+          <Label>Notes (optionnel)</Label>
+          <Textarea
+            className="mt-1"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Ex. : OK pour partir le jeudi soir, préfère un week-end…"
+          />
+        </div>
+
+        <Button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending || availableDates.length === 0}
+          className="w-full"
+          size="lg"
+        >
+          {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+          {data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}
+        </Button>
+        {availableDates.length === 0 ? (
+          <p className="text-center text-xs text-muted-foreground">
+            Sélectionne au moins une date verte pour enregistrer.
+          </p>
+        ) : null}
+      </section>
 
       {/* Date verrouillée */}
       {datesLocked && lockedLabel ? (
@@ -188,9 +491,6 @@ function AvailabilityPage() {
                 <p className="mt-1 text-sm">
                   <strong>{lockedLabel}</strong>
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Cette fenêtre alimente les recherches API (vols, hébergements, activités).
-                </p>
               </div>
             </div>
             {data.isOwner ? (
@@ -199,9 +499,7 @@ function AvailabilityPage() {
                 size="sm"
                 disabled={unlockMutation.isPending}
                 onClick={() => {
-                  if (window.confirm("Déverrouiller la date pour en choisir une autre ?")) {
-                    unlockMutation.mutate();
-                  }
+                  if (window.confirm("Déverrouiller la date ?")) unlockMutation.mutate();
                 }}
               >
                 {unlockMutation.isPending ? (
@@ -216,20 +514,14 @@ function AvailabilityPage() {
         </section>
       ) : null}
 
-      <section className="mt-8 rounded-3xl border border-border bg-card p-5 shadow-sm">
-        <div className="flex items-start gap-3">
-          <CalendarDays className="mt-0.5 size-5 text-primary" />
-          <div>
-            <h2 className="font-semibold">Résumé des disponibilités</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Meilleure fenêtre actuelle :{" "}
-              <strong className="text-foreground">{provisionalLabel}</strong>
-              {datesLocked ? " (provisoire — la date verrouillée prime)" : ""}
-            </p>
-          </div>
+      {/* Ranking groupe */}
+      <section className="mt-6 rounded-3xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="size-5 text-primary" />
+          <h2 className="font-semibold">Meilleures dates du groupe</h2>
         </div>
         <ul className="mt-4 space-y-2">
-          {data.windows.map((w, i) => {
+          {data.windows.map((w: any, i: number) => {
             const isChosen =
               datesLocked &&
               data.trip.lockedStart === w.start &&
@@ -238,21 +530,21 @@ function AvailabilityPage() {
               <li
                 key={`${w.start}-${w.end}`}
                 className={cn(
-                  "flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-3 py-2 text-sm",
-                  isChosen
-                    ? "border-lagoon/50 bg-lagoon/10"
-                    : "border-border/70 bg-surface/40",
+                  "flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3",
+                  i === 0 ? "border-primary/30 bg-primary/5" : "border-border/70",
+                  isChosen && "border-lagoon/50 bg-lagoon/10",
                 )}
               >
-                <span>
-                  {i === 0 ? "⭐ " : ""}
-                  {formatRange(w.start, w.end)}
-                  <span className="text-muted-foreground"> · {w.nights} nuit(s)</span>
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={w.coverageRatio >= 0.8 ? "success" : "lagoon"}>
-                    {w.covered}/{w.total} dispo · {Math.round(w.coverageRatio * 100)} %
-                  </Badge>
+                <div>
+                  <p className="font-medium">
+                    {i === 0 ? "🥇 " : ""}
+                    {formatRange(w.start, w.end)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {Math.round((w.coverageRatio ?? 0) * 100)} % du groupe
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
                   {isChosen ? (
                     <Badge variant="success">
                       <Check className="mr-1 size-3" /> Choisie
@@ -283,62 +575,6 @@ function AvailabilityPage() {
             </p>
           ) : null}
         </ul>
-        {data.isOwner && !datesLocked && data.windows.length > 0 ? (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Clique sur « Choisir cette date » pour figer la fenêtre et alimenter les recherches API.
-            Tant que ce n&apos;est pas fait, les dates restent provisoires.
-          </p>
-        ) : null}
-      </section>
-
-      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5">
-        <h2 className="font-display text-lg font-semibold">Mes disponibilités</h2>
-        <p className="text-xs text-muted-foreground">
-          Format des dates : AAAA-MM-JJ, séparées par des virgules. Lié à ton compte uniquement.
-          {datesLocked
-            ? " La date du voyage est verrouillée — tu peux toujours mettre à jour tes dispos pour info."
-            : ""}
-        </p>
-        <div>
-          <Label>Dates où je suis disponible</Label>
-          <Input
-            className="mt-1"
-            value={availableRaw}
-            onChange={(e) => setAvailableRaw(e.target.value)}
-            placeholder="2026-09-18, 2026-09-19, 2026-09-20"
-          />
-        </div>
-        <div>
-          <Label>Dates impossibles</Label>
-          <Input
-            className="mt-1"
-            value={blockedRaw}
-            onChange={(e) => setBlockedRaw(e.target.value)}
-            placeholder="2026-09-12, 2026-09-13"
-          />
-        </div>
-        <div>
-          <Label className="mb-2 block">Flexibilité : ± {flexDays} jour(s)</Label>
-          <Slider min={0} max={7} step={1} value={[flexDays]} onValueChange={([v]) => setFlexDays(v ?? 0)} />
-        </div>
-        <div>
-          <Label>Notes (optionnel)</Label>
-          <Textarea
-            className="mt-1"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ex. : je préfère un week-end, OK pour partir le jeudi soir…"
-          />
-        </div>
-        <Button
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-          className="w-full"
-          size="lg"
-        >
-          {mutation.isPending ? <Loader2 className="animate-spin" /> : null}
-          {data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}
-        </Button>
       </section>
     </main>
   );
