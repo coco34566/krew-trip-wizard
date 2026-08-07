@@ -62,6 +62,8 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Recor
     participants: trip.participants_count,
     budgetPerPerson: Number(prefs?.max_budget ?? trip.budget_per_person),
     nights: prefs?.duration_nights ?? 2,
+    eventType: (trip as any).event_type ?? prefs?.event_type ?? null,
+    scoringWeights: prefs?.scoring_weights ?? null,
     ambiances: prefs?.ambiances ?? [],
     activityCategories: prefs?.activity_categories ?? [],
     maxDistanceKm: prefs?.max_distance_km ?? 2000,
@@ -101,7 +103,16 @@ export function serializeProposal(tripId: string, proposal: Proposal) {
     rationale: proposal.rationale,
     match_reasons: proposal.matchReasons,
     itinerary: JSON.parse(JSON.stringify(proposal.itinerary)),
-    budget: JSON.parse(JSON.stringify(proposal.budget)),
+    budget: JSON.parse(
+      JSON.stringify({
+        ...proposal.budget,
+        subScores: proposal.subScores,
+        consensusScore: proposal.consensusScore,
+        minSatisfaction: proposal.minSatisfaction,
+        satisfiedCount: proposal.satisfiedCount,
+        participantsEvaluated: proposal.participantsEvaluated,
+      }),
+    ),
     activity_ids: proposal.activities.map((a) => a.id),
   };
 }
@@ -777,7 +788,58 @@ export async function generateRecommendationsForTrip(
   };
 
   // 5) Scoring final → top 3
+  // Poids depuis DB si dispo
+  try {
+    const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
+    const { data: wRow } = await supabase
+      .from("scoring_weights")
+      .select("*")
+      .eq("event_type", eventKey)
+      .maybeSingle();
+    if (wRow) {
+      ctxWithTransport.scoringWeights = {
+        ambiance: Number(wRow.ambiance_weight),
+        activities: Number(wRow.activities_weight),
+        budget: Number(wRow.budget_weight),
+        distance: Number(wRow.distance_weight),
+        season: Number(wRow.season_weight),
+        quality: Number(wRow.quality_weight),
+        consensus: Number(wRow.consensus_weight ?? 18),
+        minSatisfaction: Number(wRow.min_satisfaction_weight ?? 15),
+      };
+    }
+    ctxWithTransport.eventType = eventKey;
+  } catch {
+    /* table absente → défauts engine */
+  }
+
   const proposals = buildProposals(catalogFinal, ctxWithTransport, 3);
+
+  // Enregistre les sous-scores de toutes les propositions proposées (pour feedback ultérieur)
+  try {
+    const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
+    for (let i = 0; i < proposals.length; i++) {
+      const prop = proposals[i]!;
+      await supabase.from("scoring_feedback").insert({
+        trip_id: tripId,
+        destination_id: prop.destination.id,
+        event_type: eventKey,
+        rank_in_top: i + 1,
+        was_selected: false,
+        final_score: prop.score,
+        s_ambiance: prop.subScores.sAmbiance,
+        s_activities: prop.subScores.sActivities,
+        s_budget: prop.subScores.sBudget,
+        s_distance: prop.subScores.sDistance,
+        s_season: prop.subScores.sSeason,
+        s_quality: prop.subScores.sQuality,
+        s_consensus: prop.subScores.sConsensus,
+        s_min_satisfaction: prop.subScores.sMinSatisfaction,
+      });
+    }
+  } catch {
+    /* feedback table optionnelle */
+  }
 
   const deleted = await supabase.from("recommendations").delete().eq("trip_id", tripId);
   if (deleted.error) throw deleted.error;
