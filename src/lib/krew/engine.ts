@@ -70,12 +70,12 @@ export type IndividualPreference = {
   activityCategories: string[];
   budgetMax: number | null;
   budgetPriority?: string;
-  /** Ambiances refusées absolument. */
   dealBreakerAmbiances: string[];
-  /** Destinations / pays exclus nommément. */
   dealBreakerDestinations: string[];
   transportModes?: string[];
   maxTravelHours?: number | null;
+  isStar?: boolean;
+  weight?: number;
 };
 
 export type ScoringWeights = {
@@ -161,6 +161,9 @@ export type ScoringContext = {
   maxTravelDurationHours?: number | null;
   planeRefused?: boolean;
   blackoutDates?: string[];
+  starWantedActivities?: string[];
+  starDealBreakers?: string[];
+  starWeight?: number;
 };
 
 export type ItineraryDay = {
@@ -606,7 +609,10 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         individualFit(destination, available, totalPerPerson, pref),
       );
       participantsEvaluated = fits.length;
-      consensusScore = fits.reduce((a, b) => a + b, 0) / fits.length;
+      // Moyenne pondérée : la Star pèse plus (EVG/EVJF/anniversaire)
+      const weights = individuals.map((pref) => Math.max(0.1, pref.weight ?? (pref.isStar ? (ctx.starWeight ?? 2.5) : 1)));
+      const wSum = weights.reduce((a, b) => a + b, 0);
+      consensusScore = fits.reduce((acc, f, i) => acc + f * weights[i]!, 0) / wSum;
       minSatisfaction = Math.min(...fits);
       satisfiedCount = fits.filter((f) => f >= 0.55).length;
     }
