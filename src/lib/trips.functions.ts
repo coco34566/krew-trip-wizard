@@ -966,6 +966,10 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       seedLabels = (acts.data ?? []).map((a: any) => a.name).filter(Boolean);
     }
 
+    const recoRow = selected.data as any;
+    const matchReasons = Array.isArray(recoRow.match_reasons)
+      ? recoRow.match_reasons.map(String)
+      : [];
     const { generateItineraryWithAi } = await import("@/lib/krew/activity-ai.server");
     const result = await generateItineraryWithAi(
       {
@@ -986,6 +990,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         dietaryConstraints: aggregated.dietaryConstraints ?? [],
         travelPace: aggregated.medianTravelPace,
         preferredTimeSlots: aggregated.preferredTimeSlots ?? [],
+        matchReasons,
+        destinationScore: recoRow.score != null ? Number(recoRow.score) : null,
+        scoredActivityLabels: seedLabels,
       },
       seedLabels,
     );
