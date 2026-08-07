@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
   ExternalLink,
@@ -11,13 +12,17 @@ import {
   Wallet,
   MapPin,
   Info,
+  Bell,
+  BellRing,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getTripRecap } from "@/lib/trips.functions";
+import { toast } from "sonner";
+import { getTripRecap, watchPrice, getCostSplit } from "@/lib/trips.functions";
+import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
@@ -57,6 +62,41 @@ function ExternalLinkButton({
 function TripRecapPage() {
   const { tripId } = Route.useParams();
   const fetchRecap = useServerFn(getTripRecap);
+  const doWatch = useServerFn(watchPrice);
+  const fetchSplit = useServerFn(getCostSplit);
+  const queryClient = useQueryClient();
+  const [watched, setWatched] = useState<Record<string, boolean>>({});
+
+  const watchMutation = useMutation({
+    mutationFn: (payload: { recommendationId: string; destinationName: string }) =>
+      doWatch({
+        data: {
+          tripId,
+          recommendationId: payload.recommendationId,
+          destinationName: payload.destinationName,
+        },
+      }),
+    onSuccess: (_r, vars) => {
+      setWatched((w) => ({ ...w, [vars.recommendationId]: true }));
+      toast.success("Suivi activé — rappel sur ton tableau de bord");
+      queryClient.invalidateQueries({ queryKey: ["price-watches"] });
+    },
+    onError: (e: any) => {
+      const msg = String(e?.message ?? e);
+      if (msg.includes("price_watch") || msg.includes("schema cache")) {
+        toast.error("Table price_watch absente — applique la migration Supabase");
+      } else {
+        toast.error("Impossible d'activer le suivi");
+      }
+    },
+  });
+
+  const { data: costSplitData } = useQuery({
+    queryKey: ["cost-split", tripId],
+    queryFn: () => fetchSplit({ data: { tripId } }),
+    retry: false,
+  });
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["trip-recap", tripId],
     queryFn: () => fetchRecap({ data: { tripId } }),
@@ -261,6 +301,25 @@ function TripRecapPage() {
                     <ExternalLinkButton href={links.bookingGroup} variant="glass">
                       <Hotel className="size-3.5" /> Booking.com — {destName}
                     </ExternalLinkButton>
+                    <Button
+                      type="button"
+                      variant={watched[reco.id] ? "lagoon" : "outline"}
+                      size="sm"
+                      disabled={watchMutation.isPending}
+                      onClick={() =>
+                        watchMutation.mutate({
+                          recommendationId: reco.id,
+                          destinationName: destName,
+                        })
+                      }
+                    >
+                      {watched[reco.id] ? (
+                        <BellRing className="size-3.5" />
+                      ) : (
+                        <Bell className="size-3.5" />
+                      )}
+                      {watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
+                    </Button>
                   </div>
                 </div>
               </article>
@@ -268,6 +327,17 @@ function TripRecapPage() {
           })
         )}
       </section>
+
+      {costSplitData?.split ? (
+        <section className="mt-12 space-y-4">
+          <h2 className="font-display text-2xl font-semibold">
+            {costSplitData.isSelected
+              ? "Destination validée — qui paie quoi ?"
+              : "Répartition (proposition)"}
+          </h2>
+          <CostSplitCard split={costSplitData.split} tripName={trip.name} />
+        </section>
+      ) : null}
     </main>
   );
 }
