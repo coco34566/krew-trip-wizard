@@ -223,7 +223,7 @@ function NextActionsPanel({
         <div className="flex gap-3">
           <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <div>
-            <h2 className="font-display text-lg font-semibold text-emerald-900 dark:text-emerald-200">
+            <h2 className="font-display text-xl font-semibold tracking-tight text-emerald-900 dark:text-emerald-200">
               Tout est à jour de ton côté
             </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-emerald-800/90 dark:text-emerald-300/90">
@@ -455,7 +455,7 @@ export function TripHubDashboard({
       </section>
 
       {/* Résumé des retours x/N */}
-      <section className="rounded-3xl border border-border bg-card p-5">
+      <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           État des réponses · groupe de {trip.participants_count || participantsCount}
         </h2>
@@ -520,7 +520,7 @@ export function TripHubDashboard({
 
       {/* Scores live */}
       {topScores.length > 0 ? (
-        <section className="rounded-3xl border border-border bg-card p-5">
+        <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary" />
             <h2 className="font-semibold">Propositions en cours</h2>
