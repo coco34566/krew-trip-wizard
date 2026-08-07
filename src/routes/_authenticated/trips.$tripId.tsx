@@ -509,7 +509,7 @@ function TripDetail() {
         )}
       </section>
 
-      <section className="mt-12">
+      <section id="invite-section" className="mt-12 scroll-mt-24">
         <h2 className="font-display text-2xl font-semibold">Inviter la bande</h2>
         <div className="mt-4 rounded-2xl border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">
