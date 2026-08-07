@@ -16,6 +16,8 @@ export type Database = {
     Tables: {
       accommodations: {
         Row: {
+          best_provider: string | null
+          booking_url: string | null
           capacity: number
           description: string | null
           destination_id: string
@@ -24,12 +26,15 @@ export type Database = {
           id: string
           image_url: string | null
           name: string
+          price_offers: Json
           price_per_night_per_person: number
           rating: number
           source: string
           type: string
         }
         Insert: {
+          best_provider?: string | null
+          booking_url?: string | null
           capacity?: number
           description?: string | null
           destination_id: string
@@ -38,12 +43,15 @@ export type Database = {
           id?: string
           image_url?: string | null
           name: string
+          price_offers?: Json
           price_per_night_per_person?: number
           rating?: number
           source?: string
           type?: string
         }
         Update: {
+          best_provider?: string | null
+          booking_url?: string | null
           capacity?: number
           description?: string | null
           destination_id?: string
@@ -52,6 +60,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           name?: string
+          price_offers?: Json
           price_per_night_per_person?: number
           rating?: number
           source?: string
@@ -69,6 +78,7 @@ export type Database = {
       }
       activities: {
         Row: {
+          booking_url: string | null
           category: string
           description: string | null
           destination_id: string
@@ -82,6 +92,7 @@ export type Database = {
           source: string
         }
         Insert: {
+          booking_url?: string | null
           category: string
           description?: string | null
           destination_id: string
@@ -95,6 +106,7 @@ export type Database = {
           source?: string
         }
         Update: {
+          booking_url?: string | null
           category?: string
           description?: string | null
           destination_id?: string
@@ -121,12 +133,15 @@ export type Database = {
         Row: {
           avg_daily_cost: number
           best_months: number[]
+          climate: Json
           country: string
           description: string | null
           distance_from_paris_km: number
           external_id: string | null
           id: string
           image_url: string | null
+          latitude: number | null
+          longitude: number | null
           name: string
           popularity: number
           rating: number
@@ -144,12 +159,15 @@ export type Database = {
         Insert: {
           avg_daily_cost?: number
           best_months?: number[]
+          climate?: Json
           country: string
           description?: string | null
           distance_from_paris_km?: number
           external_id?: string | null
           id?: string
           image_url?: string | null
+          latitude?: number | null
+          longitude?: number | null
           name: string
           popularity?: number
           rating?: number
@@ -167,12 +185,15 @@ export type Database = {
         Update: {
           avg_daily_cost?: number
           best_months?: number[]
+          climate?: Json
           country?: string
           description?: string | null
           distance_from_paris_km?: number
           external_id?: string | null
           id?: string
           image_url?: string | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           popularity?: number
           rating?: number
