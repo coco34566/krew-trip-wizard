@@ -217,7 +217,7 @@ function TripDetail() {
         isOwner={data.isOwner}
         participantsCount={(data.participants?.length ?? trip.participants_count) || 1}
         progressAnswered={progress?.answered ?? 0}
-        progressTotal={progress?.total ?? trip.participants_count ?? 1}
+        progressTotal={progress?.expected ?? progress?.total ?? trip.participants_count ?? 1}
         availabilityAnswered={availData?.answered ?? 0}
         availabilityExpected={availData?.expected ?? trip.participants_count ?? 1}
         provisionalStart={availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date}
@@ -548,6 +548,9 @@ function TripDetail() {
             <p className="text-sm text-muted-foreground">
               {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1} personnes
               ont répondu
+              {(availData?.expected ?? trip.participants_count ?? 1) - (availData?.answered ?? 0) > 0
+                ? ` · ${(availData?.expected ?? trip.participants_count ?? 1) - (availData?.answered ?? 0)} en attente`
+                : " · complet"}
               {availData?.windows?.[0]
                 ? ` · meilleure date : ${new Date(availData.windows[0].start).toLocaleDateString("fr-FR")} → ${new Date(availData.windows[0].end).toLocaleDateString("fr-FR")} (${Math.round((availData.windows[0].coverageRatio ?? 0) * 100)} %)`
                 : " · pas encore de date commune"}
