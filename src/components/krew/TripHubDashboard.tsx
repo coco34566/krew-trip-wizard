@@ -339,6 +339,12 @@ export function TripHubDashboard({
   const hasItinerary = Boolean(
     (trip as any).group_itinerary?.days?.length,
   );
+  const logistics = ((trip as any).group_logistics || {}) as any;
+  const hotelVoted =
+    (Array.isArray(logistics.hotelVotes) && logistics.hotelVotes.length > 0) ||
+    Boolean(logistics.selectedHotelId);
+  const transportPicked =
+    Array.isArray(logistics.transportPicks) && logistics.transportPicks.length > 0;
 
   const steps = buildTripSteps({
     tripId,
@@ -349,6 +355,8 @@ export function TripHubDashboard({
     datesLocked,
     hasRecommendations,
     destinationSelected,
+    hotelVoted,
+    transportPicked,
     hasItinerary,
   });
 
