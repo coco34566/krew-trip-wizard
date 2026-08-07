@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMyTrips, listMyPriceWatches, cancelTrip } from "@/lib/trips.functions";
-import { eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
+import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -33,6 +33,11 @@ type TripRow = {
   participants_count: number;
   budget_per_person: number;
   departure_city: string;
+  dates_locked?: boolean;
+  destination_selected?: boolean;
+  has_itinerary?: boolean;
+  /** Stade métier du parcours (remplace le status enum en UI) */
+  journey_stage?: string;
 };
 
 function TripCard({
@@ -55,8 +60,16 @@ function TripCard({
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{eventTypeLabel(trip.event_type)}</p>
           <h3 className="mt-1 font-display text-lg font-semibold group-hover:text-primary">{trip.name}</h3>
         </div>
-        <Badge variant={trip.status === "valide" ? "success" : trip.status === "propositions" ? "lagoon" : "muted"}>
-          {invited ? "Invitation" : (TRIP_STATUS_LABELS[trip.status] ?? trip.status)}
+        <Badge
+          variant={
+            trip.has_itinerary || trip.destination_selected
+              ? "success"
+              : trip.dates_locked
+                ? "lagoon"
+                : "muted"
+          }
+        >
+          {invited ? `Invitation · ${trip.journey_stage ?? "à rejoindre"}` : (trip.journey_stage ?? "En préparation")}
         </Badge>
       </div>
       <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
@@ -167,7 +180,7 @@ function Dashboard() {
       ) : (
         <div className="mt-8 space-y-10">
           <section>
-            <h2 className="mb-4 font-display text-lg font-semibold">En préparation</h2>
+            <h2 className="mb-4 font-display text-lg font-semibold">Mes voyages</h2>
             {inPrep.length ? (
               <div className="grid gap-4 md:grid-cols-2">
                 {inPrep.map((t) => (
@@ -181,7 +194,7 @@ function Dashboard() {
 
           {ready.length ? (
             <section>
-              <h2 className="mb-4 font-display text-lg font-semibold">Voyages validés</h2>
+              <h2 className="mb-4 font-display text-lg font-semibold">Prêts / en organisation</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 {ready.map((t) => (
                   <TripCard key={t.id} trip={t} />
