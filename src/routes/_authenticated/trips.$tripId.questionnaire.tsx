@@ -89,6 +89,13 @@ function ParticipantQuestionnaire() {
 
   const [ambiances, setAmbiances] = useState<string[]>([]);
   const [dealBreakerAmbiances, setDealBreakerAmbiances] = useState<string[]>([]);
+  const [departureAirportOrStation, setDepartureAirportOrStation] = useState("");
+  const [transportModeAccepted, setTransportModeAccepted] = useState<string[]>(["peu importe"]);
+  const [maxTravelDurationHours, setMaxTravelDurationHours] = useState(6);
+  const [accessibilityNeeds, setAccessibilityNeeds] = useState(false);
+  const [blackoutDates, setBlackoutDates] = useState("");
+  const [budgetPriority, setBudgetPriority] = useState("preference");
+
   const [activityCategories, setActivityCategories] = useState<string[]>([]);
   const [travelPace, setTravelPace] = useState<string>("equilibre");
   const [preferredTimeSlots, setPreferredTimeSlots] = useState<string[]>([]);
@@ -120,6 +127,12 @@ function ParticipantQuestionnaire() {
         if (preferences) {
           setAmbiances(preferences.ambiances ?? []);
           setDealBreakerAmbiances((preferences as any).deal_breaker_ambiances ?? []);
+          setDepartureAirportOrStation((preferences as any).departure_airport_or_station ?? "");
+          setTransportModeAccepted((preferences as any).transport_mode_accepted?.length ? (preferences as any).transport_mode_accepted : ["peu importe"]);
+          setMaxTravelDurationHours(Number((preferences as any).max_travel_duration_hours) || 6);
+          setAccessibilityNeeds(Boolean((preferences as any).accessibility_needs));
+          setBlackoutDates(((preferences as any).blackout_dates ?? []).join(", "));
+          setBudgetPriority((preferences as any).budget_priority ?? "preference");
           setActivityCategories(preferences.activity_categories ?? []);
           setBudgetMax(Number(preferences.budget_max ?? 400));
           setBudgetPriority((preferences.budget_priority as typeof budgetPriority) ?? "preference");
@@ -186,6 +199,15 @@ function ParticipantQuestionnaire() {
           tripId,
           ambiances,
           dealBreakerAmbiances,
+          departureAirportOrStation: departureAirportOrStation.trim() || undefined,
+          transportModeAccepted,
+          maxTravelDurationHours,
+          accessibilityNeeds,
+          blackoutDates: blackoutDates
+            .split(/[,;]/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+          budgetPriority,
           activityCategories,
           budgetMax,
           budgetPriority,
@@ -442,6 +464,84 @@ function ParticipantQuestionnaire() {
             />
           </div>
         </Section>
+
+
+        <div className="space-y-2">
+          <Label>Aéroport / gare de départ (code IATA ou nom précis)</Label>
+          <Input
+            value={departureAirportOrStation}
+            onChange={(e) => setDepartureAirportOrStation(e.target.value)}
+            placeholder="Ex : CDG, LYS, Paris Gare de Lyon"
+          />
+          <p className="text-xs text-muted-foreground">Pour des recherches vols/trains plus exactes.</p>
+        </div>
+        <div>
+          <Label className="mb-2 block">Modes de transport acceptés</Label>
+          <div className="flex flex-wrap gap-2">
+            {["avion", "train", "peu importe"].map((m) => (
+              <Chip
+                key={m}
+                active={transportModeAccepted.includes(m)}
+                onClick={() => {
+                  setTransportModeAccepted((prev) => {
+                    if (m === "peu importe") return ["peu importe"];
+                    const without = prev.filter((x) => x !== "peu importe" && x !== m);
+                    const next = prev.includes(m) ? without : [...without, m];
+                    return next.length ? next : ["peu importe"];
+                  });
+                }}
+              >
+                {m}
+              </Chip>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label className="mb-2 block">Durée de trajet max : {maxTravelDurationHours} h</Label>
+          <Slider
+            min={2}
+            max={12}
+            step={1}
+            value={[maxTravelDurationHours]}
+            onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
+          />
+        </div>
+        <div>
+          <Label className="mb-2 block">Priorité budget</Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { v: "preference", l: "Souhait (flexible)" },
+              { v: "veto", l: "Veto (ne pas dépasser)" },
+            ].map((o) => (
+              <Chip key={o.v} active={budgetPriority === o.v} onClick={() => setBudgetPriority(o.v)}>
+                {o.l}
+              </Chip>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setAccessibilityNeeds(!accessibilityNeeds)}
+            className={cn(
+              "rounded-xl border px-4 py-2 text-sm",
+              accessibilityNeeds
+                ? "border-primary bg-primary/15"
+                : "border-border bg-surface/60 text-muted-foreground",
+            )}
+          >
+            {accessibilityNeeds ? "Besoin d'accessibilité PMR" : "Pas de besoin PMR particulier"}
+          </button>
+        </div>
+        <div className="space-y-2">
+          <Label>Dates d'indisponibilité (blackout)</Label>
+          <Input
+            value={blackoutDates}
+            onChange={(e) => setBlackoutDates(e.target.value)}
+            placeholder="2026-09-12, 2026-09-13"
+          />
+          <p className="text-xs text-muted-foreground">Dates précises où tu n'es pas dispo (AAAA-MM-JJ).</p>
+        </div>
 
         <Section
           title="4. Hébergement"
