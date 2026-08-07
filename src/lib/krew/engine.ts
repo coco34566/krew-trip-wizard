@@ -64,6 +64,17 @@ export type DepartureOrigin = {
   count: number;
 };
 
+/** Préférences brutes d'un participant (pour satisfaction individuelle). */
+export type IndividualPreference = {
+  ambiances: string[];
+  activityCategories: string[];
+  budgetMax: number | null;
+  /** Ambiances refusées absolument. */
+  dealBreakerAmbiances: string[];
+  /** Destinations / pays exclus nommément. */
+  dealBreakerDestinations: string[];
+};
+
 export type ScoringContext = {
   participants: number;
   budgetPerPerson: number;
@@ -96,6 +107,20 @@ export type ScoringContext = {
   >;
   /** Villes de départ du groupe (agrégées). */
   departureOrigins?: DepartureOrigin[];
+  /** Réponses individuelles brutes. */
+  individualPreferences?: IndividualPreference[];
+  /** Budget du participant le plus contraint. */
+  minGroupBudget?: number | null;
+  /** Ambiances refusées par au moins un participant (exclusion dure). */
+  dealBreakerAmbiances?: string[];
+  /** Destinations / pays exclus explicitement. */
+  dealBreakerDestinations?: string[];
+  /** Rythme de voyage agrégé: chill | equilibre | plein_programme */
+  travelPace?: string | null;
+  /** Flexibilité dates en jours (± autour du mois de départ). */
+  dateFlexDays?: number | null;
+  /** Note mini hébergement (filtre dur). */
+  minAccommodationRating?: number | null;
 };
 
 export type ItineraryDay = {
@@ -115,7 +140,14 @@ export type BudgetBreakdown = {
   totalPerPerson: number;
   totalGroup: number;
   budgetPerPerson: number;
+  /** Compatible avec la médiane / budget agrégé du groupe. */
   fits: boolean;
+  /** Compatible avec le budget du participant le plus serré. */
+  hardBudgetFits: boolean;
+  /** Nb de participants dont budgetMax >= totalPerPerson. */
+  budgetFitCount: number;
+  /** Nb de participants évalués pour le budget. */
+  budgetFitTotal: number;
   /** Détail transport par ville de départ si multi-origines. */
   transportByOrigin?: { city: string; count: number; pricePerPerson: number }[];
 };
@@ -129,6 +161,13 @@ export type Proposal = {
   matchReasons: string[];
   itinerary: ItineraryDay[];
   budget: BudgetBreakdown;
+  /** Moyenne des fits individuels (0–1). */
+  consensusScore: number;
+  /** Fit du participant le moins satisfait (0–1). */
+  minSatisfaction: number;
+  /** Participants avec fit >= 0.55. */
+  satisfiedCount: number;
+  participantsEvaluated: number;
 };
 
 const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
@@ -168,12 +207,32 @@ function seasonScore(dest: DestinationRecord, month: number): number {
   return clamp(1 - distance * 0.22, 0.15, 1);
 }
 
+/** Meilleur score saison sur la fenêtre [startMonth ± flexMonths]. */
+function seasonScoreWithFlex(dest: DestinationRecord, startMonth: number, dateFlexDays?: number | null): number {
+  const flexMonths = Math.max(0, Math.min(3, Math.ceil((dateFlexDays ?? 0) / 14)));
+  let best = seasonScore(dest, startMonth);
+  for (let d = -flexMonths; d <= flexMonths; d++) {
+    if (d === 0) continue;
+    const m = ((startMonth - 1 + d + 12) % 12) + 1;
+    best = Math.max(best, seasonScore(dest, m));
+  }
+  return best;
+}
+
+function activitiesPerDayForPace(travelPace?: string | null): number {
+  const p = (travelPace ?? "equilibre").toLowerCase();
+  if (p === "chill") return 1;
+  if (p === "plein_programme" || p === "intense") return 3;
+  return 2;
+}
+
 /** Sélectionne les activités les plus pertinentes dans le budget disponible. */
 function pickActivities(
   pool: ActivityRecord[],
   wantedCategories: string[],
   nights: number,
   budgetForActivities: number,
+  travelPace?: string | null,
 ): ActivityRecord[] {
   const ranked = [...pool].sort((a, b) => {
     const aw = wantedCategories.includes(a.category) ? 1 : 0;
@@ -181,12 +240,13 @@ function pickActivities(
     if (aw !== bw) return bw - aw;
     return b.rating - a.rating;
   });
-  const maxCount = Math.max(2, (nights + 1) * 2 - 1);
+  const perDay = activitiesPerDayForPace(travelPace);
+  const maxCount = Math.max(perDay, (nights + 1) * perDay - (travelPace === "chill" ? 1 : 0));
   const picked: ActivityRecord[] = [];
   let spent = 0;
   for (const activity of ranked) {
     if (picked.length >= maxCount) break;
-    if (spent + activity.price_per_person > budgetForActivities && picked.length >= 2) continue;
+    if (spent + activity.price_per_person > budgetForActivities && picked.length >= Math.max(1, perDay)) continue;
     picked.push(activity);
     spent += activity.price_per_person;
   }
@@ -198,9 +258,11 @@ function buildItinerary(
   accommodation: AccommodationRecord | null,
   activities: ActivityRecord[],
   nights: number,
+  travelPace?: string | null,
 ): ItineraryDay[] {
   const days = Math.max(1, nights + 1);
   const queue = [...activities];
+  const perDayTarget = activitiesPerDayForPace(travelPace);
   const itinerary: ItineraryDay[] = [];
   for (let day = 1; day <= days; day++) {
     const slots: ItineraryDay["slots"] = [];
@@ -218,7 +280,7 @@ function buildItinerary(
         });
       }
     }
-    const perDay = day === days ? 1 : 2;
+    const perDay = day === days ? Math.min(1, perDayTarget) : perDayTarget;
     for (let i = 0; i < perDay; i++) {
       const activity = queue.shift();
       if (!activity) break;
@@ -245,31 +307,88 @@ function buildItinerary(
   return itinerary;
 }
 
+/** True si la destination tombe sous un deal-breaker explicite. */
+function hitsDealBreaker(
+  dest: DestinationRecord,
+  dealAmbiances: string[],
+  dealDestinations: string[],
+): boolean {
+  for (const d of dealDestinations) {
+    const nd = norm(d);
+    if (!nd) continue;
+    if (norm(dest.name).includes(nd) || norm(dest.country).includes(nd) || nd.includes(norm(dest.name))) {
+      return true;
+    }
+  }
+  for (const a of dealAmbiances) {
+    const col = AMBIANCE_SCORE_COLUMN[a as Ambiance];
+    if (!col) continue;
+    const v = Number((dest as unknown as Record<string, number>)[col] ?? 0);
+    // Ambiance dominante refusée (≥ 0.7)
+    if (v >= 0.7) return true;
+  }
+  return false;
+}
+
+/**
+ * Fit 0–1 d'un participant pour une destination / offre donnée.
+ */
+function individualFit(
+  dest: DestinationRecord,
+  availableCategories: Set<string>,
+  totalPerPerson: number,
+  pref: IndividualPreference,
+): number {
+  if (hitsDealBreaker(dest, pref.dealBreakerAmbiances, pref.dealBreakerDestinations)) {
+    return 0;
+  }
+  const sAmb = ambianceScore(dest, pref.ambiances.length ? pref.ambiances : []);
+  const wanted = pref.activityCategories;
+  const sAct = wanted.length
+    ? wanted.filter((c) => availableCategories.has(c)).length / wanted.length
+    : 0.6;
+  let sBudget = 0.7;
+  if (pref.budgetMax != null && pref.budgetMax > 0) {
+    const ratio = totalPerPerson / pref.budgetMax;
+    sBudget = ratio <= 1 ? clamp(0.75 + (1 - ratio) * 0.5) : clamp(1 - (ratio - 1) * 2);
+  }
+  return clamp(sAmb * 0.4 + sAct * 0.3 + sBudget * 0.3);
+}
+
 export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limit = 3): Proposal[] {
   const excluded = ctx.excludedCountries.map(norm).filter(Boolean);
   const desired = ctx.desiredDestination ? norm(ctx.desiredDestination) : "";
+  const dealAmb = ctx.dealBreakerAmbiances ?? [];
+  const dealDest = ctx.dealBreakerDestinations ?? [];
+  const minRating = ctx.minAccommodationRating ?? 0;
 
   const candidates = catalog.destinations.filter((d) => {
     if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
     if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
+    // Exclusion dure deal-breakers groupe
+    if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
     return true;
   });
 
   const proposals: Proposal[] = candidates.map((destination) => {
-    const accommodations = catalog.accommodations
+    let accommodations = catalog.accommodations
       .filter((a) => a.destination_id === destination.id)
-      .sort((a, b) => {
-        const capA = a.capacity >= ctx.participants ? 0 : 1;
-        const capB = b.capacity >= ctx.participants ? 0 : 1;
-        if (capA !== capB) return capA - capB;
-        if (ctx.needsCityCenter && a.distance_center_km !== b.distance_center_km) {
-          return a.distance_center_km - b.distance_center_km;
-        }
-        return a.price_per_night_per_person - b.price_per_night_per_person;
-      });
+      .filter((a) => (minRating > 0 ? a.rating >= minRating - 0.05 : true));
+    if (!accommodations.length) {
+      accommodations = catalog.accommodations.filter((a) => a.destination_id === destination.id);
+    }
+    accommodations = [...accommodations].sort((a, b) => {
+      const capA = a.capacity >= ctx.participants ? 0 : 1;
+      const capB = b.capacity >= ctx.participants ? 0 : 1;
+      if (capA !== capB) return capA - capB;
+      if (minRating > 0 && a.rating !== b.rating) return b.rating - a.rating;
+      if (ctx.needsCityCenter && a.distance_center_km !== b.distance_center_km) {
+        return a.distance_center_km - b.distance_center_km;
+      }
+      return a.price_per_night_per_person - b.price_per_night_per_person;
+    });
     const accommodation = accommodations[0] ?? null;
 
-    // Transport : moyenne pondérée multi-origines si dispo, sinon estimation distance
     const transport =
       ctx.transportByDestinationId?.[destination.id] ??
       estimateTransport(destination.distance_from_paris_km);
@@ -288,12 +407,25 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       ctx.activityCategories,
       ctx.nights,
       budgetForActivities,
+      ctx.travelPace,
     );
     const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
     const totalPerPerson = transport + lodging + food + activitiesCost;
-    // Total groupe = transport réel (multi-origines) + (hébergement + resto + activités) × N
     const sharedPerPerson = lodging + food + activitiesCost;
     const totalGroup = transportGroup + sharedPerPerson * ctx.participants;
+
+    const individuals = ctx.individualPreferences ?? [];
+    const budgetsIndiv = individuals
+      .map((p) => p.budgetMax)
+      .filter((n): n is number => n != null && n > 0);
+    const budgetFitTotal = budgetsIndiv.length || (ctx.minGroupBudget ? 1 : 0);
+    const budgetFitCount = budgetsIndiv.length
+      ? budgetsIndiv.filter((b) => totalPerPerson <= b).length
+      : totalPerPerson <= (ctx.minGroupBudget ?? ctx.budgetPerPerson)
+        ? 1
+        : 0;
+    const hardCap = ctx.minGroupBudget ?? null;
+    const hardBudgetFits = hardCap != null ? totalPerPerson <= hardCap : totalPerPerson <= ctx.budgetPerPerson;
 
     const budget: BudgetBreakdown = {
       transport: Math.round(transport),
@@ -305,28 +437,63 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       totalGroup: Math.round(totalGroup),
       budgetPerPerson: ctx.budgetPerPerson,
       fits: totalPerPerson <= ctx.budgetPerPerson,
+      hardBudgetFits,
+      budgetFitCount,
+      budgetFitTotal: budgetFitTotal || ctx.participants,
       ...(transportOrigins && transportOrigins.length > 1
         ? { transportByOrigin: transportOrigins }
         : {}),
     };
 
-    // --- Scoring pondéré ---
-    const sAmbiance = ambianceScore(destination, ctx.ambiances);
-    const wanted = ctx.activityCategories;
     const available = new Set(
       catalog.activities.filter((a) => a.destination_id === destination.id).map((a) => a.category),
     );
+
+    // Satisfaction individuelle
+    let consensusScore = 0.65;
+    let minSatisfaction = 0.65;
+    let satisfiedCount = 0;
+    let participantsEvaluated = 0;
+    if (individuals.length) {
+      const fits = individuals.map((pref) =>
+        individualFit(destination, available, totalPerPerson, pref),
+      );
+      participantsEvaluated = fits.length;
+      consensusScore = fits.reduce((a, b) => a + b, 0) / fits.length;
+      minSatisfaction = Math.min(...fits);
+      satisfiedCount = fits.filter((f) => f >= 0.55).length;
+    }
+
+    const sAmbiance = ambianceScore(destination, ctx.ambiances);
+    const wanted = ctx.activityCategories;
     const sActivities = wanted.length
       ? wanted.filter((c) => available.has(c)).length / wanted.length
       : 0.6;
     const ratio = totalPerPerson / Math.max(1, ctx.budgetPerPerson);
     const sBudget = ratio <= 1 ? clamp(0.7 + (1 - ratio) * 0.6) : clamp(1 - (ratio - 1) * 1.8);
     const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm));
-    const sSeason = seasonScore(destination, ctx.startMonth);
+    const sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
     const sQuality = clamp((destination.rating - 3.5) / 1.5) * 0.6 + destination.popularity * 0.4;
+    const sConsensus = consensusScore;
+    const sMinSat = minSatisfaction;
 
     let score =
-      sAmbiance * 30 + sActivities * 20 + sBudget * 25 + sDistance * 10 + sSeason * 10 + sQuality * 5;
+      sAmbiance * 18 +
+      sActivities * 12 +
+      sBudget * 16 +
+      sDistance * 8 +
+      sSeason * 8 +
+      sQuality * 5 +
+      sConsensus * 18 +
+      sMinSat * 15;
+
+    // Pénalité forte si un participant est très mal satisfait
+    if (minSatisfaction < 0.35) score -= 25;
+    else if (minSatisfaction < 0.45) score -= 12;
+    if (!hardBudgetFits) score -= 10;
+    if (individuals.length && satisfiedCount < individuals.length) {
+      score -= (individuals.length - satisfiedCount) * 3;
+    }
 
     if (!ctx.letKrewDecide && desired) {
       const matches =
@@ -335,22 +502,36 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     }
 
     const matchReasons: string[] = [];
+    if (participantsEvaluated > 0) {
+      matchReasons.push(`✅ Plaît à ${satisfiedCount}/${participantsEvaluated} participants`);
+    }
+    if (budgetFitTotal > 0) {
+      matchReasons.push(
+        `Dans le budget de ${budgetFitCount}/${budgetFitTotal} participants`,
+      );
+    }
     if (sAmbiance > 0.7) matchReasons.push("Colle parfaitement à l'ambiance recherchée par le groupe");
     if (sActivities >= 0.75)
       matchReasons.push("Toutes les catégories d'activités demandées sont disponibles sur place");
     if (budget.fits)
       matchReasons.push(
-        `Budget respecté : ${Math.round(totalPerPerson)} € / pers. sur ${ctx.budgetPerPerson} €`,
+        `Budget médian respecté : ${Math.round(totalPerPerson)} € / pers. sur ${ctx.budgetPerPerson} €`,
       );
     else
       matchReasons.push(
-        `Léger dépassement de budget (+${Math.round(totalPerPerson - ctx.budgetPerPerson)} € / pers.)`,
+        `Dépassement vs médiane (+${Math.round(totalPerPerson - ctx.budgetPerPerson)} € / pers.)`,
+      );
+    if (!hardBudgetFits && hardCap != null)
+      matchReasons.push(
+        `Hors budget du plus serré (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`,
       );
     if (sSeason >= 0.9) matchReasons.push("Période idéale côté météo et saisonnalité");
     if (destination.distance_from_paris_km <= 900)
       matchReasons.push("Trajet court : plus de temps sur place, moins de fatigue");
     if (accommodation && accommodation.capacity >= ctx.participants)
       matchReasons.push(`Hébergement unique pour ${ctx.participants} personnes (${accommodation.type})`);
+    if (minRating > 0 && accommodation && accommodation.rating >= minRating)
+      matchReasons.push(`Note hébergement ≥ ${minRating}`);
     if (ctx.transportByDestinationId?.[destination.id] != null) {
       if (transportOrigins && transportOrigins.length > 1) {
         const detail = transportOrigins
@@ -364,9 +545,9 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       }
     }
 
-    const rationale = `${destination.name} sort en tête pour un groupe de ${ctx.participants} personnes : ${
+    const rationale = `${destination.name} pour ${ctx.participants} personnes : ${
       destination.description ?? ""
-    } Le rapport ambiance / budget / distance est le meilleur pour vos critères.`;
+    } Consensus ${(consensusScore * 100).toFixed(0)} % · min. satisfaction ${(minSatisfaction * 100).toFixed(0)} %.`;
 
     return {
       destination,
@@ -375,8 +556,12 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       score: Math.round(clamp(score, 0, 100)),
       rationale,
       matchReasons,
-      itinerary: buildItinerary(destination, accommodation, activities, ctx.nights),
+      itinerary: buildItinerary(destination, accommodation, activities, ctx.nights, ctx.travelPace),
       budget,
+      consensusScore,
+      minSatisfaction,
+      satisfiedCount,
+      participantsEvaluated,
     };
   });
 
