@@ -27,6 +27,7 @@ import {
   proposeStayAndTransport,
   voteHotel,
   pickTransport,
+  setTransportTimeFilters,
   cancelTrip,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress, getMyParticipantPreferences } from "@/lib/participant-preferences.functions";
@@ -175,6 +176,11 @@ function TripDetail() {
   });
   const [email, setEmail] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
+  const [arriveByFilter, setArriveByFilter] = useState("");
+  const [departAfterFilter, setDepartAfterFilter] = useState("");
+  const [pickArrival, setPickArrival] = useState("12:00");
+  const [pickDeparture, setPickDeparture] = useState("18:00");
+
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
     return `${window.location.origin}/join/${tripId}`;
@@ -278,13 +284,32 @@ function TripDetail() {
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Vote impossible").slice(0, 120)),
   });
+  const setTimeFiltersFn = useServerFn(setTransportTimeFilters);
+  const timeFilterMutation = useMutation({
+    mutationFn: () =>
+      setTimeFiltersFn({
+        data: {
+          tripId,
+          arriveBy: arriveByFilter || null,
+          departAfter: departAfterFilter || null,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Filtres horaires enregistrés");
+      refresh();
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Erreur filtres").slice(0, 120)),
+  });
   const transportPickMutation = useMutation({
+
     mutationFn: (payload: {
       city: string;
       mode: string;
       modeLabel?: string;
       label: string;
       time?: string;
+      arrivalTime?: string;
+      departureTime?: string;
       pricePerPerson?: number;
       url?: string | null;
     }) => pickTransportFn({ data: { tripId, ...payload } }),
@@ -1100,8 +1125,8 @@ function TripDetail() {
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight">4. Transports A/R</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Choisis ton trajet selon ta ville de départ. Les autres venant de la même ville
-                voient ton choix (mode, horaire).
+                Choisis ton trajet + horaires d&apos;arrivée / départ. Ils orientent le planning
+                une fois tout le monde fixé.
               </p>
             </div>
             {data.isOwner && !(trip as any).group_logistics?.transports?.length ? (
@@ -1118,6 +1143,91 @@ function TripDetail() {
                 Générer les options
               </Button>
             ) : null}
+          </div>
+
+
+          {/* Filtres horaires groupe + saisie perso */}
+          <div className="rounded-2xl border border-border bg-surface/40 p-4 space-y-3">
+            {data.isOwner ? (
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Arriver avant (jour 1)
+                  </label>
+                  <Input
+                    type="time"
+                    className="mt-1 w-[9rem]"
+                    value={
+                      arriveByFilter ||
+                      (trip as any).group_logistics?.timeFilters?.arriveBy ||
+                      ""
+                    }
+                    onChange={(e) => setArriveByFilter(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Repartir après (dernier jour)
+                  </label>
+                  <Input
+                    type="time"
+                    className="mt-1 w-[9rem]"
+                    value={
+                      departAfterFilter ||
+                      (trip as any).group_logistics?.timeFilters?.departAfter ||
+                      ""
+                    }
+                    onChange={(e) => setDepartAfterFilter(e.target.value)}
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={timeFilterMutation.isPending}
+                  onClick={() => timeFilterMutation.mutate()}
+                >
+                  Appliquer filtres
+                </Button>
+              </div>
+            ) : (trip as any).group_logistics?.timeFilters?.arriveBy ||
+              (trip as any).group_logistics?.timeFilters?.departAfter ? (
+              <p className="text-xs text-muted-foreground">
+                Contraintes groupe
+                {(trip as any).group_logistics?.timeFilters?.arriveBy
+                  ? ` · arriver avant ${(trip as any).group_logistics.timeFilters.arriveBy}`
+                  : ""}
+                {(trip as any).group_logistics?.timeFilters?.departAfter
+                  ? ` · repartir après ${(trip as any).group_logistics.timeFilters.departAfter}`
+                  : ""}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap items-end gap-3 border-t border-border/60 pt-3">
+              <div>
+                <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Mon arrivée (aller)
+                </label>
+                <Input
+                  type="time"
+                  className="mt-1 w-[9rem]"
+                  value={pickArrival}
+                  onChange={(e) => setPickArrival(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Mon départ (retour)
+                </label>
+                <Input
+                  type="time"
+                  className="mt-1 w-[9rem]"
+                  value={pickDeparture}
+                  onChange={(e) => setPickDeparture(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                Ces horaires sont enregistrés avec ton trajet et alimentent le planning.
+              </p>
+            </div>
           </div>
 
           {!(trip as any).group_logistics?.transports?.length ? (
@@ -1154,7 +1264,10 @@ function TripDetail() {
                               </span>
                               {" · "}
                               {p.modeLabel || p.mode}
-                              {p.time ? ` · ${p.time}` : ""}
+                              {p.arrivalTime || p.time
+                                ? ` · arrivée ${p.arrivalTime || p.time}`
+                                : ""}
+                              {p.departureTime ? ` · retour ${p.departureTime}` : ""}
                               {p.label ? ` · ${p.label}` : ""}
                             </li>
                           ))}
@@ -1203,6 +1316,9 @@ function TripDetail() {
                                       label: tr.label,
                                       pricePerPerson: tr.pricePerPerson,
                                       url: tr.url,
+                                      arrivalTime: pickArrival || undefined,
+                                      departureTime: pickDeparture || undefined,
+                                      time: pickArrival || undefined,
                                     })
                                   }
                                 >
