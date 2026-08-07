@@ -198,12 +198,32 @@ export const selectRecommendation = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+
+    // Désélectionne les autres propositions
     await supabase.from("recommendations").update({ is_selected: false }).eq("trip_id", data.tripId);
-    const { error } = await supabase
+
+    // Sélectionne la reco choisie + récupère le nom de destination
+    const { data: reco, error: recoError } = await supabase
       .from("recommendations")
       .update({ is_selected: true })
-      .eq("id", data.recommendationId);
-    if (error) throw error;
+      .eq("id", data.recommendationId)
+      .select("id, destinations(name)")
+      .single();
+    if (recoError) throw recoError;
+
+    // Synchronise desired_destination pour que « Rechercher hébergements & activités » fonctionne
+    const destName = (reco as any)?.destinations?.name;
+    if (typeof destName === "string" && destName.trim()) {
+      await supabase.from("trip_preferences").upsert(
+        {
+          trip_id: data.tripId,
+          desired_destination: destName.trim(),
+          let_krew_decide: false,
+        },
+        { onConflict: "trip_id" },
+      );
+    }
+
     await supabase.from("trips").update({ status: "valide" }).eq("id", data.tripId);
     return { ok: true };
   });
