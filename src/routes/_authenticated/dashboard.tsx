@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarDays, MapPin, Plus, Users, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { listMyTrips, listMyPriceWatches } from "@/lib/trips.functions";
+import { listMyTrips, listMyPriceWatches, cancelTrip } from "@/lib/trips.functions";
 import { eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -34,7 +35,15 @@ type TripRow = {
   departure_city: string;
 };
 
-function TripCard({ trip, invited = false }: { trip: TripRow; invited?: boolean }) {
+function TripCard({
+  trip,
+  invited = false,
+  onCancel,
+}: {
+  trip: TripRow;
+  invited?: boolean;
+  onCancel?: (tripId: string) => void;
+}) {
   return (
     <Link
       to="/trips/$tripId"
@@ -71,6 +80,17 @@ function TripCard({ trip, invited = false }: { trip: TripRow; invited?: boolean 
 }
 
 function Dashboard() {
+  const queryClient = useQueryClient();
+  const cancelFn = useServerFn(cancelTrip);
+  const cancelMutation = useMutation({
+    mutationFn: (tripId: string) => cancelFn({ data: { tripId, hardDelete: false } }),
+    onSuccess: () => {
+      toast.success("Voyage annulé");
+      queryClient.invalidateQueries({ queryKey: ["my-trips"] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Annulation impossible").slice(0, 120)),
+  });
+
   const fetchTrips = useServerFn(listMyTrips);
   const { data: watchData } = useQuery({
     queryKey: ["price-watches"],
