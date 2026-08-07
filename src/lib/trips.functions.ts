@@ -9,15 +9,22 @@ export const listMyTrips = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const [owned, invitations] = await Promise.all([
-      supabase.from("trips").select("*").neq("status", "annule").order("created_at", { ascending: false }),
+      supabase
+        .from("trips")
+        .select("*")
+        .eq("owner_id", userId)
+        .neq("status", "annule")
+        .order("created_at", { ascending: false }),
       supabase
         .from("trip_participants")
         .select("*, trips(*)")
+        .or(`user_id.eq.${userId},email.eq.${(context.claims?.email as string | undefined)?.toLowerCase() ?? ""}`)
         .neq("status", "refuse")
         .order("created_at", { ascending: false }),
     ]);
     if (owned.error) throw owned.error;
-    const trips = owned.data ?? [];
+    // Conserve tous les voyages dont tu es owner (hors annulés)
+    const trips = (owned.data ?? []).filter((t: any) => t && t.status !== "annule");
     const invited = (invitations.data ?? []).filter(
       (p) => p.trips && (p.trips as { owner_id: string }).owner_id !== userId,
     );
@@ -69,24 +76,46 @@ export const createTrip = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => tripInputSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const trip = await supabase
+
+    const wantsStar =
+      Boolean(data.celebratedPerson) ||
+      ["evg", "evjf", "anniversaire", "retraite"].includes(String(data.eventType));
+
+    // Payload de base (colonnes toujours présentes dans le schéma historique)
+    const basePayload: Record<string, unknown> = {
+      owner_id: userId,
+      name: data.name,
+      event_type: data.eventType,
+      celebrated_person: data.celebratedPerson ?? null,
+      start_date: data.startDate ?? null,
+      end_date: data.endDate ?? null,
+      participants_count: data.participants,
+      budget_per_person: data.budgetPerPerson ?? 400,
+      departure_city: data.departureCity || "Paris",
+      status: "en_preparation",
+    };
+
+    // Essaie d'abord avec has_star (migration hub) ; si colonne absente, réessaie sans
+    let trip = await supabase
       .from("trips")
-      .insert({
-        owner_id: userId,
-        name: data.name,
-        event_type: data.eventType,
-        celebrated_person: data.celebratedPerson ?? null,
-        has_star: Boolean(data.celebratedPerson) || ["evg", "evjf", "anniversaire", "retraite"].includes(String(data.eventType)),
-        start_date: data.startDate ?? null,
-        end_date: data.endDate ?? null,
-        participants_count: data.participants,
-        budget_per_person: data.budgetPerPerson ?? 400,
-        departure_city: data.departureCity || "Paris",
-        status: "en_preparation",
-      })
+      .insert({ ...basePayload, has_star: wantsStar } as any)
       .select("*")
       .single();
-    if (trip.error) throw trip.error;
+
+    if (trip.error) {
+      const msg = String(trip.error.message || trip.error);
+      if (msg.includes("has_star") || msg.includes("schema cache") || msg.includes("column")) {
+        trip = await supabase.from("trips").insert(basePayload as any).select("*").single();
+      }
+    }
+    if (trip.error) {
+      throw new Error(
+        `Création voyage impossible: ${trip.error.message || JSON.stringify(trip.error)}`,
+      );
+    }
+    if (!trip.data?.id) {
+      throw new Error("Création voyage impossible: aucune donnée retournée");
+    }
 
     const prefs = await supabase.from("trip_preferences").insert({
       trip_id: trip.data.id,
@@ -111,7 +140,7 @@ export const createTrip = createServerFn({ method: "POST" })
       ? String((data as any).organizerFirstName).trim()
       : null;
 
-    await supabase.from("trip_participants").insert({
+    const partInsert = await supabase.from("trip_participants").insert({
       trip_id: trip.data.id,
       user_id: userId,
       email: (context.claims.email as string | undefined) ?? "",
@@ -119,6 +148,20 @@ export const createTrip = createServerFn({ method: "POST" })
       role: "organisateur",
       status: "accepte",
     });
+    if (partInsert.error) {
+      // Fallback sans rôle custom si contrainte DB
+      const retry = await supabase.from("trip_participants").insert({
+        trip_id: trip.data.id,
+        user_id: userId,
+        email: (context.claims.email as string | undefined) ?? "",
+        display_name: organizerName,
+        status: "accepte",
+      });
+      if (retry.error) {
+        console.error("trip_participants insert failed", retry.error);
+        // Le voyage existe déjà : on ne bloque pas, l'owner reste identifiable via owner_id
+      }
+    }
 
     // Optionnel : synchronise le prénom sur le profil
     if (organizerName) {
