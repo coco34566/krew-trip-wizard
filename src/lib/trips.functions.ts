@@ -9,7 +9,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const [owned, invitations] = await Promise.all([
-      supabase.from("trips").select("*").order("created_at", { ascending: false }),
+      supabase.from("trips").select("*").neq("status", "annule").order("created_at", { ascending: false }),
       supabase
         .from("trip_participants")
         .select("*, trips(*)")
@@ -666,4 +666,38 @@ export const getCostSplit = createServerFn({ method: "GET" })
       recommendationId: reco.data.id as string,
       split,
     };
+  });
+
+
+/** Annule un voyage (owner only). Soft-delete via status annule — sort des listes actives. */
+export const cancelTrip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), hardDelete: z.boolean().optional() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("id, owner_id, status")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+    if (trip.data.owner_id !== userId) throw new Error("403 Forbidden: seul l'organisateur peut annuler");
+
+    if (data.hardDelete) {
+      // CASCADE sur participants, prefs, recos si FK ON DELETE CASCADE
+      const { error } = await supabase.from("trips").delete().eq("id", data.tripId).eq("owner_id", userId);
+      if (error) throw error;
+      return { ok: true, mode: "deleted" as const };
+    }
+
+    const { error } = await supabase
+      .from("trips")
+      .update({ status: "annule", updated_at: new Date().toISOString() })
+      .eq("id", data.tripId)
+      .eq("owner_id", userId);
+    if (error) throw error;
+    return { ok: true, mode: "cancelled" as const };
   });
