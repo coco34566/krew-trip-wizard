@@ -418,7 +418,140 @@ function TripDetail() {
   const selectedActivityIds = new Set<string>(
     ((trip as any).selected_activity_ids ?? []) as string[],
   );
+
   const destinationSelected = recommendations.some((r) => r.is_selected);
+  const selectedReco = recommendations.find((r) => r.is_selected);
+  const logistics = ((trip as any).group_logistics || {}) as any;
+
+  const liveBudget = useMemo(() => {
+    const b = selectedReco?.budget as any;
+    const nights = (() => {
+      if (trip.start_date && trip.end_date) {
+        const ms =
+          new Date(trip.end_date + "T12:00:00").getTime() -
+          new Date(trip.start_date + "T12:00:00").getTime();
+        const d = Math.round(ms / 86400000);
+        return d >= 1 ? d : Number(trip.duration_nights) || 2;
+      }
+      return Number(trip.duration_nights) || 2;
+    })();
+
+    let transport = Number(b?.transport ?? 0);
+    let accommodation = Number(b?.accommodation ?? 0);
+    let activities = Number(b?.activities ?? 0);
+    let food = Number(b?.food ?? 0);
+
+    // Hôtel voté → maj hébergement
+    const hotels = (logistics.hotels ?? []) as any[];
+    const topHotelId = logistics.selectedHotelId as string | null;
+    if (topHotelId) {
+      const h = hotels.find((x) => x.id === topHotelId);
+      if (h?.totalEstimate != null) accommodation = Number(h.totalEstimate);
+      else if (h?.pricePerNight != null) accommodation = Number(h.pricePerNight) * nights;
+    }
+
+    // Transports choisis par les participants → moyenne
+    const picks = (logistics.transportPicks ?? []) as any[];
+    if (picks.length) {
+      const prices = picks
+        .map((p) => Number(p.pricePerPerson))
+        .filter((n) => Number.isFinite(n) && n > 0);
+      if (prices.length) {
+        transport = Math.round(prices.reduce((a, c) => a + c, 0) / prices.length);
+      }
+    }
+
+    // Créneaux planning → approx activités/restos si présents
+    const days = ((trip as any).group_itinerary?.days ?? []) as any[];
+    if (days.length) {
+      let actSum = 0;
+      let actN = 0;
+      for (const d of days) {
+        for (const s of d.slots ?? []) {
+          if (s.priceHint != null && Number(s.priceHint) > 0) {
+            actSum += Number(s.priceHint);
+            actN += 1;
+          }
+        }
+      }
+      if (actN > 0) {
+        // redistribue: restos ~ food, reste activities
+        const avgDay = actSum; // total tips sur le séjour déjà sum of hints
+        food = Math.round(actSum * 0.45);
+        activities = Math.round(actSum * 0.55);
+      }
+    }
+
+    const total =
+      Math.round(transport) +
+      Math.round(accommodation) +
+      Math.round(activities) +
+      Math.round(food);
+    const baseBudget = Number(trip.budget_per_person) || 0;
+
+    return {
+      transport: Math.round(transport),
+      accommodation: Math.round(accommodation),
+      activities: Math.round(activities),
+      food: Math.round(food),
+      total,
+      baseBudget,
+      destinationName: selectedReco?.destinations?.name ?? null,
+      country: selectedReco?.destinations?.country ?? null,
+      topHotelName: topHotelId
+        ? hotels.find((x) => x.id === topHotelId)?.name ?? null
+        : null,
+      transportPicksCount: picks.length,
+      nights,
+    };
+  }, [selectedReco, logistics, trip]);
+
+  function buildWhatsAppSummary() {
+    const lines: string[] = [
+      `Salut ! On organise « ${trip.name} » avec Krew ✈️`,
+      "",
+    ];
+    if (trip.event_type) {
+      lines.push(`Type : ${String(trip.event_type).replace(/_/g, " ")}`);
+    }
+    if (liveBudget.destinationName) {
+      lines.push(
+        `Lieu : ${liveBudget.destinationName}${liveBudget.country ? ` (${liveBudget.country})` : ""}`,
+      );
+    }
+    if (trip.start_date && trip.end_date) {
+      const a = new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+      });
+      const b = new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      lines.push(`Dates : ${a} → ${b}`);
+    } else if (trip.start_date) {
+      lines.push(
+        `Date : ${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")}`,
+      );
+    }
+    if (liveBudget.total > 0) {
+      lines.push(`Budget estimé : ~${liveBudget.total} € / pers.`);
+      lines.push(
+        `  · transport ${liveBudget.transport} € · héberg. ${liveBudget.accommodation} € · act. ${liveBudget.activities} € · repas ${liveBudget.food} €`,
+      );
+    } else if (liveBudget.baseBudget > 0) {
+      lines.push(`Budget cible : ${liveBudget.baseBudget} € / pers.`);
+    }
+    if (liveBudget.topHotelName) {
+      lines.push(`Hôtel plébiscité : ${liveBudget.topHotelName}`);
+    }
+    lines.push("");
+    lines.push(`Rejoins le groupe et indique tes dispos ici :`);
+    lines.push(typeof window !== "undefined" ? `${window.location.origin}/join/${trip.id}` : "");
+    return lines.filter(Boolean).join("\n");
+  }
+
 
   const participants = data.participants as { id: string; email: string; display_name: string | null; status: string }[];
 
@@ -446,6 +579,97 @@ function TripDetail() {
         }))}
       >
       </TripHubDashboard>
+
+      {/* Résumé live + partage WhatsApp */}
+      <section className="mt-6 rounded-3xl border border-border bg-card p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+              <Wallet className="size-5 text-primary" />
+              Résumé du voyage
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Se met à jour avec les votes hôtel, trajets choisis et le planning.
+            </p>
+          </div>
+          <Button
+            type="button"
+            className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+            onClick={() => {
+              const text = buildWhatsAppSummary();
+              window.open(
+                `https://wa.me/?text=${encodeURIComponent(text)}`,
+                "_blank",
+                "noopener,noreferrer",
+              );
+            }}
+          >
+            Partager sur WhatsApp
+          </Button>
+        </div>
+
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+          <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Dates</dt>
+            <dd className="mt-0.5 font-medium">
+              {trip.start_date && trip.end_date
+                ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
+                : trip.start_date
+                  ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")
+                  : "À définir"}
+            </dd>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Lieu</dt>
+            <dd className="mt-0.5 font-medium">
+              {liveBudget.destinationName
+                ? `${liveBudget.destinationName}${liveBudget.country ? ` · ${liveBudget.country}` : ""}`
+                : "Destination à choisir"}
+            </dd>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Budget / pers.</dt>
+            <dd className="mt-0.5 font-semibold text-primary">
+              {liveBudget.total > 0
+                ? `~${formatEuro(liveBudget.total)}`
+                : liveBudget.baseBudget > 0
+                  ? `cible ${formatEuro(liveBudget.baseBudget)}`
+                  : "—"}
+            </dd>
+          </div>
+          <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Groupe</dt>
+            <dd className="mt-0.5 font-medium">
+              {trip.participants_count || participants.length || "?"} pers.
+              {liveBudget.topHotelName ? ` · hôtel : ${liveBudget.topHotelName}` : ""}
+            </dd>
+          </div>
+        </dl>
+
+        {liveBudget.total > 0 ? (
+          <ul className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <li className="rounded-full border border-border px-2.5 py-1">
+              Transport ~{formatEuro(liveBudget.transport)}
+            </li>
+            <li className="rounded-full border border-border px-2.5 py-1">
+              Héberg. ~{formatEuro(liveBudget.accommodation)}
+            </li>
+            <li className="rounded-full border border-border px-2.5 py-1">
+              Activités ~{formatEuro(liveBudget.activities)}
+            </li>
+            <li className="rounded-full border border-border px-2.5 py-1">
+              Repas ~{formatEuro(liveBudget.food)}
+            </li>
+            {liveBudget.transportPicksCount > 0 ? (
+              <li className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-primary">
+                {liveBudget.transportPicksCount} trajet(s) choisi(s)
+              </li>
+            ) : null}
+          </ul>
+        ) : null}
+      </section>
+
+
 
       <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5" id="hub-dates">
         <div className="flex flex-wrap items-center justify-between gap-2">
