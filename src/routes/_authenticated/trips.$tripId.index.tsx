@@ -191,7 +191,9 @@ function TripDetail() {
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 120)),
   });
   const regenerateMutation = useMutation({
-    mutationFn: () => regenerate({ data: { tripId, force: false } }),
+    // force: true en phase test — l'orga peut générer même si checklist incomplète
+    mutationFn: (force?: boolean) =>
+      regenerate({ data: { tripId, force: force !== false } }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
@@ -476,7 +478,7 @@ function TripDetail() {
               variant="hero"
               size="lg"
               onClick={() => regenerateMutation.mutate()}
-              disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : true)}
+              disabled={regenerateMutation.isPending}
               title={
                 readiness && !readiness.canGenerate
                   ? readiness.message ?? "Complète dispos, préférences et valide les dates"
@@ -493,7 +495,8 @@ function TripDetail() {
           </div>
           {readiness && !readiness.canGenerate ? (
             <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
-              {readiness.message}
+              Mode test : génération possible même si la checklist n&apos;est pas complète
+              {readiness.message ? ` (${readiness.message})` : ""}.
             </p>
           ) : readiness?.canGenerate ? (
             <p className="mt-3 text-sm text-lagoon">
@@ -519,7 +522,7 @@ function TripDetail() {
             <Button
               variant="hero"
               onClick={() => regenerateMutation.mutate()}
-              disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)}
+              disabled={regenerateMutation.isPending}
               title={
                 readiness && !readiness.canGenerate
                   ? readiness.message ?? "Questionnaires incomplets"
@@ -538,9 +541,7 @@ function TripDetail() {
         {recommendations.length === 0 ? (
           <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {data.isOwner
-              ? readiness?.canGenerate
-                ? "Prêt : clique sur « Générer les propositions » pour lancer Krew."
-                : "Complète les questionnaires et valide les dates pour générer des destinations."
+              ? "Clique sur « Générer les propositions » pour tester les destinations Krew (mode test : force activé)."
               : "L'organisateur générera bientôt les propositions de destinations."}
           </p>
         ) : (
