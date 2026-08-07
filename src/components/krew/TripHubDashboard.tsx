@@ -89,12 +89,12 @@ export function TripHubDashboard({
     } catch {
       toast.message("Lien d'invitation", { description: url || `/join/${tripId}` });
     }
-    // Scroller vers la section invite en bas de la page hub
+    // Scroller vers la section invite en bas de la page Mon Voyage
     const el = document.getElementById("invite-section");
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
-      // Si on n'est pas sur le hub, aller sur le hub avec ancre
+      // Si on n'est pas sur Mon Voyage, aller sur Mon Voyage avec ancre
       window.location.href = `/trips/${tripId}#invite-section`;
     }
   }
@@ -196,8 +196,10 @@ export function TripHubDashboard({
           },
           {
             to: "/trips/$tripId/star" as const,
-            title: "Star",
-            desc: trip.celebrated_person || "Si applicable",
+            title: "Préférences de la star",
+            desc: trip.celebrated_person
+              ? `Questionnaire dédié · ${trip.celebrated_person}`
+              : "Questionnaire dédié à la personne principale",
             icon: Star,
             mineDone: false,
             hide: !(
@@ -275,7 +277,7 @@ export function TripHubDashboard({
       <section className="space-y-3">
         <h2 className="font-display text-xl font-semibold">Après la destination</h2>
         <p className="text-sm text-muted-foreground">
-          Le hub reste le centre de vie du voyage. Modules prêts à activer.
+          Mon Voyage reste le centre de vie du séjour. Modules prêts à activer.
         </p>
         <ComingSoonGrid />
       </section>
