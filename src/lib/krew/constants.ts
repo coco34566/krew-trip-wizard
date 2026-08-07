@@ -99,6 +99,7 @@ export const DIETARY_OPTIONS = [
 ] as const;
 
 export const TRIP_STATUS_LABELS: Record<string, string> = {
+  annule: "Annulé",
   brouillon: "Brouillon",
   en_preparation: "En préparation",
   propositions: "Propositions prêtes",
