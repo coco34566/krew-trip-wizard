@@ -398,32 +398,16 @@ function TripDetail() {
     onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 120)),
   });
 
-  if (isLoading || !data) {
-    return (
-      <main className="mx-auto max-w-5xl space-y-4 px-4 py-10">
-        <Skeleton className="h-10 w-2/3" />
-        <Skeleton className="h-64 rounded-3xl" />
-      </main>
-    );
-  }
 
-  const trip = data.trip;
-  const recommendations = data.recommendations as unknown as Recommendation[];
-  const activities = data.activities as { id: string; name: string; category: string; price_per_person: number; rating: number }[];
-  const votes = data.votes as { recommendation_id: string; user_id: string }[];
-  const activityVotes = ((data as any).activityVotes ?? []) as {
-    activity_id: string;
-    user_id: string;
-  }[];
-  const selectedActivityIds = new Set<string>(
-    ((trip as any).selected_activity_ids ?? []) as string[],
-  );
-
-  const destinationSelected = recommendations.some((r) => r.is_selected);
-  const selectedReco = recommendations.find((r) => r.is_selected);
-  const logistics = ((trip as any).group_logistics || {}) as any;
+  const tripPreview = data?.trip as any;
+  const recommendationsPreview = (data?.recommendations ?? []) as any[];
+  const selectedRecoPreview = recommendationsPreview.find((r: any) => r.is_selected);
+  const logisticsPreview = (tripPreview?.group_logistics || {}) as any;
 
   const liveBudget = useMemo(() => {
+    const trip = tripPreview || {};
+    const selectedReco = selectedRecoPreview;
+    const logistics = logisticsPreview;
     const b = selectedReco?.budget as any;
     const nights = (() => {
       if (trip.start_date && trip.end_date) {
@@ -441,42 +425,33 @@ function TripDetail() {
     let activities = Number(b?.activities ?? 0);
     let food = Number(b?.food ?? 0);
 
-    // Hôtel voté → maj hébergement
     const hotels = (logistics.hotels ?? []) as any[];
     const topHotelId = logistics.selectedHotelId as string | null;
     if (topHotelId) {
-      const h = hotels.find((x) => x.id === topHotelId);
+      const h = hotels.find((x: any) => x.id === topHotelId);
       if (h?.totalEstimate != null) accommodation = Number(h.totalEstimate);
       else if (h?.pricePerNight != null) accommodation = Number(h.pricePerNight) * nights;
     }
 
-    // Transports choisis par les participants → moyenne
     const picks = (logistics.transportPicks ?? []) as any[];
     if (picks.length) {
       const prices = picks
-        .map((p) => Number(p.pricePerPerson))
-        .filter((n) => Number.isFinite(n) && n > 0);
+        .map((p: any) => Number(p.pricePerPerson))
+        .filter((n: number) => Number.isFinite(n) && n > 0);
       if (prices.length) {
-        transport = Math.round(prices.reduce((a, c) => a + c, 0) / prices.length);
+        transport = Math.round(prices.reduce((a: number, c: number) => a + c, 0) / prices.length);
       }
     }
 
-    // Créneaux planning → approx activités/restos si présents
-    const days = ((trip as any).group_itinerary?.days ?? []) as any[];
+    const days = (trip.group_itinerary?.days ?? []) as any[];
     if (days.length) {
       let actSum = 0;
-      let actN = 0;
       for (const d of days) {
         for (const s of d.slots ?? []) {
-          if (s.priceHint != null && Number(s.priceHint) > 0) {
-            actSum += Number(s.priceHint);
-            actN += 1;
-          }
+          if (s.priceHint != null && Number(s.priceHint) > 0) actSum += Number(s.priceHint);
         }
       }
-      if (actN > 0) {
-        // redistribue: restos ~ food, reste activities
-        const avgDay = actSum; // total tips sur le séjour déjà sum of hints
+      if (actSum > 0) {
         food = Math.round(actSum * 0.45);
         activities = Math.round(actSum * 0.55);
       }
@@ -487,7 +462,6 @@ function TripDetail() {
       Math.round(accommodation) +
       Math.round(activities) +
       Math.round(food);
-    const baseBudget = Number(trip.budget_per_person) || 0;
 
     return {
       transport: Math.round(transport),
@@ -495,25 +469,24 @@ function TripDetail() {
       activities: Math.round(activities),
       food: Math.round(food),
       total,
-      baseBudget,
+      baseBudget: Number(trip.budget_per_person) || 0,
       destinationName: selectedReco?.destinations?.name ?? null,
       country: selectedReco?.destinations?.country ?? null,
       topHotelName: topHotelId
-        ? hotels.find((x) => x.id === topHotelId)?.name ?? null
+        ? hotels.find((x: any) => x.id === topHotelId)?.name ?? null
         : null,
       transportPicksCount: picks.length,
       nights,
     };
-  }, [selectedReco, logistics, trip]);
+  }, [tripPreview, selectedRecoPreview, logisticsPreview]);
 
   function buildWhatsAppSummary() {
+    const trip = tripPreview || {};
     const lines: string[] = [
-      `Salut ! On organise « ${trip.name} » avec Krew ✈️`,
+      `Salut ! On organise « ${trip.name || "notre voyage"} » avec Krew ✈️`,
       "",
     ];
-    if (trip.event_type) {
-      lines.push(`Type : ${String(trip.event_type).replace(/_/g, " ")}`);
-    }
+    if (trip.event_type) lines.push(`Type : ${String(trip.event_type).replace(/_/g, " ")}`);
     if (liveBudget.destinationName) {
       lines.push(
         `Lieu : ${liveBudget.destinationName}${liveBudget.country ? ` (${liveBudget.country})` : ""}`,
@@ -531,9 +504,7 @@ function TripDetail() {
       });
       lines.push(`Dates : ${a} → ${b}`);
     } else if (trip.start_date) {
-      lines.push(
-        `Date : ${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")}`,
-      );
+      lines.push(`Date : ${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")}`);
     }
     if (liveBudget.total > 0) {
       lines.push(`Budget estimé : ~${liveBudget.total} € / pers.`);
@@ -543,17 +514,39 @@ function TripDetail() {
     } else if (liveBudget.baseBudget > 0) {
       lines.push(`Budget cible : ${liveBudget.baseBudget} € / pers.`);
     }
-    if (liveBudget.topHotelName) {
-      lines.push(`Hôtel plébiscité : ${liveBudget.topHotelName}`);
-    }
+    if (liveBudget.topHotelName) lines.push(`Hôtel plébiscité : ${liveBudget.topHotelName}`);
     lines.push("");
-    lines.push(`Rejoins le groupe et indique tes dispos ici :`);
-    lines.push(typeof window !== "undefined" ? `${window.location.origin}/join/${trip.id}` : "");
-    return lines.filter(Boolean).join("\n");
+    lines.push("Rejoins le groupe et indique tes dispos ici :");
+    if (typeof window !== "undefined" && trip.id) {
+      lines.push(`${window.location.origin}/join/${trip.id}`);
+    }
+    return lines.join("\n");
   }
 
+  if (isLoading || !data) {
+    return (
+      <main className="mx-auto max-w-5xl space-y-4 px-4 py-10">
+        <Skeleton className="h-10 w-2/3" />
+        <Skeleton className="h-64 rounded-3xl" />
+      </main>
+    );
+  }
 
-  const participants = data.participants as { id: string; email: string; display_name: string | null; status: string }[];
+  const trip = data.trip;
+  const destinationSelected = recommendations.some((r) => r.is_selected);
+  const selectedReco = recommendations.find((r) => r.is_selected);
+  const logistics = ((trip as any).group_logistics || {}) as any;
+  const recommendations = data.recommendations as unknown as Recommendation[];
+  const activities = data.activities as { id: string; name: string; category: string; price_per_person: number; rating: number }[];
+  const votes = data.votes as { recommendation_id: string; user_id: string }[];
+  const activityVotes = ((data as any).activityVotes ?? []) as {
+    activity_id: string;
+    user_id: string;
+  }[];
+  const selectedActivityIds = new Set<string>(
+    ((trip as any).selected_activity_ids ?? []) as string[],
+  );
+
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
@@ -1450,12 +1443,10 @@ function TripDetail() {
               type="button"
               className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
               onClick={() => {
-                const text =
-                  `Salut ! On organise « ${data.trip.name} » avec Krew ✈️\n\n` +
-                  `Clique ici pour rejoindre et indiquer tes dispos :\n${shareUrl}`;
+                const text = buildWhatsAppSummary();
                 const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
                 window.open(url, "_blank", "noopener,noreferrer");
-              }}
+              }
             >
               WhatsApp
             </Button>
