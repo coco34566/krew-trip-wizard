@@ -1,10 +1,8 @@
 /**
  * Moteur de recommandation Krew.
  *
- * Fonctions pures : elles reçoivent un catalogue (issu de la base ou d'une API
- * externe via `providers.server.ts`) et le contexte du groupe, puis produisent
- * des propositions scorées. Aucune dépendance réseau ici → testable et
- * réutilisable côté serveur comme côté client.
+ * Fonctions pures : elles reçoivent un catalogue (base + APIs) et le contexte
+ * du groupe, puis produisent des propositions scorées.
  */
 import { AMBIANCE_SCORE_COLUMN, type Ambiance } from "./constants";
 
@@ -72,6 +70,8 @@ export type ScoringContext = {
   letKrewDecide: boolean;
   needsCityCenter: boolean;
   startMonth: number;
+  /** Prix transport A/R / pers par destination_id (Kayak). Si absent → estimation. */
+  transportByDestinationId?: Record<string, number>;
 };
 
 export type ItineraryDay = {
@@ -110,7 +110,7 @@ const norm = (s: string) =>
     .toLowerCase()
     .trim();
 
-/** Coût transport estimé A/R par personne depuis la distance. */
+/** Coût transport estimé A/R par personne depuis la distance (fallback). */
 export function estimateTransport(distanceKm: number): number {
   if (distanceKm <= 350) return 45;
   if (distanceKm <= 900) return 90;
@@ -130,7 +130,9 @@ function ambianceScore(dest: DestinationRecord, ambiances: string[]): number {
 function seasonScore(dest: DestinationRecord, month: number): number {
   if (!dest.best_months?.length) return 0.6;
   if (dest.best_months.includes(month)) return 1;
-  const distance = Math.min(...dest.best_months.map((m) => Math.min(Math.abs(m - month), 12 - Math.abs(m - month))));
+  const distance = Math.min(
+    ...dest.best_months.map((m) => Math.min(Math.abs(m - month), 12 - Math.abs(m - month))),
+  );
   return clamp(1 - distance * 0.22, 0.15, 1);
 }
 
@@ -171,9 +173,17 @@ function buildItinerary(
   for (let day = 1; day <= days; day++) {
     const slots: ItineraryDay["slots"] = [];
     if (day === 1) {
-      slots.push({ moment: "Matin", label: `Arrivée à ${destination.name}`, detail: "Transfert et dépôt des bagages" });
+      slots.push({
+        moment: "Matin",
+        label: `Arrivée à ${destination.name}`,
+        detail: "Transfert et dépôt des bagages",
+      });
       if (accommodation) {
-        slots.push({ moment: "Après-midi", label: `Check-in — ${accommodation.name}`, detail: accommodation.description ?? undefined });
+        slots.push({
+          moment: "Après-midi",
+          label: `Check-in — ${accommodation.name}`,
+          detail: accommodation.description ?? undefined,
+        });
       }
     }
     const perDay = day === days ? 1 : 2;
@@ -188,7 +198,11 @@ function buildItinerary(
       });
     }
     if (day === days) {
-      slots.push({ moment: "Fin de journée", label: "Brunch de clôture puis retour", detail: "Départ groupé vers l'aéroport / la gare" });
+      slots.push({
+        moment: "Fin de journée",
+        label: "Brunch de clôture puis retour",
+        detail: "Départ groupé vers l'aéroport / la gare",
+      });
     }
     itinerary.push({
       day,
@@ -223,8 +237,13 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       });
     const accommodation = accommodations[0] ?? null;
 
-    const transport = estimateTransport(destination.distance_from_paris_km);
-    const lodging = (accommodation?.price_per_night_per_person ?? destination.avg_daily_cost * 0.4) * ctx.nights;
+    // Transport : Kayak si dispo, sinon estimation distance
+    const transport =
+      ctx.transportByDestinationId?.[destination.id] ??
+      estimateTransport(destination.distance_from_paris_km);
+
+    const lodging =
+      (accommodation?.price_per_night_per_person ?? destination.avg_daily_cost * 0.4) * ctx.nights;
     const food = destination.avg_daily_cost * 0.4 * (ctx.nights + 1);
     const budgetForActivities = Math.max(40, ctx.budgetPerPerson - transport - lodging - food);
 
@@ -249,41 +268,52 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     };
 
     // --- Scoring pondéré ---
-    const sAmbiance = ambianceScore(destination, ctx.ambiances); // 30
+    const sAmbiance = ambianceScore(destination, ctx.ambiances);
     const wanted = ctx.activityCategories;
     const available = new Set(
       catalog.activities.filter((a) => a.destination_id === destination.id).map((a) => a.category),
     );
     const sActivities = wanted.length
       ? wanted.filter((c) => available.has(c)).length / wanted.length
-      : 0.6; // 20
+      : 0.6;
     const ratio = totalPerPerson / Math.max(1, ctx.budgetPerPerson);
-    const sBudget = ratio <= 1 ? clamp(0.7 + (1 - ratio) * 0.6) : clamp(1 - (ratio - 1) * 1.8); // 25
-    const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm)); // 10
-    const sSeason = seasonScore(destination, ctx.startMonth); // 10
-    const sQuality = clamp((destination.rating - 3.5) / 1.5) * 0.6 + destination.popularity * 0.4; // 5
+    const sBudget = ratio <= 1 ? clamp(0.7 + (1 - ratio) * 0.6) : clamp(1 - (ratio - 1) * 1.8);
+    const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm));
+    const sSeason = seasonScore(destination, ctx.startMonth);
+    const sQuality = clamp((destination.rating - 3.5) / 1.5) * 0.6 + destination.popularity * 0.4;
 
     let score =
       sAmbiance * 30 + sActivities * 20 + sBudget * 25 + sDistance * 10 + sSeason * 10 + sQuality * 5;
 
     if (!ctx.letKrewDecide && desired) {
-      const matches = norm(destination.name).includes(desired) || norm(destination.country).includes(desired);
+      const matches =
+        norm(destination.name).includes(desired) || norm(destination.country).includes(desired);
       score += matches ? 35 : -25;
     }
 
     const matchReasons: string[] = [];
     if (sAmbiance > 0.7) matchReasons.push("Colle parfaitement à l'ambiance recherchée par le groupe");
-    if (sActivities >= 0.75) matchReasons.push("Toutes les catégories d'activités demandées sont disponibles sur place");
-    if (budget.fits) matchReasons.push(`Budget respecté : ${Math.round(totalPerPerson)} € / pers. sur ${ctx.budgetPerPerson} €`);
-    else matchReasons.push(`Léger dépassement de budget (+${Math.round(totalPerPerson - ctx.budgetPerPerson)} € / pers.)`);
+    if (sActivities >= 0.75)
+      matchReasons.push("Toutes les catégories d'activités demandées sont disponibles sur place");
+    if (budget.fits)
+      matchReasons.push(
+        `Budget respecté : ${Math.round(totalPerPerson)} € / pers. sur ${ctx.budgetPerPerson} €`,
+      );
+    else
+      matchReasons.push(
+        `Léger dépassement de budget (+${Math.round(totalPerPerson - ctx.budgetPerPerson)} € / pers.)`,
+      );
     if (sSeason >= 0.9) matchReasons.push("Période idéale côté météo et saisonnalité");
-    if (destination.distance_from_paris_km <= 900) matchReasons.push("Trajet court : plus de temps sur place, moins de fatigue");
+    if (destination.distance_from_paris_km <= 900)
+      matchReasons.push("Trajet court : plus de temps sur place, moins de fatigue");
     if (accommodation && accommodation.capacity >= ctx.participants)
       matchReasons.push(`Hébergement unique pour ${ctx.participants} personnes (${accommodation.type})`);
+    if (ctx.transportByDestinationId?.[destination.id] != null)
+      matchReasons.push(`Transport estimé via Kayak : ${Math.round(transport)} € A/R / pers.`);
 
     const rationale = `${destination.name} sort en tête pour un groupe de ${ctx.participants} personnes : ${
       destination.description ?? ""
-    } Le rapport ambiance / budget / distance est le meilleur du catalogue Krew pour vos critères.`;
+    } Le rapport ambiance / budget / distance est le meilleur pour vos critères.`;
 
     return {
       destination,
