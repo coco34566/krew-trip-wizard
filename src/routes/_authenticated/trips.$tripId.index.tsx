@@ -576,6 +576,7 @@ function TripDetail() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <TripHubDashboard
+        viewerUserId={data.userId}
         tripId={tripId}
         trip={trip}
         isOwner={data.isOwner}
