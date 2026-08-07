@@ -107,13 +107,32 @@ export const createTrip = createServerFn({ method: "POST" })
     });
     if (prefs.error) throw prefs.error;
 
+    const organizerName = (data as any).organizerFirstName
+      ? String((data as any).organizerFirstName).trim()
+      : null;
+
     await supabase.from("trip_participants").insert({
       trip_id: trip.data.id,
       user_id: userId,
       email: (context.claims.email as string | undefined) ?? "",
-      display_name: null,
+      display_name: organizerName,
+      role: "organisateur",
       status: "accepte",
     });
+
+    // Optionnel : synchronise le prénom sur le profil
+    if (organizerName) {
+      try {
+        await supabase
+          .from("profiles")
+          .upsert(
+            { id: userId, full_name: organizerName, updated_at: new Date().toISOString() },
+            { onConflict: "id" },
+          );
+      } catch {
+        /* ignore */
+      }
+    }
 
     return { tripId: trip.data.id as string };
   });
@@ -321,11 +340,19 @@ export const getJoinPreview = createServerFn({ method: "GET" })
  */
 export const joinTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        firstName: z.string().min(1).max(80).optional(),
+      })
+      .parse(data),
+  )
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
     const email = (typeof claims?.email === "string" ? claims.email : "").trim().toLowerCase();
     if (!email) throw new Error("Email de compte manquant — reconnecte-toi.");
+    const firstName = data.firstName?.trim() || null;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -338,6 +365,13 @@ export const joinTrip = createServerFn({ method: "POST" })
     if (!trip.data) throw new Error("Voyage introuvable");
 
     if (trip.data.owner_id === userId) {
+      if (firstName) {
+        await supabaseAdmin
+          .from("trip_participants")
+          .update({ display_name: firstName })
+          .eq("trip_id", data.tripId)
+          .eq("user_id", userId);
+      }
       return { tripId: data.tripId, alreadyMember: true, isOwner: true };
     }
 
@@ -359,13 +393,27 @@ export const joinTrip = createServerFn({ method: "POST" })
     const existing = byUser.data ? byUser : byEmail;
 
     if (existing.data) {
+      const patch: Record<string, unknown> = { user_id: userId, email, status: "accepte" };
+      if (firstName) patch.display_name = firstName;
       const updated = await supabaseAdmin
         .from("trip_participants")
-        .update({ user_id: userId, email, status: "accepte" })
+        .update(patch)
         .eq("id", existing.data.id)
         .select("id")
         .single();
       if (updated.error) throw updated.error;
+      if (firstName) {
+        try {
+          await supabaseAdmin
+            .from("profiles")
+            .upsert(
+              { id: userId, full_name: firstName, updated_at: new Date().toISOString() },
+              { onConflict: "id" },
+            );
+        } catch {
+          /* ignore */
+        }
+      }
       return { tripId: data.tripId, alreadyMember: true, isOwner: false };
     }
 
@@ -375,12 +423,26 @@ export const joinTrip = createServerFn({ method: "POST" })
         trip_id: data.tripId,
         user_id: userId,
         email,
+        display_name: firstName,
         status: "accepte",
         role: "membre",
       })
       .select("id")
       .single();
     if (inserted.error) throw inserted.error;
+
+    if (firstName) {
+      try {
+        await supabaseAdmin
+          .from("profiles")
+          .upsert(
+            { id: userId, full_name: firstName, updated_at: new Date().toISOString() },
+            { onConflict: "id" },
+          );
+      } catch {
+        /* ignore */
+      }
+    }
 
     return { tripId: data.tripId, alreadyMember: false, isOwner: false };
   });
