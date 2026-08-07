@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   getTripDetail,
   generateRecommendations,
+  getCostSplit,
   inviteParticipant,
   removeParticipant,
   selectRecommendation,
@@ -24,6 +25,7 @@ import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
 import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { cn } from "@/lib/utils";
+import { CostSplitCard } from "@/components/krew/CostSplitCard";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId")({
   head: () => ({
@@ -63,6 +65,13 @@ function TripDetail() {
   const regenerate = useServerFn(generateRecommendations);
   const fetchProgress = useServerFn(getParticipantsProgress);
   const searchExternal = useServerFn(searchExternalForTrip);
+  const fetchSplit = useServerFn(getCostSplit);
+  const { data: costSplitData } = useQuery({
+    queryKey: ["cost-split", tripId],
+    queryFn: () => fetchSplit({ data: { tripId } }),
+    enabled: Boolean(tripId),
+    retry: false,
+  });
   const [email, setEmail] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
   const shareUrl = useMemo(() => {
@@ -217,6 +226,12 @@ function TripDetail() {
           ) : null}
         </div>
       </div>
+
+      {costSplitData?.isSelected && costSplitData.split ? (
+        <section className="mt-10">
+          <CostSplitCard split={costSplitData.split} tripName={trip.name} />
+        </section>
+      ) : null}
 
       <section className="mt-10 space-y-6">
         <h2 className="font-display text-2xl font-semibold">Les propositions de Krew</h2>
