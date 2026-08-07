@@ -1,17 +1,35 @@
 /**
  * Fournisseurs hôtels + activités via RapidAPI.
- * Booking = provider principal logements.
- * TripAdvisor = activités.
+ *
+ * Hosts par défaut = APIs souscrites côté Krew :
+ * - booking-com15.p.rapidapi.com
+ * - hotels-com6.p.rapidapi.com
+ * - expedia13.p.rapidapi.com
+ * - tripadvisor16.p.rapidapi.com
+ *
+ * Une seule clé : HOTELS_RAPIDAPI_KEY (RapidAPI Application Key).
  */
 
 export type ProviderConfig = {
   rapidApiKey: string;
   hotelsHost?: string | undefined;
   bookingHost?: string | undefined;
+  hotelsComHost?: string | undefined;
+  expediaHost?: string | undefined;
   kayakHost?: string | undefined;
   tripadvisorHost?: string | undefined;
   klookHost?: string | undefined;
 };
+
+/** Hosts par défaut (surchargeables via env Lovable). */
+export const DEFAULT_RAPIDAPI_HOSTS = {
+  booking: "booking-com15.p.rapidapi.com",
+  hotelsCom: "hotels-com6.p.rapidapi.com",
+  expedia: "expedia13.p.rapidapi.com",
+  tripadvisor: "tripadvisor16.p.rapidapi.com",
+  kayakSearch: "kayak-search.p.rapidapi.com",
+  kiwi: "kiwi-com-cheap-flights.p.rapidapi.com",
+} as const;
 
 export type PriceOffer = {
   provider: string;
@@ -162,9 +180,11 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
   const key = cfg.rapidApiKey;
   const sources: HotelSource[] = [];
 
-  const bookingHost = cfg.bookingHost || "booking-com15.p.rapidapi.com";
+  const bookingHost = cfg.bookingHost || DEFAULT_RAPIDAPI_HOSTS.booking;
+  const hotelsComHost = cfg.hotelsComHost || cfg.hotelsHost || DEFAULT_RAPIDAPI_HOSTS.hotelsCom;
+  const expediaHost = cfg.expediaHost || DEFAULT_RAPIDAPI_HOSTS.expedia;
 
-  // Booking principal : searchDestination → searchHotels
+  // ——— Booking.com (principal) ———
   sources.push({
     provider: "booking.com",
     run: async (p) => {
@@ -225,6 +245,97 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
           return normalizeHotel(raw, "booking.com");
         })
         .filter((h): h is HotelOffer => Boolean(h));
+    },
+  });
+
+  // ——— Hotels.com ———
+  sources.push({
+    provider: "hotels.com",
+    run: async (p) => {
+      // 1) résolution région / destination
+      const locPayload = await rapid(hotelsComHost, key, "/hotels/search", {
+        query: p.destination,
+        locale: "fr_FR",
+        ...(p.checkin ? { checkin_date: p.checkin } : {}),
+        ...(p.checkout ? { checkout_date: p.checkout } : {}),
+        adults_number: String(Math.min(Math.max(1, p.adults), 8)),
+        domain: "FR",
+        sort_order: "PRICE_LOW_TO_HIGH",
+      }).catch(async () => {
+        // Variante locations puis search
+        const regions = await rapid(hotelsComHost, key, "/regions", {
+          query: p.destination,
+          locale: "fr_FR",
+          domain: "FR",
+        });
+        const regionId =
+          regions?.data?.[0]?.gaiaId ??
+          regions?.data?.[0]?.id ??
+          regions?.data?.[0]?.value ??
+          regions?.suggestions?.[0]?.entities?.[0]?.destinationId;
+        if (!regionId) throw new Error(`Hotels.com: région introuvable pour "${p.destination}"`);
+        return rapid(hotelsComHost, key, "/hotels/search", {
+          region_id: String(regionId),
+          locale: "fr_FR",
+          domain: "FR",
+          adults_number: String(Math.min(Math.max(1, p.adults), 8)),
+          sort_order: "PRICE_LOW_TO_HIGH",
+          ...(p.checkin ? { checkin_date: p.checkin } : {}),
+          ...(p.checkout ? { checkout_date: p.checkout } : {}),
+        });
+      });
+
+      return pickArray(locPayload)
+        .map((h) => normalizeHotel(h?.property ? { ...h.property, ...h } : h, "hotels.com"))
+        .filter((h): h is HotelOffer => Boolean(h));
+    },
+  });
+
+  // ——— Expedia ———
+  sources.push({
+    provider: "expedia",
+    run: async (p) => {
+      // Essais de paths courants sur expedia13 RapidAPI
+      const attempts: Array<() => Promise<any>> = [
+        () =>
+          rapid(expediaHost, key, "/hotels/search", {
+            query: p.destination,
+            adults: String(Math.min(Math.max(1, p.adults), 8)),
+            currency: "EUR",
+            locale: "fr_FR",
+            ...(p.checkin ? { checkin: p.checkin } : {}),
+            ...(p.checkout ? { checkout: p.checkout } : {}),
+          }),
+        () =>
+          rapid(expediaHost, key, "/api/v1/hotels/search", {
+            destination: p.destination,
+            adults: String(Math.min(Math.max(1, p.adults), 8)),
+            currency: "EUR",
+            ...(p.checkin ? { checkIn: p.checkin } : {}),
+            ...(p.checkout ? { checkOut: p.checkout } : {}),
+          }),
+        () =>
+          rapid(expediaHost, key, "/search_hotels", {
+            destination: p.destination,
+            adults: String(Math.min(Math.max(1, p.adults), 8)),
+            ...(p.checkin ? { start_date: p.checkin } : {}),
+            ...(p.checkout ? { end_date: p.checkout } : {}),
+          }),
+      ];
+
+      let lastErr: unknown;
+      for (const attempt of attempts) {
+        try {
+          const payload = await attempt();
+          const hotels = pickArray(payload)
+            .map((h) => normalizeHotel(h, "expedia"))
+            .filter((h): h is HotelOffer => Boolean(h));
+          if (hotels.length) return hotels;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      throw lastErr ?? new Error(`Expedia: aucun résultat pour "${p.destination}"`);
     },
   });
 
@@ -299,7 +410,7 @@ export async function searchActivitiesAllProviders(cfg: ProviderConfig, params: 
     };
   };
 
-  const tripadvisorHost = cfg.tripadvisorHost || "tripadvisor16.p.rapidapi.com";
+  const tripadvisorHost = cfg.tripadvisorHost || DEFAULT_RAPIDAPI_HOSTS.tripadvisor;
   try {
     const payload = await rapid(tripadvisorHost, key, "/api/v1/attractions/searchAttractions", {
       latitude: String(params.latitude),
