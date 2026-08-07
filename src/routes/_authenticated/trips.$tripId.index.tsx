@@ -36,7 +36,6 @@ import {
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
-import { getStarPreferences } from "@/lib/star-preferences.functions";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
@@ -121,13 +120,7 @@ function TripDetail() {
     enabled: Boolean(tripId),
     retry: false,
   });
-  const fetchStar = useServerFn(getStarPreferences);
-  const { data: starData } = useQuery({
-    queryKey: ["star-prefs", tripId],
-    queryFn: () => fetchStar({ data: { tripId } }),
-    enabled: Boolean(tripId),
-    retry: false,
-  });
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey });
     queryClient.invalidateQueries({ queryKey: progressQueryKey });
@@ -192,13 +185,23 @@ function TripDetail() {
     mutationFn: () => regenerate({ data: { tripId, force: false } }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       if (res?.skipped) {
         toast.error(res?.readiness?.message ?? "Pas assez de réponses pour générer");
+      } else if ((res?.count ?? 0) === 0) {
+        toast.warning(
+          res?.providerErrors?.length
+            ? `Aucune proposition (${res.providerErrors[0]})`
+            : "Aucune proposition générée — réessaie ou élargis les critères",
+        );
       } else {
-        toast.success("Nouvelles propositions générées");
+        toast.success(`${res.count} proposition(s) générée(s)`);
+        document.getElementById("hub-destination")?.scrollIntoView({ behavior: "smooth" });
       }
       refresh();
     },
+    onError: (e: any) =>
+      toast.error(String(e?.message ?? "Erreur lors de la génération").slice(0, 160)),
   });
 
   const searchExternalMutation = useMutation({
@@ -287,7 +290,6 @@ function TripDetail() {
         provisionalCoverage={availData?.windows?.[0]?.coverageRatio}
         myAvailabilityDone={Boolean(availData?.mine)}
         myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
-        starDone={Boolean(starData?.preferences)}
         hasRecommendations={recommendations.length > 0}
         destinationSelected={recommendations.some((r) => r.is_selected)}
         topScores={recommendations.slice(0, 3).map((r) => ({
@@ -520,43 +522,48 @@ function TripDetail() {
       </section>
 
 
-      {(trip.celebrated_person ||
-        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
-        <section className="mt-6 space-y-3 rounded-3xl border border-border bg-card p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
-            <a
-              href={`/trips/${tripId}/star`}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              {starData?.preferences ? "Modifier" : "Remplir"} →
-            </a>
-          </div>
-          {starData?.preferences ? (
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <p>
-                <span className="font-medium text-foreground">
-                  {trip.celebrated_person || "Personne principale"}
-                </span>{" "}
-                — questionnaire enregistré
+
+      
+      {/* CTA génération destinations */}
+      {data.isOwner ? (
+        <section className="mt-8 rounded-3xl border border-primary/30 bg-primary/5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Suggestions de destinations</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Basées sur les préférences du groupe + la date validée.
               </p>
-              {(starData.preferences.wantedActivities?.length ?? 0) > 0 ? (
-                <p>✅ Envies : {starData.preferences.wantedActivities.join(", ")}</p>
-              ) : null}
-              {(starData.preferences.dealBreakers?.length ?? 0) > 0 ? (
-                <p>⛔ À éviter : {starData.preferences.dealBreakers.join(", ")}</p>
-              ) : null}
-              {(starData.preferences.ambiances?.length ?? 0) > 0 ? (
-                <p>✨ Ambiances : {starData.preferences.ambiances.join(", ")}</p>
-              ) : null}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Pas encore rempli — ce questionnaire pèse plus fort dans les suggestions Krew.
+            <Button
+              variant="hero"
+              size="lg"
+              onClick={() => regenerateMutation.mutate()}
+              disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : true)}
+              title={
+                readiness && !readiness.canGenerate
+                  ? readiness.message ?? "Complète dispos, préférences et valide les dates"
+                  : undefined
+              }
+            >
+              {regenerateMutation.isPending ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <Sparkles />
+              )}
+              Générer les propositions
+            </Button>
+          </div>
+          {readiness && !readiness.canGenerate ? (
+            <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+              {readiness.message}
             </p>
-          )}
+          ) : readiness?.canGenerate ? (
+            <p className="mt-3 text-sm text-lagoon">
+              Prêt — le scoring utilisera les budgets, ambiances, hébergements, villes de départ et la date verrouillée.
+            </p>
+          ) : null}
         </section>
-      )}
+      ) : null}
 
 
       <section id="hub-destination" className="mt-10 space-y-6">
