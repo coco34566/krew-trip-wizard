@@ -330,28 +330,45 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const [participants, preferences] = await Promise.all([
-      supabase.from("trip_participants").select("id, user_id, email, display_name, status").eq("trip_id", data.tripId),
+    const [tripRes, participants, preferences] = await Promise.all([
+      supabase.from("trips").select("participants_count").eq("id", data.tripId).maybeSingle(),
+      supabase
+        .from("trip_participants")
+        .select("id, user_id, email, display_name, status")
+        .eq("trip_id", data.tripId),
       supabase
         .from("trip_participant_preferences")
         .select("user_id, submitted_at, updated_at")
         .eq("trip_id", data.tripId),
     ]);
+    if (tripRes.error) throw tripRes.error;
     if (participants.error) throw participants.error;
-    if (preferences.error) throw preferences.error;
 
+    const prefRows = preferences.error ? [] : (preferences.data ?? []);
     const prefMap = new Map<string, any>();
-    for (const p of (preferences.data ?? []) as any[]) {
-      prefMap.set(p.user_id, p);
+    for (const p of prefRows as any[]) {
+      if (p.user_id) prefMap.set(p.user_id, p);
     }
 
+    const joined = participants.data?.length ?? 0;
+    const expected = Math.max(Number(tripRes.data?.participants_count) || 0, joined, 1);
+    const answered = prefMap.size;
+
     return {
-      total: participants.data?.length ?? 0,
-      answered: prefMap.size,
+      joined,
+      expected,
+      total: expected,
+      answered,
+      pendingPrefs: Math.max(expected - answered, 0),
+      pendingJoin: Math.max(expected - joined, 0),
       participants: (participants.data ?? []).map((p: any) => ({
         ...p,
         hasAnswered: p.user_id ? prefMap.has(p.user_id) : false,
-        answeredAt: p.user_id && prefMap.has(p.user_id) ? (prefMap.get(p.user_id).updated_at ?? prefMap.get(p.user_id).submitted_at) : null,
+        answeredAt:
+          p.user_id && prefMap.has(p.user_id)
+            ? (prefMap.get(p.user_id).updated_at ?? prefMap.get(p.user_id).submitted_at)
+            : null,
       })),
     };
   });
+;
