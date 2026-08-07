@@ -36,6 +36,7 @@ import {
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
+import { getStarPreferences } from "@/lib/star-preferences.functions";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
