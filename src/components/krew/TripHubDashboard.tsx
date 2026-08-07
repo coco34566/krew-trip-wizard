@@ -46,22 +46,31 @@ type Props = {
 
 
 /** Photos voyage (Unsplash) selon le type d'événement. */
+/** Photos lifestyle premium (Unsplash) — voyage & ambiance, pas de clichés ballons/kitsch. */
 function heroImageForEvent(eventType?: string | null) {
+  const q = "auto=format&fit=crop&w=1600&q=85";
   const map: Record<string, string> = {
-    evg: "https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=1600&q=80",
-    evjf: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
-    anniversaire: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1600&q=80",
-    weekend: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80",
-    voyage_groupe: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1600&q=80",
-    famille: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=80",
-    seminaire: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1600&q=80",
-    retraite: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1600&q=80",
+    // EVG — rooftop / night out entre potes (pas la teuf de campus)
+    evg: `https://images.unsplash.com/photo-1514933651103-005eec06c04b?${q}`,
+    // EVJF — champagne, lumière dorée, élégance
+    evjf: `https://images.unsplash.com/photo-1527529482838-46479466cbfe?${q}`,
+    // Anniversaire — dîner en ville / toast, zéro ballon
+    anniversaire: `https://images.unsplash.com/photo-1414235077428-338989a2e8c0?${q}`,
+    // Week-end — route côtière / escapade
+    weekend: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?${q}`,
+    // Voyage de groupe — amis en hauteur, vue panorama
+    voyage_groupe: `https://images.unsplash.com/photo-1527631746610-b998ef1c7d1d?${q}`,
+    // Famille — bord de mer, moment vrai
+    famille: `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?${q}`,
+    // Séminaire — skyline / business trip moderne
+    seminaire: `https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?${q}`,
+    // Retraite — terrasse golden hour, sérénité
+    retraite: `https://images.unsplash.com/photo-1506905925346-21bda4d32df4?${q}`,
+    // Autre
+    autre: `https://images.unsplash.com/photo-1488085061387-422e29b40080?${q}`,
   };
   const key = String(eventType || "").toLowerCase();
-  return (
-    map[key] ||
-    "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1600&q=80"
-  );
+  return map[key] || `https://images.unsplash.com/photo-1488085061387-422e29b40080?${q}`;
 }
 
 
