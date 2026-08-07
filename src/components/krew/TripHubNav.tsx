@@ -3,7 +3,15 @@ import { Check, Circle, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TripStep } from "@/lib/krew/availability";
 
-export function TripHubNav({ tripId, steps }: { tripId: string; steps: TripStep[] }) {
+export function TripHubNav({
+  tripId,
+  steps,
+  onInviteClick,
+}: {
+  tripId: string;
+  steps: TripStep[];
+  onInviteClick?: () => void;
+}) {
   return (
     <nav className="flex flex-wrap gap-2">
       {steps.map((step, i) => {
@@ -34,10 +42,22 @@ export function TripHubNav({ tripId, steps }: { tripId: string; steps: TripStep[
         );
 
         if (step.id === "invite") {
+          if (onInviteClick) {
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={onInviteClick}
+                className="no-underline cursor-pointer bg-transparent p-0 border-0"
+              >
+                {content}
+              </button>
+            );
+          }
           return (
-            <Link key={step.id} to={`/trips/${tripId}/invite` as any} className="no-underline">
+            <a key={step.id} href={`#invite-section`} className="no-underline">
               {content}
-            </Link>
+            </a>
           );
         }
         if (isSoon || !step.href) {
