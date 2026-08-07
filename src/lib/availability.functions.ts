@@ -158,6 +158,12 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
 
+    if ((trip.data as any).dates_locked) {
+      throw new Error(
+        "Les dates du séjour sont validées par l'organisateur : les disponibilités ne peuvent plus être modifiées.",
+      );
+    }
+
     const email = (typeof context.claims?.email === "string" ? context.claims.email : "").toLowerCase();
     if (trip.data.owner_id !== userId) {
       const part = await supabase
