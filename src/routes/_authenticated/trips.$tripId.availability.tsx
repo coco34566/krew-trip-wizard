@@ -312,6 +312,8 @@ function AvailabilityPage() {
           <h2 className="font-display text-lg font-semibold">Mes disponibilités</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux.
+            Tes réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut
+            les modifier.
           </p>
         </div>
 
@@ -520,6 +522,10 @@ function AvailabilityPage() {
           <CalendarDays className="size-5 text-primary" />
           <h2 className="font-semibold">Meilleures dates du groupe</h2>
         </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Calculé à partir des dispos de chacun (liées à son compte). Tu ne modifies que les
+          tiennes. Classement = dates avec le plus de personnes disponibles.
+        </p>
         <ul className="mt-4 space-y-2">
           {data.windows.map((w: any, i: number) => {
             const isChosen =
@@ -535,14 +541,26 @@ function AvailabilityPage() {
                   isChosen && "border-lagoon/50 bg-lagoon/10",
                 )}
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="font-medium">
                     {i === 0 ? "🥇 " : ""}
                     {formatRange(w.start, w.end)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {Math.round((w.coverageRatio ?? 0) * 100)} % du groupe
+                    {w.covered}/{w.total} peuvent · {Math.round((w.coverageRatio ?? 0) * 100)} %
                   </p>
+                  {(w.availablePeople?.length ?? 0) > 0 ? (
+                    <p className="mt-1 text-xs text-lagoon">
+                      ✅{" "}
+                      {w.availablePeople.map((p: any) => p.name).join(", ")}
+                    </p>
+                  ) : null}
+                  {(w.unavailablePeople?.length ?? 0) > 0 ? (
+                    <p className="mt-0.5 text-xs text-destructive/90">
+                      ❌{" "}
+                      {w.unavailablePeople.map((p: any) => p.name).join(", ")}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   {isChosen ? (
