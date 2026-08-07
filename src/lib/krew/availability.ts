@@ -181,7 +181,7 @@ export function buildTripSteps(input: {
       id: "invite",
       label: "Inviter",
       description: "Réunir le groupe",
-      href: "",
+      href: "/invite",
       status: inviteDone ? "done" : "active",
     },
     {
