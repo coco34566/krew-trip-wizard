@@ -306,25 +306,68 @@ export async function generateRecommendationsForTrip(
   // 2) APIs logements + activités (Booking, TripAdvisor, …) pour chaque candidate
   const providerErrors = await enrichCatalogWithExternalApis(supabase, tripId, shortlistNames);
 
-  // 3) Catalogue enrichi
+  // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
+  //    (sans ce filtre, loadTravelCatalog recharge tout le seed SQL)
   const catalog = await loadTravelCatalog(supabase, catalogQuery);
+  const normName = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  const shortlistSet = new Set(shortlistNames.map(normName).filter(Boolean));
 
-  // Préférer les logements venant des APIs (source rapidapi)
+  const destinationsInShortlist = catalog.destinations.filter((d) => {
+    const n = normName(d.name);
+    const c = normName(d.country);
+    return (
+      shortlistSet.has(n) ||
+      [...shortlistSet].some((s) => n.includes(s) || s.includes(n) || c.includes(s))
+    );
+  });
+
+  // Préférer les logements venant des APIs (source rapidapi) quand dispo
   const apiAccIds = new Set(
     (catalog.accommodations as any[])
       .filter((a) => a.source === "rapidapi" || a.booking_url || a.best_provider)
       .map((a) => a.id),
   );
 
-  let catalogFinal = catalog;
+  let catalogFinal = {
+    destinations: destinationsInShortlist,
+    activities: catalog.activities.filter((a) =>
+      destinationsInShortlist.some((d) => d.id === a.destination_id),
+    ),
+    accommodations: catalog.accommodations.filter((a) =>
+      destinationsInShortlist.some((d) => d.id === a.destination_id),
+    ),
+  };
+
   if (apiAccIds.size > 0) {
-    const apiAccommodations = catalog.accommodations.filter((a) => apiAccIds.has(a.id));
-    const destWithApi = new Set(apiAccommodations.map((a) => a.destination_id));
-    catalogFinal = {
-      destinations: catalog.destinations.filter((d) => destWithApi.has(d.id)),
-      activities: catalog.activities,
-      accommodations: apiAccommodations,
-    };
+    const apiAccommodations = catalogFinal.accommodations.filter((a) => apiAccIds.has(a.id));
+    if (apiAccommodations.length > 0) {
+      const destWithApi = new Set(apiAccommodations.map((a) => a.destination_id));
+      // Garder toutes les destinations shortlist ; prioriser les hébergements API
+      catalogFinal = {
+        destinations: catalogFinal.destinations,
+        activities: catalogFinal.activities,
+        accommodations:
+          apiAccommodations.length > 0
+            ? [
+                ...apiAccommodations,
+                ...catalogFinal.accommodations.filter((a) => !apiAccIds.has(a.id) && !destWithApi.has(a.destination_id)),
+              ]
+            : catalogFinal.accommodations,
+      };
+    }
+  }
+
+  // Dernier filet : si enrichissement a échoué et shortlist absente du catalogue,
+  // on ne doit PAS retomber sur les 12 villes seed hors shortlist.
+  if (!catalogFinal.destinations.length && shortlistNames.length) {
+    providerErrors.push(
+      `Aucune destination shortlist en catalogue après enrichissement: ${shortlistNames.join(", ")}`,
+    );
   }
 
   // 4) Transport Kayak par destination
