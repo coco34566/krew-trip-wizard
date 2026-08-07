@@ -34,6 +34,10 @@ type Props = {
   provisionalCoverage?: number | null;
   hasRecommendations: boolean;
   destinationSelected: boolean;
+  /** Nom de la destination validée */
+  destinationName?: string | null;
+  /** Budget estimé live (€ / pers.) si calculé */
+  liveBudgetTotal?: number | null;
   /** L'utilisateur connecté a déjà soumis ses dispos */
   myAvailabilityDone?: boolean;
   /** L'utilisateur connecté a déjà soumis ses préférences */
@@ -320,6 +324,8 @@ export function TripHubDashboard({
   provisionalCoverage,
   hasRecommendations,
   destinationSelected,
+  destinationName = null,
+  liveBudgetTotal = null,
   myAvailabilityDone = false,
   myPreferencesDone = false,
   starDone = false,
@@ -383,15 +389,42 @@ export function TripHubDashboard({
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
             <Wallet className="size-3.5 text-primary" />{" "}
-            {formatEuro(Number(trip.budget_per_person))} / pers.
+            {liveBudgetTotal != null && liveBudgetTotal > 0
+              ? `~${formatEuro(liveBudgetTotal)} / pers.`
+              : Number(trip.budget_per_person) > 0
+                ? `${formatEuro(Number(trip.budget_per_person))} / pers. (cible)`
+                : "Budget à définir"}
           </span>
-          {provisionalStart ? (
+          {datesLocked && (trip.start_date || provisionalStart) ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:text-emerald-300">
+              <CalendarDays className="size-3.5" />
+              {"Dates validées · "}
+              {trip.start_date
+                ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  })
+                : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  })}
+              {trip.end_date
+                ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  })}`
+                : ""}
+            </span>
+          ) : provisionalStart ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/40 bg-lagoon/10 px-3 py-1 text-sm">
               <CalendarDays className="size-3.5" />
-              {availabilityAnswered < availabilityExpected ? "Date provisoire · " : "Date · "}
-              {new Date(provisionalStart).toLocaleDateString("fr-FR")}
+              {"Date proposée · "}
+              {new Date(provisionalStart).toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "short",
+              })}
               {provisionalCoverage != null
-                ? ` · ${Math.round(provisionalCoverage * 100)} %`
+                ? ` · ${Math.round(provisionalCoverage * 100)} % dispo`
                 : ""}
             </span>
           ) : (
@@ -399,6 +432,16 @@ export function TripHubDashboard({
               <CalendarDays className="size-3.5" /> Date à définir
             </span>
           )}
+          {destinationSelected && destinationName ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm">
+              <MapPinned className="size-3.5 text-primary" />
+              {destinationName}
+            </span>
+          ) : destinationSelected ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm">
+              Destination choisie
+            </span>
+          ) : null}
           <Badge variant={trip.status === "valide" ? "success" : "lagoon"}>{trip.status}</Badge>
         </div>
       </header>
