@@ -115,8 +115,8 @@ function Dashboard() {
 
   const trips = (data?.trips ?? []) as TripRow[];
   const invitations = (data?.invitations ?? []) as { id: string; trips: TripRow | null }[];
-  const inPrep = trips.filter((t) => t.status !== "valide" && t.status !== "termine");
-  const ready = trips.filter((t) => t.status === "valide" || t.status === "termine");
+  const inPrep = trips.filter((t) => !t.destination_selected && !t.has_itinerary);
+  const ready = trips.filter((t) => t.destination_selected || t.has_itinerary);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
