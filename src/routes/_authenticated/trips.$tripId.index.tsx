@@ -802,6 +802,16 @@ function TripDetail() {
                                   ~{formatEuro(Number(slot.priceHint))} / pers.
                                 </p>
                               ) : null}
+                              {slot.url ? (
+                                <a
+                                  href={slot.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="mt-0.5 inline-block text-xs font-medium text-primary hover:underline"
+                                >
+                                  Voir / réserver →
+                                </a>
+                              ) : null}
                             </div>
                           </div>
                           {data.isOwner ? (
