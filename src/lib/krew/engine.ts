@@ -58,6 +58,12 @@ export type TravelCatalog = {
   accommodations: AccommodationRecord[];
 };
 
+/** Origine de départ d'un sous-groupe de participants. */
+export type DepartureOrigin = {
+  city: string;
+  count: number;
+};
+
 export type ScoringContext = {
   participants: number;
   budgetPerPerson: number;
@@ -70,8 +76,26 @@ export type ScoringContext = {
   letKrewDecide: boolean;
   needsCityCenter: boolean;
   startMonth: number;
-  /** Prix transport A/R / pers par destination_id (Kayak). Si absent → estimation. */
+  /**
+   * Prix transport A/R moyen / pers par destination_id
+   * (moyenne pondérée si plusieurs villes de départ).
+   */
   transportByDestinationId?: Record<string, number>;
+  /**
+   * Coût transport total groupe par destination_id
+   * (somme des cotations par ville de départ × effectif).
+   */
+  transportGroupByDestinationId?: Record<string, number>;
+  /**
+   * Détail par origine pour une destination (optionnel, pour affichage).
+   * Clé = destination_id.
+   */
+  transportOriginsByDestinationId?: Record<
+    string,
+    { city: string; count: number; pricePerPerson: number }[]
+  >;
+  /** Villes de départ du groupe (agrégées). */
+  departureOrigins?: DepartureOrigin[];
 };
 
 export type ItineraryDay = {
@@ -81,7 +105,10 @@ export type ItineraryDay = {
 };
 
 export type BudgetBreakdown = {
+  /** Transport A/R moyen par personne (moyenne pondérée des origines). */
   transport: number;
+  /** Transport total groupe (somme des cotations par ville de départ). */
+  transportGroup: number;
   accommodation: number;
   activities: number;
   food: number;
@@ -89,6 +116,8 @@ export type BudgetBreakdown = {
   totalGroup: number;
   budgetPerPerson: number;
   fits: boolean;
+  /** Détail transport par ville de départ si multi-origines. */
+  transportByOrigin?: { city: string; count: number; pricePerPerson: number }[];
 };
 
 export type Proposal = {
@@ -240,10 +269,14 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       });
     const accommodation = accommodations[0] ?? null;
 
-    // Transport : Kayak si dispo, sinon estimation distance
+    // Transport : moyenne pondérée multi-origines si dispo, sinon estimation distance
     const transport =
       ctx.transportByDestinationId?.[destination.id] ??
       estimateTransport(destination.distance_from_paris_km);
+    const transportOrigins = ctx.transportOriginsByDestinationId?.[destination.id];
+    const transportGroup =
+      ctx.transportGroupByDestinationId?.[destination.id] ??
+      Math.round(transport * ctx.participants);
 
     const lodging =
       (accommodation?.price_per_night_per_person ?? destination.avg_daily_cost * 0.4) * ctx.nights;
@@ -258,16 +291,23 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     );
     const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
     const totalPerPerson = transport + lodging + food + activitiesCost;
+    // Total groupe = transport réel (multi-origines) + (hébergement + resto + activités) × N
+    const sharedPerPerson = lodging + food + activitiesCost;
+    const totalGroup = transportGroup + sharedPerPerson * ctx.participants;
 
     const budget: BudgetBreakdown = {
       transport: Math.round(transport),
+      transportGroup: Math.round(transportGroup),
       accommodation: Math.round(lodging),
       activities: Math.round(activitiesCost),
       food: Math.round(food),
       totalPerPerson: Math.round(totalPerPerson),
-      totalGroup: Math.round(totalPerPerson * ctx.participants),
+      totalGroup: Math.round(totalGroup),
       budgetPerPerson: ctx.budgetPerPerson,
       fits: totalPerPerson <= ctx.budgetPerPerson,
+      ...(transportOrigins && transportOrigins.length > 1
+        ? { transportByOrigin: transportOrigins }
+        : {}),
     };
 
     // --- Scoring pondéré ---
@@ -311,8 +351,18 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       matchReasons.push("Trajet court : plus de temps sur place, moins de fatigue");
     if (accommodation && accommodation.capacity >= ctx.participants)
       matchReasons.push(`Hébergement unique pour ${ctx.participants} personnes (${accommodation.type})`);
-    if (ctx.transportByDestinationId?.[destination.id] != null)
-      matchReasons.push(`Transport estimé via Kayak : ${Math.round(transport)} € A/R / pers.`);
+    if (ctx.transportByDestinationId?.[destination.id] != null) {
+      if (transportOrigins && transportOrigins.length > 1) {
+        const detail = transportOrigins
+          .map((o) => `${o.city} (${o.count}) ${Math.round(o.pricePerPerson)} €`)
+          .join(" · ");
+        matchReasons.push(
+          `Transport multi-départs — moy. ${Math.round(transport)} € A/R / pers. (${detail})`,
+        );
+      } else {
+        matchReasons.push(`Transport estimé via Kayak/Kiwi : ${Math.round(transport)} € A/R / pers.`);
+      }
+    }
 
     const rationale = `${destination.name} sort en tête pour un groupe de ${ctx.participants} personnes : ${
       destination.description ?? ""
