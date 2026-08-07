@@ -371,4 +371,3 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
       })),
     };
   });
-;
