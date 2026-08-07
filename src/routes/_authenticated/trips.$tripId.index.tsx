@@ -591,7 +591,17 @@ function TripDetail() {
               : "L'organisateur générera bientôt les propositions de destinations."}
           </p>
         ) : (
-          recommendations.map((reco, index) => {
+          <>
+          {destinationSelected ? (
+            <p className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800 dark:text-emerald-300">
+              Destination validée — les {Math.max(0, recommendations.length - 1)} autres options restent visibles
+              {data.isOwner ? " ; tu peux en choisir une autre à tout moment." : "."}
+            </p>
+          ) : null}
+          <div className="grid gap-4 lg:grid-cols-1">
+          {[...recommendations]
+            .sort((a, b) => Number(b.is_selected) - Number(a.is_selected) || b.score - a.score)
+            .map((reco, index) => {
             const recoVotes = votes.filter((v) => v.recommendation_id === reco.id);
             const hasVoted = recoVotes.some((v) => v.user_id === data.userId);
             const recoActivities = activities.filter((a) => (reco.activity_ids ?? []).includes(a.id));
@@ -599,8 +609,12 @@ function TripDetail() {
               <article
                 key={reco.id}
                 className={cn(
-                  "overflow-hidden rounded-3xl border bg-card shadow-elevated",
-                  reco.is_selected ? "border-lagoon" : "border-border",
+                  "overflow-hidden rounded-3xl border bg-card shadow-elevated transition",
+                  reco.is_selected
+                    ? "border-emerald-500 ring-2 ring-emerald-500/25"
+                    : destinationSelected
+                      ? "border-border opacity-95"
+                      : "border-border",
                 )}
               >
                 {reco.destinations?.image_url ? (
@@ -765,13 +779,17 @@ function TripDetail() {
                       <Heart className={cn(hasVoted && "fill-current")} />{" "}
                       {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
                     </Button>
-                    {data.isOwner && !reco.is_selected ? (
+                    {data.isOwner && reco.is_selected ? (
+                      <Button variant="outline" disabled className="border-emerald-500 text-emerald-700">
+                        <CheckCircle2 className="size-4" /> Destination choisie
+                      </Button>
+                    ) : data.isOwner ? (
                       <Button
-                        variant="hero"
+                        variant={destinationSelected ? "outline" : "hero"}
                         onClick={() => selectMutation.mutate(reco.id)}
                         disabled={selectMutation.isPending}
                       >
-                        <CheckCircle2 /> Choisir cette destination
+                        <CheckCircle2 /> {destinationSelected ? "Changer pour celle-ci" : "Choisir cette destination"}
                       </Button>
                     ) : null}
                   </div>
