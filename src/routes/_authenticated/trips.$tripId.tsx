@@ -285,6 +285,14 @@ function TripDetail() {
               Disponibilités du groupe
             </Link>
           </Button>
+          {(trip as any).celebrated_person ||
+          ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type)) ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/trips/$tripId/star" params={{ tripId }}>
+                ⭐ Questionnaire Star
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </section>
 
@@ -364,7 +372,7 @@ function TripDetail() {
                     </div>
                     <div className="flex items-center gap-2">
                       {reco.is_selected ? <Badge variant="success">Choix du groupe</Badge> : null}
-                      <Badge variant="lagoon">Score {Math.round(reco.score)}/100</Badge>
+                      <Badge variant="lagoon">{Math.round(reco.score)} %</Badge>
                     </div>
                   </div>
 
