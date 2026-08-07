@@ -612,6 +612,15 @@ function TripDetail() {
           )}
         </ul>
       </section>
+
+      <section id="hub-organize" className="mt-14 space-y-4">
+        <h2 className="font-display text-2xl font-semibold">Organisation du séjour</h2>
+        <p className="text-sm text-muted-foreground">
+          Après le choix de la destination, ces modules vivront sur le hub. Architecture prête —
+          activation progressive.
+        </p>
+        <ComingSoonGrid />
+      </section>
     </main>
   );
 }
