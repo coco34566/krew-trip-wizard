@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   getTripDetail,
   generateRecommendations,
+  getGenerationReadiness,
   getCostSplit,
   inviteParticipant,
   removeParticipant,
@@ -63,6 +64,13 @@ function TripDetail() {
   const invite = useServerFn(inviteParticipant);
   const removeGuest = useServerFn(removeParticipant);
   const regenerate = useServerFn(generateRecommendations);
+  const fetchReadiness = useServerFn(getGenerationReadiness);
+  const { data: readiness } = useQuery({
+    queryKey: ["generation-readiness", tripId],
+    queryFn: () => fetchReadiness({ data: { tripId } }),
+    enabled: Boolean(tripId),
+    retry: false,
+  });
   const fetchProgress = useServerFn(getParticipantsProgress);
   const searchExternal = useServerFn(searchExternalForTrip);
   const fetchSplit = useServerFn(getCostSplit);
@@ -116,9 +124,14 @@ function TripDetail() {
     onSuccess: refresh,
   });
   const regenerateMutation = useMutation({
-    mutationFn: () => regenerate({ data: { tripId } }),
-    onSuccess: () => {
-      toast.success("Nouvelles propositions générées");
+    mutationFn: () => regenerate({ data: { tripId, force: false } }),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
+      if (res?.skipped) {
+        toast.error(res?.readiness?.message ?? "Pas assez de réponses pour générer");
+      } else {
+        toast.success("Nouvelles propositions générées");
+      }
       refresh();
     },
   });
@@ -231,6 +244,39 @@ function TripDetail() {
         <section className="mt-10">
           <CostSplitCard split={costSplitData.split} tripName={trip.name} />
         </section>
+      ) : null}
+
+
+      {data.isOwner && readiness ? (
+        <div className="mt-8 rounded-2xl border border-border bg-surface/40 px-4 py-3 text-sm">
+          <p className="font-medium">Qualité des données pour le scoring</p>
+          <p className="mt-1 text-muted-foreground">
+            {readiness.quality.answered}/{readiness.quality.expected} réponses ·{" "}
+            {readiness.quality.vetoCount} veto budget ·{" "}
+            {readiness.quality.exclusionCount} exclusion(s) de destination ·{" "}
+            {readiness.quality.dealBreakerAmbiances} deal-breaker(s) ambiance
+          </p>
+          {!readiness.canGenerate ? (
+            <p className="mt-2 text-amber-700 dark:text-amber-400">
+              {readiness.message ?? "En attente de plus de réponses."}
+              {readiness.missingLabels?.length
+                ? ` Manquants : ${readiness.missingLabels.slice(0, 8).join(", ")}`
+                : ""}
+            </p>
+          ) : (
+            <p className="mt-2 text-muted-foreground">Échantillon suffisant pour générer des propositions.</p>
+          )}
+          {readiness.inconsistencies?.length ? (
+            <ul className="mt-2 list-disc pl-5 text-amber-800 dark:text-amber-300">
+              {readiness.inconsistencies.map((inc: any, i: number) => (
+                <li key={i}>
+                  Alerte participant{inc.userId ? ` (${String(inc.userId).slice(0, 8)}…)` : ""} :{" "}
+                  {inc.message}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
 
       <section className="mt-10 space-y-6">
