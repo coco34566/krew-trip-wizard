@@ -957,6 +957,19 @@ function TripDetail() {
               {shareCopied ? <Check /> : <Copy />}
               {shareCopied ? "Copié" : "Copier le lien"}
             </Button>
+            <Button
+              type="button"
+              className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+              onClick={() => {
+                const text =
+                  `Salut ! On organise « ${data.trip.name} » avec Krew ✈️\n\n` +
+                  `Clique ici pour rejoindre et indiquer tes dispos :\n${shareUrl}`;
+                const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+            >
+              WhatsApp
+            </Button>
             {typeof navigator !== "undefined" && typeof (navigator as any).share === "function" ? (
               <Button
                 type="button"
@@ -964,7 +977,7 @@ function TripDetail() {
                 onClick={() =>
                   (navigator as any).share({
                     title: data.trip.name,
-                    text: `Rejoins mon voyage « ${data.trip.name} » sur Krew`,
+                    text: `Rejoins mon voyage « ${data.trip.name} » sur Krew — ${shareUrl}`,
                     url: shareUrl,
                   })
                 }
