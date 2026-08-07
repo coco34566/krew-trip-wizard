@@ -98,6 +98,7 @@ type ParticipantPrefRow = {
   duration_nights_min: number | null;
   duration_nights_max: number | null;
   desired_destination: string | null;
+  departure_city: string | null;
 };
 
 function frequencies(values: string[]): Record<string, number> {
@@ -126,7 +127,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "ambiances, activity_categories, budget_max, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination",
+      "ambiances, activity_categories, budget_max, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city",
     )
     .eq("trip_id", tripId);
   if (res.error) throw res.error;
@@ -143,6 +144,24 @@ export async function aggregateParticipantPreferences(
     .map((r) => r.desired_destination?.trim())
     .filter((d): d is string => Boolean(d));
   const destinationFrequencies = frequencies(destinations);
+
+  // Villes de départ individuelles (normalisées pour regrouper Paris/paris)
+  const normCity = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  const departureCityCounts = new Map<string, { city: string; count: number }>();
+  for (const r of rows) {
+    const raw = (r.departure_city ?? "").trim();
+    if (!raw) continue;
+    const key = normCity(raw);
+    const existing = departureCityCounts.get(key);
+    if (existing) existing.count += 1;
+    else departureCityCounts.set(key, { city: raw, count: 1 });
+  }
+  const departureOrigins = [...departureCityCounts.values()].sort((a, b) => b.count - a.count);
 
   const byFrequency = (freq: Record<string, number>) =>
     Object.entries(freq)
@@ -161,6 +180,8 @@ export async function aggregateParticipantPreferences(
     medianTravelPace: byFrequency(paceFreq)[0] ?? null,
     dateFlexDays: flex.length ? Math.min(...flex) : null,
     desiredDestination: byFrequency(destinationFrequencies)[0] ?? null,
+    /** Villes de départ distinctes avec effectif (questionnaires individuels). */
+    departureOrigins,
   };
 }
 
@@ -370,11 +391,38 @@ export async function generateRecommendationsForTrip(
     );
   }
 
-  // 4) Transport Kayak par destination
+  // 4) Transport multi-origines : chaque ville de départ des participants
+  //    → cotation A/R, moyenne pondérée / pers + total groupe
   const transportByDestinationId: Record<string, number> = {};
+  const transportGroupByDestinationId: Record<string, number> = {};
+  const transportOriginsByDestinationId: Record<
+    string,
+    { city: string; count: number; pricePerPerson: number }[]
+  > = {};
+
+  // Origines : questionnaires individuels, sinon ville du voyage
+  const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
+  const departureOrigins =
+    aggregated.departureOrigins && aggregated.departureOrigins.length > 0
+      ? aggregated.departureOrigins
+      : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];
+
+  // Si des gens n'ont pas renseigné de ville, rattacher le reste à l'origine du voyage
+  const countedInOrigins = departureOrigins.reduce((s, o) => s + o.count, 0);
+  const remaining = Math.max(0, ctx.participants - countedInOrigins);
+  const originsForQuote =
+    remaining > 0
+      ? (() => {
+          const copy = departureOrigins.map((o) => ({ ...o }));
+          const primary = copy.find((o) => o.city.toLowerCase() === tripOrigin.toLowerCase());
+          if (primary) primary.count += remaining;
+          else copy.push({ city: tripOrigin, count: remaining });
+          return copy;
+        })()
+      : departureOrigins;
+
   try {
     const { searchTransportRoundTrip } = await import("@/integrations/external/transport.server");
-    const originCity = (trip.data.departure_city as string) || "Paris";
 
     let checkin = (trip.data.start_date as string | null) ?? null;
     let checkout = (trip.data.end_date as string | null) ?? null;
@@ -389,22 +437,47 @@ export async function generateRecommendationsForTrip(
       checkout = d.toISOString().slice(0, 10);
     }
 
+    // Limiter le fan-out API : max 5 destinations × max 4 origines distinctes
+    const originsLimited = originsForQuote.slice(0, 4);
+
     for (const dest of catalogFinal.destinations.slice(0, 5)) {
-      try {
-        const quote = await searchTransportRoundTrip({
-          originCity,
-          destinationCity: dest.name,
-          departDate: checkin,
-          returnDate: checkout,
-          adults: Math.min(ctx.participants, 9),
-          distanceKm: dest.distance_from_paris_km,
-        });
-        transportByDestinationId[dest.id] = quote.pricePerPerson;
-        if (quote.rawError) {
-          providerErrors.push(`transport ${dest.name}: ${quote.rawError}`);
+      const originQuotes: { city: string; count: number; pricePerPerson: number }[] = [];
+      let groupTransport = 0;
+      let peopleQuoted = 0;
+
+      for (const origin of originsLimited) {
+        try {
+          const quote = await searchTransportRoundTrip({
+            originCity: origin.city,
+            destinationCity: dest.name,
+            departDate: checkin,
+            returnDate: checkout,
+            adults: Math.min(Math.max(1, origin.count), 9),
+            distanceKm: dest.distance_from_paris_km,
+          });
+          const price = quote.pricePerPerson;
+          originQuotes.push({ city: origin.city, count: origin.count, pricePerPerson: price });
+          groupTransport += price * origin.count;
+          peopleQuoted += origin.count;
+          if (quote.rawError) {
+            providerErrors.push(`transport ${origin.city}→${dest.name}: ${quote.rawError}`);
+          }
+        } catch (e) {
+          providerErrors.push(
+            `transport ${origin.city}→${dest.name}: ${String(e).slice(0, 120)}`,
+          );
         }
-      } catch (e) {
-        providerErrors.push(`transport ${dest.name}: ${String(e).slice(0, 150)}`);
+      }
+
+      if (peopleQuoted > 0) {
+        transportByDestinationId[dest.id] = groupTransport / peopleQuoted;
+        transportGroupByDestinationId[dest.id] = groupTransport;
+        // Si on n'a coté qu'une partie du groupe, extrapoler le total
+        if (peopleQuoted < ctx.participants) {
+          transportGroupByDestinationId[dest.id] =
+            (groupTransport / peopleQuoted) * ctx.participants;
+        }
+        transportOriginsByDestinationId[dest.id] = originQuotes;
       }
     }
   } catch (e) {
@@ -414,6 +487,9 @@ export async function generateRecommendationsForTrip(
   const ctxWithTransport: ScoringContext = {
     ...ctx,
     transportByDestinationId,
+    transportGroupByDestinationId,
+    transportOriginsByDestinationId,
+    departureOrigins: originsForQuote,
   };
 
   // 5) Scoring final → top 3
@@ -437,5 +513,6 @@ export async function generateRecommendationsForTrip(
     shortlist: shortlistNames,
     apiAccommodations: apiAccIds.size,
     transportQuotes: Object.keys(transportByDestinationId).length,
+    departureOrigins: originsForQuote,
   };
 }
