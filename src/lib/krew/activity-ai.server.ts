@@ -102,33 +102,41 @@ function getLlmConfig(): LlmConfig | null {
   return null;
 }
 
-const SYSTEM_FULL = `Tu es Krew, expert en organisation de séjours de groupe (EVG, EVJF, week-end amis).
-Tu construis un planning JOUR PAR JOUR réaliste et agréable pour la destination choisie.
+const SYSTEM_FULL = `Tu es Krew, planificateur de séjour de groupe. Tu connais les prix RÉELS du marché européen 2024-2026.
 
-Réponds UNIQUEMENT en JSON valide, sans markdown :
-{"days":[{"day":1,"slots":[{"moment":"Matin|Midi|Après-midi|Soir","time":"13:00","type":"resto|activite|bar|transport|libre","label":"nom concret","detail":"pourquoi / quartier / pour qui","priceHint":25,"url":"https://..."}]}]}
+Réponds UNIQUEMENT en JSON valide (pas de markdown) :
+{"days":[{"day":1,"slots":[{"moment":"Matin|Midi|Après-midi|Soir","time":"13:00","type":"resto|activite|bar|transport|libre","label":"Nom précis du lieu","detail":"quartier + pour qui","priceHint":28,"currency":"EUR","url":"https://...","priceNote":"fourchette marché"}]}]}
 
-Règles métier :
-1. Logique temporelle : jour 1 = arrivée + installation ; dernier jour = matin plus léger + départ possible.
-2. Alternance saine : ne pas enchaîner 3 restos ; chaque jour typique = 1 resto midi OU soir + 1 activité + 1 bar/soirée si le rythme le permet.
-3. Ancrage SCORING : priorise les ambiances, catégories d'activités et envies star fournies dans le contexte JSON. Si "match" / "star" / "acts" sont présents, au moins 60% des créneaux doivent y coller.
-4. Noms CONCRETS (pas "restaurant local") : vrais styles ou lieux plausibles pour la ville (ex. "Tapas au Born", "Boat party Port Vell").
-5. url : quand possible, un lien utile (Google Maps recherche du lieu+ville, site officiel, TripAdvisor, ou page réservation). Format https:// uniquement. Si inconnu, omets le champ.
-6. priceHint = estimation € / personne pour ce créneau, cohérente avec le budget global.
-7. Respecte contraintes alimentaires (diet) pour les restos.
-8. Rythme : chill = 2–3 slots/jour ; normal = 3–4 ; intense = 4–5.
-9. Langue des labels/details : français.
-10. Pas de texte hors JSON.`;
+RÈGLES PRIX (obligatoires) :
+- priceHint = estimation € / personne la plus réaliste possible pour CETTE ville (pas un chiffre inventé au hasard).
+- Restos : entrée de gamme 12-18 €, milieu 25-40 €, haut 50-80 € selon la ville.
+- Activités payantes : musées 10-25 €, boat party / experiences 35-90 €, free walking = 0.
+- Bars : 8-15 € conso moyenne.
+- Cohérence avec le budget global du contexte JSON (champ "budget").
+- Si le budget est serré, privilégie free / low-cost et le signale dans detail.
 
-const SYSTEM_SLOT = `Tu proposes UNE alternative pour un créneau d'itinéraire de groupe.
-JSON uniquement, sans markdown :
-{"moment":"Midi|Après-midi|Soir","time":"15:00","type":"resto|activite|bar|libre","label":"...","detail":"...","priceHint":0,"url":"https://..."}
-Doit être concret pour la ville, différent de l'existant, aligné sur les envies (vibe/acts/star).
-url = lien utile si possible (Maps / site).`;
+RÈGLES LIENS url (obligatoires pour resto|activite|bar) :
+- url DOIT être un https réel et utile pour réserver ou vérifier le lieu.
+- Formats acceptés UNIQUEMENT :
+  1) Google Maps place search : https://www.google.com/maps/search/?api=1&query=URLENCODE(Nom+Ville)
+  2) GetYourGuide search : https://www.getyourguide.fr/s/?q=URLENCODE(Nom+Ville)
+  3) Site officiel du lieu si tu es certain de l'URL (domaine connu).
+- INTERDIT : urls inventées, fake booking.com/hotel-id, liens cassés, "example.com".
+- Si tu n'es pas sûr du site officiel → Google Maps search (toujours valide).
 
-function mapsUrl(query: string): string {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
-}
+RÈGLES PLANNING :
+1. Jour 1 = arrivée ; dernier jour = plus léger.
+2. Alternance resto / activité / bar.
+3. Suis match/star/acts/seedActs du contexte (≥60% des slots).
+4. Noms CONCRETS existants ou très plausibles dans la ville (pas "restaurant local").
+5. time obligatoire (ex. 13:00, 16:30, 21:00).
+6. Français uniquement. Pas de texte hors JSON.`;
+
+const SYSTEM_SLOT = `Tu proposes UNE alternative concrète pour un créneau de séjour groupe.
+JSON uniquement :
+{"moment":"Midi|Après-midi|Soir","time":"15:30","type":"resto|activite|bar|libre","label":"Nom précis","detail":"...","priceHint":30,"url":"https://www.google.com/maps/search/?api=1&query=..."}
+
+Prix réalistes €/pers pour la ville. url = Maps search ou GetYourGuide ou site officiel certain. Jamais d'URL inventée. Différent de l'existant.`;
 
 function compactCtx(input: ActivityAiInput): Record<string, unknown> {
   const o: Record<string, unknown> = {
@@ -201,10 +209,10 @@ function normalizeSlot(raw: any, city: string): ActivitySlot | null {
   const allowed: ActivitySlotType[] = ["resto", "activite", "bar", "transport", "libre"];
   const t = allowed.includes(type) ? type : "activite";
   let url: string | null = null;
-  if (typeof raw.url === "string" && raw.url.startsWith("http")) {
-    url = raw.url.slice(0, 300);
+  if (typeof raw.url === "string" && isSafeHttpUrl(raw.url.trim())) {
+    url = raw.url.trim().slice(0, 400);
   } else if (t === "resto" || t === "activite" || t === "bar") {
-    url = mapsUrl(`${label} ${city}`);
+    url = activitySearchUrl(label, city, t);
   }
   const price =
     raw.priceHint != null
@@ -224,7 +232,7 @@ function normalizeSlot(raw: any, city: string): ActivitySlot | null {
     type: t,
     label: label.slice(0, 80),
     detail: raw.detail ? String(raw.detail).slice(0, 160) : undefined,
-    priceHint: Number.isFinite(price) ? Math.round(price!) : undefined,
+    priceHint: Number.isFinite(price) ? Math.max(0, Math.min(250, Math.round(price!))) : undefined,
     time,
     url,
   };
