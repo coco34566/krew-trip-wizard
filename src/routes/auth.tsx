@@ -12,6 +12,9 @@ import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    next: typeof search.next === "string" ? search.next : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Connexion — Krew, l'organisateur de voyages de groupe" },
@@ -37,9 +40,25 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const { next } = Route.useSearch();
+
+  function goAfterAuth() {
+    if (next && next.startsWith("/")) {
+      navigate({ to: next as any, replace: true });
+    } else {
+      navigate({ to: "/dashboard", replace: true });
+    }
+  }
+
   useEffect(() => {
-    if (!loading && isAuthenticated) navigate({ to: "/dashboard", replace: true });
-  }, [isAuthenticated, loading, navigate]);
+    if (!loading && isAuthenticated) {
+      if (next && next.startsWith("/")) {
+        navigate({ to: next as any, replace: true });
+      } else {
+        navigate({ to: "/dashboard", replace: true });
+      }
+    }
+  }, [isAuthenticated, loading, navigate, next]);
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +69,7 @@ function AuthPage() {
       toast.error(error.message);
       return;
     }
-    navigate({ to: "/dashboard" });
+    goAfterAuth();
   }
 
   async function signUp(e: React.FormEvent) {
@@ -82,7 +101,7 @@ function AuthPage() {
       return;
     }
     if (result.redirected) return;
-    navigate({ to: "/dashboard" });
+    goAfterAuth();
   }
 
   return (
