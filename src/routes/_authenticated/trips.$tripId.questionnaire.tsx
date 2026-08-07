@@ -265,12 +265,20 @@ function ParticipantQuestionnaire() {
       }
       navigate({ to: "/trips/$tripId", params: { tripId } });
     } catch (e: any) {
-      if (typeof e?.message === "string" && e.message.startsWith("403 Forbidden")) {
+      const msg = String(e?.message ?? e ?? "");
+      if (msg.includes("403 Forbidden")) {
         toast.error("Vous n'êtes pas autorisé·e à soumettre ce questionnaire.");
         navigate({ to: "/dashboard" });
         return;
       }
-      toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement");
+      if (msg.includes("trip_participant_preferences") || msg.includes("schema cache") || msg.includes("SQL")) {
+        toast.error(
+          "Base incomplète : exécute le SQL « trip_participant_preferences » dans Lovable (Cloud → SQL).",
+          { duration: 8000 },
+        );
+        return;
+      }
+      toast.error(msg.slice(0, 180) || "Erreur lors de l'enregistrement");
     } finally {
       setSubmitting(false);
     }
