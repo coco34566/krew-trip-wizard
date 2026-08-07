@@ -439,3 +439,167 @@ export const getTripRecap = createServerFn({ method: "GET" })
       })),
     };
   });
+
+
+/** Enregistre / rafraîchit un suivi de prix pour une proposition. */
+export const watchPrice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        recommendationId: z.string().uuid(),
+        destinationName: z.string().max(120).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const now = new Date().toISOString();
+
+    // Upsert manuel (unique trip + user + reco)
+    const existing = await supabase
+      .from("price_watch")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .eq("created_by", userId)
+      .eq("recommendation_id", data.recommendationId)
+      .maybeSingle();
+
+    if (existing.data?.id) {
+      const upd = await supabase
+        .from("price_watch")
+        .update({ last_checked_at: now, destination_name: data.destinationName ?? null })
+        .eq("id", existing.data.id)
+        .select("*")
+        .single();
+      if (upd.error) throw upd.error;
+      return { ok: true, watch: upd.data, refreshed: true };
+    }
+
+    const ins = await supabase
+      .from("price_watch")
+      .insert({
+        trip_id: data.tripId,
+        recommendation_id: data.recommendationId,
+        destination_name: data.destinationName ?? null,
+        created_by: userId,
+        last_checked_at: now,
+      })
+      .select("*")
+      .single();
+    if (ins.error) throw ins.error;
+    return { ok: true, watch: ins.data, refreshed: false };
+  });
+
+/** Liste des suivis de prix de l'utilisateur (dashboard). */
+export const listMyPriceWatches = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const res = await supabase
+      .from("price_watch")
+      .select("id, trip_id, recommendation_id, destination_name, last_checked_at, created_at, trips(name, status)")
+      .eq("created_by", userId)
+      .order("last_checked_at", { ascending: false })
+      .limit(20);
+    if (res.error) {
+      // Table absente (migration pas encore appliquée)
+      if (String(res.error.message || "").includes("price_watch")) return { watches: [] as any[] };
+      throw res.error;
+    }
+    return { watches: res.data ?? [] };
+  });
+
+/**
+ * Répartition des coûts pour la proposition validée (ou une reco précise).
+ */
+export const getCostSplit = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { tripId: string; recommendationId?: string }) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        recommendationId: z.string().uuid().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const trip = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+
+    let recoQuery = supabase
+      .from("recommendations")
+      .select("*, destinations(name, distance_from_paris_km)")
+      .eq("trip_id", data.tripId);
+
+    if (data.recommendationId) {
+      recoQuery = recoQuery.eq("id", data.recommendationId);
+    } else {
+      recoQuery = recoQuery.eq("is_selected", true);
+    }
+
+    const reco = await recoQuery.maybeSingle();
+    if (reco.error) throw reco.error;
+    if (!reco.data) throw new Error("Aucune proposition validée");
+
+    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+    const { buildCostSplit } = await import("@/lib/krew/cost-split");
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+
+    const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
+    let departureOrigins =
+      aggregated.departureOrigins && aggregated.departureOrigins.length > 0
+        ? aggregated.departureOrigins
+        : [{ city: tripOrigin, count: Math.max(1, Number(trip.data.participants_count) || 1) }];
+
+    const budget = (reco.data.budget ?? {}) as any;
+    const transportByOrigin: { city: string; count: number; pricePerPerson: number }[] =
+      Array.isArray(budget.transportByOrigin) && budget.transportByOrigin.length
+        ? budget.transportByOrigin
+        : departureOrigins.map((o: { city: string; count: number }) => ({
+            city: o.city,
+            count: o.count,
+            pricePerPerson: Number(budget.transport ?? 0),
+          }));
+
+    // Aligner les effectifs questionnaire si absents du budget
+    const byCity = new Map(transportByOrigin.map((t) => [t.city.toLowerCase(), t]));
+    for (const o of departureOrigins) {
+      const key = o.city.toLowerCase();
+      if (!byCity.has(key)) {
+        transportByOrigin.push({
+          city: o.city,
+          count: o.count,
+          pricePerPerson: Number(budget.transport ?? 0),
+        });
+      } else {
+        const row = byCity.get(key)!;
+        row.count = o.count;
+      }
+    }
+
+    const destName =
+      (reco.data as any).destinations?.name ??
+      budget.destinationName ??
+      "Destination";
+
+    const split = buildCostSplit({
+      destinationName: destName,
+      accommodation: Number(budget.accommodation ?? 0),
+      activities: Number(budget.activities ?? 0),
+      food: Number(budget.food ?? 0),
+      origins: transportByOrigin,
+      fallbackTransportPerPerson: Number(budget.transport ?? 0),
+      participants: Number(trip.data.participants_count) || undefined,
+    });
+
+    return {
+      tripName: trip.data.name as string,
+      isSelected: Boolean(reco.data.is_selected),
+      recommendationId: reco.data.id as string,
+      split,
+    };
+  });
