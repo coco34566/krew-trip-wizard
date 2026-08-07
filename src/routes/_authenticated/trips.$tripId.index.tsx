@@ -790,6 +790,11 @@ function TripDetail() {
                             <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
                             <div className="min-w-0">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                {slot.time ? (
+                                  <span className="mr-1.5 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 font-semibold tabular-nums text-primary normal-case tracking-normal">
+                                    {slot.time}
+                                  </span>
+                                ) : null}
                                 {slot.moment}
                                 {slot.type ? ` · ${slot.type}` : ""}
                               </p>
