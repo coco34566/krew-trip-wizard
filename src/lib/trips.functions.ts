@@ -1058,7 +1058,19 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       ? recoRow.match_reasons.map(String)
       : [];
     const { generateItineraryWithAi } = await import("@/lib/krew/activity-ai.server");
-    const result = await generateItineraryWithAi(
+    const result = await 
+    const logistics = (trip.group_logistics || {}) as any;
+    const picks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
+    const timeFilters = logistics.timeFilters || {};
+    // Dernière arrivée du groupe (jour 1) et premier départ retour
+    const arrivals = picks
+      .map((p: any) => p.arrivalTime || p.time)
+      .filter(Boolean) as string[];
+    const departures = picks.map((p: any) => p.departureTime).filter(Boolean) as string[];
+    const latestArrival = arrivals.sort().slice(-1)[0] || timeFilters.arriveBy || null;
+    const earliestReturn = departures.sort()[0] || timeFilters.departAfter || null;
+
+generateItineraryWithAi(
       {
         destination: destName,
         country: destCountry,
@@ -1080,6 +1092,15 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         matchReasons,
         destinationScore: recoRow.score != null ? Number(recoRow.score) : null,
         scoredActivityLabels: seedLabels,
+        latestGroupArrival: latestArrival,
+        earliestGroupDeparture: earliestReturn,
+        transportPicksSummary: picks.slice(0, 12).map((p: any) => ({
+          city: p.city,
+          mode: p.modeLabel || p.mode,
+          arrival: p.arrivalTime || p.time,
+          departure: p.departureTime,
+        })),
+
       },
       seedLabels,
     );
@@ -1728,6 +1749,10 @@ export const pickTransport = createServerFn({ method: "POST" })
         modeLabel: z.string().optional(),
         label: z.string().min(1).max(160),
         time: z.string().max(40).optional(),
+        /** Heure d'arrivée sur place (aller) HH:mm */
+        arrivalTime: z.string().max(10).optional().nullable(),
+        /** Heure de départ retour HH:mm */
+        departureTime: z.string().max(10).optional().nullable(),
         pricePerPerson: z.number().optional(),
         url: z.string().url().optional().nullable(),
       })
@@ -1766,7 +1791,9 @@ export const pickTransport = createServerFn({ method: "POST" })
       mode: data.mode,
       modeLabel: data.modeLabel || data.mode,
       label: data.label,
-      time: data.time || null,
+      time: data.time || data.arrivalTime || null,
+      arrivalTime: data.arrivalTime || data.time || null,
+      departureTime: data.departureTime || null,
       pricePerPerson: data.pricePerPerson ?? null,
       url: data.url || null,
       at: new Date().toISOString(),
@@ -1781,4 +1808,47 @@ export const pickTransport = createServerFn({ method: "POST" })
       .eq("id", data.tripId);
     if (error) throw error;
     return { ok: true, pick: entry, transportPicks: picks };
+  });
+
+
+/** Filtres orga : fenêtres d'arrivée (jour 1) et départ (dernier jour) pour orienter recherches + planning. */
+export const setTransportTimeFilters = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        /** Arriver avant cette heure le jour 1 (HH:mm) */
+        arriveBy: z.string().max(10).optional().nullable(),
+        /** Ne pas repartir avant cette heure le dernier jour (HH:mm) */
+        departAfter: z.string().max(10).optional().nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tripRes = await supabase
+      .from("trips")
+      .select("id, owner_id, group_logistics")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+    if ((tripRes.data as any).owner_id !== userId) {
+      throw new Error("403 Forbidden: seul l'organisateur peut définir les filtres horaires");
+    }
+    const logistics = ((tripRes.data as any).group_logistics || {}) as any;
+    const next = {
+      ...logistics,
+      timeFilters: {
+        arriveBy: data.arriveBy || null,
+        departAfter: data.departAfter || null,
+      },
+    };
+    const { error } = await supabase
+      .from("trips")
+      .update({ group_logistics: next, updated_at: new Date().toISOString() } as any)
+      .eq("id", data.tripId);
+    if (error) throw error;
+    return { ok: true, timeFilters: next.timeFilters };
   });
