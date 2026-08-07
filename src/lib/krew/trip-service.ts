@@ -54,7 +54,9 @@ type PreferencesRow = {
 } | null;
 
 export function buildScoringContext(trip: TripRow, prefs: PreferencesRow): ScoringContext {
-  const startMonth = trip.start_date ? new Date(trip.start_date).getMonth() + 1 : new Date().getMonth() + 1;
+  const startMonth = trip.start_date
+    ? new Date(trip.start_date).getMonth() + 1
+    : new Date().getMonth() + 1;
   return {
     participants: trip.participants_count,
     budgetPerPerson: Number(prefs?.max_budget ?? trip.budget_per_person),
@@ -107,7 +109,9 @@ function median(values: number[]): number | null {
   if (!values.length) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? (sorted[mid] as number) : ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2;
+  return sorted.length % 2
+    ? (sorted[mid] as number)
+    : ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2;
 }
 
 /**
@@ -234,13 +238,16 @@ export async function generateRecommendationsForTrip(
   if (aggregated.participantsCount && aggregated.participantsCount > 0) {
     prefsToUse = {
       ...preferences.data,
-      ambiances: aggregated.ambiances.length ? aggregated.ambiances : preferences.data?.ambiances ?? [],
+      ambiances: aggregated.ambiances.length
+        ? aggregated.ambiances
+        : preferences.data?.ambiances ?? [],
       activity_categories: aggregated.activityCategories.length
         ? aggregated.activityCategories
         : preferences.data?.activity_categories ?? [],
-      ambiance_frequencies: aggregated.ambianceFrequencies,
-      activity_category_frequencies: aggregated.activityCategoryFrequencies,
-      max_budget: aggregated.aggregatedBudget ?? preferences.data?.max_budget ?? trip.data.budget_per_person,
+      max_budget:
+        aggregated.aggregatedBudget ??
+        preferences.data?.max_budget ??
+        trip.data.budget_per_person,
       duration_nights: preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
       required_amenities: aggregated.requiredAmenities,
       min_accommodation_rating: aggregated.minAccommodationRating,
@@ -268,7 +275,7 @@ export async function generateRecommendationsForTrip(
     minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
   };
 
-  // 1) Shortlist : destination forcée OU top 5 seed scorées sur le profil groupe
+  // 1) Shortlist : destination forcée OU top 5 seed
   const seedCatalog = await loadTravelCatalog(supabase, catalogQuery);
   const shortlistNames: string[] = resolvedDestination
     ? [resolvedDestination]
@@ -276,12 +283,78 @@ export async function generateRecommendationsForTrip(
         (p) => p.destination.name,
       );
 
-  // 2) Appels API (hôtels + activités + météo) pour chaque candidate
+  // 2) APIs logements + activités (Booking, TripAdvisor, …)
   const providerErrors = await enrichCatalogWithExternalApis(supabase, tripId, shortlistNames);
 
-  // 3) Catalogue enrichi + scoring final
+  // 3) Catalogue enrichi
   const catalog = await loadTravelCatalog(supabase, catalogQuery);
-  const proposals = buildProposals(catalog, ctx, 3);
+
+  // Préférer les logements venant des APIs (source rapidapi)
+  const apiAccIds = new Set(
+    (catalog.accommodations as any[])
+      .filter((a) => a.source === "rapidapi" || a.booking_url || a.best_provider)
+      .map((a) => a.id),
+  );
+
+  let catalogFinal = catalog;
+  if (apiAccIds.size > 0) {
+    const apiAccommodations = catalog.accommodations.filter((a) => apiAccIds.has(a.id));
+    const destWithApi = new Set(apiAccommodations.map((a) => a.destination_id));
+    catalogFinal = {
+      destinations: catalog.destinations.filter((d) => destWithApi.has(d.id)),
+      activities: catalog.activities,
+      accommodations: apiAccommodations,
+    };
+  }
+
+  // 4) Transport Kayak par destination
+  const transportByDestinationId: Record<string, number> = {};
+  try {
+    const { searchTransportRoundTrip } = await import("@/integrations/external/transport.server");
+    const originCity = (trip.data.departure_city as string) || "Paris";
+
+    let checkin = (trip.data.start_date as string | null) ?? null;
+    let checkout = (trip.data.end_date as string | null) ?? null;
+    if (!checkin) {
+      const d = new Date();
+      d.setDate(d.getDate() + 21);
+      checkin = d.toISOString().slice(0, 10);
+    }
+    if (!checkout) {
+      const d = new Date(checkin);
+      d.setDate(d.getDate() + (ctx.nights || 2));
+      checkout = d.toISOString().slice(0, 10);
+    }
+
+    for (const dest of catalogFinal.destinations.slice(0, 5)) {
+      try {
+        const quote = await searchTransportRoundTrip({
+          originCity,
+          destinationCity: dest.name,
+          departDate: checkin,
+          returnDate: checkout,
+          adults: Math.min(ctx.participants, 9),
+          distanceKm: dest.distance_from_paris_km,
+        });
+        transportByDestinationId[dest.id] = quote.pricePerPerson;
+        if (quote.rawError) {
+          providerErrors.push(`transport ${dest.name}: ${quote.rawError}`);
+        }
+      } catch (e) {
+        providerErrors.push(`transport ${dest.name}: ${String(e).slice(0, 150)}`);
+      }
+    }
+  } catch (e) {
+    providerErrors.push(`transport module: ${String(e).slice(0, 150)}`);
+  }
+
+  const ctxWithTransport: ScoringContext = {
+    ...ctx,
+    transportByDestinationId,
+  };
+
+  // 5) Scoring final → top 3
+  const proposals = buildProposals(catalogFinal, ctxWithTransport, 3);
 
   const deleted = await supabase.from("recommendations").delete().eq("trip_id", tripId);
   if (deleted.error) throw deleted.error;
@@ -295,5 +368,11 @@ export async function generateRecommendationsForTrip(
   const updated = await supabase.from("trips").update({ status: "propositions" }).eq("id", tripId);
   if (updated.error) throw updated.error;
 
-  return { count: rows.length, providerErrors, shortlist: shortlistNames };
+  return {
+    count: rows.length,
+    providerErrors,
+    shortlist: shortlistNames,
+    apiAccommodations: apiAccIds.size,
+    transportQuotes: Object.keys(transportByDestinationId).length,
+  };
 }
