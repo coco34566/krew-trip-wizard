@@ -338,31 +338,45 @@ function TripDetail() {
 
 
       {data.isOwner && readiness ? (
-        <div className="mt-8 rounded-2xl border border-border bg-surface/40 px-4 py-3 text-sm">
-          <p className="font-medium">Qualité des données pour le scoring</p>
-          <p className="mt-1 text-muted-foreground">
-            {readiness.quality.answered}/{readiness.quality.expected} réponses ·{" "}
-            {readiness.quality.vetoCount} veto budget ·{" "}
-            {readiness.quality.exclusionCount} exclusion(s) de destination ·{" "}
-            {readiness.quality.dealBreakerAmbiances} deal-breaker(s) ambiance
+        <div className="mt-8 space-y-3 rounded-2xl border border-border bg-surface/40 px-4 py-4 text-sm">
+          <p className="font-medium">Checklist scoring & recherches API</p>
+          <ul className="space-y-1.5 text-muted-foreground">
+            <li>
+              {(readiness as any).checklist?.prefsOk ? "✅" : "⏳"} Préférences :{" "}
+              {readiness.quality.answered}/{readiness.quality.expected}
+              {readiness.missingLabels?.length
+                ? ` · manquants : ${readiness.missingLabels.slice(0, 5).join(", ")}`
+                : ""}
+            </li>
+            <li>
+              {(readiness as any).checklist?.availabilityOk ? "✅" : "⏳"} Disponibilités :{" "}
+              {(readiness.quality as any).availabilityAnswered ?? 0}/{readiness.quality.expected}
+            </li>
+            <li>
+              {(readiness as any).checklist?.datesLocked ? "✅" : "⏳"} Dates validées
+              {(readiness.quality as any).datesLocked && (readiness.quality as any).lockedStart
+                ? ` · ${new Date((readiness.quality as any).lockedStart + "T12:00:00").toLocaleDateString("fr-FR")} → ${new Date((readiness.quality as any).lockedEnd + "T12:00:00").toLocaleDateString("fr-FR")}`
+                : " · valide une fenêtre dans « Dates du groupe »"}
+            </li>
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            Veto budget : {readiness.quality.vetoCount} · exclusions :{" "}
+            {readiness.quality.exclusionCount} · deal-breakers :{" "}
+            {readiness.quality.dealBreakerAmbiances}
           </p>
           {!readiness.canGenerate ? (
-            <p className="mt-2 text-amber-700 dark:text-amber-400">
-              {readiness.message ?? "En attente de plus de réponses."}
-              {readiness.missingLabels?.length
-                ? ` Manquants : ${readiness.missingLabels.slice(0, 8).join(", ")}`
-                : ""}
+            <p className="text-amber-700 dark:text-amber-400">
+              {readiness.message ?? "Complète la checklist pour lancer les destinations."}
             </p>
           ) : (
-            <p className="mt-2 text-muted-foreground">Échantillon suffisant pour générer des propositions.</p>
+            <p className="text-lagoon">
+              Prêt : tu peux lancer la génération de destinations (scoring + APIs).
+            </p>
           )}
           {readiness.inconsistencies?.length ? (
-            <ul className="mt-2 list-disc pl-5 text-amber-800 dark:text-amber-300">
+            <ul className="list-disc pl-5 text-amber-800 dark:text-amber-300">
               {readiness.inconsistencies.map((inc: any, i: number) => (
-                <li key={i}>
-                  Alerte participant{inc.userId ? ` (${String(inc.userId).slice(0, 8)}…)` : ""} :{" "}
-                  {inc.message}
-                </li>
+                <li key={i}>{inc.message}</li>
               ))}
             </ul>
           ) : null}
