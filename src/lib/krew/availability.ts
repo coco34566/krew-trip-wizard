@@ -181,45 +181,59 @@ export function buildTripSteps(input: {
   datesLocked: boolean;
   hasRecommendations: boolean;
   destinationSelected: boolean;
+  /** Planning généré → organisation bien engagée */
+  hasItinerary?: boolean;
 }): TripStep[] {
-  // Mode test : 1 réponse suffit pour débloquer l'étape suivante
+  // Mode test : 1 réponse suffit
   const minAnswers = 1;
+
+  // Faits bruts
+  let availDone = input.availabilityAnswered >= minAnswers;
+  let questDone = input.questionnaireAnswered >= minAnswers;
+  let datesDone = Boolean(input.datesLocked);
+  let destDone = Boolean(input.destinationSelected);
+  let orgDone = Boolean(input.hasItinerary);
+
+  // Cascade arrière : si on est plus loin dans le projet, les étapes
+  // précédentes sont forcément "faites" (évite destination verrouillée
+  // alors qu'on est déjà en organisation).
+  if (orgDone) destDone = true;
+  if (destDone) {
+    datesDone = true;
+    questDone = true;
+    availDone = true;
+  }
+  if (datesDone) {
+    questDone = true;
+    availDone = true;
+  }
+  if (questDone) availDone = true;
 
   const inviteDone =
     input.participantsJoined >= 1 ||
-    input.availabilityAnswered >= minAnswers ||
-    input.questionnaireAnswered >= minAnswers;
+    availDone ||
+    questDone ||
+    datesDone ||
+    destDone;
 
-  const availDone = input.availabilityAnswered >= minAnswers;
-  const questDone = input.questionnaireAnswered >= minAnswers;
-  const datesDone = Boolean(input.datesLocked);
-  const destDone = Boolean(input.destinationSelected);
+  // Une seule étape "active" = la première non terminée
+  function statusFor(done: boolean, prereqDone: boolean): TripStep["status"] {
+    if (done) return "done";
+    if (!prereqDone) return "soon"; // verrouillée tant que la précédente n'est pas OK
+    return "active";
+  }
 
-  // Enchaînement strict : une seule active, le reste todo/soon si prereq manquant
-  const inviteStatus: TripStep["status"] = inviteDone ? "done" : "active";
-  const availStatus: TripStep["status"] = !inviteDone
-    ? "todo"
-    : availDone
-      ? "done"
-      : "active";
-  const questStatus: TripStep["status"] = !availDone
-    ? "todo"
-    : questDone
-      ? "done"
-      : "active";
-  const datesStatus: TripStep["status"] = !questDone
-    ? "todo"
-    : datesDone
-      ? "done"
-      : "active";
-  const destStatus: TripStep["status"] = !datesDone
-    ? "soon" // bloqué tant que dates non validées
+  const inviteStatus = inviteDone ? "done" : "active";
+  const availStatus = statusFor(availDone, inviteDone);
+  const questStatus = statusFor(questDone, availDone);
+  const datesStatus = statusFor(datesDone, questDone);
+  const destStatus = statusFor(destDone, datesDone);
+  // Organisation : active dès destination choisie, done si planning généré
+  const organizeStatus: TripStep["status"] = orgDone
+    ? "done"
     : destDone
-      ? "done"
-      : "active";
-  const organizeStatus: TripStep["status"] = !destDone
-    ? "soon"
-    : "active";
+      ? "active"
+      : "soon";
 
   return [
     {
@@ -253,14 +267,22 @@ export function buildTripSteps(input: {
     {
       id: "destination",
       label: "Destination",
-      description: datesDone ? "Propositions Krew" : "Après dates validées",
+      description: destDone
+        ? "Choix validé"
+        : datesDone
+          ? "Propositions Krew"
+          : "Après dates validées",
       href: "",
       status: destStatus,
     },
     {
       id: "organize",
       label: "Organisation",
-      description: destDone ? "Planning & logistique" : "Après destination",
+      description: orgDone
+        ? "Planning en place"
+        : destDone
+          ? "Planning & logistique"
+          : "Après destination",
       status: organizeStatus,
     },
   ];
