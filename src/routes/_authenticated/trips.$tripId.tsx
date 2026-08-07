@@ -1,9 +1,9 @@
 // src/routes/_authenticated/trips.$tripId.tsx
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet } from "lucide-react";
+import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,11 @@ function TripDetail() {
   const fetchProgress = useServerFn(getParticipantsProgress);
   const searchExternal = useServerFn(searchExternalForTrip);
   const [email, setEmail] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return `${window.location.origin}/join/${tripId}`;
+  }, [tripId]);
 
   const queryKey = ["trip", tripId];
   const { data, isLoading } = useQuery({ queryKey, queryFn: () => fetchDetail({ data: { tripId } }) });
@@ -385,7 +390,49 @@ function TripDetail() {
       </section>
 
       <section className="mt-12">
-        <h2 className="font-display text-2xl font-semibold">Le groupe</h2>
+        <h2 className="font-display text-2xl font-semibold">Inviter la bande</h2>
+        <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground">
+            Envoie ce lien (WhatsApp, SMS, Instagram…) — tes amis rejoignent le voyage et répondent au questionnaire.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Input readOnly value={shareUrl} className="max-w-md font-mono text-xs" />
+            <Button
+              type="button"
+              variant="hero"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(shareUrl);
+                  setShareCopied(true);
+                  toast.success("Lien copié !");
+                  setTimeout(() => setShareCopied(false), 2000);
+                } catch {
+                  toast.error("Impossible de copier — sélectionne le lien manuellement");
+                }
+              }}
+            >
+              {shareCopied ? <Check /> : <Copy />}
+              {shareCopied ? "Copié" : "Copier le lien"}
+            </Button>
+            {typeof navigator !== "undefined" && typeof (navigator as any).share === "function" ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  (navigator as any).share({
+                    title: data.trip.name,
+                    text: `Rejoins mon voyage « ${data.trip.name} » sur Krew`,
+                    url: shareUrl,
+                  })
+                }
+              >
+                <Link2 /> Partager
+              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        <h3 className="mt-8 font-display text-lg font-semibold">Le groupe</h3>
         {data.isOwner ? (
           <form
             className="mt-4 flex flex-wrap gap-2"
