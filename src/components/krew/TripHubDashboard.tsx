@@ -152,6 +152,54 @@ export function TripHubDashboard({
         <TripHubNav tripId={tripId} steps={steps} onInviteClick={handleInviteClick} />
       </section>
 
+      {/* Résumé des retours x/N */}
+      <section className="rounded-3xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          État des réponses · groupe de {trip.participants_count || participantsCount}
+        </h2>
+        <ul className="mt-4 space-y-3 text-sm">
+          <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3">
+            <span className="font-medium">Lien d&apos;invitation ouvert</span>
+            <span className="tabular-nums">
+              <strong>{participantsCount}</strong>/{trip.participants_count || participantsCount}
+              {(trip.participants_count || participantsCount) - participantsCount > 0 ? (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  · {Math.max((trip.participants_count || participantsCount) - participantsCount, 0)} n&apos;ont pas rejoint
+                </span>
+              ) : (
+                <span className="ml-2 text-xs text-lagoon">· tout le monde a rejoint</span>
+              )}
+            </span>
+          </li>
+          <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3">
+            <span className="font-medium">Disponibilités</span>
+            <span className="tabular-nums">
+              <strong>{availabilityAnswered}</strong>/{availabilityExpected}
+              {availabilityExpected - availabilityAnswered > 0 ? (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  · {availabilityExpected - availabilityAnswered} n&apos;ont pas répondu
+                </span>
+              ) : (
+                <span className="ml-2 text-xs text-lagoon">· tout le monde a répondu</span>
+              )}
+            </span>
+          </li>
+          <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3">
+            <span className="font-medium">Préférences</span>
+            <span className="tabular-nums">
+              <strong>{progressAnswered}</strong>/{progressTotal || trip.participants_count}
+              {(progressTotal || trip.participants_count) - progressAnswered > 0 ? (
+                <span className="ml-2 text-xs text-muted-foreground">
+                  · {(progressTotal || trip.participants_count) - progressAnswered} n&apos;ont pas répondu
+                </span>
+              ) : (
+                <span className="ml-2 text-xs text-lagoon">· tout le monde a répondu</span>
+              )}
+            </span>
+          </li>
+        </ul>
+      </section>
+
       {/* Cartes d'accès rapide */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {/* Inviter = copie le lien + scroll vers la section */}
@@ -171,7 +219,7 @@ export function TripHubDashboard({
           <p className="mt-0.5 text-xs text-muted-foreground">
             {inviteCopied
               ? "Colle-le dans WhatsApp / SMS"
-              : `${participantsCount} rejoint(s) · copie le lien`}
+              : `${participantsCount}/${trip.participants_count || participantsCount} ont ouvert le lien`}
           </p>
           <p className="mt-2 flex items-center gap-1 text-[11px] text-primary/80">
             <Copy className="size-3" /> /join/{tripId.slice(0, 8)}…
@@ -183,8 +231,8 @@ export function TripHubDashboard({
             to: "/trips/$tripId/availability" as const,
             title: "Disponibilités",
             desc: myAvailabilityDone
-              ? `Tes dispos enregistrées · modifiables · groupe ${availabilityAnswered}/${availabilityExpected}`
-              : `À compléter · groupe ${availabilityAnswered}/${availabilityExpected}`,
+              ? `Toi OK · groupe ${availabilityAnswered}/${availabilityExpected} · manque ${Math.max(availabilityExpected - availabilityAnswered, 0)}`
+              : `À faire · ${availabilityAnswered}/${availabilityExpected} · manque ${Math.max(availabilityExpected - availabilityAnswered, 0)}`,
             icon: CalendarDays,
             mineDone: myAvailabilityDone,
           },
@@ -192,8 +240,8 @@ export function TripHubDashboard({
             to: "/trips/$tripId/questionnaire" as const,
             title: "Préférences",
             desc: myPreferencesDone
-              ? `Tes préférences enregistrées · modifiables · groupe ${progressAnswered}/${progressTotal || trip.participants_count}`
-              : `À compléter · groupe ${progressAnswered}/${progressTotal || trip.participants_count}`,
+              ? `Toi OK · groupe ${progressAnswered}/${progressTotal || trip.participants_count} · manque ${Math.max((progressTotal || trip.participants_count) - progressAnswered, 0)}`
+              : `À faire · ${progressAnswered}/${progressTotal || trip.participants_count} · manque ${Math.max((progressTotal || trip.participants_count) - progressAnswered, 0)}`,
             icon: ClipboardList,
             mineDone: myPreferencesDone,
           },
