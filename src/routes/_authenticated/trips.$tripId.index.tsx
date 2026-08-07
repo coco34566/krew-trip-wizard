@@ -25,6 +25,8 @@ import {
   generateGroupItinerary,
   regenerateItinerarySlot,
   proposeStayAndTransport,
+  voteHotel,
+  pickTransport,
   cancelTrip,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress, getMyParticipantPreferences } from "@/lib/participant-preferences.functions";
@@ -265,6 +267,34 @@ function TripDetail() {
     onError: (e: any) =>
       toast.error(String(e?.message ?? "Recherche logistique impossible").slice(0, 160)),
   });
+
+  const voteHotelFn = useServerFn(voteHotel);
+  const pickTransportFn = useServerFn(pickTransport);
+  const hotelVoteMutation = useMutation({
+    mutationFn: (hotelId: string) => voteHotelFn({ data: { tripId, hotelId } }),
+    onSuccess: () => {
+      toast.success("Vote hôtel enregistré");
+      refresh();
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Vote impossible").slice(0, 120)),
+  });
+  const transportPickMutation = useMutation({
+    mutationFn: (payload: {
+      city: string;
+      mode: string;
+      modeLabel?: string;
+      label: string;
+      time?: string;
+      pricePerPerson?: number;
+      url?: string | null;
+    }) => pickTransportFn({ data: { tripId, ...payload } }),
+    onSuccess: () => {
+      toast.success("Trajet choisi — visible pour ta ville de départ");
+      refresh();
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Choix impossible").slice(0, 120)),
+  });
+
 
   const selectMutation = useMutation({
     mutationFn: (recommendationId: string) => select({ data: { tripId, recommendationId } }),
@@ -869,14 +899,14 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {/* 4. Hôtels & transports */}
+      {/* 4. Hôtels (vote groupe) */}
       {destinationSelected ? (
         <section id="hub-logistics" className="mt-10 space-y-4 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-2xl font-semibold">5. Hôtels & transports</h2>
+              <h2 className="font-display text-2xl font-semibold">4. Hôtels — vote du groupe</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Plusieurs hôtels + A/R avion, train, bus et voiture avec prix indicatifs et liens de réservation.
+                Chacun vote pour un hébergement. L&apos;orga réserve celui qui a le plus de voix.
               </p>
             </div>
             {data.isOwner ? (
@@ -891,154 +921,240 @@ function TripDetail() {
                   <Hotel />
                 )}
                 {(trip as any).group_logistics?.hotels?.length
-                  ? "Actualiser hôtels & trajets"
-                  : "Chercher hôtels & trajets"}
+                  ? "Actualiser les offres"
+                  : "Chercher des hôtels"}
               </Button>
             ) : null}
           </div>
 
-          {!(trip as any).group_logistics ? (
+          {(trip as any).group_logistics?.hotelVoteTodo ? (
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+              To-do orga · {(trip as any).group_logistics.hotelVoteTodo}
+            </p>
+          ) : null}
+
+          {!(trip as any).group_logistics?.hotels?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {data.isOwner
-                ? "Lance la recherche pour proposer des hébergements et des trajets adaptés à chaque ville de départ."
-                : "L'organisateur lancera la recherche hôtels & transports."}
+                ? "Lance la recherche pour proposer des hébergements."
+                : "L'organisateur proposera bientôt des hôtels à voter."}
             </p>
           ) : (
-            <div className="space-y-6">
-              <div>
-                <h3 className="font-display text-lg font-semibold flex items-center gap-2">
-                  <Hotel className="size-4 text-primary" /> Hébergements recommandés
-                </h3>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {((trip as any).group_logistics.hotels ?? []).map((h: any) => (
-                    <article
-                      key={h.id}
-                      className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-medium">{h.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {h.type}
-                            {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
-                            {h.distanceCenterKm != null
-                              ? ` · ${h.distanceCenterKm} km centre`
-                              : ""}
-                          </p>
-                        </div>
-                        <Badge variant="secondary">{Math.round((h.score ?? 0) * 100)}%</Badge>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {((trip as any).group_logistics.hotels as any[]).map((h: any) => {
+                const votes = ((trip as any).group_logistics.hotelVotes ?? []) as {
+                  userId: string;
+                  hotelId: string;
+                }[];
+                const n = votes.filter((v) => v.hotelId === h.id).length;
+                const iVoted = votes.some(
+                  (v) => v.hotelId === h.id && v.userId === data.userId,
+                );
+                const isTop = (trip as any).group_logistics.selectedHotelId === h.id && n > 0;
+                return (
+                  <article
+                    key={h.id}
+                    className={cn(
+                      "rounded-2xl border bg-card p-4 shadow-sm",
+                      isTop ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-border",
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{h.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {h.type}
+                          {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
+                        </p>
                       </div>
-                      <p className="mt-2 text-sm">
-                        {formatEuro(h.pricePerNight)} / nuit / pers.
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · ~{formatEuro(h.totalEstimate)} séjour
-                        </span>
-                      </p>
-                      {(h.reasons ?? []).length ? (
-                        <ul className="mt-2 text-xs text-muted-foreground space-y-0.5">
-                          {h.reasons.slice(0, 3).map((r: string, i: number) => (
-                            <li key={i}>✓ {r}</li>
-                          ))}
-                        </ul>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {(h.links?.length
-                          ? h.links
-                          : h.bookingUrl
-                            ? [{ label: "Réserver", url: h.bookingUrl }]
-                            : []
-                        ).map((l: any) => (
+                      {isTop ? <Badge variant="success">Top votes</Badge> : null}
+                    </div>
+                    <p className="mt-2 text-sm">
+                      {formatEuro(h.pricePerNight)} / nuit / pers.
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · ~{formatEuro(h.totalEstimate)} séjour
+                      </span>
+                    </p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={iVoted ? "lagoon" : "outline"}
+                        disabled={hotelVoteMutation.isPending}
+                        onClick={() => hotelVoteMutation.mutate(h.id)}
+                      >
+                        <Heart className={cn("size-3.5", iVoted && "fill-current")} />
+                        {iVoted ? "Mon vote" : "Voter"} · {n}
+                      </Button>
+                      {(h.links?.length
+                        ? h.links
+                        : h.bookingUrl
+                          ? [{ label: "Réserver", url: h.bookingUrl }]
+                          : []
+                      )
+                        .slice(0, 2)
+                        .map((l: any) => (
                           <a
                             key={l.label + l.url}
                             href={l.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                            className="text-xs font-medium text-primary hover:underline"
                           >
                             {l.label} →
                           </a>
                         ))}
-                      </div>
-                    </article>
-                  ))}
-                  {!(trip as any).group_logistics.hotels?.length ? (
-                    <p className="text-sm text-muted-foreground col-span-full">
-                      Aucun hôtel en catalogue pour cette destination pour l&apos;instant.
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-display text-lg font-semibold flex items-center gap-2">
-                  <Plane className="size-4 text-primary" /> Transports par ville de départ
-                </h3>
-                <ul className="mt-3 space-y-2">
-                  {((trip as any).group_logistics.transports ?? []).map((tr: any, i: number) => (
-                    <li
-                      key={`${tr.city}-${i}`}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border bg-card px-4 py-3"
-                    >
-                      <div className="flex items-start gap-2">
-                        {tr.mode === "flight" ? (
-                          <Plane className="mt-0.5 size-4 text-primary" />
-                        ) : (
-                          <Train className="mt-0.5 size-4 text-primary" />
-                        )}
-                        <div>
-                          <p className="font-medium text-sm">
-                            {tr.city}
-                            <span className="text-muted-foreground font-normal">
-                              {" "}
-                              · {tr.count} pers.
-                            </span>
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground/80">
-                              {tr.modeLabel || tr.mode}
-                            </span>
-                            {" · "}
-                            {tr.label}
-                          </p>
-                          {tr.note ? (
-                            <p className="text-xs text-amber-700 dark:text-amber-400">{tr.note}</p>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold">{formatEuro(tr.pricePerPerson)}</p>
-                        <p className="text-xs text-muted-foreground">/ pers. A/R</p>
-                        <div className="mt-1 flex flex-wrap justify-end gap-1.5">
-                          {(tr.links?.length
-                            ? tr.links
-                            : tr.url
-                              ? [{ label: "Réserver", url: tr.url }]
-                              : []
-                          ).map((l: any) => (
-                            <a
-                              key={l.label + l.url}
-                              href={l.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/10"
-                            >
-                              {l.label}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                  {!(trip as any).group_logistics.transports?.length ? (
-                    <p className="text-sm text-muted-foreground">Aucun trajet calculé.</p>
-                  ) : null}
-                </ul>
-              </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
       ) : null}
+
+      {/* 5. Transports — choix perso par ville */}
+      {destinationSelected ? (
+        <section id="hub-transports" className="mt-10 space-y-4 scroll-mt-24">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-2xl font-semibold">5. Transports A/R</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Choisis ton trajet selon ta ville de départ. Les autres venant de la même ville
+                voient ton choix (mode, horaire).
+              </p>
+            </div>
+            {data.isOwner && !(trip as any).group_logistics?.transports?.length ? (
+              <Button
+                variant="outline"
+                disabled={logisticsMutation.isPending}
+                onClick={() => logisticsMutation.mutate()}
+              >
+                {logisticsMutation.isPending ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Plane />
+                )}
+                Générer les options
+              </Button>
+            ) : null}
+          </div>
+
+          {!(trip as any).group_logistics?.transports?.length ? (
+            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              Les options de trajet apparaîtront après la recherche logistique (orga).
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {(() => {
+                const transports = ((trip as any).group_logistics.transports ?? []) as any[];
+                const picks = ((trip as any).group_logistics.transportPicks ?? []) as any[];
+                const cities = [...new Set(transports.map((tr) => tr.city as string))];
+                return cities.map((city) => {
+                  const options = transports.filter((tr) => tr.city === city);
+                  const cityPicks = picks.filter(
+                    (p) => String(p.city).toLowerCase() === String(city).toLowerCase(),
+                  );
+                  const myPick = picks.find((p) => p.userId === data.userId);
+                  return (
+                    <div
+                      key={city}
+                      className="rounded-3xl border border-border bg-card p-4 sm:p-5"
+                    >
+                      <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+                        <Plane className="size-4 text-primary" />
+                        Depuis {city}
+                      </h3>
+                      {cityPicks.length ? (
+                        <ul className="mt-2 space-y-1 rounded-xl bg-surface/50 px-3 py-2 text-xs text-muted-foreground">
+                          {cityPicks.map((p) => (
+                            <li key={p.userId}>
+                              <span className="font-medium text-foreground">
+                                {p.displayName}
+                              </span>
+                              {" · "}
+                              {p.modeLabel || p.mode}
+                              {p.time ? ` · ${p.time}` : ""}
+                              {p.label ? ` · ${p.label}` : ""}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Personne de {city} n&apos;a encore choisi de trajet.
+                        </p>
+                      )}
+                      <ul className="mt-3 space-y-2">
+                        {options.map((tr: any, i: number) => {
+                          const isMine =
+                            myPick &&
+                            myPick.city === tr.city &&
+                            myPick.mode === tr.mode &&
+                            myPick.label === tr.label;
+                          return (
+                            <li
+                              key={`${tr.city}-${tr.mode}-${i}`}
+                              className={cn(
+                                "flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3",
+                                isMine
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border bg-background/40",
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium">
+                                  {tr.modeLabel || tr.mode} · {tr.label}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  ~{formatEuro(tr.pricePerPerson)} / pers. A/R
+                                  {tr.note ? ` · ${tr.note}` : ""}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant={isMine ? "hero" : "outline"}
+                                  disabled={transportPickMutation.isPending}
+                                  onClick={() =>
+                                    transportPickMutation.mutate({
+                                      city: tr.city,
+                                      mode: tr.mode,
+                                      modeLabel: tr.modeLabel,
+                                      label: tr.label,
+                                      pricePerPerson: tr.pricePerPerson,
+                                      url: tr.url,
+                                    })
+                                  }
+                                >
+                                  {isMine ? "Mon trajet" : "J'ai choisi ce trajet"}
+                                </Button>
+                                {(tr.links ?? [])
+                                  .slice(0, 2)
+                                  .map((l: any) => (
+                                    <a
+                                      key={l.label}
+                                      href={l.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-xs text-primary hover:underline"
+                                    >
+                                      {l.label}
+                                    </a>
+                                  ))}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </section>
+      ) : null}
+
 
       {(trip.celebrated_person ||
         ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
