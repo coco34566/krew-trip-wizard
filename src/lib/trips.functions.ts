@@ -912,3 +912,190 @@ export const finalizeSelectedActivities = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true, activityIds: data.activityIds };
   });
+
+/** Génère le planning activités (resto / activités / bars) pour la destination validée. */
+export const generateGroupItinerary = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), force: z.boolean().optional() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+    const trip = tripRes.data as any;
+    if (trip.owner_id !== userId) {
+      throw new Error("403 Forbidden: seul l'organisateur peut générer le planning");
+    }
+
+    const selected = await supabase
+      .from("recommendations")
+      .select("id, activity_ids, destinations(name, country)")
+      .eq("trip_id", data.tripId)
+      .eq("is_selected", true)
+      .maybeSingle();
+    if (selected.error) throw selected.error;
+    if (!selected.data) {
+      throw new Error("Valide d'abord une destination avant de générer les activités");
+    }
+
+    const destName =
+      (selected.data as any).destinations?.name ||
+      trip.desired_destination ||
+      "Destination";
+    const destCountry = (selected.data as any).destinations?.country || null;
+
+    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+
+    let nights = Number(trip.duration_nights) || 2;
+    if (trip.start_date && trip.end_date) {
+      const ms =
+        new Date(trip.end_date + "T12:00:00Z").getTime() -
+        new Date(trip.start_date + "T12:00:00Z").getTime();
+      const d = Math.round(ms / (24 * 3600 * 1000));
+      if (d >= 1) nights = d;
+    }
+
+    // Labels depuis activités catalogue liées à la reco
+    const activityIds = ((selected.data as any).activity_ids ?? []) as string[];
+    let seedLabels: string[] = [];
+    if (activityIds.length) {
+      const acts = await supabase.from("activities").select("name, category").in("id", activityIds);
+      seedLabels = (acts.data ?? []).map((a: any) => a.name).filter(Boolean);
+    }
+
+    const { generateItineraryWithAi } = await import("@/lib/krew/activity-ai.server");
+    const result = await generateItineraryWithAi(
+      {
+        destination: destName,
+        country: destCountry,
+        startDate: trip.start_date,
+        endDate: trip.end_date,
+        nights,
+        participants: Number(trip.participants_count) || aggregated.participantsCount || 2,
+        budgetPerPerson:
+          Number(aggregated.aggregatedBudget) ||
+          Number(trip.budget_per_person) ||
+          400,
+        eventType: trip.event_type,
+        ambiances: aggregated.ambiances ?? [],
+        activityCategories: aggregated.activityCategories ?? [],
+        starWanted: aggregated.starWantedActivities ?? [],
+        dietaryConstraints: aggregated.dietaryConstraints ?? [],
+        travelPace: aggregated.medianTravelPace,
+        preferredTimeSlots: aggregated.preferredTimeSlots ?? [],
+      },
+      seedLabels,
+    );
+
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        group_itinerary: result.itinerary,
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", data.tripId)
+      .eq("owner_id", userId);
+    if (error) throw error;
+
+    return {
+      ok: true,
+      usedLlm: result.usedLlm,
+      error: result.error,
+      itinerary: result.itinerary,
+    };
+  });
+
+/** Régénère un seul créneau du planning (sans toucher au reste). */
+export const regenerateItinerarySlot = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        day: z.number().int().min(1).max(21),
+        slotIndex: z.number().int().min(0).max(20),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tripRes = await supabase
+      .from("trips")
+      .select("id, owner_id, group_itinerary, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+    if ((tripRes.data as any).owner_id !== userId) {
+      throw new Error("403 Forbidden: seul l'organisateur peut régénérer un créneau");
+    }
+
+    const itinerary = (tripRes.data as any).group_itinerary as {
+      destination?: string;
+      nights?: number;
+      days?: { day: number; date?: string | null; slots: any[] }[];
+      source?: string;
+      generatedAt?: string;
+    } | null;
+    if (!itinerary?.days?.length) {
+      throw new Error("Aucun planning à modifier — génère d'abord les activités");
+    }
+
+    const dayPlan = itinerary.days.find((d) => d.day === data.day) || itinerary.days[data.day - 1];
+    if (!dayPlan?.slots?.[data.slotIndex]) {
+      throw new Error("Créneau introuvable");
+    }
+    const current = dayPlan.slots[data.slotIndex];
+    const avoid = dayPlan.slots.map((s) => s.label).filter(Boolean);
+
+    const selected = await supabase
+      .from("recommendations")
+      .select("destinations(name, country)")
+      .eq("trip_id", data.tripId)
+      .eq("is_selected", true)
+      .maybeSingle();
+    const destName =
+      (selected.data as any)?.destinations?.name || itinerary.destination || "Destination";
+
+    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+
+    const { regenerateSlotWithAi } = await import("@/lib/krew/activity-ai.server");
+    const result = await regenerateSlotWithAi(
+      {
+        destination: destName,
+        startDate: (tripRes.data as any).start_date,
+        endDate: (tripRes.data as any).end_date,
+        nights: Number((tripRes.data as any).duration_nights) || itinerary.nights || 2,
+        participants: Number((tripRes.data as any).participants_count) || 2,
+        budgetPerPerson: Number((tripRes.data as any).budget_per_person) || 400,
+        eventType: (tripRes.data as any).event_type,
+        ambiances: aggregated.ambiances ?? [],
+        activityCategories: aggregated.activityCategories ?? [],
+        starWanted: aggregated.starWantedActivities ?? [],
+        dietaryConstraints: aggregated.dietaryConstraints ?? [],
+        travelPace: aggregated.medianTravelPace,
+      },
+      current,
+      avoid,
+    );
+
+    dayPlan.slots[data.slotIndex] = result.slot;
+    itinerary.generatedAt = new Date().toISOString();
+    if (result.usedLlm) itinerary.source = "ai";
+
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        group_itinerary: itinerary,
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", data.tripId)
+      .eq("owner_id", userId);
+    if (error) throw error;
+
+    return { ok: true, usedLlm: result.usedLlm, slot: result.slot, itinerary };
+  });
