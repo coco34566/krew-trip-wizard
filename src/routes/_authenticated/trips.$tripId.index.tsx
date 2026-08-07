@@ -357,40 +357,6 @@ function TripDetail() {
       >
       </TripHubDashboard>
 
-      {readiness ? (
-        <div className="mt-8 space-y-3 rounded-2xl border border-border bg-surface/40 px-4 py-4 text-sm">
-          <p className="font-medium">Statut des questionnaires</p>
-          <ul className="space-y-1.5 text-muted-foreground">
-            <li>
-              {(readiness as any).checklist?.prefsOk ? "✅" : "⏳"} Préférences :{" "}
-              {readiness.quality.answered}/{readiness.quality.expected}
-              {readiness.missingLabels?.length
-                ? ` · en attente : ${readiness.missingLabels.slice(0, 5).join(", ")}`
-                : ""}
-            </li>
-            <li>
-              {(readiness as any).checklist?.availabilityOk ? "✅" : "⏳"} Disponibilités :{" "}
-              {(readiness.quality as any).availabilityAnswered ?? 0}/{readiness.quality.expected}
-            </li>
-            <li>
-              {(readiness as any).checklist?.datesLocked ? "✅" : "⏳"} Dates du séjour
-              {(readiness.quality as any).datesLocked && (readiness.quality as any).lockedStart
-                ? ` · validées (${new Date((readiness.quality as any).lockedStart + "T12:00:00").toLocaleDateString("fr-FR")} → ${new Date((readiness.quality as any).lockedEnd + "T12:00:00").toLocaleDateString("fr-FR")})`
-                : " · en attente de validation par l'organisateur"}
-            </li>
-          </ul>
-          {!readiness.canGenerate ? (
-            <p className="text-amber-700 dark:text-amber-400">
-              {readiness.message?.replace(/API|api/g, "").trim() ||
-                "Encore des réponses manquantes avant les suggestions de destinations."}
-            </p>
-          ) : (
-            <p className="text-lagoon">Tout est prêt pour les suggestions de destinations.</p>
-          )}
-        </div>
-      ) : null}
-
-
       <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-lg font-semibold flex items-center gap-2">
