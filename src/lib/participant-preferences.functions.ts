@@ -216,6 +216,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       required_amenities: (data as any).requiredAmenities ?? [],
       min_accommodation_rating: (data as any).minAccommodationRating ?? null,
       travel_pace: (data as any).travelPace ?? null,
+      deal_breaker_ambiances: (data as any).dealBreakerAmbiances ?? [],
       preferred_time_slots: (data as any).preferredTimeSlots ?? [],
     };
 
