@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList } from "lucide-react";
+import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,11 @@ import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { cn } from "@/lib/utils";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
-import { getTripAvailability } from "@/lib/availability.functions";
+import {
+  getTripAvailability,
+  chooseTripDates,
+  unlockTripDates,
+} from "@/lib/availability.functions";
 import { getStarPreferences } from "@/lib/star-preferences.functions";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
@@ -79,6 +83,9 @@ function TripDetail() {
   const searchExternal = useServerFn(searchExternalForTrip);
   const fetchSplit = useServerFn(getCostSplit);
   const fetchAvail = useServerFn(getTripAvailability);
+  const chooseDatesFn = useServerFn(chooseTripDates);
+  const unlockDatesFn = useServerFn(unlockTripDates);
+
   const { data: availData } = useQuery({
     queryKey: ["trip-availability", tripId],
     queryFn: () => fetchAvail({ data: { tripId } }),
@@ -192,6 +199,30 @@ function TripDetail() {
       console.error("Recherche externe échouée", err);
       toast.error(err?.message ?? "Recherche externe échouée");
     },
+  });
+
+
+  const chooseDatesMutation = useMutation({
+    mutationFn: (payload: { start: string; end: string }) =>
+      chooseDatesFn({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
+    onSuccess: () => {
+      toast.success("Dates validées — les recherches destinations peuvent démarrer");
+      queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Impossible de valider les dates").slice(0, 140)),
+  });
+
+  const unlockDatesMutation = useMutation({
+    mutationFn: () => unlockDatesFn({ data: { tripId } }),
+    onSuccess: () => {
+      toast.success("Dates déverrouillées");
+      queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 120)),
   });
 
   if (isLoading || !data) {
@@ -524,6 +555,127 @@ function TripDetail() {
               </article>
             );
           })
+        )}
+      </section>
+
+
+
+      {/* Résumé + validation des dates */}
+      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+            <CalendarDays className="size-5 text-primary" />
+            Dates du groupe
+          </h2>
+          <a
+            href={`/trips/${tripId}/availability`}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Voir le calendrier →
+          </a>
+        </div>
+
+        {(availData as any)?.schemaMissing ? (
+          <p className="text-sm text-destructive">
+            Table dispos absente — exécute le SQL trip_availability dans Lovable.
+          </p>
+        ) : (trip as any).dates_locked || availData?.trip?.datesLocked ? (
+          <div className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3">
+            <p className="flex items-center gap-2 font-semibold text-foreground">
+              <Lock className="size-4 text-lagoon" />
+              Dates validées
+            </p>
+            <p className="mt-1 text-sm">
+              {new Date(
+                ((trip as any).start_date || availData?.trip?.lockedStart) + "T12:00:00",
+              ).toLocaleDateString("fr-FR")}
+              {" → "}
+              {new Date(
+                ((trip as any).end_date || availData?.trip?.lockedEnd) + "T12:00:00",
+              ).toLocaleDateString("fr-FR")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ces dates alimentent les recherches API (vols, hébergements, activités).
+            </p>
+            {data.isOwner ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                disabled={unlockDatesMutation.isPending}
+                onClick={() => {
+                  if (window.confirm("Déverrouiller les dates pour en choisir d'autres ?")) {
+                    unlockDatesMutation.mutate();
+                  }
+                }}
+              >
+                {unlockDatesMutation.isPending ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Unlock className="size-3.5" />
+                )}
+                Déverrouiller
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1}{" "}
+              dispos reçues. L&apos;organisateur valide une fenêtre pour lancer les destinations.
+            </p>
+            <ul className="space-y-2">
+              {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
+                <li
+                  key={`${w.start}-${w.end}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm">
+                      {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
+                      {new Date(w.start + "T12:00:00").toLocaleDateString("fr-FR")} →{" "}
+                      {new Date(w.end + "T12:00:00").toLocaleDateString("fr-FR")}
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {w.covered}/{w.total} · {Math.round((w.coverageRatio ?? 0) * 100)} %
+                      </span>
+                    </p>
+                    {(w.availablePeople?.length ?? 0) > 0 ? (
+                      <p className="mt-0.5 text-xs text-lagoon">
+                        ✅ {w.availablePeople.map((p: any) => p.name).join(", ")}
+                      </p>
+                    ) : null}
+                    {(w.unavailablePeople?.length ?? 0) > 0 ? (
+                      <p className="mt-0.5 text-xs text-destructive/90">
+                        ❌ {w.unavailablePeople.map((p: any) => p.name).join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                  {data.isOwner ? (
+                    <Button
+                      size="sm"
+                      variant={i === 0 ? "default" : "outline"}
+                      disabled={chooseDatesMutation.isPending}
+                      onClick={() =>
+                        chooseDatesMutation.mutate({ start: w.start, end: w.end })
+                      }
+                    >
+                      {chooseDatesMutation.isPending ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Lock className="size-3.5" />
+                      )}
+                      Valider ces dates
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+              {(availData?.windows ?? []).length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Pas encore de fenêtre commune — attends plus de réponses dispos.
+                </p>
+              ) : null}
+            </ul>
+          </>
         )}
       </section>
 
