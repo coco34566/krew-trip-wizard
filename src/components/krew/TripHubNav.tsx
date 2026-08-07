@@ -23,6 +23,7 @@ export function TripHubNav({
 
   function stepHref(step: TripStep): string | null {
     if (step.id === "invite") return "#invite-section";
+    if (step.id === "dates") return "#hub-dates";
     if (step.id === "destination") return "#hub-destination";
     if (step.id === "organize") return "#hub-activities-plan";
     const routeTo = STEP_ROUTE[step.id];
@@ -57,7 +58,7 @@ export function TripHubNav({
       </div>
 
       {/* Stepper desktop */}
-      <ol className="hidden sm:grid sm:grid-cols-5 sm:gap-0">
+      <ol className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-6 sm:gap-0">
         {steps.map((step, i) => {
           const isDone = step.status === "done";
           const isActive = step.status === "active";
