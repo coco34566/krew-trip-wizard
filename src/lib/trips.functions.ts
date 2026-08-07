@@ -227,3 +227,96 @@ export const selectRecommendation = createServerFn({ method: "POST" })
     await supabase.from("trips").update({ status: "valide" }).eq("id", data.tripId);
     return { ok: true };
   });
+
+/** Aperçu public d'un voyage pour la page /join (service role). */
+export const getJoinPreview = createServerFn({ method: "GET" })
+  .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const trip = await supabaseAdmin
+      .from("trips")
+      .select("id, name, event_type, departure_city, participants_count, start_date, end_date, status")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable ou lien invalide");
+    return {
+      id: trip.data.id as string,
+      name: trip.data.name as string,
+      eventType: trip.data.event_type as string,
+      departureCity: trip.data.departure_city as string,
+      participantsCount: trip.data.participants_count as number,
+      startDate: trip.data.start_date as string | null,
+      endDate: trip.data.end_date as string | null,
+    };
+  });
+
+/**
+ * Rejoindre un voyage via le lien de partage.
+ * Rattache l'utilisateur connecté comme participant (status accepte).
+ */
+export const joinTrip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const email = (typeof claims?.email === "string" ? claims.email : "").trim().toLowerCase();
+    if (!email) throw new Error("Email de compte manquant — reconnecte-toi.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const trip = await supabaseAdmin
+      .from("trips")
+      .select("id, owner_id, name")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+
+    if (trip.data.owner_id === userId) {
+      return { tripId: data.tripId, alreadyMember: true, isOwner: true };
+    }
+
+    // Si déjà participant par email ou user_id → rattacher
+    const byUser = await supabaseAdmin
+      .from("trip_participants")
+      .select("id, user_id, status")
+      .eq("trip_id", data.tripId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    const byEmail = byUser.data
+      ? byUser
+      : await supabaseAdmin
+          .from("trip_participants")
+          .select("id, user_id, status")
+          .eq("trip_id", data.tripId)
+          .eq("email", email)
+          .maybeSingle();
+    const existing = byUser.data ? byUser : byEmail;
+
+    if (existing.data) {
+      const updated = await supabaseAdmin
+        .from("trip_participants")
+        .update({ user_id: userId, email, status: "accepte" })
+        .eq("id", existing.data.id)
+        .select("id")
+        .single();
+      if (updated.error) throw updated.error;
+      return { tripId: data.tripId, alreadyMember: true, isOwner: false };
+    }
+
+    const inserted = await supabaseAdmin
+      .from("trip_participants")
+      .insert({
+        trip_id: data.tripId,
+        user_id: userId,
+        email,
+        status: "accepte",
+        role: "membre",
+      })
+      .select("id")
+      .single();
+    if (inserted.error) throw inserted.error;
+
+    return { tripId: data.tripId, alreadyMember: false, isOwner: false };
+  });
