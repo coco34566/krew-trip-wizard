@@ -61,7 +61,8 @@ function JoinTripPage() {
     try {
       await doJoin({ data: { tripId, firstName: firstName.trim() } });
       toast.success("Bienvenue dans le voyage !");
-      navigate({ to: "/trips/$tripId/availability", params: { tripId } });
+      // Navigation hard pour éviter les soucis de routeTree non régénéré
+      window.location.assign(`/trips/${tripId}/availability`);
     } catch (e: any) {
       toast.error(e?.message ?? "Impossible de rejoindre ce voyage");
     } finally {
