@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays } from "lucide-react";
+import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays } 
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ import {
   toggleVote,
   toggleActivityVote,
   finalizeSelectedActivities,
+  generateGroupItinerary,
+  regenerateItinerarySlot,
   cancelTrip,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress, getMyParticipantPreferences } from "@/lib/participant-preferences.functions";
@@ -158,6 +160,35 @@ function TripDetail() {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Validation impossible").slice(0, 120)),
+  });
+
+  const generateItineraryFn = useServerFn(generateGroupItinerary);
+  const regenerateSlotFn = useServerFn(regenerateItinerarySlot);
+  const itineraryMutation = useMutation({
+    mutationFn: () => generateItineraryFn({ data: { tripId, force: true } }),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      if (res?.ok) {
+        toast.success(
+          res.usedLlm
+            ? "Planning activités généré (IA)"
+            : "Planning activités généré (mode local)",
+        );
+        document.getElementById("hub-activities-plan")?.scrollIntoView({ behavior: "smooth" });
+      }
+    },
+    onError: (e: any) =>
+      toast.error(String(e?.message ?? "Génération planning impossible").slice(0, 160)),
+  });
+  const slotMutation = useMutation({
+    mutationFn: (payload: { day: number; slotIndex: number }) =>
+      regenerateSlotFn({ data: { tripId, day: payload.day, slotIndex: payload.slotIndex } }),
+    onSuccess: () => {
+      toast.success("Créneau mis à jour");
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+    onError: (e: any) =>
+      toast.error(String(e?.message ?? "Régénération impossible").slice(0, 140)),
   });
 
   const selectMutation = useMutation({
