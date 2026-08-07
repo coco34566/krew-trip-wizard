@@ -28,6 +28,8 @@ export function TripHubNav({
     if (step.id === "invite") return "#invite-section";
     if (step.id === "dates") return "#hub-dates";
     if (step.id === "destination") return "#hub-destination";
+    if (step.id === "hotels") return "#hub-logistics";
+    if (step.id === "transport") return "#hub-transports";
     if (step.id === "organize") return "#hub-activities-plan";
     const routeTo = STEP_ROUTE[step.id];
     if (routeTo) return routeTo.replace("$tripId", tripId);
