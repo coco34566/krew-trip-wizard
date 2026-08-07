@@ -33,11 +33,17 @@ export function TripHubNav({ tripId, steps }: { tripId: string; steps: TripStep[
           </span>
         );
 
+        if (step.id === "invite") {
+          return (
+            <Link key={step.id} to={`/trips/${tripId}/invite` as any} className="no-underline">
+              {content}
+            </Link>
+          );
+        }
         if (isSoon || !step.href) {
-          // invite & destination anchor on same page
-          if (step.id === "invite" || step.id === "destination") {
+          if (step.id === "destination") {
             return (
-              <a key={step.id} href={`#hub-${step.id}`} className="no-underline">
+              <a key={step.id} href={`#hub-destination`} className="no-underline">
                 {content}
               </a>
             );
