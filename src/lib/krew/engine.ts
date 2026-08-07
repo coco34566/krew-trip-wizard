@@ -78,10 +78,36 @@ export type IndividualPreference = {
   maxTravelHours?: number | null;
 };
 
+export type ScoringWeights = {
+  ambiance: number;
+  activities: number;
+  budget: number;
+  distance: number;
+  season: number;
+  quality: number;
+  consensus: number;
+  minSatisfaction: number;
+};
+
+export type SubScores = {
+  sAmbiance: number;
+  sActivities: number;
+  sBudget: number;
+  sDistance: number;
+  sSeason: number;
+  sQuality: number;
+  sConsensus: number;
+  sMinSatisfaction: number;
+};
+
 export type ScoringContext = {
   participants: number;
   budgetPerPerson: number;
   nights: number;
+  /** Type d'événement du voyage (poids dynamiques). */
+  eventType?: string | null;
+  /** Poids override (ex. depuis table scoring_weights). */
+  scoringWeights?: ScoringWeights | null;
   ambiances: string[];
   activityCategories: string[];
   maxDistanceKm: number;
@@ -182,9 +208,43 @@ export type Proposal = {
   /** Participants avec fit >= 0.55. */
   satisfiedCount: number;
   participantsEvaluated: number;
+  /** Sous-scores 0–1 exposés pour feedback / apprentissage. */
+  subScores: SubScores;
 };
 
 const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
+
+/** Poids par défaut selon event_type (utilisés si pas de ligne scoring_weights). */
+export const DEFAULT_WEIGHTS_BY_EVENT: Record<string, ScoringWeights> = {
+  evg: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8 },
+  evjf: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8 },
+  anniversaire: { ambiance: 22, activities: 16, budget: 14, distance: 8, season: 10, quality: 6, consensus: 14, minSatisfaction: 10 },
+  weekend: { ambiance: 14, activities: 12, budget: 28, distance: 12, season: 8, quality: 4, consensus: 12, minSatisfaction: 10 },
+  voyage_groupe: { ambiance: 18, activities: 14, budget: 16, distance: 8, season: 8, quality: 5, consensus: 16, minSatisfaction: 15 },
+  default: { ambiance: 18, activities: 12, budget: 16, distance: 8, season: 8, quality: 5, consensus: 18, minSatisfaction: 15 },
+};
+
+export function resolveWeights(eventType?: string | null, override?: ScoringWeights | null): ScoringWeights {
+  if (override) return override;
+  const key = (eventType ?? "default").toLowerCase().trim();
+  return DEFAULT_WEIGHTS_BY_EVENT[key] ?? DEFAULT_WEIGHTS_BY_EVENT.default;
+}
+
+function dominantAmbiance(dest: DestinationRecord): string {
+  const pairs: [string, number][] = [
+    ["fete", dest.score_fete ?? 0],
+    ["aventure", dest.score_aventure ?? 0],
+    ["detente", dest.score_detente ?? 0],
+    ["luxe", dest.score_luxe ?? 0],
+    ["insolite", dest.score_insolite ?? 0],
+    ["sportif", dest.score_sportif ?? 0],
+    ["culturel", dest.score_culturel ?? 0],
+  ];
+  pairs.sort((a, b) => b[1] - a[1]);
+  return pairs[0]?.[0] ?? "none";
+}
+
+
 const norm = (s: string) =>
   s
     .normalize("NFD")
@@ -240,7 +300,10 @@ function activitiesPerDayForPace(travelPace?: string | null): number {
   return 2;
 }
 
-/** Sélectionne les activités les plus pertinentes dans le budget disponible. */
+/**
+ * Couverture de catégories d'abord : 1 activité min par wantedCategory si budget le permet,
+ * puis complétion par note.
+ */
 function pickActivities(
   pool: ActivityRecord[],
   wantedCategories: string[],
@@ -248,16 +311,38 @@ function pickActivities(
   budgetForActivities: number,
   travelPace?: string | null,
 ): ActivityRecord[] {
-  const ranked = [...pool].sort((a, b) => {
-    const aw = wantedCategories.includes(a.category) ? 1 : 0;
-    const bw = wantedCategories.includes(b.category) ? 1 : 0;
-    if (aw !== bw) return bw - aw;
-    return b.rating - a.rating;
-  });
   const perDay = activitiesPerDayForPace(travelPace);
   const maxCount = Math.max(perDay, (nights + 1) * perDay - (travelPace === "chill" ? 1 : 0));
   const picked: ActivityRecord[] = [];
   let spent = 0;
+  const used = new Set<string>();
+
+  const byRating = (a: ActivityRecord, b: ActivityRecord) => b.rating - a.rating;
+
+  // Phase 1 — couverture
+  for (const cat of wantedCategories) {
+    if (picked.length >= maxCount) break;
+    const candidates = pool
+      .filter((a) => a.category === cat && !used.has(a.id))
+      .sort(byRating);
+    const best = candidates[0];
+    if (!best) continue;
+    if (spent + best.price_per_person > budgetForActivities && picked.length >= 1) continue;
+    picked.push(best);
+    used.add(best.id);
+    spent += best.price_per_person;
+  }
+
+  // Phase 2 — complétion
+  const ranked = [...pool]
+    .filter((a) => !used.has(a.id))
+    .sort((a, b) => {
+      const aw = wantedCategories.includes(a.category) ? 1 : 0;
+      const bw = wantedCategories.includes(b.category) ? 1 : 0;
+      if (aw !== bw) return bw - aw;
+      return b.rating - a.rating;
+    });
+
   for (const activity of ranked) {
     if (picked.length >= maxCount) break;
     if (spent + activity.price_per_person > budgetForActivities && picked.length >= Math.max(1, perDay)) continue;
@@ -539,15 +624,17 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     const sConsensus = consensusScore;
     const sMinSat = minSatisfaction;
 
+    const w = resolveWeights(ctx.eventType, ctx.scoringWeights);
+
     let score =
-      sAmbiance * 18 +
-      sActivities * 12 +
-      sBudget * 16 +
-      sDistance * 8 +
-      sSeason * 8 +
-      sQuality * 5 +
-      sConsensus * 18 +
-      sMinSat * 15;
+      sAmbiance * w.ambiance +
+      sActivities * w.activities +
+      sBudget * w.budget +
+      sDistance * w.distance +
+      sSeason * w.season +
+      sQuality * w.quality +
+      sConsensus * w.consensus +
+      sMinSat * w.minSatisfaction;
 
     // Pénalité forte si un participant est très mal satisfait
     if (minSatisfaction < 0.35) score -= 25;
@@ -562,6 +649,17 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         norm(destination.name).includes(desired) || norm(destination.country).includes(desired);
       score += matches ? 35 : -25;
     }
+
+    const subScores: SubScores = {
+      sAmbiance,
+      sActivities,
+      sBudget,
+      sDistance,
+      sSeason,
+      sQuality,
+      sConsensus,
+      sMinSatisfaction: sMinSat,
+    };
 
     const matchReasons: string[] = [];
     if (participantsEvaluated > 0) {
@@ -634,8 +732,47 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       minSatisfaction,
       satisfiedCount,
       participantsEvaluated,
+      subScores,
     };
   });
 
-  return proposals.sort((a, b) => b.score - a.score).slice(0, limit);
+  return selectDiverseTop(proposals.sort((a, b) => b.score - a.score), limit);
+}
+
+/**
+ * MMR léger : diversifie le top N (pays, ambiance dominante, budget ±10%).
+ */
+function selectDiverseTop(sorted: Proposal[], limit: number): Proposal[] {
+  if (sorted.length <= limit) return sorted;
+  const selected: Proposal[] = [];
+  const remaining = [...sorted];
+
+  while (selected.length < limit && remaining.length) {
+    if (!selected.length) {
+      selected.push(remaining.shift()!);
+      continue;
+    }
+    let bestIdx = 0;
+    let bestScore = -Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      const cand = remaining[i];
+      const similarity = selected.reduce((maxSim, sel) => {
+        let sim = 0;
+        if (norm(sel.destination.country) === norm(cand.destination.country)) sim += 0.4;
+        if (dominantAmbiance(sel.destination) === dominantAmbiance(cand.destination)) sim += 0.35;
+        const b1 = sel.budget.totalPerPerson;
+        const b2 = cand.budget.totalPerPerson;
+        if (b1 > 0 && Math.abs(b1 - b2) / b1 <= 0.1) sim += 0.25;
+        return Math.max(maxSim, sim);
+      }, 0);
+      // lambda ~ 0.7 relevance, 0.3 diversity
+      const mmr = 0.7 * (cand.score / 100) - 0.3 * similarity;
+      if (mmr > bestScore) {
+        bestScore = mmr;
+        bestIdx = i;
+      }
+    }
+    selected.push(remaining.splice(bestIdx, 1)[0]!);
+  }
+  return selected;
 }
