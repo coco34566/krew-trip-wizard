@@ -20,6 +20,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedTripsTripIdRouteImport } from './routes/_authenticated/trips.$tripId'
 import { Route as AuthenticatedTripsNewRouteImport } from './routes/_authenticated/trips.new'
 import { Route as AuthenticatedTripsTripIdQuestionnaireRouteImport } from './routes/_authenticated/trips.$tripId.questionnaire'
+import { Route as AuthenticatedTripsTripIdRecapRouteImport } from './routes/_authenticated/trips.$tripId.recap'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -75,6 +76,12 @@ const AuthenticatedTripsTripIdQuestionnaireRoute =
   AuthenticatedTripsTripIdQuestionnaireRouteImport.update({
     id: '/questionnaire',
     path: '/questionnaire',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
+const AuthenticatedTripsTripIdRecapRoute =
+  AuthenticatedTripsTripIdRecapRouteImport.update({
+    id: '/recap',
+    path: '/recap',
     getParentRoute: () => AuthenticatedTripsTripIdRoute,
   } as any)
 
@@ -198,12 +205,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedTripsTripIdRouteChildren {
   AuthenticatedTripsTripIdQuestionnaireRoute: typeof AuthenticatedTripsTripIdQuestionnaireRoute
+  AuthenticatedTripsTripIdRecapRoute: typeof AuthenticatedTripsTripIdRecapRoute
 }
 
 const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildren =
   {
     AuthenticatedTripsTripIdQuestionnaireRoute:
       AuthenticatedTripsTripIdQuestionnaireRoute,
+    AuthenticatedTripsTripIdRecapRoute: AuthenticatedTripsTripIdRecapRoute,
   }
 
 const AuthenticatedTripsTripIdRouteWithChildren =
