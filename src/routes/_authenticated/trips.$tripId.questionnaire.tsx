@@ -23,6 +23,7 @@ import {
   formatEuro,
 } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
+import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/questionnaire")({
   head: () => ({
@@ -464,17 +465,26 @@ function ParticipantQuestionnaire() {
 
         <Section
           title="3. Départ & destination"
-          hint="La ville de départ est indispensable pour cotation Kayak / Kiwi."
+          hint="Choisis une vraie ville (ou un code postal) pour que les API vols / trains la reconnaissent."
         >
           <div>
-            <Label htmlFor="departure">Ville de départ *</Label>
-            <Input
-              id="departure"
-              value={departureCity}
-              onChange={(e) => setDepartureCity(e.target.value)}
-              placeholder={defaultDeparture || "Paris"}
-              className="mt-2"
-            />
+            <Label htmlFor="departure">Ville de départ * (ou code postal)</Label>
+            <div className="mt-2">
+              <CityAutocomplete
+                id="departure"
+                value={departureCity}
+                onChange={setDepartureCity}
+                onSelect={(sel) => {
+                  setDepartureCity(sel.city);
+                  if (sel.airportIata) {
+                    setDepartureAirportOrStation(sel.airportIata);
+                  } else {
+                    setDepartureAirportOrStation("");
+                  }
+                }}
+                placeholder={defaultDeparture || "Ex. Lyon, 69001, Paris…"}
+              />
+            </div>
           </div>
           <div>
             <Label htmlFor="destination">Destination rêvée (optionnel)</Label>
@@ -502,15 +512,17 @@ function ParticipantQuestionnaire() {
         </Section>
 
 
-        <div className="space-y-2">
-          <Label>Aéroport / gare de départ (code IATA ou nom précis)</Label>
-          <Input
-            value={departureAirportOrStation}
-            onChange={(e) => setDepartureAirportOrStation(e.target.value)}
-            placeholder="Ex : CDG, LYS, Paris Gare de Lyon"
-          />
-          <p className="text-xs text-muted-foreground">Pour des recherches vols/trains plus exactes.</p>
-        </div>
+        {departureAirportOrStation ? (
+          <div className="rounded-xl border border-lagoon/30 bg-lagoon/5 px-3 py-2 text-sm">
+            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Aéroport de départ (auto)
+            </span>
+            <p className="font-medium">{departureAirportOrStation}</p>
+            <p className="text-xs text-muted-foreground">
+              Rempli automatiquement selon ta ville — utilisé par les API vols.
+            </p>
+          </div>
+        ) : null}
         <div>
           <Label className="mb-2 block">Modes de transport acceptés</Label>
           <div className="flex flex-wrap gap-2">
