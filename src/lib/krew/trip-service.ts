@@ -345,9 +345,11 @@ export async function aggregateParticipantPreferences(
       Boolean((tripMeta.data as any)?.has_star) ||
       Boolean(celebratedPerson) ||
       ["evg", "evjf", "anniversaire", "retraite"].includes(et);
-    // Poids auto : Star plus forte pour EVG/EVJF/anniv/retraite, égalité sinon
-    if (hasStar && ["evg", "evjf", "anniversaire", "retraite"].includes(et)) {
-      starWeight = et === "anniversaire" ? 2.2 : 2.8;
+    // Poids Star : toujours plus fort que le reste du groupe
+    if (hasStar) {
+      if (et === "evg" || et === "evjf") starWeight = 3.2;
+      else if (et === "anniversaire" || et === "retraite") starWeight = 2.8;
+      else starWeight = 2.5;
     } else {
       starWeight = 1;
     }
@@ -360,6 +362,32 @@ export async function aggregateParticipantPreferences(
       starWantedActivities = starPrefs.data.wanted_activities ?? [];
       starDealBreakers = starPrefs.data.deal_breakers ?? [];
       if (!starUserId && starPrefs.data.user_id) starUserId = starPrefs.data.user_id;
+      // Si le questionnaire star est rempli, on force un poids élevé même hors EVG
+      if (starWeight < 2.5) starWeight = 2.5;
+    }
+
+    // Map prénom → user_id pour identifier la star parmi les participants
+    const parts = await supabase
+      .from("trip_participants")
+      .select("user_id, display_name, email")
+      .eq("trip_id", tripId);
+    if (!parts.error && celebratedPerson) {
+      const needle = celebratedPerson
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .toLowerCase()
+        .trim();
+      for (const p of parts.data ?? []) {
+        const name = String(p.display_name ?? "")
+          .normalize("NFD")
+          .replace(/\p{M}/gu, "")
+          .toLowerCase()
+          .trim();
+        if (name && (name === needle || name.includes(needle) || needle.includes(name))) {
+          if (p.user_id) starUserId = p.user_id;
+          break;
+        }
+      }
     }
   } catch {
     /* table absente → ignore */
@@ -367,16 +395,17 @@ export async function aggregateParticipantPreferences(
 
   const individualPreferences = rows.map((r) => {
     const uid = (r.user_id as string) || null;
-    const isStar =
-      Boolean(starUserId && uid && uid === starUserId) ||
-      // fallback : si un seul participant et celebrated_person → pas de match user
-      false;
+    const isStar = Boolean(starUserId && uid && uid === starUserId);
     return {
       ambiances: r.ambiances ?? [],
       activityCategories: r.activity_categories ?? [],
       budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
       budgetPriority: r.budget_priority ?? "preference",
-      dealBreakerAmbiances: r.deal_breaker_ambiances ?? [],
+      dealBreakerAmbiances: [
+        ...(r.deal_breaker_ambiances ?? []),
+        // Deal-breakers star appliqués en dur si c'est la star
+        ...(isStar ? starDealBreakers : []),
+      ],
       dealBreakerDestinations: (r.excluded_destinations ?? [])
         .map((s) => String(s).trim())
         .filter(Boolean),
