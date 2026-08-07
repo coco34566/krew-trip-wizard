@@ -1642,13 +1642,143 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       generatedAt: new Date().toISOString(),
     };
 
+    // Préserver votes hôtels + choix transports déjà enregistrés
+    const prev = (trip.group_logistics as any) || {};
+    const logisticsWithVotes = {
+      ...logistics,
+      hotelVotes: Array.isArray(prev.hotelVotes) ? prev.hotelVotes : [],
+      transportPicks: Array.isArray(prev.transportPicks) ? prev.transportPicks : [],
+      selectedHotelId: prev.selectedHotelId ?? null,
+    };
+
     await supabase
       .from("trips")
-      .update({ group_logistics: logistics, updated_at: new Date().toISOString() } as any)
+      .update({ group_logistics: logisticsWithVotes, updated_at: new Date().toISOString() } as any)
       .eq("id", data.tripId);
 
-    return { ok: true, logistics };
+    return { ok: true, logistics: logisticsWithVotes };
   });
 
 
+/** Vote hôtel (1 vote / user, toggle). Stocké dans group_logistics.hotelVotes */
+export const voteHotel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), hotelId: z.string().min(1) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tripRes = await supabase.from("trips").select("id, group_logistics").eq("id", data.tripId).maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
 
+    const logistics = ((tripRes.data as any).group_logistics || {}) as any;
+    const votes: { userId: string; hotelId: string; at: string }[] = Array.isArray(logistics.hotelVotes)
+      ? [...logistics.hotelVotes]
+      : [];
+    const existing = votes.findIndex((v) => v.userId === userId);
+    if (existing >= 0) {
+      if (votes[existing]!.hotelId === data.hotelId) {
+        votes.splice(existing, 1); // toggle off
+      } else {
+        votes[existing] = { userId, hotelId: data.hotelId, at: new Date().toISOString() };
+      }
+    } else {
+      votes.push({ userId, hotelId: data.hotelId, at: new Date().toISOString() });
+    }
+
+    // Top hôtel = plus de votes (pour la to-do orga)
+    const counts = new Map<string, number>();
+    for (const v of votes) counts.set(v.hotelId, (counts.get(v.hotelId) || 0) + 1);
+    let topId: string | null = null;
+    let topN = 0;
+    for (const [id, n] of counts) {
+      if (n > topN) {
+        topN = n;
+        topId = id;
+      }
+    }
+
+    const next = {
+      ...logistics,
+      hotelVotes: votes,
+      selectedHotelId: topId,
+      hotelVoteTodo: topId
+        ? `Réserver l'hôtel plébiscité (${topN} vote${topN > 1 ? "s" : ""})`
+        : "Faire voter le groupe sur un hôtel",
+    };
+
+    const { error } = await supabase
+      .from("trips")
+      .update({ group_logistics: next, updated_at: new Date().toISOString() } as any)
+      .eq("id", data.tripId);
+    if (error) throw error;
+    return { ok: true, hotelVotes: votes, selectedHotelId: topId };
+  });
+
+/** Choix de trajet perso (par ville de départ). Visible aux autres de la même ville. */
+export const pickTransport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        city: z.string().min(1).max(80),
+        mode: z.string().min(1).max(40),
+        modeLabel: z.string().optional(),
+        label: z.string().min(1).max(160),
+        time: z.string().max(40).optional(),
+        pricePerPerson: z.number().optional(),
+        url: z.string().url().optional().nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tripRes = await supabase.from("trips").select("id, group_logistics").eq("id", data.tripId).maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+
+    // Nom affiché
+    let displayName = "Participant";
+    try {
+      const p = await supabase
+        .from("trip_participants")
+        .select("display_name, email")
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      displayName =
+        (p.data as any)?.display_name ||
+        String((p.data as any)?.email || "").split("@")[0] ||
+        "Participant";
+    } catch {
+      /* ignore */
+    }
+
+    const logistics = ((tripRes.data as any).group_logistics || {}) as any;
+    const picks: any[] = Array.isArray(logistics.transportPicks) ? [...logistics.transportPicks] : [];
+    const idx = picks.findIndex((p) => p.userId === userId);
+    const entry = {
+      userId,
+      displayName,
+      city: data.city,
+      mode: data.mode,
+      modeLabel: data.modeLabel || data.mode,
+      label: data.label,
+      time: data.time || null,
+      pricePerPerson: data.pricePerPerson ?? null,
+      url: data.url || null,
+      at: new Date().toISOString(),
+    };
+    if (idx >= 0) picks[idx] = entry;
+    else picks.push(entry);
+
+    const next = { ...logistics, transportPicks: picks };
+    const { error } = await supabase
+      .from("trips")
+      .update({ group_logistics: next, updated_at: new Date().toISOString() } as any)
+      .eq("id", data.tripId);
+    if (error) throw error;
+    return { ok: true, pick: entry, transportPicks: picks };
+  });
