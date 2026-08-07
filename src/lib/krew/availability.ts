@@ -159,6 +159,7 @@ export type TripStepId =
   | "invite"
   | "availability"
   | "questionnaire"
+  | "dates"
   | "destination"
   | "organize";
 
@@ -176,68 +177,91 @@ export function buildTripSteps(input: {
   participantsExpected: number;
   availabilityAnswered: number;
   questionnaireAnswered: number;
+  /** Dates validées / verrouillées par l'organisateur */
+  datesLocked: boolean;
   hasRecommendations: boolean;
   destinationSelected: boolean;
 }): TripStep[] {
-  // L'invitation est la 1ère étape à la création : on la marque faite dès qu'on a
-  // progressé (dispos / prefs / reco) ou dès qu'au moins 2 personnes ont rejoint.
-  const expected = Math.max(1, input.participantsExpected || 1);
-  const inviteDone =
-    input.participantsJoined >= Math.min(2, expected) ||
-    input.availabilityAnswered > 0 ||
-    input.questionnaireAnswered > 0 ||
-    input.hasRecommendations ||
-    input.destinationSelected;
-  const availDone =
-    input.availabilityAnswered >= Math.max(1, Math.ceil(expected * 0.4));
-  const questDone =
-    input.questionnaireAnswered >= Math.max(1, Math.ceil(expected * 0.4));
-  const destDone = input.destinationSelected;
+  // Mode test : 1 réponse suffit pour débloquer l'étape suivante
+  const minAnswers = 1;
 
-  // Une seule étape "active" à la fois (la première non terminée)
-  const inviteStatus = inviteDone ? "done" : "active";
-  const availStatus = availDone ? "done" : inviteDone ? "active" : "todo";
-  const questStatus = questDone ? "done" : availDone ? "active" : "todo";
-  const destStatus = destDone
-    ? "done"
-    : questDone || input.hasRecommendations
-      ? "active"
-      : "todo";
+  const inviteDone =
+    input.participantsJoined >= 1 ||
+    input.availabilityAnswered >= minAnswers ||
+    input.questionnaireAnswered >= minAnswers;
+
+  const availDone = input.availabilityAnswered >= minAnswers;
+  const questDone = input.questionnaireAnswered >= minAnswers;
+  const datesDone = Boolean(input.datesLocked);
+  const destDone = Boolean(input.destinationSelected);
+
+  // Enchaînement strict : une seule active, le reste todo/soon si prereq manquant
+  const inviteStatus: TripStep["status"] = inviteDone ? "done" : "active";
+  const availStatus: TripStep["status"] = !inviteDone
+    ? "todo"
+    : availDone
+      ? "done"
+      : "active";
+  const questStatus: TripStep["status"] = !availDone
+    ? "todo"
+    : questDone
+      ? "done"
+      : "active";
+  const datesStatus: TripStep["status"] = !questDone
+    ? "todo"
+    : datesDone
+      ? "done"
+      : "active";
+  const destStatus: TripStep["status"] = !datesDone
+    ? "soon" // bloqué tant que dates non validées
+    : destDone
+      ? "done"
+      : "active";
+  const organizeStatus: TripStep["status"] = !destDone
+    ? "soon"
+    : "active";
 
   return [
     {
       id: "invite",
       label: "Inviter",
-      description: "Réunir le groupe",
+      description: "Lien du groupe",
       href: "/invite",
       status: inviteStatus,
     },
     {
       id: "availability",
       label: "Disponibilités",
-      description: "Trouver la date",
+      description: "Chacun indique ses dates",
       href: "/availability",
       status: availStatus,
     },
     {
       id: "questionnaire",
       label: "Préférences",
-      description: "Questionnaire",
+      description: "Envies & budget",
       href: "/questionnaire",
       status: questStatus,
     },
     {
+      id: "dates",
+      label: "Dates validées",
+      description: "L'orga verrouille le week-end",
+      href: "",
+      status: datesStatus,
+    },
+    {
       id: "destination",
       label: "Destination",
-      description: "Propositions Krew",
+      description: datesDone ? "Propositions Krew" : "Après dates validées",
       href: "",
       status: destStatus,
     },
     {
       id: "organize",
       label: "Organisation",
-      description: "Suite du séjour",
-      status: destDone ? "active" : "soon",
+      description: destDone ? "Planning & logistique" : "Après destination",
+      status: organizeStatus,
     },
   ];
 }
