@@ -22,7 +22,36 @@ export const getTripAvailability = createServerFn({ method: "GET" })
         .eq("trip_id", data.tripId),
       supabase.from("trip_preferences").select("duration_nights").eq("trip_id", data.tripId).maybeSingle(),
     ]);
-    if (rows.error) throw rows.error;
+    if (rows.error) {
+      const msg = String(rows.error.message || rows.error);
+      if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
+        return {
+          trip: {
+            id: trip.data.id as string,
+            name: trip.data.name as string,
+            eventType: trip.data.event_type as string,
+            celebratedPerson: trip.data.celebrated_person as string | null,
+            hasStar: Boolean((trip.data as any).has_star),
+            provisionalStart: (trip.data as any).provisional_start_date as string | null,
+            provisionalEnd: (trip.data as any).provisional_end_date as string | null,
+            durationNights: Number(prefs.data?.duration_nights ?? (trip.data as any).duration_nights ?? 2) || 2,
+            datesLocked: Boolean((trip.data as any).dates_locked),
+            lockedStart: null,
+            lockedEnd: null,
+            startDate: trip.data.start_date as string | null,
+            endDate: trip.data.end_date as string | null,
+          },
+          isOwner: trip.data.owner_id === userId,
+          answered: 0,
+          expected: Math.max(Number(trip.data.participants_count) || 1, (participants.data ?? []).length, 1),
+          windows: [],
+          mine: null,
+          participants: participants.data ?? [],
+          schemaMissing: true,
+        };
+      }
+      throw new Error(`Lecture dispos impossible: ${msg}`);
+    }
     if (participants.error) throw participants.error;
 
     const nights = Number(prefs.data?.duration_nights ?? trip.data.duration_nights ?? 2) || 2;
@@ -149,6 +178,15 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
       .eq("trip_id", data.tripId)
       .eq("user_id", userId)
       .maybeSingle();
+    if (existing.error) {
+      const msg = String(existing.error.message || existing.error);
+      if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
+        throw new Error(
+          "Table trip_availability absente. Exécute le SQL dispos dans Lovable (Cloud → SQL Editor).",
+        );
+      }
+      throw existing.error;
+    }
 
     const payload = {
       trip_id: data.tripId,
@@ -164,7 +202,15 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
     const { error } = await supabase
       .from("trip_availability")
       .upsert(payload, { onConflict: "trip_id,user_id" });
-    if (error) throw error;
+    if (error) {
+      const msg = String(error.message || error);
+      if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
+        throw new Error(
+          "Table trip_availability absente. Exécute le SQL dispos dans Lovable (Cloud → SQL Editor).",
+        );
+      }
+      throw new Error(`Enregistrement dispos impossible: ${msg}`);
+    }
 
     // Recalcule fenêtres → met à jour UNIQUEMENT provisional_* (jamais start/end si locked)
     const all = await supabase.from("trip_availability").select("*").eq("trip_id", data.tripId);
