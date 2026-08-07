@@ -158,9 +158,22 @@ function Landing() {
       </main>
 
       <footer className="border-t border-border py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 text-sm text-muted-foreground sm:flex-row sm:justify-between">
           <Logo size="sm" withTagline />
-          <p>© {new Date().getFullYear()} Krew — l'organisation de voyages de groupe, enfin simple.</p>
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <Link to="/mentions-legales" className="hover:text-primary">
+              Mentions légales
+            </Link>
+            <Link to="/cgu" className="hover:text-primary">
+              CGU
+            </Link>
+            <Link to="/confidentialite" className="hover:text-primary">
+              Confidentialité
+            </Link>
+          </nav>
+          <p className="text-center sm:text-right">
+            © {new Date().getFullYear()} Krew — l&apos;organisation de voyages de groupe, enfin simple.
+          </p>
         </div>
       </footer>
     </div>
