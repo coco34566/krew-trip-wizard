@@ -7,7 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { buildProposals, type Proposal, type ScoringContext } from "./engine";
 import { loadTravelCatalog } from "./providers.server";
-import { discoverCandidateDestinations } from "./destination-discovery.server";
+import { discoverCandidateDestinations, listCityProfilesForNames } from "./destination-discovery.server";
 
 export const tripInputSchema = z.object({
   name: z.string().min(2).max(120),
@@ -817,12 +817,13 @@ export async function generateRecommendationsForTrip(
     minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
   };
 
-  // 1) Shortlist dynamique : destination forcée OU découverte par critères (plus de seed)
+  // 1) Shortlist SCORÉE (outil de scoring phase 1) — pas de liste fixe Barcelone/Budapest/Lisbonne
   let shortlistNames: string[];
+  let discoveryMeta: { name: string; affinity: number; reason: string }[] = [];
   if (resolvedDestination) {
     shortlistNames = [resolvedDestination];
+    discoveryMeta = [{ name: resolvedDestination, affinity: 100, reason: "destination demandée" }];
   } else {
-    // Phase 1 : shortlist destinations via budget, distance/transport, ambiances
     const primaryDeparture =
       (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
       (trip.data.departure_city as string) ||
@@ -831,7 +832,7 @@ export async function generateRecommendationsForTrip(
       {
         ambiances: ctx.ambiances,
         activityCategories: ctx.activityCategories,
-        budgetPerPerson: ctx.budgetPerPerson,
+        budgetPerPerson: Number(ctx.budgetPerPerson) || 400,
         maxDistanceKm: ctx.maxDistanceKm,
         nights: ctx.nights,
         startMonth: ctx.startMonth,
@@ -840,17 +841,69 @@ export async function generateRecommendationsForTrip(
         participants: ctx.participants,
         eventType: (trip.data.event_type as string) || undefined,
       },
-      6,
+      10,
     );
+    discoveryMeta = candidates.map((c) => ({
+      name: c.name,
+      affinity: c.affinity,
+      reason: c.reason,
+    }));
     shortlistNames = candidates.map((c) => c.name);
-    // Fallback de sécurité si aucun candidat (critères trop stricts)
-    if (!shortlistNames.length) {
-      shortlistNames = ["Barcelone", "Budapest", "Lisbonne"];
+  }
+
+  // 1b) Matérialise les destinations scorées en catalogue (sinon l'enrichissement / scoring n'a rien à scorer)
+  const profiles = listCityProfilesForNames(shortlistNames);
+  for (const p of profiles) {
+    try {
+      await supabase.from("destinations").upsert(
+        {
+          name: p.name,
+          country: p.country,
+          distance_from_paris_km: p.distanceKm,
+          avg_daily_cost: p.dailyCost,
+          best_months: p.bestMonths,
+          score_fete: p.ambiances.fete ?? 0.5,
+          score_detente: p.ambiances.detente ?? 0.5,
+          score_culturel: p.ambiances.culturel ?? 0.5,
+          score_aventure: p.ambiances.aventure ?? 0.5,
+          score_luxe: p.ambiances.luxe ?? 0.5,
+          score_insolite: p.ambiances.insolite ?? 0.5,
+          score_sportif: p.ambiances.sportif ?? 0.5,
+          source: "krew_discovery",
+          external_id: `discovery:${p.name.toLowerCase()}`,
+        } as any,
+        { onConflict: "external_id" },
+      );
+    } catch (e) {
+      // fallback sans contrainte external_id unique
+      try {
+        const existing = await supabase
+          .from("destinations")
+          .select("id")
+          .ilike("name", p.name)
+          .maybeSingle();
+        if (!existing.data) {
+          await supabase.from("destinations").insert({
+            name: p.name,
+            country: p.country,
+            distance_from_paris_km: p.distanceKm,
+            avg_daily_cost: p.dailyCost,
+            best_months: p.bestMonths,
+            source: "krew_discovery",
+          } as any);
+        }
+      } catch {
+        /* ignore */
+      }
     }
   }
 
-  // 2) Phase 1 suite : APIs transport/logements pour shortlist — activités scorées en phase 2 dans buildProposals
-  const providerErrors = await enrichCatalogWithExternalApis(supabase, tripId, shortlistNames);
+  // 2) Enrichissement API (hôtels / activités réels) UNIQUEMENT sur la shortlist scorée
+  const providerErrors = await enrichCatalogWithExternalApis(
+    supabase,
+    tripId,
+    shortlistNames.slice(0, 6),
+  );
 
   // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
   //    (sans ce filtre, loadTravelCatalog recharge tout le seed SQL)
@@ -911,9 +964,27 @@ export async function generateRecommendationsForTrip(
   // Dernier filet : si enrichissement a échoué et shortlist absente du catalogue,
   // on ne doit PAS retomber sur les 12 villes seed hors shortlist.
   if (!catalogFinal.destinations.length && shortlistNames.length) {
-    providerErrors.push(
-      `Aucune destination shortlist en catalogue après enrichissement: ${shortlistNames.join(", ")}`,
+    // Recharge le catalogue après upsert discovery (évite shortlist vide)
+    const reloaded = await loadTravelCatalog(supabase, catalogQuery);
+    catalogFinal = {
+      destinations: reloaded.destinations.filter((d) => {
+        const n = normName(d.name);
+        return shortlistSet.has(n) || [...shortlistSet].some((s) => n.includes(s) || s.includes(n));
+      }),
+      activities: reloaded.activities,
+      accommodations: reloaded.accommodations,
+    };
+    catalogFinal.activities = catalogFinal.activities.filter((a) =>
+      catalogFinal.destinations.some((d) => d.id === a.destination_id),
     );
+    catalogFinal.accommodations = catalogFinal.accommodations.filter((a) =>
+      catalogFinal.destinations.some((d) => d.id === a.destination_id),
+    );
+    if (!catalogFinal.destinations.length) {
+      providerErrors.push(
+        `Aucune destination shortlist en catalogue: ${shortlistNames.join(", ")}`,
+      );
+    }
   }
 
   // 4) Transport multi-origines : chaque ville de départ des participants
