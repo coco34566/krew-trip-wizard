@@ -2,9 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { buildProposals } from "@/lib/krew/engine";
-import { loadTravelCatalog } from "@/lib/krew/providers.server";
-import { tripInputSchema, buildScoringContext, serializeProposal, aggregateParticipantPreferences } from "@/lib/krew/trip-service";
+import { generateRecommendationsForTrip, tripInputSchema } from "@/lib/krew/trip-service";
 
 export const listMyTrips = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -123,56 +121,7 @@ export const generateRecommendations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const [trip, preferences] = await Promise.all([
-      supabase.from("trips").select("*").eq("id", data.tripId).single(),
-      supabase.from("trip_preferences").select("*").eq("trip_id", data.tripId).maybeSingle(),
-    ]);
-    if (trip.error) throw trip.error;
-
-    // Use aggregated participant preferences when available
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
-    let prefsToUse = preferences.data ?? null;
-    if (aggregated.participantsCount && aggregated.participantsCount > 0) {
-      prefsToUse = {
-        ...preferences.data,
-        ambiances: aggregated.ambiances.length ? aggregated.ambiances : preferences.data?.ambiances ?? [],
-        activity_categories: aggregated.activityCategories.length
-          ? aggregated.activityCategories
-          : preferences.data?.activity_categories ?? [],
-        ambiance_frequencies: aggregated.ambianceFrequencies,
-        activity_category_frequencies: aggregated.activityCategoryFrequencies,
-        max_budget: aggregated.aggregatedBudget ?? preferences.data?.max_budget ?? trip.data.budget_per_person,
-        duration_nights: preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
-        required_amenities: aggregated.requiredAmenities,
-        min_accommodation_rating: aggregated.minAccommodationRating,
-        travel_pace: aggregated.medianTravelPace,
-      } as any;
-    }
-
-    const ctx = buildScoringContext(trip.data, prefsToUse);
-    const catalog = await loadTravelCatalog(supabase, {
-      maxDistanceKm: ctx.maxDistanceKm,
-      excludedCountries: ctx.excludedCountries,
-      participants: ctx.participants,
-      nights: ctx.nights,
-      startDate: trip.data.start_date,
-      // pass-through aggregation hints
-      dateFlexDays: aggregated.dateFlexDays ?? undefined,
-      requiredAmenities: aggregated.requiredAmenities ?? undefined,
-      minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
-    });
-    const proposals = buildProposals(catalog, ctx, 3);
-
-    await supabase.from("recommendations").delete().eq("trip_id", data.tripId);
-    const rows = proposals.map((p) => serializeProposal(data.tripId, p));
-    if (rows.length) {
-      const inserted = await supabase.from("recommendations").insert(rows);
-      if (inserted.error) throw inserted.error;
-    }
-    await supabase.from("trips").update({ status: "propositions" }).eq("id", data.tripId);
-
-    return { count: rows.length };
+    return generateRecommendationsForTrip(context.supabase, data.tripId);
   });
 
 export const inviteParticipant = createServerFn({ method: "POST" })

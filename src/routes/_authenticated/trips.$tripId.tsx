@@ -19,6 +19,7 @@ import {
   selectRecommendation,
   toggleVote,
 } from "@/lib/trips.functions";
+import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
 import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
@@ -60,12 +61,21 @@ function TripDetail() {
   const invite = useServerFn(inviteParticipant);
   const removeGuest = useServerFn(removeParticipant);
   const regenerate = useServerFn(generateRecommendations);
+  const fetchProgress = useServerFn(getParticipantsProgress);
   const searchExternal = useServerFn(searchExternalForTrip);
   const [email, setEmail] = useState("");
 
   const queryKey = ["trip", tripId];
   const { data, isLoading } = useQuery({ queryKey, queryFn: () => fetchDetail({ data: { tripId } }) });
-  const refresh = () => queryClient.invalidateQueries({ queryKey });
+  const progressQueryKey = ["trip-progress", tripId];
+  const { data: progress } = useQuery({
+    queryKey: progressQueryKey,
+    queryFn: () => fetchProgress({ data: { tripId } }),
+  });
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey });
+    queryClient.invalidateQueries({ queryKey: progressQueryKey });
+  };
 
   const voteMutation = useMutation({
     mutationFn: (recommendationId: string) => vote({ data: { tripId, recommendationId } }),
@@ -155,9 +165,17 @@ function TripDetail() {
             </span>
           </div>
           <div className="mt-4">
-            <Link to="/trips/$tripId/questionnaire" params={{ tripId }}>
-              <Button variant="outline">Répondre à mon questionnaire</Button>
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link to="/trips/$tripId/questionnaire" params={{ tripId }}>
+                <Button variant="outline">Répondre à mon questionnaire</Button>
+              </Link>
+              {progress ? (
+                <span className="text-sm text-muted-foreground">
+                  {progress.answered}/{progress.total} ont répondu au questionnaire
+                  {progress.total > 0 && progress.answered >= progress.total ? " · complet 🎉" : ""}
+                </span>
+              ) : null}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">

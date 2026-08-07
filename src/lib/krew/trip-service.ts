@@ -3,8 +3,10 @@
  * Isolé des fichiers `*.functions.ts` (qui doivent rester de simples wrappers).
  */
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { Proposal, ScoringContext } from "./engine";
+import { buildProposals, type Proposal, type ScoringContext } from "./engine";
+import { loadTravelCatalog } from "./providers.server";
 
 export const tripInputSchema = z.object({
   name: z.string().min(2).max(120),
@@ -150,4 +152,61 @@ export async function aggregateParticipantPreferences(
     medianTravelPace: byFrequency(paceFreq)[0] ?? null,
     dateFlexDays: flex.length ? Math.min(...flex) : null,
   };
+}
+
+export async function generateRecommendationsForTrip(
+  supabase: SupabaseClient,
+  tripId: string,
+) {
+  const [trip, preferences] = await Promise.all([
+    supabase.from("trips").select("*").eq("id", tripId).single(),
+    supabase.from("trip_preferences").select("*").eq("trip_id", tripId).maybeSingle(),
+  ]);
+  if (trip.error) throw trip.error;
+
+  const aggregated = await aggregateParticipantPreferences(supabase, tripId);
+  let prefsToUse = preferences.data ?? null;
+  if (aggregated.participantsCount && aggregated.participantsCount > 0) {
+    prefsToUse = {
+      ...preferences.data,
+      ambiances: aggregated.ambiances.length ? aggregated.ambiances : preferences.data?.ambiances ?? [],
+      activity_categories: aggregated.activityCategories.length
+        ? aggregated.activityCategories
+        : preferences.data?.activity_categories ?? [],
+      ambiance_frequencies: aggregated.ambianceFrequencies,
+      activity_category_frequencies: aggregated.activityCategoryFrequencies,
+      max_budget: aggregated.aggregatedBudget ?? preferences.data?.max_budget ?? trip.data.budget_per_person,
+      duration_nights: preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
+      required_amenities: aggregated.requiredAmenities,
+      min_accommodation_rating: aggregated.minAccommodationRating,
+      travel_pace: aggregated.medianTravelPace,
+    } as any;
+  }
+
+  const ctx = buildScoringContext(trip.data, prefsToUse);
+  const catalog = await loadTravelCatalog(supabase, {
+    maxDistanceKm: ctx.maxDistanceKm,
+    excludedCountries: ctx.excludedCountries,
+    participants: ctx.participants,
+    nights: ctx.nights,
+    startDate: trip.data.start_date,
+    dateFlexDays: aggregated.dateFlexDays ?? undefined,
+    requiredAmenities: aggregated.requiredAmenities ?? undefined,
+    minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
+  });
+  const proposals = buildProposals(catalog, ctx, 3);
+
+  const deleted = await supabase.from("recommendations").delete().eq("trip_id", tripId);
+  if (deleted.error) throw deleted.error;
+
+  const rows = proposals.map((p) => serializeProposal(tripId, p));
+  if (rows.length) {
+    const inserted = await supabase.from("recommendations").insert(rows);
+    if (inserted.error) throw inserted.error;
+  }
+
+  const updated = await supabase.from("trips").update({ status: "propositions" }).eq("id", tripId);
+  if (updated.error) throw updated.error;
+
+  return { count: rows.length };
 }

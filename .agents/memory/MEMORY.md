@@ -1,0 +1,1 @@
+- [Dependency validation](dependency-validation.md) — this import is most reliably installed and checked with its committed Bun lockfile.
