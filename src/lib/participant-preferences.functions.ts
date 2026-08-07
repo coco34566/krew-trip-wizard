@@ -20,16 +20,24 @@ export const participantPreferencesSchema = z.object({
   mobilityNotes: z.string().max(500).optional(),
   freeText: z.string().max(1000).optional(),
 
-  // Nouveaux champs
+  // Départ & logement
   departureCity: z.string().max(120).optional(),
   departureFlexKm: z.number().int().min(0).max(10000).default(0),
   dateFlexDays: z.number().int().min(0).max(30).default(0),
   acceptsSharedRoom: z.boolean().default(false),
   roomTypePreference: z.string().max(80).optional(),
   requiredAmenities: z.array(z.string()).default([]),
-  minAccommodationRating: z.number().min(0).max(5).optional(),
+  minAccommodationRating: z.number().min(0).max(5).optional().nullable(),
   travelPace: z.enum(["plein_programme", "equilibre", "chill"]).optional(),
   preferredTimeSlots: z.array(z.string()).default([]),
+
+  // Champs optionnels UI (ne doivent plus être stripés)
+  dealBreakerAmbiances: z.array(z.string()).default([]),
+  departureAirportOrStation: z.string().max(80).optional(),
+  transportModeAccepted: z.array(z.string()).default(["peu importe"]),
+  maxTravelDurationHours: z.number().min(0).max(48).optional(),
+  accessibilityNeeds: z.boolean().default(false),
+  blackoutDates: z.array(z.string()).default([]),
 });
 
 export type ParticipantPreferencesInput = z.infer<typeof participantPreferencesSchema>;
@@ -241,10 +249,50 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     payload.trip_id = data.tripId;
 
     const isUpdate = Boolean(existingPref.data);
-    const { error } = await supabase
+    // Upsert résilient : si colonnes API manquantes en DB, retente avec le socle minimal
+    let { error } = await supabase
       .from("trip_participant_preferences")
       .upsert(payload, { onConflict: "trip_id,user_id" });
-    if (error) throw error;
+
+    if (error) {
+      const msg = String(error.message || error);
+      const schemaIssue =
+        msg.includes("schema cache") ||
+        msg.includes("column") ||
+        msg.includes("Could not find");
+
+      if (schemaIssue) {
+        const corePayload = {
+          trip_id: data.tripId,
+          user_id: userId,
+          ambiances: (data as any).ambiances ?? [],
+          activity_categories: (data as any).activityCategories ?? [],
+          budget_max: (data as any).budgetMax ?? null,
+          budget_priority: (data as any).budgetPriority ?? "preference",
+          duration_nights_min: (data as any).durationNightsMin ?? null,
+          duration_nights_max: (data as any).durationNightsMax ?? null,
+          desired_destination: (data as any).desiredDestination ?? null,
+          excluded_destinations: (data as any).excludedDestinations ?? [],
+          dietary_constraints: (data as any).dietaryConstraints ?? [],
+          mobility_notes: (data as any).mobilityNotes ?? null,
+          free_text: (data as any).freeText ?? null,
+          submitted_at: payload.submitted_at ?? now,
+          updated_at: now,
+        };
+        const retry = await supabase
+          .from("trip_participant_preferences")
+          .upsert(corePayload, { onConflict: "trip_id,user_id" });
+        if (retry.error) {
+          throw new Error(
+            `Enregistrement préférences impossible: ${retry.error.message}. ` +
+              "Exécute le SQL trip_participant_preferences dans Lovable.",
+          );
+        }
+        error = null;
+      } else {
+        throw new Error(`Enregistrement préférences impossible: ${msg}`);
+      }
+    }
 
     const [participants, preferences] = await Promise.all([
       supabase.from("trip_participants").select("id").eq("trip_id", data.tripId),
