@@ -36,6 +36,8 @@ type Props = {
   myAvailabilityDone?: boolean;
   /** L'utilisateur connecté a déjà soumis ses préférences */
   myPreferencesDone?: boolean;
+  /** Questionnaire star rempli */
+  starDone?: boolean;
   topScores?: { name: string; score: number }[];
   children?: React.ReactNode;
 };
@@ -60,6 +62,7 @@ export function TripHubDashboard({
   destinationSelected,
   myAvailabilityDone = false,
   myPreferencesDone = false,
+  starDone = false,
   topScores = [],
   children,
 }: Props) {
@@ -197,11 +200,15 @@ export function TripHubDashboard({
           {
             to: "/trips/$tripId/star" as const,
             title: "Préférences de la star",
-            desc: trip.celebrated_person
-              ? `Questionnaire dédié · ${trip.celebrated_person}`
-              : "Questionnaire dédié à la personne principale",
+            desc: starDone
+              ? trip.celebrated_person
+                ? `Rempli · ${trip.celebrated_person} · modifiable`
+                : "Rempli · modifiable"
+              : trip.celebrated_person
+                ? `À compléter · ${trip.celebrated_person}`
+                : "À compléter · personne principale",
             icon: Star,
-            mineDone: false,
+            mineDone: starDone,
             hide: !(
               trip.celebrated_person ||
               ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))
