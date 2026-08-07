@@ -237,6 +237,57 @@ export const selectRecommendation = createServerFn({ method: "POST" })
     }
 
     await supabase.from("trips").update({ status: "valide" }).eq("id", data.tripId);
+
+    // Marque le feedback de scoring pour apprentissage
+    try {
+      const full = await supabase
+        .from("recommendations")
+        .select("id, destination_id, score, budget")
+        .eq("id", data.recommendationId)
+        .maybeSingle();
+      const tripRow = await supabase.from("trips").select("event_type").eq("id", data.tripId).maybeSingle();
+      const eventType = ((tripRow.data as any)?.event_type as string) || "default";
+      const destId = full.data?.destination_id;
+      if (destId) {
+        // marque l'entrée feedback la plus récente pour ce trip+dest
+        const fb = await supabase
+          .from("scoring_feedback")
+          .select("id")
+          .eq("trip_id", data.tripId)
+          .eq("destination_id", destId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (fb.data?.id) {
+          await supabase
+            .from("scoring_feedback")
+            .update({ was_selected: true, recommendation_id: data.recommendationId })
+            .eq("id", fb.data.id);
+        } else {
+          const budget = (full.data as any)?.budget ?? {};
+          const ss = budget.subScores ?? {};
+          await supabase.from("scoring_feedback").insert({
+            trip_id: data.tripId,
+            destination_id: destId,
+            recommendation_id: data.recommendationId,
+            event_type: eventType,
+            was_selected: true,
+            final_score: full.data?.score,
+            s_ambiance: ss.sAmbiance,
+            s_activities: ss.sActivities,
+            s_budget: ss.sBudget,
+            s_distance: ss.sDistance,
+            s_season: ss.sSeason,
+            s_quality: ss.sQuality,
+            s_consensus: ss.sConsensus,
+            s_min_satisfaction: ss.sMinSatisfaction,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("scoring_feedback update skipped", e);
+    }
+
     return { ok: true };
   });
 
