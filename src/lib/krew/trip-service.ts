@@ -23,6 +23,8 @@ export const tripInputSchema = z.object({
     "autre",
   ]),
   celebratedPerson: z.string().max(120).optional(),
+  /** Prénom de l'organisateur (pour identifier qui est qui dans le groupe). */
+  organizerFirstName: z.string().min(1).max(80).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   participants: z.number().int().min(2).max(25),
