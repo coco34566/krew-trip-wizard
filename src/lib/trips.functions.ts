@@ -1100,7 +1100,463 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     return { ok: true, usedLlm: result.usedLlm, slot: result.slot, itinerary };
   });
 
-/** Reco hôtels + transports A/R avec liens de réservation directs. */
+/** Reco hôtels + A/R multi-modes (avion, train, bus, voiture) avec liens de réservation. */
+export const proposeStayAndTransport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), refreshExternal: z.boolean().optional() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+    const trip = tripRes.data as any;
+
+    const selected = await supabase
+      .from("recommendations")
+      .select(
+        "id, accommodation_id, destination_id, destinations(id, name, country, distance_from_paris_km)",
+      )
+      .eq("trip_id", data.tripId)
+      .eq("is_selected", true)
+      .maybeSingle();
+    if (selected.error) throw selected.error;
+    if (!selected.data) throw new Error("Valide d'abord une destination");
+
+    const dest = (selected.data as any).destinations;
+    const destName = String(dest?.name || "Destination");
+    const destCountry = String(dest?.country || "");
+    const destId = dest?.id || (selected.data as any).destination_id;
+    const distanceKm = Number(dest?.distance_from_paris_km) || 800;
+
+    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+
+    let providerErrors: string[] = [];
+    if (data.refreshExternal !== false) {
+      try {
+        const { refreshExternalCatalogForTrip } = await import(
+          "@/lib/external/search-hotels.functions"
+        );
+        const ext = await refreshExternalCatalogForTrip(supabase, data.tripId, destName);
+        if (ext?.providerErrors?.length) providerErrors = ext.providerErrors;
+      } catch (e) {
+        providerErrors.push(String(e).slice(0, 160));
+      }
+    }
+
+    const budget =
+      Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400;
+    const nights = (() => {
+      if (trip.start_date && trip.end_date) {
+        const ms =
+          new Date(trip.end_date + "T12:00:00Z").getTime() -
+          new Date(trip.start_date + "T12:00:00Z").getTime();
+        const d = Math.round(ms / (24 * 3600 * 1000));
+        if (d >= 1) return d;
+      }
+      return Number(trip.duration_nights) || 2;
+    })();
+    const checkin =
+      (trip.start_date as string) ||
+      new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
+    const checkout =
+      (trip.end_date as string) ||
+      new Date(new Date(checkin).getTime() + nights * 86400000).toISOString().slice(0, 10);
+
+    const lodgingBudget = Math.max(40, budget * 0.35);
+    const adults = Math.min(Math.max(1, Number(trip.participants_count) || 2), 8);
+
+    const bookingSearchUrl = (q: string) =>
+      `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(q)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1&selected_currency=EUR`;
+    const googleHotelsUrl = (q: string) =>
+      `https://www.google.com/travel/hotels?q=${encodeURIComponent(`hotels ${q} ${checkin} ${checkout}`)}`;
+    const hotelsComUrl = (q: string) =>
+      `https://fr.hotels.com/Hotel-Search?destination=${encodeURIComponent(q)}&startDate=${checkin}&endDate=${checkout}&rooms=1&adults=${adults}`;
+    const airbnbUrl = (q: string) =>
+      `https://www.airbnb.fr/s/${encodeURIComponent(q)}/homes?checkin=${checkin}&checkout=${checkout}&adults=${adults}`;
+
+    let hotelsQuery = supabase.from("accommodations").select("*").limit(50);
+    if (destId) hotelsQuery = hotelsQuery.eq("destination_id", destId);
+    const hotelsRes = await hotelsQuery;
+    if (hotelsRes.error) throw hotelsRes.error;
+
+    type HotelCard = {
+      id: string;
+      name: string;
+      type: string;
+      rating: number;
+      pricePerNight: number;
+      totalEstimate: number;
+      distanceCenterKm: number | null;
+      score: number;
+      reasons: string[];
+      bookingUrl: string | null;
+      links: { label: string; url: string }[];
+      source?: string | null;
+    };
+
+    const minRating = Number(aggregated.minAccommodationRating) || 0;
+    const roomPrefs = ((aggregated as any).roomTypePreferences ?? []).map((x: string) =>
+      String(x).toLowerCase(),
+    );
+    const sharedOk = (aggregated as any).acceptsSharedRoom !== false;
+
+    const scoreHotel = (h: any): HotelCard => {
+      const price = Number(h.price_per_night_per_person ?? h.price_per_night ?? 0) || 65;
+      const rating = Number(h.rating ?? 0);
+      const dist = h.distance_center_km != null ? Number(h.distance_center_km) : null;
+      const reasons: string[] = [];
+      let score = 0.4;
+      if (price <= lodgingBudget) {
+        score += 0.25;
+        reasons.push("dans le budget");
+      } else if (price <= lodgingBudget * 1.3) {
+        score += 0.1;
+        reasons.push("proche budget");
+      } else score -= 0.12;
+      if (rating >= 4) {
+        score += 0.12;
+        reasons.push("bien noté");
+      }
+      if (minRating > 0 && rating >= minRating) score += 0.1;
+      const typeBlob = `${h.type ?? ""} ${h.name ?? ""}`.toLowerCase();
+      if (!sharedOk && /dortoir|hostel|auberge/.test(typeBlob)) score -= 0.2;
+      if (roomPrefs.length && roomPrefs.some((p: string) => typeBlob.includes(p))) {
+        score += 0.1;
+        reasons.push("type adapté");
+      }
+      if (dist != null && dist <= 2) {
+        score += 0.1;
+        reasons.push("proche centre");
+      }
+      const primary = h.booking_url || h.url || bookingSearchUrl(`${h.name} ${destName}`);
+      const links = [
+        { label: "Booking", url: bookingSearchUrl(`${h.name} ${destName}`) },
+        { label: "Google Hotels", url: googleHotelsUrl(`${h.name} ${destName}`) },
+        { label: "Hotels.com", url: hotelsComUrl(destName) },
+      ];
+      if (h.booking_url || h.url) {
+        links.unshift({ label: "Réserver", url: String(h.booking_url || h.url) });
+      }
+      return {
+        id: String(h.id),
+        name: h.name,
+        type: h.type ?? "hébergement",
+        rating,
+        pricePerNight: Math.round(price),
+        totalEstimate: Math.round(price * nights),
+        distanceCenterKm: dist,
+        score: Math.round(Math.max(0, Math.min(1, score)) * 100) / 100,
+        reasons: reasons.slice(0, 4),
+        bookingUrl: primary,
+        links,
+        source: h.source ?? null,
+      };
+    };
+
+    let hotels: HotelCard[] = (hotelsRes.data ?? []).map(scoreHotel);
+    hotels.sort((a, b) => b.score - a.score || b.rating - a.rating);
+
+    // Toujours proposer plusieurs portes d'entrée avec prix indicatifs
+    const seedPrices = [
+      Math.round(lodgingBudget * 0.55),
+      Math.round(lodgingBudget * 0.75),
+      Math.round(lodgingBudget * 0.95),
+      Math.round(lodgingBudget * 1.15),
+      Math.round(lodgingBudget * 1.4),
+    ];
+    const portalSeeds: HotelCard[] = [
+      {
+        id: "portal-budget",
+        name: `Options économiques — ${destName}`,
+        type: "hôtel / hostel",
+        rating: 3.8,
+        pricePerNight: seedPrices[0]!,
+        totalEstimate: seedPrices[0]! * nights,
+        distanceCenterKm: null,
+        score: 0.74,
+        reasons: ["budget serré", "idéal groupe"],
+        bookingUrl: bookingSearchUrl(`${destName} hôtel pas cher`),
+        links: [
+          { label: "Booking (pas cher)", url: bookingSearchUrl(`${destName} hôtel pas cher`) },
+          { label: "Google Hotels", url: googleHotelsUrl(destName) },
+        ],
+        source: "portal",
+      },
+      {
+        id: "portal-booking",
+        name: `Hôtels à ${destName}`,
+        type: "hôtel",
+        rating: 4.2,
+        pricePerNight: seedPrices[1]!,
+        totalEstimate: seedPrices[1]! * nights,
+        distanceCenterKm: null,
+        score: 0.78,
+        reasons: ["comparateur Booking", "dates préremplies"],
+        bookingUrl: bookingSearchUrl(destName),
+        links: [
+          { label: "Booking", url: bookingSearchUrl(destName) },
+          { label: "Hotels.com", url: hotelsComUrl(destName) },
+        ],
+        source: "portal",
+      },
+      {
+        id: "portal-mid",
+        name: `Confort milieu de gamme — ${destName}`,
+        type: "hôtel 3★+",
+        rating: 4.3,
+        pricePerNight: seedPrices[2]!,
+        totalEstimate: seedPrices[2]! * nights,
+        distanceCenterKm: null,
+        score: 0.76,
+        reasons: ["bon rapport qualité/prix"],
+        bookingUrl: googleHotelsUrl(destName),
+        links: [
+          { label: "Google Hotels", url: googleHotelsUrl(destName) },
+          { label: "Booking", url: bookingSearchUrl(destName) },
+        ],
+        source: "portal",
+      },
+      {
+        id: "portal-airbnb",
+        name: `Maisons & appartements — ${destName}`,
+        type: "Airbnb / maison",
+        rating: 4.5,
+        pricePerNight: seedPrices[1]!,
+        totalEstimate: seedPrices[1]! * nights,
+        distanceCenterKm: null,
+        score: 0.8,
+        reasons: ["idéal groupe", "cuisine possible"],
+        bookingUrl: airbnbUrl(destName),
+        links: [{ label: "Airbnb", url: airbnbUrl(destName) }],
+        source: "portal",
+      },
+      {
+        id: "portal-premium",
+        name: `Coup de cœur / plus confort — ${destName}`,
+        type: "hôtel 4★",
+        rating: 4.6,
+        pricePerNight: seedPrices[3]!,
+        totalEstimate: seedPrices[3]! * nights,
+        distanceCenterKm: null,
+        score: 0.7,
+        reasons: ["plus de confort"],
+        bookingUrl: bookingSearchUrl(`${destName} hôtel 4 étoiles`),
+        links: [
+          { label: "Booking 4★", url: bookingSearchUrl(`${destName} hôtel 4 étoiles`) },
+          { label: "Hotels.com", url: hotelsComUrl(destName) },
+        ],
+        source: "portal",
+      },
+    ];
+
+    const seen = new Set(hotels.map((h) => h.name.toLowerCase()));
+    for (const p of portalSeeds) {
+      if (!seen.has(p.name.toLowerCase())) {
+        hotels.push(p);
+        seen.add(p.name.toLowerCase());
+      }
+    }
+    hotels.sort((a, b) => b.score - a.score);
+    const topHotels = hotels.slice(0, 8);
+
+    // ——— A/R multi-modes ———
+    const tripOrigin = (trip.departure_city as string) || "Paris";
+    const origins =
+      aggregated.departureOrigins && aggregated.departureOrigins.length > 0
+        ? aggregated.departureOrigins
+        : [{ city: tripOrigin, count: Math.max(1, trip.participants_count || 2) }];
+    const planeRefused = Boolean((aggregated as any).planeRefused);
+
+    const { searchTransportRoundTrip, estimateTransportFromDistance } = await import(
+      "@/integrations/external/transport.server"
+    );
+
+    const baseFlight = estimateTransportFromDistance(distanceKm);
+    // Estimations relatives par mode (indicatif, affiné si API dispo)
+    const priceForMode = (mode: string): number => {
+      switch (mode) {
+        case "flight":
+          return Math.round(baseFlight);
+        case "train":
+          return Math.round(baseFlight * (distanceKm <= 500 ? 0.85 : distanceKm <= 900 ? 1.05 : 1.25));
+        case "bus":
+          return Math.round(baseFlight * 0.45);
+        case "car":
+          // essence + péage approx A/R partagé
+          return Math.round(Math.max(35, distanceKm * 0.12 * 2) / Math.max(2, adults / 2));
+        default:
+          return Math.round(baseFlight);
+      }
+    };
+
+    const linksForMode = (mode: string, from: string, to: string) => {
+      const f = encodeURIComponent(from);
+      const d = encodeURIComponent(to);
+      if (mode === "flight") {
+        return [
+          {
+            label: "Google Flights",
+            url: `https://www.google.com/travel/flights?q=${encodeURIComponent(`Vols ${from} vers ${to} ${checkin} retour ${checkout}`)}&curr=EUR`,
+          },
+          {
+            label: "Kayak",
+            url: `https://www.kayak.fr/flights/${f}-${d}/${checkin}/${checkout}?sort=bestflight_a`,
+          },
+          {
+            label: "Skyscanner",
+            url: `https://www.skyscanner.fr/transport/vols/${f}/${d}/${checkin}/${checkout}/?adults=${adults}`,
+          },
+        ];
+      }
+      if (mode === "train") {
+        return [
+          {
+            label: "Trainline",
+            url: `https://www.thetrainline.com/book/results?originName=${f}&destinationName=${d}&outwardDate=${checkin}&inwardDate=${checkout}&journeySearchType=Return`,
+          },
+          {
+            label: "SNCF Connect",
+            url: `https://www.sncf-connect.com/fr-fr/train/horaires/${f}/${d}`,
+          },
+          {
+            label: "Omio train",
+            url: `https://www.omio.fr/search?departure=${f}&arrival=${d}&departureDate=${checkin}&returnDate=${checkout}&transportType=train`,
+          },
+        ];
+      }
+      if (mode === "bus") {
+        return [
+          {
+            label: "FlixBus",
+            url: `https://www.flixbus.fr/search?departureCity=${f}&arrivalCity=${d}&departureDate=${checkin}&returnDate=${checkout}`,
+          },
+          {
+            label: "BlaBlaBus / Omio",
+            url: `https://www.omio.fr/search?departure=${f}&arrival=${d}&departureDate=${checkin}&returnDate=${checkout}&transportType=bus`,
+          },
+          {
+            label: "Busbud",
+            url: `https://www.busbud.com/fr/search?origin=${f}&destination=${d}&outbound_date=${checkin}&inbound_date=${checkout}`,
+          },
+        ];
+      }
+      // car
+      return [
+        {
+          label: "Google Maps",
+          url: `https://www.google.com/maps/dir/${f}/${d}`,
+        },
+        {
+          label: "BlaBlaCar",
+          url: `https://www.blablacar.fr/search?fn=${f}&tn=${d}&db=${checkin}&de=${checkout}`,
+        },
+        {
+          label: "Getaround",
+          url: `https://fr.getaround.com/search?address=${f}`,
+        },
+      ];
+    };
+
+    type TransportCard = {
+      city: string;
+      count: number;
+      pricePerPerson: number;
+      mode: string;
+      modeLabel: string;
+      label: string;
+      url: string | null;
+      note?: string;
+      links: { label: string; url: string }[];
+    };
+
+    const modeMeta: { mode: string; modeLabel: string; enabled: boolean }[] = [
+      { mode: "flight", modeLabel: "Avion", enabled: !planeRefused && distanceKm >= 250 },
+      { mode: "train", modeLabel: "Train", enabled: distanceKm <= 1400 },
+      { mode: "bus", modeLabel: "Bus", enabled: distanceKm <= 1200 },
+      { mode: "car", modeLabel: "Voiture", enabled: distanceKm <= 1000 },
+    ];
+
+    const transports: TransportCard[] = [];
+
+    for (const origin of origins.slice(0, 5)) {
+      const from = origin.city;
+
+      // API vol si dispo (améliore le prix avion)
+      let flightApiPrice: number | null = null;
+      let flightApiUrl: string | null = null;
+      if (!planeRefused) {
+        try {
+          const apiQuote = await searchTransportRoundTrip({
+            originCity: from,
+            destinationCity: destName,
+            departDate: checkin,
+            returnDate: checkout,
+            adults: Math.min(Math.max(1, origin.count), 9),
+            distanceKm,
+          });
+          if (apiQuote?.pricePerPerson > 0) {
+            flightApiPrice = apiQuote.pricePerPerson;
+            flightApiUrl = apiQuote.url ?? null;
+          }
+        } catch (e) {
+          providerErrors.push(`transport ${from}: ${String(e).slice(0, 80)}`);
+        }
+      }
+
+      for (const m of modeMeta) {
+        if (!m.enabled) continue;
+        let price = priceForMode(m.mode);
+        if (m.mode === "flight" && flightApiPrice) price = Math.round(flightApiPrice);
+        const links = linksForMode(m.mode, from, destName);
+        if (m.mode === "flight" && flightApiUrl) {
+          links.unshift({ label: "Offre trouvée", url: flightApiUrl });
+        }
+        transports.push({
+          city: from,
+          count: origin.count,
+          pricePerPerson: price,
+          mode: m.mode,
+          modeLabel: m.modeLabel,
+          label: `A/R ${m.modeLabel.toLowerCase()} ${from} → ${destName}`,
+          url: links[0]?.url ?? null,
+          note:
+            m.mode === "flight" && flightApiPrice
+              ? "prix API si dispo"
+              : "prix indicatif — clique pour comparer",
+          links: links.slice(0, 4),
+        });
+      }
+    }
+
+    // Tri : par ville puis prix croissant
+    transports.sort(
+      (a, b) => a.city.localeCompare(b.city) || a.pricePerPerson - b.pricePerPerson,
+    );
+
+    const logistics = {
+      destination: destName,
+      country: destCountry,
+      nights,
+      checkin,
+      checkout,
+      hotels: topHotels,
+      transports,
+      providerErrors,
+      generatedAt: new Date().toISOString(),
+    };
+
+    await supabase
+      .from("trips")
+      .update({ group_logistics: logistics, updated_at: new Date().toISOString() } as any)
+      .eq("id", data.tripId);
+
+    return { ok: true, logistics };
+  });
+
+
 export const proposeStayAndTransport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
