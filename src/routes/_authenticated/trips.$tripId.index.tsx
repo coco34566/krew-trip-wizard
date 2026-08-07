@@ -34,9 +34,9 @@ import { getTripAvailability } from "@/lib/availability.functions";
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
     meta: [
-      { title: "Hub du voyage — Krew" },
+      { title: "Mon Voyage — Krew" },
       { name: "description", content: "Propositions Krew, planning jour par jour, budget détaillé et votes du groupe." },
-      { property: "og:title", content: "Hub du voyage — Krew" },
+      { property: "og:title", content: "Mon Voyage — Krew" },
       { property: "og:description", content: "Comparez les propositions et validez le voyage avec votre groupe." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
