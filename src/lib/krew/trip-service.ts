@@ -486,6 +486,17 @@ export type GenerationReadiness = {
     exclusionCount: number;
     hasBudgetVeto: boolean;
     dealBreakerAmbiances: number;
+    /** Dispos reçues */
+    availabilityAnswered: number;
+    /** Dates verrouillées par l'orga */
+    datesLocked: boolean;
+    lockedStart: string | null;
+    lockedEnd: string | null;
+  };
+  checklist: {
+    prefsOk: boolean;
+    availabilityOk: boolean;
+    datesLocked: boolean;
   };
   message?: string;
 };
@@ -497,18 +508,25 @@ export async function assessGenerationReadiness(
   supabase: SupabaseClient,
   tripId: string,
 ): Promise<GenerationReadiness> {
-  const [trip, participants, prefs, aggregated] = await Promise.all([
-    supabase.from("trips").select("participants_count").eq("id", tripId).single(),
+  const [trip, participants, prefs, avail, aggregated] = await Promise.all([
+    supabase
+      .from("trips")
+      .select("participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date")
+      .eq("id", tripId)
+      .single(),
     supabase
       .from("trip_participants")
       .select("id, user_id, email, display_name, status")
       .eq("trip_id", tripId),
     supabase.from("trip_participant_preferences").select("user_id").eq("trip_id", tripId),
+    supabase.from("trip_availability").select("user_id").eq("trip_id", tripId),
     aggregateParticipantPreferences(supabase, tripId),
   ]);
   if (trip.error) throw trip.error;
   if (participants.error) throw participants.error;
-  if (prefs.error) throw prefs.error;
+  // prefs / avail tables may be missing in some envs
+  const prefRows = prefs.error ? [] : (prefs.data ?? []);
+  const availRows = avail.error ? [] : (avail.data ?? []);
 
   const expected = Math.max(
     Number(trip.data?.participants_count) || 0,
@@ -516,28 +534,55 @@ export async function assessGenerationReadiness(
     1,
   );
   const answeredIds = new Set(
-    (prefs.data ?? []).map((p: any) => p.user_id).filter(Boolean),
+    (prefRows as any[]).map((p: any) => p.user_id).filter(Boolean),
   );
   const answered = answeredIds.size;
+  const availabilityAnswered = new Set(
+    (availRows as any[]).map((p: any) => p.user_id).filter(Boolean),
+  ).size;
+
+  const datesLocked = Boolean((trip.data as any)?.dates_locked);
+  const lockedStart = datesLocked
+    ? ((trip.data as any).start_date as string | null)
+    : null;
+  const lockedEnd = datesLocked
+    ? ((trip.data as any).end_date as string | null)
+    : null;
 
   const missingLabels = (participants.data ?? [])
     .filter((p: any) => p.user_id && !answeredIds.has(p.user_id))
     .map((p: any) => p.display_name || p.email || "Participant")
     .concat(
-      // places non encore rattachées
       (participants.data ?? [])
         .filter((p: any) => !p.user_id)
         .map((p: any) => `${p.email || "invité"} (pas encore rejoint)`),
     );
 
-  // Aussi compter les "places" attendues non pourvues
-  const stillNeeded = Math.max(0, expected - answered);
-
   const minRequired = Math.max(MIN_ANSWERS, Math.ceil(expected * MIN_ANSWER_RATIO));
-  let canGenerate = answered >= minRequired;
+  const minAvail = Math.max(1, Math.ceil(expected * MIN_ANSWER_RATIO));
+  const prefsOk = answered >= minRequired;
+  const availabilityOk = availabilityAnswered >= minAvail;
+  // Dates must be validated (locked) before launching destination API searches
+  const canGenerate = prefsOk && availabilityOk && datesLocked;
+
+  const blockers: string[] = [];
+  if (!prefsOk) {
+    blockers.push(
+      `préférences ${answered}/${expected} (min. ${minRequired})`,
+    );
+  }
+  if (!availabilityOk) {
+    blockers.push(
+      `disponibilités ${availabilityAnswered}/${expected} (min. ${minAvail})`,
+    );
+  }
+  if (!datesLocked) {
+    blockers.push("dates non validées par l'organisateur");
+  }
+
   let message: string | undefined;
   if (!canGenerate) {
-    message = `En attente de plus de réponses (min. ${minRequired}, ${answered} reçue${answered > 1 ? "s" : ""}).`;
+    message = `Pas prêt pour les recherches destinations : ${blockers.join(" · ")}.`;
   }
 
   return {
@@ -553,6 +598,15 @@ export async function assessGenerationReadiness(
       exclusionCount: aggregated.exclusionCount ?? 0,
       hasBudgetVeto: Boolean(aggregated.hasBudgetVeto),
       dealBreakerAmbiances: (aggregated.dealBreakerAmbiances ?? []).length,
+      availabilityAnswered,
+      datesLocked,
+      lockedStart,
+      lockedEnd,
+    },
+    checklist: {
+      prefsOk,
+      availabilityOk,
+      datesLocked,
     },
     message,
   };
