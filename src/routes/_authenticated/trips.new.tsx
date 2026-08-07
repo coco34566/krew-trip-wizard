@@ -30,6 +30,7 @@ export const Route = createFileRoute("/_authenticated/trips/new")({
 function NewTripPage() {
   const navigate = useNavigate();
   const create = useServerFn(createTrip);
+  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [eventType, setEventType] = useState("weekend");
   const [participants, setParticipants] = useState(PARTICIPANTS_DEFAULT);
@@ -75,7 +76,10 @@ function NewTripPage() {
         },
       });
       toast.success("Voyage créé — invite ton groupe !");
-      navigate({ to: "/trips/$tripId/invite", params: { tripId: (trip as any).tripId ?? (trip as any).id } });
+      queryClient.invalidateQueries({ queryKey: ["my-trips"] });
+      const id = (trip as any).tripId ?? (trip as any).id;
+      toast.success("Voyage créé et enregistré");
+      window.location.assign(`/trips/${id}`);
     } catch (err: any) {
       toast.error(err?.message?.slice?.(0, 140) ?? "Création impossible");
     } finally {
