@@ -775,6 +775,23 @@ export async function generateRecommendationsForTrip(
   );
   ctx.excludedCountries = mergedExcluded;
   if (aggregated.needsAccessibility) ctx.needsCityCenter = true;
+
+  // ——— Phase 1 : budget + transport individuels → contrainte de destination ———
+  ctx.departureOrigins = aggregated.departureOrigins ?? [];
+  ctx.planeRefused = Boolean(aggregated.planeRefused);
+  ctx.transportModes = aggregated.transportModes ?? [];
+  // Si le groupe refuse l'avion, on resserre fortement la distance (train/covoit)
+  if (aggregated.planeRefused) {
+    ctx.maxDistanceKm = Math.min(ctx.maxDistanceKm, 900);
+  }
+  // Durée max de trajet → distance max approximative (~90 km/h équivalent)
+  if (aggregated.maxTravelDurationHours && Number(aggregated.maxTravelDurationHours) > 0) {
+    ctx.maxDistanceKm = Math.min(
+      ctx.maxDistanceKm,
+      Math.round(Number(aggregated.maxTravelDurationHours) * 90),
+    );
+  }
+  // Budget : plafond veto / médiane déjà dans prefsToUse.max_budget
   const catalogQuery = {
     maxDistanceKm: ctx.maxDistanceKm,
     excludedCountries: ctx.excludedCountries,
@@ -791,6 +808,11 @@ export async function generateRecommendationsForTrip(
   if (resolvedDestination) {
     shortlistNames = [resolvedDestination];
   } else {
+    // Phase 1 : shortlist destinations via budget, distance/transport, ambiances
+    const primaryDeparture =
+      (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
+      (trip.data.departure_city as string) ||
+      "Paris";
     const candidates = discoverCandidateDestinations(
       {
         ambiances: ctx.ambiances,
@@ -800,7 +822,7 @@ export async function generateRecommendationsForTrip(
         nights: ctx.nights,
         startMonth: ctx.startMonth,
         excludedCountries: ctx.excludedCountries,
-        departureCity: (trip.data.departure_city as string) || "Paris",
+        departureCity: primaryDeparture,
         participants: ctx.participants,
         eventType: (trip.data.event_type as string) || undefined,
       },
@@ -813,7 +835,7 @@ export async function generateRecommendationsForTrip(
     }
   }
 
-  // 2) APIs logements + activités (Booking, TripAdvisor, …) pour chaque candidate
+  // 2) Phase 1 suite : APIs transport/logements pour shortlist — activités scorées en phase 2 dans buildProposals
   const providerErrors = await enrichCatalogWithExternalApis(supabase, tripId, shortlistNames);
 
   // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
