@@ -1,0 +1,163 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { rankDateWindows, type AvailabilityEntry } from "@/lib/krew/availability";
+
+const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}/);
+
+export const getTripAvailability = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+
+    const [rows, participants, prefs] = await Promise.all([
+      supabase.from("trip_availability").select("*").eq("trip_id", data.tripId),
+      supabase
+        .from("trip_participants")
+        .select("id, user_id, email, display_name, status")
+        .eq("trip_id", data.tripId),
+      supabase.from("trip_preferences").select("duration_nights").eq("trip_id", data.tripId).maybeSingle(),
+    ]);
+    if (rows.error) throw rows.error;
+    if (participants.error) throw participants.error;
+
+    const nights = Number(prefs.data?.duration_nights ?? trip.data.duration_nights ?? 2) || 2;
+
+    const entries: AvailabilityEntry[] = (rows.data ?? []).map((r: any) => ({
+      userId: r.user_id as string,
+      availableDates: (r.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+      blockedDates: (r.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+      flexDays: Number(r.flex_days ?? 0),
+    }));
+
+    const windows = rankDateWindows(entries, nights, 5);
+    const mine = (rows.data ?? []).find((r: any) => r.user_id === userId) ?? null;
+
+    const answered = entries.length;
+    const expected = Math.max(
+      Number(trip.data.participants_count) || 0,
+      (participants.data ?? []).length,
+      1,
+    );
+
+    return {
+      trip: {
+        id: trip.data.id as string,
+        name: trip.data.name as string,
+        eventType: trip.data.event_type as string,
+        celebratedPerson: trip.data.celebrated_person as string | null,
+        hasStar: Boolean((trip.data as any).has_star),
+        provisionalStart: (trip.data as any).provisional_start_date as string | null,
+        provisionalEnd: (trip.data as any).provisional_end_date as string | null,
+        durationNights: nights,
+      },
+      answered,
+      expected,
+      windows,
+      mine: mine
+        ? {
+            availableDates: (mine.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+            blockedDates: (mine.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+            flexDays: Number(mine.flex_days ?? 0),
+            notes: mine.notes as string | null,
+            submittedAt: (mine.updated_at || mine.submitted_at) as string | null,
+          }
+        : null,
+      participants: participants.data ?? [],
+    };
+  });
+
+export const submitMyAvailability = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        availableDates: z.array(dateStr).default([]),
+        blockedDates: z.array(dateStr).default([]),
+        flexDays: z.number().int().min(0).max(14).default(0),
+        notes: z.string().max(500).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const now = new Date().toISOString();
+
+    // Membre ?
+    const trip = await supabase.from("trips").select("id, owner_id, participants_count, duration_nights").eq("id", data.tripId).maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+
+    const email = (typeof context.claims?.email === "string" ? context.claims.email : "").toLowerCase();
+    if (trip.data.owner_id !== userId) {
+      const part = await supabase
+        .from("trip_participants")
+        .select("id")
+        .eq("trip_id", data.tripId)
+        .or(email ? `user_id.eq.${userId},email.ilike.${email}` : `user_id.eq.${userId}`)
+        .maybeSingle();
+      if (part.error) throw part.error;
+      if (!part.data) throw new Error("403 Forbidden");
+    }
+
+    const existing = await supabase
+      .from("trip_availability")
+      .select("id, submitted_at")
+      .eq("trip_id", data.tripId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const payload = {
+      trip_id: data.tripId,
+      user_id: userId,
+      available_dates: data.availableDates.map((d) => d.slice(0, 10)),
+      blocked_dates: data.blockedDates.map((d) => d.slice(0, 10)),
+      flex_days: data.flexDays,
+      notes: data.notes ?? null,
+      submitted_at: existing.data?.submitted_at ?? now,
+      updated_at: now,
+    };
+
+    const { error } = await supabase
+      .from("trip_availability")
+      .upsert(payload, { onConflict: "trip_id,user_id" });
+    if (error) throw error;
+
+    // Recalcule fenêtres et met à jour provisoire sur le trip
+    const all = await supabase.from("trip_availability").select("*").eq("trip_id", data.tripId);
+    if (!all.error && all.data) {
+      const entries: AvailabilityEntry[] = all.data.map((r: any) => ({
+        userId: r.user_id,
+        availableDates: (r.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+        blockedDates: (r.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+        flexDays: Number(r.flex_days ?? 0),
+      }));
+      const nights = Number(trip.data.duration_nights ?? 2) || 2;
+      const windows = rankDateWindows(entries, nights, 3);
+      const best = windows[0];
+      if (best) {
+        await supabase
+          .from("trips")
+          .update({
+            provisional_start_date: best.start,
+            provisional_end_date: best.end,
+            date_confidence:
+              best.coverageRatio >= 0.9
+                ? "forte"
+                : best.coverageRatio >= 0.6
+                  ? "provisoire"
+                  : "faible",
+            start_date: best.start,
+            end_date: best.end,
+          } as any)
+          .eq("id", data.tripId);
+      }
+    }
+
+    return { ok: true, isUpdate: Boolean(existing.data) };
+  });
