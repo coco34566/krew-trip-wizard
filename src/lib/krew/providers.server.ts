@@ -22,6 +22,12 @@ export type CatalogQuery = {
   participants: number;
   nights: number;
   startDate?: string | null;
+  /** Flexibilité de dates (jours) issue de l'agrégation des questionnaires. */
+  dateFlexDays?: number | undefined;
+  /** Équipements requis par le groupe (piscine, wifi…). */
+  requiredAmenities?: string[] | undefined;
+  /** Note minimale d'hébergement demandée par le groupe. */
+  minAccommodationRating?: number | undefined;
 };
 
 export interface TravelDataProvider {

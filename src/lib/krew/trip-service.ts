@@ -81,3 +81,73 @@ export function serializeProposal(tripId: string, proposal: Proposal) {
     activity_ids: proposal.activities.map((a) => a.id),
   };
 }
+/** Réponse individuelle au questionnaire (colonnes de `trip_participant_preferences`). */
+type ParticipantPrefRow = {
+  ambiances: string[] | null;
+  activity_categories: string[] | null;
+  budget_max: number | string | null;
+  date_flex_days: number | null;
+  required_amenities: string[] | null;
+  min_accommodation_rating: number | string | null;
+  travel_pace: string | null;
+  duration_nights_min: number | null;
+  duration_nights_max: number | null;
+};
+
+function frequencies(values: string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const v of values) out[v] = (out[v] ?? 0) + 1;
+  return out;
+}
+
+function median(values: number[]): number | null {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? (sorted[mid] as number) : ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2;
+}
+
+/**
+ * Agrège les questionnaires individuels d'un voyage en un profil de groupe
+ * exploitable par le moteur de scoring.
+ */
+export async function aggregateParticipantPreferences(
+  supabase: { from: (table: string) => any },
+  tripId: string,
+) {
+  const res = await supabase
+    .from("trip_participant_preferences")
+    .select(
+      "ambiances, activity_categories, budget_max, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max",
+    )
+    .eq("trip_id", tripId);
+  if (res.error) throw res.error;
+
+  const rows = (res.data ?? []) as ParticipantPrefRow[];
+  const ambianceFrequencies = frequencies(rows.flatMap((r) => r.ambiances ?? []));
+  const activityCategoryFrequencies = frequencies(rows.flatMap((r) => r.activity_categories ?? []));
+  const budgets = rows.map((r) => Number(r.budget_max ?? 0)).filter((n) => n > 0);
+  const ratings = rows.map((r) => Number(r.min_accommodation_rating ?? 0)).filter((n) => n > 0);
+  const flex = rows.map((r) => Number(r.date_flex_days ?? 0)).filter((n) => n >= 0);
+  const paces = rows.map((r) => r.travel_pace).filter((p): p is string => Boolean(p));
+  const paceFreq = frequencies(paces);
+
+  const byFrequency = (freq: Record<string, number>) =>
+    Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .map(([key]) => key);
+
+  return {
+    participantsCount: rows.length,
+    ambianceFrequencies,
+    activityCategoryFrequencies,
+    ambiances: byFrequency(ambianceFrequencies).slice(0, 4),
+    activityCategories: byFrequency(activityCategoryFrequencies),
+    /** Budget du groupe : le plus contraignant raisonnable (médiane basse). */
+    aggregatedBudget: budgets.length ? Math.round(median(budgets) as number) : null,
+    minAccommodationRating: ratings.length ? Math.max(...ratings) : null,
+    requiredAmenities: Array.from(new Set(rows.flatMap((r) => r.required_amenities ?? []))),
+    medianTravelPace: byFrequency(paceFreq)[0] ?? null,
+    dateFlexDays: flex.length ? Math.min(...flex) : null,
+  };
+}

@@ -2,135 +2,213 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { searchHotelsRapidAPI } from "@/integrations/external/hotels.rapidapi";
-import type { AccommodationRecord } from "@/lib/krew/engine";
 
 /**
- * Server function: aggregate participant prefs, call Hotels.com RapidAPI and
- * upsert accommodations into the `accommodations` table so the recommendation
- * engine can use them.
+ * Enrichit un voyage avec des données réelles :
+ *  - géocodage + climat / saisonnalité (Open-Meteo, sans clé),
+ *  - hébergements comparés sur Hotels.com, Expedia, Booking.com et Kayak,
+ *  - activités issues de Klook et TripAdvisor.
+ *
+ * Les résultats sont normalisés puis upsertés dans le catalogue Krew
+ * (`destinations` / `accommodations` / `activities`) via `source` + `external_id`,
+ * pour que le moteur de scoring les utilise à la prochaine génération.
  */
 export const searchExternalForTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ tripId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
+
+    // Lecture sous RLS : garantit que l'appelant est bien membre du voyage.
     const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).single();
-    if (tripRes.error || !tripRes.data) throw tripRes.error ?? new Error("Trip not found");
+    if (tripRes.error || !tripRes.data) throw tripRes.error ?? new Error("Voyage introuvable");
     const trip = tripRes.data as any;
 
-    const prefsRes = await supabase.from("trip_preferences").select("*").eq("trip_id", data.tripId).maybeSingle();
-    const prefs = prefsRes.error ? null : prefsRes.data;
+    const prefsRes = await supabase
+      .from("trip_preferences")
+      .select("*")
+      .eq("trip_id", data.tripId)
+      .maybeSingle();
+    const prefs = (prefsRes.data ?? null) as any;
 
-    const partPrefsRes = await supabase
-      .from("trip_participant_preferences")
-      .select("user_id, ambiances, activity_categories, budget_max, duration_nights_min, duration_nights_max")
-      .eq("trip_id", data.tripId);
-    const participantsPrefs = (partPrefsRes.data ?? []) as any[];
-
-    const budgets = participantsPrefs.map((p) => (p?.budget_max ? Number(p.budget_max) : null)).filter(Boolean);
-    const avgBudget = budgets.length ? Math.round(budgets.reduce((a, b) => a + b, 0) / budgets.length) : trip.budget_per_person;
-
-    const ambianceCounts: Record<string, number> = {};
-    for (const p of participantsPrefs) {
-      for (const a of (p.ambiances ?? [])) {
-        ambianceCounts[a] = (ambianceCounts[a] ?? 0) + 1;
-      }
-    }
-    const ambiances = Object.entries(ambianceCounts).sort((a, b) => b[1] - a[1]).map(([k]) => k).slice(0, 3);
-
-    const activityCounts: Record<string, number> = {};
-    for (const p of participantsPrefs) {
-      for (const c of (p.activity_categories ?? [])) {
-        activityCounts[c] = (activityCounts[c] ?? 0) + 1;
-      }
-    }
-    const activityCategories = Object.entries(activityCounts).sort((a, b) => b[1] - a[1]).map(([k]) => k);
-
-    const nights = prefs?.duration_nights ?? Math.max(1, trip.duration_nights ?? 2);
-    const destinationQuery = prefs?.desired_destination ?? trip.desired_destination ?? trip.departure_city ?? "";
-
+    const destinationQuery: string =
+      prefs?.desired_destination ?? trip.desired_destination ?? trip.destination ?? "";
     if (!destinationQuery) {
-      return { accommodationsCount: 0, message: "No destination found to search" };
+      return {
+        ok: false as const,
+        message: "Choisissez une destination souhaitée pour lancer la recherche externe.",
+        destinationsCount: 0,
+        accommodationsCount: 0,
+        activitiesCount: 0,
+        providerErrors: [] as string[],
+      };
     }
 
-    // Call RapidAPI hotels provider
-    let hotelsRaw: any[] = [];
-    try {
-      hotelsRaw = await searchHotelsRapidAPI({
-        destination: destinationQuery,
-        checkin: trip.start_date ?? null,
-        checkout: trip.end_date ?? null,
-        adults: trip.participants_count ?? 2,
-        pageSize: 40,
+    const { geocodeDestination, fetchClimate, distanceFromParisKm } = await import(
+      "@/integrations/external/geo-weather.server"
+    );
+    const { searchHotelsAllProviders, searchActivitiesAllProviders } = await import(
+      "@/integrations/external/travel-providers.server"
+    );
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const place = await geocodeDestination(destinationQuery);
+    if (!place) {
+      return {
+        ok: false as const,
+        message: `Destination "${destinationQuery}" introuvable.`,
+        destinationsCount: 0,
+        accommodationsCount: 0,
+        activitiesCount: 0,
+        providerErrors: [] as string[],
+      };
+    }
+
+    const nights: number = prefs?.duration_nights ?? Math.max(1, trip.duration_nights ?? 2);
+    const participants: number = Math.max(1, trip.participants_count ?? 2);
+    const climate = await fetchClimate(place.latitude, place.longitude, {
+      startDate: trip.start_date ?? null,
+      endDate: trip.end_date ?? null,
+    });
+
+    const slug = place.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
+    const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? "";
+    const providerConfig = {
+      rapidApiKey,
+      hotelsHost: process.env["HOTELS_RAPIDAPI_HOST"],
+      bookingHost: process.env["BOOKING_RAPIDAPI_HOST"],
+      kayakHost: process.env["KAYAK_RAPIDAPI_HOST"],
+      tripadvisorHost: process.env["TRIPADVISOR_RAPIDAPI_HOST"],
+      klookHost: process.env["KLOOK_RAPIDAPI_HOST"],
+    };
+    const searchParams = {
+      destination: place.name,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      checkin: trip.start_date ?? null,
+      checkout: trip.end_date ?? null,
+      adults: participants,
+    };
+
+    const providerErrors: string[] = [];
+    let hotels: Awaited<ReturnType<typeof searchHotelsAllProviders>>["hotels"] = [];
+    let activities: Awaited<ReturnType<typeof searchActivitiesAllProviders>>["activities"] = [];
+
+    if (rapidApiKey) {
+      const [hotelRes, activityRes] = await Promise.all([
+        searchHotelsAllProviders(providerConfig, searchParams),
+        searchActivitiesAllProviders(providerConfig, searchParams),
+      ]);
+      hotels = hotelRes.hotels;
+      activities = activityRes.activities;
+      providerErrors.push(...hotelRes.errors, ...activityRes.errors);
+    } else {
+      providerErrors.push("Aucune clé RapidAPI configurée : seules la météo et la saisonnalité ont été mises à jour.");
+    }
+
+    // Coût quotidien moyen déduit des prix réels observés.
+    const nightlyPrices = hotels
+      .map((h) => h.offers[0]?.pricePerNight ?? 0)
+      .filter((p) => p > 0)
+      .sort((a, b) => a - b);
+    const medianNightly = nightlyPrices.length
+      ? (nightlyPrices[Math.floor(nightlyPrices.length / 2)] as number)
+      : null;
+
+    const destinationRow = {
+      slug,
+      name: place.name,
+      country: place.country || "—",
+      description: climate.summary,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      climate: { months: climate.months, forecast: climate.forecast ?? null, summary: climate.summary },
+      best_months: climate.bestMonths,
+      distance_from_paris_km: distanceFromParisKm(place.latitude, place.longitude),
+      ...(medianNightly ? { avg_daily_cost: Math.round(medianNightly / Math.max(1, participants) + 55) } : {}),
+      source: "open-meteo",
+      external_id: `${place.latitude.toFixed(3)},${place.longitude.toFixed(3)}`,
+    };
+
+    const destUpsert = await supabaseAdmin
+      .from("destinations")
+      .upsert(destinationRow as never, { onConflict: "slug" })
+      .select("id")
+      .single();
+    if (destUpsert.error) throw destUpsert.error;
+    const destinationId = (destUpsert.data as { id: string }).id;
+
+    let accommodationsCount = 0;
+    if (hotels.length) {
+      const rows = hotels.slice(0, 30).map((h) => {
+        const best = h.offers[0];
+        return {
+          destination_id: destinationId,
+          name: h.name,
+          type: h.type || "hotel",
+          description: h.description,
+          price_per_night_per_person: Math.max(
+            1,
+            Math.round((best?.pricePerNight ?? 0) / Math.max(1, Math.ceil(participants / 2))),
+          ),
+          capacity: Math.max(2, participants),
+          rating: h.rating > 5 ? Math.round((h.rating / 2) * 10) / 10 : h.rating,
+          distance_center_km: h.distanceCenterKm,
+          image_url: h.imageUrl,
+          price_offers: h.offers,
+          best_provider: best?.provider ?? null,
+          booking_url: best?.url ?? null,
+          source: "rapidapi",
+          external_id: h.externalId,
+        };
       });
-    } catch (err) {
-      console.error("searchHotelsRapidAPI failed", err);
-      throw err;
+      const res = await supabaseAdmin
+        .from("accommodations")
+        .upsert(rows as never, { onConflict: "source,external_id" });
+      if (res.error) providerErrors.push(`upsert hébergements: ${res.error.message}`);
+      else accommodationsCount = rows.length;
     }
 
-    // Map to AccommodationRecord shape
-    const accommodations: AccommodationRecord[] = (hotelsRaw || [])
-      .map((h: any) => {
-        try {
-          // Various possible shapes for price
-          let pricePerNightTotal: number | null = null;
-          if (h?.ratePlan?.price?.exactCurrent) pricePerNightTotal = Number(h.ratePlan.price.exactCurrent);
-          if (!pricePerNightTotal && h?.price && typeof h.price === "object") {
-            pricePerNightTotal = Number(h.price.rates?.[0]?.amount || h.price.amount || h.price.max || null);
-          }
-          if (!pricePerNightTotal && (h.minDailyRate || h.minPrice)) pricePerNightTotal = Number(h.minDailyRate ?? h.minPrice);
-
-          const participants = Math.max(1, trip.participants_count ?? 1);
-          const pricePerNightPerPerson = pricePerNightTotal ? Math.round(pricePerNightTotal / participants) : Math.round((h?.price || 0) / participants || 0);
-
-          const acc: AccommodationRecord = {
-            id: String(h.property_id ?? h.id ?? h.hotelId ?? h.impressionId ?? JSON.stringify(h)),
-            destination_id: String(h.city_id ?? h.destinationId ?? h.destination_id ?? (h.address?.city ?? destinationQuery)),
-            name: h.name || h.hotelName || h.title || "Hôtel",
-            type: h.propertyType || h.type || "hotel",
-            description: h.description || h.longDescription || null,
-            price_per_night_per_person: Number(pricePerNightPerPerson ?? 0),
-            capacity: h.rooms?.maxOccupancy ?? h.maxOccupancy ?? h.capacity ?? Math.max(2, participants),
-            rating: Number(h.starRating ?? h.reviewScore ?? h.rating ?? 0),
-            distance_center_km: h.distance?.value ? Number(h.distance.value) / 1000 : Number(h.distanceFromCenterKm ?? 0),
-            image_url: (h.media && h.media[0]?.uri) || h.heroImage?.imageUrl || h.thumbnailUrl || null,
-          };
-          return acc;
-        } catch (err) {
-          return null;
-        }
-      })
-      .filter(Boolean) as AccommodationRecord[];
-
-    // Upsert accommodations into DB
-    for (const a of accommodations) {
-      try {
-        const up = await supabase.from("accommodations").upsert(
-          {
-            id: a.id,
-            destination_id: a.destination_id,
-            name: a.name,
-            type: a.type,
-            description: a.description,
-            price_per_night_per_person: a.price_per_night_per_person,
-            capacity: a.capacity,
-            rating: a.rating,
-            distance_center_km: a.distance_center_km,
-            image_url: a.image_url,
-          },
-          { onConflict: "id" },
-        );
-        if (up.error) console.error("Upsert accommodation failed", up.error);
-      } catch (err) {
-        console.error("Upsert accommodation exception", err);
-      }
+    let activitiesCount = 0;
+    if (activities.length) {
+      const rows = activities.slice(0, 40).map((a) => ({
+        destination_id: destinationId,
+        name: a.name,
+        category: a.category,
+        description: a.description,
+        price_per_person: a.pricePerPerson,
+        duration_hours: a.durationHours,
+        rating: a.rating > 5 ? Math.round((a.rating / 2) * 10) / 10 : a.rating,
+        image_url: a.imageUrl,
+        booking_url: a.bookingUrl,
+        source: "rapidapi",
+        external_id: a.externalId,
+      }));
+      const res = await supabaseAdmin
+        .from("activities")
+        .upsert(rows as never, { onConflict: "source,external_id" });
+      if (res.error) providerErrors.push(`upsert activités: ${res.error.message}`);
+      else activitiesCount = rows.length;
     }
 
     return {
-      accommodationsCount: accommodations.length,
-      avgBudget,
-      ambiances,
-      activityCategories,
+      ok: true as const,
+      destination: place.name,
+      country: place.country,
+      nights,
+      weatherSummary: climate.summary,
+      bestMonths: climate.bestMonths,
+      medianNightly,
+      comparedProviders: [...new Set(hotels.flatMap((h) => h.offers.map((o) => o.provider)))],
+      destinationsCount: 1,
+      accommodationsCount,
+      activitiesCount,
+      providerErrors,
     };
   });

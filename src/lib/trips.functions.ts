@@ -136,6 +136,10 @@ export const generateRecommendations = createServerFn({ method: "POST" })
     if (aggregated.participantsCount && aggregated.participantsCount > 0) {
       prefsToUse = {
         ...preferences.data,
+        ambiances: aggregated.ambiances.length ? aggregated.ambiances : preferences.data?.ambiances ?? [],
+        activity_categories: aggregated.activityCategories.length
+          ? aggregated.activityCategories
+          : preferences.data?.activity_categories ?? [],
         ambiance_frequencies: aggregated.ambianceFrequencies,
         activity_category_frequencies: aggregated.activityCategoryFrequencies,
         max_budget: aggregated.aggregatedBudget ?? preferences.data?.max_budget ?? trip.data.budget_per_person,

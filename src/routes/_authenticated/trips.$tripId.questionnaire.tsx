@@ -91,7 +91,7 @@ function ParticipantQuestionnaire() {
         // If server returned a 403-like error, show a clear message and redirect
         if (typeof e?.message === "string" && e.message.startsWith("403 Forbidden")) {
           toast.error("Vous n'êtes pas autorisé·e à accéder à ce questionnaire.");
-          navigate({ to: "/trips" });
+          navigate({ to: "/dashboard" });
           return;
         }
         toast.error(e?.message ?? "Impossible de charger le questionnaire");
@@ -128,7 +128,7 @@ function ParticipantQuestionnaire() {
     } catch (e: any) {
       if (typeof e?.message === "string" && e.message.startsWith("403 Forbidden")) {
         toast.error("Vous n'êtes pas autorisé·e à soumettre ce questionnaire.");
-        navigate({ to: "/trips" });
+        navigate({ to: "/dashboard" });
         return;
       }
       toast.error(e instanceof Error ? e.message : "Erreur lors de l'enregistrement");
@@ -181,7 +181,7 @@ function ParticipantQuestionnaire() {
 
         <div>
           <Label className="mb-3 block">Ton budget maximum : {formatEuro(budgetMax)}</Label>
-          <Slider min={100} max={3000} step={50} value={[budgetMax]} onValueChange={([v]) => setBudgetMax(v)} />
+          <Slider min={100} max={3000} step={50} value={[budgetMax]} onValueChange={([v]) => setBudgetMax(v ?? budgetMax)} />
         </div>
 
         <div>
