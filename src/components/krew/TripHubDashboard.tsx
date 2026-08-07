@@ -1,13 +1,17 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import {
   CalendarDays,
   ClipboardList,
+  Copy,
+  Check,
   MapPin,
   Sparkles,
   Star,
   Users,
   Wallet,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TripHubNav, ComingSoonGrid } from "@/components/krew/TripHubNav";
@@ -32,6 +36,11 @@ type Props = {
   children?: React.ReactNode;
 };
 
+function getJoinUrl(tripId: string) {
+  if (typeof window === "undefined") return "";
+  return `${window.location.origin}/join/${tripId}`;
+}
+
 export function TripHubDashboard({
   tripId,
   trip,
@@ -48,6 +57,8 @@ export function TripHubDashboard({
   topScores = [],
   children,
 }: Props) {
+  const [inviteCopied, setInviteCopied] = useState(false);
+
   const steps = buildTripSteps({
     tripId,
     participantsJoined: participantsCount,
@@ -59,6 +70,28 @@ export function TripHubDashboard({
   });
 
   const theme = eventTypeLabel(trip.event_type);
+
+  async function handleInviteClick() {
+    const url = getJoinUrl(tripId);
+    try {
+      if (url) {
+        await navigator.clipboard.writeText(url);
+        setInviteCopied(true);
+        toast.success("Lien d'invitation copié", { description: url });
+        setTimeout(() => setInviteCopied(false), 2000);
+      }
+    } catch {
+      toast.message("Lien d'invitation", { description: url || `/join/${tripId}` });
+    }
+    // Scroller vers la section invite en bas de la page hub
+    const el = document.getElementById("invite-section");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      // Si on n'est pas sur le hub, aller sur le hub avec ancre
+      window.location.href = `/trips/${tripId}#invite-section`;
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -107,18 +140,36 @@ export function TripHubDashboard({
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Parcours du groupe
         </h2>
-        <TripHubNav tripId={tripId} steps={steps} />
+        <TripHubNav tripId={tripId} steps={steps} onInviteClick={handleInviteClick} />
       </section>
 
       {/* Cartes d'accès rapide */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Inviter = copie le lien + scroll vers la section */}
+        <button
+          type="button"
+          onClick={handleInviteClick}
+          className="group rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-glow"
+        >
+          {inviteCopied ? (
+            <Check className="size-5 text-lagoon" />
+          ) : (
+            <Users className="size-5 text-primary" />
+          )}
+          <p className="mt-3 font-semibold group-hover:text-primary">
+            {inviteCopied ? "Lien copié !" : "Inviter"}
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {inviteCopied
+              ? "Colle-le dans WhatsApp / SMS"
+              : `${participantsCount} rejoint(s) · copie le lien`}
+          </p>
+          <p className="mt-2 flex items-center gap-1 text-[11px] text-primary/80">
+            <Copy className="size-3" /> /join/{tripId.slice(0, 8)}…
+          </p>
+        </button>
+
         {[
-          {
-            to: "invite" as const,
-            title: "Inviter",
-            desc: `${participantsCount} rejoint(s)`,
-            icon: Users,
-          },
           {
             to: "availability" as const,
             title: "Disponibilités",
