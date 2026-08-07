@@ -37,15 +37,16 @@ export const AMBIANCE_SCORE_COLUMN: Record<Ambiance, string> = {
 };
 
 export const ACTIVITY_CATEGORIES = [
-  { value: "soirees", label: "Soirées", emoji: "🌙" },
+  { value: "soirees", label: "Soirées / nightlife", emoji: "🌙" },
   { value: "bars_clubs", label: "Bars & clubs", emoji: "🍸" },
-  { value: "sport", label: "Activités sportives", emoji: "⚽" },
+  { value: "gastronomie", label: "Restos & street food", emoji: "🍽️" },
+  { value: "culture", label: "Musées & culture", emoji: "🏛️" },
+  { value: "experiences", label: "Visites & expériences", emoji: "🗺️" },
+  { value: "nautique", label: "Plage & nautique", emoji: "🌊" },
+  { value: "sport", label: "Sport & outdoor", emoji: "⚽" },
   { value: "sensations", label: "Sensations fortes", emoji: "🪂" },
-  { value: "nautique", label: "Activités nautiques", emoji: "🌊" },
-  { value: "gastronomie", label: "Gastronomie", emoji: "🍽️" },
-  { value: "experiences", label: "Expériences locales", emoji: "🗺️" },
-  { value: "insolite", label: "Activités insolites", emoji: "🎪" },
-  { value: "detente", label: "Détente & spa", emoji: "💆" },
+  { value: "detente", label: "Spa & détente", emoji: "💆" },
+  { value: "shopping", label: "Shopping", emoji: "🛍️" },
 ] as const;
 
 export type ActivityCategory = (typeof ACTIVITY_CATEGORIES)[number]["value"];
@@ -104,3 +105,25 @@ export const formatEuro = (value: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(
     Math.round(value),
   );
+
+
+/** Presets distance (filtres utiles pour shortlist + vols). */
+export const DISTANCE_PRESETS = [
+  { value: 400, label: "Proche (≤ 400 km)", hint: "Train / covoit possible" },
+  { value: 900, label: "Europe proche (≤ 900 km)", hint: "Vol court ou train" },
+  { value: 1500, label: "Europe élargie (≤ 1 500 km)", hint: "Vol 2–3 h" },
+  { value: 2500, label: "Plus loin (≤ 2 500 km)", hint: "Vol moyen-courrier" },
+] as const;
+
+/** Tranches de budget typiques EVG / week-end (par personne, tout compris). */
+export const BUDGET_PRESETS = [
+  { value: 250, label: "Serré", hint: "~250 €" },
+  { value: 400, label: "Correct", hint: "~400 €" },
+  { value: 600, label: "Confort", hint: "~600 €" },
+  { value: 900, label: "Premium", hint: "~900 €" },
+] as const;
+
+/** Taille de groupe réaliste pour Krew. */
+export const PARTICIPANTS_MIN = 2;
+export const PARTICIPANTS_MAX = 25;
+export const PARTICIPANTS_DEFAULT = 6;
