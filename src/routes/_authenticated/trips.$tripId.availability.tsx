@@ -293,7 +293,7 @@ function AvailabilityPage() {
         href={`/trips/${tripId}`}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
       >
-        <ArrowLeft className="size-4" /> Retour au hub
+        <ArrowLeft className="size-4" /> Retour à Mon Voyage
       </a>
 
       <header className="mt-4">
