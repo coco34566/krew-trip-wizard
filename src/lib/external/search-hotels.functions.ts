@@ -28,7 +28,9 @@ export const searchExternalForTrip = createServerFn({ method: "POST" })
       .eq("trip_id", data.tripId);
     const participantsPrefs = (partPrefsRes.data ?? []) as any[];
 
-    const budgets = participantsPrefs.map((p) => (p?.budget_max ? Number(p.budget_max) : null)).filter(Boolean);
+    const budgets = participantsPrefs
+      .map((p) => (p?.budget_max ? Number(p.budget_max) : 0))
+      .filter((n): n is number => n > 0);
     const avgBudget = budgets.length ? Math.round(budgets.reduce((a, b) => a + b, 0) / budgets.length) : trip.budget_per_person;
 
     const ambianceCounts: Record<string, number> = {};
