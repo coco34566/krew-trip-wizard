@@ -53,7 +53,18 @@ export type ActivityAiInput = {
   destinationScore?: number | null;
   /** Labels d'activités déjà scorées pour cette reco */
   scoredActivityLabels?: string[];
+  /** Dernière arrivée du groupe jour 1 (HH:mm) */
+  latestGroupArrival?: string | null;
+  /** Premier départ retour (HH:mm) */
+  earliestGroupDeparture?: string | null;
+  transportPicksSummary?: {
+    city: string;
+    mode: string;
+    arrival?: string | null;
+    departure?: string | null;
+  }[];
 };
+
 
 type LlmConfig = {
   apiKey: string;
@@ -125,7 +136,7 @@ RÈGLES LIENS url (obligatoires pour resto|activite|bar) :
 - Si tu n'es pas sûr du site officiel → Google Maps search (toujours valide).
 
 RÈGLES PLANNING :
-1. Jour 1 = arrivée ; dernier jour = plus léger.
+1. Jour 1 = arrivée : aucun créneau d'activité avant arriveBy (si fourni). Dernier jour = plus léger ; pas d'activité après departAfter si fourni. Utilise transports[] pour coller aux horaires réels du groupe.
 2. Alternance resto / activité / bar.
 3. Suis match/star/acts/seedActs du contexte (≥60% des slots).
 4. Noms CONCRETS existants ou très plausibles dans la ville (pas "restaurant local").
@@ -157,7 +168,13 @@ function compactCtx(input: ActivityAiInput): Record<string, unknown> {
   if (input.matchReasons?.length) o.match = input.matchReasons.slice(0, 6);
   if (input.destinationScore != null) o.score = Math.round(Number(input.destinationScore));
   if (input.scoredActivityLabels?.length) o.seedActs = input.scoredActivityLabels.slice(0, 8);
+  if (input.latestGroupArrival) o.arriveBy = input.latestGroupArrival;
+  if (input.earliestGroupDeparture) o.departAfter = input.earliestGroupDeparture;
+  if (input.transportPicksSummary?.length) {
+    o.transports = input.transportPicksSummary.slice(0, 8);
+  }
   return o;
+
 }
 
 async function chatJson(
