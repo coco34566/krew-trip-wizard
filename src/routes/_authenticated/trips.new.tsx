@@ -207,17 +207,19 @@ function NewTripWizard() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="start">Date de départ souhaitée</Label>
+                <Label htmlFor="start">Date de départ souhaitée *</Label>
                 <Input id="start" type="date" value={form.startDate} onChange={(e) => set("startDate", e.target.value)} />
+                <p className="mt-1 text-xs text-muted-foreground">Nécessaire pour cotations hôtels &amp; vols en temps réel.</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="end">Date de retour</Label>
+                <Label htmlFor="end">Date de retour *</Label>
                 <Input id="end" type="date" value={form.endDate} onChange={(e) => set("endDate", e.target.value)} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="city">Ville de départ des participants</Label>
+              <Label htmlFor="city">Ville de départ des participants *</Label>
               <Input id="city" value={form.departureCity} onChange={(e) => set("departureCity", e.target.value)} />
+              <p className="mt-1 text-xs text-muted-foreground">Utilisée pour les vols (Kayak / Kiwi) depuis cette ville.</p>
             </div>
           </div>
         )}
