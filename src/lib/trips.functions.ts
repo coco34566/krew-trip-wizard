@@ -320,3 +320,122 @@ export const joinTrip = createServerFn({ method: "POST" })
 
     return { tripId: data.tripId, alreadyMember: false, isOwner: false };
   });
+
+
+/** Données pour la page Récap du groupe (propositions + origines départ). */
+export const getTripRecap = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+
+    // Membre uniquement
+    const isOwner = trip.data.owner_id === userId;
+    if (!isOwner) {
+      const email = (typeof context.claims?.email === "string" ? context.claims.email : "")
+        .trim()
+        .toLowerCase();
+      const part = await supabase
+        .from("trip_participants")
+        .select("id")
+        .eq("trip_id", data.tripId)
+        .or(email ? `user_id.eq.${userId},email.eq.${email}` : `user_id.eq.${userId}`)
+        .maybeSingle();
+      if (part.error) throw part.error;
+      if (!part.data) throw new Error("Accès réservé aux membres du voyage");
+    }
+
+    const [recommendations, preferences, progress] = await Promise.all([
+      supabase
+        .from("recommendations")
+        .select("*, destinations(*)")
+        .eq("trip_id", data.tripId)
+        .order("score", { ascending: false })
+        .limit(3),
+      supabase.from("trip_preferences").select("duration_nights").eq("trip_id", data.tripId).maybeSingle(),
+      (async () => {
+        const { getParticipantsProgressHandler } = await import("@/lib/participant-preferences.functions");
+        // fallback inline if no handler export
+        try {
+          const prefs = await supabase
+            .from("trip_participant_preferences")
+            .select("user_id")
+            .eq("trip_id", data.tripId);
+          const parts = await supabase.from("trip_participants").select("id, user_id").eq("trip_id", data.tripId);
+          const total = Math.max((parts.data ?? []).length, 1);
+          const answered = new Set((prefs.data ?? []).map((p: any) => p.user_id).filter(Boolean)).size;
+          return { answered, total };
+        } catch {
+          return { answered: 0, total: 0 };
+        }
+      })(),
+    ]);
+    if (recommendations.error) throw recommendations.error;
+
+    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+
+    const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
+    let departureOrigins =
+      aggregated.departureOrigins && aggregated.departureOrigins.length > 0
+        ? aggregated.departureOrigins
+        : [{ city: tripOrigin, count: Math.max(1, Number(trip.data.participants_count) || 1) }];
+
+    const counted = departureOrigins.reduce((s: number, o: { count: number }) => s + o.count, 0);
+    const participants = Math.max(1, Number(trip.data.participants_count) || counted || 1);
+    if (counted < participants) {
+      const remaining = participants - counted;
+      const copy = departureOrigins.map((o: { city: string; count: number }) => ({ ...o }));
+      const primary = copy.find((o) => o.city.toLowerCase() === tripOrigin.toLowerCase());
+      if (primary) primary.count += remaining;
+      else copy.push({ city: tripOrigin, count: remaining });
+      departureOrigins = copy;
+    }
+
+    const nights =
+      preferences.data?.duration_nights ??
+      (trip.data.start_date && trip.data.end_date
+        ? Math.max(
+            1,
+            Math.round(
+              (new Date(trip.data.end_date as string).getTime() -
+                new Date(trip.data.start_date as string).getTime()) /
+                (24 * 3600 * 1000),
+            ),
+          )
+        : 3);
+
+    return {
+      trip: {
+        id: trip.data.id as string,
+        name: trip.data.name as string,
+        startDate: trip.data.start_date as string | null,
+        endDate: trip.data.end_date as string | null,
+        departureCity: tripOrigin,
+        participantsCount: participants,
+        status: trip.data.status as string,
+      },
+      isOwner,
+      nights,
+      departureOrigins,
+      progress,
+      recommendations: (recommendations.data ?? []).map((r: any) => ({
+        id: r.id as string,
+        score: Number(r.score ?? 0),
+        budget: r.budget,
+        matchReasons: r.match_reasons as string[] | null,
+        destination: r.destinations
+          ? {
+              name: r.destinations.name as string,
+              country: r.destinations.country as string,
+              imageUrl: r.destinations.image_url as string | null,
+              distanceKm: Number(r.destinations.distance_from_paris_km ?? 0),
+              rating: Number(r.destinations.rating ?? 0),
+            }
+          : null,
+      })),
+    };
+  });
