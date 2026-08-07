@@ -12,6 +12,8 @@ import {
   Star,
   Users,
   Wallet,
+  Hotel,
+  Plane,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +36,7 @@ type Props = {
   provisionalCoverage?: number | null;
   hasRecommendations: boolean;
   destinationSelected: boolean;
+  viewerUserId?: string | null;
   /** Nom de la destination validée */
   destinationName?: string | null;
   /** Budget estimé live (€ / pers.) si calculé */
@@ -91,6 +94,12 @@ type NextActionsPanelProps = {
   progressTotal: number;
   hasRecommendations: boolean;
   destinationSelected: boolean;
+  datesLocked?: boolean;
+  myHotelVoted?: boolean;
+  myTransportPicked?: boolean;
+  hotelOffersReady?: boolean;
+  transportOffersReady?: boolean;
+  hasItinerary?: boolean;
 };
 
 function NextActionsPanel({
@@ -106,6 +115,12 @@ function NextActionsPanel({
   progressTotal,
   hasRecommendations,
   destinationSelected,
+  datesLocked = false,
+  myHotelVoted = false,
+  myTransportPicked = false,
+  hotelOffersReady = false,
+  transportOffersReady = false,
+  hasItinerary = false,
 }: NextActionsPanelProps) {
   const hasStar =
     Boolean(trip.celebrated_person) ||
@@ -121,30 +136,33 @@ function NextActionsPanel({
   };
 
   const actions: Action[] = [];
+  const push = (a: Action) => {
+    if (actions.length === 0) a.primary = true;
+    else if (a.primary == null) a.primary = false;
+    actions.push(a);
+  };
 
-  // —— Actions perso (tous) ——
+  // —— 1. Actions perso (tous) ——
   if (!myAvailabilityDone) {
-    actions.push({
+    push({
       key: "avail",
       title: "Indique tes disponibilités",
-      desc: "C'est la base pour trouver une date commune.",
+      desc: "Indispensable pour trouver une date commune.",
       href: `/trips/${tripId}/availability`,
       icon: CalendarDays,
-      primary: true,
     });
   }
   if (!myPreferencesDone) {
-    actions.push({
+    push({
       key: "prefs",
       title: "Remplis tes préférences",
-      desc: "Budget, ambiances, transports… pour scorers les destinations.",
+      desc: "Budget, ambiances, transports… pour scorer les destinations.",
       href: `/trips/${tripId}/questionnaire`,
       icon: ClipboardList,
-      primary: actions.length === 0,
     });
   }
   if (hasStar && !starDone) {
-    actions.push({
+    push({
       key: "star",
       title: trip.celebrated_person
         ? `Préférences de ${trip.celebrated_person}`
@@ -152,52 +170,116 @@ function NextActionsPanel({
       desc: "Réponses pondérées plus fort dans le scoring.",
       href: `/trips/${tripId}/star`,
       icon: Star,
-      primary: actions.length === 0,
     });
   }
 
-  // —— Suite orga ——
+  // —— 2. Après destination : hôtel + transport (tous) ——
+  if (destinationSelected) {
+    if (hotelOffersReady && !myHotelVoted) {
+      push({
+        key: "hotel",
+        title: "Vote pour un hôtel",
+        desc: "Un vote par personne — l'orga réserve le plus plébiscité.",
+        href: `#hub-logistics`,
+        icon: Hotel,
+      });
+    }
+    if (transportOffersReady && !myTransportPicked) {
+      push({
+        key: "transport",
+        title: "Choisis ton trajet A/R",
+        desc: "Selon ta ville + horaires d'arrivée / départ (utile pour le planning).",
+        href: `#hub-transports`,
+        icon: Plane,
+      });
+    }
+  }
+
+  // —— 3. Actions orga uniquement ——
   if (isOwner) {
-    if (myAvailabilityDone && myPreferencesDone && !destinationSelected) {
+    if (myAvailabilityDone && myPreferencesDone && !datesLocked) {
+      push({
+        key: "lock-dates",
+        title: "Valider les dates du groupe",
+        desc: "Verrouille le week-end pour débloquer les destinations.",
+        href: `#hub-dates`,
+        icon: CalendarDays,
+      });
+    }
+    if (datesLocked && !destinationSelected) {
       if (!hasRecommendations) {
-        actions.push({
+        push({
           key: "gen",
           title: "Générer des destinations",
-          desc: "Lance les propositions Krew une fois les dates / prefs regroupées.",
+          desc: "Propositions Krew basées sur les prefs du groupe.",
           href: `#hub-destination`,
           icon: Sparkles,
-          primary: actions.length === 0,
         });
       } else {
-        actions.push({
+        push({
           key: "pick-dest",
           title: "Valider une destination",
-          desc: "Choisis parmi les propositions pour débloquer hôtels & planning.",
+          desc: "Débloque hôtels, trajets et planning.",
           href: `#hub-destination`,
           icon: MapPin,
-          primary: actions.length === 0,
         });
       }
     }
-    if (destinationSelected) {
-      actions.push({
-        key: "plan",
-        title: "Compléter le planning & la logistique",
-        desc: "Planning du séjour, hôtels et transports A/R.",
-        href: `#hub-activities-plan`,
-        icon: Sparkles,
-        primary: actions.length === 0,
+    if (destinationSelected && !hotelOffersReady) {
+      push({
+        key: "search-hotels",
+        title: "Lancer la recherche hôtels",
+        desc: "Propose des hébergements au groupe pour voter.",
+        href: `#hub-logistics`,
+        icon: Hotel,
       });
     }
+    if (destinationSelected && !transportOffersReady) {
+      push({
+        key: "search-transport",
+        title: "Proposer des trajets A/R",
+        desc: "Options par ville de départ pour que chacun choisisse.",
+        href: `#hub-transports`,
+        icon: Plane,
+      });
+    }
+    if (
+      destinationSelected &&
+      (myHotelVoted || hotelOffersReady) &&
+      (myTransportPicked || transportOffersReady) &&
+      !hasItinerary
+    ) {
+      push({
+        key: "plan",
+        title: "Générer le planning",
+        desc: "Jour par jour, en tenant compte des horaires d'arrivée / départ.",
+        href: `#hub-activities-plan`,
+        icon: Sparkles,
+      });
+    }
+    if (hasItinerary) {
+      push({
+        key: "refine",
+        title: "Affiner l'organisation",
+        desc: "Régénère un créneau, check hôtel top votes, partage le résumé.",
+        href: `#hub-activities-plan`,
+        icon: ClipboardList,
+      });
+    }
+
     const missingAvail = Math.max(0, availabilityExpected - availabilityAnswered);
     const missingPrefs = Math.max(0, progressTotal - progressAnswered);
     if (missingAvail > 0 || missingPrefs > 0) {
-      actions.push({
+      push({
         key: "nudge",
         title: "Relancer le groupe",
         desc: [
-          missingAvail > 0 ? `${missingAvail} dispos manquante${missingAvail > 1 ? "s" : ""}` : null,
-          missingPrefs > 0 ? `${missingPrefs} préférence${missingPrefs > 1 ? "s" : ""} manquante${missingPrefs > 1 ? "s" : ""}` : null,
+          missingAvail > 0
+            ? `${missingAvail} dispo${missingAvail > 1 ? "s" : ""} manquante${missingAvail > 1 ? "s" : ""}`
+            : null,
+          missingPrefs > 0
+            ? `${missingPrefs} préférence${missingPrefs > 1 ? "s" : ""} manquante${missingPrefs > 1 ? "s" : ""}`
+            : null,
         ]
           .filter(Boolean)
           .join(" · "),
@@ -209,15 +291,28 @@ function NextActionsPanel({
   }
 
   const personalDone =
-    myAvailabilityDone && myPreferencesDone && (!hasStar || starDone);
+    myAvailabilityDone &&
+    myPreferencesDone &&
+    (!hasStar || starDone) &&
+    (!destinationSelected || (myHotelVoted && myTransportPicked) || !hotelOffersReady);
+
+  // Participant "à jour" si prefs+dispos (+ star) et, si offres ouvertes, a voté hôtel + trajet
+  const participantCaughtUp =
+    myAvailabilityDone &&
+    myPreferencesDone &&
+    (!hasStar || starDone) &&
+    (!destinationSelected ||
+      ((!hotelOffersReady || myHotelVoted) && (!transportOffersReady || myTransportPicked)));
+
   const waitingOnOthers =
-    personalDone &&
+    participantCaughtUp &&
     !isOwner &&
     (availabilityAnswered < availabilityExpected ||
       progressAnswered < progressTotal ||
-      !destinationSelected);
+      !destinationSelected ||
+      (destinationSelected && !hasItinerary));
 
-  if (actions.length === 0 && personalDone) {
+  if (actions.length === 0 && participantCaughtUp) {
     return (
       <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-5 sm:p-6">
         <div className="flex gap-3">
@@ -228,12 +323,14 @@ function NextActionsPanel({
             </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-emerald-800/90 dark:text-emerald-300/90">
               {isOwner
-                ? destinationSelected
-                  ? "Tu peux affiner le planning, les hôtels et les trajets plus bas sur la page."
-                  : "Dès que le groupe a assez répondu, génère et valide une destination plus bas."
+                ? hasItinerary
+                  ? "Planning en place — tu peux encore ajuster hôtels, trajets ou créneaux plus bas."
+                  : destinationSelected
+                    ? "Enchaîne hôtels, trajets et planning plus bas sur la page."
+                    : "Dès que le groupe a assez répondu, valide dates et destination."
                 : !destinationSelected
-                  ? "C'est aux autres participants de répondre, et à l'organisateur de faire avancer le parcours (dates, destination…)."
-                  : "L'organisateur finalise l'organisation du séjour. Tu seras tenu au courant dès qu'il y a du nouveau."}
+                  ? "C'est aux autres de répondre, et à l'organisateur de faire avancer le parcours."
+                  : "L'organisateur finalise l'organisation. Tu seras prévenu dès qu'il y a du nouveau."}
             </p>
           </div>
         </div>
@@ -249,24 +346,22 @@ function NextActionsPanel({
             {isOwner ? "Tes prochaines actions (orga)" : "Tes prochaines actions"}
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Uniquement ce qui te reste à faire — pas un résumé du parcours.
+            Uniquement ce qui te reste à faire
+            {isOwner ? " — dont les actions réservées à l'organisateur." : "."}
           </p>
         </div>
       </div>
 
       {waitingOnOthers ? (
         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-          De ton côté c&apos;est bon. Il reste des réponses du groupe ou une action de
-          l&apos;organisateur pour débloquer la suite.
+          De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
+          l&apos;organisateur.
         </div>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {actions.slice(0, 4).map((a) => {
+        {actions.slice(0, 6).map((a) => {
           const Tag = a.href ? "a" : "div";
-          const props = a.href
-            ? { href: a.href, className: undefined as string | undefined }
-            : {};
           return (
             <Tag
               key={a.key}
@@ -282,7 +377,9 @@ function NextActionsPanel({
               <span
                 className={cn(
                   "flex size-10 shrink-0 items-center justify-center rounded-xl",
-                  a.primary ? "bg-primary text-primary-foreground" : "bg-muted text-primary",
+                  a.primary
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-primary",
                 )}
               >
                 <a.icon className="size-5" />
@@ -297,7 +394,7 @@ function NextActionsPanel({
                 >
                   {a.title}
                 </p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{a.desc}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground leading-snug">{a.desc}</p>
               </div>
               {a.href ? (
                 <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
@@ -309,6 +406,7 @@ function NextActionsPanel({
     </section>
   );
 }
+
 
 
 export function TripHubDashboard({
@@ -324,6 +422,7 @@ export function TripHubDashboard({
   provisionalCoverage,
   hasRecommendations,
   destinationSelected,
+  viewerUserId = null,
   destinationName = null,
   liveBudgetTotal = null,
   myAvailabilityDone = false,
@@ -345,6 +444,16 @@ export function TripHubDashboard({
     Boolean(logistics.selectedHotelId);
   const transportPicked =
     Array.isArray(logistics.transportPicks) && logistics.transportPicks.length > 0;
+  const myHotelVoted = Boolean(
+    viewerUserId &&
+      (logistics.hotelVotes ?? []).some((v: any) => v.userId === viewerUserId),
+  );
+  const myTransportPicked = Boolean(
+    viewerUserId &&
+      (logistics.transportPicks ?? []).some((v: any) => v.userId === viewerUserId),
+  );
+  const hotelOffersReady = Boolean(logistics.hotels?.length);
+  const transportOffersReady = Boolean(logistics.transports?.length);
 
   const steps = buildTripSteps({
     tripId,
@@ -524,6 +633,12 @@ export function TripHubDashboard({
         progressTotal={progressTotal || trip.participants_count || 1}
         hasRecommendations={hasRecommendations}
         destinationSelected={destinationSelected}
+        datesLocked={datesLocked}
+        myHotelVoted={myHotelVoted}
+        myTransportPicked={myTransportPicked}
+        hotelOffersReady={hotelOffersReady}
+        transportOffersReady={transportOffersReady}
+        hasItinerary={hasItinerary}
       />
 
       {/* Scores live */}
