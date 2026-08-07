@@ -13,6 +13,8 @@ export type ActivitySlot = {
   label: string;
   detail?: string;
   priceHint?: number;
+  /** Horaire proposé, ex. "13:00" ou "14h–16h" */
+  time?: string | null;
   /** Lien utile : site officiel, Google Maps, OpenTable, etc. */
   url?: string | null;
 };
@@ -104,7 +106,7 @@ const SYSTEM_FULL = `Tu es Krew, expert en organisation de séjours de groupe (E
 Tu construis un planning JOUR PAR JOUR réaliste et agréable pour la destination choisie.
 
 Réponds UNIQUEMENT en JSON valide, sans markdown :
-{"days":[{"day":1,"slots":[{"moment":"Matin|Midi|Après-midi|Soir","type":"resto|activite|bar|transport|libre","label":"nom concret","detail":"pourquoi / quartier / pour qui","priceHint":25,"url":"https://..."}]}]}
+{"days":[{"day":1,"slots":[{"moment":"Matin|Midi|Après-midi|Soir","time":"13:00","type":"resto|activite|bar|transport|libre","label":"nom concret","detail":"pourquoi / quartier / pour qui","priceHint":25,"url":"https://..."}]}]}
 
 Règles métier :
 1. Logique temporelle : jour 1 = arrivée + installation ; dernier jour = matin plus léger + départ possible.
@@ -120,7 +122,7 @@ Règles métier :
 
 const SYSTEM_SLOT = `Tu proposes UNE alternative pour un créneau d'itinéraire de groupe.
 JSON uniquement, sans markdown :
-{"moment":"Midi|Après-midi|Soir","type":"resto|activite|bar|libre","label":"...","detail":"...","priceHint":0,"url":"https://..."}
+{"moment":"Midi|Après-midi|Soir","time":"15:00","type":"resto|activite|bar|libre","label":"...","detail":"...","priceHint":0,"url":"https://..."}
 Doit être concret pour la ville, différent de l'existant, aligné sur les envies (vibe/acts/star).
 url = lien utile si possible (Maps / site).`;
 
@@ -210,12 +212,20 @@ function normalizeSlot(raw: any, city: string): ActivitySlot | null {
       : raw.price != null
         ? Number(raw.price)
         : undefined;
+  let time: string | null = null;
+  if (typeof raw.time === "string" && raw.time.trim()) {
+    time = raw.time.trim().slice(0, 20);
+  } else if (typeof raw.horaire === "string" && raw.horaire.trim()) {
+    time = raw.horaire.trim().slice(0, 20);
+  }
+
   return {
     moment: String(raw.moment || "Après-midi").slice(0, 24),
     type: t,
     label: label.slice(0, 80),
     detail: raw.detail ? String(raw.detail).slice(0, 160) : undefined,
     priceHint: Number.isFinite(price) ? Math.round(price!) : undefined,
+    time,
     url,
   };
 }
@@ -254,6 +264,7 @@ function buildLocalItinerary(input: ActivityAiInput, seedLabels: string[]): Grou
         type: "transport",
         label: `Arrivée à ${input.destination}`,
         detail: "Transfert & installation",
+        time: "11:00",
         url: mapsUrl(`${input.destination} centre`),
       });
     }
@@ -266,6 +277,7 @@ function buildLocalItinerary(input: ActivityAiInput, seedLabels: string[]): Grou
         ? `Contraintes: ${input.dietaryConstraints.slice(0, 2).join(", ")}`
         : "Cuisine locale",
       priceHint: Math.min(35, Math.round(input.budgetPerPerson * 0.08)),
+      time: "13:00",
       url: mapsUrl(`restaurant ${input.destination}`),
     });
     if (slotsPerDay >= 2) {
@@ -276,6 +288,7 @@ function buildLocalItinerary(input: ActivityAiInput, seedLabels: string[]): Grou
         label: lab,
         detail: (input.matchReasons || []).slice(0, 1).join("") || "Selon envies du groupe",
         priceHint: Math.min(50, Math.round(input.budgetPerPerson * 0.12)),
+        time: "15:30",
         url: mapsUrl(`${lab} ${input.destination}`),
       });
     }
@@ -290,6 +303,7 @@ function buildLocalItinerary(input: ActivityAiInput, seedLabels: string[]): Grou
         label: lab,
         detail: isLast ? "Ambiance groupe" : "Ambiance nocturne",
         priceHint: Math.min(40, Math.round(input.budgetPerPerson * 0.1)),
+        time: isLast ? "20:00" : "21:30",
         url: mapsUrl(`${lab}`),
       });
     }
