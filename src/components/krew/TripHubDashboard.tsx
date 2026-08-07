@@ -42,6 +42,26 @@ type Props = {
   children?: React.ReactNode;
 };
 
+
+/** Photos voyage (Unsplash) selon le type d'événement. */
+function heroImageForEvent(eventType?: string | null) {
+  const map: Record<string, string> = {
+    evg: "https://images.unsplash.com/photo-1519677100203-a0e668c92439?auto=format&fit=crop&w=1600&q=80",
+    evjf: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=80",
+    anniversaire: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=1600&q=80",
+    weekend: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80",
+    voyage_groupe: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1600&q=80",
+    famille: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=80",
+    seminaire: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1600&q=80",
+    retraite: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1600&q=80",
+  };
+  const key = String(eventType || "").toLowerCase();
+  return (
+    map[key] ||
+    "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1600&q=80"
+  );
+}
+
 export function TripHubDashboard({
   tripId,
   trip,
