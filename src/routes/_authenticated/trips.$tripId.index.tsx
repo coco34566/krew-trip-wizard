@@ -269,7 +269,12 @@ function TripDetail() {
               <Button
                 variant="glass"
                 onClick={() => regenerateMutation.mutate()}
-                disabled={regenerateMutation.isPending}
+                disabled={regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)}
+                title={
+                  readiness && !readiness.canGenerate
+                    ? readiness.message ?? "Complète la checklist avant de générer"
+                    : undefined
+                }
               >
                 {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}{" "}
                 Régénérer les propositions
