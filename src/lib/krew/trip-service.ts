@@ -94,6 +94,7 @@ type ParticipantPrefRow = {
   travel_pace: string | null;
   duration_nights_min: number | null;
   duration_nights_max: number | null;
+  desired_destination: string | null;
 };
 
 function frequencies(values: string[]): Record<string, number> {
@@ -120,7 +121,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "ambiances, activity_categories, budget_max, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max",
+      "ambiances, activity_categories, budget_max, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination",
     )
     .eq("trip_id", tripId);
   if (res.error) throw res.error;
@@ -133,6 +134,10 @@ export async function aggregateParticipantPreferences(
   const flex = rows.map((r) => Number(r.date_flex_days ?? 0)).filter((n) => n >= 0);
   const paces = rows.map((r) => r.travel_pace).filter((p): p is string => Boolean(p));
   const paceFreq = frequencies(paces);
+  const destinations = rows
+    .map((r) => r.desired_destination?.trim())
+    .filter((d): d is string => Boolean(d));
+  const destinationFrequencies = frequencies(destinations);
 
   const byFrequency = (freq: Record<string, number>) =>
     Object.entries(freq)
@@ -151,7 +156,32 @@ export async function aggregateParticipantPreferences(
     requiredAmenities: Array.from(new Set(rows.flatMap((r) => r.required_amenities ?? []))),
     medianTravelPace: byFrequency(paceFreq)[0] ?? null,
     dateFlexDays: flex.length ? Math.min(...flex) : null,
+    /** Destination la plus citée parmi les réponses individuelles (mode). */
+    desiredDestination: byFrequency(destinationFrequencies)[0] ?? null,
   };
+}
+
+/**
+ * Résout la destination souhaitée d'un voyage :
+ * 1. celle saisie par l'organisateur à la création (`trip_preferences`) ;
+ * 2. sinon, la plus citée dans les questionnaires individuels des participants.
+ * Renvoie `null` si personne n'a exprimé de destination précise (le groupe
+ * laisse Krew décider).
+ */
+export async function resolveDesiredDestination(
+  supabase: { from: (table: string) => any },
+  tripId: string,
+): Promise<string | null> {
+  const prefsRes = await supabase
+    .from("trip_preferences")
+    .select("desired_destination")
+    .eq("trip_id", tripId)
+    .maybeSingle();
+  if (prefsRes.error) throw prefsRes.error;
+  if (prefsRes.data?.desired_destination) return prefsRes.data.desired_destination as string;
+
+  const aggregated = await aggregateParticipantPreferences(supabase, tripId);
+  return aggregated.desiredDestination;
 }
 
 export async function generateRecommendationsForTrip(
@@ -165,6 +195,22 @@ export async function generateRecommendationsForTrip(
   if (trip.error) throw trip.error;
 
   const aggregated = await aggregateParticipantPreferences(supabase, tripId);
+  const resolvedDestination = preferences.data?.desired_destination || aggregated.desiredDestination || null;
+
+  // Si le groupe vise une destination précise, on rafraîchit d'abord le
+  // catalogue (hôtels Booking/Hotels.com/Kayak + activités réelles) avant de
+  // scorer, pour que les suggestions ne restent pas sur les données de seed.
+  const providerErrors: string[] = [];
+  if (resolvedDestination) {
+    try {
+      const { refreshExternalCatalogForTrip } = await import("@/lib/external/search-hotels.functions");
+      const externalRes = await refreshExternalCatalogForTrip(supabase, tripId, resolvedDestination);
+      if (externalRes.providerErrors?.length) providerErrors.push(...externalRes.providerErrors);
+    } catch (e) {
+      providerErrors.push(`recherche externe: ${String(e).slice(0, 200)}`);
+    }
+  }
+
   let prefsToUse = preferences.data ?? null;
   if (aggregated.participantsCount && aggregated.participantsCount > 0) {
     prefsToUse = {
@@ -180,6 +226,16 @@ export async function generateRecommendationsForTrip(
       required_amenities: aggregated.requiredAmenities,
       min_accommodation_rating: aggregated.minAccommodationRating,
       travel_pace: aggregated.medianTravelPace,
+    } as any;
+  }
+  // La destination résolue (organisateur ou vote des participants) prime
+  // toujours sur celle de `trip_preferences` seule, et active le filtre de
+  // scoring correspondant même si `let_krew_decide` n'a pas été décoché.
+  if (resolvedDestination) {
+    prefsToUse = {
+      ...prefsToUse,
+      desired_destination: resolvedDestination,
+      let_krew_decide: false,
     } as any;
   }
 
@@ -208,5 +264,5 @@ export async function generateRecommendationsForTrip(
   const updated = await supabase.from("trips").update({ status: "propositions" }).eq("id", tripId);
   if (updated.error) throw updated.error;
 
-  return { count: rows.length };
+  return { count: rows.length, providerErrors };
 }
