@@ -813,7 +813,23 @@ export async function generateRecommendationsForTrip(
     /* table absente → défauts engine */
   }
 
-  const proposals = buildProposals(catalogFinal, ctxWithTransport, 3);
+  let proposals = buildProposals(catalogFinal, ctxWithTransport, 3);
+
+  // Rationales LLM (1 call groupé, tokens min) — fallback = texte moteur
+  let llmRationales = false;
+  try {
+    const { enrichProposalsWithLlmRationales } = await import("./rationale-llm.server");
+    const llmRes = await enrichProposalsWithLlmRationales(proposals, {
+      eventType: (trip.data.event_type as string) || ctxWithTransport.eventType,
+      participants: ctx.participants,
+    });
+    proposals = llmRes.proposals;
+    llmRationales = llmRes.usedLlm;
+    if (llmRes.error) providerErrors.push(`llm-rationale: ${llmRes.error}`);
+  } catch (e) {
+    providerErrors.push(`llm-rationale: ${String(e).slice(0, 120)}`);
+  }
+
 
   // Enregistre les sous-scores de toutes les propositions proposées (pour feedback ultérieur)
   try {
@@ -861,5 +877,6 @@ export async function generateRecommendationsForTrip(
     transportQuotes: Object.keys(transportByDestinationId).length,
     departureOrigins: originsForQuote,
     readiness,
+    llmRationales,
   };
 }
