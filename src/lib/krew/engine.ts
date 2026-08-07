@@ -69,10 +69,13 @@ export type IndividualPreference = {
   ambiances: string[];
   activityCategories: string[];
   budgetMax: number | null;
+  budgetPriority?: string;
   /** Ambiances refusées absolument. */
   dealBreakerAmbiances: string[];
   /** Destinations / pays exclus nommément. */
   dealBreakerDestinations: string[];
+  transportModes?: string[];
+  maxTravelHours?: number | null;
 };
 
 export type ScoringContext = {
@@ -121,6 +124,17 @@ export type ScoringContext = {
   dateFlexDays?: number | null;
   /** Note mini hébergement (filtre dur). */
   minAccommodationRating?: number | null;
+  /** Plafond veto budget (ne jamais dépasser). */
+  vetoBudgetMax?: number | null;
+  hasBudgetVeto?: boolean;
+  dietaryConstraints?: string[];
+  preferredTimeSlots?: string[];
+  acceptsSharedRoom?: boolean;
+  roomTypePreferences?: string[];
+  needsAccessibility?: boolean;
+  maxTravelDurationHours?: number | null;
+  planeRefused?: boolean;
+  blackoutDates?: string[];
 };
 
 export type ItineraryDay = {
@@ -253,12 +267,31 @@ function pickActivities(
   return picked;
 }
 
+function momentOrder(preferred?: string[] | null): string[] {
+  const base = ["Matin", "Après-midi", "Soirée"];
+  if (!preferred?.length) return base;
+  const map: Record<string, string> = {
+    matin: "Matin",
+    apres_midi: "Après-midi",
+    "après-midi": "Après-midi",
+    soir: "Soirée",
+    soiree: "Soirée",
+    "soirée": "Soirée",
+  };
+  const ordered = preferred
+    .map((p) => map[norm(p)] ?? map[p.toLowerCase()])
+    .filter(Boolean) as string[];
+  const rest = base.filter((m) => !ordered.includes(m));
+  return [...ordered, ...rest];
+}
+
 function buildItinerary(
   destination: DestinationRecord,
   accommodation: AccommodationRecord | null,
   activities: ActivityRecord[],
   nights: number,
   travelPace?: string | null,
+  preferredTimeSlots?: string[] | null,
 ): ItineraryDay[] {
   const days = Math.max(1, nights + 1);
   const queue = [...activities];
@@ -281,11 +314,13 @@ function buildItinerary(
       }
     }
     const perDay = day === days ? Math.min(1, perDayTarget) : perDayTarget;
+    const moments = momentOrder(preferredTimeSlots);
     for (let i = 0; i < perDay; i++) {
       const activity = queue.shift();
       if (!activity) break;
+      const moment = moments[Math.min(i + (day === 1 ? 1 : 0), moments.length - 1)] ?? "Après-midi";
       slots.push({
-        moment: slots.some((s) => s.moment === "Après-midi") ? "Soirée" : "Après-midi",
+        moment,
         label: activity.name,
         detail: activity.description ?? undefined,
         price: activity.price_per_person,
@@ -377,7 +412,24 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     if (!accommodations.length) {
       accommodations = catalog.accommodations.filter((a) => a.destination_id === destination.id);
     }
+    // Chambre partagée : si le groupe refuse, prioriser capacité unitaire / types non dortoir
+    const sharedOk = ctx.acceptsSharedRoom !== false;
+    const roomPrefs = (ctx.roomTypePreferences ?? []).map((x) => norm(x));
     accommodations = [...accommodations].sort((a, b) => {
+      if (!sharedOk) {
+        const dormA = /dortoir|shared|hostel|auberge/i.test(a.type + a.name) ? 1 : 0;
+        const dormB = /dortoir|shared|hostel|auberge/i.test(b.type + b.name) ? 1 : 0;
+        if (dormA !== dormB) return dormA - dormB;
+      }
+      if (roomPrefs.length) {
+        const mA = roomPrefs.some((p) => norm(a.type).includes(p) || norm(a.name).includes(p)) ? 0 : 1;
+        const mB = roomPrefs.some((p) => norm(b.type).includes(p) || norm(b.name).includes(p)) ? 0 : 1;
+        if (mA !== mB) return mA - mB;
+      }
+      if (ctx.needsAccessibility) {
+        // sans champ PMR dédié: favoriser centre + note
+        if (a.distance_center_km !== b.distance_center_km) return a.distance_center_km - b.distance_center_km;
+      }
       const capA = a.capacity >= ctx.participants ? 0 : 1;
       const capB = b.capacity >= ctx.participants ? 0 : 1;
       if (capA !== capB) return capA - capB;
@@ -402,8 +454,18 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     const food = destination.avg_daily_cost * 0.4 * (ctx.nights + 1);
     const budgetForActivities = Math.max(40, ctx.budgetPerPerson - transport - lodging - food);
 
+    let activityPool = catalog.activities.filter((a) => a.destination_id === destination.id);
+    const diet = (ctx.dietaryConstraints ?? []).map(norm);
+    if (diet.length) {
+      // Ne pas exclure totalement, mais déprioriser resto générique si contraintes fortes
+      activityPool = [...activityPool].sort((a, b) => {
+        const restoA = /gastro|resto|food|cuisine/i.test(a.category + a.name) ? 1 : 0;
+        const restoB = /gastro|resto|food|cuisine/i.test(b.category + b.name) ? 1 : 0;
+        return restoA - restoB;
+      });
+    }
     const activities = pickActivities(
-      catalog.activities.filter((a) => a.destination_id === destination.id),
+      activityPool,
       ctx.activityCategories,
       ctx.nights,
       budgetForActivities,
@@ -424,7 +486,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       : totalPerPerson <= (ctx.minGroupBudget ?? ctx.budgetPerPerson)
         ? 1
         : 0;
-    const hardCap = ctx.minGroupBudget ?? null;
+    const hardCap = ctx.vetoBudgetMax ?? ctx.minGroupBudget ?? null;
     const hardBudgetFits = hardCap != null ? totalPerPerson <= hardCap : totalPerPerson <= ctx.budgetPerPerson;
 
     const budget: BudgetBreakdown = {
@@ -523,8 +585,18 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       );
     if (!hardBudgetFits && hardCap != null)
       matchReasons.push(
-        `Hors budget du plus serré (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`,
+        ctx.hasBudgetVeto
+          ? `Hors plafond veto budget (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`
+          : `Hors budget du plus serré (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`,
       );
+    if (ctx.hasBudgetVeto && hardBudgetFits)
+      matchReasons.push(`Respecte le veto budget (${hardCap} €)`);
+    if (!sharedOk)
+      matchReasons.push("Hébergement priorisé hors dortoir / chambre partagée");
+    if (ctx.needsAccessibility)
+      matchReasons.push("Priorité accessibilité / proximité centre (besoin mobilité)");
+    if (ctx.planeRefused)
+      matchReasons.push("Au moins un participant refuse l'avion — vérifier train/bus");
     if (sSeason >= 0.9) matchReasons.push("Période idéale côté météo et saisonnalité");
     if (destination.distance_from_paris_km <= 900)
       matchReasons.push("Trajet court : plus de temps sur place, moins de fatigue");
@@ -556,7 +628,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       score: Math.round(clamp(score, 0, 100)),
       rationale,
       matchReasons,
-      itinerary: buildItinerary(destination, accommodation, activities, ctx.nights, ctx.travelPace),
+      itinerary: buildItinerary(destination, accommodation, activities, ctx.nights, ctx.travelPace, ctx.preferredTimeSlots),
       budget,
       consensusScore,
       minSatisfaction,
