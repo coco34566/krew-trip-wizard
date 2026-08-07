@@ -476,10 +476,10 @@ export function discoverCandidateDestinations(
     if (city.distanceKm > input.maxDistanceKm * 1.2) continue;
 
     // Budget : coût séjour estimé (journalier × nuits + transport rough)
+    // On ne drop plus en dur — on pénalise le score (le ranking final décide)
     const roughTransport =
       city.distanceKm <= 350 ? 45 : city.distanceKm <= 900 ? 90 : city.distanceKm <= 1600 ? 130 : 180;
     const estimatedTotal = city.dailyCost * (input.nights + 1) + roughTransport;
-    if (estimatedTotal > input.budgetPerPerson * 1.35) continue; // trop cher → skip
 
     // Score ambiance (moyenne des ambiances demandées)
     let sAmbiance = 0.55;
@@ -534,4 +534,12 @@ export function discoverCandidateDestinations(
 
   scored.sort((a, b) => b.affinity - a.affinity);
   return scored.slice(0, limit);
+}
+
+/** Profils bruts (pour upsert catalogue avant scoring moteur). */
+export function listCityProfilesForNames(names: string[]) {
+  const want = new Set(names.map((n) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()));
+  return CITY_PROFILES.filter((c) =>
+    want.has(c.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()),
+  );
 }
