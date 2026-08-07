@@ -18,6 +18,7 @@ import { Route as CguRouteImport } from './routes/cgu'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedTripsTripIdRouteImport } from './routes/_authenticated/trips.$tripId'
+import { Route as AuthenticatedTripsTripIdIndexRouteImport } from './routes/_authenticated/trips.$tripId.index'
 import { Route as AuthenticatedTripsNewRouteImport } from './routes/_authenticated/trips.new'
 import { Route as AuthenticatedTripsTripIdQuestionnaireRouteImport } from './routes/_authenticated/trips.$tripId.questionnaire'
 import { Route as AuthenticatedTripsTripIdRecapRouteImport } from './routes/_authenticated/trips.$tripId.recap'
@@ -225,6 +226,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedTripsTripIdRouteChildren {
+  AuthenticatedTripsTripIdIndexRoute: typeof AuthenticatedTripsTripIdIndexRoute
   AuthenticatedTripsTripIdQuestionnaireRoute: typeof AuthenticatedTripsTripIdQuestionnaireRoute
   AuthenticatedTripsTripIdRecapRoute: typeof AuthenticatedTripsTripIdRecapRoute
   AuthenticatedTripsTripIdAvailabilityRoute: typeof AuthenticatedTripsTripIdAvailabilityRoute
@@ -234,6 +236,7 @@ interface AuthenticatedTripsTripIdRouteChildren {
 
 const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildren =
   {
+    AuthenticatedTripsTripIdIndexRoute: AuthenticatedTripsTripIdIndexRoute,
     AuthenticatedTripsTripIdQuestionnaireRoute:
       AuthenticatedTripsTripIdQuestionnaireRoute,
     AuthenticatedTripsTripIdRecapRoute: AuthenticatedTripsTripIdRecapRoute,
