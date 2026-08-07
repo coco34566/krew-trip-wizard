@@ -66,7 +66,6 @@ export function TripHubDashboard({
   topScores = [],
   children,
 }: Props) {
-  const [inviteCopied, setInviteCopied] = useState(false);
 
   const steps = buildTripSteps({
     tripId,
@@ -80,36 +79,7 @@ export function TripHubDashboard({
 
   const theme = eventTypeLabel(trip.event_type);
 
-  async function handleInviteClick() {
-    const url =
-      getJoinUrl(tripId) ||
-      (typeof window !== "undefined"
-        ? `${window.location.origin}/join/${tripId}`
-        : `/join/${tripId}`);
-    try {
-      if (url) {
-        await navigator.clipboard.writeText(url);
-        setInviteCopied(true);
-        toast.success("Lien copié — ouverture WhatsApp…", { description: url });
-        setTimeout(() => setInviteCopied(false), 2000);
-      }
-    } catch {
-      toast.message("Lien d'invitation", { description: url });
-    }
-    const text =
-      `Salut ! On organise « ${trip.name} » avec Krew ✈️\n\n` +
-      `Clique ici pour rejoindre et indiquer tes dispos :\n${url}`;
-    if (typeof window !== "undefined") {
-      window.open(
-        `https://wa.me/?text=${encodeURIComponent(text)}`,
-        "_blank",
-        "noopener,noreferrer",
-      );
-    }
-    const el = document.getElementById("invite-section");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
+  
   return (
     <div className="space-y-8">
       {/* Hero thème */}
@@ -209,31 +179,7 @@ export function TripHubDashboard({
       </section>
 
       {/* Cartes d'accès rapide */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Inviter = copie le lien + scroll vers la section */}
-        <button
-          type="button"
-          onClick={handleInviteClick}
-          className="group rounded-2xl border border-border bg-card p-4 text-left shadow-sm transition hover:border-primary/40 hover:shadow-glow"
-        >
-          {inviteCopied ? (
-            <Check className="size-5 text-lagoon" />
-          ) : (
-            <Users className="size-5 text-primary" />
-          )}
-          <p className="mt-3 font-semibold group-hover:text-primary">
-            {inviteCopied ? "Lien copié !" : "Inviter"}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {inviteCopied
-              ? "Colle-le dans WhatsApp / SMS"
-              : `${participantsCount}/${trip.participants_count || participantsCount} ont ouvert le lien`}
-          </p>
-          <p className="mt-2 flex items-center gap-1 text-[11px] text-primary/80">
-            <Copy className="size-3" /> /join/{tripId.slice(0, 8)}…
-          </p>
-        </button>
-
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {[
           {
             to: "/trips/$tripId/availability" as const,
