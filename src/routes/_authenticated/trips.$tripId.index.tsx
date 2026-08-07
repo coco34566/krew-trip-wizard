@@ -84,6 +84,14 @@ function TripDetail() {
   const searchExternal = useServerFn(searchExternalForTrip);
   const fetchSplit = useServerFn(getCostSplit);
   const fetchAvail = useServerFn(getTripAvailability);
+  const fetchStar = useServerFn(getStarPreferences);
+  const { data: starData } = useQuery({
+    queryKey: ["star-prefs", tripId],
+    queryFn: () => fetchStar({ data: { tripId } }),
+    enabled: Boolean(tripId),
+    retry: false,
+  });
+
   const chooseDatesFn = useServerFn(chooseTripDates);
   const unlockDatesFn = useServerFn(unlockTripDates);
 
@@ -290,6 +298,7 @@ function TripDetail() {
         provisionalCoverage={availData?.windows?.[0]?.coverageRatio}
         myAvailabilityDone={Boolean(availData?.mine)}
         myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
+        starDone={Boolean(starData?.preferences)}
         hasRecommendations={recommendations.length > 0}
         destinationSelected={recommendations.some((r) => r.is_selected)}
         topScores={recommendations.slice(0, 3).map((r) => ({
@@ -524,6 +533,49 @@ function TripDetail() {
 
 
       
+      
+      {(trip.celebrated_person ||
+        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
+        <section className="mt-6 space-y-3 rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
+            <a
+              href={`/trips/${tripId}/star`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {starData?.preferences ? "Modifier" : "Remplir"} →
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Ces réponses pèsent ~×2,5 à ×3,2 dans le scoring par rapport aux autres participants.
+          </p>
+          {starData?.preferences ? (
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">
+                  {trip.celebrated_person || "Personne principale"}
+                </span>{" "}
+                — questionnaire enregistré
+              </p>
+              {(starData.preferences.wantedActivities?.length ?? 0) > 0 ? (
+                <p>✅ Envies : {starData.preferences.wantedActivities.join(", ")}</p>
+              ) : null}
+              {(starData.preferences.dealBreakers?.length ?? 0) > 0 ? (
+                <p>⛔ À éviter : {starData.preferences.dealBreakers.join(", ")}</p>
+              ) : null}
+              {(starData.preferences.ambiances?.length ?? 0) > 0 ? (
+                <p>✨ Ambiances : {starData.preferences.ambiances.join(", ")}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Pas encore rempli — à faire avant de générer les destinations pour bien pondérer.
+            </p>
+          )}
+        </section>
+      )}
+
+
       {/* CTA génération destinations */}
       {data.isOwner ? (
         <section className="mt-8 rounded-3xl border border-primary/30 bg-primary/5 p-5">
