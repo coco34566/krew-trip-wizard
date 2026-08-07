@@ -88,6 +88,7 @@ function ParticipantQuestionnaire() {
   const [defaultDeparture, setDefaultDeparture] = useState("Paris");
 
   const [ambiances, setAmbiances] = useState<string[]>([]);
+  const [dealBreakerAmbiances, setDealBreakerAmbiances] = useState<string[]>([]);
   const [activityCategories, setActivityCategories] = useState<string[]>([]);
   const [travelPace, setTravelPace] = useState<string>("equilibre");
   const [preferredTimeSlots, setPreferredTimeSlots] = useState<string[]>([]);
@@ -118,6 +119,7 @@ function ParticipantQuestionnaire() {
         setDefaultDeparture(dep);
         if (preferences) {
           setAmbiances(preferences.ambiances ?? []);
+          setDealBreakerAmbiances((preferences as any).deal_breaker_ambiances ?? []);
           setActivityCategories(preferences.activity_categories ?? []);
           setBudgetMax(Number(preferences.budget_max ?? 400));
           setBudgetPriority((preferences.budget_priority as typeof budgetPriority) ?? "preference");
@@ -183,6 +185,7 @@ function ParticipantQuestionnaire() {
         data: {
           tripId,
           ambiances,
+          dealBreakerAmbiances,
           activityCategories,
           budgetMax,
           budgetPriority,
@@ -264,6 +267,29 @@ function ParticipantQuestionnaire() {
                   {a.emoji} {a.label}
                 </Chip>
               ))}
+            </div>
+            <div className="mt-6">
+              <Label className="mb-1 block">Deal-breakers — ambiances que tu refuses absolument</Label>
+              <p className="mb-2 text-xs text-muted-foreground">
+                Exclusion dure : une destination trop typée sur ces ambiances sera écartée, même si le reste du groupe les veut.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {AMBIANCES.map((a) => (
+                  <Chip
+                    key={`db-${a.value}`}
+                    active={dealBreakerAmbiances.includes(a.value)}
+                    onClick={() => {
+                      // ne pas sélectionner à la fois comme envie et deal-breaker
+                      if (!dealBreakerAmbiances.includes(a.value) && ambiances.includes(a.value)) {
+                        setAmbiances((prev) => prev.filter((x) => x !== a.value));
+                      }
+                      toggle(dealBreakerAmbiances, setDealBreakerAmbiances, a.value);
+                    }}
+                  >
+                    🚫 {a.emoji} {a.label}
+                  </Chip>
+                ))}
+              </div>
             </div>
           </div>
           <div>
