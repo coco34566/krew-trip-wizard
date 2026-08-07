@@ -1,7 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { Check, Circle, Lock } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TripStep } from "@/lib/krew/availability";
+
+const STEP_ROUTE: Record<string, string> = {
+  availability: "/trips/$tripId/availability",
+  questionnaire: "/trips/$tripId/questionnaire",
+  invite: "/trips/$tripId/invite",
+  star: "/trips/$tripId/star",
+};
 
 export function TripHubNav({
   tripId,
@@ -15,7 +22,6 @@ export function TripHubNav({
   return (
     <nav className="flex flex-wrap gap-2">
       {steps.map((step, i) => {
-        const base = `/trips/${tripId}${step.href ?? ""}`;
         const isSoon = step.status === "soon";
         const isDone = step.status === "done";
         const isActive = step.status === "active";
@@ -48,34 +54,46 @@ export function TripHubNav({
                 key={step.id}
                 type="button"
                 onClick={onInviteClick}
-                className="no-underline cursor-pointer bg-transparent p-0 border-0"
+                className="cursor-pointer border-0 bg-transparent p-0 no-underline"
               >
                 {content}
               </button>
             );
           }
           return (
-            <a key={step.id} href={`#invite-section`} className="no-underline">
+            <a key={step.id} href="#invite-section" className="no-underline">
               {content}
             </a>
           );
         }
-        if (isSoon || !step.href) {
-          if (step.id === "destination") {
-            return (
-              <a key={step.id} href={`#hub-destination`} className="no-underline">
-                {content}
-              </a>
-            );
-          }
+
+        if (step.id === "destination") {
+          return (
+            <a key={step.id} href="#hub-destination" className="no-underline">
+              {content}
+            </a>
+          );
+        }
+
+        if (isSoon) {
           return <span key={step.id}>{content}</span>;
         }
 
-        return (
-          <Link key={step.id} to={base as any} className="no-underline">
-            {content}
-          </Link>
-        );
+        const routeTo = STEP_ROUTE[step.id];
+        if (routeTo) {
+          return (
+            <Link
+              key={step.id}
+              to={routeTo as any}
+              params={{ tripId }}
+              className="no-underline"
+            >
+              {content}
+            </Link>
+          );
+        }
+
+        return <span key={step.id}>{content}</span>;
       })}
     </nav>
   );
