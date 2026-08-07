@@ -979,16 +979,24 @@ function TripDetail() {
                           ))}
                         </ul>
                       ) : null}
-                      {h.bookingUrl ? (
-                        <a
-                          href={h.bookingUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
-                        >
-                          Voir l&apos;offre →
-                        </a>
-                      ) : null}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {(h.links?.length
+                          ? h.links
+                          : h.bookingUrl
+                            ? [{ label: "Réserver", url: h.bookingUrl }]
+                            : []
+                        ).map((l: any) => (
+                          <a
+                            key={l.label + l.url}
+                            href={l.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/10"
+                          >
+                            {l.label} →
+                          </a>
+                        ))}
+                      </div>
                     </article>
                   ))}
                   {!(trip as any).group_logistics.hotels?.length ? (
@@ -1034,16 +1042,24 @@ function TripDetail() {
                       <div className="text-right">
                         <p className="font-semibold">{formatEuro(tr.pricePerPerson)}</p>
                         <p className="text-xs text-muted-foreground">/ pers. A/R</p>
-                        {tr.url ? (
-                          <a
-                            href={tr.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs text-primary hover:underline"
-                          >
-                            Réserver →
-                          </a>
-                        ) : null}
+                        <div className="mt-1 flex flex-wrap justify-end gap-1.5">
+                          {(tr.links?.length
+                            ? tr.links
+                            : tr.url
+                              ? [{ label: "Réserver", url: tr.url }]
+                              : []
+                          ).map((l: any) => (
+                            <a
+                              key={l.label + l.url}
+                              href={l.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/10"
+                            >
+                              {l.label}
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     </li>
                   ))}
