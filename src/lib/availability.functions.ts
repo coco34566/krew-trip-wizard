@@ -44,6 +44,8 @@ export const getTripAvailability = createServerFn({ method: "GET" })
       1,
     );
 
+    const datesLocked = Boolean((trip.data as any).dates_locked);
+
     return {
       trip: {
         id: trip.data.id as string,
@@ -54,7 +56,13 @@ export const getTripAvailability = createServerFn({ method: "GET" })
         provisionalStart: (trip.data as any).provisional_start_date as string | null,
         provisionalEnd: (trip.data as any).provisional_end_date as string | null,
         durationNights: nights,
+        datesLocked,
+        lockedStart: datesLocked ? (trip.data.start_date as string | null) : null,
+        lockedEnd: datesLocked ? (trip.data.end_date as string | null) : null,
+        startDate: trip.data.start_date as string | null,
+        endDate: trip.data.end_date as string | null,
       },
+      isOwner: trip.data.owner_id === userId,
       answered,
       expected,
       windows,
@@ -88,8 +96,11 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const now = new Date().toISOString();
 
-    // Membre ?
-    const trip = await supabase.from("trips").select("id, owner_id, participants_count, duration_nights").eq("id", data.tripId).maybeSingle();
+    const trip = await supabase
+      .from("trips")
+      .select("id, owner_id, participants_count, duration_nights, dates_locked")
+      .eq("id", data.tripId)
+      .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
 
@@ -128,7 +139,7 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
       .upsert(payload, { onConflict: "trip_id,user_id" });
     if (error) throw error;
 
-    // Recalcule fenêtres et met à jour provisoire sur le trip
+    // Recalcule fenêtres → met à jour UNIQUEMENT provisional_* (jamais start/end si locked)
     const all = await supabase.from("trip_availability").select("*").eq("trip_id", data.tripId);
     if (!all.error && all.data) {
       const entries: AvailabilityEntry[] = all.data.map((r: any) => ({
@@ -141,23 +152,100 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
       const windows = rankDateWindows(entries, nights, 3);
       const best = windows[0];
       if (best) {
-        await supabase
-          .from("trips")
-          .update({
-            provisional_start_date: best.start,
-            provisional_end_date: best.end,
-            date_confidence:
-              best.coverageRatio >= 0.9
-                ? "forte"
-                : best.coverageRatio >= 0.6
-                  ? "provisoire"
-                  : "faible",
-            start_date: best.start,
-            end_date: best.end,
-          } as any)
-          .eq("id", data.tripId);
+        const patch: Record<string, unknown> = {
+          provisional_start_date: best.start,
+          provisional_end_date: best.end,
+          date_confidence:
+            best.coverageRatio >= 0.9
+              ? "forte"
+              : best.coverageRatio >= 0.6
+                ? "provisoire"
+                : "faible",
+        };
+        // Ne touche PAS start_date / end_date ici — réservé à chooseTripDates
+        await supabase.from("trips").update(patch as any).eq("id", data.tripId);
       }
     }
 
     return { ok: true, isUpdate: Boolean(existing.data) };
+  });
+
+/** Owner only : fige start_date / end_date et marque dates_locked = true (alimente les APIs). */
+export const chooseTripDates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        startDate: dateStr,
+        endDate: dateStr,
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("id, owner_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+    if (trip.data.owner_id !== userId) {
+      throw new Error("403 Forbidden: seul l'organisateur peut choisir la date");
+    }
+
+    const start = data.startDate.slice(0, 10);
+    const end = data.endDate.slice(0, 10);
+    if (start > end) throw new Error("La date de fin doit être après la date de début");
+
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        start_date: start,
+        end_date: end,
+        provisional_start_date: start,
+        provisional_end_date: end,
+        dates_locked: true,
+        date_confidence: "choisie",
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", data.tripId)
+      .eq("owner_id", userId);
+    if (error) throw error;
+
+    return { ok: true, startDate: start, endDate: end, datesLocked: true };
+  });
+
+/** Owner only : déverrouille les dates (remet dates_locked = false, garde start/end). */
+export const unlockTripDates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("id, owner_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+    if (trip.data.owner_id !== userId) {
+      throw new Error("403 Forbidden: seul l'organisateur peut déverrouiller");
+    }
+
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        dates_locked: false,
+        date_confidence: "provisoire",
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", data.tripId)
+      .eq("owner_id", userId);
+    if (error) throw error;
+
+    return { ok: true, datesLocked: false };
   });
