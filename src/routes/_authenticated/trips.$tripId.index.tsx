@@ -520,6 +520,8 @@ function TripDetail() {
       </section>
 
 
+      {(trip.celebrated_person ||
+        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
         <section className="mt-6 space-y-3 rounded-3xl border border-border bg-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
