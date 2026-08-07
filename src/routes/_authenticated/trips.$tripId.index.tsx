@@ -335,22 +335,17 @@ function TripDetail() {
         </div>
       </TripHubDashboard>
 
-{costSplitData?.isSelected && costSplitData.split ? (
-        <section className="mt-10">
-          <CostSplitCard split={costSplitData.split} tripName={trip.name} />
-        </section>
-      ) : null}
 
-
-      {data.isOwner && readiness ? (
+      {/* Statut de complétion des questionnaires */}
+      {readiness ? (
         <div className="mt-8 space-y-3 rounded-2xl border border-border bg-surface/40 px-4 py-4 text-sm">
-          <p className="font-medium">Checklist scoring & recherches API</p>
+          <p className="font-medium">Statut des questionnaires</p>
           <ul className="space-y-1.5 text-muted-foreground">
             <li>
               {(readiness as any).checklist?.prefsOk ? "✅" : "⏳"} Préférences :{" "}
               {readiness.quality.answered}/{readiness.quality.expected}
               {readiness.missingLabels?.length
-                ? ` · manquants : ${readiness.missingLabels.slice(0, 5).join(", ")}`
+                ? ` · en attente : ${readiness.missingLabels.slice(0, 5).join(", ")}`
                 : ""}
             </li>
             <li>
@@ -358,35 +353,64 @@ function TripDetail() {
               {(readiness.quality as any).availabilityAnswered ?? 0}/{readiness.quality.expected}
             </li>
             <li>
-              {(readiness as any).checklist?.datesLocked ? "✅" : "⏳"} Dates validées
+              {(readiness as any).checklist?.datesLocked ? "✅" : "⏳"} Dates du séjour
               {(readiness.quality as any).datesLocked && (readiness.quality as any).lockedStart
-                ? ` · ${new Date((readiness.quality as any).lockedStart + "T12:00:00").toLocaleDateString("fr-FR")} → ${new Date((readiness.quality as any).lockedEnd + "T12:00:00").toLocaleDateString("fr-FR")}`
-                : " · valide une fenêtre dans « Dates du groupe »"}
+                ? ` · validées (${new Date((readiness.quality as any).lockedStart + "T12:00:00").toLocaleDateString("fr-FR")} → ${new Date((readiness.quality as any).lockedEnd + "T12:00:00").toLocaleDateString("fr-FR")})`
+                : " · en attente de validation par l'organisateur"}
             </li>
           </ul>
-          <p className="text-xs text-muted-foreground">
-            Veto budget : {readiness.quality.vetoCount} · exclusions :{" "}
-            {readiness.quality.exclusionCount} · deal-breakers :{" "}
-            {readiness.quality.dealBreakerAmbiances}
-          </p>
           {!readiness.canGenerate ? (
             <p className="text-amber-700 dark:text-amber-400">
-              {readiness.message ?? "Complète la checklist pour lancer les destinations."}
+              {readiness.message?.replace(/API|api/g, "").trim() ||
+                "Encore des réponses manquantes avant les suggestions de destinations."}
             </p>
           ) : (
-            <p className="text-lagoon">
-              Prêt : tu peux lancer la génération de destinations (scoring + APIs).
-            </p>
+            <p className="text-lagoon">Tout est prêt pour les suggestions de destinations.</p>
           )}
-          {readiness.inconsistencies?.length ? (
-            <ul className="list-disc pl-5 text-amber-800 dark:text-amber-300">
-              {readiness.inconsistencies.map((inc: any, i: number) => (
-                <li key={i}>{inc.message}</li>
-              ))}
-            </ul>
-          ) : null}
         </div>
       ) : null}
+
+      <section className="mt-10">
+          <CostSplitCard split={costSplitData.split} tripName={trip.name} />
+        </section>
+
+      {(trip.celebrated_person ||
+        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
+        <section className="mt-6 space-y-3 rounded-3xl border border-border bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-semibold">Préférences de la star</h2>
+            <a
+              href={`/trips/${tripId}/star`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {starData?.preferences ? "Modifier" : "Remplir"} →
+            </a>
+          </div>
+          {starData?.preferences ? (
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">
+                  {trip.celebrated_person || "Personne principale"}
+                </span>{" "}
+                — questionnaire enregistré
+              </p>
+              {(starData.preferences.wantedActivities?.length ?? 0) > 0 ? (
+                <p>✅ Envies : {starData.preferences.wantedActivities.join(", ")}</p>
+              ) : null}
+              {(starData.preferences.dealBreakers?.length ?? 0) > 0 ? (
+                <p>⛔ À éviter : {starData.preferences.dealBreakers.join(", ")}</p>
+              ) : null}
+              {(starData.preferences.ambiances?.length ?? 0) > 0 ? (
+                <p>✨ Ambiances : {starData.preferences.ambiances.join(", ")}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Pas encore rempli — ce questionnaire pèse plus fort dans les suggestions Krew.
+            </p>
+          )}
+        </section>
+      )}
 
       <section id="hub-destination" className="mt-10 space-y-6">
         <h2 className="font-display text-2xl font-semibold">Les propositions de Krew</h2>
@@ -577,8 +601,6 @@ function TripDetail() {
         )}
       </section>
 
-
-
       {/* Résumé + validation des dates */}
       <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -698,7 +720,6 @@ function TripDetail() {
         )}
       </section>
 
-
       {/* Résumé disponibilités du groupe */}
       <section className="mt-8 space-y-3 rounded-3xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -757,7 +778,6 @@ function TripDetail() {
         )}
       </section>
 
-
       {/* Résumé préférences de la star */}
       {(trip.celebrated_person ||
         ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
@@ -796,6 +816,15 @@ function TripDetail() {
           )}
         </section>
       )}
+
+      
+
+      {costSplitData?.isSelected && costSplitData.split ? (
+        <section className="mt-10">
+          <CostSplitCard split={costSplitData.split} tripName={trip.name} />
+        </section>
+      ) : null}
+
 
       <section id="invite-section" className="mt-12 scroll-mt-24">
         <h2 className="font-display text-2xl font-semibold">Inviter la bande</h2>
