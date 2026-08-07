@@ -5,6 +5,8 @@ import {
   ClipboardList,
   Copy,
   Check,
+  CheckCircle2,
+  ArrowRight,
   MapPin,
   Sparkles,
   Star,
@@ -61,6 +63,240 @@ function heroImageForEvent(eventType?: string | null) {
     "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1600&q=80"
   );
 }
+
+
+type NextActionsPanelProps = {
+  tripId: string;
+  isOwner: boolean;
+  trip: any;
+  myAvailabilityDone: boolean;
+  myPreferencesDone: boolean;
+  starDone: boolean;
+  availabilityAnswered: number;
+  availabilityExpected: number;
+  progressAnswered: number;
+  progressTotal: number;
+  hasRecommendations: boolean;
+  destinationSelected: boolean;
+};
+
+function NextActionsPanel({
+  tripId,
+  isOwner,
+  trip,
+  myAvailabilityDone,
+  myPreferencesDone,
+  starDone,
+  availabilityAnswered,
+  availabilityExpected,
+  progressAnswered,
+  progressTotal,
+  hasRecommendations,
+  destinationSelected,
+}: NextActionsPanelProps) {
+  const hasStar =
+    Boolean(trip.celebrated_person) ||
+    ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type));
+
+  type Action = {
+    key: string;
+    title: string;
+    desc: string;
+    href?: string;
+    icon: typeof CalendarDays;
+    primary?: boolean;
+  };
+
+  const actions: Action[] = [];
+
+  // —— Actions perso (tous) ——
+  if (!myAvailabilityDone) {
+    actions.push({
+      key: "avail",
+      title: "Indique tes disponibilités",
+      desc: "C'est la base pour trouver une date commune.",
+      href: `/trips/${tripId}/availability`,
+      icon: CalendarDays,
+      primary: true,
+    });
+  }
+  if (!myPreferencesDone) {
+    actions.push({
+      key: "prefs",
+      title: "Remplis tes préférences",
+      desc: "Budget, ambiances, transports… pour scorers les destinations.",
+      href: `/trips/${tripId}/questionnaire`,
+      icon: ClipboardList,
+      primary: actions.length === 0,
+    });
+  }
+  if (hasStar && !starDone) {
+    actions.push({
+      key: "star",
+      title: trip.celebrated_person
+        ? `Préférences de ${trip.celebrated_person}`
+        : "Préférences de la star",
+      desc: "Réponses pondérées plus fort dans le scoring.",
+      href: `/trips/${tripId}/star`,
+      icon: Star,
+      primary: actions.length === 0,
+    });
+  }
+
+  // —— Suite orga ——
+  if (isOwner) {
+    if (myAvailabilityDone && myPreferencesDone && !destinationSelected) {
+      if (!hasRecommendations) {
+        actions.push({
+          key: "gen",
+          title: "Générer des destinations",
+          desc: "Lance les propositions Krew une fois les dates / prefs regroupées.",
+          href: `#hub-destination`,
+          icon: Sparkles,
+          primary: actions.length === 0,
+        });
+      } else {
+        actions.push({
+          key: "pick-dest",
+          title: "Valider une destination",
+          desc: "Choisis parmi les propositions pour débloquer hôtels & planning.",
+          href: `#hub-destination`,
+          icon: MapPin,
+          primary: actions.length === 0,
+        });
+      }
+    }
+    if (destinationSelected) {
+      actions.push({
+        key: "plan",
+        title: "Compléter le planning & la logistique",
+        desc: "Planning du séjour, hôtels et transports A/R.",
+        href: `#hub-activities-plan`,
+        icon: Sparkles,
+        primary: actions.length === 0,
+      });
+    }
+    const missingAvail = Math.max(0, availabilityExpected - availabilityAnswered);
+    const missingPrefs = Math.max(0, progressTotal - progressAnswered);
+    if (missingAvail > 0 || missingPrefs > 0) {
+      actions.push({
+        key: "nudge",
+        title: "Relancer le groupe",
+        desc: [
+          missingAvail > 0 ? `${missingAvail} dispos manquante${missingAvail > 1 ? "s" : ""}` : null,
+          missingPrefs > 0 ? `${missingPrefs} préférence${missingPrefs > 1 ? "s" : ""} manquante${missingPrefs > 1 ? "s" : ""}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        href: `#invite-section`,
+        icon: Users,
+        primary: false,
+      });
+    }
+  }
+
+  const personalDone =
+    myAvailabilityDone && myPreferencesDone && (!hasStar || starDone);
+  const waitingOnOthers =
+    personalDone &&
+    !isOwner &&
+    (availabilityAnswered < availabilityExpected ||
+      progressAnswered < progressTotal ||
+      !destinationSelected);
+
+  if (actions.length === 0 && personalDone) {
+    return (
+      <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-5 sm:p-6">
+        <div className="flex gap-3">
+          <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <div>
+            <h2 className="font-display text-lg font-semibold text-emerald-900 dark:text-emerald-200">
+              Tout est à jour de ton côté
+            </h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-emerald-800/90 dark:text-emerald-300/90">
+              {isOwner
+                ? destinationSelected
+                  ? "Tu peux affiner le planning, les hôtels et les trajets plus bas sur la page."
+                  : "Dès que le groupe a assez répondu, génère et valide une destination plus bas."
+                : !destinationSelected
+                  ? "C'est aux autres participants de répondre, et à l'organisateur de faire avancer le parcours (dates, destination…)."
+                  : "L'organisateur finalise l'organisation du séjour. Tu seras tenu au courant dès qu'il y a du nouveau."}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            {isOwner ? "Tes prochaines actions (orga)" : "Tes prochaines actions"}
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Uniquement ce qui te reste à faire — pas un résumé du parcours.
+          </p>
+        </div>
+      </div>
+
+      {waitingOnOthers ? (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+          De ton côté c&apos;est bon. Il reste des réponses du groupe ou une action de
+          l&apos;organisateur pour débloquer la suite.
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {actions.slice(0, 4).map((a) => {
+          const Tag = a.href ? "a" : "div";
+          const props = a.href
+            ? { href: a.href, className: undefined as string | undefined }
+            : {};
+          return (
+            <Tag
+              key={a.key}
+              {...(a.href ? { href: a.href } : {})}
+              className={cn(
+                "group flex items-start gap-3 rounded-2xl border bg-card p-4 shadow-sm transition",
+                a.primary
+                  ? "border-primary/40 bg-primary/5 hover:border-primary hover:shadow-glow"
+                  : "border-border hover:border-primary/30",
+                a.href && "cursor-pointer",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-10 shrink-0 items-center justify-center rounded-xl",
+                  a.primary ? "bg-primary text-primary-foreground" : "bg-muted text-primary",
+                )}
+              >
+                <a.icon className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p
+                  className={cn(
+                    "font-semibold leading-snug",
+                    a.primary && "text-primary",
+                    "group-hover:text-primary",
+                  )}
+                >
+                  {a.title}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{a.desc}</p>
+              </div>
+              {a.href ? (
+                <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
+              ) : null}
+            </Tag>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 
 export function TripHubDashboard({
   tripId,
@@ -205,71 +441,21 @@ export function TripHubDashboard({
         </ul>
       </section>
 
-      {/* Cartes d'accès rapide */}
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {[
-          {
-            to: "/trips/$tripId/availability" as const,
-            title: "Disponibilités",
-            desc: myAvailabilityDone
-              ? `Toi OK · groupe ${availabilityAnswered}/${availabilityExpected} · manque ${Math.max(availabilityExpected - availabilityAnswered, 0)}`
-              : `À faire · ${availabilityAnswered}/${availabilityExpected} · manque ${Math.max(availabilityExpected - availabilityAnswered, 0)}`,
-            icon: CalendarDays,
-            mineDone: myAvailabilityDone,
-          },
-          {
-            to: "/trips/$tripId/questionnaire" as const,
-            title: "Préférences",
-            desc: myPreferencesDone
-              ? `Toi OK · groupe ${progressAnswered}/${progressTotal || trip.participants_count} · manque ${Math.max((progressTotal || trip.participants_count) - progressAnswered, 0)}`
-              : `À faire · ${progressAnswered}/${progressTotal || trip.participants_count} · manque ${Math.max((progressTotal || trip.participants_count) - progressAnswered, 0)}`,
-            icon: ClipboardList,
-            mineDone: myPreferencesDone,
-          },
-          {
-            to: "/trips/$tripId/star" as const,
-            title: "Préférences de la star",
-            desc: starDone
-              ? trip.celebrated_person
-                ? `Rempli · ${trip.celebrated_person} · poids ×2.5+ dans le scoring`
-                : "Rempli · poids renforcé dans le scoring"
-              : trip.celebrated_person
-                ? `À compléter · ${trip.celebrated_person}`
-                : "Questionnaire dédié · pondération renforcée",
-            icon: Star,
-            mineDone: starDone,
-            hide: !(
-              trip.celebrated_person ||
-              ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))
-            ),
-          },
-        ]
-          .filter((c) => !c.hide)
-          .map((c) => {
-            const href =
-              c.to === "/trips/$tripId/availability"
-                ? `/trips/${tripId}/availability`
-                : c.to === "/trips/$tripId/questionnaire"
-                  ? `/trips/${tripId}/questionnaire`
-                  : c.to === "/trips/$tripId/star"
-                    ? `/trips/${tripId}/star`
-                    : `/trips/${tripId}`;
-            return (
-              <a
-                key={c.to}
-                href={href}
-                className={cn(
-                  "group rounded-2xl border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-glow",
-                  c.mineDone ? "border-lagoon/40 bg-lagoon/5" : "border-border",
-                )}
-              >
-                <c.icon className="size-5 text-primary" />
-                <p className="mt-3 font-semibold group-hover:text-primary">{c.title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{c.desc}</p>
-              </a>
-            );
-          })}
-      </section>
+      {/* Prochaines étapes (perso, pas un doublon du parcours) */}
+      <NextActionsPanel
+        tripId={tripId}
+        isOwner={isOwner}
+        trip={trip}
+        myAvailabilityDone={myAvailabilityDone}
+        myPreferencesDone={myPreferencesDone}
+        starDone={starDone}
+        availabilityAnswered={availabilityAnswered}
+        availabilityExpected={availabilityExpected}
+        progressAnswered={progressAnswered}
+        progressTotal={progressTotal || trip.participants_count || 1}
+        hasRecommendations={hasRecommendations}
+        destinationSelected={destinationSelected}
+      />
 
       {/* Scores live */}
       {topScores.length > 0 ? (
