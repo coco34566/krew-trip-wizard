@@ -32,6 +32,10 @@ type Props = {
   provisionalCoverage?: number | null;
   hasRecommendations: boolean;
   destinationSelected: boolean;
+  /** L'utilisateur connecté a déjà soumis ses dispos */
+  myAvailabilityDone?: boolean;
+  /** L'utilisateur connecté a déjà soumis ses préférences */
+  myPreferencesDone?: boolean;
   topScores?: { name: string; score: number }[];
   children?: React.ReactNode;
 };
@@ -54,6 +58,8 @@ export function TripHubDashboard({
   provisionalCoverage,
   hasRecommendations,
   destinationSelected,
+  myAvailabilityDone = false,
+  myPreferencesDone = false,
   topScores = [],
   children,
 }: Props) {
@@ -171,22 +177,29 @@ export function TripHubDashboard({
 
         {[
           {
-            to: "availability" as const,
+            to: "/trips/$tripId/availability" as const,
             title: "Disponibilités",
-            desc: `${availabilityAnswered}/${availabilityExpected} réponses`,
+            desc: myAvailabilityDone
+              ? `Tes dispos enregistrées · modifiables · groupe ${availabilityAnswered}/${availabilityExpected}`
+              : `À compléter · groupe ${availabilityAnswered}/${availabilityExpected}`,
             icon: CalendarDays,
+            mineDone: myAvailabilityDone,
           },
           {
-            to: "questionnaire" as const,
+            to: "/trips/$tripId/questionnaire" as const,
             title: "Préférences",
-            desc: `${progressAnswered}/${progressTotal || trip.participants_count} questionnaires`,
+            desc: myPreferencesDone
+              ? `Tes préférences enregistrées · modifiables · groupe ${progressAnswered}/${progressTotal || trip.participants_count}`
+              : `À compléter · groupe ${progressAnswered}/${progressTotal || trip.participants_count}`,
             icon: ClipboardList,
+            mineDone: myPreferencesDone,
           },
           {
-            to: "star" as const,
+            to: "/trips/$tripId/star" as const,
             title: "Star",
             desc: trip.celebrated_person || "Si applicable",
             icon: Star,
+            mineDone: false,
             hide: !(
               trip.celebrated_person ||
               ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))
@@ -197,9 +210,12 @@ export function TripHubDashboard({
           .map((c) => (
             <Link
               key={c.to}
-              to={`/trips/$tripId/${c.to}` as any}
+              to={c.to}
               params={{ tripId }}
-              className="group rounded-2xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-glow"
+              className={cn(
+                "group rounded-2xl border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-glow",
+                c.mineDone ? "border-lagoon/40 bg-lagoon/5" : "border-border",
+              )}
             >
               <c.icon className="size-5 text-primary" />
               <p className="mt-3 font-semibold group-hover:text-primary">{c.title}</p>
