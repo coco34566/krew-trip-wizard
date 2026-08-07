@@ -120,14 +120,30 @@ export interface FileRoutesByFullPath {
   '/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/trips/new': typeof AuthenticatedTripsNewRoute
   '/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
+  '/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
+  '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
+  '/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
+  '/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
+  '/join/$tripId': typeof JoinTripIdRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
+  '/cgu': typeof CguRoute
+  '/confidentialite': typeof ConfidentialiteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
-  '/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
+  '/trips/$tripId': typeof AuthenticatedTripsTripIdIndexRoute
   '/trips/new': typeof AuthenticatedTripsNewRoute
   '/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
+  '/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
+  '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
+  '/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
+  '/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
+  '/join/$tripId': typeof JoinTripIdRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
+  '/cgu': typeof CguRoute
+  '/confidentialite': typeof ConfidentialiteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -136,8 +152,17 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
+  '/_authenticated/trips/$tripId/': typeof AuthenticatedTripsTripIdIndexRoute
   '/_authenticated/trips/new': typeof AuthenticatedTripsNewRoute
   '/_authenticated/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
+  '/_authenticated/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
+  '/_authenticated/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
+  '/_authenticated/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
+  '/_authenticated/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
+  '/join/$tripId': typeof JoinTripIdRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
+  '/cgu': typeof CguRoute
+  '/confidentialite': typeof ConfidentialiteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -148,6 +173,14 @@ export interface FileRouteTypes {
     | '/trips/$tripId'
     | '/trips/new'
     | '/trips/$tripId/questionnaire'
+    | '/trips/$tripId/recap'
+    | '/trips/$tripId/availability'
+    | '/trips/$tripId/star'
+    | '/trips/$tripId/invite'
+    | '/join/$tripId'
+    | '/mentions-legales'
+    | '/cgu'
+    | '/confidentialite'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -156,6 +189,14 @@ export interface FileRouteTypes {
     | '/trips/$tripId'
     | '/trips/new'
     | '/trips/$tripId/questionnaire'
+    | '/trips/$tripId/recap'
+    | '/trips/$tripId/availability'
+    | '/trips/$tripId/star'
+    | '/trips/$tripId/invite'
+    | '/join/$tripId'
+    | '/mentions-legales'
+    | '/cgu'
+    | '/confidentialite'
   id:
     | '__root__'
     | '/'
@@ -163,8 +204,17 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/dashboard'
     | '/_authenticated/trips/$tripId'
+    | '/_authenticated/trips/$tripId/'
     | '/_authenticated/trips/new'
     | '/_authenticated/trips/$tripId/questionnaire'
+    | '/_authenticated/trips/$tripId/recap'
+    | '/_authenticated/trips/$tripId/availability'
+    | '/_authenticated/trips/$tripId/star'
+    | '/_authenticated/trips/$tripId/invite'
+    | '/join/$tripId'
+    | '/mentions-legales'
+    | '/cgu'
+    | '/confidentialite'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -214,6 +264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTripsTripIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/trips/$tripId/': {
+      id: '/_authenticated/trips/$tripId/'
+      path: '/'
+      fullPath: '/trips/$tripId'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdIndexRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
     '/_authenticated/trips/new': {
       id: '/_authenticated/trips/new'
       path: '/trips/new'
@@ -227,6 +284,62 @@ declare module '@tanstack/react-router' {
       fullPath: '/trips/$tripId/questionnaire'
       preLoaderRoute: typeof AuthenticatedTripsTripIdQuestionnaireRouteImport
       parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/recap': {
+      id: '/_authenticated/trips/$tripId/recap'
+      path: '/recap'
+      fullPath: '/trips/$tripId/recap'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdRecapRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/availability': {
+      id: '/_authenticated/trips/$tripId/availability'
+      path: '/availability'
+      fullPath: '/trips/$tripId/availability'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdAvailabilityRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/star': {
+      id: '/_authenticated/trips/$tripId/star'
+      path: '/star'
+      fullPath: '/trips/$tripId/star'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdStarRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/_authenticated/trips/$tripId/invite': {
+      id: '/_authenticated/trips/$tripId/invite'
+      path: '/invite'
+      fullPath: '/trips/$tripId/invite'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdInviteRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
+    '/join/$tripId': {
+      id: '/join/$tripId'
+      path: '/join/$tripId'
+      fullPath: '/join/$tripId'
+      preLoaderRoute: typeof JoinTripIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mentions-legales': {
+      id: '/mentions-legales'
+      path: '/mentions-legales'
+      fullPath: '/mentions-legales'
+      preLoaderRoute: typeof MentionsLegalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cgu': {
+      id: '/cgu'
+      path: '/cgu'
+      fullPath: '/cgu'
+      preLoaderRoute: typeof CguRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/confidentialite': {
+      id: '/confidentialite'
+      path: '/confidentialite'
+      fullPath: '/confidentialite'
+      preLoaderRoute: typeof ConfidentialiteRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -246,7 +359,8 @@ const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildr
     AuthenticatedTripsTripIdQuestionnaireRoute:
       AuthenticatedTripsTripIdQuestionnaireRoute,
     AuthenticatedTripsTripIdRecapRoute: AuthenticatedTripsTripIdRecapRoute,
-    AuthenticatedTripsTripIdAvailabilityRoute: AuthenticatedTripsTripIdAvailabilityRoute,
+    AuthenticatedTripsTripIdAvailabilityRoute:
+      AuthenticatedTripsTripIdAvailabilityRoute,
     AuthenticatedTripsTripIdStarRoute: AuthenticatedTripsTripIdStarRoute,
     AuthenticatedTripsTripIdInviteRoute: AuthenticatedTripsTripIdInviteRoute,
   }
