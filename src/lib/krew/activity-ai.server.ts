@@ -218,6 +218,35 @@ function extractJson(raw: string): unknown {
   }
 }
 
+function isSafeHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function mapsUrl(query: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function activitySearchUrl(label: string, city: string, type: ActivitySlotType): string {
+  const prefix = type === "resto" ? "restaurant" : type === "bar" ? "bar" : "";
+  return mapsUrl([prefix, label, city].filter(Boolean).join(" "));
+}
+
+function _unusedExtractJson(raw: string): unknown {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(raw.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
 function normalizeSlot(raw: any, city: string): ActivitySlot | null {
   if (!raw || typeof raw !== "object") return null;
   const label = String(raw.label || raw.name || "").trim();
