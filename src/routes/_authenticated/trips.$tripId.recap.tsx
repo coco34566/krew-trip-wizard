@@ -14,6 +14,8 @@ import {
   Info,
   Bell,
   BellRing,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -21,7 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { getTripRecap, watchPrice, getCostSplit } from "@/lib/trips.functions";
+import { getTripRecap, watchPrice, getCostSplit, reactToRecommendation } from "@/lib/trips.functions";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { formatEuro } from "@/lib/krew/constants";
@@ -64,8 +66,30 @@ function TripRecapPage() {
   const fetchRecap = useServerFn(getTripRecap);
   const doWatch = useServerFn(watchPrice);
   const fetchSplit = useServerFn(getCostSplit);
+  const doReact = useServerFn(reactToRecommendation);
   const queryClient = useQueryClient();
   const [watched, setWatched] = useState<Record<string, boolean>>({});
+
+  const reactMutation = useMutation({
+    mutationFn: (payload: { recommendationId: string; reaction: "like" | "dislike" | null }) =>
+      doReact({
+        data: {
+          tripId,
+          recommendationId: payload.recommendationId,
+          reaction: payload.reaction,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["trip-recap", tripId] });
+    },
+    onError: (e: any) => {
+      toast.error(String(e?.message ?? "Erreur lors de l'enregistrement de la réaction"));
+    },
+  });
+
+  const handleReact = (recommendationId: string, reaction: "like" | "dislike" | null) => {
+    reactMutation.mutate({ recommendationId, reaction });
+  };
 
   const watchMutation = useMutation({
     mutationFn: (payload: { recommendationId: string; destinationName: string }) =>
@@ -196,7 +220,7 @@ function TripRecapPage() {
               departDate: trip.startDate,
               returnDate: trip.endDate,
               nights,
-              fallbackDistanceKm: reco.destination?.distanceKm,
+              fallbackDistanceKm: reco.destination?.distanceKm ?? null,
               groupAdults: trip.participantsCount,
             });
 
@@ -211,6 +235,28 @@ function TripRecapPage() {
                       <div className="flex items-center gap-2">
                         <Badge variant="muted">#{index + 1}</Badge>
                         <Badge variant="lagoon">Score {Math.round(reco.score)}</Badge>
+
+                        {/* Réactions */}
+                        <div className="flex items-center gap-1 ml-2">
+                          <Button
+                            size="sm"
+                            variant={(reco as any).myReaction === "like" ? "lagoon" : "outline"}
+                            className="h-6 px-1.5 text-[11px] gap-1 cursor-pointer"
+                            onClick={() => handleReact(reco.id, (reco as any).myReaction === "like" ? null : "like")}
+                          >
+                            <ThumbsUp className="size-3" />
+                            <span>{(reco as any).likesCount ?? 0}</span>
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={(reco as any).myReaction === "dislike" ? "destructive" : "outline"}
+                            className="h-6 px-1.5 text-[11px] gap-1 cursor-pointer"
+                            onClick={() => handleReact(reco.id, (reco as any).myReaction === "dislike" ? null : "dislike")}
+                          >
+                            <ThumbsDown className="size-3" />
+                            <span>{(reco as any).dislikesCount ?? 0}</span>
+                          </Button>
+                        </div>
                       </div>
                       <h3 className="mt-2 font-display text-xl font-semibold">
                         {destName}
@@ -241,6 +287,20 @@ function TripRecapPage() {
                             ? ` · groupe ${formatEuro(budget.transportGroup)}`
                             : ""}
                         </p>
+
+                        {/* Fraîcheur des prix */}
+                        <div className="mt-2 flex justify-end gap-1 flex-wrap">
+                          {budget.priceSource?.transport === "api" ? (
+                            <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Transport réel</Badge>
+                          ) : (
+                            <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Transport estimé</Badge>
+                          )}
+                          {budget.priceSource?.accommodation === "api" ? (
+                            <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Logement réel</Badge>
+                          ) : (
+                            <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Logement estimé</Badge>
+                          )}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -326,6 +386,19 @@ function TripRecapPage() {
             );
           })
         )}
+
+        {trip.runnerUps && trip.runnerUps.length > 0 ? (
+          <div className="mt-8 rounded-2xl bg-surface/30 p-4 border border-border/60 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground mr-1.5">Aussi envisagées :</span>
+            {trip.runnerUps.map((r: any, idx: number) => (
+              <span key={r.name}>
+                <span className="font-medium text-foreground/80">{r.name}</span>{" "}
+                <span>({r.reason})</span>
+                {idx < trip.runnerUps.length - 1 ? " · " : ""}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       {costSplitData?.split ? (

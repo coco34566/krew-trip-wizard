@@ -87,6 +87,7 @@ export type ScoringWeights = {
   quality: number;
   consensus: number;
   minSatisfaction: number;
+  historique?: number;
 };
 
 export type SubScores = {
@@ -98,6 +99,7 @@ export type SubScores = {
   sQuality: number;
   sConsensus: number;
   sMinSatisfaction: number;
+  sHistorique?: number;
 };
 
 export type ScoringContext = {
@@ -136,6 +138,8 @@ export type ScoringContext = {
   >;
   /** Villes de départ du groupe (agrégées). */
   departureOrigins?: DepartureOrigin[];
+  /** Modes de transport acceptés par le groupe. */
+  transportModes?: string[];
   /** Réponses individuelles brutes. */
   individualPreferences?: IndividualPreference[];
   /** Budget du participant le plus contraint. */
@@ -164,6 +168,8 @@ export type ScoringContext = {
   starWantedActivities?: string[];
   starDealBreakers?: string[];
   starWeight?: number;
+  /** Caractéristiques des destinations précédemment appréciées (trips validés passés). */
+  pastDestinations?: { country: string; dominantAmbiance: string }[];
 };
 
 export type ItineraryDay = {
@@ -191,6 +197,11 @@ export type BudgetBreakdown = {
   budgetFitCount: number;
   /** Nb de participants évalués pour le budget. */
   budgetFitTotal: number;
+  /** Source de fraîcheur des prix ('api' si issu d'une cotation réelle ou 'estimate' si estimation). */
+  priceSource?: {
+    transport: 'api' | 'estimate';
+    accommodation: 'api' | 'estimate';
+  };
   /** Détail transport par ville de départ si multi-origines. */
   transportByOrigin?: { city: string; count: number; pricePerPerson: number }[];
 };
@@ -219,12 +230,12 @@ const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
 
 /** Poids par défaut selon event_type (utilisés si pas de ligne scoring_weights). */
 export const DEFAULT_WEIGHTS_BY_EVENT: Record<string, ScoringWeights> = {
-  evg: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8 },
-  evjf: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8 },
-  anniversaire: { ambiance: 22, activities: 16, budget: 14, distance: 8, season: 10, quality: 6, consensus: 14, minSatisfaction: 10 },
-  weekend: { ambiance: 14, activities: 12, budget: 28, distance: 12, season: 8, quality: 4, consensus: 12, minSatisfaction: 10 },
-  voyage_groupe: { ambiance: 18, activities: 14, budget: 16, distance: 8, season: 8, quality: 5, consensus: 16, minSatisfaction: 15 },
-  default: { ambiance: 18, activities: 12, budget: 16, distance: 8, season: 8, quality: 5, consensus: 18, minSatisfaction: 15 },
+  evg: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3 },
+  evjf: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3 },
+  anniversaire: { ambiance: 22, activities: 16, budget: 14, distance: 8, season: 10, quality: 6, consensus: 14, minSatisfaction: 10, historique: 3 },
+  weekend: { ambiance: 14, activities: 12, budget: 28, distance: 12, season: 8, quality: 4, consensus: 12, minSatisfaction: 10, historique: 3 },
+  voyage_groupe: { ambiance: 18, activities: 14, budget: 16, distance: 8, season: 8, quality: 5, consensus: 16, minSatisfaction: 15, historique: 3 },
+  default: { ambiance: 18, activities: 12, budget: 16, distance: 8, season: 8, quality: 5, consensus: 18, minSatisfaction: 15, historique: 3 },
 };
 
 export function resolveWeights(eventType?: string | null, override?: ScoringWeights | null): ScoringWeights {
@@ -233,7 +244,7 @@ export function resolveWeights(eventType?: string | null, override?: ScoringWeig
   return DEFAULT_WEIGHTS_BY_EVENT[key] ?? DEFAULT_WEIGHTS_BY_EVENT.default;
 }
 
-function dominantAmbiance(dest: DestinationRecord): string {
+export function dominantAmbiance(dest: DestinationRecord): string {
   const pairs: [string, number][] = [
     ["fete", dest.score_fete ?? 0],
     ["aventure", dest.score_aventure ?? 0],
@@ -245,6 +256,72 @@ function dominantAmbiance(dest: DestinationRecord): string {
   ];
   pairs.sort((a, b) => b[1] - a[1]);
   return pairs[0]?.[0] ?? "none";
+}
+
+/**
+ * Génère une raison courte en français expliquant pourquoi la destination n'a pas été retenue dans le top final.
+ */
+export function generateRejectionReason(proposal: Proposal): string {
+  const reasons: string[] = [];
+  const subs = proposal.subScores;
+
+  if (!proposal.budget.fits) {
+    reasons.push("budget un peu serré");
+  } else if (subs.sBudget < 0.5) {
+    reasons.push("coût total élevé");
+  }
+
+  if (subs.sAmbiance < 0.55) {
+    reasons.push("ambiance moins adaptée aux envies du groupe");
+  }
+
+  if (subs.sSeason < 0.6) {
+    reasons.push("météo moins favorable sur cette période");
+  }
+
+  if (subs.sDistance < 0.4) {
+    reasons.push("trajet un peu long");
+  }
+
+  if (subs.sConsensus < 0.55 || proposal.consensusScore < 0.55) {
+    reasons.push("consensus plus faible au sein du groupe");
+  }
+
+  if (reasons.length === 0) {
+    reasons.push("score global légèrement en retrait");
+  }
+
+  return reasons.slice(0, 2).join(", ");
+}
+
+/**
+ * Calcule le score de l'historique de l'utilisateur ou du groupe pour une destination donnée.
+ */
+export function computeHistoriqueScore(
+  dest: DestinationRecord,
+  pastDestinations?: { country: string; dominantAmbiance: string }[]
+): number {
+  if (!pastDestinations || pastDestinations.length === 0) return 0;
+
+  let countryMatch = false;
+  let ambianceMatch = false;
+
+  const destDom = dominantAmbiance(dest);
+
+  for (const past of pastDestinations) {
+    if (past.country && norm(past.country) === norm(dest.country)) {
+      countryMatch = true;
+    }
+    if (past.dominantAmbiance && past.dominantAmbiance === destDom) {
+      ambianceMatch = true;
+    }
+  }
+
+  let score = 0;
+  if (countryMatch) score += 0.5;
+  if (ambianceMatch) score += 0.5;
+
+  return score;
 }
 
 
@@ -631,6 +708,10 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       hardBudgetFits,
       budgetFitCount,
       budgetFitTotal: budgetFitTotal || ctx.participants,
+      priceSource: {
+        transport: ctx.transportByDestinationId?.[destination.id] != null ? 'api' : 'estimate',
+        accommodation: (accommodation != null && accommodation.source !== 'krew_seed') ? 'api' : 'estimate',
+      },
       ...(transportOrigins && transportOrigins.length > 1
         ? { transportByOrigin: transportOrigins }
         : {}),
@@ -683,6 +764,13 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sConsensus * w.consensus +
       sMinSat * w.minSatisfaction;
 
+    const hasHistory = ctx.pastDestinations && ctx.pastDestinations.length > 0;
+    const sHistorique = hasHistory ? computeHistoriqueScore(destination, ctx.pastDestinations) : 0;
+    if (hasHistory) {
+      const hWeight = w.historique ?? 3;
+      score += sHistorique * hWeight;
+    }
+
     // Pénalité forte si un participant est très mal satisfait
     if (minSatisfaction < 0.35) score -= 25;
     else if (minSatisfaction < 0.45) score -= 12;
@@ -706,6 +794,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sQuality,
       sConsensus,
       sMinSatisfaction: sMinSat,
+      ...(hasHistory ? { sHistorique } : {}),
     };
 
     const matchReasons: string[] = [];
@@ -783,7 +872,23 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     };
   });
 
-  return selectDiverseTop(proposals.sort((a, b) => b.score - a.score), limit);
+  const sortedProposals = proposals.sort((a, b) => b.score - a.score);
+  const selected = selectDiverseTop(sortedProposals, limit);
+
+  // Conserve les 2-3 meilleures destinations qui ont été calculées mais pas retenues dans le top final
+  const selectedIds = new Set(selected.map((p) => p.destination.id));
+  const runnerProposals = sortedProposals
+    .filter((p) => !selectedIds.has(p.destination.id))
+    .slice(0, 3);
+
+  const runnerUps = runnerProposals.map((p) => ({
+    name: p.destination.name,
+    reason: generateRejectionReason(p),
+  }));
+
+  (selected as any).runnerUps = runnerUps;
+
+  return selected;
 }
 
 /**

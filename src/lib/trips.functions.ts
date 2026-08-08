@@ -511,15 +511,15 @@ export const selectRecommendation = createServerFn({ method: "POST" })
             recommendation_id: data.recommendationId,
             event_type: eventType,
             was_selected: true,
-            final_score: full.data?.score,
-            s_ambiance: ss.sAmbiance,
-            s_activities: ss.sActivities,
-            s_budget: ss.sBudget,
-            s_distance: ss.sDistance,
-            s_season: ss.sSeason,
-            s_quality: ss.sQuality,
-            s_consensus: ss.sConsensus,
-            s_min_satisfaction: ss.sMinSatisfaction,
+            final_score: full.data?.score ?? null,
+            s_ambiance: ss.sAmbiance ?? null,
+            s_activities: ss.sActivities ?? null,
+            s_budget: ss.sBudget ?? null,
+            s_distance: ss.sDistance ?? null,
+            s_season: ss.sSeason ?? null,
+            s_quality: ss.sQuality ?? null,
+            s_consensus: ss.sConsensus ?? null,
+            s_min_satisfaction: ss.sMinSatisfaction ?? null,
           });
         }
       }
@@ -774,6 +774,42 @@ export const getTripRecap = createServerFn({ method: "GET" })
           )
         : 3);
 
+    const recoIds = (recommendations.data ?? []).map((r: any) => r.id as string);
+    let reactions: any[] = [];
+    if (recoIds.length) {
+      const reactionsRes = await supabase
+        .from("destination_feedback")
+        .select("recommendation_id, reaction, participant_id, trip_participants(user_id)")
+        .in("recommendation_id", recoIds);
+      if (!reactionsRes.error) {
+        reactions = reactionsRes.data ?? [];
+      }
+    }
+
+    const reactionsByReco = new Map<string, {
+      myReaction: "like" | "dislike" | null;
+      likesCount: number;
+      dislikesCount: number;
+    }>();
+
+    for (const recoId of recoIds) {
+      reactionsByReco.set(recoId, { myReaction: null, likesCount: 0, dislikesCount: 0 });
+    }
+
+    for (const r of reactions) {
+      const recoId = r.recommendation_id;
+      const entry = reactionsByReco.get(recoId);
+      if (!entry) continue;
+
+      if (r.reaction === "like") entry.likesCount++;
+      if (r.reaction === "dislike") entry.dislikesCount++;
+
+      const isMine = r.trip_participants?.user_id === userId;
+      if (isMine) {
+        entry.myReaction = r.reaction;
+      }
+    }
+
     return {
       trip: {
         id: trip.data.id as string,
@@ -783,26 +819,33 @@ export const getTripRecap = createServerFn({ method: "GET" })
         departureCity: tripOrigin,
         participantsCount: participants,
         status: trip.data.status as string,
+        runnerUps: (trip.data as any).runner_ups || [],
       },
       isOwner,
       nights,
       departureOrigins,
       progress,
-      recommendations: (recommendations.data ?? []).map((r: any) => ({
-        id: r.id as string,
-        score: Number(r.score ?? 0),
-        budget: r.budget,
-        matchReasons: r.match_reasons as string[] | null,
-        destination: r.destinations
-          ? {
-              name: r.destinations.name as string,
-              country: r.destinations.country as string,
-              imageUrl: r.destinations.image_url as string | null,
-              distanceKm: Number(r.destinations.distance_from_paris_km ?? 0),
-              rating: Number(r.destinations.rating ?? 0),
-            }
-          : null,
-      })),
+      recommendations: (recommendations.data ?? []).map((r: any) => {
+        const rInfo = reactionsByReco.get(r.id) ?? { myReaction: null, likesCount: 0, dislikesCount: 0 };
+        return {
+          id: r.id as string,
+          score: Number(r.score ?? 0),
+          budget: r.budget,
+          matchReasons: r.match_reasons as string[] | null,
+          destination: r.destinations
+            ? {
+                name: r.destinations.name as string,
+                country: r.destinations.country as string,
+                imageUrl: r.destinations.image_url as string | null,
+                distanceKm: Number(r.destinations.distance_from_paris_km ?? 0),
+                rating: Number(r.destinations.rating ?? 0),
+              }
+            : null,
+          myReaction: rInfo.myReaction,
+          likesCount: rInfo.likesCount,
+          dislikesCount: rInfo.dislikesCount,
+        };
+      }),
     };
   });
 
@@ -1943,4 +1986,61 @@ export const setTransportTimeFilters = createServerFn({ method: "POST" })
       .eq("id", data.tripId);
     if (error) throw error;
     return { ok: true, timeFilters: next.timeFilters };
+  });
+
+/** Enregistre ou met à jour le feedback (pouce haut / pouce bas) pour une destination shortlistée. */
+export const reactToRecommendation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        recommendationId: z.string().uuid(),
+        reaction: z.enum(["like", "dislike"]).nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const email = (context.claims?.email as string | undefined)?.toLowerCase();
+
+    // Trouve le participant rattaché à cet utilisateur dans le voyage
+    const { data: participant, error: partErr } = await supabase
+      .from("trip_participants")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .or(email ? `user_id.eq.${userId},email.eq.${email}` : `user_id.eq.${userId}`)
+      .maybeSingle();
+
+    if (partErr || !participant) {
+      throw new Error("Participant non trouvé pour cet utilisateur");
+    }
+
+    if (data.reaction === null) {
+      const { error } = await supabase
+        .from("destination_feedback")
+        .delete()
+        .eq("trip_id", data.tripId)
+        .eq("recommendation_id", data.recommendationId)
+        .eq("participant_id", participant.id);
+      if (error) throw error;
+      return { ok: true, reaction: null };
+    } else {
+      const { error } = await supabase
+        .from("destination_feedback")
+        .upsert(
+          {
+            trip_id: data.tripId,
+            recommendation_id: data.recommendationId,
+            participant_id: participant.id,
+            reaction: data.reaction,
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "trip_id,recommendation_id,participant_id",
+          },
+        );
+      if (error) throw error;
+      return { ok: true, reaction: data.reaction };
+    }
   });
