@@ -558,16 +558,23 @@ function TripDetail() {
   }
 
   const trip = data.trip;
-  const destinationSelected = recommendations.some((r) => r.is_selected);
-  const selectedReco = recommendations.find((r) => r.is_selected);
-  const logistics = ((trip as any).group_logistics || {}) as any;
-  const recommendations = data.recommendations as unknown as Recommendation[];
-  const activities = data.activities as { id: string; name: string; category: string; price_per_person: number; rating: number }[];
-  const votes = data.votes as { recommendation_id: string; user_id: string }[];
+  const recommendations = (data.recommendations ?? []) as unknown as Recommendation[];
+  const activities = (data.activities ?? []) as {
+    id: string;
+    name: string;
+    category: string;
+    price_per_person: number;
+    rating: number;
+  }[];
+  const votes = (data.votes ?? []) as { recommendation_id: string; user_id: string }[];
   const activityVotes = ((data as any).activityVotes ?? []) as {
     activity_id: string;
     user_id: string;
   }[];
+  const participants = (data.participants ?? []) as any[];
+  const destinationSelected = recommendations.some((r) => r.is_selected);
+  const selectedReco = recommendations.find((r) => r.is_selected);
+  const logistics = ((trip as any).group_logistics || {}) as any;
   const selectedActivityIds = new Set<string>(
     ((trip as any).selected_activity_ids ?? []) as string[],
   );
@@ -663,7 +670,7 @@ function TripDetail() {
           <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Groupe</dt>
             <dd className="mt-0.5 font-medium">
-              {trip.participants_count || participants.length || "?"} pers.
+              {trip.participants_count || participants?.length || "?"} pers.
               {liveBudget.topHotelName ? ` · hôtel : ${liveBudget.topHotelName}` : ""}
             </dd>
           </div>
