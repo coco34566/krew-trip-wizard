@@ -129,6 +129,45 @@ export type Database = {
           },
         ]
       }
+      activity_votes: {
+        Row: {
+          activity_id: string
+          created_at: string
+          id: string
+          trip_id: string
+          user_id: string
+        }
+        Insert: {
+          activity_id: string
+          created_at?: string
+          id?: string
+          trip_id: string
+          user_id: string
+        }
+        Update: {
+          activity_id?: string
+          created_at?: string
+          id?: string
+          trip_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_votes_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_votes_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       destinations: {
         Row: {
           avg_daily_cost: number
@@ -346,15 +385,66 @@ export type Database = {
           },
         ]
       }
+      trip_availability: {
+        Row: {
+          available_dates: string[]
+          blocked_dates: string[]
+          created_at: string
+          flex_days: number
+          id: string
+          notes: string | null
+          submitted_at: string | null
+          trip_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          available_dates?: string[]
+          blocked_dates?: string[]
+          created_at?: string
+          flex_days?: number
+          id?: string
+          notes?: string | null
+          submitted_at?: string | null
+          trip_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          available_dates?: string[]
+          blocked_dates?: string[]
+          created_at?: string
+          flex_days?: number
+          id?: string
+          notes?: string | null
+          submitted_at?: string | null
+          trip_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_availability_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_participant_preferences: {
         Row: {
           accepts_shared_room: boolean
+          accessibility_needs: boolean | null
           activity_categories: string[]
           ambiances: string[]
+          blackout_dates: string[] | null
           budget_max: number | null
           budget_priority: string
           created_at: string
           date_flex_days: number | null
+          deal_breaker_ambiances: string[] | null
+          departure_airport_or_station: string | null
           departure_city: string | null
           departure_flex_km: number | null
           desired_destination: string | null
@@ -364,12 +454,14 @@ export type Database = {
           excluded_destinations: string[]
           free_text: string | null
           id: string
+          max_travel_duration_hours: number | null
           min_accommodation_rating: number | null
           mobility_notes: string | null
           preferred_time_slots: string[]
           required_amenities: string[]
           room_type_preference: string | null
           submitted_at: string | null
+          transport_mode_accepted: string[] | null
           travel_pace: string | null
           trip_id: string
           updated_at: string | null
@@ -377,12 +469,16 @@ export type Database = {
         }
         Insert: {
           accepts_shared_room?: boolean
+          accessibility_needs?: boolean | null
           activity_categories?: string[]
           ambiances?: string[]
+          blackout_dates?: string[] | null
           budget_max?: number | null
           budget_priority?: string
           created_at?: string
           date_flex_days?: number | null
+          deal_breaker_ambiances?: string[] | null
+          departure_airport_or_station?: string | null
           departure_city?: string | null
           departure_flex_km?: number | null
           desired_destination?: string | null
@@ -392,12 +488,14 @@ export type Database = {
           excluded_destinations?: string[]
           free_text?: string | null
           id?: string
+          max_travel_duration_hours?: number | null
           min_accommodation_rating?: number | null
           mobility_notes?: string | null
           preferred_time_slots?: string[]
           required_amenities?: string[]
           room_type_preference?: string | null
           submitted_at?: string | null
+          transport_mode_accepted?: string[] | null
           travel_pace?: string | null
           trip_id: string
           updated_at?: string | null
@@ -405,12 +503,16 @@ export type Database = {
         }
         Update: {
           accepts_shared_room?: boolean
+          accessibility_needs?: boolean | null
           activity_categories?: string[]
           ambiances?: string[]
+          blackout_dates?: string[] | null
           budget_max?: number | null
           budget_priority?: string
           created_at?: string
           date_flex_days?: number | null
+          deal_breaker_ambiances?: string[] | null
+          departure_airport_or_station?: string | null
           departure_city?: string | null
           departure_flex_km?: number | null
           desired_destination?: string | null
@@ -420,12 +522,14 @@ export type Database = {
           excluded_destinations?: string[]
           free_text?: string | null
           id?: string
+          max_travel_duration_hours?: number | null
           min_accommodation_rating?: number | null
           mobility_notes?: string | null
           preferred_time_slots?: string[]
           required_amenities?: string[]
           room_type_preference?: string | null
           submitted_at?: string | null
+          transport_mode_accepted?: string[] | null
           travel_pace?: string | null
           trip_id?: string
           updated_at?: string | null
@@ -550,19 +654,78 @@ export type Database = {
           },
         ]
       }
+      trip_star_preferences: {
+        Row: {
+          ambiances: string[]
+          created_at: string
+          deal_breakers: string[]
+          filled_by: string
+          id: string
+          notes: string | null
+          submitted_at: string | null
+          trip_id: string
+          updated_at: string | null
+          user_id: string | null
+          wanted_activities: string[]
+        }
+        Insert: {
+          ambiances?: string[]
+          created_at?: string
+          deal_breakers?: string[]
+          filled_by: string
+          id?: string
+          notes?: string | null
+          submitted_at?: string | null
+          trip_id: string
+          updated_at?: string | null
+          user_id?: string | null
+          wanted_activities?: string[]
+        }
+        Update: {
+          ambiances?: string[]
+          created_at?: string
+          deal_breakers?: string[]
+          filled_by?: string
+          id?: string
+          notes?: string | null
+          submitted_at?: string | null
+          trip_id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          wanted_activities?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_star_preferences_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: true
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trips: {
         Row: {
           budget_per_person: number
           celebrated_person: string | null
           created_at: string
+          date_confidence: string | null
+          dates_locked: boolean
           departure_city: string
           duration_nights: number
           end_date: string | null
           event_type: Database["public"]["Enums"]["event_type"]
+          group_itinerary: Json | null
+          group_logistics: Json | null
+          has_star: boolean
           id: string
           name: string
           owner_id: string
           participants_count: number
+          provisional_end_date: string | null
+          provisional_start_date: string | null
+          selected_activity_ids: string[] | null
+          star_user_id: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["trip_status"]
           updated_at: string
@@ -571,14 +734,23 @@ export type Database = {
           budget_per_person?: number
           celebrated_person?: string | null
           created_at?: string
+          date_confidence?: string | null
+          dates_locked?: boolean
           departure_city?: string
           duration_nights?: number
           end_date?: string | null
           event_type?: Database["public"]["Enums"]["event_type"]
+          group_itinerary?: Json | null
+          group_logistics?: Json | null
+          has_star?: boolean
           id?: string
           name: string
           owner_id: string
           participants_count?: number
+          provisional_end_date?: string | null
+          provisional_start_date?: string | null
+          selected_activity_ids?: string[] | null
+          star_user_id?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           updated_at?: string
@@ -587,14 +759,23 @@ export type Database = {
           budget_per_person?: number
           celebrated_person?: string | null
           created_at?: string
+          date_confidence?: string | null
+          dates_locked?: boolean
           departure_city?: string
           duration_nights?: number
           end_date?: string | null
           event_type?: Database["public"]["Enums"]["event_type"]
+          group_itinerary?: Json | null
+          group_logistics?: Json | null
+          has_star?: boolean
           id?: string
           name?: string
           owner_id?: string
           participants_count?: number
+          provisional_end_date?: string | null
+          provisional_start_date?: string | null
+          selected_activity_ids?: string[] | null
+          star_user_id?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           updated_at?: string
