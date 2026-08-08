@@ -42,11 +42,29 @@ const WEIGHT_COL: Record<(typeof SUBS)[number], string> = {
 };
 
 async function main() {
-  const { data: rows, error } = await supabase.from("scoring_feedback").select("*");
-  if (error) throw error;
+  const [feedbackRes, reactionsRes] = await Promise.all([
+    supabase.from("scoring_feedback").select("*"),
+    supabase.from("destination_feedback").select("recommendation_id, reaction")
+  ]);
+
+  if (feedbackRes.error) throw feedbackRes.error;
+  const rows = feedbackRes.data;
   if (!rows?.length) {
     console.log("Aucun feedback — rien à recalibrer");
     return;
+  }
+
+  const reactionsMap = new Map<string, { likes: number; dislikes: number }>();
+  if (reactionsRes.data) {
+    for (const r of reactionsRes.data) {
+      if (!r.recommendation_id) continue;
+      if (!reactionsMap.has(r.recommendation_id)) {
+        reactionsMap.set(r.recommendation_id, { likes: 0, dislikes: 0 });
+      }
+      const counts = reactionsMap.get(r.recommendation_id)!;
+      if (r.reaction === "like") counts.likes++;
+      if (r.reaction === "dislike") counts.dislikes++;
+    }
   }
 
   const byEvent = new Map<string, typeof rows>();
@@ -57,10 +75,16 @@ async function main() {
   }
 
   for (const [eventType, list] of byEvent) {
-    const selected = list.filter((r) => r.was_selected);
-    const ignored = list.filter((r) => !r.was_selected);
-    if (selected.length < 3) {
-      console.log(`${eventType}: pas assez de sélections (${selected.length})`);
+    // Une destination est considérée comme sélectionnée s'il y a was_selected ou des likes majoritaires (mini-signal)
+    const positiveCount = list.filter((r) => {
+      if (r.was_selected) return true;
+      const counts = r.recommendation_id ? reactionsMap.get(r.recommendation_id) : null;
+      return counts ? (counts.likes > counts.dislikes) : false;
+    }).length;
+
+    // Seuil de 3 signaux positifs pour recalibrer
+    if (positiveCount < 3) {
+      console.log(`${eventType}: pas assez de signaux positifs (${positiveCount})`);
       continue;
     }
 
@@ -82,12 +106,41 @@ async function main() {
     };
 
     for (const sub of SUBS) {
-      const avg = (arr: typeof list) => {
-        const vals = arr.map((r) => Number(r[sub])).filter((n) => Number.isFinite(n));
-        if (!vals.length) return 0;
-        return vals.reduce((a, b) => a + b, 0) / vals.length;
+      const getWeightedAvg = (type: "positive" | "negative") => {
+        let sumSub = 0;
+        let sumWeight = 0;
+        for (const r of list) {
+          const counts = r.recommendation_id ? reactionsMap.get(r.recommendation_id) : null;
+          const likes = counts?.likes ?? 0;
+          const dislikes = counts?.dislikes ?? 0;
+          const net = likes - dislikes;
+
+          let rType: "positive" | "negative";
+          let rWeight = 1.0;
+
+          if (r.was_selected) {
+            rType = "positive";
+            rWeight = 1.0;
+          } else if (net > 0) {
+            rType = "positive";
+            rWeight = 0.3; // Un like pèse comme un mini-signal positif de poids 0.3
+          } else {
+            rType = "negative";
+            rWeight = 1.0;
+          }
+
+          if (rType === type) {
+            const val = Number(r[sub]);
+            if (Number.isFinite(val)) {
+              sumSub += val * rWeight;
+              sumWeight += rWeight;
+            }
+          }
+        }
+        return sumWeight > 0 ? sumSub / sumWeight : 0;
       };
-      const diff = avg(selected) - avg(ignored);
+
+      const diff = getWeightedAvg("positive") - getWeightedAvg("negative");
       const col = WEIGHT_COL[sub];
       if (diff > 0.08) next[col] = Math.min(35, next[col] + 1);
       else if (diff < -0.08) next[col] = Math.max(3, next[col] - 1);

@@ -23,13 +23,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { getTripRecap, watchPrice, getCostSplit } from "@/lib/trips.functions";
+import { getTripRecap, watchPrice, getCostSplit, reactToRecommendation } from "@/lib/trips.functions";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
-import { ScoreRadar } from "@/components/krew/ScoreRadar";
 import { Progress } from "@/components/ui/progress";
+import { ScoreRadar } from "@/components/krew/ScoreRadar";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/recap")({
@@ -69,21 +69,36 @@ function TripRecapPage() {
   const fetchRecap = useServerFn(getTripRecap);
   const doWatch = useServerFn(watchPrice);
   const fetchSplit = useServerFn(getCostSplit);
+  const doReact = useServerFn(reactToRecommendation);
   const queryClient = useQueryClient();
   const [watched, setWatched] = useState<Record<string, boolean>>({});
-  const [reactions, setReactions] = useState<Record<string, "like" | "dislike" | null>>({});
 
-  const handleReaction = (recoId: string, type: "like" | "dislike") => {
-    setReactions((prev) => {
-      const current = prev[recoId];
-      const next = current === type ? null : type;
-      if (next === "like") {
+  const reactMutation = useMutation({
+    mutationFn: (payload: { recommendationId: string; reaction: "like" | "dislike" | null }) =>
+      doReact({
+        data: {
+          tripId,
+          recommendationId: payload.recommendationId,
+          reaction: payload.reaction,
+        },
+      }),
+    onSuccess: (_r, vars) => {
+      if (vars.reaction === "like") {
         toast.success("Destination aimée !");
-      } else if (next === "dislike") {
+      } else if (vars.reaction === "dislike") {
         toast.warning("Destination écartée.");
+      } else {
+        toast.success("Réaction supprimée.");
       }
-      return { ...prev, [recoId]: next };
-    });
+      queryClient.invalidateQueries({ queryKey: ["trip-recap", tripId] });
+    },
+    onError: (e: any) => {
+      toast.error(String(e?.message ?? "Erreur lors de l'enregistrement de la réaction"));
+    },
+  });
+
+  const handleReact = (recommendationId: string, reaction: "like" | "dislike" | null) => {
+    reactMutation.mutate({ recommendationId, reaction });
   };
 
   const watchMutation = useMutation({
@@ -154,7 +169,6 @@ function TripRecapPage() {
         ? `À partir du ${new Date(trip.startDate).toLocaleDateString("fr-FR")} · ${nights} nuit(s)`
         : `${nights} nuit(s) · dates à confirmer`;
 
-  // Séparation des propositions : top 2 en cartes pleines, les autres en "Aussi envisagées"
   const mainRecommendations = recommendations.slice(0, 2);
   const otherRecommendations = recommendations.slice(2);
 
@@ -163,7 +177,7 @@ function TripRecapPage() {
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary animate-fade-in"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
@@ -234,51 +248,57 @@ function TripRecapPage() {
               return (
                 <article
                   key={reco.id}
-                  className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm"
+                  className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition-all duration-200 hover:shadow-md"
                 >
                   <div className="border-b border-border bg-surface/40 px-5 py-4 sm:px-6">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="space-y-4 flex-1 min-w-[280px]">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <Badge variant="muted">#{index + 1}</Badge>
                           </div>
 
                           {/* Boutons Like/Dislike de réaction */}
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
                               className={cn(
-                                "size-8 rounded-full border border-border/40",
-                                reactions[reco.id] === "like"
+                                "size-8 rounded-full border border-border/40 cursor-pointer transition-all",
+                                (reco as any).myReaction === "like"
                                   ? "bg-success/20 text-success border-success/30 hover:bg-success/30"
                                   : "text-muted-foreground hover:bg-muted"
                               )}
-                              onClick={() => handleReaction(reco.id, "like")}
+                              onClick={() => handleReact(reco.id, (reco as any).myReaction === "like" ? null : "like")}
                               title="J'aime"
                             >
                               <ThumbsUp className="size-4" />
+                              {((reco as any).likesCount ?? 0) > 0 && (
+                                <span className="ml-1 text-[11px] font-semibold">{(reco as any).likesCount}</span>
+                              )}
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               className={cn(
-                                "size-8 rounded-full border border-border/40",
-                                reactions[reco.id] === "dislike"
+                                "size-8 rounded-full border border-border/40 cursor-pointer transition-all",
+                                (reco as any).myReaction === "dislike"
                                   ? "bg-destructive/20 text-destructive border-destructive/30 hover:bg-destructive/30"
                                   : "text-muted-foreground hover:bg-muted"
                               )}
-                              onClick={() => handleReaction(reco.id, "dislike")}
+                              onClick={() => handleReact(reco.id, (reco as any).myReaction === "dislike" ? null : "dislike")}
                               title="Je n'aime pas"
                             >
                               <ThumbsDown className="size-4" />
+                              {((reco as any).dislikesCount ?? 0) > 0 && (
+                                <span className="ml-1 text-[11px] font-semibold">{(reco as any).dislikesCount}</span>
+                              )}
                             </Button>
                           </div>
                         </div>
 
                         {/* Remplacement du badge plat par ScoreRadar */}
-                        <div className="py-1">
+                        <div className="py-2">
                           <ScoreRadar score={reco.score} subScores={reco.budget?.subScores} budget={reco.budget} />
                         </div>
 
@@ -310,8 +330,9 @@ function TripRecapPage() {
                           </div>
                         </div>
                       </div>
+
                       {budget ? (
-                        <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-right">
+                        <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-right shrink-0 min-w-[200px]">
                           <p className="text-xs uppercase tracking-wide text-muted-foreground">
                             Budget estimé
                           </p>
@@ -328,6 +349,20 @@ function TripRecapPage() {
                               ? ` · groupe ${formatEuro(budget.transportGroup)}`
                               : ""}
                           </p>
+
+                          {/* Fraîcheur des prix */}
+                          <div className="mt-2 flex justify-end gap-1 flex-wrap">
+                            {budget.priceSource?.transport === "api" ? (
+                              <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Transport réel</Badge>
+                            ) : (
+                              <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Transport estimé</Badge>
+                            )}
+                            {budget.priceSource?.accommodation === "api" ? (
+                              <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Logement réel</Badge>
+                            ) : (
+                              <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Logement estimé</Badge>
+                            )}
+                          </div>
                         </div>
                       ) : null}
                     </div>
@@ -452,23 +487,29 @@ function TripRecapPage() {
                               variant="ghost"
                               size="icon"
                               className={cn(
-                                "size-8 rounded-full",
-                                reactions[reco.id] === "like" ? "text-success bg-success/15" : "hover:bg-muted"
+                                "size-8 rounded-full cursor-pointer transition-all",
+                                (reco as any).myReaction === "like" ? "text-success bg-success/15" : "hover:bg-muted"
                               )}
-                              onClick={() => handleReaction(reco.id, "like")}
+                              onClick={() => handleReact(reco.id, (reco as any).myReaction === "like" ? null : "like")}
                             >
                               <ThumbsUp className="size-3.5" />
+                              {((reco as any).likesCount ?? 0) > 0 && (
+                                <span className="ml-1 text-[10px]">{(reco as any).likesCount}</span>
+                              )}
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               className={cn(
-                                "size-8 rounded-full",
-                                reactions[reco.id] === "dislike" ? "text-destructive bg-destructive/15" : "hover:bg-muted"
+                                "size-8 rounded-full cursor-pointer transition-all",
+                                (reco as any).myReaction === "dislike" ? "text-destructive bg-destructive/15" : "hover:bg-muted"
                               )}
-                              onClick={() => handleReaction(reco.id, "dislike")}
+                              onClick={() => handleReact(reco.id, (reco as any).myReaction === "dislike" ? null : "dislike")}
                             >
                               <ThumbsDown className="size-3.5" />
+                              {((reco as any).dislikesCount ?? 0) > 0 && (
+                                <span className="ml-1 text-[10px]">{(reco as any).dislikesCount}</span>
+                              )}
                             </Button>
                           </div>
                         </div>
@@ -480,6 +521,19 @@ function TripRecapPage() {
             )}
           </div>
         )}
+
+        {trip.runnerUps && trip.runnerUps.length > 0 ? (
+          <div className="mt-8 rounded-2xl bg-surface/30 p-4 border border-border/60 text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground mr-1.5">Historique des villes recherchées :</span>
+            {trip.runnerUps.map((r: any, idx: number) => (
+              <span key={r.name}>
+                <span className="font-medium text-foreground/80">{r.name}</span>{" "}
+                <span>({r.reason})</span>
+                {idx < trip.runnerUps.length - 1 ? " · " : ""}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       {costSplitData?.split ? (
