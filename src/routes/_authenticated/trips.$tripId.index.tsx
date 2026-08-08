@@ -856,7 +856,10 @@ function TripDetail() {
         {recommendations.length === 0 ? (
           <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {data.isOwner
-              ? "Clique sur « Générer les propositions » pour tester les destinations Krew (mode test : force activé)."
+              ? readiness && !readiness.canGenerate
+                ? (readiness.message ??
+                  "Les questionnaires doivent être complétés avant de générer les propositions.")
+                : "Clique sur « Générer les propositions » pour lancer la recherche de destinations Krew."
               : "L'organisateur générera bientôt les propositions de destinations."}
           </p>
         ) : (
