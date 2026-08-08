@@ -34,7 +34,10 @@ function NewTripPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [eventType, setEventType] = useState("weekend");
-  const [participants, setParticipants] = useState(PARTICIPANTS_DEFAULT);
+  // On garde une chaîne pour autoriser l'état vide pendant la saisie
+  // (sinon Number("") === 0 retombait sur PARTICIPANTS_DEFAULT à chaque frappe).
+  const [participantsInput, setParticipantsInput] = useState(String(PARTICIPANTS_DEFAULT));
+  const participants = clampParticipants(participantsInput);
   const [celebratedPerson, setCelebratedPerson] = useState("");
   const [organizerFirstName, setOrganizerFirstName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -178,8 +181,9 @@ function NewTripPage() {
               min={PARTICIPANTS_MIN}
               max={PARTICIPANTS_MAX}
               className="mt-1.5"
-              value={participants}
-              onChange={(e) => setParticipants(Number(e.target.value) || PARTICIPANTS_DEFAULT)}
+              value={participantsInput}
+              onChange={(e) => setParticipantsInput(e.target.value.replace(/[^\d]/g, ""))}
+              onBlur={() => setParticipantsInput(String(clampParticipants(participantsInput)))}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Entre {PARTICIPANTS_MIN} et {PARTICIPANTS_MAX} — tu pourras inviter ensuite.
