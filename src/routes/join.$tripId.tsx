@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/krew/Logo";
-import { getJoinPreview, joinTrip } from "@/lib/trips.functions";
+import { getJoinPreview, joinTrip } from "@/lib/join.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { eventTypeLabel } from "@/lib/krew/constants";
 
@@ -21,6 +21,17 @@ export const Route = createFileRoute("/join/$tripId")({
     ],
   }),
   component: JoinTripPage,
+  errorComponent: ({ error }) => (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4">
+      <h1 className="text-xl font-semibold">Impossible d&apos;ouvrir l&apos;invitation</h1>
+      <p className="max-w-md text-center text-sm text-muted-foreground">
+        {error?.message ?? "Erreur inattendue. Réessaie ou demande un nouveau lien."}
+      </p>
+      <a href="/" className="text-sm font-medium text-primary underline">
+        Retour à l&apos;accueil
+      </a>
+    </main>
+  ),
 });
 
 function normalizeTripId(raw: string): string {
