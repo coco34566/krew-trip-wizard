@@ -617,7 +617,7 @@ export function TripHubDashboard({
       />
 
       {/* Scores live */}
-      {topScores.length > 0 ? (
+      {topScores.length > 0 && prefsOkForProposals ? (
         <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary" />

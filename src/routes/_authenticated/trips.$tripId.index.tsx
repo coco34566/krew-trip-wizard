@@ -835,7 +835,9 @@ function TripDetail() {
             <Button
               variant="hero"
               onClick={() => regenerateMutation.mutate()}
-              disabled={regenerateMutation.isPending}
+              disabled={
+                regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
+              }
               title={
                 readiness && !readiness.canGenerate
                   ? readiness.message ?? "Questionnaires incomplets"
