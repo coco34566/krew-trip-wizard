@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,6 +16,7 @@ import {
   BellRing,
   ThumbsUp,
   ThumbsDown,
+  CalendarDays,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ import { toast } from "sonner";
 import { getTripRecap, watchPrice, getCostSplit, reactToRecommendation } from "@/lib/trips.functions";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
+import { buildTripIcs } from "@/lib/krew/calendar-export";
+import { PackingListCard } from "@/components/krew/PackingListCard";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 import { Progress } from "@/components/ui/progress";
@@ -162,6 +165,39 @@ function TripRecapPage() {
   }
 
   const { trip, nights, departureOrigins, recommendations, progress } = data;
+
+  const handleDownloadIcs = () => {
+    const compliantTrip = {
+      ...trip,
+      dates_locked: true,
+      group_itinerary: trip.group_itinerary,
+    };
+    const icsContent = buildTripIcs(compliantTrip, trip.group_itinerary);
+    if (!icsContent) {
+      toast.error("Impossible d'exporter le calendrier.");
+      return;
+    }
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `${trip.name || "voyage"}.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Calendrier .ics téléchargé !");
+  };
+
+  const googleCalendarUrl = useMemo(() => {
+    if (!trip.startDate || !trip.endDate) return "";
+    const start = trip.startDate.replace(/[-]/g, "");
+    const endDateObj = new Date(trip.endDate);
+    endDateObj.setDate(endDateObj.getDate() + 1);
+    const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
+    const title = encodeURIComponent(trip.name || "Mon Voyage Krew");
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
+  }, [trip.startDate, trip.endDate, trip.name]);
+
   const dateLabel =
     trip.startDate && trip.endDate
       ? `${new Date(trip.startDate).toLocaleDateString("fr-FR")} → ${new Date(trip.endDate).toLocaleDateString("fr-FR")}`
@@ -543,9 +579,40 @@ function TripRecapPage() {
               ? "Destination validée — qui paie quoi ?"
               : "Répartition (proposition)"}
           </h2>
-          <CostSplitCard split={costSplitData.split} tripName={trip.name} />
+          <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
         </section>
       ) : null}
+
+      <div className="space-y-8 mt-12">
+        <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="size-5 text-primary" />
+            <h2 className="font-display text-xl font-semibold tracking-tight">Exporter mon calendrier</h2>
+          </div>
+          <p className="text-xs text-muted-foreground leading-snug">
+            Téléchargez le fichier de l'itinéraire ou ajoutez le séjour complet à votre agenda.
+          </p>
+          <div className="flex flex-wrap gap-2.5">
+            <Button onClick={handleDownloadIcs} variant="hero" size="sm" className="gap-1.5">
+              <CalendarDays className="size-4" /> Télécharger .ics
+            </Button>
+            {googleCalendarUrl && (
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
+                  Ajouter à Google Calendar
+                </a>
+              </Button>
+            )}
+          </div>
+        </section>
+
+        <PackingListCard
+          avgTemp={null}
+          activities={recommendations.flatMap((r: any) => r.match_reasons || [])}
+          durationDays={nights || 2}
+          eventType={null}
+        />
+      </div>
     </main>
   );
 }
