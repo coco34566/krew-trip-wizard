@@ -236,16 +236,6 @@ function activitySearchUrl(label: string, city: string, type: ActivitySlotType):
   return mapsUrl([prefix, label, city].filter(Boolean).join(" "));
 }
 
-function _unusedExtractJson(raw: string): unknown {
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  try {
-    return JSON.parse(raw.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-}
 
 function normalizeSlot(raw: any, city: string): ActivitySlot | null {
   if (!raw || typeof raw !== "object") return null;
