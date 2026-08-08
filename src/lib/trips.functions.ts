@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateRecommendationsForTrip, tripInputSchema } from "@/lib/krew/trip-service";
 import { assertNotRateLimited } from "@/lib/krew/rate-limit.server";
+import { isTripAdmin, computeGroupTimeWindow } from "@/lib/krew/engine";
 
 
 /** Libellé de stade aligné sur le parcours hub (pas le status enum brut). */
@@ -392,6 +393,66 @@ export const removeParticipant = createServerFn({ method: "POST" })
       .eq("id", data.participantId);
     if (error) throw error;
     return { ok: true };
+  });
+
+export const setMyTransportTimePrefs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        earliestDepartureTime: z.string().max(10).nullable(),
+        latestReturnTime: z.string().max(10).nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const email = (context.claims?.email as string | undefined)?.toLowerCase();
+
+    const { data: participant, error: partErr } = await supabase
+      .from("trip_participants")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .or(email ? `user_id.eq.${userId},email.eq.${email}` : `user_id.eq.${userId}`)
+      .maybeSingle();
+
+    if (partErr || !participant) {
+      throw new Error("403 Forbidden: vous n'êtes pas participant de ce voyage");
+    }
+
+    const { error } = await supabase
+      .from("trip_transport_time_prefs")
+      .upsert(
+        {
+          trip_id: data.tripId,
+          participant_id: participant.id,
+          earliest_departure_time: data.earliestDepartureTime,
+          latest_return_time: data.latestReturnTime,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "trip_id,participant_id" }
+      );
+
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const getGroupTransportTimeWindow = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const { data: rows, error } = await supabase
+      .from("trip_transport_time_prefs")
+      .select("earliest_departure_time, latest_return_time")
+      .eq("trip_id", data.tripId);
+
+    if (error) throw error;
+
+    const window = computeGroupTimeWindow(rows ?? []);
+    return window;
   });
 
 export const toggleVote = createServerFn({ method: "POST" })
@@ -2043,4 +2104,167 @@ export const reactToRecommendation = createServerFn({ method: "POST" })
       if (error) throw error;
       return { ok: true, reaction: data.reaction };
     }
+  });
+
+export const createGroupPaymentSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const email = (context.claims?.email as string | undefined)?.toLowerCase();
+
+    // 1. Get participant
+    const { data: participant, error: partErr } = await supabase
+      .from("trip_participants")
+      .select("id, email, display_name")
+      .eq("trip_id", data.tripId)
+      .or(email ? `user_id.eq.${userId},email.eq.${email}` : `user_id.eq.${userId}`)
+      .maybeSingle();
+
+    if (partErr || !participant) {
+      throw new Error("Participant non trouvé pour cet utilisateur");
+    }
+
+    // 2. Get cost split
+    const trip = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    if (trip.error || !trip.data) throw new Error("Voyage introuvable");
+
+    const reco = await supabase
+      .from("recommendations")
+      .select("*, destinations(name, distance_from_paris_km)")
+      .eq("trip_id", data.tripId)
+      .eq("is_selected", true)
+      .maybeSingle();
+    if (reco.error || !reco.data) throw new Error("Aucune proposition validée");
+
+    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+    const { buildCostSplit } = await import("@/lib/krew/cost-split");
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+
+    const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
+    let departureOrigins =
+      aggregated.departureOrigins && aggregated.departureOrigins.length > 0
+        ? aggregated.departureOrigins
+        : [{ city: tripOrigin, count: Math.max(1, Number(trip.data.participants_count) || 1) }];
+
+    const budget = (reco.data.budget ?? {}) as any;
+    const transportByOrigin =
+      Array.isArray(budget.transportByOrigin) && budget.transportByOrigin.length
+        ? budget.transportByOrigin
+        : departureOrigins.map((o: any) => ({
+            city: o.city,
+            count: o.count,
+            pricePerPerson: Number(budget.transport ?? 0),
+          }));
+
+    const { data: prefData } = await supabase
+      .from("trip_participant_preferences")
+      .select("departure_city")
+      .eq("trip_id", data.tripId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const pCity = prefData?.departure_city || tripOrigin;
+    const cityRow = transportByOrigin.find(
+      (o: any) => o.city.toLowerCase() === pCity.toLowerCase()
+    ) || transportByOrigin[0];
+
+    const { buildCostSplit } = await import("@/lib/krew/cost-split");
+    const split = buildCostSplit({
+      destinationName: (reco.data as any).destinations?.name || budget.destinationName || "Destination",
+      accommodation: Number(budget.accommodation ?? 0),
+      activities: Number(budget.activities ?? 0),
+      food: Number(budget.food ?? 0),
+      origins: transportByOrigin,
+      fallbackTransportPerPerson: Number(budget.transport ?? 0),
+      participants: Number(trip.data.participants_count) || undefined,
+    });
+
+    const userLine = split.lines.find(
+      (l) => l.city.toLowerCase() === pCity.toLowerCase()
+    ) || split.lines[0];
+
+    const totalPerPerson = userLine ? userLine.totalPerPerson : (transportPrice + shared);
+
+    if (totalPerPerson <= 0) {
+      throw new Error("Le montant calculé pour ce séjour est invalide.");
+    }
+
+    const amountCents = totalPerPerson * 100;
+    const feePercent = Number(process.env.KREW_PLATFORM_FEE_PERCENT) || 0;
+    const platformFeeCents = Math.round(amountCents * (feePercent / 100));
+
+    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecret) {
+      console.warn("STRIPE_SECRET_KEY non définie, simulation de session");
+      const { data: fakePayment, error: fakeErr } = await supabase
+        .from("trip_payments")
+        .insert({
+          trip_id: data.tripId,
+          participant_id: participant.id,
+          amount_cents: amountCents,
+          currency: "eur",
+          status: "pending",
+          stripe_session_id: "fake_session_" + Date.now(),
+          platform_fee_cents: platformFeeCents,
+        })
+        .select("*")
+        .single();
+      if (fakeErr) throw fakeErr;
+
+      return {
+        sessionId: "fake_session",
+        url: `${process.env.VITE_APP_URL || "http://localhost:3000"}/trips/${data.tripId}/recap?payment_success=true&session_id=${fakePayment.stripe_session_id}`,
+      };
+    }
+
+    const { default: Stripe } = await import("stripe");
+    const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" as any });
+
+    const destName = (reco.data as any).destinations?.name || "Séjour Krew";
+    const originUrl = process.env.VITE_APP_URL || "http://localhost:3000";
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: `Votre part du voyage - ${destName}`,
+              description: `Séjour à ${destName} incluant transport depuis ${pCity} et part égale hébergement/activités/repas.`,
+            },
+            unit_amount: amountCents,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${originUrl}/trips/${data.tripId}/recap?payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${originUrl}/trips/${data.tripId}/recap?payment_cancel=true`,
+      metadata: {
+        tripId: data.tripId,
+        participantId: participant.id,
+      },
+    });
+
+    const { error: insertErr } = await supabase.from("trip_payments").insert({
+      trip_id: data.tripId,
+      participant_id: participant.id,
+      amount_cents: amountCents,
+      currency: "eur",
+      status: "pending",
+      stripe_session_id: session.id,
+      platform_fee_cents: platformFeeCents,
+    });
+    if (insertErr) {
+      console.error("Erreur lors de l'enregistrement du paiement en base", insertErr);
+    }
+
+    return {
+      sessionId: session.id,
+      url: session.url,
+    };
   });

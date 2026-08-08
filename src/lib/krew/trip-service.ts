@@ -1141,6 +1141,23 @@ export async function generateRecommendationsForTrip(
   try {
     const { searchTransportRoundTrip } = await import("@/integrations/external/transport.server");
 
+    let earliestDepartureTime: string | null = null;
+    let latestReturnTime: string | null = null;
+    try {
+      const { data: timeRows } = await supabase
+        .from("trip_transport_time_prefs")
+        .select("earliest_departure_time, latest_return_time")
+        .eq("trip_id", tripId);
+      if (timeRows && timeRows.length > 0) {
+        const { computeGroupTimeWindow } = await import("@/lib/krew/engine");
+        const window = computeGroupTimeWindow(timeRows);
+        earliestDepartureTime = window.earliestDeparture;
+        latestReturnTime = window.latestReturn;
+      }
+    } catch (e) {
+      console.warn("Erreur filtres horaires", e);
+    }
+
     let checkin = (trip.data.start_date as string | null) ?? null;
     let checkout = (trip.data.end_date as string | null) ?? null;
     if (!checkin) {
@@ -1171,6 +1188,8 @@ export async function generateRecommendationsForTrip(
             returnDate: checkout,
             adults: Math.min(Math.max(1, origin.count), 9),
             distanceKm: dest.distance_from_paris_km,
+            earliestDepartureTime,
+            latestReturnTime,
           });
           const price = quote.pricePerPerson;
           originQuotes.push({ city: origin.city, count: origin.count, pricePerPerson: price });

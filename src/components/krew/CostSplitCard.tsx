@@ -1,22 +1,80 @@
-import { useRef, useState } from "react";
-import { Copy, Check, ImageDown, Users, Wallet } from "lucide-react";
+import { useRef, useState, useMemo } from "react";
+import { Copy, Check, ImageDown, Users, Wallet, CreditCard } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { formatEuro } from "@/lib/krew/constants";
 import {
   formatCostSplitText,
   type CostSplitResult,
 } from "@/lib/krew/cost-split";
+import { createGroupPaymentSession } from "@/lib/trips.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
   split: CostSplitResult;
   tripName?: string;
+  tripId?: string;
 };
 
-export function CostSplitCard({ split, tripName }: Props) {
+export function CostSplitCard({ split, tripName, tripId }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const paySessionFn = useServerFn(createGroupPaymentSession);
+
+  // Fetch only this user's payments
+  const { data: payments, isLoading: isPaymentsLoading } = useQuery({
+    queryKey: ["trip-payments", tripId],
+    queryFn: async () => {
+      if (!tripId) return null;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data: part } = await supabase
+        .from("trip_participants")
+        .select("id")
+        .eq("trip_id", tripId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!part) return null;
+
+      const { data, error } = await supabase
+        .from("trip_payments")
+        .select("status, amount_cents")
+        .eq("trip_id", tripId)
+        .eq("participant_id", part.id);
+      if (error) {
+        console.error("Error fetching payments:", error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!tripId,
+  });
+
+  const payMutation = useMutation({
+    mutationFn: () => paySessionFn({ data: { tripId: tripId! } }),
+    onSuccess: (res: any) => {
+      if (res?.url) {
+        window.location.href = res.url;
+      } else {
+        toast.error("URL de paiement non reçue");
+      }
+    },
+    onError: (e: any) => {
+      toast.error(String(e?.message ?? "Erreur lors de la création de la session de paiement"));
+    },
+  });
+
+  const paymentStatus = useMemo(() => {
+    if (!payments || payments.length === 0) return "unpaid";
+    if (payments.some((p) => p.status === "paid")) return "paid";
+    if (payments.some((p) => p.status === "pending")) return "pending";
+    return "unpaid";
+  }, [payments]);
 
   async function copyText() {
     const text = formatCostSplitText(split, tripName);
@@ -46,7 +104,6 @@ export function CostSplitCard({ split, tripName }: Props) {
       ctx.fillStyle = "#f4f7f4";
       ctx.fillRect(0, 0, width, height);
 
-      // Render simple text layout (robust sans html2canvas)
       ctx.fillStyle = "#1a1f1a";
       ctx.font = "bold 20px system-ui, sans-serif";
       let y = 32;
@@ -102,7 +159,43 @@ export function CostSplitCard({ split, tripName }: Props) {
             Chacun paie son transport depuis sa ville + une part égale du reste.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {tripId && !isPaymentsLoading && (
+            <div className="mr-2">
+              {paymentStatus === "paid" ? (
+                <Badge variant="success" className="px-3 py-1 text-xs">
+                  Payé ✅
+                </Badge>
+              ) : paymentStatus === "pending" ? (
+                <div className="flex items-center gap-2">
+                  <Badge variant="warning" className="px-3 py-1 text-xs">
+                    Paiement en attente ⏳
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={payMutation.isPending}
+                    onClick={() => payMutation.mutate()}
+                    className="h-8 gap-1.5"
+                  >
+                    <CreditCard className="size-4" /> Réessayer
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="hero"
+                  size="sm"
+                  disabled={payMutation.isPending}
+                  onClick={() => payMutation.mutate()}
+                  className="h-8 gap-1.5"
+                >
+                  <CreditCard className="size-4" /> Payer ma part
+                </Button>
+              )}
+            </div>
+          )}
           <Button type="button" variant="hero" size="sm" onClick={copyText}>
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
             {copied ? "Copié" : "Copier pour WhatsApp"}

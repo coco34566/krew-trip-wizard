@@ -14,6 +14,7 @@ export type TransportQuote = {
   label: string;
   url: string | null;
   rawError?: string | null;
+  outsideTimeWindow?: boolean;
 };
 
 async function rapid(host: string, key: string, path: string, params: Record<string, string>) {
@@ -37,19 +38,63 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-function pickCheapestPrice(payload: any): { price: number; url: string | null; label: string } | null {
-  const lists = [
-    payload?.data?.flights,
-    payload?.data?.results,
-    payload?.data?.itineraries,
-    payload?.results,
-    payload?.flights,
-    payload?.data,
-    payload?.searchResults,
-  ].filter(Array.isArray) as any[][];
+/**
+ * Extrait les heures de départ (aller) et de retour (inbound) d'un vol pour le filtrage horaire.
+ */
+function extractItemTimes(item: any, provider: string): { outboundTime: string | null; returnTime: string | null } {
+  let outboundTime: string | null = null;
+  let returnTime: string | null = null;
 
-  const items = lists.find((a) => a.length > 0) ?? [];
-  let best: { price: number; url: string | null; label: string } | null = null;
+  if (provider === "kayak") {
+    const legs = item?.legs;
+    if (Array.isArray(legs) && legs.length > 0) {
+      const dep0 = legs[0]?.departure || legs[0]?.departureTime;
+      if (dep0) {
+        outboundTime = dep0.includes("T") ? dep0.split("T")[1]?.slice(0, 5) || null : dep0.slice(0, 5);
+      }
+      if (legs.length > 1) {
+        const dep1 = legs[1]?.departure || legs[1]?.departureTime;
+        if (dep1) {
+          returnTime = dep1.includes("T") ? dep1.split("T")[1]?.slice(0, 5) || null : dep1.slice(0, 5);
+        }
+      }
+    } else {
+      const dep = item?.departure_time || item?.departureTime;
+      if (dep) outboundTime = dep.slice(0, 5);
+    }
+  } else if (provider === "kiwi") {
+    const locDep = item?.local_departure;
+    if (locDep) {
+      outboundTime = locDep.includes("T") ? locDep.split("T")[1]?.slice(0, 5) || null : locDep.slice(0, 5);
+    }
+    const route = item?.route;
+    if (Array.isArray(route)) {
+      const returnSeg = route.find((r: any) => r.return === 1 || r.return === true);
+      if (returnSeg && returnSeg.local_departure) {
+        returnTime = returnSeg.local_departure.includes("T")
+          ? returnSeg.local_departure.split("T")[1]?.slice(0, 5) || null
+          : returnSeg.local_departure.slice(0, 5);
+      }
+    }
+  }
+
+  return { outboundTime, returnTime };
+}
+
+/**
+ * Sélectionne la meilleure offre de transport dans la fenêtre horaire souhaitée.
+ * Fallback sur la moins chère globale si aucune n'est compatible.
+ */
+function pickCheapestPriceInWindow(
+  items: any[],
+  provider: string,
+  earliestDepartureTime?: string | null,
+  latestReturnTime?: string | null
+): { best: any; outsideWindow: boolean } | null {
+  if (!items || items.length === 0) return null;
+
+  let bestInWindow: any = null;
+  let bestOverall: any = null;
 
   for (const item of items) {
     const price = num(
@@ -59,19 +104,45 @@ function pickCheapestPrice(payload: any): { price: number; url: string | null; l
         item?.cheapestPrice ??
         item?.priceAmount ??
         item?.pricing?.total ??
-        item?.fare?.price,
+        item?.fare?.price ??
+        item?.conversion?.EUR,
     );
     if (price <= 0) continue;
-    const url = item?.url ?? item?.deepLink ?? item?.bookingUrl ?? item?.shareUrl ?? null;
-    const label =
-      item?.airline ??
-      item?.carrier ??
-      item?.legs?.[0]?.airline ??
-      item?.provider ??
-      "Vol Kayak";
-    if (!best || price < best.price) best = { price, url, label: String(label) };
+
+    const { outboundTime, returnTime } = extractItemTimes(item, provider);
+
+    let match = true;
+    if (earliestDepartureTime && outboundTime && outboundTime < earliestDepartureTime) {
+      match = false;
+    }
+    if (latestReturnTime && returnTime && returnTime > latestReturnTime) {
+      match = false;
+    }
+
+    const priceObj = {
+      price,
+      url: item?.url ?? item?.deepLink ?? item?.bookingUrl ?? item?.shareUrl ?? item?.deep_link ?? null,
+      label: item?.airline ?? item?.carrier ?? item?.legs?.[0]?.airline ?? item?.provider ?? item?.airlines?.[0] ?? (provider === "kayak" ? "Vol Kayak" : "Vol Kiwi"),
+    };
+
+    if (!bestOverall || price < bestOverall.price) {
+      bestOverall = priceObj;
+    }
+
+    if (match) {
+      if (!bestInWindow || price < bestInWindow.price) {
+        bestInWindow = priceObj;
+      }
+    }
   }
-  return best;
+
+  if (bestInWindow) {
+    return { best: bestInWindow, outsideWindow: false };
+  } else if (bestOverall) {
+    return { best: bestOverall, outsideWindow: true };
+  }
+
+  return null;
 }
 
 /** Estimation distance (fallback historique Krew). */
@@ -93,6 +164,8 @@ export async function searchTransportRoundTrip(opts: {
   returnDate: string;
   adults: number;
   distanceKm?: number;
+  earliestDepartureTime?: string | null;
+  latestReturnTime?: string | null;
 }): Promise<TransportQuote> {
   const key = process.env["HOTELS_RAPIDAPI_KEY"] ?? process.env["KAYAK_RAPIDAPI_KEY"] ?? "";
   const kayakHost = process.env["KAYAK_SEARCH_RAPIDAPI_HOST"] ?? "kayak-search.p.rapidapi.com";
@@ -126,21 +199,33 @@ export async function searchTransportRoundTrip(opts: {
       currency: "EUR",
       cabin: "economy",
     });
-    const best = pickCheapestPrice(payload);
-    if (best) {
+
+    const lists = [
+      payload?.data?.flights,
+      payload?.data?.results,
+      payload?.data?.itineraries,
+      payload?.results,
+      payload?.flights,
+      payload?.data,
+      payload?.searchResults,
+    ].filter(Array.isArray) as any[][];
+    const items = lists.find((a) => a.length > 0) ?? [];
+
+    const result = pickCheapestPriceInWindow(items, "kayak", opts.earliestDepartureTime, opts.latestReturnTime);
+    if (result) {
       return {
-        pricePerPerson: Math.round(best.price),
+        pricePerPerson: Math.round(result.best.price),
         currency: "EUR",
         provider: "kayak",
         mode: "flight",
-        label: best.label,
-        url: best.url,
+        label: result.best.label,
+        url: result.best.url,
         rawError: null,
+        outsideTimeWindow: result.outsideWindow,
       };
     }
   } catch (err) {
     kayakError = err;
-    /* try Kiwi */
   }
 
   let kiwiError: any = null;
@@ -167,48 +252,27 @@ export async function searchTransportRoundTrip(opts: {
         /* next path */
       }
     }
-    if (Array.isArray(kiwiPayload?.data)) {
-      let minP = 0;
-      let url: string | null = null;
-      let label = "Vol Kiwi";
-      for (const item of kiwiPayload.data) {
-        const price = num(item?.price ?? item?.conversion?.EUR);
-        if (price > 0 && (minP === 0 || price < minP)) {
-          minP = price;
-          url = item?.deep_link ?? item?.url ?? null;
-          label = item?.airlines?.[0] ? String(item.airlines[0]) : "Vol Kiwi";
-        }
-      }
-      if (minP > 0) {
+
+    const items = kiwiPayload?.data;
+    if (Array.isArray(items)) {
+      const result = pickCheapestPriceInWindow(items, "kiwi", opts.earliestDepartureTime, opts.latestReturnTime);
+      if (result) {
         return {
-          pricePerPerson: Math.round(minP),
+          pricePerPerson: Math.round(result.best.price),
           currency: "EUR",
           provider: "kiwi",
           mode: "flight",
-          label,
-          url,
+          label: result.best.label,
+          url: result.best.url,
           rawError: null,
+          outsideTimeWindow: result.outsideWindow,
         };
       }
     }
-    const best = kiwiPayload ? pickCheapestPrice(kiwiPayload) : null;
-    if (best) {
-      return {
-        pricePerPerson: Math.round(best.price),
-        currency: "EUR",
-        provider: "kiwi",
-        mode: "flight",
-        label: best.label,
-        url: best.url,
-        rawError: null,
-      };
-    }
   } catch (err) {
     kiwiError = err;
-    /* estimate */
   }
 
-  // Si on arrive ici, toutes les tentatives ont échoué
   reportServerError(new Error(`Toutes les cotations de transport ont échoué. Kayak error: ${kayakError?.message || kayakError}. Kiwi error: ${kiwiError?.message || kiwiError}`), {
     provider: "kayak/kiwi",
     kind: "transport",

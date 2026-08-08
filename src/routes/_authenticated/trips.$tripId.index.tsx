@@ -43,6 +43,9 @@ import {
   unlockTripDates,
 } from "@/lib/availability.functions";
 import { getStarPreferences } from "@/lib/star-preferences.functions";
+import { buildTripIcs } from "@/lib/krew/calendar-export";
+import { PackingListCard } from "@/components/krew/PackingListCard";
+import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 
 
 /** Photo destination : URL DB ou image Unsplash stable selon la ville. */
@@ -587,6 +590,33 @@ function TripDetail() {
   const selectedActivityIds = new Set<string>(
     ((trip as any).selected_activity_ids ?? []) as string[],
   );
+
+  const handleDownloadIcs = () => {
+    const icsContent = buildTripIcs(trip, trip.group_itinerary);
+    if (!icsContent) {
+      toast.error("Impossible d'exporter le calendrier : vérifiez que les dates sont verrouillées.");
+      return;
+    }
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `${trip.name || "voyage"}.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Calendrier .ics téléchargé !");
+  };
+
+  const googleCalendarUrl = useMemo(() => {
+    if (!trip.start_date || !trip.end_date) return "";
+    const start = trip.start_date.replace(/[-]/g, "");
+    const endDateObj = new Date(trip.end_date);
+    endDateObj.setDate(endDateObj.getDate() + 1);
+    const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
+    const title = encodeURIComponent(trip.name || "Mon Voyage Krew");
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
+  }, [trip.start_date, trip.end_date, trip.name]);
 
 
   return (
@@ -1168,89 +1198,7 @@ function TripDetail() {
           </div>
 
 
-          {/* Filtres horaires groupe + saisie perso */}
-          <div className="rounded-2xl border border-border bg-surface/40 p-4 space-y-3">
-            {data.isOwner ? (
-              <div className="flex flex-wrap items-end gap-3">
-                <div>
-                  <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Arriver avant (jour 1)
-                  </label>
-                  <Input
-                    type="time"
-                    className="mt-1 w-[9rem]"
-                    value={
-                      arriveByFilter ||
-                      (trip as any).group_logistics?.timeFilters?.arriveBy ||
-                      ""
-                    }
-                    onChange={(e) => setArriveByFilter(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    Repartir après (dernier jour)
-                  </label>
-                  <Input
-                    type="time"
-                    className="mt-1 w-[9rem]"
-                    value={
-                      departAfterFilter ||
-                      (trip as any).group_logistics?.timeFilters?.departAfter ||
-                      ""
-                    }
-                    onChange={(e) => setDepartAfterFilter(e.target.value)}
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={timeFilterMutation.isPending}
-                  onClick={() => timeFilterMutation.mutate()}
-                >
-                  Appliquer filtres
-                </Button>
-              </div>
-            ) : (trip as any).group_logistics?.timeFilters?.arriveBy ||
-              (trip as any).group_logistics?.timeFilters?.departAfter ? (
-              <p className="text-xs text-muted-foreground">
-                Contraintes groupe
-                {(trip as any).group_logistics?.timeFilters?.arriveBy
-                  ? ` · arriver avant ${(trip as any).group_logistics.timeFilters.arriveBy}`
-                  : ""}
-                {(trip as any).group_logistics?.timeFilters?.departAfter
-                  ? ` · repartir après ${(trip as any).group_logistics.timeFilters.departAfter}`
-                  : ""}
-              </p>
-            ) : null}
-            <div className="flex flex-wrap items-end gap-3 border-t border-border/60 pt-3">
-              <div>
-                <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Mon arrivée (aller)
-                </label>
-                <Input
-                  type="time"
-                  className="mt-1 w-[9rem]"
-                  value={pickArrival}
-                  onChange={(e) => setPickArrival(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Mon départ (retour)
-                </label>
-                <Input
-                  type="time"
-                  className="mt-1 w-[9rem]"
-                  value={pickDeparture}
-                  onChange={(e) => setPickDeparture(e.target.value)}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                Ces horaires sont enregistrés avec ton trajet et alimentent le planning.
-              </p>
-            </div>
-          </div>
+          <TransportTimePrefsCard tripId={tripId} />
 
           {!(trip as any).group_logistics?.transports?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -1505,6 +1453,41 @@ function TripDetail() {
             </div>
           )}
         </section>
+      ) : null}
+
+      {datesLocked ? (
+        <div className="space-y-8 mt-8">
+          <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-5 text-primary" />
+              <h2 className="font-display text-xl font-semibold tracking-tight">Exporter mon calendrier</h2>
+            </div>
+            <p className="text-xs text-muted-foreground leading-snug">
+              {hasItinerary
+                ? "Téléchargez le fichier de l'itinéraire ou ajoutez le séjour complet à votre agenda."
+                : "Ajoutez les dates de votre séjour à votre calendrier."}
+            </p>
+            <div className="flex flex-wrap gap-2.5">
+              <Button onClick={handleDownloadIcs} variant="hero" size="sm" className="gap-1.5">
+                <CalendarDays className="size-4" /> Télécharger .ics
+              </Button>
+              {googleCalendarUrl && (
+                <Button asChild variant="outline" size="sm" className="gap-1.5">
+                  <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
+                    Ajouter à Google Calendar
+                  </a>
+                </Button>
+              )}
+            </div>
+          </section>
+
+          <PackingListCard
+            avgTemp={null}
+            activities={activities.map((a) => a.name)}
+            durationDays={liveBudget.nights || 2}
+            eventType={trip.event_type}
+          />
+        </div>
       ) : null}
 
 
