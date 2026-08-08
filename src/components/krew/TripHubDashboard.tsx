@@ -18,10 +18,14 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TripHubNav } from "@/components/krew/TripHubNav";
 import { buildTripSteps } from "@/lib/krew/availability";
 import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
 
 type Props = {
   tripId: string;
@@ -314,19 +318,19 @@ function NextActionsPanel({
 
   if (actions.length === 0 && participantCaughtUp) {
     return (
-      <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-5 sm:p-6">
+      <section className="rounded-3xl border border-success/30 bg-success/10 p-5 sm:p-6">
         <div className="flex gap-3">
-          <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-success" />
           <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight text-emerald-900 dark:text-emerald-200">
+            <h2 className="font-display text-xl font-semibold tracking-tight text-foreground/90">
               Tout est à jour de ton côté
             </h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-emerald-800/90 dark:text-emerald-300/90">
+            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
               {isOwner
                 ? hasItinerary
-                  ? "Planning en place — tu peux encore ajuster hôtels, trajets ou créneaux plus bas."
+                  ? "Planning en place — tu peux encore ajuster hôtels, trajets and planning plus bas."
                   : destinationSelected
-                    ? "Enchaîne hôtels, trajets et planning plus bas sur la page."
+                    ? "Enchaîne hôtels, trajets and planning plus bas sur la page."
                     : "Dès que le groupe a assez répondu, valide dates et destination."
                 : !destinationSelected
                   ? "C'est aux autres de répondre, et à l'organisateur de faire avancer le parcours."
@@ -461,21 +465,43 @@ export function TripHubDashboard({
   const prefsMinRequired = Math.max(1, Math.ceil(prefsExpected * 0.4));
   const prefsOkForProposals = progressAnswered >= prefsMinRequired;
 
-  const steps = buildTripSteps({
-    tripId,
-    participantsJoined: participantsCount,
-    participantsExpected: trip.participants_count || 1,
-    availabilityAnswered,
-    questionnaireAnswered: progressAnswered,
-    datesLocked,
-    hasRecommendations,
-    destinationSelected,
-    hotelVoted,
-    transportPicked,
-    hasItinerary,
-  });
-
   const theme = eventTypeLabel(trip.event_type);
+
+  // Définition de la timeline horizontale à 4 étapes avec les tokens de design system OKLCH
+  const timelineSteps = [
+    {
+      id: "questionnaire",
+      label: "Questionnaire",
+      description: "Dispos & préférences",
+      isDone: datesLocked || hasRecommendations || destinationSelected,
+      isActive: !(datesLocked || hasRecommendations || destinationSelected),
+      icon: ClipboardList,
+    },
+    {
+      id: "dates",
+      label: "Dates verrouillées",
+      description: "Validation des dates",
+      isDone: hasRecommendations || destinationSelected,
+      isActive: datesLocked && !(hasRecommendations || destinationSelected),
+      icon: CalendarDays,
+    },
+    {
+      id: "shortlist",
+      label: "Destination shortlistée",
+      description: "Propositions Krew",
+      isDone: destinationSelected,
+      isActive: hasRecommendations && !destinationSelected,
+      icon: Sparkles,
+    },
+    {
+      id: "validation",
+      label: "Destination validée",
+      description: "Choix final du groupe",
+      isDone: destinationSelected && (hasItinerary || hotelVoted || transportPicked),
+      isActive: destinationSelected && !(hasItinerary || hotelVoted || transportPicked),
+      icon: MapPin,
+    },
+  ];
 
   
   return (
@@ -489,8 +515,12 @@ export function TripHubDashboard({
             className="absolute inset-0 h-full w-full object-cover"
             loading="eager"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/40 to-black/20" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent" />
+          {/* Gradients assombris pour améliorer le contraste */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/55 to-black/25" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-transparent to-transparent" />
+          {/* Overlay dégradé supplémentaire bg-gradient-to-t from-black/60 spécifique derrière le titre blanc pour garantir la lisibilité */}
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+
           <div className="relative z-10 flex h-full flex-col justify-end p-5 sm:p-7 md:p-8">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
               {theme}
@@ -517,7 +547,7 @@ export function TripHubDashboard({
               : "Budget à définir"}
           </span>
           {datesLocked && (trip.start_date || provisionalStart) ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:text-emerald-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-sm text-success">
               <CalendarDays className="size-3.5" />
               {"Dates validées · "}
               {trip.start_date
@@ -549,7 +579,56 @@ export function TripHubDashboard({
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Parcours du groupe
         </h2>
-        <TripHubNav tripId={tripId} steps={steps} />
+        {/* Timeline horizontale interactive alignée avec le design system */}
+        <div className="rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-surface/40 p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col md:flex-row items-center md:items-start justify-between gap-6 md:gap-2">
+            {timelineSteps.map((step, idx) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.id} className="flex-1 flex flex-col md:flex-row items-center gap-4 w-full">
+                  <div className="flex flex-col items-center text-center">
+                    <div
+                      className={cn(
+                        "flex size-11 items-center justify-center rounded-full border-2 transition-all",
+                        step.isDone && "bg-success border-success text-white shadow-[0_0_0_3px_rgba(var(--success),0.18)]",
+                        step.isActive && "bg-primary border-primary text-primary-foreground shadow-glow ring-2 ring-primary/20 scale-105",
+                        !step.isDone && !step.isActive && "bg-muted/40 border-dashed border-border text-muted-foreground opacity-70"
+                      )}
+                    >
+                      {step.isDone ? (
+                        <Check className="size-5 stroke-[2.5]" />
+                      ) : (
+                        <Icon className={cn("size-5", step.isActive && "fill-current")} />
+                      )}
+                    </div>
+                    <p className={cn(
+                      "mt-2.5 text-xs font-semibold leading-tight",
+                      step.isDone && "text-success",
+                      step.isActive && "text-primary",
+                      !step.isDone && !step.isActive && "text-muted-foreground"
+                    )}>
+                      {step.label}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground max-w-[110px]">
+                      {step.description}
+                    </p>
+                  </div>
+
+                  {idx < timelineSteps.length - 1 && (
+                    <div className="hidden md:block flex-1 h-[2px] bg-border mt-5">
+                      <div
+                        className={cn(
+                          "h-full transition-all duration-500",
+                          step.isDone ? "bg-success w-full" : "w-0"
+                        )}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       {/* Résumé des retours x/N */}
@@ -567,7 +646,7 @@ export function TripHubDashboard({
                   · {Math.max((trip.participants_count || participantsCount) - participantsCount, 0)} n&apos;ont pas rejoint
                 </span>
               ) : (
-                <span className="ml-2 text-xs text-lagoon">· tout le monde a rejoint</span>
+                <span className="ml-2 text-xs text-success">· tout le monde a rejoint</span>
               )}
             </span>
           </li>
@@ -580,7 +659,7 @@ export function TripHubDashboard({
                   · {availabilityExpected - availabilityAnswered} n&apos;ont pas répondu
                 </span>
               ) : (
-                <span className="ml-2 text-xs text-lagoon">· tout le monde a répondu</span>
+                <span className="ml-2 text-xs text-success">· tout le monde a répondu</span>
               )}
             </span>
           </li>
@@ -593,7 +672,7 @@ export function TripHubDashboard({
                   · {(progressTotal || trip.participants_count) - progressAnswered} n&apos;ont pas répondu
                 </span>
               ) : (
-                <span className="ml-2 text-xs text-lagoon">· tout le monde a répondu</span>
+                <span className="ml-2 text-xs text-success">· tout le monde a répondu</span>
               )}
             </span>
           </li>
@@ -630,7 +709,9 @@ export function TripHubDashboard({
             <h2 className="font-semibold">Propositions en cours</h2>
             <span className="text-xs text-muted-foreground">évoluent avec les réponses</span>
           </div>
-          <ul className="mt-4 space-y-2">
+
+          {/* Version Desktop : liste verticale d'origine */}
+          <ul className="hidden sm:block mt-4 space-y-2">
             {topScores.map((s, i) => (
               <li
                 key={s.name}
@@ -649,6 +730,53 @@ export function TripHubDashboard({
               </li>
             ))}
           </ul>
+
+          {/* Version Mobile : carrousel horizontal Embla */}
+          <div className="sm:hidden mt-4 w-full">
+            {topScores.length > 1 ? (
+              <Carousel opts={{ align: "start" }} className="w-full">
+                <CarouselContent className="-ml-2">
+                  {topScores.map((s, i) => (
+                    <CarouselItem key={s.name} className="pl-2 basis-[85%]">
+                      <div
+                        className={cn(
+                          "flex flex-col justify-between rounded-2xl border p-4 h-28",
+                          i === 0 ? "border-primary/30 bg-primary/5" : "border-border/70 bg-surface/30",
+                        )}
+                      >
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                          Option #{i + 1}
+                        </span>
+                        <p className="font-semibold text-foreground text-sm truncate mt-1">
+                          {i === 0 ? "🥇 " : i === 1 ? "🥈 " : i === 2 ? "🥉 " : ""}
+                          {s.name}
+                        </p>
+                        <div className="flex items-end justify-between mt-2">
+                          <span className="text-xs text-muted-foreground">Affinité</span>
+                          <span className="text-lg font-bold tabular-nums text-primary leading-none">
+                            {Math.round(s.score)} %
+                          </span>
+                        </div>
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            ) : (
+              <div
+                className={cn(
+                  "flex items-center justify-between rounded-2xl border px-4 py-3",
+                  "border-primary/30 bg-primary/5",
+                )}
+              >
+                <span className="font-medium">🥇 {topScores[0]?.name}</span>
+                <span className="text-lg font-bold tabular-nums text-primary">
+                  {Math.round(topScores[0]?.score ?? 0)} %
+                </span>
+              </div>
+            )}
+          </div>
+
           <div className="mt-4">
             <Button asChild variant="outline" size="sm">
               <Link to="/trips/$tripId" params={{ tripId }} hash="hub-destination">

@@ -14,6 +14,8 @@ import {
   Info,
   Bell,
   BellRing,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,9 @@ import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
+import { ScoreRadar } from "@/components/krew/ScoreRadar";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/recap")({
   head: () => ({
@@ -66,6 +71,20 @@ function TripRecapPage() {
   const fetchSplit = useServerFn(getCostSplit);
   const queryClient = useQueryClient();
   const [watched, setWatched] = useState<Record<string, boolean>>({});
+  const [reactions, setReactions] = useState<Record<string, "like" | "dislike" | null>>({});
+
+  const handleReaction = (recoId: string, type: "like" | "dislike") => {
+    setReactions((prev) => {
+      const current = prev[recoId];
+      const next = current === type ? null : type;
+      if (next === "like") {
+        toast.success("Destination aimée !");
+      } else if (next === "dislike") {
+        toast.warning("Destination écartée.");
+      }
+      return { ...prev, [recoId]: next };
+    });
+  };
 
   const watchMutation = useMutation({
     mutationFn: (payload: { recommendationId: string; destinationName: string }) =>
@@ -135,6 +154,10 @@ function TripRecapPage() {
         ? `À partir du ${new Date(trip.startDate).toLocaleDateString("fr-FR")} · ${nights} nuit(s)`
         : `${nights} nuit(s) · dates à confirmer`;
 
+  // Séparation des propositions : top 2 en cartes pleines, les autres en "Aussi envisagées"
+  const mainRecommendations = recommendations.slice(0, 2);
+  const otherRecommendations = recommendations.slice(2);
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
       <Link
@@ -187,144 +210,275 @@ function TripRecapPage() {
             génération depuis la fiche voyage.
           </p>
         ) : (
-          recommendations.map((reco, index) => {
-            const destName = reco.destination?.name ?? "Destination";
-            const budget = reco.budget as BudgetBreakdown | null;
-            const links = buildDeepLinksForProposal({
-              destinationCity: destName,
-              origins: departureOrigins,
-              departDate: trip.startDate,
-              returnDate: trip.endDate,
-              nights,
-              fallbackDistanceKm: reco.destination?.distanceKm,
-              groupAdults: trip.participantsCount,
-            });
+          <div className="space-y-8">
+            {mainRecommendations.map((reco, index) => {
+              const destName = reco.destination?.name ?? "Destination";
+              const budget = reco.budget as BudgetBreakdown | null;
 
-            return (
-              <article
-                key={reco.id}
-                className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm"
-              >
-                <div className="border-b border-border bg-surface/40 px-5 py-4 sm:px-6">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+              // Extraction des données de consensus
+              const budgetData = reco.budget as any;
+              const satisfiedCount = budgetData?.satisfiedCount ?? 0;
+              const participantsEvaluated = budgetData?.participantsEvaluated ?? trip.participantsCount ?? 1;
+              const consensusRatio = participantsEvaluated > 0 ? (satisfiedCount / participantsEvaluated) * 100 : 0;
+
+              const links = buildDeepLinksForProposal({
+                destinationCity: destName,
+                origins: departureOrigins,
+                departDate: trip.startDate,
+                returnDate: trip.endDate,
+                nights,
+                fallbackDistanceKm: reco.destination?.distanceKm ?? null,
+                groupAdults: trip.participantsCount,
+              });
+
+              return (
+                <article
+                  key={reco.id}
+                  className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm"
+                >
+                  <div className="border-b border-border bg-surface/40 px-5 py-4 sm:px-6">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-4 flex-1 min-w-[280px]">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="muted">#{index + 1}</Badge>
+                          </div>
+
+                          {/* Boutons Like/Dislike de réaction */}
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "size-8 rounded-full border border-border/40",
+                                reactions[reco.id] === "like"
+                                  ? "bg-success/20 text-success border-success/30 hover:bg-success/30"
+                                  : "text-muted-foreground hover:bg-muted"
+                              )}
+                              onClick={() => handleReaction(reco.id, "like")}
+                              title="J'aime"
+                            >
+                              <ThumbsUp className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "size-8 rounded-full border border-border/40",
+                                reactions[reco.id] === "dislike"
+                                  ? "bg-destructive/20 text-destructive border-destructive/30 hover:bg-destructive/30"
+                                  : "text-muted-foreground hover:bg-muted"
+                              )}
+                              onClick={() => handleReaction(reco.id, "dislike")}
+                              title="Je n'aime pas"
+                            >
+                              <ThumbsDown className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Remplacement du badge plat par ScoreRadar */}
+                        <div className="py-1">
+                          <ScoreRadar score={reco.score} subScores={reco.budget?.subScores} budget={reco.budget} />
+                        </div>
+
+                        <div>
+                          <h3 className="mt-2 font-display text-xl font-semibold">
+                            {destName}
+                            {reco.destination?.country ? (
+                              <span className="text-base font-normal text-muted-foreground">
+                                {" "}
+                                · {reco.destination.country}
+                              </span>
+                            ) : null}
+                          </h3>
+                          <p className="mt-1 text-sm text-muted-foreground">{dateLabel}</p>
+
+                          {/* Barre de consensus groupe */}
+                          <div className="mt-3 max-w-xs space-y-1">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>
+                                {satisfiedCount}/{participantsEvaluated} du groupe convaincu
+                              </span>
+                              <span className="font-semibold tabular-nums">{Math.round(consensusRatio)}%</span>
+                            </div>
+                            <Progress
+                              value={consensusRatio}
+                              indicatorClassName={consensusRatio >= 70 ? "bg-success" : "bg-sun"}
+                              className="h-1.5"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      {budget ? (
+                        <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-right">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            Budget estimé
+                          </p>
+                          <p className="font-display text-lg font-semibold">
+                            <Wallet className="mr-1 inline size-4" />
+                            {formatEuro(budget.totalPerPerson)} / pers.
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            soit {formatEuro(budget.totalGroup)} pour le groupe
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Transport moy. {formatEuro(budget.transport)}
+                            {typeof budget.transportGroup === "number"
+                              ? ` · groupe ${formatEuro(budget.transportGroup)}`
+                              : ""}
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="space-y-5 px-5 py-5 sm:px-6">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="muted">#{index + 1}</Badge>
-                        <Badge variant="lagoon">Score {Math.round(reco.score)}</Badge>
-                      </div>
-                      <h3 className="mt-2 font-display text-xl font-semibold">
-                        {destName}
-                        {reco.destination?.country ? (
-                          <span className="text-base font-normal text-muted-foreground">
-                            {" "}
-                            · {reco.destination.country}
-                          </span>
-                        ) : null}
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{dateLabel}</p>
-                    </div>
-                    {budget ? (
-                      <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-right">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                          Budget estimé
-                        </p>
-                        <p className="font-display text-lg font-semibold">
-                          <Wallet className="mr-1 inline size-4" />
-                          {formatEuro(budget.totalPerPerson)} / pers.
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          soit {formatEuro(budget.totalGroup)} pour le groupe
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Transport moy. {formatEuro(budget.transport)}
-                          {typeof budget.transportGroup === "number"
-                            ? ` · groupe ${formatEuro(budget.transportGroup)}`
-                            : ""}
-                        </p>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="space-y-5 px-5 py-5 sm:px-6">
-                  <div>
-                    <h4 className="text-sm font-semibold">Vérifier les prix en temps réel</h4>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Un bloc par ville de départ — les tarifs vols/trains dépendent de l&apos;origine.
-                    </p>
-                  </div>
-
-                  {links.origins.map((origin) => (
-                    <div
-                      key={origin.originCity}
-                      className="rounded-2xl border border-border/80 bg-surface/30 p-4"
-                    >
-                      <p className="text-sm font-medium">
-                        Depuis {origin.originCity}{" "}
-                        <span className="text-muted-foreground">
-                          ({origin.adults} pers.)
-                          {origin.distanceKm < 9000
-                            ? ` · ~${origin.distanceKm} km`
-                            : ""}
-                        </span>
+                      <h4 className="text-sm font-semibold">Vérifier les prix en temps réel</h4>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Un bloc par ville de départ — les tarifs vols/trains dépendent de l&apos;origine.
                       </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <ExternalLinkButton href={origin.googleFlights} variant="hero">
-                          <Plane className="size-3.5" /> Google Flights
-                        </ExternalLinkButton>
-                        <ExternalLinkButton href={origin.kayak}>
-                          <Plane className="size-3.5" /> Kayak
-                        </ExternalLinkButton>
-                        {origin.showTrain && origin.omio ? (
-                          <ExternalLinkButton href={origin.omio}>
-                            <Train className="size-3.5" /> Omio
-                          </ExternalLinkButton>
-                        ) : null}
-                        {origin.showTrain && origin.trainline ? (
-                          <ExternalLinkButton href={origin.trainline}>
-                            <Train className="size-3.5" /> Trainline
-                          </ExternalLinkButton>
-                        ) : null}
-                        {origin.showTrain && origin.sncf ? (
-                          <ExternalLinkButton href={origin.sncf}>
-                            <Train className="size-3.5" /> SNCF Connect
-                          </ExternalLinkButton>
-                        ) : null}
-                      </div>
                     </div>
-                  ))}
 
-                  <Separator />
+                    {links.origins.map((origin) => (
+                      <div
+                        key={origin.originCity}
+                        className="rounded-2xl border border-border/80 bg-surface/30 p-4"
+                      >
+                        <p className="text-sm font-medium">
+                          Depuis {origin.originCity}{" "}
+                          <span className="text-muted-foreground">
+                            ({origin.adults} pers.)
+                            {origin.distanceKm < 9000
+                              ? ` · ~${origin.distanceKm} km`
+                              : ""}
+                          </span>
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <ExternalLinkButton href={origin.googleFlights} variant="hero">
+                            <Plane className="size-3.5" /> Google Flights
+                          </ExternalLinkButton>
+                          <ExternalLinkButton href={origin.kayak}>
+                            <Plane className="size-3.5" /> Kayak
+                          </ExternalLinkButton>
+                          {origin.showTrain && origin.omio ? (
+                            <ExternalLinkButton href={origin.omio}>
+                              <Train className="size-3.5" /> Omio
+                            </ExternalLinkButton>
+                          ) : null}
+                          {origin.showTrain && origin.trainline ? (
+                            <ExternalLinkButton href={origin.trainline}>
+                              <Train className="size-3.5" /> Trainline
+                            </ExternalLinkButton>
+                          ) : null}
+                          {origin.showTrain && origin.sncf ? (
+                            <ExternalLinkButton href={origin.sncf}>
+                              <Train className="size-3.5" /> SNCF Connect
+                            </ExternalLinkButton>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">Hébergement (groupe) :</span>
-                    <ExternalLinkButton href={links.bookingGroup} variant="glass">
-                      <Hotel className="size-3.5" /> Booking.com — {destName}
-                    </ExternalLinkButton>
-                    <Button
-                      type="button"
-                      variant={watched[reco.id] ? "lagoon" : "outline"}
-                      size="sm"
-                      disabled={watchMutation.isPending}
-                      onClick={() =>
-                        watchMutation.mutate({
-                          recommendationId: reco.id,
-                          destinationName: destName,
-                        })
-                      }
-                    >
-                      {watched[reco.id] ? (
-                        <BellRing className="size-3.5" />
-                      ) : (
-                        <Bell className="size-3.5" />
-                      )}
-                      {watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
-                    </Button>
+                    <Separator />
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">Hébergement (groupe) :</span>
+                      <ExternalLinkButton href={links.bookingGroup} variant="glass">
+                        <Hotel className="size-3.5" /> Booking.com — {destName}
+                      </ExternalLinkButton>
+                      <Button
+                        type="button"
+                        variant={watched[reco.id] ? "lagoon" : "outline"}
+                        size="sm"
+                        disabled={watchMutation.isPending}
+                        onClick={() =>
+                          watchMutation.mutate({
+                            recommendationId: reco.id,
+                            destinationName: destName,
+                          })
+                        }
+                      >
+                        {watched[reco.id] ? (
+                          <BellRing className="size-3.5" />
+                        ) : (
+                          <Bell className="size-3.5" />
+                        )}
+                        {watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
+                      </Button>
+                    </div>
                   </div>
+                </article>
+              );
+            })}
+
+            {/* Section Aussi envisagées */}
+            {otherRecommendations.length > 0 && (
+              <div className="mt-10 rounded-3xl border border-dashed border-border p-6 space-y-4">
+                <h3 className="font-display text-lg font-semibold text-muted-foreground">Aussi envisagées</h3>
+                <div className="divide-y divide-border/50">
+                  {otherRecommendations.map((reco, idx) => {
+                    const destName = reco.destination?.name ?? "Destination";
+                    const budget = reco.budget as BudgetBreakdown | null;
+                    return (
+                      <div
+                        key={reco.id}
+                        className="flex flex-wrap items-center justify-between gap-4 py-4 first:pt-0 last:pb-0 text-sm text-muted-foreground"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Badge variant="muted">#{idx + 3}</Badge>
+                          <div>
+                            <p className="font-semibold text-foreground">
+                              {destName}
+                              {reco.destination?.country ? (
+                                <span className="font-normal text-muted-foreground"> · {reco.destination.country}</span>
+                              ) : null}
+                            </p>
+                            <p className="text-xs">Score final : {Math.round(reco.score)}%</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          {budget && (
+                            <p className="text-xs font-medium text-foreground">
+                              ~{formatEuro(budget.totalPerPerson)} / pers.
+                            </p>
+                          )}
+
+                          {/* Boutons Like/Dislike discrets */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "size-8 rounded-full",
+                                reactions[reco.id] === "like" ? "text-success bg-success/15" : "hover:bg-muted"
+                              )}
+                              onClick={() => handleReaction(reco.id, "like")}
+                            >
+                              <ThumbsUp className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "size-8 rounded-full",
+                                reactions[reco.id] === "dislike" ? "text-destructive bg-destructive/15" : "hover:bg-muted"
+                              )}
+                              onClick={() => handleReaction(reco.id, "dislike")}
+                            >
+                              <ThumbsDown className="size-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </article>
-            );
-          })
+              </div>
+            )}
+          </div>
         )}
       </section>
 
