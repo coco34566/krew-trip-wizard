@@ -9,6 +9,13 @@ import { buildProposals, type Proposal, type ScoringContext } from "./engine";
 import { loadTravelCatalog } from "./providers.server";
 import { discoverCandidateDestinations, listCityProfilesForNames } from "./destination-discovery.server";
 import { discoverDestinationsWithAi } from "./destination-ai.server";
+import {
+  aiCandidateToDestinationRow,
+  mergeCandidates,
+  normCity,
+  type MergedCandidate,
+} from "./candidate-merge";
+import { fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
 
 export const tripInputSchema = z.object({
   name: z.string().min(2).max(120),
@@ -818,10 +825,11 @@ export async function generateRecommendationsForTrip(
     minAccommodationRating: aggregated.minAccommodationRating ?? undefined,
   };
 
-  // 1) Shortlist : IA (peu de tokens) si clé dispo, sinon scoring local (pas de fallback 3 villes fixes)
+  // 1) Shortlist : fusion IA + règles locales (les deux sources sont toujours appelées)
   let shortlistNames: string[];
   let discoveryMeta: { name: string; affinity: number; reason: string }[] = [];
-  let discoverySource: "forced" | "ai" | "local" = "local";
+  let discoverySource: "forced" | "ai" | "local" | "merged" = "local";
+  let mergedCandidates: MergedCandidate[] = [];
   if (resolvedDestination) {
     shortlistNames = [resolvedDestination];
     discoveryMeta = [{ name: resolvedDestination, affinity: 100, reason: "destination demandée" }];
@@ -849,34 +857,37 @@ export async function generateRecommendationsForTrip(
       starDealBreakers: aggregated.starDealBreakers ?? [],
     };
 
-    // IA d'abord (1 appel JSON compact + cache 6h)
-    const ai = await discoverDestinationsWithAi(discoveryInput);
-    if (ai.usedLlm && ai.cities.length) {
-      discoverySource = "ai";
-      discoveryMeta = ai.cities.map((c) => ({
-        name: c.name,
-        affinity: c.affinity,
-        reason: c.reason + (ai.cached ? " · cache" : " · IA"),
-      }));
-      shortlistNames = ai.cities.map((c) => c.name);
-    } else {
-      // Fallback local scoré (profils) — uniquement si pas d'IA
-      const candidates = discoverCandidateDestinations(discoveryInput, 10);
-      discoveryMeta = candidates.map((c) => ({
-        name: c.name,
-        affinity: c.affinity,
-        reason: c.reason,
-      }));
-      shortlistNames = candidates.map((c) => c.name);
-      if (ai.error) {
-        // non bloquant — visible côté logs / providerErrors
-        console.warn("[discovery] AI unavailable:", ai.error);
-      }
+    // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
+    const [ai, ruleBased] = await Promise.all([
+      discoverDestinationsWithAi(discoveryInput),
+      Promise.resolve(discoverCandidateDestinations(discoveryInput, 10)),
+    ]);
+    if (ai.error) {
+      // non bloquant — visible côté logs / providerErrors
+      console.warn("[discovery] AI unavailable:", ai.error);
     }
+    const aiCities = (ai.cities ?? []).map((c) => ({
+      name: c.name,
+      country: c.country,
+      affinity: c.affinity,
+      reason: c.reason + (ai.cached ? " · cache" : " · IA"),
+      dailyCost: c.dailyCost,
+      distanceKm: c.distanceKm,
+      bestMonths: c.bestMonths,
+    }));
+    mergedCandidates = mergeCandidates(ruleBased, aiCities).slice(0, 12);
+    discoverySource = aiCities.length ? "merged" : "local";
+    discoveryMeta = mergedCandidates.map((c) => ({
+      name: c.name,
+      affinity: c.affinity,
+      reason: c.source === "ai_estimate" ? `${c.reason} · nouvelle destination` : c.reason,
+    }));
+    shortlistNames = mergedCandidates.map((c) => c.name);
   }
 
   // 1b) Matérialise les destinations scorées en catalogue (sinon l'enrichissement / scoring n'a rien à scorer)
   const profiles = listCityProfilesForNames(shortlistNames);
+  const profileKeys = new Set(profiles.map((p) => normCity(p.name)));
   for (const p of profiles) {
     try {
       await supabase.from("destinations").upsert(
@@ -922,10 +933,52 @@ export async function generateRecommendationsForTrip(
     }
   }
 
+  // 1c) Villes proposées par l'IA absentes du catalogue → ligne `ai_estimate`
+  //     (estimations LLM + saison réelle via Open-Meteo quand disponible).
+  const aiOnly = mergedCandidates.filter(
+    (c) => c.source === "ai_estimate" && !profileKeys.has(normCity(c.name)),
+  );
+  for (const candidate of aiOnly) {
+    try {
+      const known = await supabase
+        .from("destinations")
+        .select("id, best_months")
+        .ilike("name", candidate.name)
+        .maybeSingle();
+      if (known.data?.id) continue;
+
+      // Saison réelle : géocodage + normales climatiques, fallback estimation LLM
+      let bestMonths: number[] | undefined = candidate.bestMonths;
+      let latitude: number | null = null;
+      let longitude: number | null = null;
+      try {
+        const place = await geocodeDestination(
+          candidate.country ? `${candidate.name}, ${candidate.country}` : candidate.name,
+        );
+        if (place) {
+          latitude = place.latitude;
+          longitude = place.longitude;
+          const climate = await fetchClimate(place.latitude, place.longitude);
+          if (climate.bestMonths.length) bestMonths = climate.bestMonths;
+        }
+      } catch {
+        /* météo indisponible → on garde l'estimation LLM */
+      }
+
+      const row = aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
+      await supabase.from("destinations").upsert(
+        { ...row, latitude, longitude } as any,
+        { onConflict: "external_id" },
+      );
+    } catch (e) {
+      console.warn("[discovery] upsert ai_estimate échoué:", candidate.name, e);
+    }
+  }
+
   // 2) Enrichissement API (hôtels / activités réels) UNIQUEMENT sur la shortlist scorée
-  if (discoverySource === "ai") {
+  if (discoverySource === "merged") {
     // trace légère pour debug orga
-    console.info("[discovery] shortlist IA:", shortlistNames.join(", "));
+    console.info("[discovery] shortlist fusionnée (IA + règles):", shortlistNames.join(", "));
   } else if (discoverySource === "local") {
     console.info("[discovery] shortlist locale scorée:", shortlistNames.join(", "));
   }

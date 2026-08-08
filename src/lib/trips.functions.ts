@@ -431,6 +431,26 @@ export const selectRecommendation = createServerFn({ method: "POST" })
 
     await supabase.from("trips").update({ status: "valide" }).eq("id", data.tripId);
 
+    // Auto-apprentissage : une destination estimée par l'IA et réellement
+    // choisie par un groupe entre définitivement au catalogue.
+    try {
+      const chosen = await supabase
+        .from("recommendations")
+        .select("destination_id")
+        .eq("id", data.recommendationId)
+        .maybeSingle();
+      const chosenDestId = (chosen.data as any)?.destination_id as string | undefined;
+      if (chosenDestId) {
+        await supabase
+          .from("destinations")
+          .update({ source: "krew_catalog" })
+          .eq("id", chosenDestId)
+          .eq("source", "ai_estimate");
+      }
+    } catch {
+      /* non bloquant */
+    }
+
     // Marque le feedback de scoring pour apprentissage
     try {
       const full = await supabase
