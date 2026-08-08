@@ -32,14 +32,23 @@ export type AiCandidate = {
   country?: string;
   affinity: number;
   reason: string;
+  /** Coût journalier moyen €/pers estimé par le LLM (villes hors catalogue). */
+  dailyCost?: number | undefined;
+  /** Distance approximative km depuis la ville de départ. */
+  distanceKm?: number | undefined;
+  /** 2-3 mois idéaux (1-12) estimés par le LLM. */
+  bestMonths?: number[] | undefined;
 };
 
 const SYSTEM = `Tu proposes des destinations week-end/groupe depuis l'Europe (surtout depuis la France).
 Réponds UNIQUEMENT en JSON valide:
-{"cities":[{"name":"Ville","country":"Pays","why":"motif court"}]}
+{"cities":[{"name":"Ville","country":"Pays","why":"motif court","cost":70,"km":1200,"months":[5,6,9]}]}
 Règles:
 - 6 à 8 villes max, réalistes pour le budget et la distance
+- Parmi elles, 2 à 3 OBLIGATOIREMENT hors des sentiers battus (villes moins évidentes pour ce type d'événement), qui respectent quand même budget, distance et ambiance
+- N'hésite pas à sortir des grandes capitales classiques
 - Pas d'invention de prix exacts
+- cost = coût journalier moyen €/pers hors transport (estimation), km = distance approximative depuis la ville de départ, months = 2-3 mois idéaux (chiffres 1-12)
 - Respecte refus avion / distance si indiqués
 - Diversifie (pas 3 villes du même pays)
 - why ≤ 8 mots`;
@@ -146,16 +155,33 @@ function parseCities(raw: string): AiCandidate[] {
   if (start < 0 || end <= start) return [];
   try {
     const data = JSON.parse(raw.slice(start, end + 1)) as {
-      cities?: { name?: string; country?: string; why?: string }[];
+      cities?: {
+        name?: string;
+        country?: string;
+        why?: string;
+        cost?: number;
+        km?: number;
+        months?: number[];
+      }[];
     };
     const list = Array.isArray(data.cities) ? data.cities : [];
     return list
-      .map((c, i) => ({
-        name: String(c.name || "").trim(),
-        country: c.country ? String(c.country).trim() : undefined,
-        affinity: Math.max(10, 100 - i * 8),
-        reason: String(c.why || "suggéré par Krew IA").slice(0, 80),
-      }))
+      .map((c, i) => {
+        const cost = Number(c.cost);
+        const km = Number(c.km);
+        const months = Array.isArray(c.months)
+          ? c.months.map((m) => Number(m)).filter((m) => Number.isInteger(m) && m >= 1 && m <= 12)
+          : [];
+        return {
+          name: String(c.name || "").trim(),
+          country: c.country ? String(c.country).trim() : undefined,
+          affinity: Math.max(10, 100 - i * 8),
+          reason: String(c.why || "suggéré par Krew IA").slice(0, 80),
+          dailyCost: Number.isFinite(cost) && cost > 0 ? cost : undefined,
+          distanceKm: Number.isFinite(km) && km > 0 ? km : undefined,
+          bestMonths: months.length ? months : undefined,
+        };
+      })
       .filter((c) => c.name.length >= 2)
       .slice(0, 8);
   } catch {
@@ -196,7 +222,7 @@ export async function discoverDestinationsWithAi(
       body: JSON.stringify({
         model: cfg.model,
         temperature: 0.4,
-        max_tokens: 280,
+        max_tokens: 520,
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: user },
