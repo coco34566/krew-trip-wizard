@@ -789,7 +789,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
 /**
  * MMR léger : diversifie le top N (pays, ambiance dominante, budget ±10%).
  */
-function selectDiverseTop(sorted: Proposal[], limit: number): Proposal[] {
+export function selectDiverseTop(sorted: Proposal[], limit: number): Proposal[] {
   if (sorted.length <= limit) return sorted;
   const selected: Proposal[] = [];
   const remaining = [...sorted];

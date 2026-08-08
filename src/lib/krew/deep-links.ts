@@ -166,7 +166,24 @@ export type OriginDeepLinks = {
   trainline: string | null;
   sncf: string | null;
   booking: string;
+  getYourGuide: string;
 };
+
+/**
+ * Fonction utilitaire centralisée pour ajouter des paramètres d'affiliation aux URLs.
+ */
+export function appendAffiliateParam(url: string, paramName: string, envVar: string): string {
+  const value = process.env[envVar];
+  if (!value || value.trim() === "") return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set(paramName, value);
+    return u.toString();
+  } catch {
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}${paramName}=${encodeURIComponent(value)}`;
+  }
+}
 
 export function buildOriginDeepLinks(ctx: DeepLinkContext): OriginDeepLinks {
   const depart = ymd(ctx.departDate, 21);
@@ -190,24 +207,28 @@ export function buildOriginDeepLinks(ctx: DeepLinkContext): OriginDeepLinks {
     encodeURIComponent(`Vols de ${originLabel} à ${destLabel} le ${depart} retour ${ret}`);
 
   // Kayak FR : codes IATA ou ville
-  const kayak =
+  let kayak =
     `https://www.kayak.fr/flights/${encodeURIComponent(originCode)}-${encodeURIComponent(destCode)}/${depart}/${ret}?adults=${adults}`;
+  kayak = appendAffiliateParam(kayak, "a", "KAYAK_AFFILIATE_ID");
 
-  const booking =
+  let booking =
     `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(destLabel)}` +
     `&checkin=${depart}&checkout=${ret}&group_adults=${adults}&no_rooms=1&lang=fr`;
+  booking = appendAffiliateParam(booking, "aid", "BOOKING_AFFILIATE_ID");
 
   let omio: string | null = null;
   let trainline: string | null = null;
   let sncf: string | null = null;
 
   if (showTrain) {
-    omio =
+    let omioUrl =
       `https://www.omio.fr/search?` +
       `departurePosition=${encodeURIComponent(originLabel)}` +
       `&arrivalPosition=${encodeURIComponent(destLabel)}` +
       `&departureDate=${depart}&returnDate=${ret}` +
       `&adults=${adults}`;
+    omio = appendAffiliateParam(omioUrl, "partner_id", "OMIO_AFFILIATE_ID");
+
     trainline =
       `https://www.thetrainline.com/search/` +
       `${encodeURIComponent(originLabel)}/` +
@@ -222,6 +243,9 @@ export function buildOriginDeepLinks(ctx: DeepLinkContext): OriginDeepLinks {
       `&passengers=${adults}`;
   }
 
+  let getYourGuide = `https://www.getyourguide.fr/s/?q=${encodeURIComponent(destLabel)}`;
+  getYourGuide = appendAffiliateParam(getYourGuide, "partner_id", "GYG_AFFILIATE_ID");
+
   return {
     originCity: originLabel,
     adults,
@@ -233,6 +257,7 @@ export function buildOriginDeepLinks(ctx: DeepLinkContext): OriginDeepLinks {
     trainline,
     sncf,
     booking,
+    getYourGuide,
   };
 }
 
@@ -266,9 +291,10 @@ export function buildDeepLinksForProposal(params: {
       ? params.returnDate.slice(0, 10)
       : addDays(depart, nights);
   const groupAdults = Math.max(1, params.groupAdults ?? origins.reduce((s, o) => s + o.adults, 0));
-  const bookingGroup =
+  let bookingGroup =
     `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(params.destinationCity)}` +
     `&checkin=${depart}&checkout=${ret}&group_adults=${Math.min(groupAdults, 30)}&no_rooms=${Math.max(1, Math.ceil(groupAdults / 3))}&lang=fr`;
+  bookingGroup = appendAffiliateParam(bookingGroup, "aid", "BOOKING_AFFILIATE_ID");
 
   return { origins, bookingGroup };
 }

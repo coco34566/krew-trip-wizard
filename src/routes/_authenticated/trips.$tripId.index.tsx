@@ -162,6 +162,18 @@ function TripDetail() {
   const chooseDatesFn = useServerFn(chooseTripDates);
   const unlockDatesFn = useServerFn(unlockTripDates);
 
+  const handleMutationError = (error: any, fallbackMessage: string) => {
+    const errMsg = String(error?.message || "");
+    if (errMsg.includes("RATE_LIMITED:")) {
+      const cleanMsg = errMsg.split("RATE_LIMITED:")[1]?.trim();
+      if (cleanMsg) {
+        toast.error(cleanMsg);
+        return;
+      }
+    }
+    toast.error(String(error?.message ?? fallbackMessage).slice(0, 160));
+  };
+
   const { data: availData } = useQuery({
     queryKey: ["trip-availability", tripId],
     queryFn: () => fetchAvail({ data: { tripId } }),
@@ -246,8 +258,7 @@ function TripDetail() {
         document.getElementById("hub-activities-plan")?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    onError: (e: any) =>
-      toast.error(String(e?.message ?? "Génération planning impossible").slice(0, 160)),
+    onError: (e: any) => handleMutationError(e, "Génération planning impossible"),
   });
   const slotMutation = useMutation({
     mutationFn: (payload: { day: number; slotIndex: number }) =>
@@ -270,8 +281,7 @@ function TripDetail() {
       toast.success(`Logistique : ${nH} hôtels · ${nT} trajets`);
       document.getElementById("hub-logistics")?.scrollIntoView({ behavior: "smooth" });
     },
-    onError: (e: any) =>
-      toast.error(String(e?.message ?? "Recherche logistique impossible").slice(0, 160)),
+    onError: (e: any) => handleMutationError(e, "Recherche logistique impossible"),
   });
 
   const voteHotelFn = useServerFn(voteHotel);
@@ -372,8 +382,7 @@ function TripDetail() {
       }
       refresh();
     },
-    onError: (e: any) =>
-      toast.error(String(e?.message ?? "Erreur lors de la génération").slice(0, 160)),
+    onError: (e: any) => handleMutationError(e, "Erreur lors de la génération"),
   });
 
   const searchExternalMutation = useMutation({

@@ -4,6 +4,8 @@
  * Fallback: estimateTransport(distanceKm) si l'API échoue.
  */
 
+import { reportServerError } from "@/lib/server-error-reporting.server";
+
 export type TransportQuote = {
   pricePerPerson: number;
   currency: string;
@@ -111,6 +113,7 @@ export async function searchTransportRoundTrip(opts: {
     };
   }
 
+  let kayakError: any = null;
   // 1) Kayak
   try {
     const searchPath = process.env["KAYAK_FLIGHTS_SEARCH_PATH"] ?? "/flights/search";
@@ -135,10 +138,12 @@ export async function searchTransportRoundTrip(opts: {
         rawError: null,
       };
     }
-  } catch {
+  } catch (err) {
+    kayakError = err;
     /* try Kiwi */
   }
 
+  let kiwiError: any = null;
   // 2) Kiwi fallback
   try {
     const ddmmyyyy = (iso: string) => iso.split("-").reverse().join("/");
@@ -198,9 +203,18 @@ export async function searchTransportRoundTrip(opts: {
         rawError: null,
       };
     }
-  } catch {
+  } catch (err) {
+    kiwiError = err;
     /* estimate */
   }
+
+  // Si on arrive ici, toutes les tentatives ont échoué
+  reportServerError(new Error(`Toutes les cotations de transport ont échoué. Kayak error: ${kayakError?.message || kayakError}. Kiwi error: ${kiwiError?.message || kiwiError}`), {
+    provider: "kayak/kiwi",
+    kind: "transport",
+    originCity: opts.originCity,
+    destinationCity: opts.destinationCity,
+  });
 
   return {
     pricePerPerson: fallbackPrice,

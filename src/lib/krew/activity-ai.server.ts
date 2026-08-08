@@ -5,6 +5,8 @@
  * Chaque slot peut porter une URL (site, Google Maps, réservation)
  */
 
+import { reportServerError } from "@/lib/server-error-reporting.server";
+
 export type ActivitySlotType = "resto" | "activite" | "bar" | "transport" | "libre";
 
 export type ActivitySlot = {
@@ -397,6 +399,11 @@ export async function generateItineraryWithAi(
     const parsed = extractJson(raw);
     const days = parseDaysFromLlm(parsed, input);
     if (!days) {
+      reportServerError(new Error("LLM returned empty or unparseable itinerary JSON"), {
+        provider: "openai/llm",
+        kind: "itinerary",
+        destination: input.destination,
+      });
       return {
         itinerary: buildLocalItinerary(input, mergedSeeds),
         usedLlm: false,
@@ -414,6 +421,11 @@ export async function generateItineraryWithAi(
       usedLlm: true,
     };
   } catch (e) {
+    reportServerError(e, {
+      provider: "openai/llm",
+      kind: "itinerary",
+      destination: input.destination,
+    });
     return {
       itinerary: buildLocalItinerary(input, mergedSeeds),
       usedLlm: false,
@@ -446,10 +458,22 @@ export async function regenerateSlotWithAi(
     const raw = await chatJson(cfg, SYSTEM_SLOT, user, 280);
     const parsed = extractJson(raw) as any;
     const slot = normalizeSlot(parsed, input.destination);
-    if (!slot) return { slot: fallback, usedLlm: false, error: "llm_empty_parse" };
+    if (!slot) {
+      reportServerError(new Error("LLM returned empty or unparseable itinerary slot JSON"), {
+        provider: "openai/llm",
+        kind: "itinerary-slot",
+        destination: input.destination,
+      });
+      return { slot: fallback, usedLlm: false, error: "llm_empty_parse" };
+    }
     if (!slot.moment) slot.moment = existing.moment;
     return { slot, usedLlm: true };
   } catch (e) {
+    reportServerError(e, {
+      provider: "openai/llm",
+      kind: "itinerary-slot",
+      destination: input.destination,
+    });
     return { slot: fallback, usedLlm: false, error: String(e).slice(0, 160) };
   }
 }

@@ -10,6 +10,8 @@
  * Anti-tokens : JSON compact, max_tokens 280, cache 6h.
  */
 
+import { reportServerError } from "@/lib/server-error-reporting.server";
+
 export type AiDiscoveryInput = {
   eventType?: string | null;
   ambiances: string[];
@@ -231,6 +233,11 @@ export async function discoverDestinationsWithAi(
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
+      reportServerError(new Error(`LLM HTTP ${res.status}: ${errText.slice(0, 120)}`), {
+        provider: cfg.provider,
+        kind: "destination-ai",
+        departureCity: input.departureCity,
+      });
       return {
         cities: [],
         usedLlm: false,
@@ -244,6 +251,11 @@ export async function discoverDestinationsWithAi(
     const content = json.choices?.[0]?.message?.content ?? "";
     const cities = parseCities(content);
     if (!cities.length) {
+      reportServerError(new Error("LLM returned empty or unparseable destination shortlist JSON"), {
+        provider: cfg.provider,
+        kind: "destination-ai",
+        departureCity: input.departureCity,
+      });
       return {
         cities: [],
         usedLlm: false,
@@ -254,6 +266,11 @@ export async function discoverDestinationsWithAi(
     cache.set(fp, { at: Date.now(), cities });
     return { cities, usedLlm: true, provider: cfg.provider };
   } catch (e) {
+    reportServerError(e, {
+      provider: cfg.provider,
+      kind: "destination-ai",
+      departureCity: input.departureCity,
+    });
     return {
       cities: [],
       usedLlm: false,

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateRecommendationsForTrip, tripInputSchema } from "@/lib/krew/trip-service";
+import { assertNotRateLimited } from "@/lib/krew/rate-limit.server";
 
 
 /** Libellé de stade aligné sur le parcours hub (pas le status enum brut). */
@@ -314,7 +315,32 @@ export const generateRecommendations = createServerFn({ method: "POST" })
     z.object({ tripId: z.string().uuid(), force: z.boolean().optional() }).parse(data),
   )
   .handler(async ({ data, context }) => {
-    return generateRecommendationsForTrip(context.supabase, data.tripId, {
+    const { supabase, userId } = context;
+
+    // Check user-level rate limit first (across all trips)
+    const userWindow = Number(process.env["RATE_LIMIT_USER_RECOMMENDATIONS_WINDOW_SEC"]) || 300;
+    const userMax = Number(process.env["RATE_LIMIT_USER_RECOMMENDATIONS_MAX"]) || 3;
+    await assertNotRateLimited(supabase, {
+      tripId: data.tripId,
+      userId,
+      kind: "recommendations",
+      windowSeconds: userWindow,
+      maxCalls: userMax,
+      isUserCheck: true,
+    });
+
+    // Check trip-level rate limit (inserts rate limit entry if allowed)
+    const tripWindow = Number(process.env["RATE_LIMIT_RECOMMENDATIONS_WINDOW_SEC"]) || 300;
+    const tripMax = Number(process.env["RATE_LIMIT_RECOMMENDATIONS_MAX"]) || 1;
+    await assertNotRateLimited(supabase, {
+      tripId: data.tripId,
+      userId,
+      kind: "recommendations",
+      windowSeconds: tripWindow,
+      maxCalls: tripMax,
+    });
+
+    return generateRecommendationsForTrip(supabase, data.tripId, {
       // `force` n'est accepté qu'en usage test explicite (ALLOW_FORCE_GENERATION),
       // jamais comme comportement par défaut en production.
       force: data.force === true && process.env["ALLOW_FORCE_GENERATION"] === "true",
@@ -1051,6 +1077,18 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    // Check trip-level rate limit for itinerary generation
+    const tripWindow = Number(process.env["RATE_LIMIT_ITINERARY_WINDOW_SEC"]) || 300;
+    const tripMax = Number(process.env["RATE_LIMIT_ITINERARY_MAX"]) || 1;
+    await assertNotRateLimited(supabase, {
+      tripId: data.tripId,
+      userId,
+      kind: "itinerary",
+      windowSeconds: tripWindow,
+      maxCalls: tripMax,
+    });
+
     const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
@@ -1264,7 +1302,19 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     z.object({ tripId: z.string().uuid(), refreshExternal: z.boolean().optional() }).parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+
+    // Check trip-level rate limit for logistics generation
+    const tripWindow = Number(process.env["RATE_LIMIT_LOGISTICS_WINDOW_SEC"]) || 120;
+    const tripMax = Number(process.env["RATE_LIMIT_LOGISTICS_MAX"]) || 1;
+    await assertNotRateLimited(supabase, {
+      tripId: data.tripId,
+      userId,
+      kind: "logistics",
+      windowSeconds: tripWindow,
+      maxCalls: tripMax,
+    });
+
     const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");

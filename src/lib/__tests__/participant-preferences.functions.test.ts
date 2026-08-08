@@ -7,10 +7,12 @@ describe('attachParticipantToTrip', () => {
     const userId = 'user-1';
     const userEmail = 'match@example.com';
 
-    // Mock behavior: from('trip_participants').update(...).match(...) => select() returns one updated row
+    // Mock behavior: from('trip_participants').update(...).eq(...).ilike(...).is(...).select() returns one updated row
     const selectMock = vi.fn().mockResolvedValue({ data: [{ id: 3, trip_id: tripId, email: userEmail, user_id: userId }], error: null });
-    const matchMock = vi.fn(() => ({ select: selectMock }));
-    const updateMock = vi.fn(() => ({ match: matchMock }));
+    const isMock = vi.fn(() => ({ select: selectMock }));
+    const ilikeMock = vi.fn(() => ({ is: isMock }));
+    const eqMock = vi.fn(() => ({ ilike: ilikeMock }));
+    const updateMock = vi.fn(() => ({ eq: eqMock }));
     const fromMock = vi.fn(() => ({ update: updateMock }));
     const supabase = { from: fromMock } as any;
 
@@ -18,7 +20,9 @@ describe('attachParticipantToTrip', () => {
 
     expect(fromMock).toHaveBeenCalledWith('trip_participants');
     expect(updateMock).toHaveBeenCalledWith({ user_id: userId, status: 'accepte' });
-    expect(matchMock).toHaveBeenCalledWith({ trip_id: tripId, email: userEmail, user_id: null });
+    expect(eqMock).toHaveBeenCalledWith('trip_id', tripId);
+    expect(ilikeMock).toHaveBeenCalledWith('email', userEmail);
+    expect(isMock).toHaveBeenCalledWith('user_id', null);
     expect(selectMock).toHaveBeenCalled();
 
     expect(updated).toEqual({ id: 3, trip_id: tripId, email: userEmail, user_id: userId });
@@ -30,8 +34,10 @@ describe('attachParticipantToTrip', () => {
     const userEmail = 'nomatch@example.com';
 
     const selectMock = vi.fn().mockResolvedValue({ data: [], error: null });
-    const matchMock = vi.fn(() => ({ select: selectMock }));
-    const updateMock = vi.fn(() => ({ match: matchMock }));
+    const isMock = vi.fn(() => ({ select: selectMock }));
+    const ilikeMock = vi.fn(() => ({ is: isMock }));
+    const eqMock = vi.fn(() => ({ ilike: ilikeMock }));
+    const updateMock = vi.fn(() => ({ eq: eqMock }));
     const fromMock = vi.fn(() => ({ update: updateMock }));
     const supabase = { from: fromMock } as any;
 
@@ -41,7 +47,9 @@ describe('attachParticipantToTrip', () => {
 
     expect(fromMock).toHaveBeenCalledWith('trip_participants');
     expect(updateMock).toHaveBeenCalledWith({ user_id: userId, status: 'accepte' });
-    expect(matchMock).toHaveBeenCalledWith({ trip_id: tripId, email: userEmail, user_id: null });
+    expect(eqMock).toHaveBeenCalledWith('trip_id', tripId);
+    expect(ilikeMock).toHaveBeenCalledWith('email', userEmail);
+    expect(isMock).toHaveBeenCalledWith('user_id', null);
     expect(selectMock).toHaveBeenCalled();
   });
 });
