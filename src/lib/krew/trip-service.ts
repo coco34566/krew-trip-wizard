@@ -9,6 +9,13 @@ import { buildProposals, type Proposal, type ScoringContext } from "./engine";
 import { loadTravelCatalog } from "./providers.server";
 import { discoverCandidateDestinations, listCityProfilesForNames } from "./destination-discovery.server";
 import { discoverDestinationsWithAi } from "./destination-ai.server";
+import {
+  aiCandidateToDestinationRow,
+  mergeCandidates,
+  normCity,
+  type MergedCandidate,
+} from "./candidate-merge";
+import { fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
 
 export const tripInputSchema = z.object({
   name: z.string().min(2).max(120),
