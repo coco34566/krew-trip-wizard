@@ -224,6 +224,7 @@ export type Proposal = {
   participantsEvaluated: number;
   /** Sous-scores 0–1 exposés pour feedback / apprentissage. */
   subScores: SubScores;
+  originPriceSpread?: number | null;
 };
 
 const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
@@ -851,6 +852,14 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       }
     }
 
+    let originPriceSpread: number | null = null;
+    if (transportOrigins && transportOrigins.length > 0) {
+      const prices = transportOrigins.map((o) => o.pricePerPerson);
+      const maxPrice = Math.max(...prices);
+      const minPrice = Math.min(...prices);
+      originPriceSpread = maxPrice - minPrice;
+    }
+
     const rationale = `${destination.name} pour ${ctx.participants} personnes : ${
       destination.description ?? ""
     } Consensus ${(consensusScore * 100).toFixed(0)} % · min. satisfaction ${(minSatisfaction * 100).toFixed(0)} %.`;
@@ -869,6 +878,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       satisfiedCount,
       participantsEvaluated,
       subScores,
+      originPriceSpread,
     };
   });
 
@@ -927,4 +937,23 @@ export function selectDiverseTop(sorted: Proposal[], limit: number): Proposal[] 
     selected.push(remaining.splice(bestIdx, 1)[0]!);
   }
   return selected;
+}
+
+export function isTripAdmin(trip: any, userId: string): boolean {
+  if (!trip) return false;
+  return trip.owner_id === userId || trip.co_organizer_id === userId || trip.ownerId === userId || trip.coOrganizerId === userId;
+}
+
+export function computeGroupTimeWindow(rows: { earliest_departure_time?: string | null; latest_return_time?: string | null }[]) {
+  const departures = rows
+    .map((r) => r.earliest_departure_time)
+    .filter((t): t is string => typeof t === "string" && t.trim() !== "");
+  const returns = rows
+    .map((r) => r.latest_return_time)
+    .filter((t): t is string => typeof t === "string" && t.trim() !== "");
+
+  const earliestDeparture = departures.length > 0 ? departures.sort().slice(-1)[0] || null : null;
+  const latestReturn = returns.length > 0 ? returns.sort()[0] || null : null;
+
+  return { earliestDeparture, latestReturn };
 }
