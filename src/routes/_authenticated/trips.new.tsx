@@ -18,6 +18,13 @@ import {
 } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 
+/** Borne le nombre de participants ; utilisé au blur et au submit, jamais à chaque frappe. */
+function clampParticipants(raw: string): number {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return PARTICIPANTS_DEFAULT;
+  return Math.min(PARTICIPANTS_MAX, Math.max(PARTICIPANTS_MIN, n));
+}
+
 export const Route = createFileRoute("/_authenticated/trips/new")({
   head: () => ({
     meta: [

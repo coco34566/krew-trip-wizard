@@ -352,9 +352,9 @@ function TripDetail() {
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 120)),
   });
   const regenerateMutation = useMutation({
-    // force: true en phase test — l'orga peut générer même si checklist incomplète
-    mutationFn: (force?: boolean) =>
-      regenerate({ data: { tripId, force: force !== false } }),
+    // `force` reste explicite (usage test/admin uniquement) : par défaut le serveur
+    // applique assessGenerationReadiness et refuse si les questionnaires sont incomplets.
+    mutationFn: (force?: boolean) => regenerate({ data: { tripId, force: force === true } }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
