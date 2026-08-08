@@ -484,22 +484,43 @@ export const selectRecommendation = createServerFn({ method: "POST" })
 
 /** Aperçu public d'un voyage pour la page /join (service role). */
 export const getJoinPreview = createServerFn({ method: "GET" })
-  .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .inputValidator((data: unknown) => {
+    const raw = (data as any)?.tripId ?? data;
+    const tripId = String(raw ?? "")
+      .split("?")[0]
+      .split("#")[0]
+      .trim();
+    // UUID souple (évite échec si casing / tirets)
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRe.test(tripId)) {
+      throw new Error("Lien d'invitation invalide (identifiant manquant ou incorrect).");
+    }
+    return { tripId };
+  })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const trip = await supabaseAdmin
       .from("trips")
-      .select("id, name, event_type, departure_city, participants_count, start_date, end_date, status")
+      .select(
+        "id, name, event_type, departure_city, participants_count, start_date, end_date, status",
+      )
       .eq("id", data.tripId)
       .maybeSingle();
-    if (trip.error) throw trip.error;
+    if (trip.error) {
+      console.error("getJoinPreview", trip.error.message);
+      throw new Error("Impossible de charger l'invitation. Réessaie dans un instant.");
+    }
     if (!trip.data) throw new Error("Voyage introuvable ou lien invalide");
+    if (String((trip.data as any).status ?? "") === "annule") {
+      throw new Error("Ce voyage a été annulé.");
+    }
     return {
       id: trip.data.id as string,
-      name: trip.data.name as string,
-      eventType: trip.data.event_type as string,
-      departureCity: trip.data.departure_city as string,
-      participantsCount: trip.data.participants_count as number,
+      name: (trip.data.name as string) || "Voyage Krew",
+      eventType: (trip.data.event_type as string) || "autre",
+      departureCity: (trip.data.departure_city as string) || "",
+      participantsCount: Number(trip.data.participants_count) || 1,
       startDate: trip.data.start_date as string | null,
       endDate: trip.data.end_date as string | null,
     };
