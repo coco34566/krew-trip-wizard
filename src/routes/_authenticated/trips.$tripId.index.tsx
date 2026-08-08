@@ -352,9 +352,9 @@ function TripDetail() {
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 120)),
   });
   const regenerateMutation = useMutation({
-    // force: true en phase test — l'orga peut générer même si checklist incomplète
-    mutationFn: (force?: boolean) =>
-      regenerate({ data: { tripId, force: force !== false } }),
+    // `force` reste explicite (usage test/admin uniquement) : par défaut le serveur
+    // applique assessGenerationReadiness et refuse si les questionnaires sont incomplets.
+    mutationFn: (force?: boolean) => regenerate({ data: { tripId, force: force === true } }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
@@ -835,7 +835,9 @@ function TripDetail() {
             <Button
               variant="hero"
               onClick={() => regenerateMutation.mutate()}
-              disabled={regenerateMutation.isPending}
+              disabled={
+                regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
+              }
               title={
                 readiness && !readiness.canGenerate
                   ? readiness.message ?? "Questionnaires incomplets"
@@ -854,7 +856,10 @@ function TripDetail() {
         {recommendations.length === 0 ? (
           <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {data.isOwner
-              ? "Clique sur « Générer les propositions » pour tester les destinations Krew (mode test : force activé)."
+              ? readiness && !readiness.canGenerate
+                ? (readiness.message ??
+                  "Les questionnaires doivent être complétés avant de générer les propositions.")
+                : "Clique sur « Générer les propositions » pour lancer la recherche de destinations Krew."
               : "L'organisateur générera bientôt les propositions de destinations."}
           </p>
         ) : (

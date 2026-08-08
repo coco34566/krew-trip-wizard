@@ -315,7 +315,9 @@ export const generateRecommendations = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     return generateRecommendationsForTrip(context.supabase, data.tripId, {
-      force: data.force,
+      // `force` n'est accepté qu'en usage test explicite (ALLOW_FORCE_GENERATION),
+      // jamais comme comportement par défaut en production.
+      force: data.force === true && process.env["ALLOW_FORCE_GENERATION"] === "true",
     });
   });
 
