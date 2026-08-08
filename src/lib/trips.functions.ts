@@ -1058,7 +1058,6 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       ? recoRow.match_reasons.map(String)
       : [];
     const { generateItineraryWithAi } = await import("@/lib/krew/activity-ai.server");
-    const result = await 
     const logistics = (trip.group_logistics || {}) as any;
     const picks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
     const timeFilters = logistics.timeFilters || {};
@@ -1070,7 +1069,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const latestArrival = arrivals.sort().slice(-1)[0] || timeFilters.arriveBy || null;
     const earliestReturn = departures.sort()[0] || timeFilters.departAfter || null;
 
-generateItineraryWithAi(
+    const result = await generateItineraryWithAi(
       {
         destination: destName,
         country: destCountry,
