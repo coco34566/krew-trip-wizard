@@ -508,9 +508,7 @@ export function TripHubDashboard({
             <Wallet className="size-3.5 text-primary" />{" "}
             {liveBudgetTotal != null && liveBudgetTotal > 0
               ? `~${formatEuro(liveBudgetTotal)} / pers.`
-              : Number(trip.budget_per_person) > 0
-                ? `${formatEuro(Number(trip.budget_per_person))} / pers. (cible)`
-                : "Budget à définir"}
+              : "Budget à définir"}
           </span>
           {datesLocked && (trip.start_date || provisionalStart) ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:text-emerald-300">
@@ -532,34 +530,11 @@ export function TripHubDashboard({
                   })}`
                 : ""}
             </span>
-          ) : provisionalStart ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/40 bg-lagoon/10 px-3 py-1 text-sm">
-              <CalendarDays className="size-3.5" />
-              {"Date proposée · "}
-              {new Date(provisionalStart).toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "short",
-              })}
-              {provisionalCoverage != null
-                ? ` · ${Math.round(provisionalCoverage * 100)} % dispo`
-                : ""}
-            </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm text-muted-foreground">
               <CalendarDays className="size-3.5" /> Date à définir
             </span>
           )}
-          {destinationSelected && destinationName ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm">
-              <MapPin className="size-3.5 text-primary" />
-              {destinationName}
-            </span>
-          ) : destinationSelected ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-sm">
-              Destination choisie
-            </span>
-          ) : null}
-          <Badge variant={trip.status === "valide" ? "success" : "lagoon"}>{trip.status}</Badge>
         </div>
       </header>
 
