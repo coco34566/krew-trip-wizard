@@ -263,4 +263,106 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
       expect(proposals[0]!.destination.name).toBe("Seul Au Monde");
     });
   });
+
+  describe("Nouvelles fonctionnalités : Runner-ups, Historique cross-trip & Badge fraîcheur", () => {
+    it("génère des raisons de rejet cohérentes pour les runner-ups (generateRejectionReason)", () => {
+      const { generateRejectionReason } = require("../krew/engine");
+      const mockProp = {
+        destination: mockDestination({ name: "Madrid" }),
+        accommodation: null,
+        activities: [],
+        score: 75,
+        budget: {
+          fits: false, // budget dépassé / serré
+          totalPerPerson: 600,
+          budgetPerPerson: 400,
+        },
+        consensusScore: 0.8,
+        minSatisfaction: 0.8,
+        subScores: {
+          sAmbiance: 0.8,
+          sActivities: 0.8,
+          sBudget: 0.3,
+          sDistance: 0.8,
+          sSeason: 0.4, // saison moins idéale
+          sQuality: 0.8,
+          sConsensus: 0.8,
+          sMinSatisfaction: 0.8,
+        },
+      };
+
+      const reason = generateRejectionReason(mockProp);
+      expect(reason).toContain("budget un peu serré");
+      expect(reason).toContain("météo moins favorable sur cette période");
+    });
+
+    it("calcule correctement le score de bonus historique (computeHistoriqueScore)", () => {
+      const { computeHistoriqueScore } = require("../krew/engine");
+      const dest = mockDestination({
+        country: "Portugal",
+        score_fete: 1.0, // dominantAmbiance sera "fete"
+        score_aventure: 0.1,
+      });
+
+      const pastDestinations = [
+        { country: "Portugal", dominantAmbiance: "detente" }, // Match pays
+        { country: "Espagne", dominantAmbiance: "fete" },     // Match ambiance
+      ];
+
+      const score1 = computeHistoriqueScore(dest, pastDestinations);
+      expect(score1).toBe(1.0); // Les deux matchent !
+
+      const score2 = computeHistoriqueScore(dest, [{ country: "Italie", dominantAmbiance: "fete" }]);
+      expect(score2).toBe(0.5); // Seule l'ambiance fete matche
+
+      const score3 = computeHistoriqueScore(dest, []);
+      expect(score3).toBe(0); // Historique vide -> 0
+    });
+
+    it("initialise correctement la fraîcheur des prix (priceSource)", () => {
+      const catalog: TravelCatalog = {
+        destinations: [mockDestination({ id: "dest-test-1", name: "Porto", country: "Portugal" })],
+        activities: [],
+        accommodations: [
+          {
+            id: "acc-test-1",
+            destination_id: "dest-test-1",
+            name: "Hôtel Porto",
+            type: "hôtel",
+            description: "Hôtel Porto",
+            price_per_night_per_person: 50,
+            capacity: 10,
+            rating: 4.5,
+            distance_center_km: 1.0,
+            image_url: null,
+            source: "rapidapi", // Source API en direct !
+          } as any,
+        ],
+      };
+
+      const ctx: ScoringContext = {
+        participants: 2,
+        budgetPerPerson: 500,
+        nights: 2,
+        letKrewDecide: true,
+        needsCityCenter: true,
+        startMonth: 6,
+        ambiances: [],
+        activityCategories: [],
+        maxDistanceKm: 2000,
+        excludedCountries: [],
+        transportByDestinationId: {
+          "dest-test-1": 150, // Transport coté via l'API !
+        },
+      };
+
+      const proposals = buildProposals(catalog, ctx, 1);
+      expect(proposals).toHaveLength(1);
+      const prop = proposals[0]!;
+
+      expect(prop.budget.priceSource).toBeDefined();
+      expect(prop.budget.priceSource?.transport).toBe("api");
+      expect(prop.budget.priceSource?.accommodation).toBe("api");
+    });
+  });
 });

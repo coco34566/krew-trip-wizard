@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { buildProposals, type Proposal, type ScoringContext } from "./engine";
+import { buildProposals, dominantAmbiance, type Proposal, type ScoringContext } from "./engine";
 import { loadTravelCatalog } from "./providers.server";
 import { discoverCandidateDestinations, listCityProfilesForNames } from "./destination-discovery.server";
 import { discoverDestinationsWithAi } from "./destination-ai.server";
@@ -676,7 +676,7 @@ export async function assessGenerationReadiness(
       availabilityOk,
       datesLocked,
     },
-    message,
+    ...(message ? { message } : {}),
   };
 }
 
@@ -703,6 +703,42 @@ export async function generateRecommendationsForTrip(
   if (trip.error) throw trip.error;
 
   const aggregated = await aggregateParticipantPreferences(supabase, tripId);
+
+  // Récupère l'historique des voyages validés passés pour cet organisateur
+  let pastDestinations: { country: string; dominantAmbiance: string }[] = [];
+  try {
+    const { data: pastTrips } = await supabase
+      .from("trips")
+      .select("id")
+      .eq("status", "valide")
+      .eq("owner_id", trip.data.owner_id)
+      .neq("id", tripId);
+
+    const pastTripIds = (pastTrips ?? []).map((t) => t.id);
+
+    if (pastTripIds.length > 0) {
+      const { data: recos } = await supabase
+        .from("recommendations")
+        .select("destinations(*)")
+        .in("trip_id", pastTripIds)
+        .eq("is_selected", true);
+
+      if (recos) {
+        pastDestinations = recos
+          .map((r: any) => {
+            const dest = r.destinations;
+            if (!dest) return null;
+            return {
+              country: dest.country as string,
+              dominantAmbiance: dominantAmbiance(dest),
+            };
+          })
+          .filter(Boolean) as { country: string; dominantAmbiance: string }[];
+      }
+    }
+  } catch (e) {
+    console.warn("pastDestinations fetch skipped", e);
+  }
 
   // Nuits = dates validées (start/end) si présentes, sinon durée questionnaire
   let lockedNights: number | null = null;
@@ -788,6 +824,7 @@ export async function generateRecommendationsForTrip(
   }
 
   const ctx = buildScoringContext(trip.data, prefsToUse);
+  ctx.pastDestinations = pastDestinations;
   // Fusion exclusions individuelles + trip-level
   const mergedExcluded = Array.from(
     new Set([
@@ -850,7 +887,7 @@ export async function generateRecommendationsForTrip(
       excludedCountries: ctx.excludedCountries,
       departureCity: primaryDeparture,
       participants: ctx.participants,
-      eventType: (trip.data.event_type as string) || undefined,
+      ...(trip.data.event_type ? { eventType: trip.data.event_type as string } : {}),
       planeRefused: Boolean((aggregated as any).planeRefused),
       maxTravelHours: (aggregated as any).maxTravelDurationHours ?? null,
       starWanted: aggregated.starWantedActivities ?? [],
@@ -1205,7 +1242,7 @@ export async function generateRecommendationsForTrip(
   try {
     const { enrichProposalsWithLlmRationales } = await import("./rationale-llm.server");
     const llmRes = await enrichProposalsWithLlmRationales(proposals, {
-      eventType: (trip.data.event_type as string) || ctxWithTransport.eventType,
+      eventType: ((trip.data.event_type as string | null) || ctxWithTransport.eventType || null),
       participants: ctx.participants,
     });
     proposals = llmRes.proposals;
@@ -1251,7 +1288,14 @@ export async function generateRecommendationsForTrip(
     if (inserted.error) throw inserted.error;
   }
 
-  const updated = await supabase.from("trips").update({ status: "propositions" }).eq("id", tripId);
+  const runnerUps = (proposals as any).runnerUps || [];
+  const updated = await supabase
+    .from("trips")
+    .update({
+      status: "propositions",
+      runner_ups: runnerUps
+    })
+    .eq("id", tripId);
   if (updated.error) throw updated.error;
 
   return {
