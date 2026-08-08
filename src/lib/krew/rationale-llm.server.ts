@@ -9,6 +9,7 @@
  */
 
 import type { Proposal } from "./engine";
+import { reportServerError } from "@/lib/server-error-reporting.server";
 
 const SYSTEM = `Tu es Krew. Reformule en français (tutoiement) pourquoi chaque destination convient au groupe.
 Règles strictes:
@@ -131,6 +132,10 @@ export async function enrichProposalsWithLlmRationales(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
+      reportServerError(new Error(`LLM ${res.status}: ${errText.slice(0, 120)}`), {
+        provider: "openai/llm",
+        kind: "rationale",
+      });
       return {
         proposals,
         usedLlm: false,
@@ -164,6 +169,10 @@ export async function enrichProposalsWithLlmRationales(
 
     return { proposals: enriched, usedLlm: true };
   } catch (e) {
+    reportServerError(e, {
+      provider: "openai/llm",
+      kind: "rationale",
+    });
     return {
       proposals,
       usedLlm: false,

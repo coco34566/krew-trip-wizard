@@ -10,6 +10,8 @@
  * Une seule clé : HOTELS_RAPIDAPI_KEY (RapidAPI Application Key).
  */
 
+import { reportServerError } from "@/lib/server-error-reporting.server";
+
 export type ProviderConfig = {
   rapidApiKey: string;
   hotelsHost?: string | undefined;
@@ -373,6 +375,15 @@ export async function searchHotelsAllProviders(cfg: ProviderConfig, params: Sear
     ...h,
     offers: h.offers.sort((a, b) => a.pricePerNight - b.pricePerNight),
   }));
+
+  if (hotels.length === 0 && errors.length > 0) {
+    reportServerError(new Error(`Toutes les sources d'hôtels ont échoué ou n'ont renvoyé aucun résultat: ${errors.join(" | ")}`), {
+      provider: "rapidapi/hotels",
+      kind: "hotels",
+      destination: params.destination,
+    });
+  }
+
   return { hotels, errors };
 }
 
@@ -425,6 +436,11 @@ export async function searchActivitiesAllProviders(cfg: ProviderConfig, params: 
     );
   } catch (err) {
     errors.push(`tripadvisor: ${String(err).slice(0, 200)}`);
+    reportServerError(err, {
+      provider: "tripadvisor",
+      kind: "activities",
+      destination: params.destination,
+    });
   }
 
   return { activities, errors };
