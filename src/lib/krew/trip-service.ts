@@ -1061,11 +1061,12 @@ export async function generateRecommendationsForTrip(
   }
 
   // 1b) Matérialise les destinations scorées en catalogue (sinon l'enrichissement / scoring n'a rien à scorer)
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const profiles = listCityProfilesForNames(shortlistNames);
   const profileKeys = new Set(profiles.map((p) => normCity(p.name)));
   for (const p of profiles) {
     try {
-      await supabase.from("destinations").upsert(
+      await supabaseAdmin.from("destinations").upsert(
         {
           name: p.name,
           country: p.country,
@@ -1087,13 +1088,13 @@ export async function generateRecommendationsForTrip(
     } catch (e) {
       // fallback sans contrainte external_id unique
       try {
-        const existing = await supabase
+        const existing = await supabaseAdmin
           .from("destinations")
           .select("id")
           .ilike("name", p.name)
           .maybeSingle();
         if (!existing.data) {
-          await supabase.from("destinations").insert({
+          await supabaseAdmin.from("destinations").insert({
             name: p.name,
             country: p.country,
             distance_from_paris_km: p.distanceKm,
@@ -1115,7 +1116,7 @@ export async function generateRecommendationsForTrip(
   );
   for (const candidate of aiOnly) {
     try {
-      const known = await supabase
+      const known = await supabaseAdmin
         .from("destinations")
         .select("id, best_months")
         .ilike("name", candidate.name)
@@ -1141,7 +1142,7 @@ export async function generateRecommendationsForTrip(
       }
 
       const row = aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
-      await supabase.from("destinations").upsert(
+      await supabaseAdmin.from("destinations").upsert(
         { ...row, latitude, longitude } as any,
         { onConflict: "external_id" },
       );
