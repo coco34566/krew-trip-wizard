@@ -459,10 +459,8 @@ export function TripHubDashboard({
   const transportOffersReady = Boolean(logistics.transports?.length);
 
   // Même seuil que `assessGenerationReadiness` côté serveur (MIN_ANSWERS / MIN_ANSWER_RATIO) :
-  // on masque les propositions tant que le questionnaire de préférences n'est pas assez rempli.
-  const prefsExpected = Math.max(progressTotal || trip.participants_count || 1, 1);
-  const prefsMinRequired = Math.max(1, Math.ceil(prefsExpected * 0.4));
-  const prefsOkForProposals = progressAnswered >= prefsMinRequired;
+  // Règle retirée pour toujours afficher les propositions sans seuil minimum de préférences
+  const prefsOkForProposals = true;
 
   const steps = buildTripSteps({
     tripId,

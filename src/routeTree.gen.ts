@@ -19,6 +19,7 @@ import { Route as FaqRouteImport } from './routes/faq'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as TarifsRouteImport } from './routes/tarifs'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as ApiRecalibrateRouteImport } from './routes/api.recalibrate'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as JoinTripIdRouteImport } from './routes/join.$tripId'
 import { Route as AuthenticatedTripsTripIdRouteImport } from './routes/_authenticated/trips.$tripId'
@@ -26,6 +27,7 @@ import { Route as AuthenticatedTripsNewRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTripsTripIdIndexRouteImport } from './routes/_authenticated/trips.$tripId.index'
 import { Route as AuthenticatedTripsTripIdAvailabilityRouteImport } from './routes/_authenticated/trips.$tripId.availability'
 import { Route as AuthenticatedTripsTripIdInviteRouteImport } from './routes/_authenticated/trips.$tripId.invite'
+import { Route as AuthenticatedTripsTripIdMemoriesRouteImport } from './routes/_authenticated/trips.$tripId.memories'
 import { Route as AuthenticatedTripsTripIdQuestionnaireRouteImport } from './routes/_authenticated/trips.$tripId.questionnaire'
 import { Route as AuthenticatedTripsTripIdRecapRouteImport } from './routes/_authenticated/trips.$tripId.recap'
 import { Route as AuthenticatedTripsTripIdStarRouteImport } from './routes/_authenticated/trips.$tripId.star'
@@ -79,6 +81,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiRecalibrateRoute = ApiRecalibrateRouteImport.update({
+  id: '/api/recalibrate',
+  path: '/api/recalibrate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
   id: '/api/stripe-webhook',
   path: '/api/stripe-webhook',
@@ -118,6 +125,12 @@ const AuthenticatedTripsTripIdInviteRoute =
     path: '/invite',
     getParentRoute: () => AuthenticatedTripsTripIdRoute,
   } as any)
+const AuthenticatedTripsTripIdMemoriesRoute =
+  AuthenticatedTripsTripIdMemoriesRouteImport.update({
+    id: '/memories',
+    path: '/memories',
+    getParentRoute: () => AuthenticatedTripsTripIdRoute,
+  } as any)
 const AuthenticatedTripsTripIdQuestionnaireRoute =
   AuthenticatedTripsTripIdQuestionnaireRouteImport.update({
     id: '/questionnaire',
@@ -147,12 +160,14 @@ export interface FileRoutesByFullPath {
   '/mentions-legales': typeof MentionsLegalesRoute
   '/tarifs': typeof TarifsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
   '/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/trips/new': typeof AuthenticatedTripsNewRoute
   '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
   '/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
+  '/trips/$tripId/memories': typeof AuthenticatedTripsTripIdMemoriesRoute
   '/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
   '/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
   '/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
@@ -168,11 +183,13 @@ export interface FileRoutesByTo {
   '/mentions-legales': typeof MentionsLegalesRoute
   '/tarifs': typeof TarifsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
   '/trips/new': typeof AuthenticatedTripsNewRoute
   '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
   '/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
+  '/trips/$tripId/memories': typeof AuthenticatedTripsTripIdMemoriesRoute
   '/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
   '/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
   '/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
@@ -190,12 +207,14 @@ export interface FileRoutesById {
   '/mentions-legales': typeof MentionsLegalesRoute
   '/tarifs': typeof TarifsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
   '/_authenticated/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/_authenticated/trips/new': typeof AuthenticatedTripsNewRoute
   '/_authenticated/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
   '/_authenticated/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
+  '/_authenticated/trips/$tripId/memories': typeof AuthenticatedTripsTripIdMemoriesRoute
   '/_authenticated/trips/$tripId/questionnaire': typeof AuthenticatedTripsTripIdQuestionnaireRoute
   '/_authenticated/trips/$tripId/recap': typeof AuthenticatedTripsTripIdRecapRoute
   '/_authenticated/trips/$tripId/star': typeof AuthenticatedTripsTripIdStarRoute
@@ -213,12 +232,14 @@ export interface FileRouteTypes {
     | '/mentions-legales'
     | '/tarifs'
     | '/dashboard'
+    | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
     | '/trips/$tripId'
     | '/trips/new'
     | '/trips/$tripId/availability'
     | '/trips/$tripId/invite'
+    | '/trips/$tripId/memories'
     | '/trips/$tripId/questionnaire'
     | '/trips/$tripId/recap'
     | '/trips/$tripId/star'
@@ -234,11 +255,13 @@ export interface FileRouteTypes {
     | '/mentions-legales'
     | '/tarifs'
     | '/dashboard'
+    | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
     | '/trips/new'
     | '/trips/$tripId/availability'
     | '/trips/$tripId/invite'
+    | '/trips/$tripId/memories'
     | '/trips/$tripId/questionnaire'
     | '/trips/$tripId/recap'
     | '/trips/$tripId/star'
@@ -255,12 +278,14 @@ export interface FileRouteTypes {
     | '/mentions-legales'
     | '/tarifs'
     | '/_authenticated/dashboard'
+    | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
     | '/_authenticated/trips/$tripId'
     | '/_authenticated/trips/new'
     | '/_authenticated/trips/$tripId/availability'
     | '/_authenticated/trips/$tripId/invite'
+    | '/_authenticated/trips/$tripId/memories'
     | '/_authenticated/trips/$tripId/questionnaire'
     | '/_authenticated/trips/$tripId/recap'
     | '/_authenticated/trips/$tripId/star'
@@ -277,6 +302,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
   TarifsRoute: typeof TarifsRoute
+  ApiRecalibrateRoute: typeof ApiRecalibrateRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   JoinTripIdRoute: typeof JoinTripIdRoute
 }
@@ -353,6 +379,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/recalibrate': {
+      id: '/api/recalibrate'
+      path: '/api/recalibrate'
+      fullPath: '/api/recalibrate'
+      preLoaderRoute: typeof ApiRecalibrateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/stripe-webhook': {
       id: '/api/stripe-webhook'
       path: '/api/stripe-webhook'
@@ -402,6 +435,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTripsTripIdInviteRouteImport
       parentRoute: typeof AuthenticatedTripsTripIdRoute
     }
+    '/_authenticated/trips/$tripId/memories': {
+      id: '/_authenticated/trips/$tripId/memories'
+      path: '/memories'
+      fullPath: '/trips/$tripId/memories'
+      preLoaderRoute: typeof AuthenticatedTripsTripIdMemoriesRouteImport
+      parentRoute: typeof AuthenticatedTripsTripIdRoute
+    }
     '/_authenticated/trips/$tripId/questionnaire': {
       id: '/_authenticated/trips/$tripId/questionnaire'
       path: '/questionnaire'
@@ -429,6 +469,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedTripsTripIdRouteChildren {
   AuthenticatedTripsTripIdAvailabilityRoute: typeof AuthenticatedTripsTripIdAvailabilityRoute
   AuthenticatedTripsTripIdInviteRoute: typeof AuthenticatedTripsTripIdInviteRoute
+  AuthenticatedTripsTripIdMemoriesRoute: typeof AuthenticatedTripsTripIdMemoriesRoute
   AuthenticatedTripsTripIdQuestionnaireRoute: typeof AuthenticatedTripsTripIdQuestionnaireRoute
   AuthenticatedTripsTripIdRecapRoute: typeof AuthenticatedTripsTripIdRecapRoute
   AuthenticatedTripsTripIdStarRoute: typeof AuthenticatedTripsTripIdStarRoute
@@ -440,6 +481,8 @@ const AuthenticatedTripsTripIdRouteChildren: AuthenticatedTripsTripIdRouteChildr
     AuthenticatedTripsTripIdAvailabilityRoute:
       AuthenticatedTripsTripIdAvailabilityRoute,
     AuthenticatedTripsTripIdInviteRoute: AuthenticatedTripsTripIdInviteRoute,
+    AuthenticatedTripsTripIdMemoriesRoute:
+      AuthenticatedTripsTripIdMemoriesRoute,
     AuthenticatedTripsTripIdQuestionnaireRoute:
       AuthenticatedTripsTripIdQuestionnaireRoute,
     AuthenticatedTripsTripIdRecapRoute: AuthenticatedTripsTripIdRecapRoute,
@@ -477,6 +520,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
   TarifsRoute: TarifsRoute,
+  ApiRecalibrateRoute: ApiRecalibrateRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   JoinTripIdRoute: JoinTripIdRoute,
 }

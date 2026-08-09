@@ -138,7 +138,7 @@ export async function refreshExternalCatalogForTrip(
     ...(existingDest.data?.id ? { id: existingDest.data.id } : {}),
     slug,
     name: existingDest.data?.name ?? place.name,
-    country: existingDest.data?.country ?? place.country || "—",
+    country: (existingDest.data?.country ?? place.country) || "—",
     description: climate.summary,
     latitude: place.latitude,
     longitude: place.longitude,

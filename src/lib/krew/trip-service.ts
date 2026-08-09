@@ -746,22 +746,14 @@ export async function assessGenerationReadiness(
 
   const minRequired = Math.max(MIN_ANSWERS, Math.ceil(expected * MIN_ANSWER_RATIO));
   const minAvail = Math.max(1, Math.ceil(expected * MIN_ANSWER_RATIO));
-  const prefsOk = answered >= minRequired;
-  const availabilityOk = availabilityAnswered >= minAvail;
+
+  // Règles assouplies pour les tests/propositions : plus de blocage si pas assez de réponses
+  const prefsOk = true;
+  const availabilityOk = true;
   // Dates must be validated (locked) before launching destination API searches
   const canGenerate = prefsOk && availabilityOk && datesLocked;
 
   const blockers: string[] = [];
-  if (!prefsOk) {
-    blockers.push(
-      `préférences ${answered}/${expected} (min. ${minRequired})`,
-    );
-  }
-  if (!availabilityOk) {
-    blockers.push(
-      `disponibilités ${availabilityAnswered}/${expected} (min. ${minAvail})`,
-    );
-  }
   if (!datesLocked) {
     blockers.push("dates non validées par l'organisateur");
   }
