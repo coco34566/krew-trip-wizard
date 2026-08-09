@@ -66,12 +66,23 @@ export async function refreshExternalCatalogForTrip(
     endDate: trip.end_date ?? null,
   });
 
-  const slug = place.name
+  // Rechercher d'abord si une destination existe déjà avec ce nom ou un nom proche
+  const normalizedQuery = destinationQuery
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+    .trim();
+  const slugQuery = normalizedQuery.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+  const existingDest = await supabaseAdmin
+    .from("destinations")
+    .select("id, slug, source, external_id, name, country")
+    .or(`slug.eq.${slugQuery},name.ilike.${destinationQuery}`)
+    .maybeSingle();
+
+  const slug = existingDest.data?.slug ?? slugQuery;
+  const externalId = existingDest.data?.external_id ?? `discovery:${slug}`;
+  const source = existingDest.data?.source ?? "krew_discovery";
 
   const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? "";
   // Hosts optionnels — défauts dans DEFAULT_RAPIDAPI_HOSTS (travel-providers.server.ts)
@@ -86,7 +97,7 @@ export async function refreshExternalCatalogForTrip(
     klookHost: process.env["KLOOK_RAPIDAPI_HOST"],
   };
   const searchParams = {
-    destination: place.name,
+    destination: existingDest.data?.name ?? place.name,
     latitude: place.latitude,
     longitude: place.longitude,
     checkin: trip.start_date ?? null,
@@ -124,9 +135,10 @@ export async function refreshExternalCatalogForTrip(
     : null;
 
   const destinationRow = {
+    ...(existingDest.data?.id ? { id: existingDest.data.id } : {}),
     slug,
-    name: place.name,
-    country: place.country || "—",
+    name: existingDest.data?.name ?? place.name,
+    country: existingDest.data?.country ?? place.country || "—",
     description: climate.summary,
     latitude: place.latitude,
     longitude: place.longitude,
@@ -134,8 +146,8 @@ export async function refreshExternalCatalogForTrip(
     best_months: climate.bestMonths,
     distance_from_paris_km: distanceFromParisKm(place.latitude, place.longitude),
     ...(medianNightly ? { avg_daily_cost: Math.round(medianNightly / Math.max(1, participants) + 55) } : {}),
-    source: "open-meteo",
-    external_id: `${place.latitude.toFixed(3)},${place.longitude.toFixed(3)}`,
+    source,
+    external_id: externalId,
   };
 
   const destUpsert = await supabaseAdmin
