@@ -28,6 +28,7 @@ import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
+import { ProposalScoreRadar } from "@/components/krew/ProposalScoreRadar";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 
@@ -342,6 +343,13 @@ function TripRecapPage() {
                 </div>
 
                 <div className="space-y-5 px-5 py-5 sm:px-6">
+                  <ProposalScoreRadar
+                    subScores={((budget as any)?.subScores ?? {}) as any}
+                    consensusScore={(budget as any)?.consensusScore ?? null}
+                    minSatisfaction={(budget as any)?.minSatisfaction ?? null}
+                    satisfiedCount={(budget as any)?.satisfiedCount ?? null}
+                    participantsEvaluated={(budget as any)?.participantsEvaluated ?? null}
+                  />
                   <div>
                     <h4 className="text-sm font-semibold">Vérifier les prix en temps réel</h4>
                     <p className="mt-1 text-xs text-muted-foreground">
