@@ -2171,7 +2171,6 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       (o: any) => o.city.toLowerCase() === pCity.toLowerCase()
     ) || transportByOrigin[0];
 
-    const { buildCostSplit } = await import("@/lib/krew/cost-split");
     const split = buildCostSplit({
       destinationName: (reco.data as any).destinations?.name || budget.destinationName || "Destination",
       accommodation: Number(budget.accommodation ?? 0),
