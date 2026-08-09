@@ -112,8 +112,10 @@ function TripRecapPage() {
     onError: (e: any) => {
       const msg = String(e?.message ?? e);
       if (msg.includes("price_watch") || msg.includes("schema cache")) {
-        toast.error("Table price_watch absente — applique la migration Supabase");
+        console.error("Table price_watch absente — applique la migration Supabase", msg);
+        toast.error("Une erreur est survenue, réessaie dans un instant");
       } else {
+        console.error("Impossible d'activer le suivi:", e);
         toast.error("Impossible d'activer le suivi");
       }
     },
@@ -403,9 +405,20 @@ function TripRecapPage() {
 
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium">Hébergement (groupe) :</span>
-                    <ExternalLinkButton href={links.bookingGroup} variant="glass">
-                      <Hotel className="size-3.5" /> Booking.com — {destName}
-                    </ExternalLinkButton>
+                    {reco.accommodation?.bookingUrl ? (
+                      <>
+                        <ExternalLinkButton href={reco.accommodation.bookingUrl} variant="hero">
+                          <Hotel className="size-3.5" /> Réserver cet hébergement ({reco.accommodation.name})
+                        </ExternalLinkButton>
+                        <ExternalLinkButton href={links.bookingGroup} variant="glass">
+                          <Hotel className="size-3.5" /> Comparer d&apos;autres hôtels
+                        </ExternalLinkButton>
+                      </>
+                    ) : (
+                      <ExternalLinkButton href={links.bookingGroup} variant="glass">
+                        <Hotel className="size-3.5" /> Comparer d&apos;autres hôtels
+                      </ExternalLinkButton>
+                    )}
                     <Button
                       type="button"
                       variant={watched[reco.id] ? "lagoon" : "outline"}

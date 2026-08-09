@@ -329,8 +329,8 @@ function NextActionsPanel({
                     ? "Enchaîne hôtels, trajets et planning plus bas sur la page."
                     : "Dès que le groupe a assez répondu, valide dates et destination."
                 : !destinationSelected
-                  ? "C'est aux autres de répondre, et à l'organisateur de faire avancer le parcours."
-                  : "L'organisateur finalise l'organisation. Tu seras prévenu dès qu'il y a du nouveau."}
+                  ? "C'est aux autres de répondre, et à l'organisateur·rice de faire avancer le parcours."
+                  : "L'organisateur·rice finalise l'organisation. Tu seras prévenu·e dès qu'il y a du nouveau."}
             </p>
           </div>
         </div>
@@ -347,7 +347,7 @@ function NextActionsPanel({
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Uniquement ce qui te reste à faire
-            {isOwner ? " — dont les actions réservées à l'organisateur." : "."}
+            {isOwner ? " — dont les actions réservées à l'organisateur·rice." : "."}
           </p>
         </div>
       </div>
@@ -355,7 +355,7 @@ function NextActionsPanel({
       {waitingOnOthers ? (
         <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
           De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
-          l&apos;organisateur.
+          l&apos;organisateur·rice.
         </div>
       ) : null}
 

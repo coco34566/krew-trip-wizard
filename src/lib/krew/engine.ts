@@ -158,9 +158,12 @@ export type ScoringContext = {
   vetoBudgetMax?: number | null;
   hasBudgetVeto?: boolean;
   dietaryConstraints?: string[];
+  dietaryConstraintsRatio?: number;
   preferredTimeSlots?: string[];
   acceptsSharedRoom?: boolean;
   roomTypePreferences?: string[];
+  mostDemandedLodgingType?: string | null;
+  requiredAmenities?: string[];
   needsAccessibility?: boolean;
   maxTravelDurationHours?: number | null;
   planeRefused?: boolean;
@@ -389,6 +392,7 @@ function activityMatchScore(
   a: ActivityRecord,
   wantedCategories: string[],
   starWanted: string[],
+  dietaryConstraintsRatio = 0,
 ): number {
   let s = Number(a.rating ?? 0) * 0.15;
   if (wantedCategories.includes(a.category)) s += 1.2;
@@ -399,6 +403,13 @@ function activityMatchScore(
     if (blob.includes(needle) || a.category === w) s += 2.0; // Star prioritaire
     else if (needle.split(" ").some((tok) => tok.length > 3 && blob.includes(tok))) s += 1.0;
   }
+
+  // Tâche 10 : Ajustement ciblé sur les suggestions de restaurants/gastronomie en fonction de la proportion du groupe concernée par une contrainte alimentaire
+  const isResto = /gastro|resto|food|cuisine/i.test(a.category + a.name);
+  if (isResto && dietaryConstraintsRatio > 0) {
+    s -= dietaryConstraintsRatio * 1.5; // Ajustement doux et proportionnel (jusqu'à -1.5 points de score)
+  }
+
   return s;
 }
 
@@ -413,6 +424,7 @@ function pickActivities(
   budgetForActivities: number,
   travelPace?: string | null,
   starWantedActivities?: string[] | null,
+  dietaryConstraintsRatio = 0,
 ): ActivityRecord[] {
   const perDay = activitiesPerDayForPace(travelPace);
   const maxCount = Math.max(perDay, (nights + 1) * perDay - (travelPace === "chill" ? 1 : 0));
@@ -422,8 +434,8 @@ function pickActivities(
   const starWanted = starWantedActivities ?? [];
 
   const rank = (a: ActivityRecord, b: ActivityRecord) =>
-    activityMatchScore(b, wantedCategories, starWanted) -
-    activityMatchScore(a, wantedCategories, starWanted);
+    activityMatchScore(b, wantedCategories, starWanted, dietaryConstraintsRatio) -
+    activityMatchScore(a, wantedCategories, starWanted, dietaryConstraintsRatio);
 
   // 1) Priorité aux envies Star (si renseignées)
   for (const w of starWanted) {
@@ -602,13 +614,55 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
   const dealDest = ctx.dealBreakerDestinations ?? [];
   const minRating = ctx.minAccommodationRating ?? 0;
 
-  const candidates = catalog.destinations.filter((d) => {
+  let planeRefusedBypassed = false;
+  let maxDurationBypassed = false;
+
+  let candidates = catalog.destinations.filter((d) => {
     if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
     if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
-    // Exclusion dure deal-breakers groupe
+    if (ctx.planeRefused && d.distance_from_paris_km > 700) return false;
     if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
     return true;
   });
+
+  // Fallback 1: If zero candidates pass because of planeRefused, try bypassing planeRefused but keep maxDistance
+  if (candidates.length === 0 && ctx.planeRefused) {
+    candidates = catalog.destinations.filter((d) => {
+      if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
+      if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
+      if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
+      return true;
+    });
+    if (candidates.length > 0) {
+      planeRefusedBypassed = true;
+    }
+  }
+
+  // Fallback 2: If still zero candidates, try bypassing maxTravelDurationHours/maxDistanceKm limits
+  if (candidates.length === 0 && ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
+    candidates = catalog.destinations.filter((d) => {
+      if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
+      if (ctx.planeRefused && d.distance_from_paris_km > 700) return false;
+      if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
+      return true;
+    });
+    if (candidates.length > 0) {
+      maxDurationBypassed = true;
+    }
+  }
+
+  // Fallback 3: If still zero, bypass both
+  if (candidates.length === 0) {
+    candidates = catalog.destinations.filter((d) => {
+      if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
+      if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
+      return true;
+    });
+    if (candidates.length > 0) {
+      planeRefusedBypassed = ctx.planeRefused || false;
+      maxDurationBypassed = Boolean(ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0);
+    }
+  }
 
   const proposals: Proposal[] = candidates.map((destination) => {
     let accommodations = catalog.accommodations
@@ -620,12 +674,42 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     // Chambre partagée : si le groupe refuse, prioriser capacité unitaire / types non dortoir
     const sharedOk = ctx.acceptsSharedRoom !== false;
     const roomPrefs = (ctx.roomTypePreferences ?? []).map((x) => norm(x));
+    const preferredLodgingType = ctx.mostDemandedLodgingType;
+    const reqAmenities = ctx.requiredAmenities ?? [];
+
     accommodations = [...accommodations].sort((a, b) => {
       if (!sharedOk) {
         const dormA = /dortoir|shared|hostel|auberge/i.test(a.type + a.name) ? 1 : 0;
         const dormB = /dortoir|shared|hostel|auberge/i.test(b.type + b.name) ? 1 : 0;
         if (dormA !== dormB) return dormA - dormB;
       }
+
+      // 1. Preferred lodging type matching (e.g. hotel, apartment)
+      if (preferredLodgingType && preferredLodgingType !== "peu_importe") {
+        const typeA = norm(a.type || "");
+        const typeB = norm(b.type || "");
+        const matchA = typeA.includes(norm(preferredLodgingType)) ? 0 : 1;
+        const matchB = typeB.includes(norm(preferredLodgingType)) ? 0 : 1;
+        if (matchA !== matchB) return matchA - matchB;
+      }
+
+      // 2. Required amenities matching (e.g. pool, wifi)
+      if (reqAmenities.length && reqAmenities.some(x => x !== "peu_importe")) {
+        const amenitiesA = (a.amenities ?? []).map((x: string) => norm(x));
+        const amenitiesB = (b.amenities ?? []).map((x: string) => norm(x));
+        const typeA = norm(a.type || "");
+        const typeB = norm(b.type || "");
+
+        const scoreA = reqAmenities.filter(am =>
+          amenitiesA.some((x: string) => x.includes(norm(am))) || typeA.includes(norm(am))
+        ).length;
+        const scoreB = reqAmenities.filter(am =>
+          amenitiesB.some((x: string) => x.includes(norm(am))) || typeB.includes(norm(am))
+        ).length;
+
+        if (scoreA !== scoreB) return scoreB - scoreA; // highest score first!
+      }
+
       if (roomPrefs.length) {
         const mA = roomPrefs.some((p) => norm(a.type).includes(p) || norm(a.name).includes(p)) ? 0 : 1;
         const mB = roomPrefs.some((p) => norm(b.type).includes(p) || norm(b.name).includes(p)) ? 0 : 1;
@@ -677,6 +761,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       budgetForActivities,
       ctx.travelPace,
       ctx.starWantedActivities,
+      ctx.dietaryConstraintsRatio ?? 0,
     );
     const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
     const totalPerPerson = transport + lodging + food + activitiesCost;
@@ -780,6 +865,22 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       score -= (individuals.length - satisfiedCount) * 3;
     }
 
+    // Tâche 8 : Pénalités de score pour planeRefused et maxTravelDurationHours
+    if (planeRefusedBypassed) {
+      score -= 25;
+    } else if (ctx.planeRefused && destination.distance_from_paris_km > 500) {
+      score -= 8;
+    }
+
+    if (maxDurationBypassed) {
+      score -= 25;
+    } else if (ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
+      const estimatedHours = destination.distance_from_paris_km / 90;
+      if (estimatedHours > ctx.maxTravelDurationHours * 0.8) {
+        score -= 8;
+      }
+    }
+
     if (!ctx.letKrewDecide && desired) {
       const matches =
         norm(destination.name).includes(desired) || norm(destination.country).includes(desired);
@@ -828,10 +929,34 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       matchReasons.push(`Respecte le veto budget (${hardCap} €)`);
     if (!sharedOk)
       matchReasons.push("Hébergement priorisé hors dortoir / chambre partagée");
+    if (preferredLodgingType && preferredLodgingType !== "peu_importe" && accommodation && norm(accommodation.type || "").includes(norm(preferredLodgingType))) {
+      matchReasons.push(`Type d'hébergement respecté : ${accommodation.type}`);
+    }
+    if (reqAmenities.length && reqAmenities.some(x => x !== "peu_importe") && accommodation) {
+      const amenitiesNorm = (accommodation.amenities ?? []).map((x: string) => norm(x));
+      const matched = reqAmenities.filter(am =>
+        amenitiesNorm.some((x: string) => x.includes(norm(am))) || norm(accommodation.type || "").includes(norm(am))
+      );
+      if (matched.length > 0) {
+        matchReasons.push(`Critères d'hébergement respectés : ${matched.join(", ")}`);
+      }
+    }
     if (ctx.needsAccessibility)
       matchReasons.push("Priorité accessibilité / proximité centre (besoin mobilité)");
-    if (ctx.planeRefused)
-      matchReasons.push("Au moins un participant refuse l'avion — vérifier train/bus");
+    if (ctx.planeRefused) {
+      if (planeRefusedBypassed) {
+        matchReasons.push("⚠️ ATTENTION : Train ou voiture privilégié par le groupe, mais proposé par manque d'alternatives.");
+      } else {
+        matchReasons.push("Train ou voiture possible (pas d'avion obligatoire)");
+      }
+    }
+    if (ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
+      if (maxDurationBypassed) {
+        matchReasons.push(`⚠️ ATTENTION : Dépasse la durée de trajet souhaitée de ${ctx.maxTravelDurationHours}h, mais proposé par manque d'alternatives.`);
+      } else {
+        matchReasons.push("Temps de trajet estimé dans la limite du groupe");
+      }
+    }
     if (sSeason >= 0.9) matchReasons.push("Période idéale côté météo et saisonnalité");
     if (destination.distance_from_paris_km <= 900)
       matchReasons.push("Trajet court : plus de temps sur place, moins de fatigue");

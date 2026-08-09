@@ -21,10 +21,10 @@ export const Route = createFileRoute("/auth")({
       {
         name: "description",
         content:
-          "Connectez-vous à Krew pour créer, organiser et voter en groupe sur votre prochain EVG, EVJF ou week-end entre amis.",
+          "Connecte-toi à Krew pour créer, organiser et voter en groupe sur ton prochain EVG, EVJF ou week-end entre ami·e·s.",
       },
       { property: "og:title", content: "Connexion — Krew" },
-      { property: "og:description", content: "Accédez à vos voyages de groupe organisés par Krew." },
+      { property: "og:description", content: "Accède à tes voyages de groupe organisés par Krew." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -86,7 +86,7 @@ function AuthPage() {
       return;
     }
     if (!data.session) {
-      toast.success("Compte créé — confirmez votre email pour continuer.");
+      toast.success("Compte créé — confirme ton email pour continuer.");
       return;
     }
     navigate({ to: "/dashboard" });

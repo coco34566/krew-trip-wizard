@@ -330,7 +330,7 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const [tripRes, participants, preferences] = await Promise.all([
+    const [tripRes, participants, preferences, availabilities] = await Promise.all([
       supabase.from("trips").select("participants_count").eq("id", data.tripId).maybeSingle(),
       supabase
         .from("trip_participants")
@@ -339,6 +339,10 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
       supabase
         .from("trip_participant_preferences")
         .select("user_id, submitted_at, updated_at")
+        .eq("trip_id", data.tripId),
+      supabase
+        .from("trip_availability")
+        .select("user_id")
         .eq("trip_id", data.tripId),
     ]);
     if (tripRes.error) throw tripRes.error;
@@ -349,6 +353,9 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
     for (const p of prefRows as any[]) {
       if (p.user_id) prefMap.set(p.user_id, p);
     }
+
+    const availRows = availabilities.error ? [] : (availabilities.data ?? []);
+    const availSet = new Set(availRows.map((r: any) => r.user_id).filter(Boolean));
 
     const joined = participants.data?.length ?? 0;
     const expected = Math.max(Number(tripRes.data?.participants_count) || 0, joined, 1);
@@ -364,6 +371,7 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
       participants: (participants.data ?? []).map((p: any) => ({
         ...p,
         hasAnswered: p.user_id ? prefMap.has(p.user_id) : false,
+        hasAnsweredAvailability: p.user_id ? availSet.has(p.user_id) : false,
         answeredAt:
           p.user_id && prefMap.has(p.user_id)
             ? (prefMap.get(p.user_id).updated_at ?? prefMap.get(p.user_id).submitted_at)

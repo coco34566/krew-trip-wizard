@@ -72,6 +72,8 @@ export type SearchParams = {
   checkout?: string | null;
   adults: number;
   rooms?: number;
+  requiredAmenities?: string[];
+  roomTypePreferences?: string[];
 };
 
 async function rapid(host: string, key: string, path: string, params: Record<string, string>) {
@@ -214,6 +216,9 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
         languagecode: "fr",
         ...(p.checkin ? { arrival_date: p.checkin } : {}),
         ...(p.checkout ? { departure_date: p.checkout } : {}),
+        ...(p.requiredAmenities?.length
+          ? { categories_filter_ids: p.requiredAmenities.filter(x => x !== "peu_importe").join(",") }
+          : {}),
       });
 
       return pickArray(payload)
