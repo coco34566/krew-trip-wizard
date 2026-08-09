@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,6 +14,7 @@ import {
   Info,
   Bell,
   BellRing,
+  CalendarDays,
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react";
@@ -28,6 +29,7 @@ import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
+import { ProposalScoreRadar } from "@/components/krew/ProposalScoreRadar";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 
@@ -156,12 +158,13 @@ function TripRecapPage() {
   const { trip, nights, departureOrigins, recommendations, progress } = data;
 
   const handleDownloadIcs = () => {
+    const groupItinerary = (trip as any).group_itinerary ?? null;
     const compliantTrip = {
       ...trip,
       dates_locked: true,
-      group_itinerary: trip.group_itinerary,
+      group_itinerary: groupItinerary,
     };
-    const icsContent = buildTripIcs(compliantTrip, trip.group_itinerary);
+    const icsContent = buildTripIcs(compliantTrip as any, groupItinerary);
     if (!icsContent) {
       toast.error("Impossible d'exporter le calendrier.");
       return;
@@ -342,6 +345,13 @@ function TripRecapPage() {
                 </div>
 
                 <div className="space-y-5 px-5 py-5 sm:px-6">
+                  <ProposalScoreRadar
+                    subScores={((budget as any)?.subScores ?? {}) as any}
+                    consensusScore={(budget as any)?.consensusScore ?? null}
+                    minSatisfaction={(budget as any)?.minSatisfaction ?? null}
+                    satisfiedCount={(budget as any)?.satisfiedCount ?? null}
+                    participantsEvaluated={(budget as any)?.participantsEvaluated ?? null}
+                  />
                   <div>
                     <h4 className="text-sm font-semibold">Vérifier les prix en temps réel</h4>
                     <p className="mt-1 text-xs text-muted-foreground">
