@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -162,6 +162,7 @@ function toggle(list: string[], set: (v: string[]) => void, value: string) {
 
 function StarQuestionnaire() {
   const { tripId } = Route.useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchStar = useServerFn(getStarPreferences);
   const submit = useServerFn(submitStarPreferences);
@@ -190,21 +191,22 @@ function StarQuestionnaire() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (data?.preferences && !hydrated) {
-      setWanted(data.preferences.wantedActivities);
-      setBreakers(data.preferences.dealBreakers);
-      setAmbiances(data.preferences.ambiances);
-      setNotes(data.preferences.notes ?? "");
-      setDepartureCity(data.preferences.departureCity ?? "");
-      setDepartureAirportOrStation(data.preferences.departureAirportOrStation ?? "");
-      setDesiredDestination(data.preferences.desiredDestination ?? "");
-      setExcludedDestinations((data.preferences.excludedDestinations ?? []).join(", "));
+    if (data && !hydrated) {
+      if (data.preferences) {
+        setWanted(data.preferences.wantedActivities);
+        setBreakers(data.preferences.dealBreakers);
+        setAmbiances(data.preferences.ambiances);
+        setNotes(data.preferences.notes ?? "");
+        setDepartureCity(data.preferences.departureCity ?? "");
+        setDepartureAirportOrStation(data.preferences.departureAirportOrStation ?? "");
+        setDesiredDestination(data.preferences.desiredDestination ?? "");
+        setExcludedDestinations((data.preferences.excludedDestinations ?? []).join(", "));
 
-      const m = new Map<string, DayMode>();
-      for (const d of data.preferences.availableDates ?? []) m.set(d.slice(0, 10), "available");
-      for (const d of data.preferences.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
-      setSelection(m);
-
+        const m = new Map<string, DayMode>();
+        for (const d of data.preferences.availableDates ?? []) m.set(d.slice(0, 10), "available");
+        for (const d of data.preferences.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
+        setSelection(m);
+      }
       setHydrated(true);
     }
   }, [data, hydrated]);
@@ -294,6 +296,7 @@ function StarQuestionnaire() {
       toast.success(res.isUpdate ? "Préférences de la star mises à jour" : "Préférences de la star enregistrées");
       queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      navigate({ to: "/trips/$tripId", params: { tripId } });
     },
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 120)),
   });
@@ -523,7 +526,7 @@ function StarQuestionnaire() {
         onClick={() => mutation.mutate()}
       >
         {mutation.isPending ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="size-4 mr-2" />}
-        {data.preferences ? "Mettre à jour" : "Enregistrer les préférences de la star"}
+        {data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
       </Button>
     </main>
   );

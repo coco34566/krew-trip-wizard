@@ -29,12 +29,16 @@ import {
   pickTransport,
   setTransportTimeFilters,
   cancelTrip,
+  generateTasksForTrip,
+  updateTaskStatus,
+  reassignTask,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress, getMyParticipantPreferences, declareMyStatus } from "@/lib/participant-preferences.functions";
 import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
 import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
 import {
@@ -89,7 +93,6 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
     dubrovnik: "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
     split: "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
     croatie: "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
-    nice: "https://images.unsplash.com/photo-1491161322373-3a5d0f5e0c0a?auto=format&fit=crop&w=800&q=80",
   };
   for (const [city, url] of Object.entries(known)) {
     if (key.includes(city)) return url;
@@ -149,6 +152,75 @@ function TripDetail() {
     queryFn: () => fetchReadiness({ data: { tripId } }),
     enabled: Boolean(tripId),
     retry: false,
+  });
+
+  const { data: tasksData, refetch: refetchTasks } = useQuery({
+    queryKey: ["trip-tasks", tripId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trip_tasks" as any)
+        .select(`
+          *,
+          assigned_participant:assigned_participant_id (
+            id,
+            display_name,
+            email,
+            user_id
+          )
+        `)
+        .eq("trip_id", tripId)
+        .order("day_date", { ascending: true })
+        .order("start_time", { ascending: true });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: Boolean(tripId),
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ taskId, status }: { taskId: string; status: "todo" | "in_progress" | "done" }) => {
+      const fn = useServerFn(updateTaskStatus);
+      return fn({ data: { taskId, status } });
+    },
+    onSuccess: () => {
+      toast.success("Statut de la tâche mis à jour");
+      refetchTasks();
+    },
+    onError: (err: any) => {
+      toast.error(`Erreur : ${err.message}`);
+    },
+  });
+
+  const reassignMutation = useMutation({
+    mutationFn: async ({ taskId, participantId }: { taskId: string; participantId: string | null }) => {
+      const fn = useServerFn(reassignTask);
+      return fn({ data: { taskId, participantId } });
+    },
+    onSuccess: () => {
+      toast.success("Tâche réassignée avec succès");
+      refetchTasks();
+    },
+    onError: (err: any) => {
+      toast.error(`Erreur : ${err.message}`);
+    },
+  });
+
+  const generateTasksMutation = useMutation({
+    mutationFn: async () => {
+      const fn = useServerFn(generateTasksForTrip);
+      return fn({ data: { tripId } });
+    },
+    onSuccess: (res: any) => {
+      if (res.ok) {
+        toast.success(`${res.count} tâche(s) générée(s) / synchronisée(s) !`);
+        refetchTasks();
+      } else {
+        toast.warning(res.message || "Aucune tâche générée");
+      }
+    },
+    onError: (err: any) => {
+      toast.error(`Erreur : ${err.message}`);
+    },
   });
   const fetchProgress = useServerFn(getParticipantsProgress);
   const searchExternal = useServerFn(searchExternalForTrip);
@@ -711,7 +783,7 @@ function TripDetail() {
         availabilityAnswered={availData?.answered ?? 0}
         availabilityExpected={availData?.expected ?? trip.participants_count ?? 1}
         provisionalStart={trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date}
-        provisionalCoverage={availData?.windows?.[0]?.coverageRatio}
+        provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
         myAvailabilityDone={Boolean(availData?.mine)}
         myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
         starDone={Boolean(starData?.preferences)}
@@ -957,7 +1029,7 @@ function TripDetail() {
           {data.isOwner ? (
             <Button
               variant="hero"
-              onClick={() => regenerateMutation.mutate()}
+              onClick={() => regenerateMutation.mutate(undefined)}
               disabled={
                 regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
               }
@@ -1379,7 +1451,7 @@ function TripDetail() {
                                       arrivalTime: pickArrival || undefined,
                                       departureTime: pickDeparture || undefined,
                                       time: pickArrival || undefined,
-                                    })
+                                    } as any)
                                   }
                                 >
                                   {isMine ? "Mon trajet" : "J'ai choisi ce trajet"}
@@ -1543,6 +1615,162 @@ function TripDetail() {
                   </ul>
                 </article>
               ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {destinationSelected ? (
+        <section id="hub-tasks-org" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
+            <div>
+              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+                <ClipboardList className="size-5 text-primary" />
+                Organisation du groupe
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Les tâches à répartir pour préparer le voyage.
+              </p>
+            </div>
+            {hasItinerary ? (
+              <Button
+                variant="hero"
+                size="sm"
+                disabled={generateTasksMutation.isPending}
+                onClick={() => generateTasksMutation.mutate()}
+                className="gap-1.5"
+              >
+                {generateTasksMutation.isPending ? (
+                  <Loader2 className="animate-spin size-4" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                Organiser le groupe
+              </Button>
+            ) : null}
+          </div>
+
+          {!hasItinerary ? (
+            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              Génère d'abord un planning à l'étape 5 pour pouvoir générer et répartir les tâches d'organisation.
+            </p>
+          ) : !tasksData || tasksData.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              <p>Aucune tâche d'organisation n'a encore été générée.</p>
+              <Button
+                variant="hero"
+                size="sm"
+                onClick={() => generateTasksMutation.mutate()}
+                className="mt-4 gap-1.5"
+                disabled={generateTasksMutation.isPending}
+              >
+                {generateTasksMutation.isPending ? (
+                  <Loader2 className="animate-spin size-4" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                Générer les tâches automatiquement
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px] text-left text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                    <th className="py-2.5 pr-3">Date & Heure</th>
+                    <th className="py-2.5 pr-3">Activité</th>
+                    <th className="py-2.5 pr-3">Action</th>
+                    <th className="py-2.5 pr-3">Responsable</th>
+                    <th className="py-2.5 pr-3">Statut</th>
+                    <th className="py-2.5 text-right">Lien</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tasksData.map((task: any) => {
+                    const taskDate = task.day_date
+                      ? new Date(task.day_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : "—";
+                    return (
+                      <tr key={task.id} className="border-b border-border/50 hover:bg-surface/10 transition-colors">
+                        <td className="py-3.5 pr-3 text-xs font-semibold tabular-nums text-muted-foreground">
+                          {taskDate} {task.start_time ? `· ${task.start_time}` : ""}
+                        </td>
+                        <td className="py-3.5 pr-3 font-medium max-w-[150px] truncate">
+                          {task.title.split(" : ")[1] || task.title}
+                        </td>
+                        <td className="py-3.5 pr-3">
+                          <span className="text-sm font-semibold text-foreground">
+                            {task.title}
+                          </span>
+                        </td>
+                        <td className="py-3.5 pr-3">
+                          {data.isOwner ? (
+                            <select
+                              value={task.assigned_participant_id || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                reassignMutation.mutate({
+                                  taskId: task.id,
+                                  participantId: val ? val : null,
+                                });
+                              }}
+                              className="bg-background border border-border rounded-xl px-2 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                            >
+                              <option value="">Non assigné</option>
+                              {(participants ?? []).filter((p: any) => p.status !== "absent").map((p: any) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.display_name || p.email?.split("@")[0] || "Ami"}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border/60">
+                              {task.assigned_participant
+                                ? (task.assigned_participant.display_name || task.assigned_participant.email?.split("@")[0])
+                                : "Non assigné"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 pr-3">
+                          <select
+                            value={task.status}
+                            onChange={(e) => {
+                              updateStatusMutation.mutate({
+                                taskId: task.id,
+                                status: e.target.value as any,
+                              });
+                            }}
+                            className={cn(
+                              "border rounded-xl px-2 py-1 text-xs focus:outline-none font-semibold",
+                              task.status === "done" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+                              task.status === "in_progress" && "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                              task.status === "todo" && "bg-muted text-muted-foreground border-border"
+                            )}
+                          >
+                            <option value="todo">À faire</option>
+                            <option value="in_progress">En cours</option>
+                            <option value="done">Terminé</option>
+                          </select>
+                        </td>
+                        <td className="py-3.5 text-right">
+                          {task.booking_url ? (
+                            <Button asChild variant="outline" size="sm" className="h-7 px-2 gap-1 text-[11px]">
+                              <a href={task.booking_url} target="_blank" rel="noopener noreferrer">
+                                Réserver
+                              </a>
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </section>
@@ -1771,13 +1999,13 @@ function TripDetail() {
             participants.map((p) => (
               <li
                 key={p.id}
-                className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3"
+                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-border bg-card p-4 gap-3"
               >
                 <div>
                   <p className="font-medium">{p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}</p>
                   <p className="text-sm text-muted-foreground">{p.email}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
                   <Badge variant={p.status === "accepte" ? "success" : p.status === "absent" ? "destructive" : "muted"}>{p.status}</Badge>
                   {p.user_id === data.userId ? (
                     <Button
@@ -1785,11 +2013,11 @@ function TripDetail() {
                       size="sm"
                       className="text-xs h-7 px-2"
                       onClick={() => {
-                        const nextStatus = p.status === "absent" ? "accepte" : "absent";
+                        const nextStatus = (p.status as string) === "absent" ? "accepte" : "absent";
                         declareStatusMutation.mutate(nextStatus);
                       }}
                     >
-                      {p.status === "absent" ? "Rétablir participation" : "Se déclarer absent·e"}
+                      {(p.status as string) === "absent" ? "Rétablir participation" : "Se déclarer absent·e"}
                     </Button>
                   ) : null}
                   {data.isOwner ? (
@@ -1797,6 +2025,7 @@ function TripDetail() {
                       variant="ghost"
                       size="icon"
                       aria-label={`Retirer ${p.email}`}
+                      className="size-8"
                       onClick={() => removeMutation.mutate(p.id)}
                     >
                       <Trash2 className="size-4" />
@@ -1808,7 +2037,7 @@ function TripDetail() {
           )}
         </ul>
       </section>
-      {data.isOwner && trip.status !== "annule" ? (
+      {data.isOwner && (trip.status as string) !== "annule" ? (
         <section className="mt-10 space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">Zone organisateur·rice</p>
           <div className="flex flex-wrap gap-2">

@@ -252,77 +252,69 @@ export function buildTripSteps(input: {
     {
       id: "invite",
       label: "Inviter",
-      description: "Partager le lien",
+      description: "",
       href: "/invite",
       status: inviteDone ? "done" : "active",
     },
     {
       id: "availability",
       label: "Disponibilités",
-      description: "Chacun indique ses dates",
+      description: "",
       href: "/availability",
       status: statusFor(availDone, inviteDone),
     },
     {
       id: "questionnaire",
       label: "Préférences",
-      description: "Tes envies et ton budget",
+      description: "",
       href: "/questionnaire",
       status: statusFor(questDone, availDone),
     },
     {
       id: "dates",
       label: "Dates validées",
-      description: "Dates du groupe verrouillées",
+      description: "",
       href: "",
       status: statusFor(datesDone, questDone),
     },
     {
       id: "destination",
       label: "Destination",
-      description: destDone ? "Choix validé" : datesDone ? "Propositions Krew" : "Après validation des dates",
+      description: "",
       href: "",
       status: statusFor(destDone, datesDone),
     },
     {
       id: "hotels",
       label: "Hôtels",
-      description: hotelDone ? "Hébergement choisi" : destDone ? "Vote du groupe" : "Après choix de la destination",
+      description: "",
       href: "",
       status: statusFor(hotelDone, destDone),
     },
     {
       id: "transport",
       label: "Transport",
-      description: transportDone
-        ? "Trajets choisis"
-        : hotelDone
-          ? "Choix par ville"
-          : "Après choix de l'hébergement",
+      description: "",
       href: "",
       status: statusFor(transportDone, hotelDone),
     },
     {
       id: "organize",
       label: "Organisation",
-      description: orgDone
-        ? "Planning en place"
-        : transportDone
-          ? "Planning collaboratif"
-          : "Après choix des transports",
+      description: "",
       status: statusFor(orgDone, transportDone),
     },
     {
       id: "realized",
       label: "Voyage réalisé",
-      description: "Séjour passé",
+      description: "",
       href: "",
       status: statusFor(realizedDone, orgDone),
     },
     {
       id: "memories",
       label: "Souvenirs du voyage",
-      description: "Album photo du séjour",
+      description: "",
       href: "/memories",
       status: statusFor(memoriesDone, realizedDone),
     },

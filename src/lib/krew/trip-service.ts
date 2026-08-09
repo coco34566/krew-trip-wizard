@@ -653,10 +653,15 @@ export async function assessGenerationReadiness(
   supabase: SupabaseClient,
   tripId: string,
 ): Promise<GenerationReadiness> {
-  const [trip, participants, prefs, avail, aggregated] = await Promise.all([
+  const starPrefsPromise = (() => {
+    const q = supabase.from("trip_star_preferences").select("*").eq("trip_id", tripId);
+    return typeof q.maybeSingle === "function" ? q.maybeSingle() : q;
+  })();
+
+  const [trip, participants, prefs, avail, starPrefsRes] = await Promise.all([
     supabase
       .from("trips")
-      .select("participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date")
+      .select("participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date, celebrated_person, has_star, star_user_id")
       .eq("id", tripId)
       .single(),
     supabase
@@ -665,67 +670,85 @@ export async function assessGenerationReadiness(
       .eq("trip_id", tripId),
     supabase.from("trip_participant_preferences").select("user_id").eq("trip_id", tripId),
     supabase.from("trip_availability").select("user_id").eq("trip_id", tripId),
-    aggregateParticipantPreferences(supabase, tripId),
+    starPrefsPromise,
   ]);
   if (trip.error) throw trip.error;
   if (participants.error) throw participants.error;
+  const aggregated = await aggregateParticipantPreferences(supabase, tripId);
+
   // prefs / avail tables may be missing in some envs
   const prefRows = prefs.error ? [] : (prefs.data ?? []);
+  const prefMap = new Map<string, any>();
+  for (const p of prefRows as any[]) {
+    if (p.user_id) prefMap.set(p.user_id, p);
+  }
+
   const availRows = avail.error ? [] : (avail.data ?? []);
+  const availSet = new Set(availRows.map((r: any) => r.user_id).filter(Boolean));
 
-  const answeredIds = new Set(
-    (prefRows as any[]).map((p: any) => p.user_id).filter(Boolean),
+  const celebratedPerson = trip.data?.celebrated_person;
+  const hasStar = Boolean((trip.data as any)?.has_star || celebratedPerson);
+  const starUid = starPrefsRes.data?.user_id || (trip.data as any)?.star_user_id || "star-virtual-uid";
+
+  const starHasPrefs = starPrefsRes.data && (
+    (starPrefsRes.data.wanted_activities && starPrefsRes.data.wanted_activities.length > 0) ||
+    (starPrefsRes.data.ambiances && starPrefsRes.data.ambiances.length > 0) ||
+    starPrefsRes.data.submitted_at
+  );
+  const starHasAvail = starPrefsRes.data && (
+    (starPrefsRes.data.available_dates && starPrefsRes.data.available_dates.length > 0) ||
+    (starPrefsRes.data.blocked_dates && starPrefsRes.data.blocked_dates.length > 0)
   );
 
-  // Intégrer les réponses de la star dans l'état des réponses si elle a répondu
-  const hasStar = Boolean((trip.data as any)?.has_star);
-  let starHasPrefs = false;
-  try {
-    const starQuery = supabase
-      .from("trip_star_preferences")
-      .select("*")
-      .eq("trip_id", tripId);
-    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
-    const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
+  const rawParticipants = participants.data ?? [];
+  const activeParticipants = rawParticipants.filter((p: any) => p.status !== "absent");
 
-    if (!starPrefs.error && starData) {
-      const starUid = starData.user_id || "star-virtual-uid";
-      starHasPrefs = starData.wanted_activities?.length > 0 || starData.ambiances?.length > 0;
-      const starHasAvail = starData.available_dates?.length > 0 || starData.blocked_dates?.length > 0;
-
-      if (!answeredIds.has(starUid)) {
-        if (starHasPrefs) {
-          answeredIds.add(starUid);
-        }
-        if (starHasAvail) {
-          const alreadyHasAvail = (availRows as any[]).some((r: any) => r.user_id === starUid);
-          if (!alreadyHasAvail) {
-            availRows.push({
-              user_id: starUid,
-              available_dates: starData.available_dates,
-              blocked_dates: starData.blocked_dates,
-            } as any);
-          }
-        }
-      }
+  // Find the star participant
+  let starParticipant = null;
+  for (const p of activeParticipants) {
+    const isStarByUid = p.user_id && p.user_id === starUid;
+    const isStarByName = celebratedPerson && p.display_name &&
+      p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+      celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+    if (isStarByUid || isStarByName) {
+      starParticipant = p;
+      break;
     }
-  } catch (e) {
-    console.warn("Skipped star injection in assessGenerationReadiness", e);
   }
 
-  const baseExpected = Math.max(
-    Number(trip.data?.participants_count) || 0,
-    (participants.data ?? []).length,
-    1,
-  );
-  let expected = baseExpected;
-  if (hasStar && starHasPrefs) {
-    expected = baseExpected + 1;
+  const partsList: any[] = [];
+  for (const p of activeParticipants) {
+    const isStar = p === starParticipant;
+    let hasAnswered = p.user_id ? prefMap.has(p.user_id) : false;
+    let hasAnsweredAvailability = p.user_id ? availSet.has(p.user_id) : false;
+
+    if (isStar) {
+      if (starHasPrefs) hasAnswered = true;
+      if (starHasAvail) hasAnsweredAvailability = true;
+    }
+
+    partsList.push({
+      ...p,
+      isStar,
+      hasAnswered,
+      hasAnsweredAvailability,
+    });
   }
-  const answered = answeredIds.size;
-  const availabilityAnswered = new Set(
-    (availRows as any[]).map((p: any) => p.user_id).filter(Boolean),
-  ).size;
+
+  const starInList = partsList.some((p) => p.isStar);
+  if (hasStar && !starInList) {
+    partsList.push({
+      id: "star-virtual-id",
+      user_id: starUid,
+      isStar: true,
+      hasAnswered: !!starHasPrefs,
+      hasAnsweredAvailability: !!starHasAvail,
+    });
+  }
+
+  const expected = Math.max(Number(trip.data?.participants_count) || 0, partsList.length, 1);
+  const answered = partsList.filter((p) => p.hasAnswered).length;
+  const availabilityAnswered = partsList.filter((p) => p.hasAnsweredAvailability).length;
 
   const datesLocked = Boolean((trip.data as any)?.dates_locked);
   const lockedStart = datesLocked
@@ -735,14 +758,9 @@ export async function assessGenerationReadiness(
     ? ((trip.data as any).end_date as string | null)
     : null;
 
-  const missingLabels = (participants.data ?? [])
-    .filter((p: any) => p.user_id && !answeredIds.has(p.user_id))
-    .map((p: any) => p.display_name || p.email || "Participant")
-    .concat(
-      (participants.data ?? [])
-        .filter((p: any) => !p.user_id)
-        .map((p: any) => `${p.email || "invité"} (pas encore rejoint)`),
-    );
+  const missingLabels = partsList
+    .filter((p: any) => !p.hasAnswered)
+    .map((p: any) => p.display_name || p.email || "Participant");
 
   const minRequired = Math.max(MIN_ANSWERS, Math.ceil(expected * MIN_ANSWER_RATIO));
   const minAvail = Math.max(1, Math.ceil(expected * MIN_ANSWER_RATIO));

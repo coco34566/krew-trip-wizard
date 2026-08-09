@@ -76,12 +76,6 @@ function TripCard({
         <span className="inline-flex items-center gap-1.5">
           <Users className="size-4" /> {trip.participants_count} pers.
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <Wallet className="size-4" /> {formatEuro(Number(trip.budget_per_person))} / pers.
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <MapPin className="size-4" /> départ {trip.departure_city}
-        </span>
         {trip.start_date ? (
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays className="size-4" /> {new Date(trip.start_date).toLocaleDateString("fr-FR")}
@@ -116,8 +110,6 @@ function Dashboard() {
 
   const trips = (data?.trips ?? []) as TripRow[];
   const invitations = (data?.invitations ?? []) as { id: string; trips: TripRow | null }[];
-  const inPrep = trips.filter((t) => !t.destination_selected && !t.has_itinerary);
-  const ready = trips.filter((t) => t.destination_selected || t.has_itinerary);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
@@ -182,31 +174,20 @@ function Dashboard() {
         <div className="mt-8 space-y-10">
           <section>
             <h2 className="mb-4 font-display text-lg font-semibold">Mes voyages</h2>
-            {inPrep.length ? (
+            {trips.length ? (
               <div className="grid gap-4 md:grid-cols-2">
-                {inPrep.map((t) => (
+                {trips.map((t) => (
                   <TripCard key={t.id} trip={t} />
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Rien en préparation.</p>
+              <p className="text-sm text-muted-foreground">Aucun voyage.</p>
             )}
           </section>
 
-          {ready.length ? (
-            <section>
-              <h2 className="mb-4 font-display text-lg font-semibold">Prêts / en organisation</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                {ready.map((t) => (
-                  <TripCard key={t.id} trip={t} />
-                ))}
-              </div>
-            </section>
-          ) : null}
-
           {invitations.length ? (
             <section>
-              <h2 className="mb-4 font-display text-lg font-semibold">Invitations reçues</h2>
+              <h2 className="mb-4 font-display text-lg font-semibold">Voyages auxquels je suis invité(e)</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 {invitations
                   .filter((i) => i.trips)

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -125,6 +125,7 @@ function MonthGrid({
 
 function AvailabilityPage() {
   const { tripId } = Route.useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchAvail = useServerFn(getTripAvailability);
   const submit = useServerFn(submitMyAvailability);
@@ -145,12 +146,14 @@ function AvailabilityPage() {
   const [paintMode, setPaintMode] = useState<"available" | "blocked">("available");
 
   useEffect(() => {
-    if (data?.mine && !hydrated) {
-      const m = new Map<string, DayMode>();
-      for (const d of data.mine.availableDates ?? []) m.set(d.slice(0, 10), "available");
-      for (const d of data.mine.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
-      setSelection(m);
-      setNotes(data.mine.notes ?? "");
+    if (data && !hydrated) {
+      if (data.mine) {
+        const m = new Map<string, DayMode>();
+        for (const d of data.mine.availableDates ?? []) m.set(d.slice(0, 10), "available");
+        for (const d of data.mine.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
+        setSelection(m);
+        setNotes(data.mine.notes ?? "");
+      }
       setHydrated(true);
     }
   }, [data, hydrated]);
@@ -232,6 +235,7 @@ function AvailabilityPage() {
           : "Disponibilités enregistrées",
       );
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
+      navigate({ to: "/trips/$tripId", params: { tripId } });
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 160)),
   });

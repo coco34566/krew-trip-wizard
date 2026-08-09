@@ -120,11 +120,11 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
       y += 24;
       for (const l of split.lines) {
         ctx.font = "bold 15px system-ui, sans-serif";
-        ctx.fillText(`${l.city} (${l.count} pers.)`, 24, y);
+        ctx.fillText(`${l.city}`, 24, y);
         y += 22;
         ctx.font = "14px system-ui, sans-serif";
         ctx.fillText(
-          `Transport ${l.transport} € + part ${l.shared} € = ${l.totalPerPerson} € / pers.  |  sous-total ${l.subtotalCity} €`,
+          `Transport ${l.transport} € + part ${l.shared} € = ${l.totalPerPerson} €`,
           32,
           y,
         );
@@ -220,27 +220,19 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
           <table className="w-full min-w-[480px] text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="py-2 pr-3">Ville</th>
-                <th className="py-2 pr-3">Pers.</th>
+                <th className="py-2 pr-3">Participant (Ville)</th>
                 <th className="py-2 pr-3">Transport</th>
                 <th className="py-2 pr-3">Part égale</th>
-                <th className="py-2 pr-3">Total / pers.</th>
-                <th className="py-2">Sous-total</th>
+                <th className="py-2 pr-3">Total</th>
               </tr>
             </thead>
             <tbody>
               {split.lines.map((l) => (
                 <tr key={l.city} className="border-b border-border/60">
                   <td className="py-2.5 pr-3 font-medium">{l.city}</td>
-                  <td className="py-2.5 pr-3">
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="size-3.5 opacity-60" /> {l.count}
-                    </span>
-                  </td>
                   <td className="py-2.5 pr-3">{formatEuro(l.transport)}</td>
                   <td className="py-2.5 pr-3">{formatEuro(l.shared)}</td>
                   <td className="py-2.5 pr-3 font-semibold">{formatEuro(l.totalPerPerson)}</td>
-                  <td className="py-2.5">{formatEuro(l.subtotalCity)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1027,36 +1027,82 @@ export const getCostSplit = createServerFn({ method: "GET" })
     const { buildCostSplit } = await import("@/lib/krew/cost-split");
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
 
-    const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
-    let departureOrigins =
-      aggregated.departureOrigins && aggregated.departureOrigins.length > 0
-        ? aggregated.departureOrigins
-        : [{ city: tripOrigin, count: Math.max(1, Number(trip.data.participants_count) || 1) }];
+    const partsRes = await supabase
+      .from("trip_participants")
+      .select("id, user_id, email, display_name, status")
+      .eq("trip_id", data.tripId);
+    if (partsRes.error) throw partsRes.error;
+    const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
-    const budget = (reco.data.budget ?? {}) as any;
-    const transportByOrigin: { city: string; count: number; pricePerPerson: number }[] =
-      Array.isArray(budget.transportByOrigin) && budget.transportByOrigin.length
-        ? budget.transportByOrigin
-        : departureOrigins.map((o: { city: string; count: number }) => ({
-            city: o.city,
-            count: o.count,
-            pricePerPerson: Number(budget.transport ?? 0),
-          }));
+    const [prefsRes, starPrefsRes] = await Promise.all([
+      supabase.from("trip_participant_preferences").select("user_id, departure_city").eq("trip_id", data.tripId),
+      supabase.from("trip_star_preferences").select("user_id, departure_city").eq("trip_id", data.tripId).maybeSingle(),
+    ]);
 
-    // Aligner les effectifs questionnaire si absents du budget
-    const byCity = new Map(transportByOrigin.map((t) => [t.city.toLowerCase(), t]));
-    for (const o of departureOrigins) {
-      const key = o.city.toLowerCase();
-      if (!byCity.has(key)) {
-        transportByOrigin.push({
-          city: o.city,
-          count: o.count,
-          pricePerPerson: Number(budget.transport ?? 0),
-        });
-      } else {
-        const row = byCity.get(key)!;
-        row.count = o.count;
+    const prefMap = new Map<string, string>();
+    for (const p of prefsRes.data ?? []) {
+      if (p.user_id && p.departure_city) {
+        prefMap.set(p.user_id, p.departure_city);
       }
+    }
+
+    const celebratedPerson = trip.data?.celebrated_person;
+    const starUid = (starPrefsRes.data as any)?.user_id || (trip.data as any)?.star_user_id || "star-virtual-uid";
+
+    const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
+    const budget = (reco.data.budget ?? {}) as any;
+    const budgetOrigins = Array.isArray(budget.transportByOrigin) ? budget.transportByOrigin : [];
+    const fallbackTransport = Number(budget.transport ?? 0);
+
+    const normCity = (s: string) =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+
+    const getPriceForCity = (city: string) => {
+      const target = normCity(city);
+      const match = budgetOrigins.find((bo: any) => normCity(bo.city || bo.originCity || "") === target);
+      return match ? Number(match.pricePerPerson ?? match.price ?? fallbackTransport) : fallbackTransport;
+    };
+
+    const participantLines = [];
+    for (const p of participants) {
+      const isStarByUid = p.user_id && p.user_id === starUid;
+      const isStarByName = celebratedPerson && p.display_name &&
+        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+      const isStar = isStarByUid || isStarByName;
+
+      let city = "";
+      if (isStar && (starPrefsRes.data as any)?.departure_city) {
+        city = (starPrefsRes.data as any).departure_city;
+      } else if (p.user_id && prefMap.has(p.user_id)) {
+        city = prefMap.get(p.user_id)!;
+      }
+
+      if (!city) {
+        city = tripOrigin;
+      }
+
+      const price = getPriceForCity(city);
+      const name = p.display_name || p.email?.split("@")[0] || "Ami";
+      const displayName = isStar ? `${name} ⭐ (${city})` : `${name} (${city})`;
+
+      participantLines.push({
+        city: displayName,
+        count: 1,
+        pricePerPerson: price,
+      });
+    }
+
+    if (participantLines.length === 0) {
+      participantLines.push({
+        city: `Groupe (${tripOrigin})`,
+        count: Math.max(1, Number(trip.data.participants_count) || 1),
+        pricePerPerson: fallbackTransport,
+      });
     }
 
     const destName =
@@ -1069,10 +1115,10 @@ export const getCostSplit = createServerFn({ method: "GET" })
       accommodation: Number(budget.accommodation ?? 0),
       activities: Number(budget.activities ?? 0),
       food: Number(budget.food ?? 0),
-      origins: transportByOrigin,
-      fallbackTransportPerPerson: Number(budget.transport ?? 0),
+      origins: participantLines,
+      fallbackTransportPerPerson: fallbackTransport,
       participants: Number(trip.data.participants_count) || undefined,
-    });
+    } as any);
 
     return {
       tripName: trip.data.name as string,
@@ -2327,4 +2373,170 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       sessionId: session.id,
       url: session.url,
     };
+  });
+
+
+export const generateTasksForTrip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    // 1. Fetch trip and its itinerary
+    const tripRes = await supabase
+      .from("trips")
+      .select("group_itinerary, celebrated_person, has_star, star_user_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+
+    const itinerary = (tripRes.data as any).group_itinerary;
+    if (!itinerary || !Array.isArray(itinerary.days)) {
+      return { ok: false, message: "Aucun planning généré pour ce voyage. Veuillez générer le planning d'abord." };
+    }
+
+    // 2. Fetch all active participants
+    const partsRes = await supabase
+      .from("trip_participants")
+      .select("id, user_id, email, display_name, status")
+      .eq("trip_id", data.tripId);
+
+    if (partsRes.error) throw partsRes.error;
+    const participants = partsRes.data ?? [];
+
+    // Identify the star to exclude her from automatic assignment
+    const celebratedPerson = tripRes.data.celebrated_person;
+    const starUid = tripRes.data.star_user_id || "star-virtual-uid";
+
+    const assignable = participants.filter((p) => {
+      if ((p.status as string) === "absent") return false;
+      const isStarByUid = p.user_id && p.user_id === starUid;
+      const isStarByName = celebratedPerson && p.display_name &&
+        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+      return !isStarByUid && !isStarByName;
+    });
+
+    // Fallback if no assignable participant exists
+    const fallbackAssignees = assignable.length > 0 ? assignable : participants.filter(p => (p.status as string) !== "absent");
+
+    // 3. Fetch existing tasks
+    const tasksRes = await supabase
+      .from("trip_tasks" as any)
+      .select("*")
+      .eq("trip_id", data.tripId);
+
+    const existingTasks = (tasksRes.error ? [] : (tasksRes.data ?? [])) as any[];
+
+    // 4. Generate tasks
+    const tasksToUpsert = [];
+    let newTaskIndex = 0;
+
+    for (const day of itinerary.days) {
+      const slots = day.slots ?? [];
+      for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
+        const slot = slots[slotIndex];
+        if (slot && ["resto", "activite", "bar"].includes(slot.type)) {
+          const slotId = `${day.day}-${slotIndex}`;
+          const existing = existingTasks.find((t) => t.slot_id === slotId);
+
+          let assignedId = null;
+          let taskStatus = "todo";
+          let isManual = false;
+          let taskId = undefined;
+
+          if (existing) {
+            taskId = existing.id;
+            assignedId = existing.assigned_participant_id;
+            taskStatus = existing.status;
+            isManual = existing.is_manually_assigned;
+          } else {
+            if (fallbackAssignees.length > 0) {
+              const p = fallbackAssignees[newTaskIndex % fallbackAssignees.length]!;
+              assignedId = p.id;
+              newTaskIndex++;
+            }
+          }
+
+          let defaultTitle = "";
+          if (slot.type === "resto") defaultTitle = `Réserver le restaurant : ${slot.label}`;
+          else if (slot.type === "activite") defaultTitle = `Réserver l'activité : ${slot.label}`;
+          else defaultTitle = `Vérifier / réserver : ${slot.label}`;
+
+          tasksToUpsert.push({
+            ...(taskId ? { id: taskId } : {}),
+            trip_id: data.tripId,
+            slot_id: slotId,
+            title: defaultTitle,
+            type: slot.type,
+            assigned_participant_id: assignedId,
+            status: taskStatus,
+            booking_url: slot.url || null,
+            start_time: slot.time || null,
+            day_date: day.date || null,
+            price: slot.priceHint != null ? String(slot.priceHint) : null,
+            is_manually_assigned: isManual,
+          });
+        }
+      }
+    }
+
+    if (tasksToUpsert.length > 0) {
+      const { error } = await supabase.from("trip_tasks" as any).upsert(tasksToUpsert);
+      if (error) throw error;
+    }
+
+    return { ok: true, count: tasksToUpsert.length };
+  });
+
+
+export const updateTaskStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        taskId: z.string().uuid(),
+        status: z.enum(["todo", "in_progress", "done"]),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const { error } = await supabase
+      .from("trip_tasks" as any)
+      .update({ status: data.status, updated_at: new Date().toISOString() })
+      .eq("id", data.taskId);
+
+    if (error) throw error;
+    return { ok: true };
+  });
+
+
+export const reassignTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        taskId: z.string().uuid(),
+        participantId: z.string().uuid().nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const { error } = await supabase
+      .from("trip_tasks" as any)
+      .update({
+        assigned_participant_id: data.participantId,
+        is_manually_assigned: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.taskId);
+
+    if (error) throw error;
+    return { ok: true };
   });

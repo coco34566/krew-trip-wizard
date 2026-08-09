@@ -53,3 +53,74 @@ describe('attachParticipantToTrip', () => {
     expect(selectMock).toHaveBeenCalled();
   });
 });
+
+import { getParticipantsProgress, getParticipantsProgressHelper } from '../participant-preferences.functions';
+
+describe('getParticipantsProgress', () => {
+  it('handles star counting and expected total correctly without adding +1', async () => {
+    const tripId = 'trip-123';
+
+    // Mock responses for Supabase
+    // 1. trips -> select("participants_count, celebrated_person, has_star, star_user_id")
+    const tripsData = { participants_count: 6, celebrated_person: 'Titi', has_star: true, star_user_id: 'star-uid' };
+
+    // 2. trip_participants -> select("id, user_id, email, display_name, status")
+    const participantsData = [
+      { id: 'p1', user_id: 'user-coco', email: 'coco@krew.travel', display_name: 'Coco', status: 'accepte' },
+      { id: 'p2', user_id: 'star-uid', email: 'titi@krew.travel', display_name: 'Titi', status: 'accepte' },
+      { id: 'p3', user_id: 'user-bruce', email: 'bruce@krew.travel', display_name: 'Bruce', status: 'accepte' },
+    ];
+
+    // 3. trip_participant_preferences -> select("user_id, submitted_at, updated_at")
+    const preferencesData = [
+      { user_id: 'user-coco', submitted_at: '2026-08-10', updated_at: null },
+      { user_id: 'user-bruce', submitted_at: '2026-08-11', updated_at: null },
+    ];
+
+    // 4. trip_availability -> select("user_id")
+    const availabilityData = [
+      { user_id: 'user-coco' },
+    ];
+
+    // 5. trip_star_preferences -> select("*")
+    const starPrefsData = {
+      user_id: 'star-uid',
+      wanted_activities: ['soirée'],
+      ambiances: ['fete'],
+      submitted_at: '2026-08-12',
+    };
+
+    const context = {
+      supabase: {
+        from: (table: string) => {
+          let data: any = [];
+          if (table === 'trips') data = tripsData;
+          else if (table === 'trip_participants') data = participantsData;
+          else if (table === 'trip_participant_preferences') data = preferencesData;
+          else if (table === 'trip_availability') data = availabilityData;
+          else if (table === 'trip_star_preferences') data = starPrefsData;
+
+          const queryChain = {
+            select: () => queryChain,
+            eq: () => queryChain,
+            maybeSingle: async () => ({ data, error: null }),
+            then: (resolve: any) => resolve({ data, error: null }),
+          };
+          return queryChain as any;
+        }
+      }
+    };
+
+    const result = await getParticipantsProgressHelper(
+      context.supabase,
+      tripId,
+    );
+
+    expect(result.expected).toBe(6); // should match participants_count = 6
+    expect(result.joined).toBe(3);   // 3 accepted
+    expect(result.answered).toBe(3); // Coco + Bruce + Titi (via starPrefs)
+    expect(result.participants.length).toBe(6); // 3 accepted + 3 padded generic participants
+    expect(result.participants[1].isStar).toBe(true); // Titi is correctly marked as the star
+    expect(result.participants[1].hasAnswered).toBe(true); // star has answered since starPrefs is filled
+  });
+});
