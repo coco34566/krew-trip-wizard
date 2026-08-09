@@ -630,12 +630,12 @@ export function TripHubDashboard({
             <h2 className="font-semibold">Propositions en cours</h2>
             <span className="text-xs text-muted-foreground">évoluent avec les réponses</span>
           </div>
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-4 -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 sm:mx-0 sm:block sm:space-y-2 sm:overflow-visible sm:px-0 sm:pb-0">
             {topScores.map((s, i) => (
               <li
                 key={s.name}
                 className={cn(
-                  "flex items-center justify-between rounded-2xl border px-4 py-3",
+                  "flex min-w-[72%] shrink-0 snap-center items-center justify-between rounded-2xl border px-4 py-3 sm:min-w-0 sm:shrink",
                   i === 0 ? "border-primary/30 bg-primary/5" : "border-border/70 bg-surface/30",
                 )}
               >
