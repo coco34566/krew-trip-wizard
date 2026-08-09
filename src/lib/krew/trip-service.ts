@@ -193,6 +193,78 @@ export async function aggregateParticipantPreferences(
   supabase: { from: (table: string) => any },
   tripId: string,
 ) {
+  let celebratedPerson: string | null = null;
+  let starUserId: string | null = null;
+  let starWeight = 1;
+  let hasStar = false;
+  let starWantedActivities: string[] = [];
+  let starDealBreakers: string[] = [];
+  let starData: any = null;
+
+  try {
+    const tripMetaQuery = supabase
+      .from("trips")
+      .select("event_type, celebrated_person, has_star, star_user_id")
+      .eq("id", tripId);
+    const tripMeta = typeof tripMetaQuery.maybeSingle === "function" ? await tripMetaQuery.maybeSingle() : await tripMetaQuery;
+    if (tripMeta.data) {
+      const et = String(tripMeta.data.event_type ?? "").toLowerCase();
+      celebratedPerson = (tripMeta.data.celebrated_person as string) || null;
+      starUserId = (tripMeta.data as any).star_user_id ?? null;
+      hasStar =
+        Boolean((tripMeta.data as any).has_star) ||
+        Boolean(celebratedPerson) ||
+        ["evg", "evjf", "anniversaire", "retraite"].includes(et);
+      // Poids Star : toujours plus fort que le reste du groupe
+      if (hasStar) {
+        if (et === "evg" || et === "evjf") starWeight = 3.2;
+        else if (et === "anniversaire" || et === "retraite") starWeight = 2.8;
+        else starWeight = 2.5;
+      }
+    }
+
+    const starQuery = supabase
+      .from("trip_star_preferences")
+      .select("*")
+      .eq("trip_id", tripId);
+    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
+    starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
+
+    if (starData) {
+      starWantedActivities = starData.wanted_activities ?? [];
+      starDealBreakers = starData.deal_breakers ?? [];
+      if (!starUserId && starData.user_id) starUserId = starData.user_id;
+      // Si le questionnaire star est rempli, on force un poids élevé même hors EVG
+      if (starWeight < 2.5) starWeight = 2.5;
+    }
+
+    // Map prénom → user_id pour identifier la star parmi les participants
+    const parts = await supabase
+      .from("trip_participants")
+      .select("user_id, display_name, email")
+      .eq("trip_id", tripId);
+    if (!parts.error && celebratedPerson) {
+      const needle = celebratedPerson
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .toLowerCase()
+        .trim();
+      for (const p of parts.data ?? []) {
+        const name = String(p.display_name ?? "")
+          .normalize("NFD")
+          .replace(/\p{M}/gu, "")
+          .toLowerCase()
+          .trim();
+        if (name && (name === needle || name.includes(needle) || needle.includes(name))) {
+          if (p.user_id) starUserId = p.user_id;
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Skipped star metadata fetch in aggregateParticipantPreferences", e);
+  }
+
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
@@ -234,50 +306,39 @@ export async function aggregateParticipantPreferences(
 
   const rows = (res.data ?? []) as ParticipantPrefRow[];
 
-  // Intégrer les préférences de la star si elle a rempli le questionnaire spécifique (sans avoir de compte)
-  try {
-    const starQuery = supabase
-      .from("trip_star_preferences")
-      .select("*")
-      .eq("trip_id", tripId);
-    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
-    const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
-
-    if (!starPrefs.error && starData) {
-      const starUid = starData.user_id || "star-virtual-uid";
-      const alreadyHasPref = rows.some((r) => r.user_id === starUid);
-      if (!alreadyHasPref) {
-        rows.push({
-          user_id: starUid,
-          ambiances: starData.ambiances ?? [],
-          activity_categories: starData.wanted_activities ?? [],
-          budget_max: null,
-          budget_priority: "preference",
-          date_flex_days: 0,
-          required_amenities: [],
-          min_accommodation_rating: null,
-          travel_pace: "equilibre",
-          duration_nights_min: null,
-          duration_nights_max: null,
-          desired_destination: starData.desired_destination ?? null,
-          departure_city: starData.departure_city ?? null,
-          excluded_destinations: starData.excluded_destinations ?? [],
-          deal_breaker_ambiances: starData.deal_breakers ?? [],
-          accepts_shared_room: true,
-          room_type_preference: "peu_importe",
-          preferred_time_slots: [],
-          dietary_constraints: [],
-          mobility_notes: null,
-          accessibility_needs: false,
-          departure_airport_or_station: starData.departure_airport_or_station ?? null,
-          transport_mode_accepted: ["peu importe"],
-          max_travel_duration_hours: null,
-          blackout_dates: [],
-        });
-      }
+  // Intégrer les préférences de la star (toujours présente s'il y a une star)
+  if (hasStar || starData) {
+    const starUid = starUserId || starData?.user_id || "star-virtual-uid";
+    const alreadyHasPref = rows.some((r) => r.user_id === starUid);
+    if (!alreadyHasPref) {
+      rows.push({
+        user_id: starUid,
+        ambiances: starData?.ambiances ?? [],
+        activity_categories: starData?.wanted_activities ?? [],
+        budget_max: null,
+        budget_priority: "preference",
+        date_flex_days: 0,
+        required_amenities: [],
+        min_accommodation_rating: null,
+        travel_pace: "equilibre",
+        duration_nights_min: null,
+        duration_nights_max: null,
+        desired_destination: starData?.desired_destination ?? null,
+        departure_city: starData?.departure_city ?? null,
+        excluded_destinations: starData?.excluded_destinations ?? [],
+        deal_breaker_ambiances: starData?.deal_breakers ?? [],
+        accepts_shared_room: true,
+        room_type_preference: "peu_importe",
+        preferred_time_slots: [],
+        dietary_constraints: [],
+        mobility_notes: null,
+        accessibility_needs: false,
+        departure_airport_or_station: starData?.departure_airport_or_station ?? null,
+        transport_mode_accepted: ["peu importe"],
+        max_travel_duration_hours: null,
+        blackout_dates: [],
+      });
     }
-  } catch (e) {
-    console.warn("Skipped star injection in aggregateParticipantPreferences", e);
   }
 
   const ambianceFrequencies = frequencies(rows.flatMap((r) => r.ambiances ?? []));
@@ -405,75 +466,6 @@ export async function aggregateParticipantPreferences(
       station: (r.departure_airport_or_station ?? "").trim(),
     }))
     .filter((x) => x.city || x.station);
-
-  // Star : charge préférences + poids
-  let starWantedActivities: string[] = [];
-  let starDealBreakers: string[] = [];
-  let starWeight = 1;
-  let starUserId: string | null = null;
-  let celebratedPerson: string | null = null;
-  try {
-    const tripMeta = await supabase
-      .from("trips")
-      .select("event_type, celebrated_person, has_star, star_user_id")
-      .eq("id", tripId)
-      .maybeSingle();
-    const et = String(tripMeta.data?.event_type ?? "").toLowerCase();
-    celebratedPerson = (tripMeta.data?.celebrated_person as string) || null;
-    starUserId = (tripMeta.data as any)?.star_user_id ?? null;
-    const hasStar =
-      Boolean((tripMeta.data as any)?.has_star) ||
-      Boolean(celebratedPerson) ||
-      ["evg", "evjf", "anniversaire", "retraite"].includes(et);
-    // Poids Star : toujours plus fort que le reste du groupe
-    if (hasStar) {
-      if (et === "evg" || et === "evjf") starWeight = 3.2;
-      else if (et === "anniversaire" || et === "retraite") starWeight = 2.8;
-      else starWeight = 2.5;
-    } else {
-      starWeight = 1;
-    }
-    const starQuery = supabase
-      .from("trip_star_preferences")
-      .select("*")
-      .eq("trip_id", tripId);
-    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
-    const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
-
-    if (starData) {
-      starWantedActivities = starData.wanted_activities ?? [];
-      starDealBreakers = starData.deal_breakers ?? [];
-      if (!starUserId && starData.user_id) starUserId = starData.user_id;
-      // Si le questionnaire star est rempli, on force un poids élevé même hors EVG
-      if (starWeight < 2.5) starWeight = 2.5;
-    }
-
-    // Map prénom → user_id pour identifier la star parmi les participants
-    const parts = await supabase
-      .from("trip_participants")
-      .select("user_id, display_name, email")
-      .eq("trip_id", tripId);
-    if (!parts.error && celebratedPerson) {
-      const needle = celebratedPerson
-        .normalize("NFD")
-        .replace(/\p{M}/gu, "")
-        .toLowerCase()
-        .trim();
-      for (const p of parts.data ?? []) {
-        const name = String(p.display_name ?? "")
-          .normalize("NFD")
-          .replace(/\p{M}/gu, "")
-          .toLowerCase()
-          .trim();
-        if (name && (name === needle || name.includes(needle) || needle.includes(name))) {
-          if (p.user_id) starUserId = p.user_id;
-          break;
-        }
-      }
-    }
-  } catch {
-    /* table absente → ignore */
-  }
 
   const individualPreferences = rows.map((r) => {
     const uid = (r.user_id as string) || null;
@@ -655,7 +647,7 @@ export async function assessGenerationReadiness(
   const [trip, participants, prefs, avail, aggregated] = await Promise.all([
     supabase
       .from("trips")
-      .select("participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date")
+      .select("participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date, has_star, event_type, celebrated_person, star_user_id")
       .eq("id", tripId)
       .single(),
     supabase
@@ -676,6 +668,14 @@ export async function assessGenerationReadiness(
     (prefRows as any[]).map((p: any) => p.user_id).filter(Boolean),
   );
 
+  const et = String(trip.data?.event_type ?? "").toLowerCase();
+  const celebratedPerson = (trip.data?.celebrated_person as string) || null;
+  const starUserId = (trip.data as any)?.star_user_id ?? null;
+  const hasStar =
+    Boolean((trip.data as any)?.has_star) ||
+    Boolean(celebratedPerson) ||
+    ["evg", "evjf", "anniversaire", "retraite"].includes(et);
+
   // Intégrer les réponses de la star dans l'état des réponses si elle a répondu
   try {
     const starQuery = supabase
@@ -685,25 +685,20 @@ export async function assessGenerationReadiness(
     const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
     const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
 
-    if (!starPrefs.error && starData) {
-      const starUid = starData.user_id || "star-virtual-uid";
-      const starHasPrefs = starData.wanted_activities?.length > 0 || starData.ambiances?.length > 0;
-      const starHasAvail = starData.available_dates?.length > 0 || starData.blocked_dates?.length > 0;
+    const starUid = starUserId || starData?.user_id || "star-virtual-uid";
 
+    if (hasStar || starData) {
       if (!answeredIds.has(starUid)) {
-        if (starHasPrefs) {
-          answeredIds.add(starUid);
-        }
-        if (starHasAvail) {
-          const alreadyHasAvail = (availRows as any[]).some((r: any) => r.user_id === starUid);
-          if (!alreadyHasAvail) {
-            availRows.push({
-              user_id: starUid,
-              available_dates: starData.available_dates,
-              blocked_dates: starData.blocked_dates,
-            } as any);
-          }
-        }
+        // La star compte toujours comme ayant répondu pour ne pas bloquer
+        answeredIds.add(starUid);
+      }
+      const alreadyHasAvail = (availRows as any[]).some((r: any) => r.user_id === starUid);
+      if (!alreadyHasAvail) {
+        availRows.push({
+          user_id: starUid,
+          available_dates: starData?.available_dates ?? [],
+          blocked_dates: starData?.blocked_dates ?? [],
+        } as any);
       }
     }
   } catch (e) {

@@ -375,6 +375,96 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     const readiness = await assessGenerationReadiness(supabaseMock, tripId);
     expect(readiness.canGenerate).toBe(true);
   });
+
+  it("compte toujours la star comme participante même si elle n'a pas rempli de questionnaire", async () => {
+    const tripId = "trip-123";
+    const supabaseMock = {
+      from: vi.fn((table: string) => {
+        if (table === "trips") {
+          const res = {
+            data: { id: tripId, participants_count: 2, dates_locked: true, start_date: "2026-08-01", end_date: "2026-08-03", has_star: true, event_type: "evg" },
+            error: null,
+          };
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () => Promise.resolve(res),
+                maybeSingle: () => Promise.resolve(res),
+              }),
+            }),
+          };
+        }
+        if (table === "trip_preferences") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: {
+                      let_krew_decide: true,
+                      duration_nights: 2,
+                      max_budget: 500,
+                      max_distance_km: 2000,
+                      ambiances: ["fete"],
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+        if (table === "trip_participant_preferences") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { user_id: "u1", ambiances: ["fete"] },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "trip_participants") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { id: "p1", user_id: "u1" },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "trip_availability") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { user_id: "u1" },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        return {
+          select: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
+        };
+      }),
+    } as any;
+
+    const readiness = await assessGenerationReadiness(supabaseMock, tripId);
+    // expected count should be Math.max(participants_count=2, trip_participants=1) = 2.
+    // answered should be user_id="u1" + "star-virtual-uid" = 2.
+    expect(readiness.answered).toBe(2);
+    expect(readiness.expected).toBe(2);
+    expect(readiness.canGenerate).toBe(true);
+  });
 });
 
 describe("Rate Limiting (rate-limit.server.ts)", () => {
