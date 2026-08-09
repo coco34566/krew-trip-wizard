@@ -132,6 +132,17 @@ function TripRecapPage() {
     queryFn: () => fetchRecap({ data: { tripId } }),
   });
 
+  const googleCalendarUrl = useMemo(() => {
+    const tripObj = data?.trip;
+    if (!tripObj?.startDate || !tripObj?.endDate) return "";
+    const start = tripObj.startDate.replace(/[-]/g, "");
+    const endDateObj = new Date(tripObj.endDate);
+    endDateObj.setDate(endDateObj.getDate() + 1);
+    const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
+    const title = encodeURIComponent(tripObj.name || "Mon Voyage Krew");
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
+  }, [data?.trip?.startDate, data?.trip?.endDate, data?.trip?.name]);
+
   if (isLoading) {
     return (
       <main className="mx-auto max-w-4xl space-y-4 px-4 py-10">
@@ -182,16 +193,6 @@ function TripRecapPage() {
     toast.success("Calendrier .ics téléchargé !");
   };
 
-  const googleCalendarUrl = useMemo(() => {
-    if (!trip.startDate || !trip.endDate) return "";
-    const start = trip.startDate.replace(/[-]/g, "");
-    const endDateObj = new Date(trip.endDate);
-    endDateObj.setDate(endDateObj.getDate() + 1);
-    const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
-    const title = encodeURIComponent(trip.name || "Mon Voyage Krew");
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
-  }, [trip.startDate, trip.endDate, trip.name]);
-
   const dateLabel =
     trip.startDate && trip.endDate
       ? `${new Date(trip.startDate).toLocaleDateString("fr-FR")} → ${new Date(trip.endDate).toLocaleDateString("fr-FR")}`
@@ -234,8 +235,8 @@ function TripRecapPage() {
       <div className="mt-6 flex gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground/90">
         <Info className="mt-0.5 size-4 shrink-0 text-primary" />
         <p>
-          Ces liens ouvrent les comparateurs avec vos critères pré-remplis — les prix affichés dans
-          Krew sont des estimations, cliquez pour voir le prix réel du jour.
+          Ces liens ouvrent les comparateurs avec tes critères pré-remplis — les prix affichés dans
+          Krew sont des estimations, clique pour voir le prix réel du jour.
         </p>
       </div>
 
@@ -477,7 +478,7 @@ function TripRecapPage() {
             <h2 className="font-display text-xl font-semibold tracking-tight">Exporter mon calendrier</h2>
           </div>
           <p className="text-xs text-muted-foreground leading-snug">
-            Téléchargez le fichier de l'itinéraire ou ajoutez le séjour complet à votre agenda.
+            Télécharge le fichier de l'itinéraire ou ajoute le séjour complet à ton agenda.
           </p>
           <div className="flex flex-wrap gap-2.5">
             <Button onClick={handleDownloadIcs} variant="hero" size="sm" className="gap-1.5">

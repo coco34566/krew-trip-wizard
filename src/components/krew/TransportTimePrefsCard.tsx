@@ -98,7 +98,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
         <h2 className="font-display text-xl font-semibold tracking-tight">Mes contraintes horaires de transport</h2>
       </div>
       <p className="text-xs text-muted-foreground leading-snug">
-        Indiquez l'heure à partir de laquelle vous pouvez partir à l'aller, et l'heure limite de retour chez vous. Ces préférences orientent le choix des billets du groupe.
+        Indique l'heure à partir de laquelle tu peux partir à l'aller, et l'heure limite de retour chez toi. Ces préférences orientent le choix des billets du groupe.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 mt-4">
