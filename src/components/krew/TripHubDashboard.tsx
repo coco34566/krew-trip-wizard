@@ -59,27 +59,27 @@ type Props = {
 function heroImageForEvent(eventType?: string | null) {
   const q = "auto=format&fit=crop&w=1600&q=85";
   const map: Record<string, string> = {
-    // EVG — rooftop / night out entre potes (pas la teuf de campus)
     evg: `https://images.unsplash.com/photo-1514933651103-005eec06c04b?${q}`,
-    // EVJF — champagne, lumière dorée, élégance
     evjf: `https://images.unsplash.com/photo-1527529482838-46479466cbfe?${q}`,
-    // Anniversaire — dîner en ville / toast, zéro ballon
     anniversaire: `https://images.unsplash.com/photo-1414235077428-338989a2e8c0?${q}`,
-    // Week-end — route côtière / escapade
     weekend: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?${q}`,
-    // Voyage de groupe — amis en hauteur, vue panorama
     voyage_groupe: `https://images.unsplash.com/photo-1527631746610-b998ef1c7d1d?${q}`,
-    // Famille — bord de mer, moment vrai
     famille: `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?${q}`,
-    // Séminaire — skyline / business trip moderne
     seminaire: `https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?${q}`,
-    // Retraite — terrasse golden hour, sérénité
     retraite: `https://images.unsplash.com/photo-1506905925346-21bda4d32df4?${q}`,
-    // Autre
     autre: `https://images.unsplash.com/photo-1488085061387-422e29b40080?${q}`,
   };
-  const key = String(eventType || "").toLowerCase();
-  return map[key] || `https://images.unsplash.com/photo-1488085061387-422e29b40080?${q}`;
+
+  let key = String(eventType || "").toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/[-\s]+/g, "_");
+
+  if (key === "voyage") key = "voyage_groupe";
+  if (key === "week_end") key = "weekend";
+
+  return map[key] || map["autre"];
 }
 
 
@@ -347,9 +347,6 @@ function NextActionsPanel({
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Tes prochaines actions
           </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Uniquement ce qui te reste à faire.
-          </p>
         </div>
       </div>
 
