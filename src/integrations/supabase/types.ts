@@ -752,6 +752,60 @@ export type Database = {
           },
         ]
       }
+      trip_payments: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          id: string
+          participant_id: string
+          platform_fee_cents: number
+          status: string
+          stripe_session_id: string | null
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          currency?: string
+          id?: string
+          participant_id: string
+          platform_fee_cents?: number
+          status?: string
+          stripe_session_id?: string | null
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          participant_id?: string
+          platform_fee_cents?: number
+          status?: string
+          stripe_session_id?: string | null
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_payments_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "trip_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_payments_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_preferences: {
         Row: {
           activity_categories: string[]
@@ -865,6 +919,51 @@ export type Database = {
             foreignKeyName: "trip_star_preferences_trip_id_fkey"
             columns: ["trip_id"]
             isOneToOne: true
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_transport_time_prefs: {
+        Row: {
+          created_at: string
+          earliest_departure_time: string | null
+          id: string
+          latest_return_time: string | null
+          participant_id: string
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          earliest_departure_time?: string | null
+          id?: string
+          latest_return_time?: string | null
+          participant_id: string
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          earliest_departure_time?: string | null
+          id?: string
+          latest_return_time?: string | null
+          participant_id?: string
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_transport_time_prefs_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "trip_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_transport_time_prefs_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
             referencedRelation: "trips"
             referencedColumns: ["id"]
           },
