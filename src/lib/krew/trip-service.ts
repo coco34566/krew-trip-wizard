@@ -796,6 +796,7 @@ export async function generateRecommendationsForTrip(
   tripId: string,
   options?: { force?: boolean },
 ) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const readiness = await assessGenerationReadiness(supabase, tripId);
   if (!options?.force && !readiness.canGenerate) {
     return {
@@ -1043,7 +1044,7 @@ export async function generateRecommendationsForTrip(
   const profileKeys = new Set(profiles.map((p) => normCity(p.name)));
   for (const p of profiles) {
     try {
-      await supabase.from("destinations").upsert(
+      await supabaseAdmin.from("destinations").upsert(
         {
           name: p.name,
           country: p.country,
@@ -1071,7 +1072,7 @@ export async function generateRecommendationsForTrip(
           .ilike("name", p.name)
           .maybeSingle();
         if (!existing.data) {
-          await supabase.from("destinations").insert({
+          await supabaseAdmin.from("destinations").insert({
             name: p.name,
             country: p.country,
             distance_from_paris_km: p.distanceKm,
@@ -1119,7 +1120,7 @@ export async function generateRecommendationsForTrip(
       }
 
       const row = aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
-      await supabase.from("destinations").upsert(
+      await supabaseAdmin.from("destinations").upsert(
         { ...row, latitude, longitude } as any,
         { onConflict: "external_id" },
       );
