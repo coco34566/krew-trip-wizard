@@ -451,7 +451,11 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
     }
 
     const joined = partsList.length;
-    const expected = Math.max(Number(tripRes.data?.participants_count) || 0, joined, 1);
+    const baseExpected = Math.max(Number(tripRes.data?.participants_count) || 0, participants.data?.length ?? 0, 1);
+    let expected = baseExpected;
+    if (hasStar && starHasPrefs) {
+      expected = baseExpected + 1;
+    }
 
     return {
       joined,
@@ -460,7 +464,7 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
       answered,
       availabilityAnswered, // utile pour savoir combien ont répondu aux dispos
       pendingPrefs: Math.max(expected - answered, 0),
-      pendingJoin: Math.max(expected - joined, 0),
+      pendingJoin: Math.max(baseExpected - (participants.data?.length ?? 0), 0),
       participants: partsList.map((p: any) => {
         if (p.id === "star-virtual-id") return p;
         return {

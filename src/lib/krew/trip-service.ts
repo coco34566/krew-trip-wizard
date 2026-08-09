@@ -677,6 +677,8 @@ export async function assessGenerationReadiness(
   );
 
   // Intégrer les réponses de la star dans l'état des réponses si elle a répondu
+  const hasStar = Boolean((trip.data as any)?.has_star);
+  let starHasPrefs = false;
   try {
     const starQuery = supabase
       .from("trip_star_preferences")
@@ -687,7 +689,7 @@ export async function assessGenerationReadiness(
 
     if (!starPrefs.error && starData) {
       const starUid = starData.user_id || "star-virtual-uid";
-      const starHasPrefs = starData.wanted_activities?.length > 0 || starData.ambiances?.length > 0;
+      starHasPrefs = starData.wanted_activities?.length > 0 || starData.ambiances?.length > 0;
       const starHasAvail = starData.available_dates?.length > 0 || starData.blocked_dates?.length > 0;
 
       if (!answeredIds.has(starUid)) {
@@ -710,11 +712,15 @@ export async function assessGenerationReadiness(
     console.warn("Skipped star injection in assessGenerationReadiness", e);
   }
 
-  const expected = Math.max(
+  const baseExpected = Math.max(
     Number(trip.data?.participants_count) || 0,
     (participants.data ?? []).length,
     1,
   );
+  let expected = baseExpected;
+  if (hasStar && starHasPrefs) {
+    expected = baseExpected + 1;
+  }
   const answered = answeredIds.size;
   const availabilityAnswered = new Set(
     (availRows as any[]).map((p: any) => p.user_id).filter(Boolean),

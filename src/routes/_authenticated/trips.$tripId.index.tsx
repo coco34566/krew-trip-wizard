@@ -692,6 +692,9 @@ function TripDetail() {
   };
 
 
+  const activitiesValidated = Boolean(((trip as any).selected_activity_ids?.length ?? 0) > 0 || (activityVotes ?? []).length > 0);
+  const tripEndDatePassed = Boolean(trip.end_date && new Date(trip.end_date + "T23:59:59") < new Date());
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
       <TripHubDashboard
@@ -722,6 +725,8 @@ function TripDetail() {
           name: r.destinations?.name ?? "Destination",
           score: r.score,
         }))}
+        activitiesValidated={activitiesValidated}
+        tripEndDatePassed={tripEndDatePassed}
       >
       </TripHubDashboard>
 
@@ -1502,7 +1507,7 @@ function TripDetail() {
                                   ~{formatEuro(Number(slot.priceHint))} / pers.
                                 </p>
                               ) : null}
-                              {slot.url ? (
+                              {slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
                                 <a
                                   href={slot.url}
                                   target="_blank"
@@ -1588,7 +1593,13 @@ function TripDetail() {
 
           <PackingListCard
             avgTemp={null}
-            activities={activities.map((a) => a.name)}
+            activities={
+              hasItinerary && (trip as any).group_itinerary?.days
+                ? ((trip as any).group_itinerary.days as any[]).flatMap((day) =>
+                    (day.slots ?? []).map((slot: any) => `${slot.label || ""} ${slot.detail || ""}`.trim())
+                  ).filter(Boolean)
+                : activities.map((a) => a.name)
+            }
             durationDays={liveBudget.nights || 2}
             eventType={trip.event_type}
           />

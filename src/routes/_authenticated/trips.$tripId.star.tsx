@@ -21,6 +21,32 @@ import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
 type DayMode = "available" | "blocked" | null;
 
+const STAR_WANTED_ACTIVITIES_EMOJIS: Record<string, string> = {
+  sport: "⚽",
+  plage: "🌊",
+  randonnée: "🥾",
+  spa: "🧖",
+  bateau: "⛵",
+  ski: "🎿",
+  karting: "🏎️",
+  soirée: "🌙",
+  gastronomie: "🍽️",
+  musée: "🏛️",
+  shopping: "🛍️",
+  nature: "🌳",
+};
+
+const STAR_DEAL_BREAKERS_EMOJIS: Record<string, string> = {
+  "déguisement": "🎭",
+  "strip-tease": "🔞",
+  "activités extrêmes": "🪂",
+  "musée": "🏛️",
+  "camping": "⛺",
+  "foule": "👥",
+  "sport intense": "🏋️",
+  "long trajet": "🚗",
+};
+
 function toISO(d: Date) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -445,7 +471,7 @@ function StarQuestionnaire() {
         <div className="flex flex-wrap gap-2">
           {STAR_WANTED_ACTIVITIES.map((a) => (
             <Chip key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
-              {a}
+              {STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"} {a}
             </Chip>
           ))}
         </div>
@@ -460,7 +486,7 @@ function StarQuestionnaire() {
               active={breakers.includes(a)}
               onClick={() => toggle(breakers, setBreakers, a)}
             >
-              {a}
+              {STAR_DEAL_BREAKERS_EMOJIS[a] || "🚫"} {a}
             </Chip>
           ))}
         </div>
