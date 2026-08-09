@@ -932,7 +932,7 @@ export async function generateRecommendationsForTrip(
     prefsToUse = {
       ...prefsToUse,
       desired_destination: resolvedDestination,
-      let_krew_decide: preferences.data?.let_krew_decide !== false,
+      let_krew_decide: false,
     } as any;
   }
 
@@ -983,7 +983,7 @@ export async function generateRecommendationsForTrip(
   let discoveryMeta: { name: string; affinity: number; reason: string }[] = [];
   let discoverySource: "forced" | "ai" | "local" | "merged" = "local";
   let mergedCandidates: MergedCandidate[] = [];
-  if (resolvedDestination && !ctx.letKrewDecide) {
+  if (resolvedDestination) {
     shortlistNames = [resolvedDestination];
     discoveryMeta = [{ name: resolvedDestination, affinity: 100, reason: "destination demandée" }];
     discoverySource = "forced";
@@ -1029,33 +1029,6 @@ export async function generateRecommendationsForTrip(
       bestMonths: c.bestMonths,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities).slice(0, 12);
-
-    // Si une destination spécifique est souhaitée par le groupe mais pas présente dans la découverte, l'injecter en priorité
-    if (resolvedDestination) {
-      const normResolved = normCity(resolvedDestination);
-      const exists = mergedCandidates.some((c) => normCity(c.name) === normResolved);
-      if (!exists) {
-        const profile = listCityProfilesForNames([resolvedDestination])[0];
-        if (profile) {
-          mergedCandidates.unshift({
-            name: profile.name,
-            country: profile.country,
-            affinity: 95,
-            reason: "destination suggérée par le groupe",
-            source: "catalog",
-            distanceKm: profile.distanceKm,
-          });
-        } else {
-          mergedCandidates.unshift({
-            name: resolvedDestination,
-            affinity: 95,
-            reason: "destination suggérée par le groupe",
-            source: "ai_estimate",
-          });
-        }
-      }
-    }
-
     discoverySource = aiCities.length ? "merged" : "local";
     discoveryMeta = mergedCandidates.map((c) => ({
       name: c.name,
