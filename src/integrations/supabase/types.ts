@@ -168,6 +168,58 @@ export type Database = {
           },
         ]
       }
+      destination_feedback: {
+        Row: {
+          created_at: string
+          id: string
+          participant_id: string
+          reaction: string
+          recommendation_id: string
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          participant_id: string
+          reaction: string
+          recommendation_id: string
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          participant_id?: string
+          reaction?: string
+          recommendation_id?: string
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "destination_feedback_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "trip_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "destination_feedback_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "destination_feedback_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       destinations: {
         Row: {
           avg_daily_cost: number
@@ -384,6 +436,120 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scoring_feedback: {
+        Row: {
+          created_at: string
+          destination_id: string | null
+          event_type: string
+          final_score: number | null
+          id: string
+          rank_in_top: number | null
+          recommendation_id: string | null
+          s_activities: number | null
+          s_ambiance: number | null
+          s_budget: number | null
+          s_consensus: number | null
+          s_distance: number | null
+          s_min_satisfaction: number | null
+          s_quality: number | null
+          s_season: number | null
+          trip_id: string
+          was_selected: boolean
+        }
+        Insert: {
+          created_at?: string
+          destination_id?: string | null
+          event_type?: string
+          final_score?: number | null
+          id?: string
+          rank_in_top?: number | null
+          recommendation_id?: string | null
+          s_activities?: number | null
+          s_ambiance?: number | null
+          s_budget?: number | null
+          s_consensus?: number | null
+          s_distance?: number | null
+          s_min_satisfaction?: number | null
+          s_quality?: number | null
+          s_season?: number | null
+          trip_id: string
+          was_selected?: boolean
+        }
+        Update: {
+          created_at?: string
+          destination_id?: string | null
+          event_type?: string
+          final_score?: number | null
+          id?: string
+          rank_in_top?: number | null
+          recommendation_id?: string | null
+          s_activities?: number | null
+          s_ambiance?: number | null
+          s_budget?: number | null
+          s_consensus?: number | null
+          s_distance?: number | null
+          s_min_satisfaction?: number | null
+          s_quality?: number | null
+          s_season?: number | null
+          trip_id?: string
+          was_selected?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scoring_feedback_destination_id_fkey"
+            columns: ["destination_id"]
+            isOneToOne: false
+            referencedRelation: "destinations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scoring_feedback_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scoring_weights: {
+        Row: {
+          activities_weight: number
+          ambiance_weight: number
+          budget_weight: number
+          consensus_weight: number
+          distance_weight: number
+          event_type: string
+          min_satisfaction_weight: number
+          quality_weight: number
+          season_weight: number
+          updated_at: string
+        }
+        Insert: {
+          activities_weight?: number
+          ambiance_weight?: number
+          budget_weight?: number
+          consensus_weight?: number
+          distance_weight?: number
+          event_type: string
+          min_satisfaction_weight?: number
+          quality_weight?: number
+          season_weight?: number
+          updated_at?: string
+        }
+        Update: {
+          activities_weight?: number
+          ambiance_weight?: number
+          budget_weight?: number
+          consensus_weight?: number
+          distance_weight?: number
+          event_type?: string
+          min_satisfaction_weight?: number
+          quality_weight?: number
+          season_weight?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       trip_availability: {
         Row: {
@@ -724,6 +890,7 @@ export type Database = {
           participants_count: number
           provisional_end_date: string | null
           provisional_start_date: string | null
+          runner_ups: Json
           selected_activity_ids: string[] | null
           star_user_id: string | null
           start_date: string | null
@@ -749,6 +916,7 @@ export type Database = {
           participants_count?: number
           provisional_end_date?: string | null
           provisional_start_date?: string | null
+          runner_ups?: Json
           selected_activity_ids?: string[] | null
           star_user_id?: string | null
           start_date?: string | null
@@ -774,6 +942,7 @@ export type Database = {
           participants_count?: number
           provisional_end_date?: string | null
           provisional_start_date?: string | null
+          runner_ups?: Json
           selected_activity_ids?: string[] | null
           star_user_id?: string | null
           start_date?: string | null
