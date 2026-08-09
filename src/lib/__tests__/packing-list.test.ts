@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { buildPackingList } from "../krew/packing-list";
 
-describe("Liste de valise (packing-list.ts)", () => {
+describe("Liste de voyage (packing-list.ts)", () => {
+  it("gère les déguisements et thèmes de soirée", () => {
+    const list = buildPackingList({
+      durationDays: 2,
+      activities: ["soirée déguisée", "karaoké"],
+    });
+    expect(list.some((item) => item.label.toLowerCase().includes("déguisement") && item.essential)).toBe(true);
+  });
+
   it("contient les documents et articles de santé essentiels", () => {
     const list = buildPackingList({ durationDays: 2 });
     expect(list.some((item) => item.label.includes("identité") && item.category === "documents" && item.essential)).toBe(true);

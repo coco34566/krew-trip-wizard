@@ -48,6 +48,8 @@ type Props = {
   /** Questionnaire star rempli */
   starDone?: boolean;
   topScores?: { name: string; score: number }[];
+  activitiesValidated?: boolean;
+  tripEndDatePassed?: boolean;
   children?: React.ReactNode;
 };
 
@@ -428,6 +430,8 @@ export function TripHubDashboard({
   myPreferencesDone = false,
   starDone = false,
   topScores = [],
+  activitiesValidated: inputActivitiesValidated = false,
+  tripEndDatePassed: inputTripEndDatePassed = false,
   children,
 }: Props) {
 
@@ -472,6 +476,8 @@ export function TripHubDashboard({
     hotelVoted,
     transportPicked,
     hasItinerary,
+    activitiesValidated: inputActivitiesValidated,
+    tripEndDatePassed: inputTripEndDatePassed,
   });
 
   const theme = eventTypeLabel(trip.event_type);

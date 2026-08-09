@@ -15,7 +15,7 @@ export type PackingListInput = {
 };
 
 /**
- * Génère une liste de valise adaptée aux conditions météo et activités.
+ * Génère une liste de voyage adaptée aux conditions météo et activités.
  */
 export function buildPackingList(input: PackingListInput): PackingItem[] {
   const items: PackingItem[] = [];
@@ -116,6 +116,16 @@ export function buildPackingList(input: PackingListInput): PackingItem[] {
   if (isUrbanOrNight) {
     items.push({ label: "Chaussures confortables pour marcher en ville", category: "vetements", essential: true });
     items.push({ label: "Tenue habillée pour les soirées", category: "vetements", essential: false });
+  }
+
+  const isFancyDress = activityList.some((act) =>
+    ["deguise", "déguisé", "deguisement", "déguisement", "theme", "thème", "costume", "soiree a theme", "soirée à thème"].some((k) =>
+      act.includes(k)
+    )
+  );
+
+  if (isFancyDress) {
+    items.push({ label: "Article de déguisement ou accessoire à thème", category: "divers", essential: true });
   }
 
   return items;

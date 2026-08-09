@@ -6,6 +6,7 @@ const STEP_ROUTE: Record<string, string> = {
   availability: "/trips/$tripId/availability",
   questionnaire: "/trips/$tripId/questionnaire",
   star: "/trips/$tripId/star",
+  memories: "/trips/$tripId/memories",
 };
 
 export function TripHubNav({
@@ -76,16 +77,6 @@ export function TripHubNav({
           )}
         >
           {step.label}
-        </span>
-        <span
-          className={cn(
-            "mt-0.5 max-w-[6rem] text-[10px] leading-snug",
-            isDone
-              ? "font-medium text-emerald-600/90 dark:text-emerald-400/80"
-              : "text-muted-foreground",
-          )}
-        >
-          {isDone ? "Terminé" : step.description}
         </span>
       </div>
     );
@@ -227,9 +218,6 @@ export function TripHubNav({
                       Fait
                     </span>
                   ) : null}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {isDone ? "Étape terminée" : step.description}
                 </p>
               </div>
             </div>

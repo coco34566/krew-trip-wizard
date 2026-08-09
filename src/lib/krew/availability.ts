@@ -163,7 +163,9 @@ export type TripStepId =
   | "destination"
   | "hotels"
   | "transport"
-  | "organize";
+  | "organize"
+  | "realized"
+  | "memories";
 
 export type TripStep = {
   id: TripStepId;
@@ -188,6 +190,10 @@ export function buildTripSteps(input: {
   transportPicked?: boolean;
   /** Planning généré */
   hasItinerary?: boolean;
+  /** Activités du planning validées (activity_votes ou selected_activity_ids) */
+  activitiesValidated?: boolean;
+  /** Date de fin passée */
+  tripEndDatePassed?: boolean;
 }): TripStep[] {
   const minAnswers = 1;
 
@@ -197,9 +203,17 @@ export function buildTripSteps(input: {
   let destDone = Boolean(input.destinationSelected);
   let hotelDone = Boolean(input.hotelVoted);
   let transportDone = Boolean(input.transportPicked);
-  let orgDone = Boolean(input.hasItinerary);
+  let orgDone = Boolean(input.hasItinerary) && Boolean(input.activitiesValidated);
+  let realizedDone = Boolean(input.tripEndDatePassed);
+  let memoriesDone = false;
 
   // Cascade : une étape avancée valide les précédentes
+  if (realizedDone) {
+    orgDone = true;
+    transportDone = true;
+    hotelDone = true;
+    destDone = true;
+  }
   if (orgDone) {
     transportDone = true;
     hotelDone = true;
@@ -297,6 +311,20 @@ export function buildTripSteps(input: {
           ? "Planning collaboratif"
           : "Après choix des transports",
       status: statusFor(orgDone, transportDone),
+    },
+    {
+      id: "realized",
+      label: "Voyage réalisé",
+      description: "Séjour passé",
+      href: "",
+      status: statusFor(realizedDone, orgDone),
+    },
+    {
+      id: "memories",
+      label: "Souvenirs du voyage",
+      description: "Album photo du séjour",
+      href: "/memories",
+      status: statusFor(memoriesDone, realizedDone),
     },
   ];
 }

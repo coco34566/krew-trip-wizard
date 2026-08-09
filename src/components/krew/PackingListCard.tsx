@@ -65,7 +65,7 @@ export function PackingListCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <ClipboardCheck className="size-5 text-primary" />
-          <h2 className="font-display text-xl font-semibold tracking-tight">Liste de valise intelligente</h2>
+          <h2 className="font-display text-xl font-semibold tracking-tight">Liste de voyage</h2>
         </div>
         <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
           {checkedCount} / {totalItems} complété
