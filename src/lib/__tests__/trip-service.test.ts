@@ -4,7 +4,7 @@ import { assertNotRateLimited } from "../krew/rate-limit.server";
 import { appendAffiliateParam, buildOriginDeepLinks } from "../krew/deep-links";
 
 describe("Trip Service & Readiness (trip-service.ts)", () => {
-  it("bloque la génération si prefsOk est faux", async () => {
+  it("autorise la génération même si aucune préférence n'est renseignée (prefsOk reste true)", async () => {
     const tripId = "trip-123";
     const supabaseMock = {
       from: vi.fn((table: string) => {
@@ -41,7 +41,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [], // Aucune réponse ! -> prefsOk = false
+                  data: [], // Aucune réponse ! -> prefsOk reste true
                   error: null,
                 }),
             }),
@@ -55,7 +55,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
                   data: [
                     { user_id: "u1" },
                     { user_id: "u2" },
-                  ], // 2 dispos -> availabilityOk = true
+                  ], // 2 dispos -> availabilityOk reste true
                   error: null,
                 }),
             }),
@@ -68,13 +68,13 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     } as any;
 
     const readiness = await assessGenerationReadiness(supabaseMock, tripId);
-    expect(readiness.canGenerate).toBe(false);
-    expect(readiness.checklist.prefsOk).toBe(false);
+    expect(readiness.canGenerate).toBe(true);
+    expect(readiness.checklist.prefsOk).toBe(true);
     expect(readiness.checklist.availabilityOk).toBe(true);
     expect(readiness.checklist.datesLocked).toBe(true);
   });
 
-  it("bloque la génération si availabilityOk est faux", async () => {
+  it("autorise la génération même si aucune disponibilité n'est renseignée (availabilityOk reste true)", async () => {
     const tripId = "trip-123";
     const supabaseMock = {
       from: vi.fn((table: string) => {
@@ -114,7 +114,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
                   data: [
                     { user_id: "u1", ambiances: ["fete"] },
                     { user_id: "u2", ambiances: ["detente"] },
-                  ], // 2 réponses -> prefsOk = true
+                  ], // 2 réponses -> prefsOk reste true
                   error: null,
                 }),
             }),
@@ -125,7 +125,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [], // Aucune dispo ! -> availabilityOk = false
+                  data: [], // Aucune dispo ! -> availabilityOk reste true
                   error: null,
                 }),
             }),
@@ -138,9 +138,9 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     } as any;
 
     const readiness = await assessGenerationReadiness(supabaseMock, tripId);
-    expect(readiness.canGenerate).toBe(false);
+    expect(readiness.canGenerate).toBe(true);
     expect(readiness.checklist.prefsOk).toBe(true);
-    expect(readiness.checklist.availabilityOk).toBe(false);
+    expect(readiness.checklist.availabilityOk).toBe(true);
     expect(readiness.checklist.datesLocked).toBe(true);
   });
 
