@@ -30,7 +30,7 @@ import {
   setTransportTimeFilters,
   cancelTrip,
 } from "@/lib/trips.functions";
-import { getParticipantsProgress, getMyParticipantPreferences } from "@/lib/participant-preferences.functions";
+import { getParticipantsProgress, getMyParticipantPreferences, declareMyStatus } from "@/lib/participant-preferences.functions";
 import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
 import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
@@ -353,6 +353,15 @@ function TripDetail() {
   const removeMutation = useMutation({
     mutationFn: (participantId: string) => removeGuest({ data: { participantId } }),
     onSuccess: refresh,
+  });
+  const declareStatusFn = useServerFn(declareMyStatus);
+  const declareStatusMutation = useMutation({
+    mutationFn: (status: "accepte" | "absent") => declareStatusFn({ data: { tripId, status } }),
+    onSuccess: (res) => {
+      toast.success(res.status === "absent" ? "Tu as déclaré ton absence" : "Tu participes de nouveau !");
+      refresh();
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Erreur de mise à jour").slice(0, 120)),
   });
   const cancelFn = useServerFn(cancelTrip);
   const cancelMutation = useMutation({
@@ -688,7 +697,10 @@ function TripDetail() {
       <TripHubDashboard
         viewerUserId={data.userId}
         tripId={tripId}
-        trip={trip}
+        trip={{
+          ...trip,
+          participants: data.participants
+        }}
         isOwner={data.isOwner}
         participantsCount={(data.participants?.length ?? trip.participants_count) || 1}
         progressAnswered={progress?.answered ?? 0}
@@ -929,7 +941,10 @@ function TripDetail() {
       <section id="hub-destination" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight">2. Destinations proposées</h2>
+            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+              <MapPin className="size-5 text-primary" />
+              2. Destinations proposées
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Score, budget moyen et activités — vote, l&apos;orga valide.
             </p>
@@ -1126,7 +1141,10 @@ function TripDetail() {
         <section id="hub-logistics" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight">3. Hôtels — vote du groupe</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+                <Hotel className="size-5 text-primary" />
+                3. Hôtels — vote du groupe
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Chacun vote pour un hébergement. L&apos;orga réserve celui qui a le plus de voix.
               </p>
@@ -1239,7 +1257,10 @@ function TripDetail() {
         <section id="hub-transports" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight">4. Transports A/R</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+                <Plane className="size-5 text-primary" />
+                4. Transports A/R
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Choisis ton trajet + horaires d&apos;arrivée / départ. Ils orientent le planning
                 une fois tout le monde fixé.
@@ -1389,7 +1410,10 @@ function TripDetail() {
         <section id="hub-activities-plan" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight">5. Planning du séjour</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+                <CalendarDays className="size-5 text-primary" />
+                5. Planning du séjour
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Resto, activités et bars pour chaque jour — basé sur les dates, la destination et les préférences.
               </p>
@@ -1519,6 +1543,23 @@ function TripDetail() {
         </section>
       ) : null}
 
+      {destinationSelected && costSplitData?.split ? (
+        <section id="hub-cost-split" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+                <Wallet className="size-5 text-primary" />
+                6. Répartition des coûts
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Part de chacun et remboursements calculés automatiquement.
+              </p>
+            </div>
+          </div>
+          <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
+        </section>
+      ) : null}
+
       {datesLocked ? (
         <div className="space-y-8 mt-8">
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
@@ -1573,7 +1614,10 @@ function TripDetail() {
         ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
         <section className="mt-8 space-y-4 rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-xl font-semibold tracking-tight">Préférences de la star</h2>
+            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+              <Star className="size-5 text-amber-500 fill-amber-500" />
+              Préférences de la star
+            </h2>
             <a
               href={`/trips/${tripId}/star`}
               className="text-sm font-medium text-primary hover:underline"
@@ -1611,7 +1655,10 @@ function TripDetail() {
       )}
 
       <section id="invite-section" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-        <h2 className="font-display text-xl font-semibold tracking-tight">Inviter la bande</h2>
+        <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+          <UserPlus className="size-5 text-primary" />
+          Inviter la bande
+        </h2>
         <div className="mt-4 rounded-2xl border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">
             Envoie ce lien (WhatsApp, SMS, Instagram…) — tes ami·e·s rejoignent le voyage et répondent au questionnaire.
@@ -1716,11 +1763,24 @@ function TripDetail() {
                 className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3"
               >
                 <div>
-                  <p className="font-medium">{p.display_name ?? p.email}</p>
+                  <p className="font-medium">{p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}</p>
                   <p className="text-sm text-muted-foreground">{p.email}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant={p.status === "accepte" ? "success" : "muted"}>{p.status}</Badge>
+                  <Badge variant={p.status === "accepte" ? "success" : p.status === "absent" ? "destructive" : "muted"}>{p.status}</Badge>
+                  {p.user_id === data.userId ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs h-7 px-2"
+                      onClick={() => {
+                        const nextStatus = p.status === "absent" ? "accepte" : "absent";
+                        declareStatusMutation.mutate(nextStatus);
+                      }}
+                    >
+                      {p.status === "absent" ? "Rétablir participation" : "Se déclarer absent·e"}
+                    </Button>
+                  ) : null}
                   {data.isOwner ? (
                     <Button
                       variant="ghost"

@@ -233,6 +233,53 @@ export async function aggregateParticipantPreferences(
   }
 
   const rows = (res.data ?? []) as ParticipantPrefRow[];
+
+  // Intégrer les préférences de la star si elle a rempli le questionnaire spécifique (sans avoir de compte)
+  try {
+    const starQuery = supabase
+      .from("trip_star_preferences")
+      .select("*")
+      .eq("trip_id", tripId);
+    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
+    const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
+
+    if (!starPrefs.error && starData) {
+      const starUid = starData.user_id || "star-virtual-uid";
+      const alreadyHasPref = rows.some((r) => r.user_id === starUid);
+      if (!alreadyHasPref) {
+        rows.push({
+          user_id: starUid,
+          ambiances: starData.ambiances ?? [],
+          activity_categories: starData.wanted_activities ?? [],
+          budget_max: null,
+          budget_priority: "preference",
+          date_flex_days: 0,
+          required_amenities: [],
+          min_accommodation_rating: null,
+          travel_pace: "equilibre",
+          duration_nights_min: null,
+          duration_nights_max: null,
+          desired_destination: starData.desired_destination ?? null,
+          departure_city: starData.departure_city ?? null,
+          excluded_destinations: starData.excluded_destinations ?? [],
+          deal_breaker_ambiances: starData.deal_breakers ?? [],
+          accepts_shared_room: true,
+          room_type_preference: "peu_importe",
+          preferred_time_slots: [],
+          dietary_constraints: [],
+          mobility_notes: null,
+          accessibility_needs: false,
+          departure_airport_or_station: starData.departure_airport_or_station ?? null,
+          transport_mode_accepted: ["peu importe"],
+          max_travel_duration_hours: null,
+          blackout_dates: [],
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("Skipped star injection in aggregateParticipantPreferences", e);
+  }
+
   const ambianceFrequencies = frequencies(rows.flatMap((r) => r.ambiances ?? []));
   const activityCategoryFrequencies = frequencies(rows.flatMap((r) => r.activity_categories ?? []));
   const budgets = rows.map((r) => Number(r.budget_max ?? 0)).filter((n) => n > 0);
@@ -386,15 +433,17 @@ export async function aggregateParticipantPreferences(
     } else {
       starWeight = 1;
     }
-    const starPrefs = await supabase
+    const starQuery = supabase
       .from("trip_star_preferences")
       .select("*")
-      .eq("trip_id", tripId)
-      .maybeSingle();
-    if (starPrefs.data) {
-      starWantedActivities = starPrefs.data.wanted_activities ?? [];
-      starDealBreakers = starPrefs.data.deal_breakers ?? [];
-      if (!starUserId && starPrefs.data.user_id) starUserId = starPrefs.data.user_id;
+      .eq("trip_id", tripId);
+    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
+    const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
+
+    if (starData) {
+      starWantedActivities = starData.wanted_activities ?? [];
+      starDealBreakers = starData.deal_breakers ?? [];
+      if (!starUserId && starData.user_id) starUserId = starData.user_id;
       // Si le questionnaire star est rempli, on force un poids élevé même hors EVG
       if (starWeight < 2.5) starWeight = 2.5;
     }
@@ -623,13 +672,48 @@ export async function assessGenerationReadiness(
   const prefRows = prefs.error ? [] : (prefs.data ?? []);
   const availRows = avail.error ? [] : (avail.data ?? []);
 
+  const answeredIds = new Set(
+    (prefRows as any[]).map((p: any) => p.user_id).filter(Boolean),
+  );
+
+  // Intégrer les réponses de la star dans l'état des réponses si elle a répondu
+  try {
+    const starQuery = supabase
+      .from("trip_star_preferences")
+      .select("*")
+      .eq("trip_id", tripId);
+    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
+    const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
+
+    if (!starPrefs.error && starData) {
+      const starUid = starData.user_id || "star-virtual-uid";
+      const starHasPrefs = starData.wanted_activities?.length > 0 || starData.ambiances?.length > 0;
+      const starHasAvail = starData.available_dates?.length > 0 || starData.blocked_dates?.length > 0;
+
+      if (!answeredIds.has(starUid)) {
+        if (starHasPrefs) {
+          answeredIds.add(starUid);
+        }
+        if (starHasAvail) {
+          const alreadyHasAvail = (availRows as any[]).some((r: any) => r.user_id === starUid);
+          if (!alreadyHasAvail) {
+            availRows.push({
+              user_id: starUid,
+              available_dates: starData.available_dates,
+              blocked_dates: starData.blocked_dates,
+            } as any);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Skipped star injection in assessGenerationReadiness", e);
+  }
+
   const expected = Math.max(
     Number(trip.data?.participants_count) || 0,
     (participants.data ?? []).length,
     1,
-  );
-  const answeredIds = new Set(
-    (prefRows as any[]).map((p: any) => p.user_id).filter(Boolean),
   );
   const answered = answeredIds.size;
   const availabilityAnswered = new Set(
@@ -853,6 +937,9 @@ export async function generateRecommendationsForTrip(
   }
 
   const ctx = buildScoringContext(trip.data, prefsToUse);
+  if (aggregated.participantsCount && aggregated.participantsCount > 0) {
+    ctx.participants = aggregated.participantsCount;
+  }
   ctx.pastDestinations = pastDestinations;
   // Fusion exclusions individuelles + trip-level
   const mergedExcluded = Array.from(
@@ -1283,7 +1370,7 @@ export async function generateRecommendationsForTrip(
     /* table absente → défauts engine */
   }
 
-  let proposals = buildProposals(catalogFinal, ctxWithTransport, 3);
+  let proposals = buildProposals(catalogFinal, ctxWithTransport, 4);
 
   // Rationales LLM (1 call groupé, tokens min) — fallback = texte moteur
   let llmRationales = false;

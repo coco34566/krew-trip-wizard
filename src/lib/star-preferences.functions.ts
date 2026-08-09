@@ -44,6 +44,12 @@ export const getStarPreferences = createServerFn({ method: "GET" })
             dealBreakers: prefs.data.deal_breakers ?? [],
             ambiances: prefs.data.ambiances ?? [],
             notes: prefs.data.notes as string | null,
+            availableDates: prefs.data.available_dates ?? [],
+            blockedDates: prefs.data.blocked_dates ?? [],
+            desiredDestination: prefs.data.desired_destination ?? null,
+            excludedDestinations: prefs.data.excluded_destinations ?? [],
+            departureCity: prefs.data.departure_city ?? null,
+            departureAirportOrStation: prefs.data.departure_airport_or_station ?? null,
             updatedAt: (prefs.data.updated_at || prefs.data.submitted_at) as string | null,
           }
         : null,
@@ -60,6 +66,12 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
         dealBreakers: z.array(z.string()).default([]),
         ambiances: z.array(z.string()).default([]),
         notes: z.string().max(800).optional(),
+        availableDates: z.array(z.string()).default([]),
+        blockedDates: z.array(z.string()).default([]),
+        desiredDestination: z.string().optional().nullable(),
+        excludedDestinations: z.array(z.string()).default([]),
+        departureCity: z.string().optional().nullable(),
+        departureAirportOrStation: z.string().optional().nullable(),
       })
       .parse(data),
   )
@@ -98,6 +110,12 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
       deal_breakers: data.dealBreakers,
       ambiances: data.ambiances,
       notes: data.notes ?? null,
+      available_dates: data.availableDates,
+      blocked_dates: data.blockedDates,
+      desired_destination: data.desiredDestination ?? null,
+      excluded_destinations: data.excludedDestinations,
+      departure_city: data.departureCity ?? null,
+      departure_airport_or_station: data.departureAirportOrStation ?? null,
       submitted_at: existing.data?.submitted_at ?? now,
       updated_at: now,
     };

@@ -343,11 +343,10 @@ function NextActionsPanel({
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            {isOwner ? "Tes prochaines actions (orga)" : "Tes prochaines actions"}
+            Tes prochaines actions
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Uniquement ce qui te reste à faire
-            {isOwner ? " — dont les actions réservées à l'organisateur·rice." : "."}
+            Uniquement ce qui te reste à faire.
           </p>
         </div>
       </div>
@@ -504,18 +503,27 @@ export function TripHubDashboard({
                 {trip.celebrated_person}
               </p>
             ) : null}
+            {trip.participants && Array.isArray(trip.participants) && trip.participants.length > 0 ? (
+              <p className="mt-1 text-xs text-white/70">
+                Avec {trip.participants.map((p: any) => p.display_name || p.email?.split("@")[0] || "Ami").join(", ")}
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 border-t border-border/60 bg-card/95 px-5 py-3.5 sm:px-7">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
             <Users className="size-3.5 text-primary" /> {trip.participants_count} pers.
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
-            <Wallet className="size-3.5 text-primary" />{" "}
-            {liveBudgetTotal != null && liveBudgetTotal > 0
-              ? `~${formatEuro(liveBudgetTotal)} / pers.`
-              : "Budget à définir"}
-          </span>
+          {liveBudgetTotal != null && liveBudgetTotal > 0 ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
+              <Wallet className="size-3.5 text-primary" />{" "}
+              ~{formatEuro(liveBudgetTotal)} / pers.
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm text-muted-foreground">
+              <Wallet className="size-3.5" /> Budget à définir
+            </span>
+          )}
           {datesLocked && (trip.start_date || provisionalStart) ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:text-emerald-300">
               <CalendarDays className="size-3.5" />
@@ -558,19 +566,6 @@ export function TripHubDashboard({
           État des réponses · groupe de {trip.participants_count || participantsCount}
         </h2>
         <ul className="mt-4 space-y-3 text-sm">
-          <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3">
-            <span className="font-medium">Lien d&apos;invitation ouvert</span>
-            <span className="tabular-nums">
-              <strong>{participantsCount}</strong>/{trip.participants_count || participantsCount}
-              {(trip.participants_count || participantsCount) - participantsCount > 0 ? (
-                <span className="ml-2 text-xs text-muted-foreground">
-                  · {Math.max((trip.participants_count || participantsCount) - participantsCount, 0)} n&apos;ont pas rejoint
-                </span>
-              ) : (
-                <span className="ml-2 text-xs text-lagoon">· tout le monde a rejoint</span>
-              )}
-            </span>
-          </li>
           <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3">
             <span className="font-medium">Disponibilités</span>
             <span className="tabular-nums">

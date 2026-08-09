@@ -63,6 +63,7 @@ type GeoCommune = {
   code: string;
   codesPostaux?: string[];
   population?: number;
+  pays?: string;
 };
 
 type Props = {
@@ -76,9 +77,8 @@ type Props = {
 };
 
 /**
- * Autocomplete villes FR via geo.api.gouv.fr
- * - saisie code postal (5 chiffres) → liste des communes
- * - saisie nom → suggestions
+ * Autocomplete villes Européennes via OpenStreetMap Nominatim
+ * - saisie code postal ou nom de ville → suggestions
  * - sélection → ville normalisée + aéroport IATA auto si connu
  */
 export function CityAutocomplete({
@@ -86,7 +86,7 @@ export function CityAutocomplete({
   value,
   onChange,
   onSelect,
-  placeholder = "Ville ou code postal",
+  placeholder = "Ville ou code postal (Europe)",
   className,
 }: Props) {
   const [query, setQuery] = useState(value);
@@ -120,20 +120,37 @@ export function CityAutocomplete({
       setLoading(true);
       try {
         const isPostal = /^\d{4,5}$/.test(q);
-        const url = isPostal
-          ? `https://geo.api.gouv.fr/communes?codePostal=${encodeURIComponent(q)}&fields=nom,code,codesPostaux,population&limit=8`
-          : `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(q)}&fields=nom,code,codesPostaux,population&boost=population&limit=8`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("geo api");
-        const data = (await res.json()) as GeoCommune[];
-        setItems(Array.isArray(data) ? data : []);
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=8&accept-language=fr`;
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent": "KrewGroupTripPlanner/1.0"
+          }
+        });
+        if (!res.ok) throw new Error("OSM Nominatim API error");
+        const data = await res.json();
+
+        const mapped: GeoCommune[] = data.map((item: any) => {
+          const address = item.address || {};
+          const city = address.city || address.town || address.village || address.municipality || item.display_name.split(",")[0];
+          const postcode = address.postcode || "";
+          const country = address.country || "";
+          return {
+            nom: city,
+            code: item.place_id,
+            codesPostaux: postcode ? [postcode] : [],
+            pays: country
+          };
+        }).filter((item: any) => item.nom);
+
+        setItems(mapped);
         setOpen(true);
-      } catch {
+      } catch (err) {
+        console.error("OSM Error", err);
         setItems([]);
       } finally {
         setLoading(false);
       }
-    }, 280);
+    }, 400);
     return () => clearTimeout(t);
   }, [query]);
 
@@ -186,8 +203,8 @@ export function CityAutocomplete({
               >
                 <span className="font-medium">{c.nom}</span>
                 <span className="text-xs text-muted-foreground">
-                  {c.codesPostaux?.[0] ?? ""}
-                  {c.population ? ` · ${Math.round(c.population / 1000)}k` : ""}
+                  {c.codesPostaux?.[0] ? `${c.codesPostaux[0]} · ` : ""}
+                  {c.pays ?? ""}
                 </span>
               </button>
             </li>

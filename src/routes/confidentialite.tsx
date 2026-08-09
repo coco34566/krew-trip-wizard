@@ -60,29 +60,27 @@ function ConfidentialitePage() {
       </LegalSection>
 
       <LegalSection title="3. Finalités et bases légales">
+        <p>Nous traitons vos données personnelles (emails, prénoms, préférences de voyage) sur les bases légales suivantes :</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong>Fourniture du Service</strong> (exécution du contrat / mesures précontractuelles) :
-            compte, voyages, invitations, suggestions ;
+            <strong>Fourniture du Service</strong> (exécution du contrat ou mesures précontractuelles) :
+            création et gestion de ton compte, création des voyages de groupe, invitations de tes ami·e·s, scoring et propositions de destinations adaptées, et calcul de la répartition des coûts.
           </li>
           <li>
-            <strong>Sécurité et prévention des abus</strong> (intérêt légitime) ;
+            <strong>Consentement</strong> : pour le questionnaire de préférences et de disponibilités, et pour le dépôt des cookies non essentiels (analytiques, marketing) via notre bandeau de consentement.
           </li>
           <li>
-            <strong>Obligations légales</strong> le cas échéant ;
+            <strong>Intérêt légitime</strong> : pour la sécurité du site, la prévention des abus et fraudes, et l&apos;amélioration continue de notre produit (via des statistiques anonymes ou pseudonymisées).
           </li>
           <li>
-            <strong>Amélioration du produit</strong> (intérêt légitime, données agrégées ou
-            pseudonymisées lorsque possible).
+            <strong>Cas particulier de « la star » (personne mise à l&apos;honneur)</strong> : Lorsqu&apos;un·e organisateur·rice renseigne les préférences et disponibilités d&apos;une personne tierce (« la star ») sans compte, il ou elle garantit avoir recueilli au préalable le consentement exprès de cette dernière pour la collecte et la transmission de ses préférences de voyage à Krew. Ces données sont exclusivement utilisées pour enrichir le scoring de ce voyage et ne servent à aucune autre finalité.
           </li>
         </ul>
       </LegalSection>
 
       <LegalSection title="4. Destinataires">
         <p>
-          Les données sont accessibles à l&apos;éditeur et aux prestataires techniques nécessaires
-          au fonctionnement (hébergement, base de données, authentification — ex. infrastructure
-          Lovable / Supabase). Elles ne sont pas vendues.
+          Les données sont hébergées de manière sécurisée en Union européenne sur les serveurs de notre prestataire technique <strong>Supabase</strong> (Dublin, Irlande). Elles sont accessibles uniquement aux administrateurs de Krew et ne sont en aucun cas vendues à des tiers.
         </p>
         <p>
           Les participants d&apos;un même voyage peuvent voir certaines informations liées au groupe
@@ -106,10 +104,7 @@ function ConfidentialitePage() {
 
       <LegalSection title="6. Durées de conservation">
         <p>
-          Les données de compte et de voyage sont conservées tant que le compte est actif et pour la
-          durée nécessaire à la fourniture du Service, puis archivées ou supprimées selon les
-          obligations légales et les besoins de preuve (délais raisonnables, en principe max. 3 ans
-          après la dernière activité sauf obligation contraire).
+          Tes données de compte et de voyage sont conservées tant que ton compte est actif. En cas d&apos;inactivité prolongée de ton compte, tes données personnelles sont supprimées au bout de <strong>3 ans</strong> après ta dernière activité sur le Service. Les voyages inactifs et leurs questionnaires associés sont également purgés après un délai raisonnable.
         </p>
       </LegalSection>
 
@@ -139,10 +134,7 @@ function ConfidentialitePage() {
 
       <LegalSection title="8. Cookies">
         <p>
-          Le Service utilise des cookies ou équivalents techniques nécessaires à l&apos;authentification
-          et au fonctionnement (session). Aucun cookie publicitaire tiers n&apos;est déployé par
-          défaut dans la version actuelle. En cas d&apos;ajout de traceurs non essentiels, un
-          mécanisme de consentement sera mis en place.
+          Le Service utilise des cookies essentiels nécessaires à l&apos;authentification de ton compte (gérés par Supabase) et au fonctionnement technique de l&apos;application. Aucun cookie non essentiel (cookies analytiques ou de personnalisation publicitaire) n&apos;est déposé sans ton consentement explicite recueilli via notre bandeau de cookies conforme (Accepter / Refuser / Personnaliser). Tu peux modifier tes choix à tout moment en vidant le cache de ton navigateur ou en cliquant sur le lien de politique de confidentialité.
         </p>
       </LegalSection>
 

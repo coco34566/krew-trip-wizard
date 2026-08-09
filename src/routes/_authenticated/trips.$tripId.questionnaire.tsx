@@ -102,7 +102,7 @@ function ParticipantQuestionnaire() {
   const [isEditing, setIsEditing] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [tripName, setTripName] = useState("");
-  const [defaultDeparture, setDefaultDeparture] = useState("Paris");
+  const [defaultDeparture, setDefaultDeparture] = useState("");
 
   const [ambiances, setAmbiances] = useState<string[]>([]);
   const [dealBreakerAmbiances, setDealBreakerAmbiances] = useState<string[]>([]);
@@ -118,7 +118,6 @@ function ParticipantQuestionnaire() {
   const [budgetPriority, setBudgetPriority] =
     useState<(typeof BUDGET_PRIORITIES)[number]["value"]>("preference");
   const [durationNights, setDurationNights] = useState<[number, number]>([2, 3]);
-  const [dateFlexDays, setDateFlexDays] = useState(2);
 
   const [departureCity, setDepartureCity] = useState("");
   const [desiredDestination, setDesiredDestination] = useState("");
@@ -135,7 +134,7 @@ function ParticipantQuestionnaire() {
     fetchMine({ data: { tripId } })
       .then(({ trip, preferences }: any) => {
         setTripName(trip.name);
-        const dep = trip.departure_city || "Paris";
+        const dep = trip.departure_city || "";
         setDefaultDeparture(dep);
         if (preferences) {
           setIsEditing(true);
@@ -164,7 +163,6 @@ function ParticipantQuestionnaire() {
           setMobilityNotes(preferences.mobility_notes ?? "");
           setFreeText(preferences.free_text ?? "");
           setDepartureCity(preferences.departure_city ?? dep);
-          setDateFlexDays(preferences.date_flex_days ?? 2);
           setRoomType((preferences as any).room_type_preference || (preferences.accepts_shared_room ? "double" : "solo"));
           {
             const am = preferences.required_amenities ?? [];
@@ -240,7 +238,7 @@ function ParticipantQuestionnaire() {
           freeText: freeText.trim() || undefined,
           departureCity: departureCity.trim(),
           departureFlexKm: 0,
-          dateFlexDays,
+          dateFlexDays: 0,
           acceptsSharedRoom: roomType === "double" || roomType === "dortoir" || roomType === "peu_importe",
           roomTypePreference: roomType,
           requiredAmenities: lodgingTypes,
@@ -454,31 +452,23 @@ function ParticipantQuestionnaire() {
           </div>
           <div>
             <Label className="mb-2 block">
-              Durée souhaitée : {durationNights[0]} – {durationNights[1]} nuit(s)
+              Nombre de jours souhaité *
             </Label>
-            <Slider
+            <Input
+              type="number"
               min={1}
-              max={10}
-              step={1}
-              value={durationNights}
-              onValueChange={(v) => {
-                if (v.length >= 2) setDurationNights([v[0] ?? 1, v[1] ?? 2]);
+              max={11}
+              value={durationNights[1] + 1}
+              onChange={(e) => {
+                const days = Math.max(1, Number(e.target.value));
+                // Convertit en nuits : nuits = jours - 1
+                const nights = Math.max(0, days - 1);
+                setDurationNights([nights, nights]);
               }}
-            />
-          </div>
-          <div>
-            <Label className="mb-2 block">
-              Flexibilité sur les dates : ± {dateFlexDays} jour(s)
-            </Label>
-            <Slider
-              min={0}
-              max={14}
-              step={1}
-              value={[dateFlexDays]}
-              onValueChange={([v]) => setDateFlexDays(v ?? 0)}
+              className="max-w-[120px]"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Utile pour les recherches de vols et d&apos;hôtels autour des dates du voyage.
+              Indique combien de jours tu aimerais partir au total.
             </p>
           </div>
         </Section>

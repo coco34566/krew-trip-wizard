@@ -138,7 +138,6 @@ function AvailabilityPage() {
 
   /** iso → available | blocked */
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
-  const [flexDays, setFlexDays] = useState(1);
   const [notes, setNotes] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [monthOffset, setMonthOffset] = useState(0);
@@ -151,7 +150,6 @@ function AvailabilityPage() {
       for (const d of data.mine.availableDates ?? []) m.set(d.slice(0, 10), "available");
       for (const d of data.mine.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
       setSelection(m);
-      setFlexDays(data.mine.flexDays ?? 1);
       setNotes(data.mine.notes ?? "");
       setHydrated(true);
     }
@@ -223,7 +221,7 @@ function AvailabilityPage() {
           tripId,
           availableDates,
           blockedDates,
-          flexDays,
+          flexDays: 0,
           notes: notes || undefined,
         },
       }),
@@ -440,20 +438,6 @@ function AvailabilityPage() {
               </div>
             </div>
           ) : null}
-        </div>
-
-        <div>
-          <Label className="mb-2 block">Flexibilité : ± {flexDays} jour(s)</Label>
-          <Slider
-            min={0}
-            max={7}
-            step={1}
-            value={[flexDays]}
-            onValueChange={([v]) => setFlexDays(v ?? 0)}
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Tu peux glisser d&apos;un ou deux jours autour si besoin.
-          </p>
         </div>
 
         <div>

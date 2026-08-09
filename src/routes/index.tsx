@@ -166,15 +166,121 @@ function Landing() {
           </ol>
         </section>
 
-        {/* ——— Features + exemple score ——— */}
+        {/* ——— Aperçu Projet Complet Fictif ——— */}
+        <section className="border-t border-border bg-gradient-to-b from-card to-background py-16 sm:py-24">
+          <div className="mx-auto max-w-6xl px-4">
+            <div className="mx-auto max-w-2xl text-center mb-12">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary font-display">Aperçu interactif</p>
+              <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">Un voyage complet, assemblé en direct</h2>
+              <p className="mt-4 text-sm text-muted-foreground">
+                Découvre ce que produit Krew dès que ton groupe a complété ses réponses. Pas de fausses cartes, de vraies recommandations prêtes à être partagées !
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-border bg-card shadow-elevated overflow-hidden max-w-4xl mx-auto">
+              <div className="relative h-48 bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=1200&q=80')` }}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
+                <div className="absolute bottom-5 left-5 right-5 text-white flex justify-between items-end">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 backdrop-blur-sm px-2 py-0.5 rounded-full">Exemple de projet final</span>
+                    <h3 className="font-display text-2xl sm:text-3xl font-bold mt-1">Week-end Retrouvailles à Lisbonne</h3>
+                    <p className="text-xs text-white/80 mt-1">Organisé par Thomas · 8 participant·e·s</p>
+                  </div>
+                  <Badge variant="lagoon" className="text-sm py-1 px-3">Score 89%</Badge>
+                </div>
+              </div>
+
+              <div className="p-6 grid gap-6 md:grid-cols-3 text-sm border-b border-border bg-surface/30">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold uppercase text-muted-foreground">Dates verrouillées</p>
+                  <p className="font-medium text-foreground">Vendredi 11 Sept. → Dimanche 13 Sept.</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold uppercase text-muted-foreground">Budget moyen / personne</p>
+                  <p className="font-medium text-foreground">~360 € tout compris</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-bold uppercase text-muted-foreground font-display">État des réponses</p>
+                  <div className="flex gap-4">
+                    <p className="text-xs">📅 Dispos : <span className="font-semibold text-emerald-600 dark:text-emerald-400">8/8</span></p>
+                    <p className="text-xs">⚙️ Prefs : <span className="font-semibold text-emerald-600 dark:text-emerald-400">8/8</span></p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 grid gap-6 md:grid-cols-2">
+                <div className="space-y-4">
+                  <h4 className="font-bold text-base flex items-center gap-2">
+                    <Check className="size-4 text-emerald-500" />
+                    Hébergement retenu par le groupe
+                  </h4>
+                  <div className="rounded-2xl border border-border p-4 bg-background">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-semibold">Lisbon Sky Apartments</p>
+                        <p className="text-xs text-muted-foreground">Appartement entier · ★ 4.7 · Proche centre (0.8 km)</p>
+                      </div>
+                      <Badge variant="success">Top votes (5/8)</Badge>
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground font-medium">42 € / pers. par nuit · 84 € / pers. séjour</p>
+                  </div>
+
+                  <h4 className="font-bold text-base flex items-center gap-2">
+                    <Check className="size-4 text-emerald-500" />
+                    Transports par ville de départ
+                  </h4>
+                  <ul className="space-y-2">
+                    <li className="flex justify-between border-b border-border/40 pb-1.5 text-xs text-muted-foreground">
+                      <span>Paris (5 pers.) · Vol EasyJet A/R</span>
+                      <span className="font-semibold text-foreground">115 €</span>
+                    </li>
+                    <li className="flex justify-between border-b border-border/40 pb-1.5 text-xs text-muted-foreground">
+                      <span>Lyon (3 pers.) · Vol Transavia A/R</span>
+                      <span className="font-semibold text-foreground">125 €</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="font-bold text-base flex items-center gap-2">
+                    <Check className="size-4 text-emerald-500" />
+                    Extrait du planning jour par jour
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="relative pl-4 border-l-2 border-primary/30">
+                      <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
+                      <p className="text-xs font-semibold text-primary">JOUR 1 · 15:30</p>
+                      <p className="font-semibold text-xs">Arrivée à l&apos;aéroport de Lisbonne et transfert</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">Dépose des bagages aux Lisbon Sky Apartments.</p>
+                    </div>
+                    <div className="relative pl-4 border-l-2 border-primary/30">
+                      <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
+                      <p className="text-xs font-semibold text-primary">JOUR 1 · 19:30</p>
+                      <p className="font-semibold text-xs">Dîner de Tapas locales chez Ramiro</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">Le resto mythique de fruits de mer plébiscité par le groupe.</p>
+                    </div>
+                    <div className="relative pl-4 border-l-2 border-primary/30">
+                      <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
+                      <p className="text-xs font-semibold text-primary">JOUR 2 · 14:00</p>
+                      <p className="font-semibold text-xs">Visite guidée en Tuk-Tuk électrique</p>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">Balade insolite dans les ruelles pavées de l&apos;Alfama.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ——— Features ——— */}
         <section className="border-y border-border bg-surface/50">
           <div className="mx-auto grid max-w-6xl gap-5 px-4 py-16 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            <div className="lg:col-span-12">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary text-center">
                 Ce que Krew fait pour toi
               </p>
-              <h2 className="mt-2 font-display text-3xl font-bold">Moins de débats, plus de départ</h2>
-              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              <h2 className="mt-2 font-display text-3xl font-bold text-center mb-12">Moins de débats, plus de départ</h2>
+              <div className="grid gap-4 sm:grid-cols-4">
                 <FeatureCard
                   icon={MapPinned}
                   title="Destinations scorées"
@@ -195,42 +301,6 @@ function Landing() {
                   title="Planning jour par jour"
                   text="Restos, activités, bars — et liens pour réserver hôtels & trajets."
                 />
-              </div>
-            </div>
-
-            {/* Card exemple score */}
-            <div className="flex items-stretch lg:col-span-5">
-              <div className="flex w-full flex-col justify-between rounded-3xl border border-border bg-card p-6 shadow-elevated">
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Exemple de proposition
-                  </p>
-                  <div className="mt-4 flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-display text-2xl font-semibold">Barcelone</p>
-                      <p className="text-sm text-muted-foreground">Espagne · week-end EVG</p>
-                    </div>
-                    <span className="rounded-2xl bg-emerald-500/15 px-3 py-2 text-lg font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-                      87 %
-                    </span>
-                  </div>
-                  <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
-                    {[
-                      "Ambiance fête alignée au groupe",
-                      "Budget ~340 € / pers. tout compris",
-                      "Vols A/R depuis Paris & Lyon",
-                      "Planning : boat party, tapas, Gothic",
-                    ].map((line) => (
-                      <li key={line} className="flex gap-2">
-                        <Check className="mt-0.5 size-4 shrink-0 text-emerald-500" />
-                        {line}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <p className="mt-6 text-xs text-muted-foreground">
-                  Score indicatif — généré à partir des questionnaires du groupe.
-                </p>
               </div>
             </div>
           </div>

@@ -101,6 +101,7 @@ export async function refreshExternalCatalogForTrip(
   let activities: Awaited<ReturnType<typeof searchActivitiesAllProviders>>["activities"] = [];
 
   if (rapidApiKey) {
+    console.info("[Krew API] Clé HOTELS_RAPIDAPI_KEY détectée. Lancement de la recherche d'hôtels et d'activités réels.");
     const [hotelRes, activityRes] = await Promise.all([
       searchHotelsAllProviders(providerConfig, searchParams),
       searchActivitiesAllProviders(providerConfig, searchParams),
@@ -109,6 +110,7 @@ export async function refreshExternalCatalogForTrip(
     activities = activityRes.activities;
     providerErrors.push(...hotelRes.errors, ...activityRes.errors);
   } else {
+    console.warn("[Krew API] Clé HOTELS_RAPIDAPI_KEY absente. Les fonctionnalités de recherche d'établissements réels (Hotels, TripAdvisor, Kiwi, BlaBlaCar Bus) nécessitent cette clé.");
     providerErrors.push("Aucune clé RapidAPI configurée : seules la météo et la saisonnalité ont été mises à jour.");
   }
 
