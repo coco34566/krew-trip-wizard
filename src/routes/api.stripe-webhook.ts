@@ -52,5 +52,7 @@ export const Route = createFileRoute("/api/stripe-webhook")({
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 });
+      },
+    },
   },
 });
