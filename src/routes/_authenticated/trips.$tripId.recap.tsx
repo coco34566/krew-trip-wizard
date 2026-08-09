@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,6 +14,7 @@ import {
   Info,
   Bell,
   BellRing,
+  CalendarDays,
   ThumbsUp,
   ThumbsDown,
 } from "lucide-react";
@@ -157,12 +158,13 @@ function TripRecapPage() {
   const { trip, nights, departureOrigins, recommendations, progress } = data;
 
   const handleDownloadIcs = () => {
+    const groupItinerary = (trip as any).group_itinerary ?? null;
     const compliantTrip = {
       ...trip,
       dates_locked: true,
-      group_itinerary: trip.group_itinerary,
+      group_itinerary: groupItinerary,
     };
-    const icsContent = buildTripIcs(compliantTrip, trip.group_itinerary);
+    const icsContent = buildTripIcs(compliantTrip as any, groupItinerary);
     if (!icsContent) {
       toast.error("Impossible d'exporter le calendrier.");
       return;
