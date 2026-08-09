@@ -8,6 +8,13 @@
  * - tripadvisor16.p.rapidapi.com
  *
  * Une seule clé : HOTELS_RAPIDAPI_KEY (RapidAPI Application Key).
+ *
+ * LIMITATION TECHNIQUE IMPORTANTE :
+ * Les APIs RapidAPI connectées ne couvrent actuellement que l'hôtellerie classique (Booking, Expedia, Hotels.com).
+ * Les APIs de location de vacances de groupe (type Airbnb, Abritel, Vrbo) sur RapidAPI sont instables, incomplètes, ou
+ * ne permettent pas un taux de réussite suffisant en production. Par conséquent, pour les demandes de type "Maison / villa",
+ * Krew s'appuie sur les meilleures offres de suites d'hôtels, appart-hôtels et résidences gérées disponibles via nos
+ * partenaires hôteliers classiques, plutôt que de générer de fausses offres ou d'utiliser des APIs non fiables.
  */
 
 import { reportServerError } from "@/lib/server-error-reporting.server";
@@ -200,10 +207,27 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
         : Array.isArray(destPayload)
           ? destPayload
           : [];
-      const dest =
-        destList.find((d: any) => d.search_type === "city" || d.dest_type === "city") ?? destList[0];
+
+      // S'assurer que le pays/ville correspond vraiment
+      const queryNorm = p.destination.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+      const dest = destList.find((d: any) => {
+        const isCity = d.search_type === "city" || d.dest_type === "city";
+        if (!isCity) return false;
+
+        const cityName = String(d.city_name || d.name || d.label || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+
+        return cityName.includes(queryNorm) || queryNorm.includes(cityName);
+      }) ?? destList.find((d: any) => {
+        // Fallback souple mais toujours typé "city"
+        return d.search_type === "city" || d.dest_type === "city";
+      });
+
       if (!dest?.dest_id) {
-        throw new Error(`Booking: dest_id introuvable pour "${p.destination}"`);
+        throw new Error(`Booking: Aucune ville correspondante trouvée pour "${p.destination}"`);
       }
 
       const rooms = String(Math.max(1, p.rooms ?? Math.ceil(p.adults / 2)));

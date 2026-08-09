@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { buildProposals, dominantAmbiance, type Proposal, type ScoringContext } from "./engine";
+import { reportServerError } from "@/lib/server-error-reporting.server";
 import { loadTravelCatalog } from "./providers.server";
 import { discoverCandidateDestinations, listCityProfilesForNames } from "./destination-discovery.server";
 import { discoverDestinationsWithAi } from "./destination-ai.server";
@@ -939,7 +940,7 @@ export async function generateRecommendationsForTrip(
     prefsToUse = {
       ...prefsToUse,
       desired_destination: resolvedDestination,
-      let_krew_decide: false,
+      let_krew_decide: letKrewDecide,
     } as any;
   }
 
@@ -990,7 +991,7 @@ export async function generateRecommendationsForTrip(
   let discoveryMeta: { name: string; affinity: number; reason: string }[] = [];
   let discoverySource: "forced" | "ai" | "local" | "merged" = "local";
   let mergedCandidates: MergedCandidate[] = [];
-  if (resolvedDestination) {
+  if (resolvedDestination && !letKrewDecide) {
     shortlistNames = [resolvedDestination];
     discoveryMeta = [{ name: resolvedDestination, affinity: 100, reason: "destination demandée" }];
     discoverySource = "forced";
@@ -1035,7 +1036,39 @@ export async function generateRecommendationsForTrip(
       distanceKm: c.distanceKm,
       bestMonths: c.bestMonths,
     }));
-    mergedCandidates = mergeCandidates(ruleBased, aiCities).slice(0, 12);
+    mergedCandidates = mergeCandidates(ruleBased, aiCities);
+
+    if (resolvedDestination && letKrewDecide) {
+      const normResolved = normCity(resolvedDestination);
+      const exists = mergedCandidates.some((c) => normCity(c.name) === normResolved);
+      if (!exists) {
+        const profile = listCityProfilesForNames([resolvedDestination])[0];
+        mergedCandidates.unshift({
+          name: resolvedDestination,
+          country: profile?.country ?? "Europe",
+          affinity: 98,
+          reason: "destination rêvée d'un participant (boostée)",
+          source: profile ? "catalog" : "ai_estimate",
+          dailyCost: profile?.dailyCost,
+          distanceKm: profile?.distanceKm,
+          bestMonths: profile?.bestMonths,
+        });
+      } else {
+        mergedCandidates = mergedCandidates.map((c) => {
+          if (normCity(c.name) === normResolved) {
+            return {
+              ...c,
+              affinity: Math.max(c.affinity, 98),
+              reason: `${c.reason} · destination rêvée`,
+            };
+          }
+          return c;
+        });
+        mergedCandidates.sort((a, b) => b.affinity - a.affinity);
+      }
+    }
+
+    mergedCandidates = mergedCandidates.slice(0, 12);
     discoverySource = aiCities.length ? "merged" : "local";
     discoveryMeta = mergedCandidates.map((c) => ({
       name: c.name,
@@ -1049,9 +1082,11 @@ export async function generateRecommendationsForTrip(
   const profiles = listCityProfilesForNames(shortlistNames);
   const profileKeys = new Set(profiles.map((p) => normCity(p.name)));
   for (const p of profiles) {
+    const slug = normCity(p.name).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
     try {
       await supabaseAdmin.from("destinations").upsert(
         {
+          slug: slug || `ville-${Date.now()}`,
           name: p.name,
           country: p.country,
           distance_from_paris_km: p.distanceKm,
@@ -1067,9 +1102,14 @@ export async function generateRecommendationsForTrip(
           source: "krew_discovery",
           external_id: `discovery:${p.name.toLowerCase()}`,
         } as any,
-        { onConflict: "external_id" },
+        { onConflict: "source,external_id" },
       );
     } catch (e) {
+      reportServerError(e, {
+        provider: "krew_discovery",
+        kind: "catalog_upsert_local_profile",
+        destination: p.name,
+      });
       // fallback sans contrainte external_id unique
       try {
         const existing = await supabase
@@ -1079,6 +1119,7 @@ export async function generateRecommendationsForTrip(
           .maybeSingle();
         if (!existing.data) {
           await supabaseAdmin.from("destinations").insert({
+            slug: slug || `ville-${Date.now()}`,
             name: p.name,
             country: p.country,
             distance_from_paris_km: p.distanceKm,
@@ -1087,8 +1128,12 @@ export async function generateRecommendationsForTrip(
             source: "krew_discovery",
           } as any);
         }
-      } catch {
-        /* ignore */
+      } catch (fallbackErr) {
+        reportServerError(fallbackErr, {
+          provider: "krew_discovery",
+          kind: "catalog_fallback_insert",
+          destination: p.name,
+        });
       }
     }
   }
@@ -1128,10 +1173,14 @@ export async function generateRecommendationsForTrip(
       const row = aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
       await supabaseAdmin.from("destinations").upsert(
         { ...row, latitude, longitude } as any,
-        { onConflict: "external_id" },
+        { onConflict: "source,external_id" },
       );
     } catch (e) {
-      console.warn("[discovery] upsert ai_estimate échoué:", candidate.name, e);
+      reportServerError(e, {
+        provider: "destination-ai",
+        kind: "catalog_upsert_ai_estimate",
+        destination: candidate.name,
+      });
     }
   }
 

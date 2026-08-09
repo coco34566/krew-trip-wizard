@@ -39,6 +39,7 @@ type CityProfile = {
   activities: string[];
   bestMonths: number[];
   eventBoost: string[]; // event_type qui boostent cette ville
+  lodgingFocus: "citybreak" | "maison_groupe" | "les_deux";
 };
 
 /**
@@ -56,6 +57,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "detente", "experiences", "gastronomie"],
     bestMonths: [4, 5, 6, 7, 8, 9],
     eventBoost: ["evg", "evjf", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Prague",
@@ -66,6 +68,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "gastronomie", "experiences", "insolite"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evg", "weekend", "anniversaire"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Krakow",
@@ -76,6 +79,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "gastronomie", "experiences"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Belgrade",
@@ -86,6 +90,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "insolite", "experiences"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Porto",
@@ -96,6 +101,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "gastronomie", "experiences", "nautique"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evjf", "weekend", "anniversaire"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Lisbonne",
@@ -106,6 +112,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "nautique", "sport", "gastronomie", "experiences"],
     bestMonths: [3, 4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evg", "evjf", "weekend"],
+    lodgingFocus: "citybreak",
   },
 
   // ——— Plage / fête ———
@@ -118,6 +125,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "nautique", "sport", "gastronomie", "experiences"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evg", "evjf", "weekend", "anniversaire"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Valence",
@@ -128,6 +136,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["nautique", "sport", "gastronomie", "bars_clubs", "experiences"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Ibiza",
@@ -138,6 +147,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "nautique", "detente"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "evjf"],
+    lodgingFocus: "les_deux",
   },
   {
     name: "Malaga",
@@ -148,6 +158,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["nautique", "gastronomie", "bars_clubs", "detente", "experiences"],
     bestMonths: [3, 4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evjf", "weekend", "anniversaire"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Séville",
@@ -158,6 +169,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["gastronomie", "experiences", "soirees", "bars_clubs", "culturel"],
     bestMonths: [3, 4, 5, 6, 9, 10, 11],
     eventBoost: ["evjf", "anniversaire", "weekend"],
+    lodgingFocus: "citybreak",
   },
 
   // ——— France accessible ———
@@ -170,6 +182,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["sport", "nautique", "sensations", "gastronomie", "bars_clubs"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "weekend", "voyage_groupe"],
+    lodgingFocus: "les_deux",
   },
   {
     name: "Annecy",
@@ -180,6 +193,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["sport", "sensations", "nautique", "detente", "experiences"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["weekend", "anniversaire", "voyage_groupe"],
+    lodgingFocus: "les_deux",
   },
   {
     name: "Chamonix",
@@ -190,6 +204,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["sport", "sensations", "experiences"],
     bestMonths: [6, 7, 8, 9, 12, 1, 2, 3],
     eventBoost: ["weekend", "voyage_groupe"],
+    lodgingFocus: "les_deux",
   },
   {
     name: "Nice",
@@ -200,6 +215,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["gastronomie", "detente", "nautique", "bars_clubs", "experiences"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evjf", "anniversaire", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Marseille",
@@ -210,6 +226,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["nautique", "gastronomie", "bars_clubs", "experiences", "sport"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Bordeaux",
@@ -220,6 +237,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["gastronomie", "bars_clubs", "experiences", "soirees"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evjf", "anniversaire", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Lyon",
@@ -230,6 +248,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["gastronomie", "bars_clubs", "experiences", "culturel"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["weekend", "anniversaire"],
+    lodgingFocus: "citybreak",
   },
 
   // ——— Europe du Nord / centrale ———
@@ -242,6 +261,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "experiences", "insolite", "culturel"],
     bestMonths: [4, 5, 6, 7, 8, 9],
     eventBoost: ["evg", "evjf", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Berlin",
@@ -252,6 +272,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "insolite", "culturel", "experiences"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Bruxelles",
@@ -262,6 +283,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["gastronomie", "bars_clubs", "experiences", "culturel"],
     bestMonths: [4, 5, 6, 7, 8, 9],
     eventBoost: ["weekend", "anniversaire"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Vienne",
@@ -272,6 +294,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["culturel", "gastronomie", "experiences", "detente"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["anniversaire", "evjf", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Munich",
@@ -282,6 +305,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "gastronomie", "experiences", "sport"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
 
   // ——— Méditerranée / exotique proche ———
@@ -294,6 +318,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["experiences", "detente", "sensations", "gastronomie", "insolite"],
     bestMonths: [2, 3, 4, 5, 9, 10, 11],
     eventBoost: ["evjf", "anniversaire", "voyage_groupe"],
+    lodgingFocus: "les_deux",
   },
   {
     name: "Tanger",
@@ -304,6 +329,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["experiences", "gastronomie", "detente", "nautique"],
     bestMonths: [3, 4, 5, 6, 9, 10, 11],
     eventBoost: ["weekend", "voyage_groupe"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Dubrovnik",
@@ -314,6 +340,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["nautique", "experiences", "detente", "gastronomie", "bars_clubs"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evjf", "anniversaire", "weekend"],
+    lodgingFocus: "les_deux",
   },
   {
     name: "Split",
@@ -324,6 +351,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["nautique", "bars_clubs", "sport", "experiences"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "evjf", "weekend"],
+    lodgingFocus: "les_deux",
   },
   {
     name: "Athènes",
@@ -334,6 +362,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["culturel", "gastronomie", "bars_clubs", "experiences", "nautique"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["anniversaire", "evjf", "voyage_groupe"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Rome",
@@ -344,6 +373,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["culturel", "gastronomie", "experiences", "bars_clubs"],
     bestMonths: [4, 5, 6, 9, 10],
     eventBoost: ["anniversaire", "evjf", "voyage_groupe"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Milan",
@@ -354,6 +384,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["gastronomie", "bars_clubs", "culturel", "experiences"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evjf", "anniversaire", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Naples",
@@ -364,6 +395,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["gastronomie", "experiences", "nautique", "bars_clubs"],
     bestMonths: [4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
 
   // ——— UK / Nord ———
@@ -376,6 +408,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "culturel", "experiences", "gastronomie"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "evjf", "anniversaire"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Édimbourg",
@@ -386,6 +419,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "experiences", "culturel", "insolite"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Dublin",
@@ -396,6 +430,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "experiences", "gastronomie"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
 
   // ——— Autres ———
@@ -408,6 +443,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "soirees", "nautique", "sport", "gastronomie"],
     bestMonths: [3, 4, 5, 6, 7, 8, 9, 10],
     eventBoost: ["evg", "evjf", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Tallinn",
@@ -418,6 +454,7 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["bars_clubs", "insolite", "experiences", "culturel"],
     bestMonths: [5, 6, 7, 8, 9],
     eventBoost: ["evg", "weekend"],
+    lodgingFocus: "citybreak",
   },
   {
     name: "Reykjavik",
@@ -428,7 +465,86 @@ const CITY_PROFILES: CityProfile[] = [
     activities: ["sensations", "experiences", "insolite", "detente", "sport"],
     bestMonths: [6, 7, 8, 9],
     eventBoost: ["voyage_groupe", "anniversaire"],
+    lodgingFocus: "les_deux",
   },
+  // ——— Campagne / Maisons de groupe ———
+  {
+    name: "Luberon",
+    country: "France",
+    distanceKm: 750,
+    dailyCost: 110,
+    ambiances: { fete: 0.5, aventure: 0.6, detente: 0.95, luxe: 0.75, insolite: 0.7, sportif: 0.6, culturel: 0.8 },
+    activities: ["detente", "gastronomie", "experiences", "culturel"],
+    bestMonths: [5, 6, 7, 8, 9, 10],
+    eventBoost: ["voyage_groupe", "anniversaire", "famille"],
+    lodgingFocus: "maison_groupe",
+  },
+  {
+    name: "Ardèche",
+    country: "France",
+    distanceKm: 650,
+    dailyCost: 75,
+    ambiances: { fete: 0.55, aventure: 0.9, detente: 0.8, luxe: 0.3, insolite: 0.8, sportif: 0.95, culturel: 0.5 },
+    activities: ["sports", "sensations", "experiences", "nautique"],
+    bestMonths: [5, 6, 7, 8, 9],
+    eventBoost: ["evg", "voyage_groupe", "weekend"],
+    lodgingFocus: "maison_groupe",
+  },
+  {
+    name: "Dordogne",
+    country: "France",
+    distanceKm: 550,
+    dailyCost: 80,
+    ambiances: { fete: 0.45, aventure: 0.7, detente: 0.85, luxe: 0.5, insolite: 0.75, sportif: 0.6, culturel: 0.9 },
+    activities: ["gastronomie", "culturel", "detente", "nautique"],
+    bestMonths: [5, 6, 7, 8, 9, 10],
+    eventBoost: ["voyage_groupe", "famille", "anniversaire"],
+    lodgingFocus: "maison_groupe",
+  },
+  {
+    name: "Sud-Gironde",
+    country: "France",
+    distanceKm: 620,
+    dailyCost: 85,
+    ambiances: { fete: 0.6, aventure: 0.5, detente: 0.85, luxe: 0.6, insolite: 0.7, sportif: 0.5, culturel: 0.8 },
+    activities: ["gastronomie", "detente", "experiences", "culturel"],
+    bestMonths: [5, 6, 7, 8, 9, 10],
+    eventBoost: ["voyage_groupe", "anniversaire", "weekend"],
+    lodgingFocus: "maison_groupe",
+  },
+  {
+    name: "Toscane rurale",
+    country: "Italie",
+    distanceKm: 1150,
+    dailyCost: 110,
+    ambiances: { fete: 0.5, aventure: 0.5, detente: 0.9, luxe: 0.8, insolite: 0.6, sportif: 0.5, culturel: 0.95 },
+    activities: ["gastronomie", "detente", "culturel", "experiences"],
+    bestMonths: [4, 5, 6, 7, 8, 9, 10],
+    eventBoost: ["voyage_groupe", "anniversaire", "famille"],
+    lodgingFocus: "maison_groupe",
+  },
+  {
+    name: "Alpujarras",
+    country: "Espagne",
+    distanceKm: 1650,
+    dailyCost: 70,
+    ambiances: { fete: 0.4, aventure: 0.85, detente: 0.85, luxe: 0.4, insolite: 0.8, sportif: 0.85, culturel: 0.7 },
+    activities: ["sports", "experiences", "detente", "culturel"],
+    bestMonths: [4, 5, 6, 7, 8, 9, 10],
+    eventBoost: ["voyage_groupe", "weekend"],
+    lodgingFocus: "maison_groupe",
+  },
+  {
+    name: "Alentejo",
+    country: "Portugal",
+    distanceKm: 1600,
+    dailyCost: 80,
+    ambiances: { fete: 0.45, aventure: 0.65, detente: 0.9, luxe: 0.6, insolite: 0.75, sportif: 0.55, culturel: 0.8 },
+    activities: ["detente", "gastronomie", "experiences", "culturel"],
+    bestMonths: [4, 5, 6, 7, 8, 9, 10],
+    eventBoost: ["voyage_groupe", "anniversaire", "famille"],
+    lodgingFocus: "maison_groupe",
+  }
 ];
 
 const norm = (s: string) =>
