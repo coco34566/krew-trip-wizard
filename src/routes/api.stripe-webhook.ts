@@ -1,9 +1,11 @@
-import { createAPIFileRoute } from "@tanstack/react-start/api";
+import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import Stripe from "stripe";
 
-export const Route = createAPIFileRoute("/api/stripe-webhook")({
-  POST: async ({ request }) => {
+export const Route = createFileRoute("/api/stripe-webhook")({
+  server: {
+    handlers: {
+      POST: async ({ request }: { request: Request }) => {
     const payload = await request.text();
     const sig = request.headers.get("stripe-signature") || "";
 
