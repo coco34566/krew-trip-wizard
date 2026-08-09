@@ -113,7 +113,7 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
       { title: "Mon Voyage — Krew" },
       { name: "description", content: "Propositions Krew, planning jour par jour, budget détaillé et votes du groupe." },
       { property: "og:title", content: "Mon Voyage — Krew" },
-      { property: "og:description", content: "Comparez les propositions et validez le voyage avec votre groupe." },
+      { property: "og:description", content: "Compare les propositions et valide le voyage avec ton groupe." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -517,17 +517,15 @@ function TripDetail() {
     };
   }, [tripPreview, selectedRecoPreview, logisticsPreview]);
 
-  function buildWhatsAppSummary() {
+  function buildWhatsAppInviteMessage() {
     const trip = tripPreview || {};
+    const eventTypeStr = trip.event_type ? String(trip.event_type).replace(/_/g, " ") : "";
     const lines: string[] = [
-      `Salut ! On organise « ${trip.name || "notre voyage"} » avec Krew ✈️`,
+      `Salut ! Viens rejoindre l'aventure pour organiser notre voyage « ${trip.name || "Krew"} » ! ✈️🥳`,
       "",
     ];
-    if (trip.event_type) lines.push(`Type : ${String(trip.event_type).replace(/_/g, " ")}`);
-    if (liveBudget.destinationName) {
-      lines.push(
-        `Lieu : ${liveBudget.destinationName}${liveBudget.country ? ` (${liveBudget.country})` : ""}`,
-      );
+    if (eventTypeStr) {
+      lines.push(`Événement : ${eventTypeStr}`);
     }
     if (trip.start_date && trip.end_date) {
       const a = new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
@@ -539,23 +537,84 @@ function TripDetail() {
         month: "short",
         year: "numeric",
       });
-      lines.push(`Dates : ${a} → ${b}`);
+      lines.push(`Dates prévues : ${a} → ${b}`);
     } else if (trip.start_date) {
-      lines.push(`Date : ${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")}`);
+      lines.push(`Date prévue : ${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")}`);
     }
-    if (liveBudget.total > 0) {
-      lines.push(`Budget estimé : ~${liveBudget.total} € / pers.`);
-      lines.push(
-        `  · transport ${liveBudget.transport} € · héberg. ${liveBudget.accommodation} € · act. ${liveBudget.activities} € · repas ${liveBudget.food} €`,
-      );
-    } else if (liveBudget.baseBudget > 0) {
-      lines.push(`Budget cible : ${liveBudget.baseBudget} € / pers.`);
-    }
-    if (liveBudget.topHotelName) lines.push(`Hôtel plébiscité : ${liveBudget.topHotelName}`);
     lines.push("");
-    lines.push("Rejoins le groupe et indique tes dispos ici :");
+    lines.push("Rejoins le groupe, indique tes dispos et tes préférences ici :");
     if (typeof window !== "undefined" && trip.id) {
       lines.push(`${window.location.origin}/join/${trip.id}`);
+    }
+    return lines.join("\n");
+  }
+
+  function buildWhatsAppStatusMessage() {
+    const trip = tripPreview || {};
+    const lines: string[] = [
+      `📢 Des nouvelles de l'organisation du voyage « ${trip.name || "notre voyage"} » !`,
+      "",
+    ];
+
+    const total = progress?.total ?? 1;
+    const prefCount = progress?.answered ?? 0;
+    lines.push(`✅ Préférences récoltées : ${prefCount}/${total}`);
+
+    const availCount = availData?.answered ?? 0;
+    lines.push(`📅 Disponibilités renseignées : ${availCount}/${total}`);
+
+    const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+    if (missingParticipants.length > 0) {
+      if (missingParticipants.length <= 5) {
+        const names = missingParticipants.map(p => p.display_name || p.email?.split("@")[0] || "Ami").join(", ");
+        lines.push(`⏳ En attente des réponses de : ${names}`);
+      } else {
+        lines.push(`⏳ En attente des réponses de ${missingParticipants.length} participant·es`);
+      }
+    }
+
+    if (liveBudget.destinationName) {
+      lines.push(`📍 Destination : ${liveBudget.destinationName}${liveBudget.country ? ` (${liveBudget.country})` : ""}`);
+    } else {
+      const recCount = recommendations?.length ?? 0;
+      lines.push(`📍 Destination : En attente de vote (${recCount} proposition·s à départager)`);
+    }
+
+    if (liveBudget.total > 0) {
+      lines.push(`💰 Budget estimé : ~${liveBudget.total} € / pers.`);
+    } else if (liveBudget.baseBudget > 0) {
+      lines.push(`💰 Budget cible : ${liveBudget.baseBudget} € / pers.`);
+    }
+
+    lines.push("");
+    lines.push("Retrouve tous les détails et complète tes infos ici :");
+    if (typeof window !== "undefined" && trip.id) {
+      lines.push(`${window.location.origin}/trips/${trip.id}`);
+    }
+    return lines.join("\n");
+  }
+
+  function buildWhatsAppRemindMessage() {
+    const trip = tripPreview || {};
+    const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+    const lines: string[] = [
+      `🔔 Petit rappel pour le voyage « ${trip.name || "notre voyage"} » !`,
+      "",
+      "Certain·es d'entre nous n'ont pas encore eu le temps de remplir leurs infos :",
+    ];
+
+    for (const p of missingParticipants) {
+      const name = p.display_name || p.email?.split("@")[0] || "Ami";
+      const missing: string[] = [];
+      if (!p.hasAnsweredAvailability) missing.push("disponibilités 📅");
+      if (!p.hasAnswered) missing.push("préférences ⚙️");
+      lines.push(`• *${name}* : il te manque tes ${missing.join(" et ")}`);
+    }
+
+    lines.push("");
+    lines.push("Prenez 2 petites minutes pour compléter vos infos ici :");
+    if (typeof window !== "undefined" && trip.id) {
+      lines.push(`${window.location.origin}/trips/${trip.id}`);
     }
     return lines.join("\n");
   }
@@ -665,7 +724,7 @@ function TripDetail() {
             type="button"
             className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
             onClick={() => {
-              const text = buildWhatsAppSummary();
+              const text = buildWhatsAppStatusMessage();
               window.open(
                 `https://wa.me/?text=${encodeURIComponent(text)}`,
                 "_blank",
@@ -801,7 +860,7 @@ function TripDetail() {
           <>
             <p className="text-sm text-muted-foreground">
               {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1}{" "}
-              dispos reçues. L&apos;organisateur valide une fenêtre pour lancer les destinations.
+              dispos reçues. L&apos;organisateur·rice valide une fenêtre pour lancer les destinations.
             </p>
             <ul className="space-y-2">
               {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
@@ -899,7 +958,7 @@ function TripDetail() {
                 ? (readiness.message ??
                   "Les questionnaires doivent être complétés avant de générer les propositions.")
                 : "Clique sur « Générer les propositions » pour lancer la recherche de destinations Krew."
-              : "L'organisateur générera bientôt les propositions de destinations."}
+              : "L'organisateur·rice générera bientôt les propositions de destinations."}
           </p>
         ) : (
           <>
@@ -1095,7 +1154,7 @@ function TripDetail() {
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {data.isOwner
                 ? "Lance la recherche pour proposer des hébergements."
-                : "L'organisateur proposera bientôt des hôtels à voter."}
+                : "L'organisateur·rice proposera bientôt des hôtels à voter."}
             </p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -1352,7 +1411,7 @@ function TripDetail() {
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {data.isOwner
                 ? "Génère un planning complet (arrivée → départ) avec restos, activités et bars."
-                : "L'organisateur générera bientôt le planning du séjour."}
+                : "L'organisateur·rice générera bientôt le planning du séjour."}
             </p>
           ) : (
             <div className="space-y-4">
@@ -1518,7 +1577,7 @@ function TripDetail() {
             </a>
           </div>
           <p className="text-xs text-muted-foreground">
-            Ces réponses pèsent ~×2,5 à ×3,2 dans le scoring par rapport aux autres participants.
+            Ces réponses pèsent ~×2,5 à ×3,2 dans le scoring par rapport aux autres participant·e·s.
           </p>
           {starData?.preferences ? (
             <div className="space-y-1 text-sm text-muted-foreground">
@@ -1550,7 +1609,7 @@ function TripDetail() {
         <h2 className="font-display text-xl font-semibold tracking-tight">Inviter la bande</h2>
         <div className="mt-4 rounded-2xl border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground">
-            Envoie ce lien (WhatsApp, SMS, Instagram…) — tes amis rejoignent le voyage et répondent au questionnaire.
+            Envoie ce lien (WhatsApp, SMS, Instagram…) — tes ami·e·s rejoignent le voyage et répondent au questionnaire.
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Input readOnly value={shareUrl} className="max-w-md font-mono text-xs" />
@@ -1575,13 +1634,33 @@ function TripDetail() {
               type="button"
               className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
               onClick={() => {
-                const text = buildWhatsAppSummary();
+                const text = buildWhatsAppInviteMessage();
                 const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
                 window.open(url, "_blank", "noopener,noreferrer");
               }}
             >
               WhatsApp
             </Button>
+            {data.isOwner ? (
+              (() => {
+                const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+                return (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={missingParticipants.length === 0}
+                    className={missingParticipants.length === 0 ? "" : "bg-amber-500 text-white hover:bg-amber-600 border-transparent"}
+                    onClick={() => {
+                      const text = buildWhatsAppRemindMessage();
+                      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    🔔 {missingParticipants.length === 0 ? "Tout le monde a répondu" : "Relancer les retardataires"}
+                  </Button>
+                );
+              })()
+            ) : null}
             {typeof navigator !== "undefined" && typeof (navigator as any).share === "function" ? (
               <Button
                 type="button"
@@ -1624,7 +1703,7 @@ function TripDetail() {
 
         <ul className="mt-5 space-y-2">
           {participants.length === 0 ? (
-            <li className="text-sm text-muted-foreground">Personne n'est encore invité.</li>
+            <li className="text-sm text-muted-foreground">Personne n'est encore invité·e.</li>
           ) : (
             participants.map((p) => (
               <li
@@ -1655,7 +1734,7 @@ function TripDetail() {
       </section>
       {data.isOwner && trip.status !== "annule" ? (
         <section className="mt-10 space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
-          <p className="mb-3 text-sm text-muted-foreground">Zone organisateur</p>
+          <p className="mb-3 text-sm text-muted-foreground">Zone organisateur·rice</p>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"

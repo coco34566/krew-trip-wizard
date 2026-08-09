@@ -109,6 +109,8 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Recor
     preferredTimeSlots: prefs?.preferred_time_slots ?? [],
     acceptsSharedRoom: prefs?.accepts_shared_room ?? true,
     roomTypePreferences: prefs?.room_type_preferences ?? [],
+    mostDemandedLodgingType: prefs?.mostDemandedLodgingType ?? prefs?.most_demanded_lodging_type ?? null,
+    requiredAmenities: prefs?.required_amenities ?? prefs?.requiredAmenities ?? [],
     needsAccessibility: Boolean(prefs?.needs_accessibility),
     maxTravelDurationHours:
       prefs?.max_travel_duration_hours != null ? Number(prefs.max_travel_duration_hours) : null,
@@ -289,6 +291,9 @@ export async function aggregateParticipantPreferences(
   const dietaryConstraints = Array.from(
     new Set(rows.flatMap((r) => r.dietary_constraints ?? []).filter(Boolean)),
   );
+  const dietaryConstraintsRows = rows.filter((r) => r.dietary_constraints && r.dietary_constraints.length > 0);
+  const dietaryConstraintsRatio = rows.length ? dietaryConstraintsRows.length / rows.length : 0;
+
   const preferredTimeSlots = (() => {
     const freq: Record<string, number> = {};
     for (const r of rows) for (const s of r.preferred_time_slots ?? []) freq[s] = (freq[s] ?? 0) + 1;
@@ -303,6 +308,26 @@ export async function aggregateParticipantPreferences(
   const roomTypePreferences = Array.from(
     new Set(rows.map((r) => r.room_type_preference).filter((x): x is string => Boolean(x))),
   );
+
+  // Type de logement le plus demandé par le groupe (majorité des réponses individuelles)
+  const lodgingTypeFreq: Record<string, number> = {};
+  for (const r of rows) {
+    const types = r.required_amenities ?? [];
+    for (const t of types) {
+      if (t && t !== "peu_importe") {
+        lodgingTypeFreq[t] = (lodgingTypeFreq[t] || 0) + 1;
+      }
+    }
+  }
+  let mostDemandedLodgingType: string | null = null;
+  let maxLodgingCount = 0;
+  for (const [t, count] of Object.entries(lodgingTypeFreq)) {
+    if (count > maxLodgingCount) {
+      maxLodgingCount = count;
+      mostDemandedLodgingType = t;
+    }
+  }
+
   const needsAccessibility =
     rows.some((r) => r.accessibility_needs === true) ||
     rows.some((r) => Boolean((r.mobility_notes ?? "").trim()));
@@ -468,9 +493,11 @@ export async function aggregateParticipantPreferences(
     starWeight,
     celebratedPerson,
     dietaryConstraints,
+    dietaryConstraintsRatio,
     preferredTimeSlots,
     acceptsSharedRoom,
     roomTypePreferences,
+    mostDemandedLodgingType,
     needsAccessibility,
     maxTravelDurationHours,
     transportModes,
@@ -795,9 +822,11 @@ export async function generateRecommendationsForTrip(
       star_deal_breakers: aggregated.starDealBreakers,
       star_weight: aggregated.starWeight,
       dietary_constraints: aggregated.dietaryConstraints,
+      dietary_constraints_ratio: aggregated.dietaryConstraintsRatio,
       preferred_time_slots: aggregated.preferredTimeSlots,
       accepts_shared_room: aggregated.acceptsSharedRoom,
       room_type_preferences: aggregated.roomTypePreferences,
+      most_demanded_lodging_type: aggregated.mostDemandedLodgingType,
       needs_accessibility: aggregated.needsAccessibility,
       needs_city_center: aggregated.needsAccessibility
         ? true

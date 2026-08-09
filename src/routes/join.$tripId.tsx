@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/krew/Logo";
-import { getJoinPreview, joinTrip } from "@/lib/join.functions";
+import { getJoinPreview, joinTrip, checkJoinStatus } from "@/lib/join.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { eventTypeLabel } from "@/lib/krew/constants";
 
@@ -49,6 +49,7 @@ function JoinTripPage() {
   const { isAuthenticated, loading: authLoading } = useAuth();
   const fetchPreview = useServerFn(getJoinPreview);
   const doJoin = useServerFn(joinTrip);
+  const checkStatus = useServerFn(checkJoinStatus);
 
   const [preview, setPreview] = useState<{
     id: string;
@@ -60,8 +61,37 @@ function JoinTripPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isAuthenticated || !tripId || tripId.length < 8) return;
+
+    setCheckingStatus(true);
+    checkStatus({ data: { tripId } })
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.alreadyJoined) {
+          if (res.myAvailabilityDone && res.myPreferencesDone) {
+            window.location.assign(`/trips/${tripId}`);
+          } else {
+            window.location.assign(`/trips/${tripId}/availability`);
+          }
+        }
+      })
+      .catch((e) => {
+        console.error("Erreur checkJoinStatus:", e);
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingStatus(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId, isAuthenticated, checkStatus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,10 +139,13 @@ function JoinTripPage() {
     }
     setJoining(true);
     try {
-      await doJoin({ data: { tripId, firstName: firstName.trim() } });
+      const res = await doJoin({ data: { tripId, firstName: firstName.trim() } });
       toast.success("Bienvenue dans le voyage !");
-      // Dispos d'abord, fallback hub si la route dispo pose problème
-      window.location.assign(`/trips/${tripId}/availability`);
+      if (res?.alreadyMember && res?.myAvailabilityDone && res?.myPreferencesDone) {
+        window.location.assign(`/trips/${tripId}`);
+      } else {
+        window.location.assign(`/trips/${tripId}/availability`);
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Impossible de rejoindre ce voyage");
     } finally {
@@ -129,7 +162,7 @@ function JoinTripPage() {
         </Link>
 
         <div className="w-full rounded-3xl border border-border bg-card p-6 shadow-elevated sm:p-8">
-          {loading || authLoading ? (
+          {loading || authLoading || checkingStatus ? (
             <div className="flex flex-col items-center gap-3 py-12">
               <Loader2 className="size-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">Chargement de l&apos;invitation…</p>

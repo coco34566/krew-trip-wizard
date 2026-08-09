@@ -42,8 +42,12 @@ export async function refreshExternalCatalogForTrip(
     "@/integrations/external/travel-providers.server"
   );
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
 
-  const place = await geocodeDestination(destinationQuery);
+  const [place, aggregated] = await Promise.all([
+    geocodeDestination(destinationQuery),
+    aggregateParticipantPreferences(supabaseAdmin, tripId),
+  ]);
   if (!place) {
     return {
       ok: false as const,
@@ -88,6 +92,8 @@ export async function refreshExternalCatalogForTrip(
     checkin: trip.start_date ?? null,
     checkout: trip.end_date ?? null,
     adults: participants,
+    requiredAmenities: aggregated.requiredAmenities ?? [],
+    roomTypePreferences: aggregated.roomTypePreferences ?? [],
   };
 
   const providerErrors: string[] = [];

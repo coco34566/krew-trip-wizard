@@ -19,13 +19,13 @@ import { EVENT_TYPES } from "@/lib/krew/constants";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Krew — Organisez le voyage parfait avec vos amis" },
+      { title: "Krew — Organise le voyage parfait avec tes ami·e·s" },
       {
         name: "description",
         content:
-          "EVG, EVJF, week-end entre amis : Krew analyse votre groupe et propose destination, hébergement, activités, budget et planning jour par jour.",
+          "EVG, EVJF, week-end entre ami·e·s : Krew analyse ton groupe et propose destination, hébergement, activités, budget et planning jour par jour.",
       },
-      { property: "og:title", content: "Krew — Le voyage de groupe, organisé pour vous" },
+      { property: "og:title", content: "Krew — Le voyage de groupe, organisé pour toi" },
       {
         property: "og:description",
         content:
@@ -85,7 +85,7 @@ function Landing() {
             </Badge>
             <h1 className="max-w-3xl font-display text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
               Le voyage de groupe,{" "}
-              <span className="text-brand-gradient">organisé pour vous.</span>
+              <span className="text-brand-gradient">organisé pour toi.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
               Dispos, envies, budget : Krew assemble destination, hébergement, activités et
@@ -171,7 +171,7 @@ function Landing() {
           <div className="mx-auto grid max-w-6xl gap-5 px-4 py-16 lg:grid-cols-12">
             <div className="lg:col-span-7">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
-                Ce que Krew fait pour vous
+                Ce que Krew fait pour toi
               </p>
               <h2 className="mt-2 font-display text-3xl font-bold">Moins de débats, plus de départ</h2>
               <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -188,7 +188,7 @@ function Landing() {
                 <FeatureCard
                   icon={Vote}
                   title="Décision collective"
-                  text="Invite, réponses de chacun, validation par l'organisateur."
+                  text="Invite, réponses de chacun·e, validation par l'organisateur·rice."
                 />
                 <FeatureCard
                   icon={CalendarCheck}
@@ -241,7 +241,7 @@ function Landing() {
           <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-lagoon/15 to-background" />
           <div className="relative mx-auto max-w-3xl px-4 py-20 text-center sm:py-24">
             <h2 className="font-display text-3xl font-bold sm:text-4xl">
-              Votre prochaine légende commence ici
+              Ta prochaine légende commence ici
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
               Créez le voyage, partagez le lien WhatsApp, laissez Krew assembler le reste.

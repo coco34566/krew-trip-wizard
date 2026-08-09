@@ -86,7 +86,27 @@ export const joinTrip = createServerFn({ method: "POST" })
           .eq("trip_id", data.tripId)
           .eq("user_id", userId);
       }
-      return { tripId: data.tripId, alreadyMember: true, isOwner: true };
+      const [avail, prefs] = await Promise.all([
+        supabaseAdmin
+          .from("trip_availability")
+          .select("id")
+          .eq("trip_id", data.tripId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("trip_participant_preferences")
+          .select("user_id")
+          .eq("trip_id", data.tripId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+      ]);
+      return {
+        tripId: data.tripId,
+        alreadyMember: true,
+        isOwner: true,
+        myAvailabilityDone: !avail.error && !!avail.data,
+        myPreferencesDone: !prefs.error && !!prefs.data,
+      };
     }
 
     // Si déjà participant par email ou user_id → rattacher
@@ -128,7 +148,27 @@ export const joinTrip = createServerFn({ method: "POST" })
           /* ignore */
         }
       }
-      return { tripId: data.tripId, alreadyMember: true, isOwner: false };
+      const [avail, prefs] = await Promise.all([
+        supabaseAdmin
+          .from("trip_availability")
+          .select("id")
+          .eq("trip_id", data.tripId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("trip_participant_preferences")
+          .select("user_id")
+          .eq("trip_id", data.tripId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+      ]);
+      return {
+        tripId: data.tripId,
+        alreadyMember: true,
+        isOwner: false,
+        myAvailabilityDone: !avail.error && !!avail.data,
+        myPreferencesDone: !prefs.error && !!prefs.data,
+      };
     }
 
     const inserted = await supabaseAdmin
@@ -159,6 +199,92 @@ export const joinTrip = createServerFn({ method: "POST" })
     }
 
     return { tripId: data.tripId, alreadyMember: false, isOwner: false };
+  });
+
+
+export const checkJoinStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const email = (typeof claims?.email === "string" ? claims.email : "").trim().toLowerCase();
+    if (!email) throw new Error("Email de compte manquant — reconnecte-toi.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const trip = await supabaseAdmin
+      .from("trips")
+      .select("id, owner_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+
+    let isParticipant = trip.data.owner_id === userId;
+
+    if (!isParticipant) {
+      const byUser = await supabaseAdmin
+        .from("trip_participants")
+        .select("id, user_id, status")
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      const byEmail = byUser.data
+        ? byUser
+        : await supabaseAdmin
+            .from("trip_participants")
+            .select("id, user_id, status")
+            .eq("trip_id", data.tripId)
+            .eq("email", email)
+            .maybeSingle();
+      const existing = byUser.data ? byUser : byEmail;
+
+      if (existing.data) {
+        isParticipant = true;
+        // Si le user_id n'est pas lié ou statut pas accepté, on le met à jour
+        if (existing.data.user_id !== userId || existing.data.status !== "accepte") {
+          const patch: Record<string, unknown> = { user_id: userId, email, status: "accepte" };
+          const updated = await supabaseAdmin
+            .from("trip_participants")
+            .update(patch)
+            .eq("id", existing.data.id);
+          if (updated.error) {
+            console.error("checkJoinStatus: update user_id failed", updated.error.message);
+          }
+        }
+      }
+    }
+
+    if (isParticipant) {
+      const [avail, prefs] = await Promise.all([
+        supabaseAdmin
+          .from("trip_availability")
+          .select("id")
+          .eq("trip_id", data.tripId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("trip_participant_preferences")
+          .select("user_id")
+          .eq("trip_id", data.tripId)
+          .eq("user_id", userId)
+          .maybeSingle(),
+      ]);
+
+      return {
+        alreadyJoined: true,
+        myAvailabilityDone: !avail.error && !!avail.data,
+        myPreferencesDone: !prefs.error && !!prefs.data,
+      };
+    }
+
+    return {
+      alreadyJoined: false,
+      myAvailabilityDone: false,
+      myPreferencesDone: false,
+    };
   });
 
 

@@ -182,11 +182,12 @@ function ParticipantQuestionnaire() {
       })
       .catch((e: any) => {
         if (typeof e?.message === "string" && e.message.startsWith("403 Forbidden")) {
-          toast.error("Vous n'êtes pas autorisé·e à accéder à ce questionnaire.");
+          toast.error("Tu n'es pas autorisé·e à accéder à ce questionnaire.");
           navigate({ to: "/dashboard" });
           return;
         }
-        toast.error(e?.message ?? "Impossible de charger le questionnaire");
+        console.error("Impossible de charger le questionnaire:", e);
+        toast.error("Une erreur est survenue lors du chargement, réessaie dans un instant.");
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,18 +268,17 @@ function ParticipantQuestionnaire() {
     } catch (e: any) {
       const msg = String(e?.message ?? e ?? "");
       if (msg.includes("403 Forbidden")) {
-        toast.error("Vous n'êtes pas autorisé·e à soumettre ce questionnaire.");
+        toast.error("Tu n'es pas autorisé·e à soumettre ce questionnaire.");
         navigate({ to: "/dashboard" });
         return;
       }
       if (msg.includes("trip_participant_preferences") || msg.includes("schema cache") || msg.includes("SQL")) {
-        toast.error(
-          "Base incomplète : exécute le SQL « trip_participant_preferences » dans Lovable (Cloud → SQL).",
-          { duration: 8000 },
-        );
+        console.error("Base incomplète : exécute le SQL « trip_participant_preferences » dans Lovable (Cloud → SQL).", msg);
+        toast.error("Une erreur est survenue, réessaie dans un instant.");
         return;
       }
-      toast.error(msg.slice(0, 180) || "Erreur lors de l'enregistrement");
+      console.error("Erreur enregistrement questionnaire:", e);
+      toast.error("Une erreur est survenue lors de l'enregistrement, réessaie dans un instant.");
     } finally {
       setSubmitting(false);
     }

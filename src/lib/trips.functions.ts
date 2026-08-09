@@ -778,7 +778,7 @@ export const getTripRecap = createServerFn({ method: "GET" })
     const [recommendations, preferences, progress] = await Promise.all([
       supabase
         .from("recommendations")
-        .select("*, destinations(*)")
+        .select("*, destinations(*), accommodations(*)")
         .eq("trip_id", data.tripId)
         .order("score", { ascending: false })
         .limit(3),
@@ -900,6 +900,14 @@ export const getTripRecap = createServerFn({ method: "GET" })
                 imageUrl: r.destinations.image_url as string | null,
                 distanceKm: Number(r.destinations.distance_from_paris_km ?? 0),
                 rating: Number(r.destinations.rating ?? 0),
+              }
+            : null,
+          accommodation: r.accommodations
+            ? {
+                id: r.accommodations.id as string,
+                name: r.accommodations.name as string,
+                type: r.accommodations.type as string,
+                bookingUrl: (r.accommodations.booking_url || r.accommodations.url) as string | null,
               }
             : null,
           myReaction: rInfo.myReaction,
@@ -1289,6 +1297,37 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       seedLabels,
     );
 
+    // Enrich with actual activities booking urls from TripAdvisor/Klook
+    try {
+      const destinationId = (selected.data as any).destination_id;
+      if (destinationId && result.itinerary?.days) {
+        const { data: acts } = await supabase
+          .from("activities")
+          .select("name, booking_url")
+          .eq("destination_id", destinationId);
+        if (acts?.length) {
+          const urlByName = new Map<string, string>();
+          for (const a of acts) {
+            if (a.name && a.booking_url) {
+              urlByName.set(a.name.toLowerCase().trim(), a.booking_url);
+            }
+          }
+          for (const day of result.itinerary.days) {
+            for (const slot of day.slots ?? []) {
+              if (slot.label) {
+                const key = slot.label.toLowerCase().trim();
+                if (urlByName.has(key)) {
+                  slot.url = urlByName.get(key);
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("itinerary post-processing failed:", e);
+    }
+
     const { error } = await supabase
       .from("trips")
       .update({
@@ -1352,7 +1391,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
 
     const selected = await supabase
       .from("recommendations")
-      .select("destinations(name, country)")
+      .select("destination_id, destinations(name, country)")
       .eq("trip_id", data.tripId)
       .eq("is_selected", true)
       .maybeSingle();
@@ -1381,6 +1420,25 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       current,
       avoid,
     );
+
+    // Try to enrich the regenerated slot with TripAdvisor/Klook url
+    try {
+      const destinationId = (selected.data as any).destination_id;
+      if (destinationId && result.slot?.label) {
+        const { data: acts } = await supabase
+          .from("activities")
+          .select("name, booking_url")
+          .eq("destination_id", destinationId);
+        if (acts?.length) {
+          const match = acts.find((a: any) => a.name && a.name.toLowerCase().trim() === result.slot.label.toLowerCase().trim());
+          if (match?.booking_url) {
+            result.slot.url = match.booking_url;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("single slot url enrichment failed:", e);
+    }
 
     dayPlan.slots[data.slotIndex] = result.slot;
     itinerary.generatedAt = new Date().toISOString();
@@ -1570,104 +1628,107 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     let hotels: HotelCard[] = (hotelsRes.data ?? []).map(scoreHotel);
     hotels.sort((a, b) => b.score - a.score || b.rating - a.rating);
 
-    // Toujours proposer plusieurs portes d'entrée avec prix indicatifs
-    const seedPrices = [
-      Math.round(lodgingBudget * 0.55),
-      Math.round(lodgingBudget * 0.75),
-      Math.round(lodgingBudget * 0.95),
-      Math.round(lodgingBudget * 1.15),
-      Math.round(lodgingBudget * 1.4),
-    ];
-    const portalSeeds: HotelCard[] = [
-      {
-        id: "portal-budget",
-        name: `Options économiques — ${destName}`,
-        type: "hôtel / hostel",
-        rating: 3.8,
-        pricePerNight: seedPrices[0]!,
-        totalEstimate: seedPrices[0]! * nights,
-        distanceCenterKm: null,
-        score: 0.74,
-        reasons: ["budget serré", "idéal groupe"],
-        bookingUrl: bookingSearchUrl(`${destName} hôtel pas cher`),
-        links: [
-          { label: "Booking (pas cher)", url: bookingSearchUrl(`${destName} hôtel pas cher`) },
-          { label: "Google Hotels", url: googleHotelsUrl(destName) },
-        ],
-        source: "portal",
-      },
-      {
-        id: "portal-booking",
-        name: `Hôtels à ${destName}`,
-        type: "hôtel",
-        rating: 4.2,
-        pricePerNight: seedPrices[1]!,
-        totalEstimate: seedPrices[1]! * nights,
-        distanceCenterKm: null,
-        score: 0.78,
-        reasons: ["comparateur Booking", "dates préremplies", "prix indicatif — confirmer sur Booking"],
-        bookingUrl: bookingSearchUrl(destName),
-        links: [
-          { label: "Booking", url: bookingSearchUrl(destName) },
-          { label: "Hotels.com", url: hotelsComUrl(destName) },
-        ],
-        source: "portal",
-      },
-      {
-        id: "portal-mid",
-        name: `Confort milieu de gamme — ${destName}`,
-        type: "hôtel 3★+",
-        rating: 4.3,
-        pricePerNight: seedPrices[2]!,
-        totalEstimate: seedPrices[2]! * nights,
-        distanceCenterKm: null,
-        score: 0.76,
-        reasons: ["bon rapport qualité/prix"],
-        bookingUrl: googleHotelsUrl(destName),
-        links: [
-          { label: "Google Hotels", url: googleHotelsUrl(destName) },
-          { label: "Booking", url: bookingSearchUrl(destName) },
-        ],
-        source: "portal",
-      },
-      {
-        id: "portal-airbnb",
-        name: `Maisons & appartements — ${destName}`,
-        type: "Airbnb / maison",
-        rating: 4.5,
-        pricePerNight: seedPrices[1]!,
-        totalEstimate: seedPrices[1]! * nights,
-        distanceCenterKm: null,
-        score: 0.8,
-        reasons: ["idéal groupe", "cuisine possible"],
-        bookingUrl: airbnbUrl(destName),
-        links: [{ label: "Airbnb", url: airbnbUrl(destName) }],
-        source: "portal",
-      },
-      {
-        id: "portal-premium",
-        name: `Coup de cœur / plus confort — ${destName}`,
-        type: "hôtel 4★",
-        rating: 4.6,
-        pricePerNight: seedPrices[3]!,
-        totalEstimate: seedPrices[3]! * nights,
-        distanceCenterKm: null,
-        score: 0.7,
-        reasons: ["plus de confort"],
-        bookingUrl: bookingSearchUrl(`${destName} hôtel 4 étoiles`),
-        links: [
-          { label: "Booking 4★", url: bookingSearchUrl(`${destName} hôtel 4 étoiles`) },
-          { label: "Hotels.com", url: hotelsComUrl(destName) },
-        ],
-        source: "portal",
-      },
-    ];
+    const hasRealHotels = hotels.length > 0;
 
-    const seen = new Set(hotels.map((h) => h.name.toLowerCase()));
-    for (const p of portalSeeds) {
-      if (!seen.has(p.name.toLowerCase())) {
-        hotels.push(p);
-        seen.add(p.name.toLowerCase());
+    if (!hasRealHotels) {
+      const seedPrices = [
+        Math.round(lodgingBudget * 0.55),
+        Math.round(lodgingBudget * 0.75),
+        Math.round(lodgingBudget * 0.95),
+        Math.round(lodgingBudget * 1.15),
+        Math.round(lodgingBudget * 1.4),
+      ];
+      const portalSeeds: HotelCard[] = [
+        {
+          id: "portal-budget",
+          name: `Options économiques — ${destName}`,
+          type: "recherche générique",
+          rating: 3.8,
+          pricePerNight: seedPrices[0]!,
+          totalEstimate: seedPrices[0]! * nights,
+          distanceCenterKm: null,
+          score: 0.1,
+          reasons: ["recherche générique", "budget serré", "idéal groupe"],
+          bookingUrl: bookingSearchUrl(`${destName} hôtel pas cher`),
+          links: [
+            { label: "Booking (pas cher)", url: bookingSearchUrl(`${destName} hôtel pas cher`) },
+            { label: "Google Hotels", url: googleHotelsUrl(destName) },
+          ],
+          source: "portal",
+        },
+        {
+          id: "portal-booking",
+          name: `Hôtels à ${destName}`,
+          type: "recherche générique",
+          rating: 4.2,
+          pricePerNight: seedPrices[1]!,
+          totalEstimate: seedPrices[1]! * nights,
+          distanceCenterKm: null,
+          score: 0.1,
+          reasons: ["recherche générique", "dates préremplies", "prix indicatif — confirmer sur Booking"],
+          bookingUrl: bookingSearchUrl(destName),
+          links: [
+            { label: "Booking", url: bookingSearchUrl(destName) },
+            { label: "Hotels.com", url: hotelsComUrl(destName) },
+          ],
+          source: "portal",
+        },
+        {
+          id: "portal-mid",
+          name: `Confort milieu de gamme — ${destName}`,
+          type: "recherche générique",
+          rating: 4.3,
+          pricePerNight: seedPrices[2]!,
+          totalEstimate: seedPrices[2]! * nights,
+          distanceCenterKm: null,
+          score: 0.1,
+          reasons: ["recherche générique", "bon rapport qualité/prix"],
+          bookingUrl: googleHotelsUrl(destName),
+          links: [
+            { label: "Google Hotels", url: googleHotelsUrl(destName) },
+            { label: "Booking", url: bookingSearchUrl(destName) },
+          ],
+          source: "portal",
+        },
+        {
+          id: "portal-airbnb",
+          name: `Maisons & appartements — ${destName}`,
+          type: "recherche générique",
+          rating: 4.5,
+          pricePerNight: seedPrices[1]!,
+          totalEstimate: seedPrices[1]! * nights,
+          distanceCenterKm: null,
+          score: 0.1,
+          reasons: ["recherche générique", "idéal groupe", "cuisine possible"],
+          bookingUrl: airbnbUrl(destName),
+          links: [{ label: "Airbnb", url: airbnbUrl(destName) }],
+          source: "portal",
+        },
+        {
+          id: "portal-premium",
+          name: `Coup de cœur / plus confort — ${destName}`,
+          type: "recherche générique",
+          rating: 4.6,
+          pricePerNight: seedPrices[3]!,
+          totalEstimate: seedPrices[3]! * nights,
+          distanceCenterKm: null,
+          score: 0.1,
+          reasons: ["recherche générique", "plus de confort"],
+          bookingUrl: bookingSearchUrl(`${destName} hôtel 4 étoiles`),
+          links: [
+            { label: "Booking 4★", url: bookingSearchUrl(`${destName} hôtel 4 étoiles`) },
+            { label: "Hotels.com", url: hotelsComUrl(destName) },
+          ],
+          source: "portal",
+        },
+      ];
+
+      const seen = new Set(hotels.map((h) => h.name.toLowerCase()));
+      for (const p of portalSeeds) {
+        if (!seen.has(p.name.toLowerCase())) {
+          hotels.push(p);
+          seen.add(p.name.toLowerCase());
+        }
       }
     }
     hotels.sort((a, b) => b.score - a.score);

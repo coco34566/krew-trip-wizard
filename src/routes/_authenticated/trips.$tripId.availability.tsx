@@ -469,7 +469,7 @@ function AvailabilityPage() {
         {datesLocked ? (
           <p className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3 text-sm text-foreground">
             <Lock className="mr-1.5 inline size-4 text-lagoon" />
-            Dates validées par l&apos;organisateur — tes disponibilités sont figées et ne peuvent plus être modifiées.
+            Dates validées par l&apos;organisateur·rice — tes disponibilités sont figées et ne peuvent plus être modifiées.
           </p>
         ) : null}
         <Button

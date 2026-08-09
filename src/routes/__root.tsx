@@ -79,14 +79,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Krew — Organisez le voyage parfait avec vos amis" },
+      { title: "Krew — Organise le voyage parfait avec tes ami·e·s" },
       {
         name: "description",
         content:
-          "Krew conçoit votre EVG, EVJF ou week-end entre amis : destination, hébergement, activités, budget et planning en quelques minutes.",
+          "Krew conçoit ton EVG, EVJF ou week-end entre ami·e·s : destination, hébergement, activités, budget et planning en quelques minutes.",
       },
       { name: "author", content: "Krew" },
-      { property: "og:title", content: "Krew — Organisez le voyage parfait avec vos amis" },
+      { property: "og:title", content: "Krew — Organise le voyage parfait avec tes ami·e·s" },
       {
         property: "og:description",
         content: "L'assistant intelligent d'organisation de voyages de groupe.",
