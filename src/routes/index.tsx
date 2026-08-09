@@ -244,7 +244,7 @@ function Landing() {
               Ta prochaine légende commence ici
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
-              Créez le voyage, partagez le lien WhatsApp, laissez Krew assembler le reste.
+              Crée le voyage, partage le lien WhatsApp, laisse Krew assembler le reste.
             </p>
             <Button asChild variant="hero" size="xl" className="mt-8">
               <Link to="/trips/new">Créer mon voyage</Link>

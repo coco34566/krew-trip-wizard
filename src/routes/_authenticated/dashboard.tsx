@@ -14,9 +14,9 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Mes voyages — Krew" },
-      { name: "description", content: "Retrouvez vos voyages de groupe, vos brouillons et vos invitations reçues." },
+      { name: "description", content: "Retrouve tes voyages de groupe, tes brouillons et tes invitations reçues." },
       { property: "og:title", content: "Mes voyages — Krew" },
-      { property: "og:description", content: "Tableau de bord de vos voyages de groupe Krew." },
+      { property: "og:description", content: "Tableau de bord de tes voyages de groupe Krew." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -105,9 +105,10 @@ function Dashboard() {
   });
 
   const fetchTrips = useServerFn(listMyTrips);
+  const fetchPriceWatches = useServerFn(listMyPriceWatches);
   const { data: watchData } = useQuery({
     queryKey: ["price-watches"],
-    queryFn: () => listWatches({}),
+    queryFn: () => fetchPriceWatches({}),
     retry: false,
   });
 
@@ -138,7 +139,7 @@ function Dashboard() {
             const dest = w.destination_name ?? "destination";
             return (
               <p key={w.id}>
-                💡 Pensez à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
+                💡 Pense à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
                 bougent vite. Dernière vérif. : {when}.{" "}
                 <Link
                   to="/trips/$tripId/recap"
@@ -152,7 +153,7 @@ function Dashboard() {
           })}
         </div>
       ) : null}
-          <p className="mt-1 text-muted-foreground">Vos projets en cours, validés et les invitations reçues.</p>
+          <p className="mt-1 text-muted-foreground">Tes projets en cours, validés et tes invitations reçues.</p>
         </div>
         <Button asChild variant="hero">
           <Link to="/trips/new">
@@ -170,7 +171,7 @@ function Dashboard() {
         <div className="mt-10 rounded-3xl border border-dashed border-border bg-surface/40 p-12 text-center">
           <h2 className="font-display text-xl font-semibold">Aucun voyage pour l'instant</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Lancez le questionnaire Krew : en quelques minutes vous obtenez destination, hébergement, activités et
+            Lance le questionnaire Krew : en quelques minutes tu obtiens destination, hébergement, activités et
             budget détaillé.
           </p>
           <Button asChild variant="hero" size="lg" className="mt-6">

@@ -66,7 +66,15 @@ function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      console.error("Erreur de connexion Supabase:", error);
+      let userMessage = "Impossible de se connecter. Une erreur est survenue.";
+      const msg = error.message.toLowerCase();
+      if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials") || msg.includes("credentials")) {
+        userMessage = "Identifiants incorrects. Vérifie ton adresse e-mail et ton mot de passe.";
+      } else if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) {
+        userMessage = "Ton adresse e-mail n'a pas encore été confirmée. Pense à valider ton inscription via le lien reçu.";
+      }
+      toast.error(userMessage);
       return;
     }
     goAfterAuth();
@@ -82,7 +90,15 @@ function AuthPage() {
     });
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      console.error("Erreur d'inscription Supabase:", error);
+      let userMessage = "Impossible de créer le compte. Une erreur est survenue.";
+      const msg = error.message.toLowerCase();
+      if (msg.includes("already registered") || msg.includes("already_registered") || msg.includes("email already") || msg.includes("user already exists")) {
+        userMessage = "Cette adresse e-mail est déjà utilisée pour un autre compte.";
+      } else if (msg.includes("password should be") || msg.includes("weak_password") || msg.includes("password is too weak")) {
+        userMessage = "Le mot de passe choisi est trop simple ou trop court (minimum 6 caractères).";
+      }
+      toast.error(userMessage);
       return;
     }
     if (!data.session) {

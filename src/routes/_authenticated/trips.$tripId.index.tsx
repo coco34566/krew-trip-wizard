@@ -407,7 +407,7 @@ function TripDetail() {
     },
     onError: (err: any) => {
       console.error("Recherche externe échouée", err);
-      toast.error(err?.message ?? "Recherche externe échouée");
+      toast.error("Impossible de récupérer les informations de voyage en temps réel pour le moment. Réessaie dans un instant.");
     },
   });
 
@@ -516,6 +516,19 @@ function TripDetail() {
       nights,
     };
   }, [tripPreview, selectedRecoPreview, logisticsPreview]);
+
+  const googleCalendarUrl = useMemo(() => {
+    const tStartDate = tripPreview?.start_date;
+    const tEndDate = tripPreview?.end_date;
+    const tName = tripPreview?.name;
+    if (!tStartDate || !tEndDate) return "";
+    const start = tStartDate.replace(/[-]/g, "");
+    const endDateObj = new Date(tEndDate);
+    endDateObj.setDate(endDateObj.getDate() + 1);
+    const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
+    const title = encodeURIComponent(tName || "Mon Voyage Krew");
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
+  }, [tripPreview?.start_date, tripPreview?.end_date, tripPreview?.name]);
 
   function buildWhatsAppInviteMessage() {
     const trip = tripPreview || {};
@@ -629,6 +642,8 @@ function TripDetail() {
   }
 
   const trip = data.trip;
+  const datesLocked = Boolean(trip.dates_locked);
+  const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const recommendations = (data.recommendations ?? []) as unknown as Recommendation[];
   const activities = (data.activities ?? []) as {
     id: string;
@@ -666,16 +681,6 @@ function TripDetail() {
     document.body.removeChild(link);
     toast.success("Calendrier .ics téléchargé !");
   };
-
-  const googleCalendarUrl = useMemo(() => {
-    if (!trip.start_date || !trip.end_date) return "";
-    const start = trip.start_date.replace(/[-]/g, "");
-    const endDateObj = new Date(trip.end_date);
-    endDateObj.setDate(endDateObj.getDate() + 1);
-    const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
-    const title = encodeURIComponent(trip.name || "Mon Voyage Krew");
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
-  }, [trip.start_date, trip.end_date, trip.name]);
 
 
   return (
@@ -926,7 +931,7 @@ function TripDetail() {
           <div>
             <h2 className="font-display text-xl font-semibold tracking-tight">2. Destinations proposées</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Score, budget moyen et activités — votez, l&apos;orga valide.
+              Score, budget moyen et activités — vote, l&apos;orga valide.
             </p>
           </div>
           {data.isOwner ? (
@@ -1523,8 +1528,8 @@ function TripDetail() {
             </div>
             <p className="text-xs text-muted-foreground leading-snug">
               {hasItinerary
-                ? "Téléchargez le fichier de l'itinéraire ou ajoutez le séjour complet à votre agenda."
-                : "Ajoutez les dates de votre séjour à votre calendrier."}
+                ? "Télécharge le fichier de l'itinéraire ou ajoute le séjour complet à ton agenda."
+                : "Ajoute les dates de ton séjour à ton calendrier."}
             </p>
             <div className="flex flex-wrap gap-2.5">
               <Button onClick={handleDownloadIcs} variant="hero" size="sm" className="gap-1.5">
