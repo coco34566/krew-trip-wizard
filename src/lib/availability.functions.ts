@@ -63,6 +63,34 @@ export const getTripAvailability = createServerFn({ method: "GET" })
       flexDays: Number(r.flex_days ?? 0),
     }));
 
+    // Prendre en compte les disponibilités de la star si remplies dans trip_star_preferences
+    try {
+      const starPrefs = await supabase
+        .from("trip_star_preferences")
+        .select("*")
+        .eq("trip_id", data.tripId)
+        .maybeSingle();
+
+      if (!starPrefs.error && starPrefs.data) {
+        const starHasAvail = (starPrefs.data.available_dates && starPrefs.data.available_dates.length > 0) ||
+                            (starPrefs.data.blocked_dates && starPrefs.data.blocked_dates.length > 0);
+        if (starHasAvail) {
+          const starUid = starPrefs.data.user_id || "star-virtual-uid";
+          const alreadyHasAvail = entries.some((e) => e.userId === starUid);
+          if (!alreadyHasAvail) {
+            entries.push({
+              userId: starUid,
+              availableDates: (starPrefs.data.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+              blockedDates: (starPrefs.data.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+              flexDays: 0,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Skipped star availability aggregation in getTripAvailability", e);
+    }
+
     const windowsRaw = rankDateWindows(entries, nights, 5);
     const nameByUser = new Map<string, string>();
     for (const p of participants.data ?? []) {

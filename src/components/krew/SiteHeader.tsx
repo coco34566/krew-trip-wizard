@@ -33,9 +33,22 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link to="/" className="transition-opacity hover:opacity-80">
-          <Logo />
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link to="/" className="transition-opacity hover:opacity-80">
+            <Logo />
+          </Link>
+          <nav className="hidden md:flex items-center gap-4 text-sm font-medium text-muted-foreground">
+            <Link to="/a-propos" className="hover:text-foreground transition-colors">
+              À propos
+            </Link>
+            <Link to="/tarifs" className="hover:text-foreground transition-colors">
+              Tarifs
+            </Link>
+            <Link to="/faq" className="hover:text-foreground transition-colors">
+              FAQ
+            </Link>
+          </nav>
+        </div>
         <nav className="flex items-center gap-2">
           {loading ? null : user ? (
             <>

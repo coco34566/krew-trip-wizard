@@ -594,7 +594,7 @@ function individualFit(
   if (hitsDealBreaker(dest, pref.dealBreakerAmbiances, pref.dealBreakerDestinations)) {
     return 0;
   }
-  const sAmb = ambianceScore(dest, pref.ambiances.length ? pref.ambiances : []);
+  let sAmb = ambianceScore(dest, pref.ambiances.length ? pref.ambiances : []);
   const wanted = pref.activityCategories;
   const sAct = wanted.length
     ? wanted.filter((c) => availableCategories.has(c)).length / wanted.length
@@ -604,7 +604,22 @@ function individualFit(
     const ratio = totalPerPerson / pref.budgetMax;
     sBudget = ratio <= 1 ? clamp(0.75 + (1 - ratio) * 0.5) : clamp(1 - (ratio - 1) * 2);
   }
-  return clamp(sAmb * 0.4 + sAct * 0.3 + sBudget * 0.3);
+
+  // Tâche 10 : Destinations rêvées / à éviter individuelles
+  let score = sAmb * 0.4 + sAct * 0.3 + sBudget * 0.3;
+
+  // Bonus si la destination correspond à la destination rêvée du participant (s'il en a une)
+  // On compare de manière souple
+  if (pref.desired_destination || (pref as any).desiredDestination) {
+    const desired = norm(pref.desired_destination || (pref as any).desiredDestination || "");
+    const destName = norm(dest.name);
+    const destCountry = norm(dest.country);
+    if (desired && (destName.includes(desired) || desired.includes(destName) || destCountry.includes(desired))) {
+      score += 0.25; // Bonus significatif de +25% de satisfaction individuelle
+    }
+  }
+
+  return clamp(score);
 }
 
 export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limit = 3): Proposal[] {
@@ -855,6 +870,28 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     if (hasHistory) {
       const hWeight = w.historique ?? 3;
       score += sHistorique * hWeight;
+    }
+
+    // Tâche 10 : Destinations rêvées et à éviter globales / agrégées
+    if (ctx.desiredDestination) {
+      const desired = norm(ctx.desiredDestination);
+      const destName = norm(destination.name);
+      const destCountry = norm(destination.country);
+      if (desired && (destName.includes(desired) || desired.includes(destName) || destCountry.includes(desired))) {
+        score += 15; // Bonus global de +15 points de score de groupe
+      }
+    }
+
+    if (ctx.dealBreakerDestinations && ctx.dealBreakerDestinations.length > 0) {
+      const destName = norm(destination.name);
+      const destCountry = norm(destination.country);
+      const hitsExcluded = ctx.dealBreakerDestinations.some(d => {
+        const nd = norm(d);
+        return nd && (destName.includes(nd) || nd.includes(destName) || destCountry.includes(nd));
+      });
+      if (hitsExcluded) {
+        score -= 40; // Pénalité lourde de -40 points de score pour toute destination bannie
+      }
     }
 
     // Pénalité forte si un participant est très mal satisfait

@@ -11,10 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CguRouteImport } from './routes/cgu'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
+import { Route as TarifsRouteImport } from './routes/tarifs'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as JoinTripIdRouteImport } from './routes/join.$tripId'
@@ -36,6 +39,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AProposRoute = AProposRouteImport.update({
+  id: '/a-propos',
+  path: '/a-propos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -51,9 +59,19 @@ const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
   path: '/confidentialite',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
   id: '/mentions-legales',
   path: '/mentions-legales',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TarifsRoute = TarifsRouteImport.update({
+  id: '/tarifs',
+  path: '/tarifs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -121,10 +139,13 @@ const AuthenticatedTripsTripIdStarRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/a-propos': typeof AProposRoute
   '/auth': typeof AuthRoute
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/faq': typeof FaqRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/tarifs': typeof TarifsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
@@ -139,10 +160,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/a-propos': typeof AProposRoute
   '/auth': typeof AuthRoute
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/faq': typeof FaqRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/tarifs': typeof TarifsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
@@ -158,10 +182,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/a-propos': typeof AProposRoute
   '/auth': typeof AuthRoute
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/faq': typeof FaqRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/tarifs': typeof TarifsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
@@ -178,10 +205,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/a-propos'
     | '/auth'
     | '/cgu'
     | '/confidentialite'
+    | '/faq'
     | '/mentions-legales'
+    | '/tarifs'
     | '/dashboard'
     | '/api/stripe-webhook'
     | '/join/$tripId'
@@ -196,10 +226,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/a-propos'
     | '/auth'
     | '/cgu'
     | '/confidentialite'
+    | '/faq'
     | '/mentions-legales'
+    | '/tarifs'
     | '/dashboard'
     | '/api/stripe-webhook'
     | '/join/$tripId'
@@ -214,10 +247,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/a-propos'
     | '/auth'
     | '/cgu'
     | '/confidentialite'
+    | '/faq'
     | '/mentions-legales'
+    | '/tarifs'
     | '/_authenticated/dashboard'
     | '/api/stripe-webhook'
     | '/join/$tripId'
@@ -234,10 +270,13 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AProposRoute: typeof AProposRoute
   AuthRoute: typeof AuthRoute
   CguRoute: typeof CguRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
+  FaqRoute: typeof FaqRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
+  TarifsRoute: typeof TarifsRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   JoinTripIdRoute: typeof JoinTripIdRoute
 }
@@ -256,6 +295,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/a-propos': {
+      id: '/a-propos'
+      path: '/a-propos'
+      fullPath: '/a-propos'
+      preLoaderRoute: typeof AProposRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -279,11 +325,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfidentialiteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mentions-legales': {
       id: '/mentions-legales'
       path: '/mentions-legales'
       fullPath: '/mentions-legales'
       preLoaderRoute: typeof MentionsLegalesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tarifs': {
+      id: '/tarifs'
+      path: '/tarifs'
+      fullPath: '/tarifs'
+      preLoaderRoute: typeof TarifsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -410,13 +470,26 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AProposRoute: AProposRoute,
   AuthRoute: AuthRoute,
   CguRoute: CguRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
+  FaqRoute: FaqRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
+  TarifsRoute: TarifsRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   JoinTripIdRoute: JoinTripIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

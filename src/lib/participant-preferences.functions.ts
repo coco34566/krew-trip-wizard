@@ -155,6 +155,56 @@ export async function listUnansweredParticipants(supabase: any, tripId: string) 
   return unanswered;
 }
 
+export const declareMyStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), status: z.enum(["accepte", "absent"]) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const email = (context.claims?.email as string | undefined)?.toLowerCase();
+
+    const { data: part, error: partErr } = await supabase
+      .from("trip_participants")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .or(email ? `user_id.eq.${userId},email.ilike.${email}` : `user_id.eq.${userId}`)
+      .maybeSingle();
+
+    if (partErr || !part) {
+      throw new Error("Participant introuvable");
+    }
+
+    const { error } = await supabase
+      .from("trip_participants")
+      .update({ status: data.status })
+      .eq("id", part.id);
+
+    if (error) throw error;
+
+    if (data.status === "absent") {
+      await supabase
+        .from("trip_participant_preferences")
+        .delete()
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId);
+
+      await supabase
+        .from("trip_availability")
+        .delete()
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId);
+    }
+
+    try {
+      await generateRecommendationsForTrip(supabase, data.tripId);
+    } catch {
+      /* ignore */
+    }
+
+    return { ok: true, status: data.status };
+  });
+
 export const submitParticipantPreferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => participantPreferencesSchema.parse(data))
@@ -162,9 +212,12 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
 
     // Authorization: ensure the user is owner or a listed participant (by user_id or email)
-    const tripRes = await supabase.from("trips").select("id, owner_id").eq("id", data.tripId).maybeSingle();
+    const tripRes = await supabase.from("trips").select("id, owner_id, dates_locked").eq("id", data.tripId).maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
+    if (tripRes.data.dates_locked) {
+      throw new Error("Le voyage est verrouillé par l'organisateur, tes réponses ne peuvent plus être modifiées.");
+    }
 
     const emailRaw = context.claims?.email as string | undefined;
     const email = normalizeEmail(emailRaw);
@@ -330,8 +383,8 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const [tripRes, participants, preferences, availabilities] = await Promise.all([
-      supabase.from("trips").select("participants_count").eq("id", data.tripId).maybeSingle(),
+    const [tripRes, participants, preferences, availabilities, starPrefs] = await Promise.all([
+      supabase.from("trips").select("participants_count, celebrated_person").eq("id", data.tripId).maybeSingle(),
       supabase
         .from("trip_participants")
         .select("id, user_id, email, display_name, status")
@@ -344,6 +397,11 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
         .from("trip_availability")
         .select("user_id")
         .eq("trip_id", data.tripId),
+      supabase
+        .from("trip_star_preferences")
+        .select("*")
+        .eq("trip_id", data.tripId)
+        .maybeSingle(),
     ]);
     if (tripRes.error) throw tripRes.error;
     if (participants.error) throw participants.error;
@@ -357,25 +415,63 @@ export const getParticipantsProgress = createServerFn({ method: "GET" })
     const availRows = availabilities.error ? [] : (availabilities.data ?? []);
     const availSet = new Set(availRows.map((r: any) => r.user_id).filter(Boolean));
 
-    const joined = participants.data?.length ?? 0;
+    let answered = prefMap.size;
+    let availabilityAnswered = availSet.size;
+
+    const partsList = [...(participants.data ?? [])];
+
+    // Ajouter la star si elle a répondu à son questionnaire spécifique et n'est pas déjà un participant enregistré
+    let starIncludedInProgress = false;
+    if (!starPrefs.error && starPrefs.data) {
+      const starUid = starPrefs.data.user_id || "star-virtual-uid";
+      const alreadyHasPref = prefMap.has(starUid);
+      const starHasPrefs = starPrefs.data.wanted_activities?.length > 0 || starPrefs.data.ambiances?.length > 0;
+      const starHasAvail = starPrefs.data.available_dates?.length > 0 || starPrefs.data.blocked_dates?.length > 0;
+
+      if (!alreadyHasPref && (starHasPrefs || starHasAvail)) {
+        starIncludedInProgress = true;
+        if (starHasPrefs) answered++;
+        if (starHasAvail) {
+          availSet.add(starUid);
+          availabilityAnswered++;
+        }
+
+        // Ajouter un participant virtuel "Star"
+        partsList.push({
+          id: "star-virtual-id",
+          user_id: starUid,
+          email: "star@krew.travel",
+          display_name: tripRes.data?.celebrated_person || "La Star",
+          status: "accepte",
+          hasAnswered: starHasPrefs,
+          hasAnsweredAvailability: starHasAvail,
+          answeredAt: starPrefs.data.updated_at || starPrefs.data.submitted_at || null,
+        });
+      }
+    }
+
+    const joined = partsList.length;
     const expected = Math.max(Number(tripRes.data?.participants_count) || 0, joined, 1);
-    const answered = prefMap.size;
 
     return {
       joined,
       expected,
       total: expected,
       answered,
+      availabilityAnswered, // utile pour savoir combien ont répondu aux dispos
       pendingPrefs: Math.max(expected - answered, 0),
       pendingJoin: Math.max(expected - joined, 0),
-      participants: (participants.data ?? []).map((p: any) => ({
-        ...p,
-        hasAnswered: p.user_id ? prefMap.has(p.user_id) : false,
-        hasAnsweredAvailability: p.user_id ? availSet.has(p.user_id) : false,
-        answeredAt:
-          p.user_id && prefMap.has(p.user_id)
-            ? (prefMap.get(p.user_id).updated_at ?? prefMap.get(p.user_id).submitted_at)
-            : null,
-      })),
+      participants: partsList.map((p: any) => {
+        if (p.id === "star-virtual-id") return p;
+        return {
+          ...p,
+          hasAnswered: p.user_id ? prefMap.has(p.user_id) : false,
+          hasAnsweredAvailability: p.user_id ? availSet.has(p.user_id) : false,
+          answeredAt:
+            p.user_id && prefMap.has(p.user_id)
+              ? (prefMap.get(p.user_id).updated_at ?? prefMap.get(p.user_id).submitted_at)
+              : null,
+        };
+      }),
     };
   });

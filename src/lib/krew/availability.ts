@@ -238,7 +238,7 @@ export function buildTripSteps(input: {
     {
       id: "invite",
       label: "Inviter",
-      description: "Lien du groupe",
+      description: "Partager le lien",
       href: "/invite",
       status: inviteDone ? "done" : "active",
     },
@@ -252,28 +252,28 @@ export function buildTripSteps(input: {
     {
       id: "questionnaire",
       label: "Préférences",
-      description: "Envies & budget",
+      description: "Tes envies et ton budget",
       href: "/questionnaire",
       status: statusFor(questDone, availDone),
     },
     {
       id: "dates",
       label: "Dates validées",
-      description: "L'orga verrouille le week-end",
+      description: "Dates du groupe verrouillées",
       href: "",
       status: statusFor(datesDone, questDone),
     },
     {
       id: "destination",
       label: "Destination",
-      description: destDone ? "Choix validé" : datesDone ? "Propositions Krew" : "Après dates",
+      description: destDone ? "Choix validé" : datesDone ? "Propositions Krew" : "Après validation des dates",
       href: "",
       status: statusFor(destDone, datesDone),
     },
     {
       id: "hotels",
       label: "Hôtels",
-      description: hotelDone ? "Vote enregistré" : destDone ? "Vote du groupe" : "Après destination",
+      description: hotelDone ? "Hébergement choisi" : destDone ? "Vote du groupe" : "Après choix de la destination",
       href: "",
       status: statusFor(hotelDone, destDone),
     },
@@ -284,7 +284,7 @@ export function buildTripSteps(input: {
         ? "Trajets choisis"
         : hotelDone
           ? "Choix par ville"
-          : "Après hôtels",
+          : "Après choix de l'hébergement",
       href: "",
       status: statusFor(transportDone, hotelDone),
     },
@@ -294,8 +294,8 @@ export function buildTripSteps(input: {
       description: orgDone
         ? "Planning en place"
         : transportDone
-          ? "Planning & activités"
-          : "Après transport",
+          ? "Planning collaboratif"
+          : "Après choix des transports",
       status: statusFor(orgDone, transportDone),
     },
   ];
