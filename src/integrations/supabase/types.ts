@@ -729,7 +729,6 @@ export type Database = {
           start_date: string | null
           status: Database["public"]["Enums"]["trip_status"]
           updated_at: string
-          runner_ups: Json | null
         }
         Insert: {
           budget_per_person?: number
@@ -755,7 +754,6 @@ export type Database = {
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           updated_at?: string
-          runner_ups?: Json | null
         }
         Update: {
           budget_per_person?: number
@@ -780,203 +778,6 @@ export type Database = {
           star_user_id?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
-          updated_at?: string
-          runner_ups?: Json | null
-        }
-        Relationships: []
-      }
-      destination_feedback: {
-        Row: {
-          id: string
-          trip_id: string
-          recommendation_id: string
-          participant_id: string
-          reaction: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          trip_id: string
-          recommendation_id: string
-          participant_id: string
-          reaction: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          trip_id?: string
-          recommendation_id?: string
-          participant_id?: string
-          reaction?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "destination_feedback_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trips"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "destination_feedback_recommendation_id_fkey"
-            columns: ["recommendation_id"]
-            isOneToOne: false
-            referencedRelation: "recommendations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "destination_feedback_participant_id_fkey"
-            columns: ["participant_id"]
-            isOneToOne: false
-            referencedRelation: "trip_participants"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      price_watch: {
-        Row: {
-          id: string
-          trip_id: string
-          recommendation_id: string
-          destination_name: string | null
-          created_by: string
-          last_checked_at: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          trip_id: string
-          recommendation_id: string
-          destination_name?: string | null
-          created_by: string
-          last_checked_at?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          trip_id?: string
-          recommendation_id?: string
-          destination_name?: string | null
-          created_by?: string
-          last_checked_at?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "price_watch_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trips"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "price_watch_recommendation_id_fkey"
-            columns: ["recommendation_id"]
-            isOneToOne: false
-            referencedRelation: "recommendations"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      scoring_feedback: {
-        Row: {
-          id: string
-          trip_id: string
-          destination_id: string | null
-          recommendation_id: string | null
-          event_type: string
-          rank_in_top: number | null
-          was_selected: boolean
-          final_score: number | null
-          s_ambiance: number | null
-          s_activities: number | null
-          s_budget: number | null
-          s_distance: number | null
-          s_season: number | null
-          s_quality: number | null
-          s_consensus: number | null
-          s_min_satisfaction: number | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          trip_id: string
-          destination_id?: string | null
-          recommendation_id?: string | null
-          event_type?: string
-          rank_in_top?: number | null
-          was_selected?: boolean
-          final_score?: number | null
-          s_ambiance?: number | null
-          s_activities?: number | null
-          s_budget?: number | null
-          s_distance?: number | null
-          s_season?: number | null
-          s_quality?: number | null
-          s_consensus?: number | null
-          s_min_satisfaction?: number | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          trip_id?: string
-          destination_id?: string | null
-          recommendation_id?: string | null
-          event_type?: string
-          rank_in_top?: number | null
-          was_selected?: boolean
-          final_score?: number | null
-          s_ambiance?: number | null
-          s_activities?: number | null
-          s_budget?: number | null
-          s_distance?: number | null
-          s_season?: number | null
-          s_quality?: number | null
-          s_consensus?: number | null
-          s_min_satisfaction?: number | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      scoring_weights: {
-        Row: {
-          event_type: string
-          ambiance_weight: number
-          activities_weight: number
-          budget_weight: number
-          distance_weight: number
-          season_weight: number
-          quality_weight: number
-          consensus_weight: number
-          min_satisfaction_weight: number
-          updated_at: string
-        }
-        Insert: {
-          event_type: string
-          ambiance_weight?: number
-          activities_weight?: number
-          budget_weight?: number
-          distance_weight?: number
-          season_weight?: number
-          quality_weight?: number
-          consensus_weight?: number
-          min_satisfaction_weight?: number
-          updated_at?: string
-        }
-        Update: {
-          event_type?: string
-          ambiance_weight?: number
-          activities_weight?: number
-          budget_weight?: number
-          distance_weight?: number
-          season_weight?: number
-          quality_weight?: number
-          consensus_weight?: number
-          min_satisfaction_weight?: number
           updated_at?: string
         }
         Relationships: []
@@ -1004,7 +805,6 @@ export type Database = {
         | "propositions"
         | "valide"
         | "termine"
-        | "annule"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1140,7 +940,6 @@ export const Constants = {
         "propositions",
         "valide",
         "termine",
-        "annule",
       ],
     },
   },

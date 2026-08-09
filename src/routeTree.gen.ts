@@ -16,6 +16,7 @@ import { Route as CguRouteImport } from './routes/cgu'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as JoinTripIdRouteImport } from './routes/join.$tripId'
 import { Route as AuthenticatedTripsTripIdRouteImport } from './routes/_authenticated/trips.$tripId'
 import { Route as AuthenticatedTripsNewRouteImport } from './routes/_authenticated/trips.new'
@@ -59,6 +60,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
+  id: '/api/stripe-webhook',
+  path: '/api/stripe-webhook',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const JoinTripIdRoute = JoinTripIdRouteImport.update({
   id: '/join/$tripId',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/confidentialite': typeof ConfidentialiteRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
   '/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/trips/new': typeof AuthenticatedTripsNewRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/confidentialite': typeof ConfidentialiteRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
   '/trips/new': typeof AuthenticatedTripsNewRoute
   '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/confidentialite': typeof ConfidentialiteRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
   '/_authenticated/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/_authenticated/trips/new': typeof AuthenticatedTripsNewRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/mentions-legales'
     | '/dashboard'
+    | '/api/stripe-webhook'
     | '/join/$tripId'
     | '/trips/$tripId'
     | '/trips/new'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/mentions-legales'
     | '/dashboard'
+    | '/api/stripe-webhook'
     | '/join/$tripId'
     | '/trips/new'
     | '/trips/$tripId/availability'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/confidentialite'
     | '/mentions-legales'
     | '/_authenticated/dashboard'
+    | '/api/stripe-webhook'
     | '/join/$tripId'
     | '/_authenticated/trips/$tripId'
     | '/_authenticated/trips/new'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   CguRoute: typeof CguRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
+  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   JoinTripIdRoute: typeof JoinTripIdRoute
 }
 
@@ -279,6 +292,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/stripe-webhook': {
+      id: '/api/stripe-webhook'
+      path: '/api/stripe-webhook'
+      fullPath: '/api/stripe-webhook'
+      preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/join/$tripId': {
       id: '/join/$tripId'
@@ -394,8 +414,19 @@ const rootRouteChildren: RootRouteChildren = {
   CguRoute: CguRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
+  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   JoinTripIdRoute: JoinTripIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
