@@ -2,14 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, Copy, Link2, Loader2, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Check, Copy, Link2, Loader2, UserPlus, Users, Crown, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getTripDetail, inviteParticipant, removeParticipant } from "@/lib/trips.functions";
+import { getTripDetail, inviteParticipant, removeParticipant, setCoOrganizer } from "@/lib/trips.functions";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { eventTypeLabel } from "@/lib/krew/constants";
 
@@ -27,6 +27,7 @@ function InvitePage() {
   const fetchProgress = useServerFn(getParticipantsProgress);
   const invite = useServerFn(inviteParticipant);
   const removeGuest = useServerFn(removeParticipant);
+  const setCoOrg = useServerFn(setCoOrganizer);
 
   const { data, isLoading } = useQuery({
     queryKey: ["trip", tripId],
@@ -63,6 +64,23 @@ function InvitePage() {
     },
   });
 
+  const setCoOrgMutation = useMutation({
+    mutationFn: ({ coOrganizerId }: { coOrganizerId: string | null }) =>
+      setCoOrg({ data: { tripId, coOrganizerId } }),
+    onSuccess: (_, variables) => {
+      if (variables.coOrganizerId) {
+        toast.success("Co-organisateur·rice nommé·e !");
+      } else {
+        toast.success("Rôle co-organisateur·rice retiré.");
+      }
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error("Erreur lors de la mise à jour des rôles.");
+    },
+  });
+
   if (isLoading || !data) {
     return (
       <main className="mx-auto max-w-2xl space-y-4 px-4 py-10">
@@ -78,6 +96,7 @@ function InvitePage() {
     email: string;
     display_name: string | null;
     status: string;
+    user_id?: string | null;
   }[];
   const answered = progress?.answered ?? 0;
   const total = Math.max(progress?.total ?? participants.length, trip.participants_count || 1);
@@ -168,12 +187,46 @@ function InvitePage() {
                 key={p.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5"
               >
-                <div>
-                  <p className="text-sm font-medium">{p.display_name ?? p.email}</p>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{p.display_name ?? p.email}</span>
+                    {p.user_id === trip.owner_id ? (
+                      <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px]">
+                        <Crown className="size-2.5" /> Organisateur·rice
+                      </Badge>
+                    ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                      <Badge variant="lagoon" className="gap-1 px-1.5 py-0 text-[10px]">
+                        <Shield className="size-2.5" /> Co-organisateur·rice
+                      </Badge>
+                    ) : null}
+                  </div>
                   <p className="text-xs text-muted-foreground">{p.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={p.status === "accepte" ? "success" : "muted"}>{p.status}</Badge>
+                  {data.isOwner && p.user_id && p.user_id !== trip.owner_id ? (
+                    p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-destructive hover:bg-destructive/5"
+                        disabled={setCoOrgMutation.isPending}
+                        onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
+                      >
+                        Retirer co-org
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-primary hover:bg-primary/5"
+                        disabled={setCoOrgMutation.isPending}
+                        onClick={() => setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })}
+                      >
+                        Nommer co-org
+                      </Button>
+                    )
+                  ) : null}
                   {data.isOwner ? (
                     <Button
                       variant="ghost"
