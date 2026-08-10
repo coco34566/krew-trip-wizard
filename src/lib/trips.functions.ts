@@ -395,6 +395,54 @@ export const removeParticipant = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export async function setCoOrganizerHelper(
+  supabase: any,
+  userId: string,
+  tripId: string,
+  coOrganizerId: string | null,
+) {
+  // Récupérer le voyage pour vérifier la propriété de l'organisateur principal
+  const { data: trip, error: fetchError } = await supabase
+    .from("trips")
+    .select("id, owner_id")
+    .eq("id", tripId)
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+  if (!trip) throw new Error("Voyage introuvable");
+
+  // Seul le propriétaire (owner_id) peut nommer ou enlever un co-organisateur
+  if (trip.owner_id !== userId) {
+    throw new Error("403 Forbidden: seul l'organisateur principal peut nommer un co-organisateur");
+  }
+
+  const { error } = await supabase
+    .from("trips")
+    .update({
+      co_organizer_id: coOrganizerId,
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq("id", tripId);
+
+  if (error) throw error;
+  return { ok: true };
+}
+
+export const setCoOrganizer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        coOrganizerId: z.string().uuid().nullable(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    return setCoOrganizerHelper(supabase, userId, data.tripId, data.coOrganizerId);
+  });
+
 export const setMyTransportTimePrefs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
