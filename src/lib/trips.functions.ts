@@ -1608,6 +1608,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       },
       current,
       data.day,
+      avoid,
     );
 
     // Try to enrich the regenerated slot with TripAdvisor/Klook url
