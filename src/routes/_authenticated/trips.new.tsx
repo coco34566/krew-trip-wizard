@@ -193,7 +193,9 @@ function NewTripPage() {
               onBlur={() => setParticipantsInput(String(clampParticipants(participantsInput)))}
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Entre {PARTICIPANTS_MIN} et {PARTICIPANTS_MAX} — tu pourras inviter ensuite.
+              {needsStar
+                ? `Inclus bien la star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans ce nombre total de participant·e·s.`
+                : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX} — tu pourras inviter ensuite.`}
             </p>
           </div>
 

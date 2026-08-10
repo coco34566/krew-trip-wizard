@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays, RefreshCw, Utensils, Wine, Camera, Plane, Hotel, Train } from "lucide-react";
+import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays, RefreshCw, Utensils, Wine, Camera, Plane, Hotel, Train, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
   generateRecommendations,
   getGenerationReadiness,
   getCostSplit,
+  setBookingStatus,
+  getGroupTransportTimeWindow,
   inviteParticipant,
   removeParticipant,
   selectRecommendation,
@@ -225,11 +227,20 @@ function TripDetail() {
   const fetchProgress = useServerFn(getParticipantsProgress);
   const searchExternal = useServerFn(searchExternalForTrip);
   const fetchSplit = useServerFn(getCostSplit);
+  const fetchBookingStatus = useServerFn(setBookingStatus);
+  const fetchGroupTimeWindow = useServerFn(getGroupTransportTimeWindow);
   const fetchAvail = useServerFn(getTripAvailability);
   const fetchStar = useServerFn(getStarPreferences);
   const { data: starData } = useQuery({
     queryKey: ["star-prefs", tripId],
     queryFn: () => fetchStar({ data: { tripId } }),
+    enabled: Boolean(tripId),
+    retry: false,
+  });
+
+  const { data: groupTimeWindow } = useQuery({
+    queryKey: ["group-time-window", tripId],
+    queryFn: () => fetchGroupTimeWindow({ data: { tripId } }),
     enabled: Boolean(tripId),
     retry: false,
   });
@@ -403,6 +414,18 @@ function TripDetail() {
       refresh();
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Choix impossible").slice(0, 120)),
+  });
+
+  const bookingStatusMutation = useMutation({
+    mutationFn: (vars: { type: "hotel" | "transport"; status: "estimé" | "sélectionné" | "réservé"; userId?: string }) =>
+      fetchBookingStatus({ data: { tripId, ...vars } }),
+    onSuccess: () => {
+      toast.success("Statut de réservation mis à jour !");
+      refresh();
+      queryClient.invalidateQueries({ queryKey: ["cost-split", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["group-time-window", tripId] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? "Erreur de statut").slice(0, 120)),
   });
 
 
@@ -793,6 +816,8 @@ function TripDetail() {
           recommendations.find((r) => r.is_selected)?.destinations?.name ?? null
         }
         liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
+        totalReserved={costSplitData?.totalReserved}
+        totalEstimated={costSplitData?.totalEstimated}
         topScores={recommendations.slice(0, 3).map((r) => ({
           name: r.destinations?.name ?? "Destination",
           score: r.score,
@@ -850,10 +875,15 @@ function TripDetail() {
             </dd>
           </div>
           <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Budget / pers.</dt>
+            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Budget Groupe</dt>
             <dd className="mt-0.5 font-semibold text-primary">
-              {liveBudget.total > 0
-                ? `~${formatEuro(liveBudget.total)}`
+              {costSplitData?.totalReserved != null || costSplitData?.totalEstimated != null ? (
+                <div className="text-xs space-y-0.5 font-normal">
+                  <div className="flex justify-between gap-1"><span>Réel Réservé :</span> <span className="font-bold text-emerald-600">{formatEuro(costSplitData.totalReserved ?? 0)}</span></div>
+                  <div className="flex justify-between gap-1"><span>Reste Estimé :</span> <span className="font-bold text-amber-600">{formatEuro(costSplitData.totalEstimated ?? 0)}</span></div>
+                </div>
+              ) : liveBudget.total > 0
+                ? `~${formatEuro(liveBudget.total)} / pers.`
                 : liveBudget.baseBudget > 0
                   ? `cible ${formatEuro(liveBudget.baseBudget)}`
                   : "—"}
@@ -1327,6 +1357,26 @@ function TripDetail() {
               })}
             </div>
           )}
+
+          {Boolean(data.isOwner || (trip && ((trip as any).co_organizer_id === data.userId || (trip as any).coOrganizerId === data.userId))) && (trip as any).group_logistics?.hotels?.length > 0 && (
+            <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-muted/20 p-3 sm:px-4">
+              <div className="text-xs">
+                <span className="font-semibold text-foreground">Statut de l&apos;hôtel : </span>
+                <span className="capitalize font-medium text-primary">{(trip as any).group_logistics?.hotelBookingStatus || "estimé"}</span>
+              </div>
+              {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
+                <Button
+                  size="sm"
+                  variant="success"
+                  disabled={bookingStatusMutation.isPending}
+                  onClick={() => bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })}
+                >
+                  {bookingStatusMutation.isPending ? <Loader2 className="animate-spin size-3" /> : <Check className="size-3" />}
+                  C&apos;est réservé
+                </Button>
+              )}
+            </div>
+          )}
         </section>
       ) : null}
 
@@ -1343,7 +1393,7 @@ function TripDetail() {
                 une fois tout le monde fixé.
               </p>
             </div>
-            {data.isOwner && !(trip as any).group_logistics?.transports?.length ? (
+            {Boolean(data.isOwner || (trip && ((trip as any).co_organizer_id === data.userId || (trip as any).coOrganizerId === data.userId))) ? (
               <Button
                 variant="outline"
                 disabled={logisticsMutation.isPending}
@@ -1354,13 +1404,46 @@ function TripDetail() {
                 ) : (
                   <Plane />
                 )}
-                Générer les options
+                {(trip as any).group_logistics?.transports?.length ? "Actualiser les trajets" : "Générer les options"}
               </Button>
             ) : null}
           </div>
 
 
           <TransportTimePrefsCard tripId={tripId} />
+
+          {groupTimeWindow && (groupTimeWindow.majorityArrival || groupTimeWindow.majorityDeparture) ? (
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-xs space-y-2">
+              <div className="flex items-center gap-2 font-medium text-primary">
+                <Clock className="size-4" />
+                <span>Disponibilité réelle du groupe (Master Calendar)</span>
+              </div>
+              <p className="text-muted-foreground">
+                Le groupe arrive majoritairement vers <strong className="text-foreground">{groupTimeWindow.majorityArrival || "—"}</strong> et repart majoritairement vers <strong className="text-foreground">{groupTimeWindow.majorityDeparture || "—"}</strong>.
+              </p>
+              {((groupTimeWindow.earlyBirds && groupTimeWindow.earlyBirds.length > 0) ||
+                (groupTimeWindow.lateComers && groupTimeWindow.lateComers.length > 0) ||
+                (groupTimeWindow.earlyLeavers && groupTimeWindow.earlyLeavers.length > 0)) && (
+                <div className="mt-2 space-y-1 pt-2 border-t border-primary/10">
+                  {groupTimeWindow.earlyBirds && groupTimeWindow.earlyBirds.length > 0 && (
+                    <div>
+                      🌅 <span className="font-semibold text-foreground">En avance :</span> {groupTimeWindow.earlyBirds.join(", ")}
+                    </div>
+                  )}
+                  {groupTimeWindow.lateComers && groupTimeWindow.lateComers.length > 0 && (
+                    <div>
+                      🐢 <span className="font-semibold text-foreground">En retard :</span> {groupTimeWindow.lateComers.join(", ")}
+                    </div>
+                  )}
+                  {groupTimeWindow.earlyLeavers && groupTimeWindow.earlyLeavers.length > 0 && (
+                    <div>
+                      🏃 <span className="font-semibold text-foreground">Départ anticipé :</span> {groupTimeWindow.earlyLeavers.join(", ")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {!(trip as any).group_logistics?.transports?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -1389,20 +1472,40 @@ function TripDetail() {
                       </h3>
                       {cityPicks.length ? (
                         <ul className="mt-2 space-y-1 rounded-xl bg-surface/50 px-3 py-2 text-xs text-muted-foreground">
-                          {cityPicks.map((p) => (
-                            <li key={p.userId}>
-                              <span className="font-medium text-foreground">
-                                {p.displayName}
-                              </span>
-                              {" · "}
-                              {p.modeLabel || p.mode}
-                              {p.arrivalTime || p.time
-                                ? ` · arrivée ${p.arrivalTime || p.time}`
-                                : ""}
-                              {p.departureTime ? ` · retour ${p.departureTime}` : ""}
-                              {p.label ? ` · ${p.label}` : ""}
-                            </li>
-                          ))}
+                          {cityPicks.map((p) => {
+                            const isReserved = p.status === "réservé";
+                            const isOrg = Boolean(data.isOwner || (trip && ((trip as any).co_organizer_id === data.userId || (trip as any).coOrganizerId === data.userId)));
+                            return (
+                              <li key={p.userId} className="flex items-center justify-between gap-2 py-0.5">
+                                <div>
+                                  <span className="font-medium text-foreground">
+                                    {p.displayName}
+                                  </span>
+                                  {" · "}
+                                  {p.modeLabel || p.mode}
+                                  {p.arrivalTime || p.time
+                                    ? ` · arrivée ${p.arrivalTime || p.time}`
+                                    : ""}
+                                  {p.departureTime ? ` · retour ${p.departureTime}` : ""}
+                                  {p.label ? ` · ${p.label}` : ""}
+                                  {" · "}
+                                  <span className="italic text-[10px] text-muted-foreground font-semibold">({p.status || "estimé"})</span>
+                                </div>
+                                {isOrg && !isReserved && (
+                                  <Button
+                                    size="xs"
+                                    variant="ghost"
+                                    className="h-6 px-1.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                    disabled={bookingStatusMutation.isPending}
+                                    onClick={() => bookingStatusMutation.mutate({ type: "transport", status: "réservé", userId: p.userId })}
+                                  >
+                                    <Check className="size-3 mr-0.5" />
+                                    C&apos;est réservé
+                                  </Button>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       ) : (
                         <p className="mt-1 text-xs text-muted-foreground">

@@ -1119,3 +1119,160 @@ export function computeGroupTimeWindow(rows: { earliest_departure_time?: string 
 
   return { earliestDeparture, latestReturn };
 }
+
+export type ParticipantTransportPick = {
+  userId: string;
+  displayName: string;
+  city: string;
+  arrivalTime?: string | null;
+  departureTime?: string | null;
+};
+
+export function computeGroupTimeWindowExtended(
+  timePrefs: { earliest_departure_time?: string | null; latest_return_time?: string | null }[],
+  picks: ParticipantTransportPick[]
+) {
+  const departures = timePrefs
+    .map((r) => r.earliest_departure_time)
+    .filter((t): t is string => typeof t === "string" && t.trim() !== "");
+  const returns = timePrefs
+    .map((r) => r.latest_return_time)
+    .filter((t): t is string => typeof t === "string" && t.trim() !== "");
+
+  const earliestDeparture = departures.length > 0 ? departures.sort().slice(-1)[0] || null : null;
+  const latestReturn = returns.length > 0 ? returns.sort()[0] || null : null;
+
+  const arrivalTimes = picks
+    .map((p) => p.arrivalTime)
+    .filter((t): t is string => typeof t === "string" && t.trim() !== "")
+    .sort();
+
+  const departureTimes = picks
+    .map((p) => p.departureTime)
+    .filter((t): t is string => typeof t === "string" && t.trim() !== "")
+    .sort();
+
+  if (arrivalTimes.length === 0 && departureTimes.length === 0) {
+    return {
+      earliestDeparture,
+      latestReturn,
+      majorityArrival: earliestDeparture,
+      majorityDeparture: latestReturn,
+      earlyBirds: [] as string[],
+      lateComers: [] as string[],
+      earlyLeavers: [] as string[],
+    };
+  }
+
+  const medianArrival = arrivalTimes[Math.floor(arrivalTimes.length / 2)] || null;
+  const medianDeparture = departureTimes[Math.floor(departureTimes.length / 2)] || null;
+
+  const earlyBirds: string[] = [];
+  const lateComers: string[] = [];
+  const earlyLeavers: string[] = [];
+
+  for (const pick of picks) {
+    if (pick.arrivalTime && medianArrival) {
+      if (pick.arrivalTime < medianArrival) {
+        earlyBirds.push(pick.displayName);
+      } else if (pick.arrivalTime > medianArrival) {
+        const [mH, mMin] = medianArrival.split(":").map(Number);
+        const [pH, pMin] = pick.arrivalTime.split(":").map(Number);
+        if (mH !== undefined && pH !== undefined) {
+          const diffMinutes = (pH * 60 + (pMin || 0)) - (mH * 60 + (mMin || 0));
+          if (diffMinutes >= 90) {
+            lateComers.push(pick.displayName);
+          }
+        }
+      }
+    }
+
+    if (pick.departureTime && medianDeparture) {
+      if (pick.departureTime < medianDeparture) {
+        const [mH, mMin] = medianDeparture.split(":").map(Number);
+        const [pH, pMin] = pick.departureTime.split(":").map(Number);
+        if (mH !== undefined && pH !== undefined) {
+          const diffMinutes = (mH * 60 + (mMin || 0)) - (pH * 60 + (pMin || 0));
+          if (diffMinutes >= 90) {
+            earlyLeavers.push(pick.displayName);
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    earliestDeparture,
+    latestReturn,
+    majorityArrival: medianArrival || earliestDeparture,
+    majorityDeparture: medianDeparture || latestReturn,
+    earlyBirds,
+    lateComers,
+    earlyLeavers,
+  };
+}
+
+export function scoreTransportOption(
+  option: {
+    mode: string;
+    pricePerPerson: number;
+    durationHours: number;
+    respectedConstraints?: string[];
+  },
+  budgetPerPerson: number,
+  maxTravelDurationHours: number | null
+): { score: number; matchReasons: string[] } {
+  let score = 70; // Base score
+  const matchReasons: string[] = [];
+
+  // 1. Budget Fit Scoring
+  const transportBudget = budgetPerPerson * 0.25; // Allocating 25% of total budget to transport
+  if (option.pricePerPerson <= transportBudget) {
+    score += 15;
+    matchReasons.push("Option très économique (dans ton budget transport estimé)");
+  } else if (option.pricePerPerson <= transportBudget * 1.5) {
+    score += 5;
+    matchReasons.push("Prix correct, proche de l'estimation de départ");
+  } else {
+    score -= 15;
+    matchReasons.push("Prix plus élevé que l'estimation standard");
+  }
+
+  // 2. Duration Scoring
+  const hours = option.durationHours;
+  if (hours <= 3) {
+    score += 15;
+    matchReasons.push("Trajet très rapide (moins de 3h)");
+  } else if (hours <= 6) {
+    score += 5;
+    matchReasons.push("Durée de trajet raisonnable (entre 3h et 6h)");
+  } else {
+    score -= 10;
+    matchReasons.push("Temps de trajet plus long");
+  }
+
+  // 3. Max Travel Duration constraint check
+  if (maxTravelDurationHours != null && maxTravelDurationHours > 0) {
+    if (hours <= maxTravelDurationHours) {
+      score += 10;
+      matchReasons.push(`Respecte ta limite maximale de ${maxTravelDurationHours}h`);
+    } else {
+      score -= 30; // Strong penalty
+    }
+  }
+
+  // 4. Mode comfort/convenience bonus
+  if (option.mode === "train") {
+    score += 5;
+    matchReasons.push("Confort du train privilégié");
+  } else if (option.mode === "flight") {
+    matchReasons.push("Rapidité de l'avion");
+  } else if (option.mode === "covoiturage") {
+    matchReasons.push("Option covoiturage conviviale");
+  }
+
+  return {
+    score: Math.max(0, Math.min(100, Math.round(score))),
+    matchReasons: matchReasons.slice(0, 3)
+  };
+}
