@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateRecommendationsForTrip, tripInputSchema } from "@/lib/krew/trip-service";
 import { assertNotRateLimited } from "@/lib/krew/rate-limit.server";
-import { isTripAdmin, computeGroupTimeWindow, computeGroupTimeWindowExtended, scoreTransportOption } from "@/lib/krew/engine";
+import { isTripAdmin, computeGroupTimeWindow } from "@/lib/krew/engine";
 
 
 /** Libellé de stade aligné sur le parcours hub (pas le status enum brut). */
@@ -444,26 +444,14 @@ export const getGroupTransportTimeWindow = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    const [rowsRes, tripRes] = await Promise.all([
-      supabase
-        .from("trip_transport_time_prefs")
-        .select("earliest_departure_time, latest_return_time")
-        .eq("trip_id", data.tripId),
-      supabase
-        .from("trips")
-        .select("group_logistics")
-        .eq("id", data.tripId)
-        .maybeSingle()
-    ]);
+    const { data: rows, error } = await supabase
+      .from("trip_transport_time_prefs")
+      .select("earliest_departure_time, latest_return_time")
+      .eq("trip_id", data.tripId);
 
-    if (rowsRes.error) throw rowsRes.error;
-    if (tripRes.error) throw tripRes.error;
+    if (error) throw error;
 
-    const picks = Array.isArray((tripRes.data as any)?.group_logistics?.transportPicks)
-      ? (tripRes.data as any).group_logistics.transportPicks
-      : [];
-
-    const window = computeGroupTimeWindowExtended(rowsRes.data ?? [], picks);
+    const window = computeGroupTimeWindow(rows ?? []);
     return window;
   });
 
@@ -1004,50 +992,6 @@ export const listMyPriceWatches = createServerFn({ method: "GET" })
 /**
  * Répartition des coûts pour la proposition validée (ou une reco précise).
  */
-export const setBookingStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    z
-      .object({
-        tripId: z.string().uuid(),
-        type: z.enum(["hotel", "transport"]),
-        status: z.enum(["estimé", "sélectionné", "réservé"]),
-        userId: z.string().uuid().optional(),
-      })
-      .parse(data),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const tripRes = await supabase.from("trips").select("id, owner_id, group_logistics, co_organizer_id").eq("id", data.tripId).maybeSingle();
-    if (tripRes.error) throw tripRes.error;
-    if (!tripRes.data) throw new Error("Voyage introuvable");
-    const trip = tripRes.data as any;
-
-    if (!isTripAdmin(trip, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut modifier les statuts de réservation");
-    }
-
-    const logistics = (trip.group_logistics || {}) as any;
-    if (data.type === "hotel") {
-      logistics.hotelBookingStatus = data.status;
-    } else {
-      const targetUid = data.userId || userId;
-      const picks = Array.isArray(logistics.transportPicks) ? [...logistics.transportPicks] : [];
-      const idx = picks.findIndex((p) => p.userId === targetUid);
-      if (idx >= 0) {
-        picks[idx].status = data.status;
-      }
-      logistics.transportPicks = picks;
-    }
-
-    const { error } = await supabase
-      .from("trips")
-      .update({ group_logistics: logistics, updated_at: new Date().toISOString() } as any)
-      .eq("id", data.tripId);
-    if (error) throw error;
-    return { ok: true, logistics };
-  });
-
 export const getCostSplit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string; recommendationId?: string }) =>
@@ -1123,25 +1067,7 @@ export const getCostSplit = createServerFn({ method: "GET" })
       return match ? Number(match.pricePerPerson ?? match.price ?? fallbackTransport) : fallbackTransport;
     };
 
-    const logistics = (trip.data.group_logistics || {}) as any;
-    const hotelBookingStatus = logistics.hotelBookingStatus || 'estimé';
-    const picks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
-    const totalGroupParticipants = Math.max(1, participants.length);
-
-    let accommodationCost = Number(budget.accommodation ?? 0);
-    const selectedHotelId = logistics.selectedHotelId;
-    const hotelsList = Array.isArray(logistics.hotels) ? logistics.hotels : [];
-    if (selectedHotelId) {
-      const matchHotel = hotelsList.find((h: any) => h.id === selectedHotelId);
-      if (matchHotel) {
-        accommodationCost = Number(matchHotel.pricePerNight * (trip.data.duration_nights || 2));
-      }
-    }
-
-    const participantLines: any[] = [];
-    let reservedTransportSum = 0;
-    let estimatedTransportSum = 0;
-
+    const participantLines = [];
     for (const p of participants) {
       const isStarByUid = p.user_id && p.user_id === starUid;
       const isStarByName = celebratedPerson && p.display_name &&
@@ -1160,46 +1086,23 @@ export const getCostSplit = createServerFn({ method: "GET" })
         city = tripOrigin;
       }
 
-      const userPick = p.user_id ? picks.find((pk: any) => pk.userId === p.user_id) : null;
-      let transportPrice = fallbackTransport;
-      let isTransportReserved = false;
-
-      if (userPick) {
-        transportPrice = userPick.pricePerPerson != null ? Number(userPick.pricePerPerson) : fallbackTransport;
-        isTransportReserved = userPick.status === 'réservé';
-      } else {
-        transportPrice = getPriceForCity(city);
-      }
-
-      if (isTransportReserved) {
-        reservedTransportSum += transportPrice;
-      } else {
-        estimatedTransportSum += transportPrice;
-      }
-
+      const price = getPriceForCity(city);
       const name = p.display_name || p.email?.split("@")[0] || "Ami";
       const displayName = isStar ? `${name} ⭐ (${city})` : `${name} (${city})`;
 
       participantLines.push({
         city: displayName,
         count: 1,
-        pricePerPerson: transportPrice,
-        isReserved: isTransportReserved,
-        userId: p.user_id || null,
-        transportStatus: userPick?.status || 'estimé',
+        pricePerPerson: price,
       });
     }
 
     if (participantLines.length === 0) {
       participantLines.push({
         city: `Groupe (${tripOrigin})`,
-        count: totalGroupParticipants,
+        count: Math.max(1, Number(trip.data.participants_count) || 1),
         pricePerPerson: fallbackTransport,
-        isReserved: false,
-        userId: null,
-        transportStatus: 'estimé',
       });
-      estimatedTransportSum += fallbackTransport * totalGroupParticipants;
     }
 
     const destName =
@@ -1209,44 +1112,19 @@ export const getCostSplit = createServerFn({ method: "GET" })
 
     const split = buildCostSplit({
       destinationName: destName,
-      accommodation: accommodationCost,
+      accommodation: Number(budget.accommodation ?? 0),
       activities: Number(budget.activities ?? 0),
       food: Number(budget.food ?? 0),
       origins: participantLines,
       fallbackTransportPerPerson: fallbackTransport,
-      participants: totalGroupParticipants || 1,
+      participants: Number(trip.data.participants_count) || undefined,
     } as any);
-
-    const isHotelReserved = hotelBookingStatus === 'réservé';
-    const sharedCostReserved = isHotelReserved ? (accommodationCost) : 0;
-    const sharedCostEstimated = isHotelReserved ? 0 : (accommodationCost);
-
-    const activitiesCost = Number(budget.activities ?? 0);
-    const foodCost = Number(budget.food ?? 0);
-
-    const totalReserved = reservedTransportSum + sharedCostReserved + (isHotelReserved ? (activitiesCost + foodCost) : 0);
-    const totalEstimated = estimatedTransportSum + sharedCostEstimated + (isHotelReserved ? 0 : (activitiesCost + foodCost));
 
     return {
       tripName: trip.data.name as string,
       isSelected: Boolean(reco.data.is_selected),
       recommendationId: reco.data.id as string,
-      hotelBookingStatus,
-      isHotelReserved,
-      totalReserved: Math.round(totalReserved),
-      totalEstimated: Math.round(totalEstimated),
-      split: {
-        ...split,
-        lines: split.lines.map((l, idx) => {
-          const pl = participantLines[idx];
-          return {
-            ...l,
-            userId: pl?.userId || null,
-            isTransportReserved: pl?.isReserved || false,
-            transportStatus: pl?.transportStatus || 'estimé',
-          };
-        }),
-      },
+      split,
     };
   });
 
@@ -1650,18 +1528,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     if (!tripRes.data) throw new Error("Voyage introuvable");
     const trip = tripRes.data as any;
 
-    if (!isTripAdmin(trip, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut chercher la logistique");
-    }
-
-    // Fetch active participants at the top so bedding config can use it
-    const partsRes = await supabase
-      .from("trip_participants")
-      .select("id, user_id, email, display_name, status")
-      .eq("trip_id", data.tripId);
-    if (partsRes.error) throw partsRes.error;
-    const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
-
     const selected = await supabase
       .from("recommendations")
       .select(
@@ -1744,14 +1610,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       bookingUrl: string | null;
       links: { label: string; url: string }[];
       source?: string | null;
-      beddingInfo?: {
-        estimatedRoomsNeeded: number;
-        roomTypePreference: string;
-        acceptsSharedRoom: boolean;
-        isEntireLodging: boolean;
-        description: string;
-      };
-      categoryLabel?: string;
     };
 
     const minRating = Number(aggregated.minAccommodationRating) || 0;
@@ -1919,217 +1777,23 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         }
       }
     }
-
-    // Compute bedding configurations based on participant preferences
-    const totalGroupParticipants = Math.max(1, participants.length);
-    const roomTypePref = (aggregated as any).roomTypePreference || "Peu importe";
-    const acceptsShared = (aggregated as any).acceptsSharedRoom !== false;
-
-    // Calculate estimated rooms needed
-    let estimatedRoomsNeeded = 1;
-    if (roomTypePref.toLowerCase().includes("individuelle") || roomTypePref.toLowerCase().includes("single")) {
-      estimatedRoomsNeeded = totalGroupParticipants;
-    } else if (roomTypePref.toLowerCase().includes("double") || roomTypePref.toLowerCase().includes("couple")) {
-      estimatedRoomsNeeded = Math.ceil(totalGroupParticipants / 2);
-    } else {
-      estimatedRoomsNeeded = acceptsShared ? Math.ceil(totalGroupParticipants / 4) : Math.ceil(totalGroupParticipants / 2);
-    }
-
-    // Embed bedding config into each hotel card
-    const scoredHotelsWithBedding = hotels.map(h => {
-      const isEntireLodging = /maison|villa|appartement|chalet|gite|gîte|apartment|house/i.test(h.type + h.name);
-      const beddingInfo = {
-        estimatedRoomsNeeded,
-        roomTypePreference: roomTypePref,
-        acceptsSharedRoom: acceptsShared,
-        isEntireLodging,
-        description: isEntireLodging
-          ? `Logement entier pour le groupe (${totalGroupParticipants} pers.) — environ ${estimatedRoomsNeeded} chambres requises.`
-          : `Configuration chambres d'hôtel — environ ${estimatedRoomsNeeded} chambres de type ${roomTypePref} nécessaires.`,
-      };
-      return {
-        ...h,
-        beddingInfo,
-      };
-    });
-
-    scoredHotelsWithBedding.sort((a, b) => b.score - a.score);
-
-    // Categorize top lodgings into 5-6 explicit categories
-    const categorizedHotels: HotelCard[] = [];
-    const usedIds = new Set<string>();
-
-    const getFirstUnused = (filterFn: (h: HotelCard) => boolean) => {
-      const match = scoredHotelsWithBedding.find(h => !usedIds.has(h.id) && filterFn(h));
-      if (match) {
-        usedIds.add(match.id);
-        return match;
-      }
-      return null;
-    };
-
-    // 1. Meilleur choix groupe
-    const bestChoice = getFirstUnused((h) => true); // overall highest score
-    if (bestChoice) {
-      categorizedHotels.push({ ...bestChoice, categoryLabel: "Meilleur choix groupe" });
-    }
-
-    // 2. Meilleure maison
-    const bestHouse = getFirstUnused((h) =>
-      /maison|villa|appartement|chalet|gite|gîte|apartment|house/i.test(h.type + h.name)
-    );
-    if (bestHouse) {
-      categorizedHotels.push({ ...bestHouse, categoryLabel: "Meilleure maison" });
-    }
-
-    // 3. Meilleur hôtel
-    const bestHotel = getFirstUnused((h) =>
-      /hotel|hôtel|chambre|hostel|auberge/i.test(h.type + h.name)
-    );
-    if (bestHotel) {
-      categorizedHotels.push({ ...bestHotel, categoryLabel: "Meilleur hôtel" });
-    }
-
-    // 4. Option budget
-    const sortedByPrice = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => a.pricePerNight - b.pricePerNight);
-    const budgetOption = sortedByPrice[0] || null;
-    if (budgetOption) {
-      usedIds.add(budgetOption.id);
-      categorizedHotels.push({ ...budgetOption, categoryLabel: "Option budget" });
-    }
-
-    // 5. Option luxe
-    const sortedByLuxury = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => b.rating - a.rating || b.pricePerNight - a.pricePerNight);
-    const luxuryOption = sortedByLuxury[0] || null;
-    if (luxuryOption) {
-      usedIds.add(luxuryOption.id);
-      categorizedHotels.push({ ...luxuryOption, categoryLabel: "Option luxe" });
-    }
-
-    // 6. Meilleur rapport qualité-prix
-    const sortedByValue = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => {
-      const aUnder = a.pricePerNight <= lodgingBudget ? 1 : 0;
-      const bUnder = b.pricePerNight <= lodgingBudget ? 1 : 0;
-      if (aUnder !== bUnder) return bUnder - aUnder;
-      return b.rating - a.rating;
-    });
-    const valueOption = sortedByValue[0] || null;
-    if (valueOption) {
-      usedIds.add(valueOption.id);
-      categorizedHotels.push({ ...valueOption, categoryLabel: "Meilleur rapport qualité-prix" });
-    }
-
-    // Fallback/Paddings
-    for (const h of scoredHotelsWithBedding) {
-      if (categorizedHotels.length >= 6) break;
-      if (!usedIds.has(h.id)) {
-        categorizedHotels.push({ ...h, categoryLabel: "Autre option intéressante" });
-        usedIds.add(h.id);
-      }
-    }
-
-    const topHotels = categorizedHotels;
+    hotels.sort((a, b) => b.score - a.score);
+    const topHotels = hotels.slice(0, 8);
 
     // ——— A/R multi-modes ———
     const tripOrigin = (trip.departure_city as string) || "Paris";
+    const origins =
+      aggregated.departureOrigins && aggregated.departureOrigins.length > 0
+        ? aggregated.departureOrigins
+        : [{ city: tripOrigin, count: Math.max(1, trip.participants_count || 2) }];
     const planeRefused = Boolean((aggregated as any).planeRefused);
-
-    // Fetch trip participant preferences for departure cities and travel options
-    const prefsRes = await supabase
-      .from("trip_participant_preferences")
-      .select("user_id, departure_city, max_travel_duration_hours, transport_mode_accepted, room_type_preference, accepts_shared_room")
-      .eq("trip_id", data.tripId);
-    const prefsList = prefsRes.data ?? [];
-
-    // Fetch transport time preferences
-    const timePrefsRes = await supabase
-      .from("trip_transport_time_prefs")
-      .select("participant_id, earliest_departure_time, latest_return_time, latest_arrival_time, earliest_return_departure_time")
-      .eq("trip_id", data.tripId);
-    const timePrefsList = timePrefsRes.data ?? [];
-
-    const norm = (s: string) => s.trim().toLowerCase();
-
-    // Map each active participant to their configuration
-    const participantConfigs = participants.map((p: any) => {
-      const pref = prefsList.find((pr: any) => pr.user_id === p.user_id);
-      const tp = timePrefsList.find((t: any) => t.participant_id === p.id);
-
-      const departureCity = (pref?.departure_city || tripOrigin).trim();
-      const earliestDepartureTime = tp?.earliest_departure_time || null;
-      const latestArrivalTime = tp?.latest_arrival_time || null;
-      const earliestReturnDepartureTime = tp?.earliest_return_departure_time || null;
-      const latestReturnTime = tp?.latest_return_time || null;
-      const maxTravelDurationHours = pref?.max_travel_duration_hours != null ? Number(pref.max_travel_duration_hours) : null;
-      const transportModeAccepted = Array.isArray(pref?.transport_mode_accepted) ? pref.transport_mode_accepted : ["peu importe"];
-
-      return {
-        participantId: p.id,
-        displayName: p.display_name || p.email?.split("@")[0] || "Ami",
-        departureCity,
-        earliestDepartureTime,
-        latestArrivalTime,
-        earliestReturnDepartureTime,
-        latestReturnTime,
-        maxTravelDurationHours,
-        transportModeAccepted,
-      };
-    });
-
-    // Group participants into homogeneous sub-groups sharing departure city and constraints
-    const subGroups: {
-      key: string;
-      departureCity: string;
-      earliestDepartureTime: string | null;
-      latestArrivalTime: string | null;
-      earliestReturnDepartureTime: string | null;
-      latestReturnTime: string | null;
-      maxTravelDurationHours: number | null;
-      transportModeAccepted: string[];
-      participants: { participantId: string; displayName: string }[];
-    }[] = [];
-
-    for (const conf of participantConfigs) {
-      const modesKey = [...conf.transportModeAccepted].sort().join(",");
-      const key = `${norm(conf.departureCity)}|${conf.earliestDepartureTime || ""}|${conf.latestArrivalTime || ""}|${conf.earliestReturnDepartureTime || ""}|${conf.latestReturnTime || ""}|${conf.maxTravelDurationHours || ""}|${modesKey}`;
-
-      let grp = subGroups.find((g) => g.key === key);
-      if (!grp) {
-        grp = {
-          key,
-          departureCity: conf.departureCity,
-          earliestDepartureTime: conf.earliestDepartureTime,
-          latestArrivalTime: conf.latestArrivalTime,
-          earliestReturnDepartureTime: conf.earliestReturnDepartureTime,
-          latestReturnTime: conf.latestReturnTime,
-          maxTravelDurationHours: conf.maxTravelDurationHours,
-          transportModeAccepted: conf.transportModeAccepted,
-          participants: [],
-        };
-        subGroups.push(grp);
-      }
-      grp.participants.push({ participantId: conf.participantId, displayName: conf.displayName });
-    }
-
-    if (subGroups.length === 0) {
-      subGroups.push({
-        key: "fallback",
-        departureCity: tripOrigin,
-        earliestDepartureTime: null,
-        latestArrivalTime: null,
-        earliestReturnDepartureTime: null,
-        latestReturnTime: null,
-        maxTravelDurationHours: null,
-        transportModeAccepted: ["peu importe"],
-        participants: [{ participantId: "fallback", displayName: "Groupe" }],
-      });
-    }
 
     const { searchTransportRoundTrip, estimateTransportFromDistance } = await import(
       "@/integrations/external/transport.server"
     );
 
     const baseFlight = estimateTransportFromDistance(distanceKm);
+    // Estimations relatives par mode (indicatif, affiné si API dispo)
     const priceForMode = (mode: string): number => {
       switch (mode) {
         case "flight":
@@ -2139,31 +1803,10 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         case "bus":
           return Math.round(baseFlight * 0.45);
         case "car":
+          // essence + péage approx A/R partagé
           return Math.round(Math.max(35, distanceKm * 0.12 * 2) / Math.max(2, adults / 2));
-        case "covoiturage":
-          return Math.round((Math.max(35, distanceKm * 0.12 * 2) / Math.max(2, adults / 2)) * 0.85);
-        case "ferry":
-          return Math.round(baseFlight * 0.7);
         default:
           return Math.round(baseFlight);
-      }
-    };
-
-    const estimateDurationForMode = (mode: string, dist: number): number => {
-      switch (mode) {
-        case "flight":
-          return Math.round((dist / 750 + 3.0) * 10) / 10;
-        case "train":
-          return Math.round((dist / 200 + 1.0) * 10) / 10;
-        case "bus":
-          return Math.round((dist / 75 + 1.5) * 10) / 10;
-        case "car":
-        case "covoiturage":
-          return Math.round((dist / 100 + 1.0) * 10) / 10;
-        case "ferry":
-          return Math.round((dist / 35 + 2.0) * 10) / 10;
-        default:
-          return Math.round((dist / 100 + 1.5) * 10) / 10;
       }
     };
 
@@ -2218,26 +1861,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           },
         ];
       }
-      if (mode === "ferry") {
-        return [
-          {
-            label: "Direct Ferries",
-            url: `https://www.directferries.fr/search?from=${f}&to=${d}&date=${checkin}`,
-          },
-          {
-            label: "Corsica Ferries",
-            url: `https://www.corsica-ferries.fr/`,
-          }
-        ];
-      }
-      if (mode === "covoiturage") {
-        return [
-          {
-            label: "BlaBlaCar",
-            url: `https://www.blablacar.fr/search?fn=${f}&tn=${d}&db=${checkin}`,
-          }
-        ];
-      }
       // car
       return [
         {
@@ -2265,16 +1888,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       url: string | null;
       note?: string;
       links: { label: string; url: string }[];
-      durationHours: number;
-      subGroupKey?: string;
-      participantIds?: string[];
-      earliestDepartureTime?: string | null;
-      latestArrivalTime?: string | null;
-      earliestReturnDepartureTime?: string | null;
-      latestReturnTime?: string | null;
-      respectedConstraints?: string[];
-      score?: number;
-      matchReasons?: string[];
     };
 
     const modeMeta: { mode: string; modeLabel: string; enabled: boolean }[] = [
@@ -2282,29 +1895,24 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       { mode: "train", modeLabel: "Train", enabled: distanceKm <= 1400 },
       { mode: "bus", modeLabel: "Bus", enabled: distanceKm <= 1200 },
       { mode: "car", modeLabel: "Voiture", enabled: distanceKm <= 1000 },
-      { mode: "covoiturage", modeLabel: "Covoiturage", enabled: distanceKm <= 800 },
-      { mode: "ferry", modeLabel: "Ferry", enabled: ["corse", "sardaigne", "angleterre", "majorque", "ibiza", "lisbonne", "rome", "athenes", "athens", "porto", "barcelone", "nice"].some(c => destName.toLowerCase().includes(c)) },
     ];
 
     const transports: TransportCard[] = [];
 
-    for (const group of subGroups) {
-      const from = group.departureCity;
-      const acceptedModes = group.transportModeAccepted.map(m => m.toLowerCase().trim());
-      const hasModeFilter = acceptedModes.length > 0 && !acceptedModes.includes("peu importe");
+    for (const origin of origins.slice(0, 5)) {
+      const from = origin.city;
 
+      // API vol si dispo (améliore le prix avion)
       let flightApiPrice: number | null = null;
       let flightApiUrl: string | null = null;
-      const isFlightAllowed = !planeRefused && (!hasModeFilter || acceptedModes.some(m => m.includes("avion") || m.includes("flight")));
-
-      if (isFlightAllowed && distanceKm >= 250) {
+      if (!planeRefused) {
         try {
           const apiQuote = await searchTransportRoundTrip({
             originCity: from,
             destinationCity: destName,
             departDate: checkin,
             returnDate: checkout,
-            adults: Math.min(Math.max(1, group.participants.length), 9),
+            adults: Math.min(Math.max(1, origin.count), 9),
             distanceKm,
           });
           if (apiQuote?.pricePerPerson > 0) {
@@ -2318,85 +1926,25 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
       for (const m of modeMeta) {
         if (!m.enabled) continue;
-
-        if (hasModeFilter) {
-          const matched = acceptedModes.some(am => {
-            if (m.mode === "flight") return am.includes("avion") || am.includes("flight");
-            if (m.mode === "train") return am.includes("train");
-            if (m.mode === "bus") return am.includes("bus");
-            if (m.mode === "car") return am.includes("voiture") || am.includes("car");
-            if (m.mode === "covoiturage") return am.includes("covoit") || am.includes("share") || am.includes("car");
-            if (m.mode === "ferry") return am.includes("ferry") || am.includes("bateau");
-            return false;
-          });
-          if (!matched) continue;
-        }
-
-        const duration = estimateDurationForMode(m.mode, distanceKm);
-
-        if (group.maxTravelDurationHours != null && group.maxTravelDurationHours > 0) {
-          if (duration > group.maxTravelDurationHours) {
-            continue;
-          }
-        }
-
         let price = priceForMode(m.mode);
         if (m.mode === "flight" && flightApiPrice) price = Math.round(flightApiPrice);
         const links = linksForMode(m.mode, from, destName);
         if (m.mode === "flight" && flightApiUrl) {
           links.unshift({ label: "Offre trouvée", url: flightApiUrl });
         }
-
-        const respectedConstraints: string[] = [];
-        if (group.earliestDepartureTime) {
-          respectedConstraints.push(`Départ après ${group.earliestDepartureTime}`);
-        }
-        if (group.latestArrivalTime) {
-          respectedConstraints.push(`Arrivée avant ${group.latestArrivalTime}`);
-        }
-        if (group.earliestReturnDepartureTime) {
-          respectedConstraints.push(`Retour après ${group.earliestReturnDepartureTime}`);
-        }
-        if (group.latestReturnTime) {
-          respectedConstraints.push(`Retour avant ${group.latestReturnTime}`);
-        }
-        if (group.maxTravelDurationHours) {
-          respectedConstraints.push(`Durée < ${group.maxTravelDurationHours}h (porte-à-porte ~${duration}h)`);
-        }
-
-        const { score: scoreVal, matchReasons: matchReasonsList } = scoreTransportOption(
-          {
-            mode: m.mode,
-            pricePerPerson: price,
-            durationHours: duration,
-            respectedConstraints,
-          },
-          budget,
-          group.maxTravelDurationHours
-        );
-
         transports.push({
           city: from,
-          count: group.participants.length,
+          count: origin.count,
           pricePerPerson: price,
           mode: m.mode,
           modeLabel: m.modeLabel,
           label: `A/R ${m.modeLabel.toLowerCase()} ${from} → ${destName}`,
           url: links[0]?.url ?? null,
-          note: m.mode === "flight" && flightApiPrice
-            ? "prix API réel"
-            : "prix indicatif basé sur la distance",
+          note:
+            m.mode === "flight" && flightApiPrice
+              ? "prix API si dispo"
+              : "prix indicatif — clique pour comparer",
           links: links.slice(0, 4),
-          durationHours: duration,
-          subGroupKey: group.key,
-          participantIds: group.participants.map(p => p.participantId),
-          earliestDepartureTime: group.earliestDepartureTime,
-          latestArrivalTime: group.latestArrivalTime,
-          earliestReturnDepartureTime: group.earliestReturnDepartureTime,
-          latestReturnTime: group.latestReturnTime,
-          respectedConstraints,
-          score: scoreVal,
-          matchReasons: matchReasonsList,
         });
       }
     }
@@ -2737,14 +2285,14 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       food: Number(budget.food ?? 0),
       origins: transportByOrigin,
       fallbackTransportPerPerson: Number(budget.transport ?? 0),
-      participants: Number(trip.data.participants_count) || 1,
+      participants: Number(trip.data.participants_count) || undefined,
     });
 
     const userLine = split.lines.find(
       (l) => l.city.toLowerCase() === pCity.toLowerCase()
     ) || split.lines[0];
 
-    const totalPerPerson = userLine ? userLine.totalPerPerson : Number(budget.totalPerPerson || 0);
+    const totalPerPerson = userLine ? userLine.totalPerPerson : (transportPrice + shared);
 
     if (totalPerPerson <= 0) {
       throw new Error("Le montant calculé pour ce séjour est invalide.");
