@@ -25,6 +25,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as ApiRecalibrateRouteImport } from './routes/api.recalibrate'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as JoinTripIdRouteImport } from './routes/join.$tripId'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedTripsTripIdRouteImport } from './routes/_authenticated/trips.$tripId'
 import { Route as AuthenticatedTripsNewRouteImport } from './routes/_authenticated/trips.new'
@@ -117,6 +118,11 @@ const JoinTripIdRoute = JoinTripIdRouteImport.update({
   path: '/join/$tripId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/trips/new': typeof AuthenticatedTripsNewRoute
@@ -220,6 +227,7 @@ export interface FileRoutesByTo {
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/trips/new': typeof AuthenticatedTripsNewRoute
   '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
@@ -248,6 +256,7 @@ export interface FileRoutesById {
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/_authenticated/trips/new': typeof AuthenticatedTripsNewRoute
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/trips/$tripId'
     | '/trips/new'
@@ -304,6 +314,7 @@ export interface FileRouteTypes {
     | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/trips/new'
     | '/trips/$tripId/availability'
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
+    | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/trips/$tripId'
     | '/_authenticated/trips/new'
@@ -359,6 +371,7 @@ export interface RootRouteChildren {
   ApiRecalibrateRoute: typeof ApiRecalibrateRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   JoinTripIdRoute: typeof JoinTripIdRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 
@@ -474,6 +487,13 @@ declare module '@tanstack/react-router' {
       path: '/join/$tripId'
       fullPath: '/join/$tripId'
       preLoaderRoute: typeof JoinTripIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.mcp/invoke-tool/$tool': {
@@ -610,6 +630,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRecalibrateRoute: ApiRecalibrateRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   JoinTripIdRoute: JoinTripIdRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
 export const routeTree = rootRouteImport
