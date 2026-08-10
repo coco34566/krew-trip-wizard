@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://suflsqgybaiubszoeqqm.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "krew-your-group-trip-planner",
+      "version": "0.1.0",
+      "title": "Krew: Your Group Trip Planner"
+    },
+    "tools": [
+      {
+        "name": "list_trips",
+        "title": "Lister mes voyages",
+        "description": "List the group trips the signed-in user owns or participates in.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Max number of trips to return (default 20).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_trip",
+        "title": "Détail d'un voyage",
+        "description": "Get one trip with its participants and preferences, if the signed-in user can access it.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "trip_id": {
+              "type": "string",
+              "description": "The trip id (uuid)."
+            }
+          },
+          "required": [
+            "trip_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_trip_recommendations",
+        "title": "Propositions de destination",
+        "description": "List the scored destination proposals generated for a trip.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "trip_id": {
+              "type": "string",
+              "description": "The trip id (uuid)."
+            }
+          },
+          "required": [
+            "trip_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_trip",
+        "title": "Créer un voyage",
+        "description": "Create a new group trip owned by the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Trip name, e.g. 'EVG de Paul'."
+            },
+            "departure_city": {
+              "type": "string",
+              "description": "Main departure city of the group."
+            },
+            "participants_count": {
+              "description": "Number of participants (default 6).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "budget_per_person": {
+              "description": "Budget per person in euros.",
+              "type": "number"
+            },
+            "duration_nights": {
+              "description": "Number of nights (default 2).",
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "start_date": {
+              "description": "Start date as YYYY-MM-DD.",
+              "type": "string"
+            },
+            "end_date": {
+              "description": "End date as YYYY-MM-DD.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "departure_city"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
