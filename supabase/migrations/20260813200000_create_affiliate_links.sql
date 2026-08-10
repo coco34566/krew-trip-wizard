@@ -15,11 +15,11 @@ ALTER TABLE public.affiliate_links ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated users to select/insert affiliate links (or anyone if clicked publicly)
 CREATE POLICY "Anyone can view and insert affiliate links" ON public.affiliate_links
-  FOR ALL TO authenticated, anonymous
+  FOR ALL TO authenticated, anon
   USING (true)
   WITH CHECK (true);
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.affiliate_links TO authenticated, anonymous;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.affiliate_links TO authenticated, anon;
 GRANT ALL ON public.affiliate_links TO service_role;
 
 NOTIFY pgrst, 'reload schema';

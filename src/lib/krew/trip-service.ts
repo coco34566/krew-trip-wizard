@@ -894,6 +894,7 @@ export async function generateRecommendationsForTrip(
   }
   const resolvedDestination =
     preferences.data?.desired_destination || aggregated.desiredDestination || null;
+  const letKrewDecide = preferences.data?.let_krew_decide !== false && (aggregated as any).letKrewDecide !== false;
 
   let prefsToUse = preferences.data ?? null;
   if (aggregated.participantsCount && aggregated.participantsCount > 0) {
