@@ -9,8 +9,8 @@ export const Route = createFileRoute("/api/stripe-webhook")({
     const payload = await request.text();
     const sig = request.headers.get("stripe-signature") || "";
 
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const stripeSecret = process.env["STRIPE_SECRET_KEY"];
+    const webhookSecret = process.env["STRIPE_WEBHOOK_SECRET"];
 
     if (!stripeSecret) {
       return new Response(JSON.stringify({ error: "Missing Stripe secret key" }), { status: 500 });
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/api/stripe-webhook")({
       if (webhookSecret) {
         event = stripe.webhooks.constructEvent(payload, sig, webhookSecret);
       } else {
-        if (process.env.NODE_ENV === "production") {
+        if (process.env["NODE_ENV"] === "production") {
           return new Response(JSON.stringify({ error: "Missing Stripe webhook secret in production" }), { status: 400 });
         }
         console.warn("STRIPE_WEBHOOK_SECRET non définie, parsing du payload en direct");

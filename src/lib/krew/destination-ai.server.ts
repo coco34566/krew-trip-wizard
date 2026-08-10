@@ -64,46 +64,46 @@ type LlmConfig = {
 
 function getLlmConfig(): LlmConfig | null {
   // 1) Lovable AI natif (Cloud)
-  const lovableKey = process.env.LOVABLE_API_KEY;
+  const lovableKey = process.env["LOVABLE_API_KEY"];
   if (lovableKey) {
     return {
       apiKey: lovableKey,
       baseUrl: (
-        process.env.LOVABLE_AI_BASE_URL || "https://ai.gateway.lovable.dev/v1"
+        process.env["LOVABLE_AI_BASE_URL"] || "https://ai.gateway.lovable.dev/v1"
       ).replace(/\/$/, ""),
       model:
-        process.env.LLM_DISCOVERY_MODEL ||
-        process.env.LOVABLE_AI_MODEL ||
+        process.env["LLM_DISCOVERY_MODEL"] ||
+        process.env["LOVABLE_AI_MODEL"] ||
         "google/gemini-2.5-flash",
       provider: "lovable",
     };
   }
 
   // 2) Providers externes (optionnel)
-  if (process.env.GROQ_API_KEY) {
+  if (process.env["GROQ_API_KEY"]) {
     return {
-      apiKey: process.env.GROQ_API_KEY,
+      apiKey: process.env["GROQ_API_KEY"],
       baseUrl: "https://api.groq.com/openai/v1",
-      model: process.env.LLM_DISCOVERY_MODEL || "llama-3.1-8b-instant",
+      model: process.env["LLM_DISCOVERY_MODEL"] || "llama-3.1-8b-instant",
       provider: "groq",
     };
   }
-  if (process.env.XAI_API_KEY) {
+  if (process.env["XAI_API_KEY"]) {
     return {
-      apiKey: process.env.XAI_API_KEY,
+      apiKey: process.env["XAI_API_KEY"],
       baseUrl: "https://api.x.ai/v1",
-      model: process.env.LLM_DISCOVERY_MODEL || "grok-2-latest",
+      model: process.env["LLM_DISCOVERY_MODEL"] || "grok-2-latest",
       provider: "xai",
     };
   }
-  if (process.env.OPENAI_API_KEY || process.env.LLM_API_KEY) {
+  if (process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"]) {
     return {
-      apiKey: (process.env.OPENAI_API_KEY || process.env.LLM_API_KEY) as string,
-      baseUrl: (process.env.LLM_RATIONALE_BASE_URL || "https://api.openai.com/v1").replace(
+      apiKey: (process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"]) as string,
+      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(
         /\/$/,
         "",
       ),
-      model: process.env.LLM_DISCOVERY_MODEL || process.env.LLM_RATIONALE_MODEL || "gpt-4o-mini",
+      model: process.env["LLM_DISCOVERY_MODEL"] || process.env["LLM_RATIONALE_MODEL"] || "gpt-4o-mini",
       provider: "openai",
     };
   }
@@ -133,21 +133,21 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 
 function compactUser(input: AiDiscoveryInput): string {
   const o: Record<string, unknown> = {
-    event: (input.eventType || "groupe").slice(0, 20),
-    n: input.participants,
-    nights: input.nights,
-    budget: Math.round(input.budgetPerPerson),
-    from: (input.departureCity || "Paris").slice(0, 24),
-    maxKm: Math.round(input.maxDistanceKm),
-    month: input.startMonth,
+    "event": (input.eventType || "groupe").slice(0, 20),
+    "n": input.participants,
+    "nights": input.nights,
+    "budget": Math.round(input.budgetPerPerson),
+    "from": (input.departureCity || "Paris").slice(0, 24),
+    "maxKm": Math.round(input.maxDistanceKm),
+    "month": input.startMonth,
   };
-  if (input.ambiances?.length) o.vibe = input.ambiances.slice(0, 5);
-  if (input.activityCategories?.length) o.acts = input.activityCategories.slice(0, 6);
-  if (input.excludedCountries?.length) o.no = input.excludedCountries.slice(0, 6);
-  if (input.planeRefused) o.noPlane = true;
-  if (input.maxTravelHours) o.maxH = input.maxTravelHours;
-  if (input.starWanted?.length) o.star = input.starWanted.slice(0, 4);
-  if (input.starDealBreakers?.length) o.starNo = input.starDealBreakers.slice(0, 4);
+  if (input.ambiances?.length) o["vibe"] = input.ambiances.slice(0, 5);
+  if (input.activityCategories?.length) o["acts"] = input.activityCategories.slice(0, 6);
+  if (input.excludedCountries?.length) o["no"] = input.excludedCountries.slice(0, 6);
+  if (input.planeRefused) o["noPlane"] = true;
+  if (input.maxTravelHours) o["maxH"] = input.maxTravelHours;
+  if (input.starWanted?.length) o["star"] = input.starWanted.slice(0, 4);
+  if (input.starDealBreakers?.length) o["starNo"] = input.starDealBreakers.slice(0, 4);
   return JSON.stringify(o);
 }
 
@@ -174,15 +174,16 @@ function parseCities(raw: string): AiCandidate[] {
         const months = Array.isArray(c.months)
           ? c.months.map((m) => Number(m)).filter((m) => Number.isInteger(m) && m >= 1 && m <= 12)
           : [];
-        return {
+        const candidate: any = {
           name: String(c.name || "").trim(),
-          country: c.country ? String(c.country).trim() : undefined,
           affinity: Math.max(10, 100 - i * 8),
           reason: String(c.why || "suggéré par Krew IA").slice(0, 80),
-          dailyCost: Number.isFinite(cost) && cost > 0 ? cost : undefined,
-          distanceKm: Number.isFinite(km) && km > 0 ? km : undefined,
-          bestMonths: months.length ? months : undefined,
         };
+        if (c.country) candidate.country = String(c.country).trim();
+        if (Number.isFinite(cost) && cost > 0) candidate.dailyCost = cost;
+        if (Number.isFinite(km) && km > 0) candidate.distanceKm = km;
+        if (months.length) candidate.bestMonths = months;
+        return candidate as AiCandidate;
       })
       .filter((c) => c.name.length >= 2)
       .slice(0, 8);

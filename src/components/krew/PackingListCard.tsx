@@ -23,12 +23,12 @@ export function PackingListCard({
   eventType,
 }: PackingListCardProps) {
   const packingItems = useMemo(() => {
-    return buildPackingList({
-      avgTemp,
-      activities,
-      durationDays,
-      eventType,
-    });
+    const input: Parameters<typeof buildPackingList>[0] = {};
+    if (avgTemp !== undefined) input.avgTemp = avgTemp;
+    if (activities !== undefined) input.activities = activities;
+    if (durationDays !== undefined) input.durationDays = durationDays;
+    if (eventType !== undefined) input.eventType = eventType;
+    return buildPackingList(input);
   }, [avgTemp, activities, durationDays, eventType]);
 
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -48,10 +48,12 @@ export function PackingListCard({
       divers: [],
     };
     for (const item of packingItems) {
-      if (groups[item.category]) {
-        groups[item.category].push(item);
+      const cat = item.category;
+      const grp = groups[cat];
+      if (grp) {
+        grp.push(item);
       } else {
-        groups.divers.push(item);
+        groups["divers"]!.push(item);
       }
     }
     return groups;

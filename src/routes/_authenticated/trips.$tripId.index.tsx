@@ -817,8 +817,8 @@ function TripDetail() {
           recommendations.find((r) => r.is_selected)?.destinations?.name ?? null
         }
         liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
-        totalReserved={costSplitData?.totalReserved}
-        totalEstimated={costSplitData?.totalEstimated}
+        totalReserved={costSplitData?.totalReserved ?? null}
+        totalEstimated={costSplitData?.totalEstimated ?? null}
         topScores={recommendations.slice(0, 3).map((r) => ({
           name: r.destinations?.name ?? "Destination",
           score: r.score,
@@ -1368,7 +1368,7 @@ function TripDetail() {
               {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
                 <Button
                   size="sm"
-                  variant="success"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
                   disabled={bookingStatusMutation.isPending}
                   onClick={() => bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })}
                 >
@@ -1494,7 +1494,7 @@ function TripDetail() {
                                 </div>
                                 {isOrg && !isReserved && (
                                   <Button
-                                    size="xs"
+                                    size="sm"
                                     variant="ghost"
                                     className="h-6 px-1.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                                     disabled={bookingStatusMutation.isPending}

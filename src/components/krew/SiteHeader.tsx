@@ -25,7 +25,7 @@ export function SiteHeader() {
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/auth", replace: true, search: {} });
   }
 
   const initials = (user?.email ?? "K").slice(0, 2).toUpperCase();
@@ -85,10 +85,10 @@ export function SiteHeader() {
           ) : (
             <>
               <Button asChild variant="ghost" size="sm">
-                <Link to="/auth">Connexion</Link>
+                <Link to="/auth" search={{}}>Connexion</Link>
               </Button>
               <Button asChild variant="hero" size="sm">
-                <Link to="/auth">Créer mon voyage</Link>
+                <Link to="/auth" search={{}}>Créer mon voyage</Link>
               </Button>
             </>
           )}

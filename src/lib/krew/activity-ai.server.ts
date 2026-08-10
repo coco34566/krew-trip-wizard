@@ -75,41 +75,41 @@ type LlmConfig = {
 };
 
 function getLlmConfig(): LlmConfig | null {
-  if (process.env.LOVABLE_API_KEY) {
+  if (process.env["LOVABLE_API_KEY"]) {
     return {
-      apiKey: process.env.LOVABLE_API_KEY,
-      baseUrl: (process.env.LOVABLE_AI_BASE_URL || "https://ai.gateway.lovable.dev/v1").replace(
+      apiKey: process.env["LOVABLE_API_KEY"],
+      baseUrl: (process.env["LOVABLE_AI_BASE_URL"] || "https://ai.gateway.lovable.dev/v1").replace(
         /\/$/,
         "",
       ),
       model:
-        process.env.LLM_DISCOVERY_MODEL ||
-        process.env.LOVABLE_AI_MODEL ||
+        process.env["LLM_DISCOVERY_MODEL"] ||
+        process.env["LOVABLE_AI_MODEL"] ||
         "google/gemini-2.5-flash",
     };
   }
-  if (process.env.GROQ_API_KEY) {
+  if (process.env["GROQ_API_KEY"]) {
     return {
-      apiKey: process.env.GROQ_API_KEY,
+      apiKey: process.env["GROQ_API_KEY"],
       baseUrl: "https://api.groq.com/openai/v1",
-      model: process.env.LLM_DISCOVERY_MODEL || "llama-3.1-8b-instant",
+      model: process.env["LLM_DISCOVERY_MODEL"] || "llama-3.1-8b-instant",
     };
   }
-  if (process.env.OPENAI_API_KEY || process.env.LLM_API_KEY) {
+  if (process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"]) {
     return {
-      apiKey: (process.env.OPENAI_API_KEY || process.env.LLM_API_KEY) as string,
-      baseUrl: (process.env.LLM_RATIONALE_BASE_URL || "https://api.openai.com/v1").replace(
+      apiKey: (process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"]) as string,
+      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(
         /\/$/,
         "",
       ),
-      model: process.env.LLM_DISCOVERY_MODEL || "gpt-4o-mini",
+      model: process.env["LLM_DISCOVERY_MODEL"] || "gpt-4o-mini",
     };
   }
-  if (process.env.XAI_API_KEY) {
+  if (process.env["XAI_API_KEY"]) {
     return {
-      apiKey: process.env.XAI_API_KEY,
+      apiKey: process.env["XAI_API_KEY"],
       baseUrl: "https://api.x.ai/v1",
-      model: process.env.LLM_DISCOVERY_MODEL || "grok-2-latest",
+      model: process.env["LLM_DISCOVERY_MODEL"] || "grok-2-latest",
     };
   }
   return null;
@@ -153,27 +153,27 @@ Prix réalistes €/pers pour la ville. url = Maps search ou GetYourGuide ou sit
 
 function compactCtx(input: ActivityAiInput): Record<string, unknown> {
   const o: Record<string, unknown> = {
-    city: input.destination.slice(0, 48),
-    nights: input.nights,
-    n: input.participants,
-    budget: Math.round(input.budgetPerPerson),
+    "city": input.destination.slice(0, 48),
+    "nights": input.nights,
+    "n": input.participants,
+    "budget": Math.round(input.budgetPerPerson),
   };
-  if (input.country) o.country = String(input.country).slice(0, 30);
-  if (input.startDate) o.from = input.startDate;
-  if (input.endDate) o.to = input.endDate;
-  if (input.eventType) o.event = String(input.eventType).slice(0, 24);
-  if (input.ambiances?.length) o.vibe = input.ambiances.slice(0, 5);
-  if (input.activityCategories?.length) o.acts = input.activityCategories.slice(0, 8);
-  if (input.starWanted?.length) o.star = input.starWanted.slice(0, 5);
-  if (input.dietaryConstraints?.length) o.diet = input.dietaryConstraints.slice(0, 4);
-  if (input.travelPace) o.pace = input.travelPace;
-  if (input.matchReasons?.length) o.match = input.matchReasons.slice(0, 6);
-  if (input.destinationScore != null) o.score = Math.round(Number(input.destinationScore));
-  if (input.scoredActivityLabels?.length) o.seedActs = input.scoredActivityLabels.slice(0, 8);
-  if (input.latestGroupArrival) o.arriveBy = input.latestGroupArrival;
-  if (input.earliestGroupDeparture) o.departAfter = input.earliestGroupDeparture;
+  if (input.country) o["country"] = String(input.country).slice(0, 30);
+  if (input.startDate) o["from"] = input.startDate;
+  if (input.endDate) o["to"] = input.endDate;
+  if (input.eventType) o["event"] = String(input.eventType).slice(0, 24);
+  if (input.ambiances?.length) o["vibe"] = input.ambiances.slice(0, 5);
+  if (input.activityCategories?.length) o["acts"] = input.activityCategories.slice(0, 8);
+  if (input.starWanted?.length) o["star"] = input.starWanted.slice(0, 5);
+  if (input.dietaryConstraints?.length) o["diet"] = input.dietaryConstraints.slice(0, 4);
+  if (input.travelPace) o["pace"] = input.travelPace;
+  if (input.matchReasons?.length) o["match"] = input.matchReasons.slice(0, 6);
+  if (input.destinationScore != null) o["score"] = Math.round(Number(input.destinationScore));
+  if (input.scoredActivityLabels?.length) o["seedActs"] = input.scoredActivityLabels.slice(0, 8);
+  if (input.latestGroupArrival) o["arriveBy"] = input.latestGroupArrival;
+  if (input.earliestGroupDeparture) o["departAfter"] = input.earliestGroupDeparture;
   if (input.transportPicksSummary?.length) {
-    o.transports = input.transportPicksSummary.slice(0, 8);
+    o["transports"] = input.transportPicksSummary.slice(0, 8);
   }
   return o;
 
@@ -265,15 +265,16 @@ function normalizeSlot(raw: any, city: string): ActivitySlot | null {
     time = raw.horaire.trim().slice(0, 20);
   }
 
-  return {
+  const resSlot: any = {
     moment: String(raw.moment || "Après-midi").slice(0, 24),
     type: t,
     label: label.slice(0, 80),
-    detail: raw.detail ? String(raw.detail).slice(0, 160) : undefined,
-    priceHint: Number.isFinite(price) ? Math.max(0, Math.min(250, Math.round(price!))) : undefined,
     time,
     url,
   };
+  if (raw.detail !== undefined) resSlot.detail = String(raw.detail).slice(0, 160);
+  if (Number.isFinite(price)) resSlot.priceHint = Math.max(0, Math.min(250, Math.round(price!)));
+  return resSlot;
 }
 
 function addDays(iso: string, days: number): string {

@@ -454,17 +454,17 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
 
 describe("Affiliation deep-links (deep-links.ts)", () => {
   afterEach(() => {
-    delete process.env.KAYAK_AFFILIATE_ID;
-    delete process.env.BOOKING_AFFILIATE_ID;
-    delete process.env.OMIO_AFFILIATE_ID;
-    delete process.env.GYG_AFFILIATE_ID;
+    delete process.env["KAYAK_AFFILIATE_ID"];
+    delete process.env["BOOKING_AFFILIATE_ID"];
+    delete process.env["OMIO_AFFILIATE_ID"];
+    delete process.env["GYG_AFFILIATE_ID"];
   });
 
   it("ajoute le tag d'affiliation si la variable d'env est définie", () => {
-    process.env.KAYAK_AFFILIATE_ID = "kayak123";
-    process.env.BOOKING_AFFILIATE_ID = "booking456";
-    process.env.OMIO_AFFILIATE_ID = "omio789";
-    process.env.GYG_AFFILIATE_ID = "gyg012";
+    process.env["KAYAK_AFFILIATE_ID"] = "kayak123";
+    process.env["BOOKING_AFFILIATE_ID"] = "booking456";
+    process.env["OMIO_AFFILIATE_ID"] = "omio789";
+    process.env["GYG_AFFILIATE_ID"] = "gyg012";
 
     const baseKayak = "https://www.kayak.fr/flights/PAR-BCN/2026-08-01/2026-08-04?adults=1";
     const resultKayak = appendAffiliateParam(baseKayak, "a", "KAYAK_AFFILIATE_ID");
@@ -484,8 +484,8 @@ describe("Affiliation deep-links (deep-links.ts)", () => {
   });
 
   it("ne modifie pas l'URL d'origine si la variable d'env est absente ou vide", () => {
-    delete process.env.KAYAK_AFFILIATE_ID;
-    process.env.BOOKING_AFFILIATE_ID = " ";
+    delete process.env["KAYAK_AFFILIATE_ID"];
+    process.env["BOOKING_AFFILIATE_ID"] = " ";
 
     const baseKayak = "https://www.kayak.fr/flights/PAR-BCN/2026-08-01/2026-08-04?adults=1";
     const resultKayak = appendAffiliateParam(baseKayak, "a", "KAYAK_AFFILIATE_ID");

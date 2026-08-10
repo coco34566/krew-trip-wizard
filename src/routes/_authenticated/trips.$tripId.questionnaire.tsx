@@ -125,6 +125,7 @@ function ParticipantQuestionnaire() {
 
   const [lodgingTypes, setLodgingTypes] = useState<string[]>(["peu_importe"]);
   const [roomType, setRoomType] = useState<string>("peu_importe");
+  const [minAccommodationRating, setMinAccommodationRating] = useState<number>(3.5);
 
   const [dietaryConstraints, setDietaryConstraints] = useState<string[]>([]);
   const [mobilityNotes, setMobilityNotes] = useState("");
@@ -567,10 +568,10 @@ function ParticipantQuestionnaire() {
         <div>
           <Label className="mb-2 block">Priorité budget</Label>
           <div className="flex flex-wrap gap-2">
-            {[
+            {([
               { v: "preference", l: "Souhait (flexible)" },
               { v: "veto", l: "Veto (ne pas dépasser)" },
-            ].map((o) => (
+            ] as const).map((o) => (
               <Chip key={o.v} active={budgetPriority === o.v} onClick={() => setBudgetPriority(o.v)}>
                 {o.l}
               </Chip>

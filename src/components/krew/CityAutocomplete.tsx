@@ -162,13 +162,14 @@ export function CityAutocomplete({
     onChange(city);
     setAirportHint(ap ? ap.label : null);
     setOpen(false);
-    onSelect?.({
-      city,
-      postalCode: postal,
-      code: c.code,
-      airportIata: ap?.iata,
-      airportLabel: ap?.label,
-    });
+
+    const selection: CitySelection = { city };
+    if (postal !== undefined) selection.postalCode = postal;
+    if (c.code !== undefined) selection.code = c.code;
+    if (ap?.iata !== undefined) selection.airportIata = ap.iata;
+    if (ap?.label !== undefined) selection.airportLabel = ap.label;
+
+    onSelect?.(selection);
   }
 
   return (

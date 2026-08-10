@@ -50,6 +50,8 @@ export type AccommodationRecord = {
   rating: number;
   distance_center_km: number;
   image_url: string | null;
+  amenities?: string[];
+  source?: string;
 };
 
 export type TravelCatalog = {
@@ -76,6 +78,8 @@ export type IndividualPreference = {
   maxTravelHours?: number | null;
   isStar?: boolean;
   weight?: number;
+  desired_destination?: string;
+  desiredDestination?: string;
 };
 
 export type ScoringWeights = {
@@ -245,7 +249,10 @@ export const DEFAULT_WEIGHTS_BY_EVENT: Record<string, ScoringWeights> = {
 export function resolveWeights(eventType?: string | null, override?: ScoringWeights | null): ScoringWeights {
   if (override) return override;
   const key = (eventType ?? "default").toLowerCase().trim();
-  return DEFAULT_WEIGHTS_BY_EVENT[key] ?? DEFAULT_WEIGHTS_BY_EVENT.default;
+  const dict = DEFAULT_WEIGHTS_BY_EVENT as Record<string, ScoringWeights>;
+  const val = dict[key] ?? dict["default"];
+  if (!val) throw new Error("Missing default weights");
+  return val;
 }
 
 export function dominantAmbiance(dest: DestinationRecord): string {
@@ -1080,6 +1087,7 @@ export function selectDiverseTop(sorted: Proposal[], limit: number): Proposal[] 
     let bestScore = -Infinity;
     for (let i = 0; i < remaining.length; i++) {
       const cand = remaining[i];
+      if (!cand) continue;
       const similarity = selected.reduce((maxSim, sel) => {
         let sim = 0;
         if (norm(sel.destination.country) === norm(cand.destination.country)) sim += 0.4;
