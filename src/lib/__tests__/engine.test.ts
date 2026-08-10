@@ -2,9 +2,12 @@ import { describe, it, expect } from "vitest";
 import {
   buildProposals,
   selectDiverseTop,
+  generateRejectionReason,
+  computeHistoriqueScore,
   type TravelCatalog,
   type ScoringContext,
   type DestinationRecord,
+  type AccommodationRecord,
 } from "../krew/engine";
 
 // Helper to create a minimal valid destination
@@ -110,7 +113,7 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
       country: string,
       ambiance: "fete" | "detente",
       budget: number,
-      score: number
+      score: number,
     ) => ({
       destination: mockDestination({
         id,
@@ -266,7 +269,6 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
 
   describe("Nouvelles fonctionnalités : Runner-ups, Historique cross-trip & Badge fraîcheur", () => {
     it("génère des raisons de rejet cohérentes pour les runner-ups (generateRejectionReason)", () => {
-      const { generateRejectionReason } = require("../krew/engine");
       const mockProp = {
         destination: mockDestination({ name: "Madrid" }),
         accommodation: null,
@@ -297,7 +299,6 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
     });
 
     it("calcule correctement le score de bonus historique (computeHistoriqueScore)", () => {
-      const { computeHistoriqueScore } = require("../krew/engine");
       const dest = mockDestination({
         country: "Portugal",
         score_fete: 1.0, // dominantAmbiance sera "fete"
@@ -306,13 +307,15 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
 
       const pastDestinations = [
         { country: "Portugal", dominantAmbiance: "detente" }, // Match pays
-        { country: "Espagne", dominantAmbiance: "fete" },     // Match ambiance
+        { country: "Espagne", dominantAmbiance: "fete" }, // Match ambiance
       ];
 
       const score1 = computeHistoriqueScore(dest, pastDestinations);
       expect(score1).toBe(1.0); // Les deux matchent !
 
-      const score2 = computeHistoriqueScore(dest, [{ country: "Italie", dominantAmbiance: "fete" }]);
+      const score2 = computeHistoriqueScore(dest, [
+        { country: "Italie", dominantAmbiance: "fete" },
+      ]);
       expect(score2).toBe(0.5); // Seule l'ambiance fete matche
 
       const score3 = computeHistoriqueScore(dest, []);
@@ -336,7 +339,7 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
             distance_center_km: 1.0,
             image_url: null,
             source: "rapidapi", // Source API en direct !
-          } as any,
+          } as unknown as AccommodationRecord,
         ],
       };
 
