@@ -168,7 +168,7 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
                 </Badge>
               ) : paymentStatus === "pending" ? (
                 <div className="flex items-center gap-2">
-                  <Badge variant="warning" className="px-3 py-1 text-xs">
+                  <Badge variant="sun" className="px-3 py-1 text-xs">
                     Paiement en attente ⏳
                   </Badge>
                   <Button

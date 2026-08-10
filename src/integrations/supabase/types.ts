@@ -1246,7 +1246,7 @@ export type Database = {
     }
     Enums: {
       event_type: "evg" | "evjf" | "anniversaire" | "weekend" | "voyage_groupe"
-      participant_status: "invite" | "accepte" | "refuse"
+      participant_status: "invite" | "accepte" | "refuse" | "absent"
       trip_status:
         | "brouillon"
         | "en_preparation"
@@ -1382,7 +1382,7 @@ export const Constants = {
   public: {
     Enums: {
       event_type: ["evg", "evjf", "anniversaire", "weekend", "voyage_groupe"],
-      participant_status: ["invite", "accepte", "refuse"],
+      participant_status: ["invite", "accepte", "refuse", "absent"],
       trip_status: [
         "brouillon",
         "en_preparation",

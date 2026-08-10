@@ -59,6 +59,7 @@ export async function assertNotRateLimited(
 
   if (count >= maxCalls && entries && entries.length > 0) {
     const oldestEntry = entries[0];
+    if (!oldestEntry) return;
     const oldestTime = new Date(oldestEntry.created_at).getTime();
     const elapsedSeconds = (Date.now() - oldestTime) / 1000;
     const remainingSeconds = Math.max(1, Math.ceil(windowSeconds - elapsedSeconds));

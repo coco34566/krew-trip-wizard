@@ -14,8 +14,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.SUPABASE_URL!;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const url = process.env["SUPABASE_URL"]!;
+const key = process.env["SUPABASE_SERVICE_ROLE_KEY"]!;
 if (!url || !key) {
   console.error("SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY requis");
   process.exit(1);
@@ -142,8 +142,11 @@ async function main() {
 
       const diff = getWeightedAvg("positive") - getWeightedAvg("negative");
       const col = WEIGHT_COL[sub];
-      if (diff > 0.08) next[col] = Math.min(35, next[col] + 1);
-      else if (diff < -0.08) next[col] = Math.max(3, next[col] - 1);
+      const curVal = col ? next[col] : undefined;
+      if (col && curVal !== undefined) {
+        if (diff > 0.08) next[col] = Math.min(35, curVal + 1);
+        else if (diff < -0.08) next[col] = Math.max(3, curVal - 1);
+      }
     }
 
     const { error: upErr } = await supabase.from("scoring_weights").upsert({

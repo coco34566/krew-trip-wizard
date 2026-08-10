@@ -12,9 +12,9 @@ import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    next: typeof search.next === "string" ? search.next : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): Record<string, any> => {
+    return search;
+  },
   head: () => ({
     meta: [
       { title: "Connexion — Krew, l'organisateur de voyages de groupe" },
@@ -91,10 +91,13 @@ function AuthPage() {
   async function signUp(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
+    const options: { emailRedirectTo?: string; data: { full_name: string } } = { data: { full_name: fullName } };
+    const rUrl = returnUrl();
+    if (rUrl !== undefined) options.emailRedirectTo = rUrl;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: returnUrl(), data: { full_name: fullName } },
+      options,
     });
     setBusy(false);
     if (error) {

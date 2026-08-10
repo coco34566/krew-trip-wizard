@@ -97,7 +97,7 @@ function Landing() {
                 <Link to="/trips/new">Créer mon voyage</Link>
               </Button>
               <Button asChild variant="ghost" size="lg" className="text-muted-foreground">
-                <Link to="/auth">Se connecter</Link>
+                <Link to="/auth" search={{}}>Se connecter</Link>
               </Button>
             </div>
 

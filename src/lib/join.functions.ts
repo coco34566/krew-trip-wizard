@@ -127,8 +127,8 @@ export const joinTrip = createServerFn({ method: "POST" })
     const existing = byUser.data ? byUser : byEmail;
 
     if (existing.data) {
-      const patch: Record<string, unknown> = { user_id: userId, email, status: "accepte" };
-      if (firstName) patch.display_name = firstName;
+      const patch: { user_id?: string | null; email?: string; status?: "invite" | "accepte" | "refuse" | "absent"; display_name?: string | null } = { user_id: userId, email, status: "accepte" };
+      if (firstName) patch["display_name"] = firstName;
       const updated = await supabaseAdmin
         .from("trip_participants")
         .update(patch)
@@ -245,7 +245,7 @@ export const checkJoinStatus = createServerFn({ method: "POST" })
         isParticipant = true;
         // Si le user_id n'est pas lié ou statut pas accepté, on le met à jour
         if (existing.data.user_id !== userId || existing.data.status !== "accepte") {
-          const patch: Record<string, unknown> = { user_id: userId, email, status: "accepte" };
+          const patch: { user_id?: string | null; email?: string; status?: "invite" | "accepte" | "refuse" | "absent"; display_name?: string | null } = { user_id: userId, email, status: "accepte" };
           const updated = await supabaseAdmin
             .from("trip_participants")
             .update(patch)

@@ -266,7 +266,6 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       ambiances: (data as any).ambiances,
       activity_categories: (data as any).activityCategories,
       budget_max: (data as any).budgetMax ?? null,
-      budget_priority: (data as any).budgetPriority,
       duration_nights_min: (data as any).durationNightsMin ?? null,
       duration_nights_max: (data as any).durationNightsMax ?? null,
       desired_destination: (data as any).desiredDestination ?? null,

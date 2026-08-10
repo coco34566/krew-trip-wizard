@@ -605,11 +605,11 @@ export const selectRecommendation = createServerFn({ method: "POST" })
 
 /** Aperçu public d'un voyage pour la page /join (service role). */
 export const getJoinPreview = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) => {
-    const raw = (data as any)?.tripId ?? data;
-    const tripId = String(raw ?? "")
-      .split("?")[0]
-      .split("#")[0]
+  .inputValidator((data: any) => {
+    const raw: any = data ? (data.tripId ?? data) : "";
+    const tripId = String(raw || "")
+      .split("?")[0]!
+      .split("#")[0]!
       .trim();
     // UUID souple (évite échec si casing / tirets)
     const uuidRe =
@@ -620,13 +620,14 @@ export const getJoinPreview = createServerFn({ method: "GET" })
     return { tripId };
   })
   .handler(async ({ data }) => {
+    if (!data) throw new Error("Données manquantes");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const trip = await supabaseAdmin
       .from("trips")
       .select(
         "id, name, event_type, departure_city, participants_count, start_date, end_date, status",
       )
-      .eq("id", data!.tripId)
+      .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) {
       console.error("getJoinPreview", trip.error.message);
@@ -706,8 +707,8 @@ export const joinTrip = createServerFn({ method: "POST" })
     const existing = byUser.data ? byUser : byEmail;
 
     if (existing.data) {
-      const patch: Record<string, unknown> = { user_id: userId, email, status: "accepte" };
-      if (firstName) patch.display_name = firstName;
+      const patch: { user_id?: string | null; email?: string; status?: "invite" | "accepte" | "refuse" | "absent"; display_name?: string | null } = { user_id: userId, email, status: "accepte" };
+      if (firstName) patch["display_name"] = firstName;
       const updated = await supabaseAdmin
         .from("trip_participants")
         .update(patch)

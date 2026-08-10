@@ -125,8 +125,11 @@ export const Route = createFileRoute("/api/recalibrate")({
 
               const diff = getWeightedAvg("positive") - getWeightedAvg("negative");
               const col = WEIGHT_COL[sub];
-              if (diff > 0.08) next[col] = Math.min(35, next[col] + 1);
-              else if (diff < -0.08) next[col] = Math.max(3, next[col] - 1);
+              const curVal = col ? next[col] : undefined;
+              if (col && curVal !== undefined) {
+                if (diff > 0.08) next[col] = Math.min(35, curVal + 1);
+                else if (diff < -0.08) next[col] = Math.max(3, curVal - 1);
+              }
             }
 
             const { error: upErr } = await supabaseAdmin.from("scoring_weights").upsert({

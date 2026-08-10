@@ -272,16 +272,18 @@ export function buildDeepLinksForProposal(params: {
   groupAdults?: number;
 }): { origins: OriginDeepLinks[]; bookingGroup: string } {
   const origins = (params.origins.length ? params.origins : [{ city: "Paris", count: 1 }]).map(
-    (o) =>
-      buildOriginDeepLinks({
+    (o) => {
+      const dLinkCtx: DeepLinkContext = {
         originCity: o.city,
         destinationCity: params.destinationCity,
         departDate: params.departDate,
         returnDate: params.returnDate,
-        nights: params.nights,
         adults: o.count,
-        fallbackDistanceKm: params.fallbackDistanceKm,
-      }),
+      };
+      if (params.nights !== undefined) dLinkCtx.nights = params.nights;
+      if (params.fallbackDistanceKm !== undefined) dLinkCtx.fallbackDistanceKm = params.fallbackDistanceKm;
+      return buildOriginDeepLinks(dLinkCtx);
+    }
   );
 
   const depart = ymd(params.departDate, 21);
