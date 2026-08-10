@@ -125,6 +125,7 @@ function ParticipantQuestionnaire() {
 
   const [lodgingTypes, setLodgingTypes] = useState<string[]>(["peu_importe"]);
   const [roomType, setRoomType] = useState<string>("peu_importe");
+  const [minAccommodationRating, setMinAccommodationRating] = useState<number>(3.5);
 
   const [dietaryConstraints, setDietaryConstraints] = useState<string[]>([]);
   const [mobilityNotes, setMobilityNotes] = useState("");
@@ -242,7 +243,7 @@ function ParticipantQuestionnaire() {
           acceptsSharedRoom: roomType === "double" || roomType === "dortoir" || roomType === "peu_importe",
           roomTypePreference: roomType,
           requiredAmenities: lodgingTypes,
-          minAccommodationRating: undefined,
+          minAccommodationRating: minAccommodationRating,
           travelPace: travelPace as "plein_programme" | "equilibre" | "chill",
           preferredTimeSlots,
         },
@@ -571,7 +572,7 @@ function ParticipantQuestionnaire() {
               { v: "preference", l: "Souhait (flexible)" },
               { v: "veto", l: "Veto (ne pas dépasser)" },
             ].map((o) => (
-              <Chip key={o.v} active={budgetPriority === o.v} onClick={() => setBudgetPriority(o.v)}>
+              <Chip key={o.v} active={budgetPriority === o.v} onClick={() => setBudgetPriority(o.v as any)}>
                 {o.l}
               </Chip>
             ))}

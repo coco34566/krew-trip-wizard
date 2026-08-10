@@ -12,9 +12,13 @@ import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    next: typeof search.next === "string" ? search.next : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { next?: string } => {
+    const res: { next?: string } = {};
+    if (typeof search.next === "string") {
+      res.next = search.next;
+    }
+    return res;
+  },
   head: () => ({
     meta: [
       { title: "Connexion — Krew, l'organisateur de voyages de groupe" },

@@ -176,7 +176,7 @@ function JoinTripPage() {
                   <Link to="/">Retour à l&apos;accueil</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link to="/auth">Se connecter</Link>
+                  <Link to="/auth" search={{}}>Se connecter</Link>
                 </Button>
               </div>
             </div>

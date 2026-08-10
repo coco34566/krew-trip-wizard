@@ -40,11 +40,11 @@ export const listMyTrips = createServerFn({ method: "GET" })
     // Si filtre status pose problème (enum), retente sans
     if (owned.error) {
       console.error("listMyTrips owned", owned.error.message);
-      owned = await supabase
+      owned = (await supabase
         .from("trips")
         .select("id, name, event_type, status, participants_count, created_at, owner_id, start_date, end_date")
         .eq("owner_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })) as any;
     }
     if (owned.error) throw owned.error;
 
@@ -614,7 +614,7 @@ export const getJoinPreview = createServerFn({ method: "GET" })
       .select(
         "id, name, event_type, departure_city, participants_count, start_date, end_date, status",
       )
-      .eq("id", data.tripId)
+      .eq("id", data!.tripId)
       .maybeSingle();
     if (trip.error) {
       console.error("getJoinPreview", trip.error.message);
@@ -784,7 +784,7 @@ export const getTripRecap = createServerFn({ method: "GET" })
         .limit(3),
       supabase.from("trip_preferences").select("duration_nights").eq("trip_id", data.tripId).maybeSingle(),
       (async () => {
-        const { getParticipantsProgressHandler } = await import("@/lib/participant-preferences.functions");
+        const { getParticipantsProgress } = await import("@/lib/participant-preferences.functions");
         // fallback inline if no handler export
         try {
           const prefs = await supabase
@@ -1363,7 +1363,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               if (slot.label) {
                 const key = slot.label.toLowerCase().trim();
                 if (urlByName.has(key)) {
-                  slot.url = urlByName.get(key);
+                  slot.url = urlByName.get(key) ?? null;
                 }
               }
             }
@@ -1464,7 +1464,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         travelPace: aggregated.medianTravelPace,
       },
       current,
-      avoid,
+      data.day,
     );
 
     // Try to enrich the regenerated slot with TripAdvisor/Klook url
@@ -2278,6 +2278,7 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       (o: any) => o.city.toLowerCase() === pCity.toLowerCase()
     ) || transportByOrigin[0];
 
+    const participantsCount = Number(trip.data.participants_count) || 2;
     const split = buildCostSplit({
       destinationName: (reco.data as any).destinations?.name || budget.destinationName || "Destination",
       accommodation: Number(budget.accommodation ?? 0),
@@ -2285,24 +2286,26 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       food: Number(budget.food ?? 0),
       origins: transportByOrigin,
       fallbackTransportPerPerson: Number(budget.transport ?? 0),
-      participants: Number(trip.data.participants_count) || undefined,
+      participants: participantsCount,
     });
 
     const userLine = split.lines.find(
       (l) => l.city.toLowerCase() === pCity.toLowerCase()
     ) || split.lines[0];
 
-    const totalPerPerson = userLine ? userLine.totalPerPerson : (transportPrice + shared);
+    const fallbackTransport = Number(budget.transport ?? 0);
+    const sharedCost = (Number(budget.accommodation ?? 0) + Number(budget.activities ?? 0) + Number(budget.food ?? 0)) / participantsCount;
+    const totalPerPerson = userLine ? userLine.totalPerPerson : (fallbackTransport + sharedCost);
 
     if (totalPerPerson <= 0) {
       throw new Error("Le montant calculé pour ce séjour est invalide.");
     }
 
     const amountCents = totalPerPerson * 100;
-    const feePercent = Number(process.env.KREW_PLATFORM_FEE_PERCENT) || 0;
+    const feePercent = Number(process.env['KREW_PLATFORM_FEE_PERCENT']) || 0;
     const platformFeeCents = Math.round(amountCents * (feePercent / 100));
 
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    const stripeSecret = process.env['STRIPE_SECRET_KEY'];
     if (!stripeSecret) {
       console.warn("STRIPE_SECRET_KEY non définie, simulation de session");
       const { data: fakePayment, error: fakeErr } = await supabase
@@ -2322,7 +2325,7 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
 
       return {
         sessionId: "fake_session",
-        url: `${process.env.VITE_APP_URL || "http://localhost:3000"}/trips/${data.tripId}/recap?payment_success=true&session_id=${fakePayment.stripe_session_id}`,
+        url: `${process.env['VITE_APP_URL'] || "http://localhost:3000"}/trips/${data.tripId}/recap?payment_success=true&session_id=${fakePayment.stripe_session_id}`,
       };
     }
 
@@ -2330,7 +2333,7 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
     const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" as any });
 
     const destName = (reco.data as any).destinations?.name || "Séjour Krew";
-    const originUrl = process.env.VITE_APP_URL || "http://localhost:3000";
+    const originUrl = process.env['VITE_APP_URL'] || "http://localhost:3000";
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],

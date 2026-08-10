@@ -924,6 +924,117 @@ export type Database = {
           },
         ]
       }
+      price_watch: {
+        Row: {
+          created_at: string
+          created_by: string
+          destination_name: string | null
+          id: string
+          last_checked_at: string
+          recommendation_id: string | null
+          trip_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          destination_name?: string | null
+          id?: string
+          last_checked_at?: string
+          recommendation_id?: string | null
+          trip_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          destination_name?: string | null
+          id?: string
+          last_checked_at?: string
+          recommendation_id?: string | null
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_watch_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_watch_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_tasks: {
+        Row: {
+          assigned_participant_id: string | null
+          booking_url: string | null
+          created_at: string
+          day_date: string | null
+          id: string
+          is_manually_assigned: boolean
+          price: string | null
+          slot_id: string
+          start_time: string | null
+          status: string
+          title: string
+          trip_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_participant_id?: string | null
+          booking_url?: string | null
+          created_at?: string
+          day_date?: string | null
+          id?: string
+          is_manually_assigned?: boolean
+          price?: string | null
+          slot_id: string
+          start_time?: string | null
+          status?: string
+          title: string
+          trip_id: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_participant_id?: string | null
+          booking_url?: string | null
+          created_at?: string
+          day_date?: string | null
+          id?: string
+          is_manually_assigned?: boolean
+          price?: string | null
+          slot_id?: string
+          start_time?: string | null
+          status?: string
+          title?: string
+          trip_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_tasks_assigned_participant_id_fkey"
+            columns: ["assigned_participant_id"]
+            isOneToOne: false
+            referencedRelation: "trip_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_tasks_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_transport_time_prefs: {
         Row: {
           created_at: string
@@ -1073,6 +1184,7 @@ export type Database = {
         | "propositions"
         | "valide"
         | "termine"
+        | "annule"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1208,6 +1320,7 @@ export const Constants = {
         "propositions",
         "valide",
         "termine",
+        "annule",
       ],
     },
   },
