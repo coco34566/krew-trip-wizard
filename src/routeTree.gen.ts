@@ -16,12 +16,16 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CguRouteImport } from './routes/cgu'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as FaqRouteImport } from './routes/faq'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as TarifsRouteImport } from './routes/tarifs'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiRecalibrateRouteImport } from './routes/api.recalibrate'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as JoinTripIdRouteImport } from './routes/join.$tripId'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedTripsTripIdRouteImport } from './routes/_authenticated/trips.$tripId'
 import { Route as AuthenticatedTripsNewRouteImport } from './routes/_authenticated/trips.new'
 import { Route as AuthenticatedTripsTripIdIndexRouteImport } from './routes/_authenticated/trips.$tripId.index'
@@ -66,6 +70,11 @@ const FaqRoute = FaqRouteImport.update({
   path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
   id: '/mentions-legales',
   path: '/mentions-legales',
@@ -76,6 +85,18 @@ const TarifsRoute = TarifsRouteImport.update({
   path: '/tarifs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -96,6 +117,12 @@ const JoinTripIdRoute = JoinTripIdRouteImport.update({
   path: '/join/$tripId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedTripsTripIdRoute =
   AuthenticatedTripsTripIdRouteImport.update({
     id: '/trips/$tripId',
@@ -157,12 +184,16 @@ export interface FileRoutesByFullPath {
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/faq': typeof FaqRoute
+  '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/tarifs': typeof TarifsRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/trips/new': typeof AuthenticatedTripsNewRoute
   '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
@@ -180,12 +211,16 @@ export interface FileRoutesByTo {
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/faq': typeof FaqRoute
+  '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/tarifs': typeof TarifsRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/trips/new': typeof AuthenticatedTripsNewRoute
   '/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
   '/trips/$tripId/invite': typeof AuthenticatedTripsTripIdInviteRoute
@@ -204,12 +239,16 @@ export interface FileRoutesById {
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/faq': typeof FaqRoute
+  '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
   '/tarifs': typeof TarifsRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/join/$tripId': typeof JoinTripIdRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/trips/$tripId': typeof AuthenticatedTripsTripIdRouteWithChildren
   '/_authenticated/trips/new': typeof AuthenticatedTripsNewRoute
   '/_authenticated/trips/$tripId/availability': typeof AuthenticatedTripsTripIdAvailabilityRoute
@@ -229,12 +268,16 @@ export interface FileRouteTypes {
     | '/cgu'
     | '/confidentialite'
     | '/faq'
+    | '/mcp'
     | '/mentions-legales'
     | '/tarifs'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/dashboard'
     | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
+    | '/.mcp/invoke-tool/$tool'
     | '/trips/$tripId'
     | '/trips/new'
     | '/trips/$tripId/availability'
@@ -252,12 +295,16 @@ export interface FileRouteTypes {
     | '/cgu'
     | '/confidentialite'
     | '/faq'
+    | '/mcp'
     | '/mentions-legales'
     | '/tarifs'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/dashboard'
     | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
+    | '/.mcp/invoke-tool/$tool'
     | '/trips/new'
     | '/trips/$tripId/availability'
     | '/trips/$tripId/invite'
@@ -275,12 +322,16 @@ export interface FileRouteTypes {
     | '/cgu'
     | '/confidentialite'
     | '/faq'
+    | '/mcp'
     | '/mentions-legales'
     | '/tarifs'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/dashboard'
     | '/api/recalibrate'
     | '/api/stripe-webhook'
     | '/join/$tripId'
+    | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/trips/$tripId'
     | '/_authenticated/trips/new'
     | '/_authenticated/trips/$tripId/availability'
@@ -300,11 +351,15 @@ export interface RootRouteChildren {
   CguRoute: typeof CguRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   FaqRoute: typeof FaqRoute
+  McpRoute: typeof McpRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
   TarifsRoute: typeof TarifsRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiRecalibrateRoute: typeof ApiRecalibrateRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   JoinTripIdRoute: typeof JoinTripIdRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -358,6 +413,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mentions-legales': {
       id: '/mentions-legales'
       path: '/mentions-legales'
@@ -370,6 +432,20 @@ declare module '@tanstack/react-router' {
       path: '/tarifs'
       fullPath: '/tarifs'
       preLoaderRoute: typeof TarifsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/dashboard': {
@@ -398,6 +474,13 @@ declare module '@tanstack/react-router' {
       path: '/join/$tripId'
       fullPath: '/join/$tripId'
       preLoaderRoute: typeof JoinTripIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/trips/$tripId': {
@@ -518,11 +601,16 @@ const rootRouteChildren: RootRouteChildren = {
   CguRoute: CguRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
   FaqRoute: FaqRoute,
+  McpRoute: McpRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
   TarifsRoute: TarifsRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiRecalibrateRoute: ApiRecalibrateRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   JoinTripIdRoute: JoinTripIdRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
