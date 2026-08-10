@@ -20,30 +20,10 @@ import { fetchClimate, geocodeDestination } from "@/integrations/external/geo-we
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
   if (!trip) return Math.max(1, participants?.length || 1);
-  const hasStar = Boolean(trip.has_star || trip.celebrated_person);
-  if (!hasStar) {
-    return Math.max(1, participants?.length || Number(trip.participants_count) || 1);
-  }
-
-  const celebratedPerson = trip.celebrated_person || trip.celebratedPerson;
-  const starUid = trip.star_user_id || trip.starUserId || "star-virtual-uid";
-
-  const isStarJoined = Array.isArray(participants) && participants.some((p: any) => {
-    const isStarByUid = p.user_id && p.user_id === starUid;
-    const isStarByName = celebratedPerson && p.display_name &&
-      p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-      celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-    return isStarByUid || isStarByName;
-  });
-
   const baseCount = Array.isArray(participants) && participants.length > 0
     ? participants.length
     : Number(trip.participants_count) || 1;
-
-  if (!isStarJoined) {
-    return baseCount + 1;
-  }
-  return baseCount;
+  return Math.max(1, baseCount);
 }
 
 export const tripInputSchema = z.object({
@@ -790,17 +770,15 @@ export async function assessGenerationReadiness(
     .filter((p: any) => !p.hasAnswered)
     .map((p: any) => p.display_name || p.email || "Participant");
 
-  const minRequired = Math.max(MIN_ANSWERS, Math.ceil(expected * MIN_ANSWER_RATIO));
-  const minAvail = Math.max(1, Math.ceil(expected * MIN_ANSWER_RATIO));
-
-  // Règles assouplies pour les tests/propositions : plus de blocage si pas assez de réponses
+  // Les seuils de réponses minimum (minRequired, minAvail) sont désactivés pour permettre de tester en solo.
   const prefsOk = true;
   const availabilityOk = true;
-  // Dates must be validated (locked) before launching destination API searches
-  const canGenerate = prefsOk && availabilityOk && datesLocked;
+  // Les dates doivent être verrouillées (locked) par l'organisateur pour pouvoir lancer les recherches d'API.
+  // Cependant, on peut passer outre ce verrouillage en développement/test si ALLOW_SKIP_DATES_LOCK est défini à "true".
+  const canGenerate = prefsOk && availabilityOk && (datesLocked || process.env["ALLOW_SKIP_DATES_LOCK"] === "true");
 
   const blockers: string[] = [];
-  if (!datesLocked) {
+  if (!datesLocked && process.env["ALLOW_SKIP_DATES_LOCK"] !== "true") {
     blockers.push("dates non validées par l'organisateur");
   }
 

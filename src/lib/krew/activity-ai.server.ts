@@ -438,6 +438,7 @@ export async function regenerateSlotWithAi(
   input: ActivityAiInput,
   existing: ActivitySlot,
   day: number,
+  avoid?: string[],
 ): Promise<{ slot: ActivitySlot; usedLlm: boolean; error?: string }> {
   const fallback: ActivitySlot = {
     ...existing,
@@ -452,7 +453,11 @@ export async function regenerateSlotWithAi(
     moment: existing.moment,
     type: existing.type,
     label: existing.label,
-  })}. Contexte: ${JSON.stringify(ctx)}. Propose une alternative.`;
+  })}. Contexte: ${JSON.stringify(ctx)}. Propose une alternative.${
+    avoid && avoid.length > 0
+      ? ` Évite absolument de proposer l'une des activités déjà prévues ce jour-là : ${avoid.join(", ")}.`
+      : ""
+  }`;
 
   try {
     const raw = await chatJson(cfg, SYSTEM_SLOT, user, 280);

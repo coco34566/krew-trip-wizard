@@ -149,6 +149,10 @@ function TripDetail() {
   const removeGuest = useServerFn(removeParticipant);
   const regenerate = useServerFn(generateRecommendations);
   const fetchReadiness = useServerFn(getGenerationReadiness);
+  const updateTaskStatusFn = useServerFn(updateTaskStatus);
+  const reassignTaskFn = useServerFn(reassignTask);
+  const generateTasksForTripFn = useServerFn(generateTasksForTrip);
+
   const { data: readiness } = useQuery({
     queryKey: ["generation-readiness", tripId],
     queryFn: () => fetchReadiness({ data: { tripId } }),
@@ -181,8 +185,7 @@ function TripDetail() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: "todo" | "in_progress" | "done" }) => {
-      const fn = useServerFn(updateTaskStatus);
-      return fn({ data: { taskId, status } });
+      return updateTaskStatusFn({ data: { taskId, status } });
     },
     onSuccess: () => {
       toast.success("Statut de la tâche mis à jour");
@@ -195,8 +198,7 @@ function TripDetail() {
 
   const reassignMutation = useMutation({
     mutationFn: async ({ taskId, participantId }: { taskId: string; participantId: string | null }) => {
-      const fn = useServerFn(reassignTask);
-      return fn({ data: { taskId, participantId } });
+      return reassignTaskFn({ data: { taskId, participantId } });
     },
     onSuccess: () => {
       toast.success("Tâche réassignée avec succès");
@@ -209,8 +211,7 @@ function TripDetail() {
 
   const generateTasksMutation = useMutation({
     mutationFn: async () => {
-      const fn = useServerFn(generateTasksForTrip);
-      return fn({ data: { tripId } });
+      return generateTasksForTripFn({ data: { tripId } });
     },
     onSuccess: (res: any) => {
       if (res.ok) {

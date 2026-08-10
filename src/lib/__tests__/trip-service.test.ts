@@ -10,10 +10,10 @@ describe("getEffectiveParticipantsCount", () => {
     expect(getEffectiveParticipantsCount(trip, participants)).toBe(1);
   });
 
-  it("ajoute la star virtuelle si elle n'a pas rejoint le voyage", () => {
+  it("ne double-compte pas la star si elle n'a pas rejoint le voyage (on se base uniquement sur le total déclaré)", () => {
     const trip = { participants_count: 5, celebrated_person: "Lea", has_star: true };
     const participants = [{ user_id: "user-1", display_name: "Alice" }];
-    expect(getEffectiveParticipantsCount(trip, participants)).toBe(2);
+    expect(getEffectiveParticipantsCount(trip, participants)).toBe(1);
   });
 
   it("ne double-compte pas la star si elle a déjà rejoint (par nom normalisé)", () => {
@@ -235,6 +235,80 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     const readiness = await assessGenerationReadiness(supabaseMock, tripId);
     expect(readiness.canGenerate).toBe(false);
     expect(readiness.checklist.datesLocked).toBe(false);
+  });
+
+  it("autorise la génération si datesLocked est faux mais que ALLOW_SKIP_DATES_LOCK est défini à true", async () => {
+    process.env["ALLOW_SKIP_DATES_LOCK"] = "true";
+    const tripId = "trip-123";
+    const supabaseMock = {
+      from: vi.fn((table: string) => {
+        if (table === "trips") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: { participants_count: 3, dates_locked: false }, // Dates non validées !
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+        if (table === "trip_participants") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { id: "p1", user_id: "u1" },
+                    { id: "p2", user_id: "u2" },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "trip_participant_preferences") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { user_id: "u1" },
+                    { user_id: "u2" },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "trip_availability") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { user_id: "u1" },
+                    { user_id: "u2" },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        return {
+          select: () => ({ eq: () => Promise.resolve({ data: [], error: null }) }),
+        };
+      }),
+    } as any;
+
+    try {
+      const readiness = await assessGenerationReadiness(supabaseMock, tripId);
+      expect(readiness.canGenerate).toBe(true);
+    } finally {
+      delete process.env["ALLOW_SKIP_DATES_LOCK"];
+    }
   });
 
   it("autorise la génération dans le cas nominal (canGenerate = true)", async () => {
