@@ -877,8 +877,14 @@ export type Database = {
       trip_star_preferences: {
         Row: {
           ambiances: string[]
+          available_dates: string[]
+          blocked_dates: string[]
           created_at: string
           deal_breakers: string[]
+          departure_airport_or_station: string | null
+          departure_city: string | null
+          desired_destination: string | null
+          excluded_destinations: string[]
           filled_by: string
           id: string
           notes: string | null
@@ -890,8 +896,14 @@ export type Database = {
         }
         Insert: {
           ambiances?: string[]
+          available_dates?: string[]
+          blocked_dates?: string[]
           created_at?: string
           deal_breakers?: string[]
+          departure_airport_or_station?: string | null
+          departure_city?: string | null
+          desired_destination?: string | null
+          excluded_destinations?: string[]
           filled_by: string
           id?: string
           notes?: string | null
@@ -903,8 +915,14 @@ export type Database = {
         }
         Update: {
           ambiances?: string[]
+          available_dates?: string[]
+          blocked_dates?: string[]
           created_at?: string
           deal_breakers?: string[]
+          departure_airport_or_station?: string | null
+          departure_city?: string | null
+          desired_destination?: string | null
+          excluded_destinations?: string[]
           filled_by?: string
           id?: string
           notes?: string | null
@@ -919,6 +937,72 @@ export type Database = {
             foreignKeyName: "trip_star_preferences_trip_id_fkey"
             columns: ["trip_id"]
             isOneToOne: true
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_tasks: {
+        Row: {
+          assigned_participant_id: string | null
+          booking_url: string | null
+          created_at: string
+          day_date: string | null
+          id: string
+          is_manually_assigned: boolean
+          price: string | null
+          slot_id: string
+          start_time: string | null
+          status: string
+          title: string
+          trip_id: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_participant_id?: string | null
+          booking_url?: string | null
+          created_at?: string
+          day_date?: string | null
+          id?: string
+          is_manually_assigned?: boolean
+          price?: string | null
+          slot_id: string
+          start_time?: string | null
+          status?: string
+          title: string
+          trip_id: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_participant_id?: string | null
+          booking_url?: string | null
+          created_at?: string
+          day_date?: string | null
+          id?: string
+          is_manually_assigned?: boolean
+          price?: string | null
+          slot_id?: string
+          start_time?: string | null
+          status?: string
+          title?: string
+          trip_id?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_tasks_assigned_participant_id_fkey"
+            columns: ["assigned_participant_id"]
+            isOneToOne: false
+            referencedRelation: "trip_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_tasks_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
             referencedRelation: "trips"
             referencedColumns: ["id"]
           },

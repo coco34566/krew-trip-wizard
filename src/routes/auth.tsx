@@ -42,6 +42,14 @@ function AuthPage() {
 
   const { next } = Route.useSearch();
 
+  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const returnUrl = () =>
+    typeof window === "undefined"
+      ? undefined
+      : safeNext
+        ? `${window.location.origin}${safeNext}`
+        : window.location.origin;
+
   function goAfterAuth() {
     if (next && next.startsWith("/")) {
       navigate({ to: next as any, replace: true });
@@ -86,7 +94,7 @@ function AuthPage() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin, data: { full_name: fullName } },
+      options: { emailRedirectTo: returnUrl(), data: { full_name: fullName } },
     });
     setBusy(false);
     if (error) {
@@ -110,7 +118,7 @@ function AuthPage() {
 
   async function googleSignIn() {
     const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+      redirect_uri: returnUrl()!,
     });
     if (result.error) {
       toast.error("Connexion Google impossible pour le moment.");
