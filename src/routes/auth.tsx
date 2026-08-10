@@ -42,6 +42,14 @@ function AuthPage() {
 
   const { next } = Route.useSearch();
 
+  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const returnUrl = () =>
+    typeof window === "undefined"
+      ? undefined
+      : safeNext
+        ? `${window.location.origin}${safeNext}`
+        : window.location.origin;
+
   function goAfterAuth() {
     if (next && next.startsWith("/")) {
       navigate({ to: next as any, replace: true });
