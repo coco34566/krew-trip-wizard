@@ -1,4 +1,4 @@
-# Krew: Your Group Trip Planner 
+# Krew: Your Group Trip Planner .
 
 Crée une application web complète appelée Krew, une plateforme intelligente d’organisation de voyages de groupe (principalement EVG/EVJF mais extensible à tous types de voyages entre amis).
 
