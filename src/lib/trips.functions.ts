@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { generateRecommendationsForTrip, tripInputSchema } from "@/lib/krew/trip-service";
 import { assertNotRateLimited } from "@/lib/krew/rate-limit.server";
-import { isTripAdmin, computeGroupTimeWindow } from "@/lib/krew/engine";
+import { isTripAdmin, computeGroupTimeWindow, computeGroupTimeWindowExtended, scoreTransportOption } from "@/lib/krew/engine";
 
 
 /** Libellé de stade aligné sur le parcours hub (pas le status enum brut). */
@@ -40,11 +40,11 @@ export const listMyTrips = createServerFn({ method: "GET" })
     // Si filtre status pose problème (enum), retente sans
     if (owned.error) {
       console.error("listMyTrips owned", owned.error.message);
-      owned = await supabase
+      owned = (await supabase
         .from("trips")
         .select("id, name, event_type, status, participants_count, created_at, owner_id, start_date, end_date")
         .eq("owner_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })) as any;
     }
     if (owned.error) throw owned.error;
 
@@ -444,14 +444,26 @@ export const getGroupTransportTimeWindow = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
-    const { data: rows, error } = await supabase
-      .from("trip_transport_time_prefs")
-      .select("earliest_departure_time, latest_return_time")
-      .eq("trip_id", data.tripId);
+    const [rowsRes, tripRes] = await Promise.all([
+      supabase
+        .from("trip_transport_time_prefs")
+        .select("earliest_departure_time, latest_return_time")
+        .eq("trip_id", data.tripId),
+      supabase
+        .from("trips")
+        .select("group_logistics")
+        .eq("id", data.tripId)
+        .maybeSingle()
+    ]);
 
-    if (error) throw error;
+    if (rowsRes.error) throw rowsRes.error;
+    if (tripRes.error) throw tripRes.error;
 
-    const window = computeGroupTimeWindow(rows ?? []);
+    const picks = Array.isArray((tripRes.data as any)?.group_logistics?.transportPicks)
+      ? (tripRes.data as any).group_logistics.transportPicks
+      : [];
+
+    const window = computeGroupTimeWindowExtended(rowsRes.data ?? [], picks);
     return window;
   });
 
@@ -614,7 +626,7 @@ export const getJoinPreview = createServerFn({ method: "GET" })
       .select(
         "id, name, event_type, departure_city, participants_count, start_date, end_date, status",
       )
-      .eq("id", data.tripId)
+      .eq("id", data!.tripId)
       .maybeSingle();
     if (trip.error) {
       console.error("getJoinPreview", trip.error.message);
@@ -784,7 +796,7 @@ export const getTripRecap = createServerFn({ method: "GET" })
         .limit(3),
       supabase.from("trip_preferences").select("duration_nights").eq("trip_id", data.tripId).maybeSingle(),
       (async () => {
-        const { getParticipantsProgressHandler } = await import("@/lib/participant-preferences.functions");
+        const { getParticipantsProgress } = await import("@/lib/participant-preferences.functions");
         // fallback inline if no handler export
         try {
           const prefs = await supabase
@@ -992,6 +1004,50 @@ export const listMyPriceWatches = createServerFn({ method: "GET" })
 /**
  * Répartition des coûts pour la proposition validée (ou une reco précise).
  */
+export const setBookingStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        type: z.enum(["hotel", "transport"]),
+        status: z.enum(["estimé", "sélectionné", "réservé"]),
+        userId: z.string().uuid().optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tripRes = await supabase.from("trips").select("id, owner_id, group_logistics, co_organizer_id").eq("id", data.tripId).maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+    const trip = tripRes.data as any;
+
+    if (!isTripAdmin(trip, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut modifier les statuts de réservation");
+    }
+
+    const logistics = (trip.group_logistics || {}) as any;
+    if (data.type === "hotel") {
+      logistics.hotelBookingStatus = data.status;
+    } else {
+      const targetUid = data.userId || userId;
+      const picks = Array.isArray(logistics.transportPicks) ? [...logistics.transportPicks] : [];
+      const idx = picks.findIndex((p) => p.userId === targetUid);
+      if (idx >= 0) {
+        picks[idx].status = data.status;
+      }
+      logistics.transportPicks = picks;
+    }
+
+    const { error } = await supabase
+      .from("trips")
+      .update({ group_logistics: logistics, updated_at: new Date().toISOString() } as any)
+      .eq("id", data.tripId);
+    if (error) throw error;
+    return { ok: true, logistics };
+  });
+
 export const getCostSplit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string; recommendationId?: string }) =>
@@ -1067,7 +1123,26 @@ export const getCostSplit = createServerFn({ method: "GET" })
       return match ? Number(match.pricePerPerson ?? match.price ?? fallbackTransport) : fallbackTransport;
     };
 
-    const participantLines = [];
+    const logistics = (trip.data.group_logistics || {}) as any;
+    const hotelBookingStatus = logistics.hotelBookingStatus || 'estimé';
+    const picks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
+    const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
+    const totalGroupParticipants = getEffectiveParticipantsCount(trip.data, participants);
+
+    let accommodationCost = Number(budget.accommodation ?? 0);
+    const selectedHotelId = logistics.selectedHotelId;
+    const hotelsList = Array.isArray(logistics.hotels) ? logistics.hotels : [];
+    if (selectedHotelId) {
+      const matchHotel = hotelsList.find((h: any) => h.id === selectedHotelId);
+      if (matchHotel) {
+        accommodationCost = Number(matchHotel.pricePerNight * (trip.data.duration_nights || 2));
+      }
+    }
+
+    const participantLines: any[] = [];
+    let reservedTransportSum = 0;
+    let estimatedTransportSum = 0;
+
     for (const p of participants) {
       const isStarByUid = p.user_id && p.user_id === starUid;
       const isStarByName = celebratedPerson && p.display_name &&
@@ -1086,23 +1161,46 @@ export const getCostSplit = createServerFn({ method: "GET" })
         city = tripOrigin;
       }
 
-      const price = getPriceForCity(city);
+      const userPick = p.user_id ? picks.find((pk: any) => pk.userId === p.user_id) : null;
+      let transportPrice = fallbackTransport;
+      let isTransportReserved = false;
+
+      if (userPick) {
+        transportPrice = userPick.pricePerPerson != null ? Number(userPick.pricePerPerson) : fallbackTransport;
+        isTransportReserved = userPick.status === 'réservé';
+      } else {
+        transportPrice = getPriceForCity(city);
+      }
+
+      if (isTransportReserved) {
+        reservedTransportSum += transportPrice;
+      } else {
+        estimatedTransportSum += transportPrice;
+      }
+
       const name = p.display_name || p.email?.split("@")[0] || "Ami";
       const displayName = isStar ? `${name} ⭐ (${city})` : `${name} (${city})`;
 
       participantLines.push({
         city: displayName,
         count: 1,
-        pricePerPerson: price,
+        pricePerPerson: transportPrice,
+        isReserved: isTransportReserved,
+        userId: p.user_id || null,
+        transportStatus: userPick?.status || 'estimé',
       });
     }
 
     if (participantLines.length === 0) {
       participantLines.push({
         city: `Groupe (${tripOrigin})`,
-        count: Math.max(1, Number(trip.data.participants_count) || 1),
+        count: totalGroupParticipants,
         pricePerPerson: fallbackTransport,
+        isReserved: false,
+        userId: null,
+        transportStatus: 'estimé',
       });
+      estimatedTransportSum += fallbackTransport * totalGroupParticipants;
     }
 
     const destName =
@@ -1112,19 +1210,44 @@ export const getCostSplit = createServerFn({ method: "GET" })
 
     const split = buildCostSplit({
       destinationName: destName,
-      accommodation: Number(budget.accommodation ?? 0),
+      accommodation: accommodationCost,
       activities: Number(budget.activities ?? 0),
       food: Number(budget.food ?? 0),
       origins: participantLines,
       fallbackTransportPerPerson: fallbackTransport,
-      participants: Number(trip.data.participants_count) || undefined,
+      participants: totalGroupParticipants || 1,
     } as any);
+
+    const isHotelReserved = hotelBookingStatus === 'réservé';
+    const sharedCostReserved = isHotelReserved ? (accommodationCost) : 0;
+    const sharedCostEstimated = isHotelReserved ? 0 : (accommodationCost);
+
+    const activitiesCost = Number(budget.activities ?? 0);
+    const foodCost = Number(budget.food ?? 0);
+
+    const totalReserved = reservedTransportSum + sharedCostReserved + (isHotelReserved ? (activitiesCost + foodCost) : 0);
+    const totalEstimated = estimatedTransportSum + sharedCostEstimated + (isHotelReserved ? 0 : (activitiesCost + foodCost));
 
     return {
       tripName: trip.data.name as string,
       isSelected: Boolean(reco.data.is_selected),
       recommendationId: reco.data.id as string,
-      split,
+      hotelBookingStatus,
+      isHotelReserved,
+      totalReserved: Math.round(totalReserved),
+      totalEstimated: Math.round(totalEstimated),
+      split: {
+        ...split,
+        lines: split.lines.map((l, idx) => {
+          const pl = participantLines[idx];
+          return {
+            ...l,
+            userId: pl?.userId || null,
+            isTransportReserved: pl?.isReserved || false,
+            transportStatus: pl?.transportStatus || 'estimé',
+          };
+        }),
+      },
     };
   });
 
@@ -1237,23 +1360,30 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
 
     // Check trip-level rate limit for itinerary generation
-    const tripWindow = Number(process.env["RATE_LIMIT_ITINERARY_WINDOW_SEC"]) || 300;
-    const tripMax = Number(process.env["RATE_LIMIT_ITINERARY_MAX"]) || 1;
-    await assertNotRateLimited(supabase, {
-      tripId: data.tripId,
-      userId,
-      kind: "itinerary",
-      windowSeconds: tripWindow,
-      maxCalls: tripMax,
-    });
+    const isForced = data.force === true && process.env["ALLOW_FORCE_GENERATION"] === "true";
+    if (!isForced) {
+      const tripWindow = Number(process.env["RATE_LIMIT_ITINERARY_WINDOW_SEC"]) || 300;
+      const tripMax = Number(process.env["RATE_LIMIT_ITINERARY_MAX"]) || 1;
+      await assertNotRateLimited(supabase, {
+        tripId: data.tripId,
+        userId,
+        kind: "itinerary",
+        windowSeconds: tripWindow,
+        maxCalls: tripMax,
+      });
+    }
 
-    const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    const [tripRes, partsRes] = await Promise.all([
+      supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle(),
+      supabase.from("trip_participants").select("*").eq("trip_id", data.tripId)
+    ]);
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     const trip = tripRes.data as any;
     if (trip.owner_id !== userId) {
       throw new Error("403 Forbidden: seul l'organisateur peut générer le planning");
     }
+    const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
     const selected = await supabase
       .from("recommendations")
@@ -1308,6 +1438,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const latestArrival = arrivals.sort().slice(-1)[0] || timeFilters.arriveBy || null;
     const earliestReturn = departures.sort()[0] || timeFilters.departAfter || null;
 
+    const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
+    const effCount = getEffectiveParticipantsCount(trip, participants);
+
     const result = await generateItineraryWithAi(
       {
         destination: destName,
@@ -1315,7 +1448,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         startDate: trip.start_date,
         endDate: trip.end_date,
         nights,
-        participants: Number(trip.participants_count) || aggregated.participantsCount || 2,
+        participants: effCount,
         budgetPerPerson:
           Number(aggregated.aggregatedBudget) ||
           Number(trip.budget_per_person) ||
@@ -1363,7 +1496,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               if (slot.label) {
                 const key = slot.label.toLowerCase().trim();
                 if (urlByName.has(key)) {
-                  slot.url = urlByName.get(key);
+                  slot.url = urlByName.get(key) ?? null;
                 }
               }
             }
@@ -1406,16 +1539,23 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const tripRes = await supabase
-      .from("trips")
-      .select("id, owner_id, group_itinerary, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type")
-      .eq("id", data.tripId)
-      .maybeSingle();
+    const [tripRes, partsRes] = await Promise.all([
+      supabase
+        .from("trips")
+        .select("id, owner_id, group_itinerary, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type, celebrated_person, has_star, star_user_id")
+        .eq("id", data.tripId)
+        .maybeSingle(),
+      supabase
+        .from("trip_participants")
+        .select("*")
+        .eq("trip_id", data.tripId)
+    ]);
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     if ((tripRes.data as any).owner_id !== userId) {
       throw new Error("403 Forbidden: seul l'organisateur peut régénérer un créneau");
     }
+    const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
     const itinerary = (tripRes.data as any).group_itinerary as {
       destination?: string;
@@ -1447,6 +1587,9 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
 
+    const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
+    const effCount = getEffectiveParticipantsCount(tripRes.data, participants);
+
     const { regenerateSlotWithAi } = await import("@/lib/krew/activity-ai.server");
     const result = await regenerateSlotWithAi(
       {
@@ -1454,7 +1597,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         startDate: (tripRes.data as any).start_date,
         endDate: (tripRes.data as any).end_date,
         nights: Number((tripRes.data as any).duration_nights) || itinerary.nights || 2,
-        participants: Number((tripRes.data as any).participants_count) || 2,
+        participants: effCount,
         budgetPerPerson: Number((tripRes.data as any).budget_per_person) || 400,
         eventType: (tripRes.data as any).event_type,
         ambiances: aggregated.ambiances ?? [],
@@ -1464,7 +1607,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         travelPace: aggregated.medianTravelPace,
       },
       current,
-      avoid,
+      data.day,
     );
 
     // Try to enrich the regenerated slot with TripAdvisor/Klook url
@@ -1528,6 +1671,18 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     if (!tripRes.data) throw new Error("Voyage introuvable");
     const trip = tripRes.data as any;
 
+    if (!isTripAdmin(trip, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut chercher la logistique");
+    }
+
+    // Fetch active participants at the top so bedding config can use it
+    const partsRes = await supabase
+      .from("trip_participants")
+      .select("id, user_id, email, display_name, status")
+      .eq("trip_id", data.tripId);
+    if (partsRes.error) throw partsRes.error;
+    const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
+
     const selected = await supabase
       .from("recommendations")
       .select(
@@ -1581,7 +1736,9 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       new Date(new Date(checkin).getTime() + nights * 86400000).toISOString().slice(0, 10);
 
     const lodgingBudget = Math.max(40, budget * 0.35);
-    const adults = Math.min(Math.max(1, Number(trip.participants_count) || 2), 8);
+    const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
+    const effCount = getEffectiveParticipantsCount(trip, participants);
+    const adults = Math.min(Math.max(1, effCount), 8);
 
     const bookingSearchUrl = (q: string) =>
       `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(q)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1&selected_currency=EUR`;
@@ -1610,6 +1767,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       bookingUrl: string | null;
       links: { label: string; url: string }[];
       source?: string | null;
+      beddingInfo?: {
+        estimatedRoomsNeeded: number;
+        roomTypePreference: string;
+        acceptsSharedRoom: boolean;
+        isEntireLodging: boolean;
+        description: string;
+      };
+      categoryLabel?: string;
     };
 
     const minRating = Number(aggregated.minAccommodationRating) || 0;
@@ -1777,23 +1942,217 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         }
       }
     }
-    hotels.sort((a, b) => b.score - a.score);
-    const topHotels = hotels.slice(0, 8);
+
+    // Compute bedding configurations based on participant preferences
+    const totalGroupParticipants = Math.max(1, participants.length);
+    const roomTypePref = (aggregated as any).roomTypePreference || "Peu importe";
+    const acceptsShared = (aggregated as any).acceptsSharedRoom !== false;
+
+    // Calculate estimated rooms needed
+    let estimatedRoomsNeeded = 1;
+    if (roomTypePref.toLowerCase().includes("individuelle") || roomTypePref.toLowerCase().includes("single")) {
+      estimatedRoomsNeeded = totalGroupParticipants;
+    } else if (roomTypePref.toLowerCase().includes("double") || roomTypePref.toLowerCase().includes("couple")) {
+      estimatedRoomsNeeded = Math.ceil(totalGroupParticipants / 2);
+    } else {
+      estimatedRoomsNeeded = acceptsShared ? Math.ceil(totalGroupParticipants / 4) : Math.ceil(totalGroupParticipants / 2);
+    }
+
+    // Embed bedding config into each hotel card
+    const scoredHotelsWithBedding = hotels.map(h => {
+      const isEntireLodging = /maison|villa|appartement|chalet|gite|gîte|apartment|house/i.test(h.type + h.name);
+      const beddingInfo = {
+        estimatedRoomsNeeded,
+        roomTypePreference: roomTypePref,
+        acceptsSharedRoom: acceptsShared,
+        isEntireLodging,
+        description: isEntireLodging
+          ? `Logement entier pour le groupe (${totalGroupParticipants} pers.) — environ ${estimatedRoomsNeeded} chambres requises.`
+          : `Configuration chambres d'hôtel — environ ${estimatedRoomsNeeded} chambres de type ${roomTypePref} nécessaires.`,
+      };
+      return {
+        ...h,
+        beddingInfo,
+      };
+    });
+
+    scoredHotelsWithBedding.sort((a, b) => b.score - a.score);
+
+    // Categorize top lodgings into 5-6 explicit categories
+    const categorizedHotels: HotelCard[] = [];
+    const usedIds = new Set<string>();
+
+    const getFirstUnused = (filterFn: (h: HotelCard) => boolean) => {
+      const match = scoredHotelsWithBedding.find(h => !usedIds.has(h.id) && filterFn(h));
+      if (match) {
+        usedIds.add(match.id);
+        return match;
+      }
+      return null;
+    };
+
+    // 1. Meilleur choix groupe
+    const bestChoice = getFirstUnused((h) => true); // overall highest score
+    if (bestChoice) {
+      categorizedHotels.push({ ...bestChoice, categoryLabel: "Meilleur choix groupe" });
+    }
+
+    // 2. Meilleure maison
+    const bestHouse = getFirstUnused((h) =>
+      /maison|villa|appartement|chalet|gite|gîte|apartment|house/i.test(h.type + h.name)
+    );
+    if (bestHouse) {
+      categorizedHotels.push({ ...bestHouse, categoryLabel: "Meilleure maison" });
+    }
+
+    // 3. Meilleur hôtel
+    const bestHotel = getFirstUnused((h) =>
+      /hotel|hôtel|chambre|hostel|auberge/i.test(h.type + h.name)
+    );
+    if (bestHotel) {
+      categorizedHotels.push({ ...bestHotel, categoryLabel: "Meilleur hôtel" });
+    }
+
+    // 4. Option budget
+    const sortedByPrice = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => a.pricePerNight - b.pricePerNight);
+    const budgetOption = sortedByPrice[0] || null;
+    if (budgetOption) {
+      usedIds.add(budgetOption.id);
+      categorizedHotels.push({ ...budgetOption, categoryLabel: "Option budget" });
+    }
+
+    // 5. Option luxe
+    const sortedByLuxury = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => b.rating - a.rating || b.pricePerNight - a.pricePerNight);
+    const luxuryOption = sortedByLuxury[0] || null;
+    if (luxuryOption) {
+      usedIds.add(luxuryOption.id);
+      categorizedHotels.push({ ...luxuryOption, categoryLabel: "Option luxe" });
+    }
+
+    // 6. Meilleur rapport qualité-prix
+    const sortedByValue = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => {
+      const aUnder = a.pricePerNight <= lodgingBudget ? 1 : 0;
+      const bUnder = b.pricePerNight <= lodgingBudget ? 1 : 0;
+      if (aUnder !== bUnder) return bUnder - aUnder;
+      return b.rating - a.rating;
+    });
+    const valueOption = sortedByValue[0] || null;
+    if (valueOption) {
+      usedIds.add(valueOption.id);
+      categorizedHotels.push({ ...valueOption, categoryLabel: "Meilleur rapport qualité-prix" });
+    }
+
+    // Fallback/Paddings
+    for (const h of scoredHotelsWithBedding) {
+      if (categorizedHotels.length >= 6) break;
+      if (!usedIds.has(h.id)) {
+        categorizedHotels.push({ ...h, categoryLabel: "Autre option intéressante" });
+        usedIds.add(h.id);
+      }
+    }
+
+    const topHotels = categorizedHotels;
 
     // ——— A/R multi-modes ———
     const tripOrigin = (trip.departure_city as string) || "Paris";
-    const origins =
-      aggregated.departureOrigins && aggregated.departureOrigins.length > 0
-        ? aggregated.departureOrigins
-        : [{ city: tripOrigin, count: Math.max(1, trip.participants_count || 2) }];
     const planeRefused = Boolean((aggregated as any).planeRefused);
+
+    // Fetch trip participant preferences for departure cities and travel options
+    const prefsRes = await supabase
+      .from("trip_participant_preferences")
+      .select("user_id, departure_city, max_travel_duration_hours, transport_mode_accepted, room_type_preference, accepts_shared_room")
+      .eq("trip_id", data.tripId);
+    const prefsList = prefsRes.data ?? [];
+
+    // Fetch transport time preferences
+    const timePrefsRes = await supabase
+      .from("trip_transport_time_prefs")
+      .select("participant_id, earliest_departure_time, latest_return_time, latest_arrival_time, earliest_return_departure_time")
+      .eq("trip_id", data.tripId);
+    const timePrefsList = timePrefsRes.data ?? [];
+
+    const norm = (s: string) => s.trim().toLowerCase();
+
+    // Map each active participant to their configuration
+    const participantConfigs = participants.map((p: any) => {
+      const pref = prefsList.find((pr: any) => pr.user_id === p.user_id);
+      const tp = timePrefsList.find((t: any) => t.participant_id === p.id);
+
+      const departureCity = (pref?.departure_city || tripOrigin).trim();
+      const earliestDepartureTime = tp?.earliest_departure_time || null;
+      const latestArrivalTime = tp?.latest_arrival_time || null;
+      const earliestReturnDepartureTime = tp?.earliest_return_departure_time || null;
+      const latestReturnTime = tp?.latest_return_time || null;
+      const maxTravelDurationHours = pref?.max_travel_duration_hours != null ? Number(pref.max_travel_duration_hours) : null;
+      const transportModeAccepted = Array.isArray(pref?.transport_mode_accepted) ? pref.transport_mode_accepted : ["peu importe"];
+
+      return {
+        participantId: p.id,
+        displayName: p.display_name || p.email?.split("@")[0] || "Ami",
+        departureCity,
+        earliestDepartureTime,
+        latestArrivalTime,
+        earliestReturnDepartureTime,
+        latestReturnTime,
+        maxTravelDurationHours,
+        transportModeAccepted,
+      };
+    });
+
+    // Group participants into homogeneous sub-groups sharing departure city and constraints
+    const subGroups: {
+      key: string;
+      departureCity: string;
+      earliestDepartureTime: string | null;
+      latestArrivalTime: string | null;
+      earliestReturnDepartureTime: string | null;
+      latestReturnTime: string | null;
+      maxTravelDurationHours: number | null;
+      transportModeAccepted: string[];
+      participants: { participantId: string; displayName: string }[];
+    }[] = [];
+
+    for (const conf of participantConfigs) {
+      const modesKey = [...conf.transportModeAccepted].sort().join(",");
+      const key = `${norm(conf.departureCity)}|${conf.earliestDepartureTime || ""}|${conf.latestArrivalTime || ""}|${conf.earliestReturnDepartureTime || ""}|${conf.latestReturnTime || ""}|${conf.maxTravelDurationHours || ""}|${modesKey}`;
+
+      let grp = subGroups.find((g) => g.key === key);
+      if (!grp) {
+        grp = {
+          key,
+          departureCity: conf.departureCity,
+          earliestDepartureTime: conf.earliestDepartureTime,
+          latestArrivalTime: conf.latestArrivalTime,
+          earliestReturnDepartureTime: conf.earliestReturnDepartureTime,
+          latestReturnTime: conf.latestReturnTime,
+          maxTravelDurationHours: conf.maxTravelDurationHours,
+          transportModeAccepted: conf.transportModeAccepted,
+          participants: [],
+        };
+        subGroups.push(grp);
+      }
+      grp.participants.push({ participantId: conf.participantId, displayName: conf.displayName });
+    }
+
+    if (subGroups.length === 0) {
+      subGroups.push({
+        key: "fallback",
+        departureCity: tripOrigin,
+        earliestDepartureTime: null,
+        latestArrivalTime: null,
+        earliestReturnDepartureTime: null,
+        latestReturnTime: null,
+        maxTravelDurationHours: null,
+        transportModeAccepted: ["peu importe"],
+        participants: [{ participantId: "fallback", displayName: "Groupe" }],
+      });
+    }
 
     const { searchTransportRoundTrip, estimateTransportFromDistance } = await import(
       "@/integrations/external/transport.server"
     );
 
     const baseFlight = estimateTransportFromDistance(distanceKm);
-    // Estimations relatives par mode (indicatif, affiné si API dispo)
     const priceForMode = (mode: string): number => {
       switch (mode) {
         case "flight":
@@ -1803,10 +2162,31 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         case "bus":
           return Math.round(baseFlight * 0.45);
         case "car":
-          // essence + péage approx A/R partagé
           return Math.round(Math.max(35, distanceKm * 0.12 * 2) / Math.max(2, adults / 2));
+        case "covoiturage":
+          return Math.round((Math.max(35, distanceKm * 0.12 * 2) / Math.max(2, adults / 2)) * 0.85);
+        case "ferry":
+          return Math.round(baseFlight * 0.7);
         default:
           return Math.round(baseFlight);
+      }
+    };
+
+    const estimateDurationForMode = (mode: string, dist: number): number => {
+      switch (mode) {
+        case "flight":
+          return Math.round((dist / 750 + 3.0) * 10) / 10;
+        case "train":
+          return Math.round((dist / 200 + 1.0) * 10) / 10;
+        case "bus":
+          return Math.round((dist / 75 + 1.5) * 10) / 10;
+        case "car":
+        case "covoiturage":
+          return Math.round((dist / 100 + 1.0) * 10) / 10;
+        case "ferry":
+          return Math.round((dist / 35 + 2.0) * 10) / 10;
+        default:
+          return Math.round((dist / 100 + 1.5) * 10) / 10;
       }
     };
 
@@ -1861,6 +2241,26 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           },
         ];
       }
+      if (mode === "ferry") {
+        return [
+          {
+            label: "Direct Ferries",
+            url: `https://www.directferries.fr/search?from=${f}&to=${d}&date=${checkin}`,
+          },
+          {
+            label: "Corsica Ferries",
+            url: `https://www.corsica-ferries.fr/`,
+          }
+        ];
+      }
+      if (mode === "covoiturage") {
+        return [
+          {
+            label: "BlaBlaCar",
+            url: `https://www.blablacar.fr/search?fn=${f}&tn=${d}&db=${checkin}`,
+          }
+        ];
+      }
       // car
       return [
         {
@@ -1888,6 +2288,16 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       url: string | null;
       note?: string;
       links: { label: string; url: string }[];
+      durationHours: number;
+      subGroupKey?: string;
+      participantIds?: string[];
+      earliestDepartureTime?: string | null;
+      latestArrivalTime?: string | null;
+      earliestReturnDepartureTime?: string | null;
+      latestReturnTime?: string | null;
+      respectedConstraints?: string[];
+      score?: number;
+      matchReasons?: string[];
     };
 
     const modeMeta: { mode: string; modeLabel: string; enabled: boolean }[] = [
@@ -1895,24 +2305,29 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       { mode: "train", modeLabel: "Train", enabled: distanceKm <= 1400 },
       { mode: "bus", modeLabel: "Bus", enabled: distanceKm <= 1200 },
       { mode: "car", modeLabel: "Voiture", enabled: distanceKm <= 1000 },
+      { mode: "covoiturage", modeLabel: "Covoiturage", enabled: distanceKm <= 800 },
+      { mode: "ferry", modeLabel: "Ferry", enabled: ["corse", "sardaigne", "angleterre", "majorque", "ibiza", "lisbonne", "rome", "athenes", "athens", "porto", "barcelone", "nice"].some(c => destName.toLowerCase().includes(c)) },
     ];
 
     const transports: TransportCard[] = [];
 
-    for (const origin of origins.slice(0, 5)) {
-      const from = origin.city;
+    for (const group of subGroups) {
+      const from = group.departureCity;
+      const acceptedModes = group.transportModeAccepted.map(m => m.toLowerCase().trim());
+      const hasModeFilter = acceptedModes.length > 0 && !acceptedModes.includes("peu importe");
 
-      // API vol si dispo (améliore le prix avion)
       let flightApiPrice: number | null = null;
       let flightApiUrl: string | null = null;
-      if (!planeRefused) {
+      const isFlightAllowed = !planeRefused && (!hasModeFilter || acceptedModes.some(m => m.includes("avion") || m.includes("flight")));
+
+      if (isFlightAllowed && distanceKm >= 250) {
         try {
           const apiQuote = await searchTransportRoundTrip({
             originCity: from,
             destinationCity: destName,
             departDate: checkin,
             returnDate: checkout,
-            adults: Math.min(Math.max(1, origin.count), 9),
+            adults: Math.min(Math.max(1, group.participants.length), 9),
             distanceKm,
           });
           if (apiQuote?.pricePerPerson > 0) {
@@ -1926,25 +2341,85 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
       for (const m of modeMeta) {
         if (!m.enabled) continue;
+
+        if (hasModeFilter) {
+          const matched = acceptedModes.some(am => {
+            if (m.mode === "flight") return am.includes("avion") || am.includes("flight");
+            if (m.mode === "train") return am.includes("train");
+            if (m.mode === "bus") return am.includes("bus");
+            if (m.mode === "car") return am.includes("voiture") || am.includes("car");
+            if (m.mode === "covoiturage") return am.includes("covoit") || am.includes("share") || am.includes("car");
+            if (m.mode === "ferry") return am.includes("ferry") || am.includes("bateau");
+            return false;
+          });
+          if (!matched) continue;
+        }
+
+        const duration = estimateDurationForMode(m.mode, distanceKm);
+
+        if (group.maxTravelDurationHours != null && group.maxTravelDurationHours > 0) {
+          if (duration > group.maxTravelDurationHours) {
+            continue;
+          }
+        }
+
         let price = priceForMode(m.mode);
         if (m.mode === "flight" && flightApiPrice) price = Math.round(flightApiPrice);
         const links = linksForMode(m.mode, from, destName);
         if (m.mode === "flight" && flightApiUrl) {
           links.unshift({ label: "Offre trouvée", url: flightApiUrl });
         }
+
+        const respectedConstraints: string[] = [];
+        if (group.earliestDepartureTime) {
+          respectedConstraints.push(`Départ après ${group.earliestDepartureTime}`);
+        }
+        if (group.latestArrivalTime) {
+          respectedConstraints.push(`Arrivée avant ${group.latestArrivalTime}`);
+        }
+        if (group.earliestReturnDepartureTime) {
+          respectedConstraints.push(`Retour après ${group.earliestReturnDepartureTime}`);
+        }
+        if (group.latestReturnTime) {
+          respectedConstraints.push(`Retour avant ${group.latestReturnTime}`);
+        }
+        if (group.maxTravelDurationHours) {
+          respectedConstraints.push(`Durée < ${group.maxTravelDurationHours}h (porte-à-porte ~${duration}h)`);
+        }
+
+        const { score: scoreVal, matchReasons: matchReasonsList } = scoreTransportOption(
+          {
+            mode: m.mode,
+            pricePerPerson: price,
+            durationHours: duration,
+            respectedConstraints,
+          },
+          budget,
+          group.maxTravelDurationHours
+        );
+
         transports.push({
           city: from,
-          count: origin.count,
+          count: group.participants.length,
           pricePerPerson: price,
           mode: m.mode,
           modeLabel: m.modeLabel,
           label: `A/R ${m.modeLabel.toLowerCase()} ${from} → ${destName}`,
           url: links[0]?.url ?? null,
-          note:
-            m.mode === "flight" && flightApiPrice
-              ? "prix API si dispo"
-              : "prix indicatif — clique pour comparer",
+          note: m.mode === "flight" && flightApiPrice
+            ? "prix API réel"
+            : "prix indicatif basé sur la distance",
           links: links.slice(0, 4),
+          durationHours: duration,
+          subGroupKey: group.key,
+          participantIds: group.participants.map(p => p.participantId),
+          earliestDepartureTime: group.earliestDepartureTime,
+          latestArrivalTime: group.latestArrivalTime,
+          earliestReturnDepartureTime: group.earliestReturnDepartureTime,
+          latestReturnTime: group.latestReturnTime,
+          respectedConstraints,
+          score: scoreVal,
+          matchReasons: matchReasonsList,
         });
       }
     }
@@ -1973,6 +2448,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       hotelVotes: Array.isArray(prev.hotelVotes) ? prev.hotelVotes : [],
       transportPicks: Array.isArray(prev.transportPicks) ? prev.transportPicks : [],
       selectedHotelId: prev.selectedHotelId ?? null,
+      hotelBookingStatus: prev.hotelBookingStatus ?? null,
     };
 
     await supabase
@@ -2278,6 +2754,7 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       (o: any) => o.city.toLowerCase() === pCity.toLowerCase()
     ) || transportByOrigin[0];
 
+    const participantsCount = Number(trip.data.participants_count) || 2;
     const split = buildCostSplit({
       destinationName: (reco.data as any).destinations?.name || budget.destinationName || "Destination",
       accommodation: Number(budget.accommodation ?? 0),
@@ -2285,24 +2762,26 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       food: Number(budget.food ?? 0),
       origins: transportByOrigin,
       fallbackTransportPerPerson: Number(budget.transport ?? 0),
-      participants: Number(trip.data.participants_count) || undefined,
+      participants: participantsCount,
     });
 
     const userLine = split.lines.find(
       (l) => l.city.toLowerCase() === pCity.toLowerCase()
     ) || split.lines[0];
 
-    const totalPerPerson = userLine ? userLine.totalPerPerson : (transportPrice + shared);
+    const fallbackTransport = Number(budget.transport ?? 0);
+    const sharedCost = (Number(budget.accommodation ?? 0) + Number(budget.activities ?? 0) + Number(budget.food ?? 0)) / participantsCount;
+    const totalPerPerson = userLine ? userLine.totalPerPerson : (fallbackTransport + sharedCost);
 
     if (totalPerPerson <= 0) {
       throw new Error("Le montant calculé pour ce séjour est invalide.");
     }
 
     const amountCents = totalPerPerson * 100;
-    const feePercent = Number(process.env.KREW_PLATFORM_FEE_PERCENT) || 0;
+    const feePercent = Number(process.env['KREW_PLATFORM_FEE_PERCENT']) || 0;
     const platformFeeCents = Math.round(amountCents * (feePercent / 100));
 
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    const stripeSecret = process.env['STRIPE_SECRET_KEY'];
     if (!stripeSecret) {
       console.warn("STRIPE_SECRET_KEY non définie, simulation de session");
       const { data: fakePayment, error: fakeErr } = await supabase
@@ -2322,7 +2801,7 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
 
       return {
         sessionId: "fake_session",
-        url: `${process.env.VITE_APP_URL || "http://localhost:3000"}/trips/${data.tripId}/recap?payment_success=true&session_id=${fakePayment.stripe_session_id}`,
+        url: `${process.env['VITE_APP_URL'] || "http://localhost:3000"}/trips/${data.tripId}/recap?payment_success=true&session_id=${fakePayment.stripe_session_id}`,
       };
     }
 
@@ -2330,7 +2809,7 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
     const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" as any });
 
     const destName = (reco.data as any).destinations?.name || "Séjour Krew";
-    const originUrl = process.env.VITE_APP_URL || "http://localhost:3000";
+    const originUrl = process.env['VITE_APP_URL'] || "http://localhost:3000";
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -2447,11 +2926,22 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
           let isManual = false;
           let taskId = undefined;
 
+          let defaultTitle = "";
+          if (slot.type === "resto") defaultTitle = `Réserver le restaurant : ${slot.label}`;
+          else if (slot.type === "activite") defaultTitle = `Réserver l'activité : ${slot.label}`;
+          else defaultTitle = `Vérifier / réserver : ${slot.label}`;
+
           if (existing) {
             taskId = existing.id;
             assignedId = existing.assigned_participant_id;
             taskStatus = existing.status;
             isManual = existing.is_manually_assigned;
+
+            // Reset status and manual assignment if the generated title changed
+            if (existing.title !== defaultTitle) {
+              taskStatus = "todo";
+              isManual = false;
+            }
           } else {
             if (fallbackAssignees.length > 0) {
               const p = fallbackAssignees[newTaskIndex % fallbackAssignees.length]!;
@@ -2459,11 +2949,6 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
               newTaskIndex++;
             }
           }
-
-          let defaultTitle = "";
-          if (slot.type === "resto") defaultTitle = `Réserver le restaurant : ${slot.label}`;
-          else if (slot.type === "activite") defaultTitle = `Réserver l'activité : ${slot.label}`;
-          else defaultTitle = `Vérifier / réserver : ${slot.label}`;
 
           tasksToUpsert.push({
             ...(taskId ? { id: taskId } : {}),
@@ -2486,6 +2971,33 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
     if (tasksToUpsert.length > 0) {
       const { error } = await supabase.from("trip_tasks" as any).upsert(tasksToUpsert);
       if (error) throw error;
+    }
+
+    // Clean up orphan tasks that no longer exist in the new itinerary slots
+    const activeSlotIds = new Set<string>();
+    for (const day of itinerary.days) {
+      const slots = day.slots ?? [];
+      for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
+        const slot = slots[slotIndex];
+        if (slot && ["resto", "activite", "bar"].includes(slot.type)) {
+          activeSlotIds.add(`${day.day}-${slotIndex}`);
+        }
+      }
+    }
+
+    if (activeSlotIds.size > 0) {
+      const { error: deleteErr } = await supabase
+        .from("trip_tasks" as any)
+        .delete()
+        .eq("trip_id", data.tripId)
+        .not("slot_id", "in", `(${Array.from(activeSlotIds).map(id => `'${id}'`).join(",")})`);
+      if (deleteErr) throw deleteErr;
+    } else {
+      const { error: deleteErr } = await supabase
+        .from("trip_tasks" as any)
+        .delete()
+        .eq("trip_id", data.tripId);
+      if (deleteErr) throw deleteErr;
     }
 
     return { ok: true, count: tasksToUpsert.length };

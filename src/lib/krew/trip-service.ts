@@ -18,6 +18,34 @@ import {
 } from "./candidate-merge";
 import { fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
 
+export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
+  if (!trip) return Math.max(1, participants?.length || 1);
+  const hasStar = Boolean(trip.has_star || trip.celebrated_person);
+  if (!hasStar) {
+    return Math.max(1, participants?.length || Number(trip.participants_count) || 1);
+  }
+
+  const celebratedPerson = trip.celebrated_person || trip.celebratedPerson;
+  const starUid = trip.star_user_id || trip.starUserId || "star-virtual-uid";
+
+  const isStarJoined = Array.isArray(participants) && participants.some((p: any) => {
+    const isStarByUid = p.user_id && p.user_id === starUid;
+    const isStarByName = celebratedPerson && p.display_name &&
+      p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+      celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+    return isStarByUid || isStarByName;
+  });
+
+  const baseCount = Array.isArray(participants) && participants.length > 0
+    ? participants.length
+    : Number(trip.participants_count) || 1;
+
+  if (!isStarJoined) {
+    return baseCount + 1;
+  }
+  return baseCount;
+}
+
 export const tripInputSchema = z.object({
   name: z.string().min(2).max(120),
   eventType: z.enum([
@@ -75,12 +103,12 @@ type PreferencesRow = {
   max_budget: number | null;
 } | null;
 
-export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Record<string, any>): ScoringContext {
+export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Record<string, any>, participants?: any[]): ScoringContext {
   const startMonth = trip.start_date
     ? new Date(trip.start_date).getMonth() + 1
     : new Date().getMonth() + 1;
   return {
-    participants: trip.participants_count,
+    participants: getEffectiveParticipantsCount(trip, participants || []),
     budgetPerPerson: Number(prefs?.max_budget ?? trip.budget_per_person),
     nights: prefs?.duration_nights ?? 2,
     eventType: (trip as any).event_type ?? prefs?.event_type ?? null,
@@ -954,9 +982,12 @@ export async function generateRecommendationsForTrip(
     } as any;
   }
 
-  const ctx = buildScoringContext(trip.data, prefsToUse);
+  const partsRes = await supabase.from("trip_participants").select("*").eq("trip_id", tripId);
+  const participants = partsRes.data ?? [];
+  const ctx = buildScoringContext(trip.data, prefsToUse, participants);
   if (aggregated.participantsCount && aggregated.participantsCount > 0) {
-    ctx.participants = aggregated.participantsCount;
+    // If we have aggregated participants count from preferences, we can still use ctx.participants as calculated from the actual/effective group count since preferences represents a subset of active members.
+    ctx.participants = getEffectiveParticipantsCount(trip.data, participants);
   }
   ctx.pastDestinations = pastDestinations;
   // Fusion exclusions individuelles + trip-level

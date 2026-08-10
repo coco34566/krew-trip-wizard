@@ -41,6 +41,8 @@ type Props = {
   destinationName?: string | null;
   /** Budget estimé live (€ / pers.) si calculé */
   liveBudgetTotal?: number | null;
+  totalReserved?: number | null;
+  totalEstimated?: number | null;
   /** L'utilisateur connecté a déjà soumis ses dispos */
   myAvailabilityDone?: boolean;
   /** L'utilisateur connecté a déjà soumis ses préférences */
@@ -423,6 +425,8 @@ export function TripHubDashboard({
   viewerUserId = null,
   destinationName = null,
   liveBudgetTotal = null,
+  totalReserved = null,
+  totalEstimated = null,
   myAvailabilityDone = false,
   myPreferencesDone = false,
   starDone = false,
@@ -439,11 +443,19 @@ export function TripHubDashboard({
     (trip as any).group_itinerary?.days?.length,
   );
   const logistics = ((trip as any).group_logistics || {}) as any;
-  const hotelVoted =
-    (Array.isArray(logistics.hotelVotes) && logistics.hotelVotes.length > 0) ||
-    Boolean(logistics.selectedHotelId);
+  const hotelBookingStatus = logistics.hotelBookingStatus || 'estimé';
+  const hotelVoted = hotelBookingStatus === 'sélectionné' || hotelBookingStatus === 'réservé';
+
+  const activeParticipants = Array.isArray(trip.participants)
+    ? trip.participants.filter((p: any) => p.status !== 'absent')
+    : [];
+
   const transportPicked =
-    Array.isArray(logistics.transportPicks) && logistics.transportPicks.length > 0;
+    activeParticipants.length > 0 &&
+    activeParticipants.every((p: any) => {
+      const userPick = p.user_id ? (logistics.transportPicks ?? []).find((pk: any) => pk.userId === p.user_id) : null;
+      return userPick && (userPick.status === 'sélectionné' || userPick.status === 'réservé');
+    });
   const myHotelVoted = Boolean(
     viewerUserId &&
       (logistics.hotelVotes ?? []).some((v: any) => v.userId === viewerUserId),
@@ -515,7 +527,16 @@ export function TripHubDashboard({
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
             <Users className="size-3.5 text-primary" /> {trip.participants_count} pers.
           </span>
-          {liveBudgetTotal != null && liveBudgetTotal > 0 ? (
+          {totalReserved != null && totalEstimated != null ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:text-emerald-300">
+                <Wallet className="size-3.5 text-emerald-600" /> Réellement Réservé : {formatEuro(totalReserved)}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-sm text-amber-800 dark:text-amber-300">
+                <Wallet className="size-3.5 text-amber-600" /> Reste Estimé : {formatEuro(totalEstimated)}
+              </span>
+            </>
+          ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
               <Wallet className="size-3.5 text-primary" />{" "}
               ~{formatEuro(liveBudgetTotal)} / pers.

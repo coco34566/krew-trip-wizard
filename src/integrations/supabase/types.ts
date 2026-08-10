@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_links: {
+        Row: {
+          id: string
+          provider: string
+          original_url: string
+          affiliate_url: string
+          tracking_id: string | null
+          offer_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          provider: string
+          original_url: string
+          affiliate_url: string
+          tracking_id?: string | null
+          offer_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          provider?: string
+          original_url?: string
+          affiliate_url?: string
+          tracking_id?: string | null
+          offer_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       accommodations: {
         Row: {
           best_provider: string | null
@@ -31,6 +61,8 @@ export type Database = {
           rating: number
           source: string
           type: string
+          latitude: number | null
+          longitude: number | null
         }
         Insert: {
           best_provider?: string | null
@@ -48,6 +80,8 @@ export type Database = {
           rating?: number
           source?: string
           type?: string
+          latitude?: number | null
+          longitude?: number | null
         }
         Update: {
           best_provider?: string | null
@@ -65,6 +99,8 @@ export type Database = {
           rating?: number
           source?: string
           type?: string
+          latitude?: number | null
+          longitude?: number | null
         }
         Relationships: [
           {
@@ -90,6 +126,8 @@ export type Database = {
           price_per_person: number
           rating: number
           source: string
+          latitude: number | null
+          longitude: number | null
         }
         Insert: {
           booking_url?: string | null
@@ -104,6 +142,8 @@ export type Database = {
           price_per_person?: number
           rating?: number
           source?: string
+          latitude?: number | null
+          longitude?: number | null
         }
         Update: {
           booking_url?: string | null
@@ -118,6 +158,8 @@ export type Database = {
           price_per_person?: number
           rating?: number
           source?: string
+          latitude?: number | null
+          longitude?: number | null
         }
         Relationships: [
           {
@@ -942,6 +984,51 @@ export type Database = {
           },
         ]
       }
+      price_watch: {
+        Row: {
+          created_at: string
+          created_by: string
+          destination_name: string | null
+          id: string
+          last_checked_at: string
+          recommendation_id: string | null
+          trip_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          destination_name?: string | null
+          id?: string
+          last_checked_at?: string
+          recommendation_id?: string | null
+          trip_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          destination_name?: string | null
+          id?: string
+          last_checked_at?: string
+          recommendation_id?: string | null
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_watch_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_watch_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_tasks: {
         Row: {
           assigned_participant_id: string | null
@@ -1017,6 +1104,8 @@ export type Database = {
           participant_id: string
           trip_id: string
           updated_at: string
+          latest_arrival_time: string | null
+          earliest_return_departure_time: string | null
         }
         Insert: {
           created_at?: string
@@ -1026,6 +1115,8 @@ export type Database = {
           participant_id: string
           trip_id: string
           updated_at?: string
+          latest_arrival_time?: string | null
+          earliest_return_departure_time?: string | null
         }
         Update: {
           created_at?: string
@@ -1035,6 +1126,8 @@ export type Database = {
           participant_id?: string
           trip_id?: string
           updated_at?: string
+          latest_arrival_time?: string | null
+          earliest_return_departure_time?: string | null
         }
         Relationships: [
           {
@@ -1079,6 +1172,7 @@ export type Database = {
           start_date: string | null
           status: Database["public"]["Enums"]["trip_status"]
           updated_at: string
+          co_organizer_id: string | null
         }
         Insert: {
           budget_per_person?: number
@@ -1105,6 +1199,7 @@ export type Database = {
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           updated_at?: string
+          co_organizer_id?: string | null
         }
         Update: {
           budget_per_person?: number
@@ -1131,6 +1226,7 @@ export type Database = {
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           updated_at?: string
+          co_organizer_id?: string | null
         }
         Relationships: []
       }
@@ -1157,6 +1253,7 @@ export type Database = {
         | "propositions"
         | "valide"
         | "termine"
+        | "annule"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1292,6 +1389,7 @@ export const Constants = {
         "propositions",
         "valide",
         "termine",
+        "annule",
       ],
     },
   },

@@ -1,7 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { assessGenerationReadiness, generateRecommendationsForTrip } from "../krew/trip-service";
+import { assessGenerationReadiness, generateRecommendationsForTrip, getEffectiveParticipantsCount } from "../krew/trip-service";
 import { assertNotRateLimited } from "../krew/rate-limit.server";
 import { appendAffiliateParam, buildOriginDeepLinks } from "../krew/deep-links";
+
+describe("getEffectiveParticipantsCount", () => {
+  it("compte correctement les participants sans star", () => {
+    const trip = { participants_count: 5, celebrated_person: null };
+    const participants = [{ user_id: "user-1", display_name: "Alice" }];
+    expect(getEffectiveParticipantsCount(trip, participants)).toBe(1);
+  });
+
+  it("ajoute la star virtuelle si elle n'a pas rejoint le voyage", () => {
+    const trip = { participants_count: 5, celebrated_person: "Lea", has_star: true };
+    const participants = [{ user_id: "user-1", display_name: "Alice" }];
+    expect(getEffectiveParticipantsCount(trip, participants)).toBe(2);
+  });
+
+  it("ne double-compte pas la star si elle a déjà rejoint (par nom normalisé)", () => {
+    const trip = { participants_count: 5, celebrated_person: "Léa", has_star: true };
+    const participants = [
+      { user_id: "user-1", display_name: "Alice" },
+      { user_id: "user-star", display_name: " Léa  " }
+    ];
+    expect(getEffectiveParticipantsCount(trip, participants)).toBe(2);
+  });
+});
 
 describe("Trip Service & Readiness (trip-service.ts)", () => {
   it("autorise la génération même si aucune préférence n'est renseignée (prefsOk reste true)", async () => {
