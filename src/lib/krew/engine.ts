@@ -949,20 +949,16 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sConsensus * w.consensus +
       sMinSat * w.minSatisfaction;
 
-    // Type de lieu / environnement recherché
-    const wantedEnvTypes = (ctx as any).wantedEnvTypes || [];
-    const starWantedEnvType = (ctx as any).starWantedEnvType;
-    const destEnvs = getDestinationEnvironments(destination.name);
+    // Type de lieu / environnement recherché (sous-score pondéré comme les autres axes)
+    const sEnvironment = wantedEnvTypes.length
+      ? clamp(wantedEnvTypes.filter((env) => destEnvs.includes(env)).length / wantedEnvTypes.length)
+      : 0.6;
+    score += sEnvironment * (w.environment ?? 10);
 
-    if (wantedEnvTypes.length > 0) {
-      const matchedCount = wantedEnvTypes.filter((env: string) => destEnvs.includes(env)).length;
-      if (matchedCount > 0) {
-        score += 12 * (matchedCount / wantedEnvTypes.length); // Boost de score groupe
-      }
-    }
-
-    if (starWantedEnvType && destEnvs.includes(starWantedEnvType)) {
-      score += 15; // Boost de score Star
+    // La Star pèse davantage sur le cadre (EVG/EVJF/anniversaire)
+    if (starEnvTypes.length) {
+      const starMatch = starEnvTypes.filter((env) => destEnvs.includes(env)).length / starEnvTypes.length;
+      score += starMatch * 12 - (starMatch === 0 ? 6 : 0);
     }
 
     const hasHistory = ctx.pastDestinations && ctx.pastDestinations.length > 0;
