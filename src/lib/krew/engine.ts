@@ -401,6 +401,12 @@ export function getDestinationEnvironments(dest: DestinationRecord | string): st
   if (["annecy", "lac", "verdon", "riviere"].some(c => name.includes(c))) {
     return ["Nature / pleine nature", "Lac / rivière"];
   }
+  if (["plage", "beach", "cote", "coast", "ile ", "island", "mer"].some(c => name.includes(c))) {
+    return ["Bord de mer", "Nature / pleine nature"];
+  }
+  if (["campagne", "foret", "parc naturel", "vallee", "domaine", "gite"].some(c => name.includes(c))) {
+    return ["Nature / pleine nature", "Village de charme"];
+  }
   return ["Centre-ville / urbain"];
 }
 
