@@ -270,6 +270,7 @@ export type Database = {
           country: string
           description: string | null
           distance_from_paris_km: number
+          env_tags: string[]
           external_id: string | null
           id: string
           image_url: string | null
@@ -296,6 +297,7 @@ export type Database = {
           country: string
           description?: string | null
           distance_from_paris_km?: number
+          env_tags?: string[]
           external_id?: string | null
           id?: string
           image_url?: string | null
@@ -322,6 +324,7 @@ export type Database = {
           country?: string
           description?: string | null
           distance_from_paris_km?: number
+          env_tags?: string[]
           external_id?: string | null
           id?: string
           image_url?: string | null
@@ -609,6 +612,7 @@ export type Database = {
           budget_weight: number
           consensus_weight: number
           distance_weight: number
+          environment_weight: number
           event_type: string
           min_satisfaction_weight: number
           quality_weight: number
@@ -621,6 +625,7 @@ export type Database = {
           budget_weight?: number
           consensus_weight?: number
           distance_weight?: number
+          environment_weight?: number
           event_type: string
           min_satisfaction_weight?: number
           quality_weight?: number
@@ -633,6 +638,7 @@ export type Database = {
           budget_weight?: number
           consensus_weight?: number
           distance_weight?: number
+          environment_weight?: number
           event_type?: string
           min_satisfaction_weight?: number
           quality_weight?: number
