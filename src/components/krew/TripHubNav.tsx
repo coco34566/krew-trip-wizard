@@ -26,7 +26,7 @@ export function TripHubNav({
     total <= 1 ? 0 : Math.min(100, Math.max(0, ((doneCount - 1) / (total - 1)) * 100));
 
   function stepHref(step: TripStep): string | null {
-    if (step.id === "invite") return "#invite-section";
+    if (step.id === "invite") return `/trips/${tripId}/invite`;
     if (step.id === "dates") return "#hub-dates";
     if (step.id === "destination") return "#hub-destination";
     if (step.id === "hotels") return "#hub-logistics";
