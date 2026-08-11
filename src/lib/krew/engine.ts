@@ -25,6 +25,8 @@ export type DestinationRecord = {
   score_insolite: number;
   score_sportif: number;
   score_culturel: number;
+  /** Étiquettes de cadre : "Centre-ville / urbain", "Bord de mer", "Montagne"... */
+  env_tags?: string[] | null;
 };
 
 export type ActivityRecord = {
@@ -92,6 +94,8 @@ export type ScoringWeights = {
   consensus: number;
   minSatisfaction: number;
   historique?: number;
+  /** Poids du cadre recherché (urbain / nature / mer / montagne...). */
+  environment?: number;
 };
 
 export type SubScores = {
@@ -104,6 +108,7 @@ export type SubScores = {
   sConsensus: number;
   sMinSatisfaction: number;
   sHistorique?: number;
+  sEnvironment?: number;
 };
 
 export type ScoringContext = {
@@ -175,6 +180,10 @@ export type ScoringContext = {
   starWantedActivities?: string[];
   starDealBreakers?: string[];
   starWeight?: number;
+  /** Cadres recherchés par le groupe (agrégés, triés par fréquence). */
+  wantedEnvTypes?: string[];
+  /** Cadre recherché par la Star (prioritaire). */
+  starWantedEnvType?: string | null;
   /** Caractéristiques des destinations précédemment appréciées (trips validés passés). */
   pastDestinations?: { country: string; dominantAmbiance: string }[];
 };
@@ -238,12 +247,12 @@ const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
 
 /** Poids par défaut selon event_type (utilisés si pas de ligne scoring_weights). */
 export const DEFAULT_WEIGHTS_BY_EVENT: Record<string, ScoringWeights> = {
-  evg: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3 },
-  evjf: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3 },
-  anniversaire: { ambiance: 22, activities: 16, budget: 14, distance: 8, season: 10, quality: 6, consensus: 14, minSatisfaction: 10, historique: 3 },
-  weekend: { ambiance: 14, activities: 12, budget: 28, distance: 12, season: 8, quality: 4, consensus: 12, minSatisfaction: 10, historique: 3 },
-  voyage_groupe: { ambiance: 18, activities: 14, budget: 16, distance: 8, season: 8, quality: 5, consensus: 16, minSatisfaction: 15, historique: 3 },
-  default: { ambiance: 18, activities: 12, budget: 16, distance: 8, season: 8, quality: 5, consensus: 18, minSatisfaction: 15, historique: 3 },
+  evg: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3, environment: 12 },
+  evjf: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3, environment: 12 },
+  anniversaire: { ambiance: 22, activities: 16, budget: 14, distance: 8, season: 10, quality: 6, consensus: 14, minSatisfaction: 10, historique: 3, environment: 12 },
+  weekend: { ambiance: 14, activities: 12, budget: 28, distance: 12, season: 8, quality: 4, consensus: 12, minSatisfaction: 10, historique: 3, environment: 10 },
+  voyage_groupe: { ambiance: 18, activities: 14, budget: 16, distance: 8, season: 8, quality: 5, consensus: 16, minSatisfaction: 15, historique: 3, environment: 12 },
+  default: { ambiance: 18, activities: 12, budget: 16, distance: 8, season: 8, quality: 5, consensus: 18, minSatisfaction: 15, historique: 3, environment: 10 },
 };
 
 export function resolveWeights(eventType?: string | null, override?: ScoringWeights | null): ScoringWeights {
@@ -351,8 +360,32 @@ export function estimateTransport(distanceKm: number): number {
   return 130 + (distanceKm - 1600) * 0.05;
 }
 
-export function getDestinationEnvironments(destName: string): string[] {
-  const name = destName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+/** Cadres canoniques (mêmes libellés que les questionnaires). */
+export const ENV_TYPES = [
+  "Centre-ville / urbain",
+  "Quartier animé",
+  "Bord de mer",
+  "Nature / pleine nature",
+  "Village de charme",
+  "Montagne",
+  "Lac / rivière",
+] as const;
+
+/** Cadres considérés comme "nature / hors ville" → hébergement type maison/gîte. */
+export const NATURE_ENVS = ["Nature / pleine nature", "Village de charme", "Montagne", "Lac / rivière"];
+
+/**
+ * Cadres d'une destination : priorité aux étiquettes stockées en base
+ * (`destinations.env_tags`, alimentées par la découverte IA / le catalogue),
+ * sinon heuristique sur le nom.
+ */
+export function getDestinationEnvironments(dest: DestinationRecord | string): string[] {
+  if (typeof dest !== "string") {
+    const tags = (dest.env_tags ?? []).filter(Boolean);
+    if (tags.length) return tags as string[];
+    return getDestinationEnvironments(dest.name);
+  }
+  const name = dest.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
   if (["barcelone", "barcelona", "lisbonne", "lisbon", "porto", "nice", "valencia", "valence", "marseille", "split", "dubrovnik"].some(c => name.includes(c))) {
     return ["Bord de mer", "Quartier animé", "Centre-ville / urbain"];
   }
@@ -367,6 +400,12 @@ export function getDestinationEnvironments(destName: string): string[] {
   }
   if (["annecy", "lac", "verdon", "riviere"].some(c => name.includes(c))) {
     return ["Nature / pleine nature", "Lac / rivière"];
+  }
+  if (["plage", "beach", "cote", "coast", "ile ", "island", "mer"].some(c => name.includes(c))) {
+    return ["Bord de mer", "Nature / pleine nature"];
+  }
+  if (["campagne", "foret", "parc naturel", "vallee", "domaine", "gite"].some(c => name.includes(c))) {
+    return ["Nature / pleine nature", "Village de charme"];
   }
   return ["Centre-ville / urbain"];
 }
@@ -724,6 +763,18 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
   }
 
   const proposals: Proposal[] = candidates.map((destination) => {
+    // Cadre recherché (urbain / mer / nature / montagne...) : pilote le scoring
+    // ET le choix d'hébergement (hôtel en ville vs maison/gîte à la campagne).
+    const destEnvs = getDestinationEnvironments(destination);
+    const wantedEnvTypes = (ctx.wantedEnvTypes ?? []).filter(Boolean);
+    const starEnvTypes = String(ctx.starWantedEnvType ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const envIsNature =
+      [...wantedEnvTypes, ...starEnvTypes].some((e) => NATURE_ENVS.includes(e)) &&
+      ![...wantedEnvTypes, ...starEnvTypes].some((e) => e === "Centre-ville / urbain" || e === "Quartier animé");
+
     let accommodations = catalog.accommodations
       .filter((a) => a.destination_id === destination.id)
       .filter((a) => (minRating > 0 ? a.rating >= minRating - 0.05 : true));
@@ -741,6 +792,18 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         const dormA = /dortoir|shared|hostel|auberge/i.test(a.type + a.name) ? 1 : 0;
         const dormB = /dortoir|shared|hostel|auberge/i.test(b.type + b.name) ? 1 : 0;
         if (dormA !== dormB) return dormA - dormB;
+      }
+
+      // 0. Cadre recherché : campagne/montagne/lac → maison, villa, gîte, chalet,
+      //    logement entier (type Airbnb) ; ville → hôtel / appart en centre.
+      const houseRe = /maison|villa|gite|gîte|chalet|mas|domaine|ferme|cottage|lodge|appart|apartment|home|house|entire/i;
+      if (envIsNature) {
+        const hA = houseRe.test(`${a.type} ${a.name}`) ? 0 : 1;
+        const hB = houseRe.test(`${b.type} ${b.name}`) ? 0 : 1;
+        if (hA !== hB) return hA - hB;
+        const capOkA = a.capacity >= ctx.participants ? 0 : 1;
+        const capOkB = b.capacity >= ctx.participants ? 0 : 1;
+        if (capOkA !== capOkB) return capOkA - capOkB;
       }
 
       // 1. Preferred lodging type matching (e.g. hotel, apartment)
@@ -910,20 +973,16 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sConsensus * w.consensus +
       sMinSat * w.minSatisfaction;
 
-    // Type de lieu / environnement recherché
-    const wantedEnvTypes = (ctx as any).wantedEnvTypes || [];
-    const starWantedEnvType = (ctx as any).starWantedEnvType;
-    const destEnvs = getDestinationEnvironments(destination.name);
+    // Type de lieu / environnement recherché (sous-score pondéré comme les autres axes)
+    const sEnvironment = wantedEnvTypes.length
+      ? clamp(wantedEnvTypes.filter((env) => destEnvs.includes(env)).length / wantedEnvTypes.length)
+      : 0.6;
+    score += sEnvironment * (w.environment ?? 10);
 
-    if (wantedEnvTypes.length > 0) {
-      const matchedCount = wantedEnvTypes.filter((env: string) => destEnvs.includes(env)).length;
-      if (matchedCount > 0) {
-        score += 12 * (matchedCount / wantedEnvTypes.length); // Boost de score groupe
-      }
-    }
-
-    if (starWantedEnvType && destEnvs.includes(starWantedEnvType)) {
-      score += 15; // Boost de score Star
+    // La Star pèse davantage sur le cadre (EVG/EVJF/anniversaire)
+    if (starEnvTypes.length) {
+      const starMatch = starEnvTypes.filter((env) => destEnvs.includes(env)).length / starEnvTypes.length;
+      score += starMatch * 12 - (starMatch === 0 ? 6 : 0);
     }
 
     const hasHistory = ctx.pastDestinations && ctx.pastDestinations.length > 0;

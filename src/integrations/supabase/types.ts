@@ -270,6 +270,7 @@ export type Database = {
           country: string
           description: string | null
           distance_from_paris_km: number
+          env_tags: string[]
           external_id: string | null
           id: string
           image_url: string | null
@@ -296,6 +297,7 @@ export type Database = {
           country: string
           description?: string | null
           distance_from_paris_km?: number
+          env_tags?: string[]
           external_id?: string | null
           id?: string
           image_url?: string | null
@@ -322,6 +324,7 @@ export type Database = {
           country?: string
           description?: string | null
           distance_from_paris_km?: number
+          env_tags?: string[]
           external_id?: string | null
           id?: string
           image_url?: string | null
@@ -342,6 +345,54 @@ export type Database = {
           synced_at?: string
         }
         Relationships: []
+      }
+      price_watch: {
+        Row: {
+          created_at: string
+          created_by: string
+          destination_name: string | null
+          id: string
+          last_checked_at: string
+          recommendation_id: string | null
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          destination_name?: string | null
+          id?: string
+          last_checked_at?: string
+          recommendation_id?: string | null
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          destination_name?: string | null
+          id?: string
+          last_checked_at?: string
+          recommendation_id?: string | null
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_watch_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_watch_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -561,6 +612,7 @@ export type Database = {
           budget_weight: number
           consensus_weight: number
           distance_weight: number
+          environment_weight: number
           event_type: string
           min_satisfaction_weight: number
           quality_weight: number
@@ -573,6 +625,7 @@ export type Database = {
           budget_weight?: number
           consensus_weight?: number
           distance_weight?: number
+          environment_weight?: number
           event_type: string
           min_satisfaction_weight?: number
           quality_weight?: number
@@ -585,6 +638,7 @@ export type Database = {
           budget_weight?: number
           consensus_weight?: number
           distance_weight?: number
+          environment_weight?: number
           event_type?: string
           min_satisfaction_weight?: number
           quality_weight?: number
@@ -1213,13 +1267,14 @@ export type Database = {
     }
     Enums: {
       event_type: "evg" | "evjf" | "anniversaire" | "weekend" | "voyage_groupe"
-      participant_status: "invite" | "accepte" | "refuse"
+      participant_status: "invite" | "accepte" | "refuse" | "absent"
       trip_status:
         | "brouillon"
         | "en_preparation"
         | "propositions"
         | "valide"
         | "termine"
+        | "annule"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1348,13 +1403,14 @@ export const Constants = {
   public: {
     Enums: {
       event_type: ["evg", "evjf", "anniversaire", "weekend", "voyage_groupe"],
-      participant_status: ["invite", "accepte", "refuse"],
+      participant_status: ["invite", "accepte", "refuse", "absent"],
       trip_status: [
         "brouillon",
         "en_preparation",
         "propositions",
         "valide",
         "termine",
+        "annule",
       ],
     },
   },
