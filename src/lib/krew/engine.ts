@@ -360,8 +360,32 @@ export function estimateTransport(distanceKm: number): number {
   return 130 + (distanceKm - 1600) * 0.05;
 }
 
-export function getDestinationEnvironments(destName: string): string[] {
-  const name = destName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+/** Cadres canoniques (mêmes libellés que les questionnaires). */
+export const ENV_TYPES = [
+  "Centre-ville / urbain",
+  "Quartier animé",
+  "Bord de mer",
+  "Nature / pleine nature",
+  "Village de charme",
+  "Montagne",
+  "Lac / rivière",
+] as const;
+
+/** Cadres considérés comme "nature / hors ville" → hébergement type maison/gîte. */
+export const NATURE_ENVS = ["Nature / pleine nature", "Village de charme", "Montagne", "Lac / rivière"];
+
+/**
+ * Cadres d'une destination : priorité aux étiquettes stockées en base
+ * (`destinations.env_tags`, alimentées par la découverte IA / le catalogue),
+ * sinon heuristique sur le nom.
+ */
+export function getDestinationEnvironments(dest: DestinationRecord | string): string[] {
+  if (typeof dest !== "string") {
+    const tags = (dest.env_tags ?? []).filter(Boolean);
+    if (tags.length) return tags as string[];
+    return getDestinationEnvironments(dest.name);
+  }
+  const name = dest.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
   if (["barcelone", "barcelona", "lisbonne", "lisbon", "porto", "nice", "valencia", "valence", "marseille", "split", "dubrovnik"].some(c => name.includes(c))) {
     return ["Bord de mer", "Quartier animé", "Centre-ville / urbain"];
   }
