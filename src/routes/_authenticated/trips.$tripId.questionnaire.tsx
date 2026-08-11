@@ -118,6 +118,7 @@ function ParticipantQuestionnaire() {
   const [budgetPriority, setBudgetPriority] =
     useState<(typeof BUDGET_PRIORITIES)[number]["value"]>("preference");
   const [durationNights, setDurationNights] = useState<[number, number]>([2, 3]);
+  const [durationDaysInput, setDurationDaysInput] = useState<string>("4");
 
   const [departureCity, setDepartureCity] = useState("");
   const [desiredDestination, setDesiredDestination] = useState("");
@@ -154,10 +155,10 @@ function ParticipantQuestionnaire() {
             (preferences.budget_priority as (typeof BUDGET_PRIORITIES)[number]["value"]) ??
               "preference",
           );
-          setDurationNights([
-            preferences.duration_nights_min ?? 2,
-            preferences.duration_nights_max ?? 3,
-          ]);
+          const minNights = preferences.duration_nights_min ?? 2;
+          const maxNights = preferences.duration_nights_max ?? 3;
+          setDurationNights([minNights, maxNights]);
+          setDurationDaysInput(String(maxNights + 1));
           setDesiredDestination(preferences.desired_destination ?? "");
           setExcludedDestinations((preferences.excluded_destinations ?? []).join(", "));
           setDietaryConstraints(preferences.dietary_constraints ?? []);
@@ -459,12 +460,21 @@ function ParticipantQuestionnaire() {
               type="number"
               min={1}
               max={11}
-              value={durationNights[1] + 1}
+              value={durationDaysInput}
               onChange={(e) => {
-                const days = Math.max(1, Number(e.target.value));
-                // Convertit en nuits : nuits = jours - 1
-                const nights = Math.max(0, days - 1);
-                setDurationNights([nights, nights]);
+                const valStr = e.target.value;
+                setDurationDaysInput(valStr);
+                if (valStr !== "") {
+                  const days = Math.max(1, Number(valStr));
+                  // Convertit en nuits : nuits = jours - 1
+                  const nights = Math.max(0, days - 1);
+                  setDurationNights([nights, nights]);
+                }
+              }}
+              onBlur={() => {
+                if (durationDaysInput === "") {
+                  setDurationDaysInput(String(durationNights[1] + 1));
+                }
               }}
               className="max-w-[120px]"
             />
