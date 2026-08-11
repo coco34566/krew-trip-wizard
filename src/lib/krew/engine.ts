@@ -794,6 +794,18 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         if (dormA !== dormB) return dormA - dormB;
       }
 
+      // 0. Cadre recherché : campagne/montagne/lac → maison, villa, gîte, chalet,
+      //    logement entier (type Airbnb) ; ville → hôtel / appart en centre.
+      const houseRe = /maison|villa|gite|gîte|chalet|mas|domaine|ferme|cottage|lodge|appart|apartment|home|house|entire/i;
+      if (envIsNature) {
+        const hA = houseRe.test(`${a.type} ${a.name}`) ? 0 : 1;
+        const hB = houseRe.test(`${b.type} ${b.name}`) ? 0 : 1;
+        if (hA !== hB) return hA - hB;
+        const capOkA = a.capacity >= ctx.participants ? 0 : 1;
+        const capOkB = b.capacity >= ctx.participants ? 0 : 1;
+        if (capOkA !== capOkB) return capOkA - capOkB;
+      }
+
       // 1. Preferred lodging type matching (e.g. hotel, apartment)
       if (preferredLodgingType && preferredLodgingType !== "peu_importe") {
         const typeA = norm(a.type || "");
