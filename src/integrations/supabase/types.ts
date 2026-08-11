@@ -605,6 +605,7 @@ export type Database = {
           trip_id: string
           updated_at: string | null
           user_id: string
+          duration_nights: number
         }
         Insert: {
           available_dates?: string[]
@@ -617,6 +618,7 @@ export type Database = {
           trip_id: string
           updated_at?: string | null
           user_id: string
+          duration_nights?: number
         }
         Update: {
           available_dates?: string[]
@@ -629,6 +631,7 @@ export type Database = {
           trip_id?: string
           updated_at?: string | null
           user_id?: string
+          duration_nights?: number
         }
         Relationships: [
           {
@@ -674,6 +677,8 @@ export type Database = {
           trip_id: string
           updated_at: string | null
           user_id: string
+          wanted_env_type: string | null
+          group_age_range: string | null
         }
         Insert: {
           accepts_shared_room?: boolean
@@ -708,6 +713,8 @@ export type Database = {
           trip_id: string
           updated_at?: string | null
           user_id: string
+          wanted_env_type?: string | null
+          group_age_range?: string | null
         }
         Update: {
           accepts_shared_room?: boolean
@@ -742,6 +749,8 @@ export type Database = {
           trip_id?: string
           updated_at?: string | null
           user_id?: string
+          wanted_env_type?: string | null
+          group_age_range?: string | null
         }
         Relationships: [
           {
@@ -935,6 +944,7 @@ export type Database = {
           updated_at: string | null
           user_id: string | null
           wanted_activities: string[]
+          wanted_env_type: string | null
         }
         Insert: {
           ambiances?: string[]
@@ -954,6 +964,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
           wanted_activities?: string[]
+          wanted_env_type?: string | null
         }
         Update: {
           ambiances?: string[]
@@ -973,6 +984,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string | null
           wanted_activities?: string[]
+          wanted_env_type?: string | null
         }
         Relationships: [
           {

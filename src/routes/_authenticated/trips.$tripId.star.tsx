@@ -182,6 +182,7 @@ function StarQuestionnaire() {
   const [departureAirportOrStation, setDepartureAirportOrStation] = useState("");
   const [desiredDestination, setDesiredDestination] = useState("");
   const [excludedDestinations, setExcludedDestinations] = useState("");
+  const [wantedEnvType, setWantedEnvType] = useState("");
 
   // Disponibilités de la star (iso → DayMode)
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
@@ -201,6 +202,7 @@ function StarQuestionnaire() {
         setDepartureAirportOrStation(data.preferences.departureAirportOrStation ?? "");
         setDesiredDestination(data.preferences.desiredDestination ?? "");
         setExcludedDestinations((data.preferences.excludedDestinations ?? []).join(", "));
+        setWantedEnvType((data.preferences as any).wantedEnvType ?? "");
 
         const m = new Map<string, DayMode>();
         for (const d of data.preferences.availableDates ?? []) m.set(d.slice(0, 10), "available");
@@ -289,6 +291,7 @@ function StarQuestionnaire() {
           excludedDestinations: excluded,
           availableDates,
           blockedDates,
+          wantedEnvType: wantedEnvType || undefined,
         },
       });
     },
@@ -388,6 +391,28 @@ function StarQuestionnaire() {
             placeholder="Ex : Ibiza, Marrakech (séparées par des virgules)"
             className="mt-2"
           />
+        </div>
+        <div className="space-y-2 pt-2 border-t border-border/40">
+          <Label className="font-semibold block text-sm">Type de lieu / environnement recherché (optionnel)</Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" },
+              { v: "Quartier animé", label: "🍻 Quartier animé" },
+              { v: "Bord de mer", label: "🌊 Bord de mer" },
+              { v: "Nature / pleine nature", label: "🌳 Nature / pleine nature" },
+              { v: "Village de charme", label: "🏡 Village de charme" },
+              { v: "Montagne", label: "🏔️ Montagne" },
+              { v: "Lac / rivière", label: "🚣 Lac / rivière" }
+            ].map((env) => (
+              <Chip
+                key={env.v}
+                active={wantedEnvType === env.v}
+                onClick={() => setWantedEnvType(env.v)}
+              >
+                {env.label}
+              </Chip>
+            ))}
+          </div>
         </div>
       </section>
 

@@ -117,8 +117,6 @@ function ParticipantQuestionnaire() {
   const [budgetMax, setBudgetMax] = useState(400);
   const [budgetPriority, setBudgetPriority] =
     useState<(typeof BUDGET_PRIORITIES)[number]["value"]>("preference");
-  const [durationNights, setDurationNights] = useState<[number, number]>([2, 3]);
-  const [durationDaysInput, setDurationDaysInput] = useState<string>("4");
 
   const [departureCity, setDepartureCity] = useState("");
   const [desiredDestination, setDesiredDestination] = useState("");
@@ -132,6 +130,9 @@ function ParticipantQuestionnaire() {
   const [mobilityNotes, setMobilityNotes] = useState("");
   const [freeText, setFreeText] = useState("");
 
+  const [groupAgeRange, setGroupAgeRange] = useState<string>("");
+  const [wantedEnvType, setWantedEnvType] = useState<string>("");
+
   useEffect(() => {
     fetchMine({ data: { tripId } })
       .then(({ trip, preferences }: any) => {
@@ -143,6 +144,8 @@ function ParticipantQuestionnaire() {
           setLastSavedAt(
             preferences.updated_at || preferences.submitted_at || null,
           );
+          setGroupAgeRange((preferences as any).group_age_range ?? "");
+          setWantedEnvType((preferences as any).wanted_env_type ?? "");
           setAmbiances(preferences.ambiances ?? []);
           setDealBreakerAmbiances((preferences as any).deal_breaker_ambiances ?? []);
           setDepartureAirportOrStation((preferences as any).departure_airport_or_station ?? "");
@@ -155,10 +158,6 @@ function ParticipantQuestionnaire() {
             (preferences.budget_priority as (typeof BUDGET_PRIORITIES)[number]["value"]) ??
               "preference",
           );
-          const minNights = preferences.duration_nights_min ?? 2;
-          const maxNights = preferences.duration_nights_max ?? 3;
-          setDurationNights([minNights, maxNights]);
-          setDurationDaysInput(String(maxNights + 1));
           setDesiredDestination(preferences.desired_destination ?? "");
           setExcludedDestinations((preferences.excluded_destinations ?? []).join(", "));
           setDietaryConstraints(preferences.dietary_constraints ?? []);
@@ -202,7 +201,8 @@ function ParticipantQuestionnaire() {
     if (activityCategories.length === 0) return "Choisis au moins une catégorie d'activités.";
     if (!departureCity.trim()) return "Indique ta ville de départ (nécessaire pour les vols).";
     if (budgetMax < 50) return "Le budget minimum est de 50 €.";
-    if (durationNights[0] > durationNights[1]) return "La durée min ne peut pas dépasser la durée max.";
+    if (!groupAgeRange) return "Indique la tranche d'âge du groupe.";
+    if (!wantedEnvType) return "Indique le type de lieu / environnement recherché.";
     return null;
   }
 
@@ -231,8 +231,6 @@ function ParticipantQuestionnaire() {
           budgetPriority,
           activityCategories,
           budgetMax,
-          durationNightsMin: durationNights[0],
-          durationNightsMax: durationNights[1],
           desiredDestination: desiredDestination.trim() || undefined,
           excludedDestinations: excluded,
           dietaryConstraints,
@@ -247,6 +245,8 @@ function ParticipantQuestionnaire() {
           minAccommodationRating: undefined,
           travelPace: travelPace as "plein_programme" | "equilibre" | "chill",
           preferredTimeSlots,
+          groupAgeRange: groupAgeRange || undefined,
+          wantedEnvType: wantedEnvType || undefined,
         },
       });
       setIsEditing(true);
@@ -452,36 +452,6 @@ function ParticipantQuestionnaire() {
               ))}
             </div>
           </div>
-          <div>
-            <Label className="mb-2 block">
-              Nombre de jours souhaité *
-            </Label>
-            <Input
-              type="number"
-              min={1}
-              max={11}
-              value={durationDaysInput}
-              onChange={(e) => {
-                const valStr = e.target.value;
-                setDurationDaysInput(valStr);
-                if (valStr !== "") {
-                  const days = Math.max(1, Number(valStr));
-                  // Convertit en nuits : nuits = jours - 1
-                  const nights = Math.max(0, days - 1);
-                  setDurationNights([nights, nights]);
-                }
-              }}
-              onBlur={() => {
-                if (durationDaysInput === "") {
-                  setDurationDaysInput(String(durationNights[1] + 1));
-                }
-              }}
-              className="max-w-[120px]"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Indique combien de jours tu aimerais partir au total.
-            </p>
-          </div>
         </Section>
 
         <Section
@@ -529,6 +499,42 @@ function ParticipantQuestionnaire() {
               placeholder="Ex : Ibiza, Marrakech (séparées par des virgules)"
               className="mt-2"
             />
+          </div>
+          <div className="space-y-2 pt-2 border-t border-border/40">
+            <Label className="font-semibold block text-sm">Tranche d&apos;âge du groupe *</Label>
+            <div className="flex flex-wrap gap-2">
+              {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => (
+                <Chip
+                  key={age}
+                  active={groupAgeRange === age}
+                  onClick={() => setGroupAgeRange(age)}
+                >
+                  {age} ans
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2 pt-2 border-t border-border/40">
+            <Label className="font-semibold block text-sm">Type de lieu / environnement recherché *</Label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" },
+                { v: "Quartier animé", label: "🍻 Quartier animé" },
+                { v: "Bord de mer", label: "🌊 Bord de mer" },
+                { v: "Nature / pleine nature", label: "🌳 Nature / pleine nature" },
+                { v: "Village de charme", label: "🏡 Village de charme" },
+                { v: "Montagne", label: "🏔️ Montagne" },
+                { v: "Lac / rivière", label: "🚣 Lac / rivière" }
+              ].map((env) => (
+                <Chip
+                  key={env.v}
+                  active={wantedEnvType === env.v}
+                  onClick={() => setWantedEnvType(env.v)}
+                >
+                  {env.label}
+                </Chip>
+              ))}
+            </div>
           </div>
         </Section>
 

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { rankDateWindows, type AvailabilityEntry } from "@/lib/krew/availability";
+import { isTripAdmin } from "@/lib/krew/engine";
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}/);
 
@@ -61,6 +62,7 @@ export const getTripAvailability = createServerFn({ method: "GET" })
       availableDates: (r.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
       blockedDates: (r.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
       flexDays: Number(r.flex_days ?? 0),
+      durationNights: Number(r.duration_nights ?? 2) || 2,
     }));
 
     // Prendre en compte les disponibilités de la star si remplies dans trip_star_preferences
@@ -83,6 +85,7 @@ export const getTripAvailability = createServerFn({ method: "GET" })
               availableDates: (starPrefs.data.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
               blockedDates: (starPrefs.data.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
               flexDays: 0,
+              durationNights: 2,
             });
           }
         }
@@ -91,7 +94,13 @@ export const getTripAvailability = createServerFn({ method: "GET" })
       console.warn("Skipped star availability aggregation in getTripAvailability", e);
     }
 
-    const windowsRaw = rankDateWindows(entries, nights, 5);
+    // Calcul optimal de la durée du séjour pour le groupe
+    const submittedNights = (rows.data ?? []).map((r: any) => Number(r.duration_nights)).filter((n) => n > 0);
+    const optNights = submittedNights.length > 0
+      ? Math.round(submittedNights.reduce((a, b) => a + b, 0) / submittedNights.length)
+      : nights;
+
+    const windowsRaw = rankDateWindows(entries, optNights, 5);
     const nameByUser = new Map<string, string>();
     for (const p of participants.data ?? []) {
       const uid = p.user_id as string | null;
@@ -155,6 +164,7 @@ export const getTripAvailability = createServerFn({ method: "GET" })
             flexDays: Number(mine.flex_days ?? 0),
             notes: mine.notes as string | null,
             submittedAt: (mine.updated_at || mine.submitted_at) as string | null,
+            durationNights: Number(mine.duration_nights ?? 2) || 2,
           }
         : null,
       participants: participants.data ?? [],
@@ -171,6 +181,7 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
         blockedDates: z.array(dateStr).default([]),
         flexDays: z.number().int().min(0).max(14).default(0),
         notes: z.string().max(500).optional(),
+        durationNights: z.number().int().min(0).max(30).optional(),
       })
       .parse(data),
   )
@@ -229,6 +240,7 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
       notes: data.notes ?? null,
       submitted_at: existing.data?.submitted_at ?? now,
       updated_at: now,
+      duration_nights: data.durationNights ?? 2,
     };
 
     const { error } = await supabase
@@ -252,9 +264,14 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
         availableDates: (r.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
         blockedDates: (r.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
         flexDays: Number(r.flex_days ?? 0),
+        durationNights: Number(r.duration_nights ?? 2) || 2,
       }));
       const nights = Number(trip.data.duration_nights ?? 2) || 2;
-      const windows = rankDateWindows(entries, nights, 3);
+      const submittedNights = all.data.map((r: any) => Number(r.duration_nights)).filter((n) => n > 0);
+      const optNights = submittedNights.length > 0
+        ? Math.round(submittedNights.reduce((a, b) => a + b, 0) / submittedNights.length)
+        : nights;
+      const windows = rankDateWindows(entries, optNights, 3);
       const best = windows[0];
       if (best) {
         const patch: Record<string, unknown> = {
@@ -275,7 +292,7 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
     return { ok: true, isUpdate: Boolean(existing.data) };
   });
 
-/** Owner only : fige start_date / end_date et marque dates_locked = true (alimente les APIs). */
+/** Owner / Co-org only : fige start_date / end_date et marque dates_locked = true (alimente les APIs). */
 export const chooseTripDates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -291,13 +308,13 @@ export const chooseTripDates = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id")
+      .select("id, owner_id, co_organizer_id")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
-    if (trip.data.owner_id !== userId) {
-      throw new Error("403 Forbidden: seul l'organisateur peut choisir la date");
+    if (!isTripAdmin(trip.data, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut choisir la date");
     }
 
     const start = data.startDate.slice(0, 10);
@@ -315,14 +332,13 @@ export const chooseTripDates = createServerFn({ method: "POST" })
         date_confidence: "choisie",
         updated_at: new Date().toISOString(),
       } as any)
-      .eq("id", data.tripId)
-      .eq("owner_id", userId);
+      .eq("id", data.tripId);
     if (error) throw error;
 
     return { ok: true, startDate: start, endDate: end, datesLocked: true };
   });
 
-/** Owner only : déverrouille les dates (remet dates_locked = false, garde start/end). */
+/** Owner / Co-org only : déverrouille les dates (remet dates_locked = false, garde start/end). */
 export const unlockTripDates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -332,13 +348,13 @@ export const unlockTripDates = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id")
+      .select("id, owner_id, co_organizer_id")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
-    if (trip.data.owner_id !== userId) {
-      throw new Error("403 Forbidden: seul l'organisateur peut déverrouiller");
+    if (!isTripAdmin(trip.data, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut déverrouiller");
     }
 
     const { error } = await supabase
@@ -348,8 +364,7 @@ export const unlockTripDates = createServerFn({ method: "POST" })
         date_confidence: "provisoire",
         updated_at: new Date().toISOString(),
       } as any)
-      .eq("id", data.tripId)
-      .eq("owner_id", userId);
+      .eq("id", data.tripId);
     if (error) throw error;
 
     return { ok: true, datesLocked: false };

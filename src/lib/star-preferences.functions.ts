@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
+import { isTripAdmin } from "@/lib/krew/engine";
 
 export const getStarPreferences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -10,11 +11,18 @@ export const getStarPreferences = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, name, event_type, celebrated_person, has_star, star_user_id, owner_id")
+      .select("id, name, event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
+
+    const starMode = (trip.data.group_logistics as any)?.star_mode ?? "secret";
+    const isAdmin = isTripAdmin(trip.data, userId);
+
+    if (!isAdmin && starMode === "secret") {
+      throw new Error("403 Forbidden: Seuls les organisateurs peuvent modifier les préférences de la Star en mode secret.");
+    }
 
     const eventType = String(trip.data.event_type ?? "").toLowerCase();
     const starRelevant =
@@ -51,6 +59,7 @@ export const getStarPreferences = createServerFn({ method: "GET" })
             departureCity: prefs.data.departure_city ?? null,
             departureAirportOrStation: prefs.data.departure_airport_or_station ?? null,
             updatedAt: (prefs.data.updated_at || prefs.data.submitted_at) as string | null,
+            wantedEnvType: prefs.data.wanted_env_type ?? null,
           }
         : null,
     };
@@ -72,6 +81,7 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
         excludedDestinations: z.array(z.string()).default([]),
         departureCity: z.string().optional().nullable(),
         departureAirportOrStation: z.string().optional().nullable(),
+        wantedEnvType: z.string().optional().nullable(),
       })
       .parse(data),
   )
@@ -79,13 +89,21 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id, celebrated_person")
+      .select("id, owner_id, co_organizer_id, celebrated_person, group_logistics")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
-    if (trip.data.owner_id !== userId) {
-      // participants peuvent aussi remplir si autorisés
+
+    const starMode = (trip.data.group_logistics as any)?.star_mode ?? "secret";
+    const isAdmin = isTripAdmin(trip.data, userId);
+
+    if (!isAdmin && starMode === "secret") {
+      throw new Error("403 Forbidden: Seuls les organisateurs peuvent modifier les préférences de la Star en mode secret.");
+    }
+
+    if (!isAdmin) {
+      // participants peuvent aussi remplir si autorisés et pas secret
       const part = await supabase
         .from("trip_participants")
         .select("id")
@@ -118,6 +136,7 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
       departure_airport_or_station: data.departureAirportOrStation ?? null,
       submitted_at: existing.data?.submitted_at ?? now,
       updated_at: now,
+      wanted_env_type: data.wantedEnvType ?? null,
     };
 
     const { error } = await supabase

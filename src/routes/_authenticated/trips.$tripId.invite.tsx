@@ -9,9 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getTripDetail, inviteParticipant, removeParticipant, setCoOrganizer } from "@/lib/trips.functions";
+import { cn } from "@/lib/utils";
+import { getTripDetail, inviteParticipant, removeParticipant, setCoOrganizer, finalizeInvitationStep } from "@/lib/trips.functions";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
-import { eventTypeLabel } from "@/lib/krew/constants";
+import { STAR_EVENT_TYPES, eventTypeLabel } from "@/lib/krew/constants";
+import { useNavigate } from "@tanstack/react-router";
+import { Sparkles, HelpCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/invite")({
   head: () => ({
@@ -23,11 +26,13 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/invite")({
 function InvitePage() {
   const { tripId } = Route.useParams();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const fetchDetail = useServerFn(getTripDetail);
   const fetchProgress = useServerFn(getParticipantsProgress);
   const invite = useServerFn(inviteParticipant);
   const removeGuest = useServerFn(removeParticipant);
   const setCoOrg = useServerFn(setCoOrganizer);
+  const finishInvite = useServerFn(finalizeInvitationStep);
 
   const { data, isLoading } = useQuery({
     queryKey: ["trip", tripId],
@@ -40,6 +45,8 @@ function InvitePage() {
 
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
+  const [starMode, setStarMode] = useState<"secret" | "participant">("secret");
+  const [starModeHydrated, setStarModeHydrated] = useState(false);
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -81,6 +88,26 @@ function InvitePage() {
     },
   });
 
+  const finishInviteMutation = useMutation({
+    mutationFn: () =>
+      finishInvite({
+        data: {
+          tripId,
+          starMode,
+          inviteStepCompleted: true,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Étape d'invitation validée !");
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      navigate({ to: "/trips/$tripId", params: { tripId } });
+    },
+    onError: (err: any) => {
+      console.error(err);
+      toast.error("Erreur lors de la validation : " + (err?.message || ""));
+    },
+  });
+
   if (isLoading || !data) {
     return (
       <main className="mx-auto max-w-2xl space-y-4 px-4 py-10">
@@ -91,6 +118,14 @@ function InvitePage() {
   }
 
   const trip = data.trip as any;
+
+  if (!starModeHydrated && trip?.group_logistics) {
+    const savedMode = (trip.group_logistics as any)?.star_mode;
+    if (savedMode === "secret" || savedMode === "participant") {
+      setStarMode(savedMode);
+    }
+    setStarModeHydrated(true);
+  }
   const participants = (data.participants ?? []) as {
     id: string;
     email: string;
@@ -204,7 +239,7 @@ function InvitePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={p.status === "accepte" ? "success" : "muted"}>{p.status}</Badge>
-                  {data.isOwner && p.user_id && p.user_id !== trip.owner_id ? (
+                  {data.isCreator && p.user_id && p.user_id !== trip.owner_id ? (
                     p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
                       <Button
                         variant="ghost"
@@ -243,18 +278,88 @@ function InvitePage() {
         </ul>
       </section>
 
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Button asChild variant="outline" className="flex-1">
-          <Link to="/trips/$tripId" params={{ tripId }}>
-            Voir le hub
-          </Link>
-        </Button>
-        <Button asChild className="flex-1">
-          <Link to="/trips/$tripId/availability" params={{ tripId }}>
-            Continuer → disponibilités
-          </Link>
-        </Button>
-      </div>
+      {/* Rôle & Comportement de la Star (EVG, EVJF, Anniversaire, Retraite) */}
+      {(trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type)) ? (
+        <section className="mt-6 rounded-3xl border border-border bg-card p-5">
+          <h2 className="flex items-center gap-2 font-semibold text-foreground">
+            <HelpCircle className="size-4 text-primary" /> Rôle de la Star ({trip.celebrated_person || "Star"})
+          </h2>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Définis si l&apos;organisation de l&apos;événement doit rester un secret pour la Star ou non.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              disabled={!data.isOwner}
+              onClick={() => setStarMode("secret")}
+              className={cn(
+                "rounded-2xl border p-4 text-left text-sm transition transition-all",
+                starMode === "secret"
+                  ? "border-primary bg-primary/10 shadow-glow text-foreground font-semibold"
+                  : "border-border bg-surface/30 text-muted-foreground hover:border-primary/45"
+              )}
+            >
+              <span className="block text-base">🤫 Mode Secret</span>
+              <span className="mt-1 block text-xs text-muted-foreground font-normal leading-relaxed">
+                La Star ne remplit pas elle-même son questionnaire (c&apos;est toi qui t&apos;en charges) et n&apos;aura pas accès au tableau de bord pour préserver la surprise !
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled={!data.isOwner}
+              onClick={() => setStarMode("participant")}
+              className={cn(
+                "rounded-2xl border p-4 text-left text-sm transition transition-all",
+                starMode === "participant"
+                  ? "border-primary bg-primary/10 shadow-glow text-foreground font-semibold"
+                  : "border-border bg-surface/30 text-muted-foreground hover:border-primary/45"
+              )}
+            >
+              <span className="block text-base">🎂 Mode Participant</span>
+              <span className="mt-1 block text-xs text-muted-foreground font-normal leading-relaxed">
+                La Star est invitée, voit l&apos;organisation, peut répondre au questionnaire comme les autres, tout en restant identifiée comme la Star.
+              </span>
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {data.isOwner ? (
+        <section className="mt-8 rounded-3xl border border-primary/20 bg-primary/5 p-6 text-center space-y-4">
+          <div className="space-y-1">
+            <h3 className="font-display text-lg font-bold text-primary">Finaliser l&apos;invitation</h3>
+            <p className="text-xs text-muted-foreground">
+              Une fois que tu as partagé le lien et configuré le rôle de la Star, accède au tableau de bord.
+            </p>
+          </div>
+          <Button
+            size="lg"
+            className="w-full sm:w-auto px-8"
+            disabled={finishInviteMutation.isPending}
+            onClick={() => finishInviteMutation.mutate()}
+          >
+            {finishInviteMutation.isPending ? (
+              <Loader2 className="animate-spin mr-1.5 size-4" />
+            ) : (
+              <Sparkles className="mr-1.5 size-4" />
+            )}
+            Accéder au tableau de bord du voyage
+          </Button>
+        </section>
+      ) : (
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Button asChild variant="outline" className="flex-1">
+            <Link to="/trips/$tripId" params={{ tripId }}>
+              Voir le hub
+            </Link>
+          </Button>
+          <Button asChild className="flex-1">
+            <Link to="/trips/$tripId/availability" params={{ tripId }}>
+              Continuer → disponibilités
+            </Link>
+          </Button>
+        </div>
+      )}
     </main>
   );
 }

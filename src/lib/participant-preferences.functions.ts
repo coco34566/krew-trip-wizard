@@ -38,6 +38,8 @@ export const participantPreferencesSchema = z.object({
   maxTravelDurationHours: z.number().min(0).max(48).optional(),
   accessibilityNeeds: z.boolean().default(false),
   blackoutDates: z.array(z.string()).default([]),
+  groupAgeRange: z.string().max(80).optional(),
+  wantedEnvType: z.string().max(120).optional(),
 });
 
 export type ParticipantPreferencesInput = z.infer<typeof participantPreferencesSchema>;
@@ -54,7 +56,7 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
 
     const trip = await supabase
       .from("trips")
-      .select("id, name, event_type, departure_city, owner_id")
+      .select("id, name, event_type, departure_city, owner_id, co_organizer_id, celebrated_person, star_user_id, group_logistics")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -63,17 +65,49 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
     // Authorization: only the trip owner or a participant (by user_id or email) can access the questionnaire
     const emailRaw = context.claims?.email as string | undefined;
     const email = normalizeEmail(emailRaw);
+    let participantRow = null;
     if (trip.data.owner_id !== userId) {
       if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire (email manquant)");
       const participantCheck = await supabase
         .from("trip_participants")
-        .select("id, user_id, email")
+        .select("id, user_id, email, display_name")
         .eq("trip_id", data.tripId)
         // case-insensitive email match
         .or(`user_id.eq.${userId},email.ilike.${email}`)
         .maybeSingle();
       if (participantCheck.error) throw participantCheck.error;
       if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire");
+      participantRow = participantCheck.data;
+    } else {
+      const ownerCheck = await supabase
+        .from("trip_participants")
+        .select("id, user_id, email, display_name")
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!ownerCheck.error && ownerCheck.data) {
+        participantRow = ownerCheck.data;
+      }
+    }
+
+    // Determine if current user is the Star and star_mode is secret
+    let isSecretStar = false;
+    const celebratedPerson = trip.data.celebrated_person;
+    const starUid = trip.data.star_user_id || "star-virtual-uid";
+    const starMode = (trip.data.group_logistics as any)?.star_mode ?? "secret";
+
+    if (participantRow) {
+      const isStarByUid = participantRow.user_id && participantRow.user_id === starUid;
+      const isStarByName = celebratedPerson && participantRow.display_name &&
+        participantRow.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+      const isStar = isStarByUid || isStarByName || (userId === starUid);
+
+      if (isStar && starMode === "secret") {
+        isSecretStar = true;
+      }
+    } else if (userId === starUid && starMode === "secret") {
+      isSecretStar = true;
     }
 
     const prefs = await supabase
@@ -91,7 +125,7 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
       throw prefs.error;
     }
 
-    return { trip: trip.data, preferences: prefs.data ?? null };
+    return { trip: trip.data, preferences: prefs.data ?? null, isSecretStar };
   });
 
 export async function attachParticipantToTrip(
@@ -291,6 +325,8 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       blackout_dates: (data as any).blackoutDates ?? [],
       budget_priority: (data as any).budgetPriority ?? "preference",
       preferred_time_slots: (data as any).preferredTimeSlots ?? [],
+      group_age_range: (data as any).groupAgeRange ?? null,
+      wanted_env_type: (data as any).wantedEnvType ?? null,
     };
 
     if (existingPref.data) {
