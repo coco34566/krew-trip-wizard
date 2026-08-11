@@ -763,6 +763,18 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
   }
 
   const proposals: Proposal[] = candidates.map((destination) => {
+    // Cadre recherché (urbain / mer / nature / montagne...) : pilote le scoring
+    // ET le choix d'hébergement (hôtel en ville vs maison/gîte à la campagne).
+    const destEnvs = getDestinationEnvironments(destination);
+    const wantedEnvTypes = (ctx.wantedEnvTypes ?? []).filter(Boolean);
+    const starEnvTypes = String(ctx.starWantedEnvType ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const envIsNature =
+      [...wantedEnvTypes, ...starEnvTypes].some((e) => NATURE_ENVS.includes(e)) &&
+      ![...wantedEnvTypes, ...starEnvTypes].some((e) => e === "Centre-ville / urbain" || e === "Quartier animé");
+
     let accommodations = catalog.accommodations
       .filter((a) => a.destination_id === destination.id)
       .filter((a) => (minRating > 0 ? a.rating >= minRating - 0.05 : true));
