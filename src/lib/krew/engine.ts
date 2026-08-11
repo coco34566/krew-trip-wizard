@@ -247,12 +247,12 @@ const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
 
 /** Poids par défaut selon event_type (utilisés si pas de ligne scoring_weights). */
 export const DEFAULT_WEIGHTS_BY_EVENT: Record<string, ScoringWeights> = {
-  evg: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3 },
-  evjf: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3 },
-  anniversaire: { ambiance: 22, activities: 16, budget: 14, distance: 8, season: 10, quality: 6, consensus: 14, minSatisfaction: 10, historique: 3 },
-  weekend: { ambiance: 14, activities: 12, budget: 28, distance: 12, season: 8, quality: 4, consensus: 12, minSatisfaction: 10, historique: 3 },
-  voyage_groupe: { ambiance: 18, activities: 14, budget: 16, distance: 8, season: 8, quality: 5, consensus: 16, minSatisfaction: 15, historique: 3 },
-  default: { ambiance: 18, activities: 12, budget: 16, distance: 8, season: 8, quality: 5, consensus: 18, minSatisfaction: 15, historique: 3 },
+  evg: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3, environment: 12 },
+  evjf: { ambiance: 28, activities: 22, budget: 12, distance: 5, season: 8, quality: 5, consensus: 12, minSatisfaction: 8, historique: 3, environment: 12 },
+  anniversaire: { ambiance: 22, activities: 16, budget: 14, distance: 8, season: 10, quality: 6, consensus: 14, minSatisfaction: 10, historique: 3, environment: 12 },
+  weekend: { ambiance: 14, activities: 12, budget: 28, distance: 12, season: 8, quality: 4, consensus: 12, minSatisfaction: 10, historique: 3, environment: 10 },
+  voyage_groupe: { ambiance: 18, activities: 14, budget: 16, distance: 8, season: 8, quality: 5, consensus: 16, minSatisfaction: 15, historique: 3, environment: 12 },
+  default: { ambiance: 18, activities: 12, budget: 16, distance: 8, season: 8, quality: 5, consensus: 18, minSatisfaction: 15, historique: 3, environment: 10 },
 };
 
 export function resolveWeights(eventType?: string | null, override?: ScoringWeights | null): ScoringWeights {
