@@ -25,6 +25,8 @@ export type DestinationRecord = {
   score_insolite: number;
   score_sportif: number;
   score_culturel: number;
+  /** Étiquettes de cadre : "Centre-ville / urbain", "Bord de mer", "Montagne"... */
+  env_tags?: string[] | null;
 };
 
 export type ActivityRecord = {
@@ -92,6 +94,8 @@ export type ScoringWeights = {
   consensus: number;
   minSatisfaction: number;
   historique?: number;
+  /** Poids du cadre recherché (urbain / nature / mer / montagne...). */
+  environment?: number;
 };
 
 export type SubScores = {
@@ -104,6 +108,7 @@ export type SubScores = {
   sConsensus: number;
   sMinSatisfaction: number;
   sHistorique?: number;
+  sEnvironment?: number;
 };
 
 export type ScoringContext = {
@@ -175,6 +180,10 @@ export type ScoringContext = {
   starWantedActivities?: string[];
   starDealBreakers?: string[];
   starWeight?: number;
+  /** Cadres recherchés par le groupe (agrégés, triés par fréquence). */
+  wantedEnvTypes?: string[];
+  /** Cadre recherché par la Star (prioritaire). */
+  starWantedEnvType?: string | null;
   /** Caractéristiques des destinations précédemment appréciées (trips validés passés). */
   pastDestinations?: { country: string; dominantAmbiance: string }[];
 };
