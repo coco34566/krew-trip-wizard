@@ -14,36 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      affiliate_links: {
-        Row: {
-          id: string
-          provider: string
-          original_url: string
-          affiliate_url: string
-          tracking_id: string | null
-          offer_id: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          provider: string
-          original_url: string
-          affiliate_url: string
-          tracking_id?: string | null
-          offer_id?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          provider?: string
-          original_url?: string
-          affiliate_url?: string
-          tracking_id?: string | null
-          offer_id?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
       accommodations: {
         Row: {
           best_provider: string | null
@@ -55,14 +25,14 @@ export type Database = {
           external_id: string | null
           id: string
           image_url: string | null
+          latitude: number | null
+          longitude: number | null
           name: string
           price_offers: Json
           price_per_night_per_person: number
           rating: number
           source: string
           type: string
-          latitude: number | null
-          longitude: number | null
         }
         Insert: {
           best_provider?: string | null
@@ -74,14 +44,14 @@ export type Database = {
           external_id?: string | null
           id?: string
           image_url?: string | null
+          latitude?: number | null
+          longitude?: number | null
           name: string
           price_offers?: Json
           price_per_night_per_person?: number
           rating?: number
           source?: string
           type?: string
-          latitude?: number | null
-          longitude?: number | null
         }
         Update: {
           best_provider?: string | null
@@ -93,14 +63,14 @@ export type Database = {
           external_id?: string | null
           id?: string
           image_url?: string | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           price_offers?: Json
           price_per_night_per_person?: number
           rating?: number
           source?: string
           type?: string
-          latitude?: number | null
-          longitude?: number | null
         }
         Relationships: [
           {
@@ -122,12 +92,12 @@ export type Database = {
           external_id: string | null
           id: string
           image_url: string | null
+          latitude: number | null
+          longitude: number | null
           name: string
           price_per_person: number
           rating: number
           source: string
-          latitude: number | null
-          longitude: number | null
         }
         Insert: {
           booking_url?: string | null
@@ -138,12 +108,12 @@ export type Database = {
           external_id?: string | null
           id?: string
           image_url?: string | null
+          latitude?: number | null
+          longitude?: number | null
           name: string
           price_per_person?: number
           rating?: number
           source?: string
-          latitude?: number | null
-          longitude?: number | null
         }
         Update: {
           booking_url?: string | null
@@ -154,12 +124,12 @@ export type Database = {
           external_id?: string | null
           id?: string
           image_url?: string | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           price_per_person?: number
           rating?: number
           source?: string
-          latitude?: number | null
-          longitude?: number | null
         }
         Relationships: [
           {
@@ -209,6 +179,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      affiliate_links: {
+        Row: {
+          affiliate_url: string
+          created_at: string
+          id: string
+          offer_id: string | null
+          original_url: string
+          provider: string
+          tracking_id: string | null
+        }
+        Insert: {
+          affiliate_url: string
+          created_at?: string
+          id?: string
+          offer_id?: string | null
+          original_url: string
+          provider: string
+          tracking_id?: string | null
+        }
+        Update: {
+          affiliate_url?: string
+          created_at?: string
+          id?: string
+          offer_id?: string | null
+          original_url?: string
+          provider?: string
+          tracking_id?: string | null
+        }
+        Relationships: []
       }
       destination_feedback: {
         Row: {
@@ -598,6 +598,7 @@ export type Database = {
           available_dates: string[]
           blocked_dates: string[]
           created_at: string
+          duration_nights: number | null
           flex_days: number
           id: string
           notes: string | null
@@ -605,12 +606,12 @@ export type Database = {
           trip_id: string
           updated_at: string | null
           user_id: string
-          duration_nights: number
         }
         Insert: {
           available_dates?: string[]
           blocked_dates?: string[]
           created_at?: string
+          duration_nights?: number | null
           flex_days?: number
           id?: string
           notes?: string | null
@@ -618,12 +619,12 @@ export type Database = {
           trip_id: string
           updated_at?: string | null
           user_id: string
-          duration_nights?: number
         }
         Update: {
           available_dates?: string[]
           blocked_dates?: string[]
           created_at?: string
+          duration_nights?: number | null
           flex_days?: number
           id?: string
           notes?: string | null
@@ -631,7 +632,6 @@ export type Database = {
           trip_id?: string
           updated_at?: string | null
           user_id?: string
-          duration_nights?: number
         }
         Relationships: [
           {
@@ -664,6 +664,7 @@ export type Database = {
           duration_nights_min: number | null
           excluded_destinations: string[]
           free_text: string | null
+          group_age_range: string | null
           id: string
           max_travel_duration_hours: number | null
           min_accommodation_rating: number | null
@@ -678,7 +679,6 @@ export type Database = {
           updated_at: string | null
           user_id: string
           wanted_env_type: string | null
-          group_age_range: string | null
         }
         Insert: {
           accepts_shared_room?: boolean
@@ -700,6 +700,7 @@ export type Database = {
           duration_nights_min?: number | null
           excluded_destinations?: string[]
           free_text?: string | null
+          group_age_range?: string | null
           id?: string
           max_travel_duration_hours?: number | null
           min_accommodation_rating?: number | null
@@ -714,7 +715,6 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           wanted_env_type?: string | null
-          group_age_range?: string | null
         }
         Update: {
           accepts_shared_room?: boolean
@@ -736,6 +736,7 @@ export type Database = {
           duration_nights_min?: number | null
           excluded_destinations?: string[]
           free_text?: string | null
+          group_age_range?: string | null
           id?: string
           max_travel_duration_hours?: number | null
           min_accommodation_rating?: number | null
@@ -750,7 +751,6 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           wanted_env_type?: string | null
-          group_age_range?: string | null
         }
         Relationships: [
           {
@@ -996,51 +996,6 @@ export type Database = {
           },
         ]
       }
-      price_watch: {
-        Row: {
-          created_at: string
-          created_by: string
-          destination_name: string | null
-          id: string
-          last_checked_at: string
-          recommendation_id: string | null
-          trip_id: string
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          destination_name?: string | null
-          id?: string
-          last_checked_at?: string
-          recommendation_id?: string | null
-          trip_id: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          destination_name?: string | null
-          id?: string
-          last_checked_at?: string
-          recommendation_id?: string | null
-          trip_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "price_watch_recommendation_id_fkey"
-            columns: ["recommendation_id"]
-            isOneToOne: false
-            referencedRelation: "recommendations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "price_watch_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trips"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       trip_tasks: {
         Row: {
           assigned_participant_id: string | null
@@ -1111,35 +1066,35 @@ export type Database = {
         Row: {
           created_at: string
           earliest_departure_time: string | null
+          earliest_return_departure_time: string | null
           id: string
+          latest_arrival_time: string | null
           latest_return_time: string | null
           participant_id: string
           trip_id: string
           updated_at: string
-          latest_arrival_time: string | null
-          earliest_return_departure_time: string | null
         }
         Insert: {
           created_at?: string
           earliest_departure_time?: string | null
+          earliest_return_departure_time?: string | null
           id?: string
+          latest_arrival_time?: string | null
           latest_return_time?: string | null
           participant_id: string
           trip_id: string
           updated_at?: string
-          latest_arrival_time?: string | null
-          earliest_return_departure_time?: string | null
         }
         Update: {
           created_at?: string
           earliest_departure_time?: string | null
+          earliest_return_departure_time?: string | null
           id?: string
+          latest_arrival_time?: string | null
           latest_return_time?: string | null
           participant_id?: string
           trip_id?: string
           updated_at?: string
-          latest_arrival_time?: string | null
-          earliest_return_departure_time?: string | null
         }
         Relationships: [
           {
@@ -1162,6 +1117,7 @@ export type Database = {
         Row: {
           budget_per_person: number
           celebrated_person: string | null
+          co_organizer_id: string | null
           created_at: string
           date_confidence: string | null
           dates_locked: boolean
@@ -1184,11 +1140,11 @@ export type Database = {
           start_date: string | null
           status: Database["public"]["Enums"]["trip_status"]
           updated_at: string
-          co_organizer_id: string | null
         }
         Insert: {
           budget_per_person?: number
           celebrated_person?: string | null
+          co_organizer_id?: string | null
           created_at?: string
           date_confidence?: string | null
           dates_locked?: boolean
@@ -1211,11 +1167,11 @@ export type Database = {
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           updated_at?: string
-          co_organizer_id?: string | null
         }
         Update: {
           budget_per_person?: number
           celebrated_person?: string | null
+          co_organizer_id?: string | null
           created_at?: string
           date_confidence?: string | null
           dates_locked?: boolean
@@ -1238,7 +1194,6 @@ export type Database = {
           start_date?: string | null
           status?: Database["public"]["Enums"]["trip_status"]
           updated_at?: string
-          co_organizer_id?: string | null
         }
         Relationships: []
       }
@@ -1258,14 +1213,13 @@ export type Database = {
     }
     Enums: {
       event_type: "evg" | "evjf" | "anniversaire" | "weekend" | "voyage_groupe"
-      participant_status: "invite" | "accepte" | "refuse" | "absent"
+      participant_status: "invite" | "accepte" | "refuse"
       trip_status:
         | "brouillon"
         | "en_preparation"
         | "propositions"
         | "valide"
         | "termine"
-        | "annule"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1394,14 +1348,13 @@ export const Constants = {
   public: {
     Enums: {
       event_type: ["evg", "evjf", "anniversaire", "weekend", "voyage_groupe"],
-      participant_status: ["invite", "accepte", "refuse", "absent"],
+      participant_status: ["invite", "accepte", "refuse"],
       trip_status: [
         "brouillon",
         "en_preparation",
         "propositions",
         "valide",
         "termine",
-        "annule",
       ],
     },
   },
