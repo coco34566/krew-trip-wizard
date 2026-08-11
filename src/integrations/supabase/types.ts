@@ -343,6 +343,54 @@ export type Database = {
         }
         Relationships: []
       }
+      price_watch: {
+        Row: {
+          created_at: string
+          created_by: string
+          destination_name: string | null
+          id: string
+          last_checked_at: string
+          recommendation_id: string | null
+          trip_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          destination_name?: string | null
+          id?: string
+          last_checked_at?: string
+          recommendation_id?: string | null
+          trip_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          destination_name?: string | null
+          id?: string
+          last_checked_at?: string
+          recommendation_id?: string | null
+          trip_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_watch_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "price_watch_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1213,13 +1261,14 @@ export type Database = {
     }
     Enums: {
       event_type: "evg" | "evjf" | "anniversaire" | "weekend" | "voyage_groupe"
-      participant_status: "invite" | "accepte" | "refuse"
+      participant_status: "invite" | "accepte" | "refuse" | "absent"
       trip_status:
         | "brouillon"
         | "en_preparation"
         | "propositions"
         | "valide"
         | "termine"
+        | "annule"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1348,13 +1397,14 @@ export const Constants = {
   public: {
     Enums: {
       event_type: ["evg", "evjf", "anniversaire", "weekend", "voyage_groupe"],
-      participant_status: ["invite", "accepte", "refuse"],
+      participant_status: ["invite", "accepte", "refuse", "absent"],
       trip_status: [
         "brouillon",
         "en_preparation",
         "propositions",
         "valide",
         "termine",
+        "annule",
       ],
     },
   },
