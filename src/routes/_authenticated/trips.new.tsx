@@ -47,6 +47,7 @@ function NewTripPage() {
   const participants = clampParticipants(participantsInput);
   const [celebratedPerson, setCelebratedPerson] = useState("");
   const [organizerFirstName, setOrganizerFirstName] = useState("");
+  const [durationDaysInput, setDurationDaysInput] = useState("3");
   const [submitting, setSubmitting] = useState(false);
 
   const needsStar = STAR_EVENT_TYPES.has(eventType as any);
@@ -67,6 +68,8 @@ function NewTripPage() {
     }
     setSubmitting(true);
     try {
+      const days = Math.max(2, Number(durationDaysInput) || 3);
+      const durationNights = Math.max(1, days - 1);
       const trip = await create({
         data: {
           name: name.trim(),
@@ -81,7 +84,7 @@ function NewTripPage() {
           letKrewDecide: true,
           maxDistanceKm: 2000,
           excludedCountries: [],
-          durationNights: 2,
+          durationNights: durationNights,
           needsCityCenter: true,
           dietaryConstraints: [],
         },
@@ -196,6 +199,26 @@ function NewTripPage() {
               {needsStar
                 ? `Inclus bien la star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans ce nombre total de participant·e·s.`
                 : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX} — tu pourras inviter ensuite.`}
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="durationDays">Durée du voyage (en jours)</Label>
+            <Input
+              id="durationDays"
+              type="number"
+              min={2}
+              max={31}
+              className="mt-1.5"
+              value={durationDaysInput}
+              onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))}
+              onBlur={() => {
+                const val = Math.max(2, Number(durationDaysInput) || 3);
+                setDurationDaysInput(String(val));
+              }}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              La durée du voyage commune à tout le groupe (ex : 3 jours correspond à 2 nuits).
             </p>
           </div>
 

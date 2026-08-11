@@ -182,7 +182,7 @@ function StarQuestionnaire() {
   const [departureAirportOrStation, setDepartureAirportOrStation] = useState("");
   const [desiredDestination, setDesiredDestination] = useState("");
   const [excludedDestinations, setExcludedDestinations] = useState("");
-  const [wantedEnvType, setWantedEnvType] = useState("");
+  const [wantedEnvTypes, setWantedEnvTypes] = useState<string[]>([]);
 
   // Disponibilités de la star (iso → DayMode)
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
@@ -202,7 +202,7 @@ function StarQuestionnaire() {
         setDepartureAirportOrStation(data.preferences.departureAirportOrStation ?? "");
         setDesiredDestination(data.preferences.desiredDestination ?? "");
         setExcludedDestinations((data.preferences.excludedDestinations ?? []).join(", "));
-        setWantedEnvType((data.preferences as any).wantedEnvType ?? "");
+        setWantedEnvTypes((data.preferences as any).wantedEnvType ? (data.preferences as any).wantedEnvType.split(", ") : []);
 
         const m = new Map<string, DayMode>();
         for (const d of data.preferences.availableDates ?? []) m.set(d.slice(0, 10), "available");
@@ -291,7 +291,7 @@ function StarQuestionnaire() {
           excludedDestinations: excluded,
           availableDates,
           blockedDates,
-          wantedEnvType: wantedEnvType || undefined,
+          wantedEnvType: wantedEnvTypes.join(", ") || undefined,
         },
       });
     },
@@ -393,7 +393,7 @@ function StarQuestionnaire() {
           />
         </div>
         <div className="space-y-2 pt-2 border-t border-border/40">
-          <Label className="font-semibold block text-sm">Type de lieu / environnement recherché (optionnel)</Label>
+          <Label className="font-semibold block text-sm">Type de lieu / environnement recherché * (plusieurs choix possibles)</Label>
           <div className="flex flex-wrap gap-2">
             {[
               { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" },
@@ -406,8 +406,8 @@ function StarQuestionnaire() {
             ].map((env) => (
               <Chip
                 key={env.v}
-                active={wantedEnvType === env.v}
-                onClick={() => setWantedEnvType(env.v)}
+                active={wantedEnvTypes.includes(env.v)}
+                onClick={() => toggle(wantedEnvTypes, setWantedEnvTypes, env.v)}
               >
                 {env.label}
               </Chip>

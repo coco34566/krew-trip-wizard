@@ -146,10 +146,6 @@ function AvailabilityPage() {
   /** Mode de clic : dispo (vert) ou impossible (rouge) */
   const [paintMode, setPaintMode] = useState<"available" | "blocked">("available");
 
-  // Nombre de nuits souhaité
-  const [durationNights, setDurationNights] = useState(2);
-  const [durationDaysInput, setDurationDaysInput] = useState("3");
-
   useEffect(() => {
     if (data && !hydrated) {
       if (data.mine) {
@@ -158,10 +154,6 @@ function AvailabilityPage() {
         for (const d of data.mine.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
         setSelection(m);
         setNotes(data.mine.notes ?? "");
-
-        const savedNights = Number((data.mine as any).durationNights ?? 2) || 2;
-        setDurationNights(savedNights);
-        setDurationDaysInput(String(savedNights + 1));
       }
       setHydrated(true);
     }
@@ -235,7 +227,6 @@ function AvailabilityPage() {
           blockedDates,
           flexDays: 0,
           notes: notes || undefined,
-          durationNights,
         },
       }),
     onSuccess: () => {
@@ -452,39 +443,6 @@ function AvailabilityPage() {
               </div>
             </div>
           ) : null}
-        </div>
-
-        <div className="space-y-2 border-t border-border pt-4">
-          <Label htmlFor="days" className="font-semibold block text-sm">
-            Nombre de jours souhaité *
-          </Label>
-          <Input
-            id="days"
-            type="number"
-            min={1}
-            max={31}
-            disabled={datesLocked}
-            value={durationDaysInput}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-              const valStr = e.target.value;
-              setDurationDaysInput(valStr);
-              if (valStr !== "") {
-                const days = Math.max(1, Number(valStr));
-                // Convertit en nuits : nuits = jours - 1
-                const nights = Math.max(0, days - 1);
-                setDurationNights(nights);
-              }
-            }}
-            onBlur={() => {
-              if (durationDaysInput === "") {
-                setDurationDaysInput(String(durationNights + 1));
-              }
-            }}
-            className="max-w-[120px]"
-          />
-          <p className="text-xs text-muted-foreground">
-            Indique combien de jours tu aimerais partir au total ({durationNights} nuit{durationNights > 1 ? "s" : ""}).
-          </p>
         </div>
 
         <div>

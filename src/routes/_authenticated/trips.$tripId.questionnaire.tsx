@@ -131,7 +131,7 @@ function ParticipantQuestionnaire() {
   const [freeText, setFreeText] = useState("");
 
   const [groupAgeRange, setGroupAgeRange] = useState<string>("");
-  const [wantedEnvType, setWantedEnvType] = useState<string>("");
+  const [wantedEnvTypes, setWantedEnvTypes] = useState<string[]>([]);
 
   useEffect(() => {
     fetchMine({ data: { tripId } })
@@ -145,7 +145,7 @@ function ParticipantQuestionnaire() {
             preferences.updated_at || preferences.submitted_at || null,
           );
           setGroupAgeRange((preferences as any).group_age_range ?? "");
-          setWantedEnvType((preferences as any).wanted_env_type ?? "");
+          setWantedEnvTypes((preferences as any).wanted_env_type ? (preferences as any).wanted_env_type.split(", ") : []);
           setAmbiances(preferences.ambiances ?? []);
           setDealBreakerAmbiances((preferences as any).deal_breaker_ambiances ?? []);
           setDepartureAirportOrStation((preferences as any).departure_airport_or_station ?? "");
@@ -202,7 +202,7 @@ function ParticipantQuestionnaire() {
     if (!departureCity.trim()) return "Indique ta ville de départ (nécessaire pour les vols).";
     if (budgetMax < 50) return "Le budget minimum est de 50 €.";
     if (!groupAgeRange) return "Indique la tranche d'âge du groupe.";
-    if (!wantedEnvType) return "Indique le type de lieu / environnement recherché.";
+    if (wantedEnvTypes.length === 0) return "Choisis au moins un type de lieu / environnement recherché.";
     return null;
   }
 
@@ -246,7 +246,7 @@ function ParticipantQuestionnaire() {
           travelPace: travelPace as "plein_programme" | "equilibre" | "chill",
           preferredTimeSlots,
           groupAgeRange: groupAgeRange || undefined,
-          wantedEnvType: wantedEnvType || undefined,
+          wantedEnvType: wantedEnvTypes.join(", ") || undefined,
         },
       });
       setIsEditing(true);
@@ -515,7 +515,7 @@ function ParticipantQuestionnaire() {
             </div>
           </div>
           <div className="space-y-2 pt-2 border-t border-border/40">
-            <Label className="font-semibold block text-sm">Type de lieu / environnement recherché *</Label>
+            <Label className="font-semibold block text-sm">Type de lieu / environnement recherché * (plusieurs choix possibles)</Label>
             <div className="flex flex-wrap gap-2">
               {[
                 { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" },
@@ -528,8 +528,8 @@ function ParticipantQuestionnaire() {
               ].map((env) => (
                 <Chip
                   key={env.v}
-                  active={wantedEnvType === env.v}
-                  onClick={() => setWantedEnvType(env.v)}
+                  active={wantedEnvTypes.includes(env.v)}
+                  onClick={() => toggle(wantedEnvTypes, setWantedEnvTypes, env.v)}
                 >
                   {env.label}
                 </Chip>
@@ -553,7 +553,7 @@ function ParticipantQuestionnaire() {
         <div>
           <Label className="mb-2 block">Modes de transport acceptés</Label>
           <div className="flex flex-wrap gap-2">
-            {["avion", "train", "peu importe"].map((m) => (
+            {["avion", "train", "voiture", "peu importe"].map((m) => (
               <Chip
                 key={m}
                 active={transportModeAccepted.includes(m)}
