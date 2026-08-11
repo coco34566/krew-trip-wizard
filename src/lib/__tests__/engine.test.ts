@@ -293,7 +293,7 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
         },
       };
 
-      const reason = generateRejectionReason(mockProp);
+      const reason = generateRejectionReason(mockProp as any);
       expect(reason).toContain("budget un peu serré");
       expect(reason).toContain("météo moins favorable sur cette période");
     });
