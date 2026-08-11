@@ -1356,12 +1356,17 @@ function TripDetail() {
                   (v) => v.hotelId === h.id && v.userId === data.userId,
                 );
                 const isTop = (trip as any).group_logistics.selectedHotelId === h.id && n > 0;
+                const isReserved = (trip as any).group_logistics?.hotelBookingStatus === "réservé";
                 return (
                   <article
                     key={h.id}
                     className={cn(
                       "rounded-2xl border bg-card p-4 shadow-sm",
-                      isTop ? "border-emerald-500 ring-1 ring-emerald-500/20" : "border-border",
+                      isTop
+                        ? isReserved
+                          ? "border-emerald-500 ring-1 ring-emerald-500/20 bg-emerald-500/5"
+                          : "border-border ring-1 ring-border"
+                        : "border-border",
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -1372,7 +1377,13 @@ function TripDetail() {
                           {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
                         </p>
                       </div>
-                      {isTop ? <Badge variant="success">Top votes</Badge> : null}
+                      {isTop ? (
+                        isReserved ? (
+                          <Badge variant="success">Réservé</Badge>
+                        ) : (
+                          <Badge variant="muted">Top votes</Badge>
+                        )
+                      ) : null}
                     </div>
                     <p className="mt-2 text-sm">
                       {formatEuro(h.pricePerNight)} / nuit / pers.
@@ -1397,7 +1408,7 @@ function TripDetail() {
                           ? [{ label: "Réserver", url: h.bookingUrl }]
                           : []
                       )
-                        .slice(0, 2)
+                        .slice(0, 1)
                         .map((l: any) => (
                           <a
                             key={l.label + l.url}
@@ -1618,7 +1629,7 @@ function TripDetail() {
                                   {isMine ? "Mon trajet" : "J'ai choisi ce trajet"}
                                 </Button>
                                 {(tr.links ?? [])
-                                  .slice(0, 2)
+                                  .slice(0, 1)
                                   .map((l: any) => (
                                     <a
                                       key={l.label}
@@ -1627,7 +1638,7 @@ function TripDetail() {
                                       rel="noreferrer"
                                       className="text-xs text-primary hover:underline"
                                     >
-                                      {l.label}
+                                      {l.label} →
                                     </a>
                                   ))}
                               </div>

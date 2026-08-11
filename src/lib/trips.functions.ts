@@ -1525,8 +1525,25 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       .map((p: any) => p.arrivalTime || p.time)
       .filter(Boolean) as string[];
     const departures = picks.map((p: any) => p.departureTime).filter(Boolean) as string[];
-    const latestArrival = arrivals.sort().slice(-1)[0] || timeFilters.arriveBy || null;
-    const earliestReturn = departures.sort()[0] || timeFilters.departAfter || null;
+
+    let latestArrival: string | null = null;
+    let earliestReturn: string | null = null;
+
+    if (arrivals.length > 0) {
+      const sortedArrivals = [...arrivals].sort();
+      // Median/Majority
+      latestArrival = sortedArrivals[Math.floor(sortedArrivals.length / 2)] || null;
+    } else {
+      latestArrival = timeFilters.arriveBy || null;
+    }
+
+    if (departures.length > 0) {
+      const sortedDepartures = [...departures].sort();
+      // Median/Majority
+      earliestReturn = sortedDepartures[Math.floor(sortedDepartures.length / 2)] || null;
+    } else {
+      earliestReturn = timeFilters.departAfter || null;
+    }
 
     const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
     const effCount = getEffectiveParticipantsCount(trip, participants);
@@ -1838,10 +1855,15 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const airbnbUrl = (q: string) =>
       `https://www.airbnb.fr/s/${encodeURIComponent(q)}/homes?checkin=${checkin}&checkout=${checkout}&adults=${adults}`;
 
-    let hotelsQuery = supabase.from("accommodations").select("*").limit(50);
-    if (destId) hotelsQuery = hotelsQuery.eq("destination_id", destId);
+    if (!destId) {
+      return { ok: true, logistics: { hotels: [], transports: [] } };
+    }
+    let hotelsQuery = supabase.from("accommodations").select("*").eq("destination_id", destId).limit(50);
     const hotelsRes = await hotelsQuery;
     if (hotelsRes.error) throw hotelsRes.error;
+
+    // Filter to ensure absolute geographical coherence
+    const matchedHotels = (hotelsRes.data ?? []).filter((h: any) => h.destination_id === destId);
 
     type HotelCard = {
       id: string;
@@ -1925,7 +1947,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       };
     };
 
-    let hotels: HotelCard[] = (hotelsRes.data ?? []).map(scoreHotel);
+    let hotels: HotelCard[] = matchedHotels.map(scoreHotel);
     hotels.sort((a, b) => b.score - a.score || b.rating - a.rating);
 
     const hasRealHotels = hotels.length > 0;
@@ -2285,61 +2307,17 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       if (mode === "flight") {
         return [
           {
-            label: "Google Flights",
-            url: `https://www.google.com/travel/flights?q=${encodeURIComponent(`Vols ${from} vers ${to} ${checkin} retour ${checkout}`)}&curr=EUR`,
-          },
-          {
             label: "Kayak",
             url: `https://www.kayak.fr/flights/${f}-${d}/${checkin}/${checkout}?sort=bestflight_a`,
-          },
-          {
-            label: "Skyscanner",
-            url: `https://www.skyscanner.fr/transport/vols/${f}/${d}/${checkin}/${checkout}/?adults=${adults}`,
           },
         ];
       }
       if (mode === "train") {
         return [
           {
-            label: "Trainline",
-            url: `https://www.thetrainline.com/book/results?originName=${f}&destinationName=${d}&outwardDate=${checkin}&inwardDate=${checkout}&journeySearchType=Return`,
-          },
-          {
             label: "SNCF Connect",
             url: `https://www.sncf-connect.com/fr-fr/train/horaires/${f}/${d}`,
           },
-          {
-            label: "Omio train",
-            url: `https://www.omio.fr/search?departure=${f}&arrival=${d}&departureDate=${checkin}&returnDate=${checkout}&transportType=train`,
-          },
-        ];
-      }
-      if (mode === "bus") {
-        return [
-          {
-            label: "FlixBus",
-            url: `https://www.flixbus.fr/search?departureCity=${f}&arrivalCity=${d}&departureDate=${checkin}&returnDate=${checkout}`,
-          },
-          {
-            label: "BlaBlaBus / Omio",
-            url: `https://www.omio.fr/search?departure=${f}&arrival=${d}&departureDate=${checkin}&returnDate=${checkout}&transportType=bus`,
-          },
-          {
-            label: "Busbud",
-            url: `https://www.busbud.com/fr/search?origin=${f}&destination=${d}&outbound_date=${checkin}&inbound_date=${checkout}`,
-          },
-        ];
-      }
-      if (mode === "ferry") {
-        return [
-          {
-            label: "Direct Ferries",
-            url: `https://www.directferries.fr/search?from=${f}&to=${d}&date=${checkin}`,
-          },
-          {
-            label: "Corsica Ferries",
-            url: `https://www.corsica-ferries.fr/`,
-          }
         ];
       }
       if (mode === "covoiturage") {
@@ -2347,22 +2325,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           {
             label: "BlaBlaCar",
             url: `https://www.blablacar.fr/search?fn=${f}&tn=${d}&db=${checkin}`,
-          }
+          },
         ];
       }
-      // car
+      // default / car / others
       return [
         {
           label: "Google Maps",
           url: `https://www.google.com/maps/dir/${f}/${d}`,
-        },
-        {
-          label: "BlaBlaCar",
-          url: `https://www.blablacar.fr/search?fn=${f}&tn=${d}&db=${checkin}&de=${checkout}`,
-        },
-        {
-          label: "Getaround",
-          url: `https://fr.getaround.com/search?address=${f}`,
         },
       ];
     };

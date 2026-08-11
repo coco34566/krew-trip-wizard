@@ -143,13 +143,15 @@ RÈGLES PLANNING :
 3. Suis match/star/acts/seedActs du contexte (≥60% des slots).
 4. Noms CONCRETS existants ou très plausibles dans la ville (pas "restaurant local").
 5. time obligatoire (ex. 13:00, 16:30, 21:00).
-6. Français uniquement. Pas de texte hors JSON.`;
+6. Cohérence géographique : propose des enchaînements d'activités logiques et proches géographiquement pour un même jour (ex: évite d'enchaîner le centre-ville de Bruxelles, puis l'Atomium à l'autre bout, puis retour au centre-ville). Optimise l'ordre et limite les trajets inutiles pour créer un planning fluide et réalisable.
+7. Français uniquement. Pas de texte hors JSON.`;
 
 const SYSTEM_SLOT = `Tu proposes UNE alternative concrète pour un créneau de séjour groupe.
 JSON uniquement :
 {"moment":"Midi|Après-midi|Soir","time":"15:30","type":"resto|activite|bar|libre","label":"Nom précis","detail":"...","priceHint":30,"url":"https://www.google.com/maps/search/?api=1&query=..."}
 
-Prix réalistes €/pers pour la ville. url = Maps search ou GetYourGuide ou site officiel certain. Jamais d'URL inventée. Différent de l'existant.`;
+Prix réalistes €/pers pour la ville. url = Maps search ou GetYourGuide ou site officiel certain. Jamais d'URL inventée. Différent de l'existant.
+Cohérence géographique : Propose un lieu proche géographiquement des autres activités prévues ce jour-là s'il y a lieu. Évite les déplacements inutiles.`;
 
 function compactCtx(input: ActivityAiInput): Record<string, unknown> {
   const o: Record<string, unknown> = {
