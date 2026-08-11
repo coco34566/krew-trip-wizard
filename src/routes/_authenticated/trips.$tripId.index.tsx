@@ -1,6 +1,6 @@
 // src/routes/_authenticated/trips.$tripId.tsx
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays, RefreshCw, Utensils, Wine, Camera, Plane, Hotel, Train, Clock } from "lucide-react";
@@ -52,6 +52,7 @@ import { getStarPreferences } from "@/lib/star-preferences.functions";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
+import { isTripAdmin } from "@/lib/krew/engine";
 
 
 /** Photo destination : URL DB ou image Unsplash stable selon la ville. */
@@ -737,11 +738,67 @@ function TripDetail() {
     return lines.join("\n");
   }
 
+  const navigate = useNavigate();
+
+  const isStar = useMemo(() => {
+    if (!tripPreview || !data?.userId) return false;
+    const celebratedPerson = tripPreview.celebrated_person;
+    const starUid = tripPreview.star_user_id || "star-virtual-uid";
+    const participants = (data.participants ?? []) as any[];
+
+    // Find the star participant
+    const starPart = participants.find((p) => {
+      const isStarByUid = p.user_id && p.user_id === starUid;
+      const isStarByName = celebratedPerson && p.display_name &&
+        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+      return isStarByUid || isStarByName;
+    });
+
+    return starPart?.user_id === data.userId;
+  }, [tripPreview, data]);
+
+  const isSecretStar = useMemo(() => {
+    if (!tripPreview || !isStar) return false;
+    const starMode = (tripPreview.group_logistics as any)?.star_mode ?? "secret";
+    return starMode === "secret";
+  }, [tripPreview, isStar]);
+
+  useEffect(() => {
+    if (data && tripPreview) {
+      // Si l'utilisateur courant est admin (isOwner) et que l'invitation n'a pas été finalisée
+      const isCompleted = (tripPreview.group_logistics as any)?.invite_step_completed;
+      if (data.isOwner && !isCompleted) {
+        navigate({ to: "/trips/$tripId/invite", params: { tripId } });
+      }
+    }
+  }, [data, tripPreview, navigate, tripId]);
+
   if (isLoading || !data) {
     return (
       <main className="mx-auto max-w-5xl space-y-4 px-4 py-10">
         <Skeleton className="h-10 w-2/3" />
         <Skeleton className="h-64 rounded-3xl" />
+      </main>
+    );
+  }
+
+  if (isSecretStar) {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-20 text-center space-y-6">
+        <span className="inline-flex size-20 items-center justify-center rounded-full bg-primary/10 text-primary animate-pulse text-4xl">
+          🤫
+        </span>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-primary">Chut... C&apos;est un secret !</h1>
+        <p className="text-muted-foreground leading-relaxed">
+          Tes ami·e·s te préparent une surprise incroyable pour ton événement (<strong>{tripPreview.name}</strong>).
+        </p>
+        <p className="text-muted-foreground leading-relaxed">
+          Toutes les informations sur la destination, les hébergements et le planning sont gardées secrètes pour te laisser la surprise le jour J.
+        </p>
+        <p className="text-primary font-medium">
+          Laisse-toi porter et prépare-toi à vivre un moment inoubliable ! 🎂✨
+        </p>
       </main>
     );
   }

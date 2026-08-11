@@ -8,6 +8,7 @@ export type AvailabilityEntry = {
   availableDates: string[]; // YYYY-MM-DD
   blockedDates: string[];
   flexDays: number;
+  durationNights?: number;
 };
 
 export type DateWindow = {

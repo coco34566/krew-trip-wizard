@@ -175,7 +175,8 @@ export const getTripDetail = createServerFn({ method: "GET" })
 
     return {
       trip: trip.data,
-      isOwner: trip.data.owner_id === userId,
+      isOwner: isTripAdmin(trip.data, userId),
+      isCreator: trip.data.owner_id === userId,
       userId,
       preferences: preferences.error ? null : (preferences.data ?? null),
       participants: participantRows,
@@ -391,6 +392,48 @@ export const removeParticipant = createServerFn({ method: "POST" })
       .from("trip_participants")
       .delete()
       .eq("id", data.participantId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const finalizeInvitationStep = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        starMode: z.enum(["secret", "participant"]),
+        inviteStepCompleted: z.boolean(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const tripRes = await supabase
+      .from("trips")
+      .select("id, owner_id, co_organizer_id, group_logistics")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+    const trip = tripRes.data as any;
+
+    if (!isTripAdmin(trip, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut finaliser cette étape");
+    }
+
+    const logistics = (trip.group_logistics || {}) as any;
+    logistics.star_mode = data.starMode;
+    logistics.invite_step_completed = data.inviteStepCompleted;
+
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        group_logistics: logistics,
+        updated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", data.tripId);
+
     if (error) throw error;
     return { ok: true };
   });
@@ -1301,7 +1344,7 @@ export const getCostSplit = createServerFn({ method: "GET" })
   });
 
 
-/** Annule un voyage (owner only). Soft-delete via status annule — sort des listes actives. */
+/** Annule un voyage (owner / co-org only). Soft-delete via status annule — sort des listes actives. */
 export const cancelTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -1311,16 +1354,16 @@ export const cancelTrip = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id, status")
+      .select("id, owner_id, co_organizer_id, status")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
-    if (trip.data.owner_id !== userId) throw new Error("403 Forbidden: seul l'organisateur peut annuler");
+    if (!isTripAdmin(trip.data, userId)) throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut annuler");
 
     if (data.hardDelete) {
       // CASCADE sur participants, prefs, recos si FK ON DELETE CASCADE
-      const { error } = await supabase.from("trips").delete().eq("id", data.tripId).eq("owner_id", userId);
+      const { error } = await supabase.from("trips").delete().eq("id", data.tripId);
       if (error) throw error;
       return { ok: true, mode: "deleted" as const };
     }
@@ -1328,8 +1371,7 @@ export const cancelTrip = createServerFn({ method: "POST" })
     const { error } = await supabase
       .from("trips")
       .update({ status: "annule", updated_at: new Date().toISOString() })
-      .eq("id", data.tripId)
-      .eq("owner_id", userId);
+      .eq("id", data.tripId);
     if (error) throw error;
     return { ok: true, mode: "cancelled" as const };
   });
@@ -1379,13 +1421,13 @@ export const finalizeSelectedActivities = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id")
+      .select("id, owner_id, co_organizer_id")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
-    if (trip.data.owner_id !== userId) {
-      throw new Error("403 Forbidden: seul l'organisateur peut valider les activités");
+    if (!isTripAdmin(trip.data, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut valider les activités");
     }
     const { error } = await supabase
       .from("trips")
@@ -1393,8 +1435,7 @@ export const finalizeSelectedActivities = createServerFn({ method: "POST" })
         selected_activity_ids: data.activityIds,
         updated_at: new Date().toISOString(),
       } as any)
-      .eq("id", data.tripId)
-      .eq("owner_id", userId);
+      .eq("id", data.tripId);
     if (error) throw error;
     return { ok: true, activityIds: data.activityIds };
   });
@@ -1429,8 +1470,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     const trip = tripRes.data as any;
-    if (trip.owner_id !== userId) {
-      throw new Error("403 Forbidden: seul l'organisateur peut générer le planning");
+    if (!isTripAdmin(trip, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut générer le planning");
     }
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
@@ -1562,8 +1603,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         group_itinerary: result.itinerary,
         updated_at: new Date().toISOString(),
       } as any)
-      .eq("id", data.tripId)
-      .eq("owner_id", userId);
+      .eq("id", data.tripId);
     if (error) throw error;
 
     return {
@@ -1591,7 +1631,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     const [tripRes, partsRes] = await Promise.all([
       supabase
         .from("trips")
-        .select("id, owner_id, group_itinerary, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type, celebrated_person, has_star, star_user_id")
+        .select("id, owner_id, co_organizer_id, group_itinerary, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type, celebrated_person, has_star, star_user_id")
         .eq("id", data.tripId)
         .maybeSingle(),
       supabase
@@ -1601,8 +1641,8 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     ]);
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
-    if ((tripRes.data as any).owner_id !== userId) {
-      throw new Error("403 Forbidden: seul l'organisateur peut régénérer un créneau");
+    if (!isTripAdmin(tripRes.data, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut régénérer un créneau");
     }
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
@@ -1689,8 +1729,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         group_itinerary: itinerary,
         updated_at: new Date().toISOString(),
       } as any)
-      .eq("id", data.tripId)
-      .eq("owner_id", userId);
+      .eq("id", data.tripId);
     if (error) throw error;
 
     return { ok: true, usedLlm: result.usedLlm, slot: result.slot, itinerary };
@@ -2658,13 +2697,13 @@ export const setTransportTimeFilters = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const tripRes = await supabase
       .from("trips")
-      .select("id, owner_id, group_logistics")
+      .select("id, owner_id, co_organizer_id, group_logistics")
       .eq("id", data.tripId)
       .maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
-    if ((tripRes.data as any).owner_id !== userId) {
-      throw new Error("403 Forbidden: seul l'organisateur peut définir les filtres horaires");
+    if (!isTripAdmin(tripRes.data, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut définir les filtres horaires");
     }
     const logistics = ((tripRes.data as any).group_logistics || {}) as any;
     const next = {

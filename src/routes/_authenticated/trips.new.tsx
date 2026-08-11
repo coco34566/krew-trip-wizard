@@ -90,7 +90,7 @@ function NewTripPage() {
       queryClient.invalidateQueries({ queryKey: ["my-trips"] });
       const id = (trip as any).tripId ?? (trip as any).id;
       toast.success("Voyage créé et enregistré");
-      window.location.assign(`/trips/${id}`);
+      window.location.assign(`/trips/${id}/invite`);
     } catch (err: any) {
       toast.error(err?.message?.slice?.(0, 140) ?? "Création impossible");
     } finally {

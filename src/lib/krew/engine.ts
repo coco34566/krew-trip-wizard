@@ -351,6 +351,26 @@ export function estimateTransport(distanceKm: number): number {
   return 130 + (distanceKm - 1600) * 0.05;
 }
 
+export function getDestinationEnvironments(destName: string): string[] {
+  const name = destName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  if (["barcelone", "barcelona", "lisbonne", "lisbon", "porto", "nice", "valencia", "valence", "marseille", "split", "dubrovnik"].some(c => name.includes(c))) {
+    return ["Bord de mer", "Quartier animé", "Centre-ville / urbain"];
+  }
+  if (["rome", "milan", "amsterdam", "berlin", "prague", "budapest", "vienne", "vienna", "londres", "london", "paris", "madrid", "bruxelles", "brussels", "bordeaux", "lyon"].some(c => name.includes(c))) {
+    return ["Centre-ville / urbain", "Quartier animé"];
+  }
+  if (["luberon", "ardeche", "provence"].some(c => name.includes(c))) {
+    return ["Nature / pleine nature", "Village de charme"];
+  }
+  if (["chamonix", "alpes", "montagne"].some(c => name.includes(c))) {
+    return ["Nature / pleine nature", "Montagne"];
+  }
+  if (["annecy", "lac", "verdon", "riviere"].some(c => name.includes(c))) {
+    return ["Nature / pleine nature", "Lac / rivière"];
+  }
+  return ["Centre-ville / urbain"];
+}
+
 function ambianceScore(dest: DestinationRecord, ambiances: string[]): number {
   if (!ambiances.length) return 0.6;
   const values = ambiances.map((a) => {
@@ -400,6 +420,7 @@ function activityMatchScore(
   wantedCategories: string[],
   starWanted: string[],
   dietaryConstraintsRatio = 0,
+  groupAgeRange?: string | null,
 ): number {
   let s = Number(a.rating ?? 0) * 0.15;
   if (wantedCategories.includes(a.category)) s += 1.2;
@@ -417,6 +438,21 @@ function activityMatchScore(
     s -= dietaryConstraintsRatio * 1.5; // Ajustement doux et proportionnel (jusqu'à -1.5 points de score)
   }
 
+  // Tâche 5 : Ajustement ciblé selon la tranche d'âge du groupe
+  if (groupAgeRange) {
+    if (groupAgeRange === "18-25" || groupAgeRange === "25-35") {
+      // Jeunes : Fête, sensations, soirées, bars
+      if (/soirees|bars_clubs|sensations/i.test(a.category)) {
+        s += 1.5;
+      }
+    } else if (groupAgeRange === "45-60" || groupAgeRange === "60+") {
+      // Plus âgés : Culture, gastronomie, détente
+      if (/culture|gastronomie|detente/i.test(a.category)) {
+        s += 1.5;
+      }
+    }
+  }
+
   return s;
 }
 
@@ -432,6 +468,7 @@ function pickActivities(
   travelPace?: string | null,
   starWantedActivities?: string[] | null,
   dietaryConstraintsRatio = 0,
+  groupAgeRange?: string | null,
 ): ActivityRecord[] {
   const perDay = activitiesPerDayForPace(travelPace);
   const maxCount = Math.max(perDay, (nights + 1) * perDay - (travelPace === "chill" ? 1 : 0));
@@ -441,8 +478,8 @@ function pickActivities(
   const starWanted = starWantedActivities ?? [];
 
   const rank = (a: ActivityRecord, b: ActivityRecord) =>
-    activityMatchScore(b, wantedCategories, starWanted, dietaryConstraintsRatio) -
-    activityMatchScore(a, wantedCategories, starWanted, dietaryConstraintsRatio);
+    activityMatchScore(b, wantedCategories, starWanted, dietaryConstraintsRatio, groupAgeRange) -
+    activityMatchScore(a, wantedCategories, starWanted, dietaryConstraintsRatio, groupAgeRange);
 
   // 1) Priorité aux envies Star (si renseignées)
   for (const w of starWanted) {
@@ -784,6 +821,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       ctx.travelPace,
       ctx.starWantedActivities,
       ctx.dietaryConstraintsRatio ?? 0,
+      (ctx as any).groupAgeRange,
     );
     const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
     const totalPerPerson = transport + lodging + food + activitiesCost;
@@ -871,6 +909,22 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sQuality * w.quality +
       sConsensus * w.consensus +
       sMinSat * w.minSatisfaction;
+
+    // Type de lieu / environnement recherché
+    const wantedEnvTypes = (ctx as any).wantedEnvTypes || [];
+    const starWantedEnvType = (ctx as any).starWantedEnvType;
+    const destEnvs = getDestinationEnvironments(destination.name);
+
+    if (wantedEnvTypes.length > 0) {
+      const matchedCount = wantedEnvTypes.filter((env: string) => destEnvs.includes(env)).length;
+      if (matchedCount > 0) {
+        score += 12 * (matchedCount / wantedEnvTypes.length); // Boost de score groupe
+      }
+    }
+
+    if (starWantedEnvType && destEnvs.includes(starWantedEnvType)) {
+      score += 15; // Boost de score Star
+    }
 
     const hasHistory = ctx.pastDestinations && ctx.pastDestinations.length > 0;
     const sHistorique = hasHistory ? computeHistoriqueScore(destination, ctx.pastDestinations) : 0;
