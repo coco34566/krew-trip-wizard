@@ -1,6 +1,5 @@
-import { useRef, useState, useMemo } from "react";
-import { Copy, Check, ImageDown, Users, Wallet, CreditCard } from "lucide-react";
-import { toast } from "sonner";
+import { useRef, useMemo } from "react";
+import { ImageDown, Wallet, CreditCard } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -22,7 +21,6 @@ type Props = {
 
 export function CostSplitCard({ split, tripName, tripId }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const [copied, setCopied] = useState(false);
   const paySessionFn = useServerFn(createGroupPaymentSession);
 
   // Fetch only this user's payments
@@ -76,17 +74,11 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
     return "unpaid";
   }, [payments]);
 
-  async function copyText() {
+  const shareOnWhatsApp = () => {
     const text = formatCostSplitText(split, tripName);
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      toast.success("Tableau copié — colle-le dans WhatsApp");
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error("Copie impossible");
-    }
-  }
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   async function exportImage() {
     const el = ref.current;
@@ -196,9 +188,13 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
               )}
             </div>
           )}
-          <Button type="button" variant="hero" size="sm" onClick={copyText}>
-            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-            {copied ? "Copié" : "Copier pour WhatsApp"}
+          <Button
+            type="button"
+            className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+            size="sm"
+            onClick={shareOnWhatsApp}
+          >
+            Partager sur WhatsApp
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={exportImage}>
             <ImageDown className="size-4" /> Image
