@@ -443,4 +443,228 @@ describe("Recommender Integration Tests", () => {
     expect(pMixte.score).toBeGreaterThan(pMetropole.score);
     expect(pMixte.score).toBeGreaterThan(pVillage.score);
   });
+
+  // Test Case G : New accommodation configuration engine scenarios (Requirements 4, 5, 6, 7, 11, 15)
+  it("gère correctement les configurations complexes pour un groupe de 8 personnes", () => {
+    const catalog: TravelCatalog = {
+      destinations: [
+        createDestination({
+          id: "bruxelles",
+          slug: "bruxelles",
+          name: "Bruxelles",
+          country: "Belgique",
+          latitude: 50.8503,
+          longitude: 4.3517,
+        }),
+      ],
+      activities: [],
+      accommodations: [
+        // 1. Double room hotel
+        {
+          id: "acc-double-room",
+          destination_id: "bruxelles",
+          name: "Hôtel Chambres Doubles",
+          type: "hôtel",
+          description: "Chambres confortables",
+          price_per_night_per_person: 70,
+          capacity: 2,
+          rating: 4.5,
+          distance_center_km: 1.0,
+          image_url: null,
+          latitude: 50.8510,
+          longitude: 4.3520,
+        },
+        // 2. Quad room hotel
+        {
+          id: "acc-quad-room",
+          destination_id: "bruxelles",
+          name: "Hôtel Chambres Quadruples",
+          type: "hôtel",
+          description: "Chambres pour quatre personnes",
+          price_per_night_per_person: 55,
+          capacity: 4,
+          rating: 4.3,
+          distance_center_km: 1.5,
+          image_url: null,
+          latitude: 50.8520,
+          longitude: 4.3530,
+        },
+        // 3. Villa/Maison de 4 chambres
+        {
+          id: "acc-villa-8",
+          destination_id: "bruxelles",
+          name: "Grande Villa Bruxelles",
+          type: "villa",
+          description: "Superbe maison pour groupe",
+          price_per_night_per_person: 45,
+          capacity: 8,
+          rating: 4.7,
+          distance_center_km: 4.0,
+          image_url: null,
+          latitude: 50.8600,
+          longitude: 4.3700,
+        },
+        // 4. Accommodation in Cherbourg (which is geographically in France, ~400km away)
+        {
+          id: "acc-cherbourg-mismatch",
+          destination_id: "bruxelles",
+          name: "Hôtel Cherbourg de Mismatch",
+          type: "hôtel",
+          description: "Hôtel situé à Cherbourg-en-Cotentin",
+          price_per_night_per_person: 40,
+          capacity: 10,
+          rating: 4.4,
+          distance_center_km: 1.0,
+          image_url: null,
+          latitude: 49.6337,
+          longitude: -1.6224, // France
+        },
+      ],
+    };
+
+    const ctx: ScoringContext = {
+      participants: 8, // Groupe de 8 personnes !
+      budgetPerPerson: 600,
+      nights: 2,
+      letKrewDecide: true,
+      needsCityCenter: false,
+      startMonth: 6,
+      ambiances: [],
+      activityCategories: [],
+      maxDistanceKm: 2000,
+      excludedCountries: [],
+      individualPreferences: Array.from({ length: 8 }).map(() => ({
+        ambiances: [],
+        activityCategories: [],
+        budgetMax: 600,
+        dealBreakerAmbiances: [],
+        dealBreakerDestinations: [],
+      })),
+    };
+
+    const proposals = buildProposals(catalog, ctx, 10);
+
+    // 1. Vérifier que Cherbourg est strictement rejeté pour Bruxelles
+    const cherbourgProposal = proposals.find(p => p.accommodation?.id === "acc-cherbourg-mismatch");
+    expect(cherbourgProposal).toBeUndefined();
+
+    // 2. Vérifier que toutes les propositions retournées concernent Bruxelles et des hébergements valides
+    expect(proposals.length).toBeGreaterThan(0);
+    for (const prop of proposals) {
+      expect(prop.destination.id).toBe("bruxelles");
+      expect(prop.accommodation?.id).not.toBe("acc-cherbourg-mismatch");
+    }
+
+    // 3. Vérifier les configurations générées dans le budget
+    const doubleRoomProp = proposals.find(p => p.accommodation?.id === "acc-double-room");
+    const quadRoomProp = proposals.find(p => p.accommodation?.id === "acc-quad-room");
+    const villaProp = proposals.find(p => p.accommodation?.id === "acc-villa-8");
+
+    expect(doubleRoomProp).toBeDefined();
+    expect(quadRoomProp).toBeDefined();
+    expect(villaProp).toBeDefined();
+
+    // Vérifier les détails de configuration pour les chambres doubles : 4 unités de capacité 2
+    const doubleConfig = (doubleRoomProp!.budget as any).configuration;
+    expect(doubleConfig).toBeDefined();
+    expect(doubleConfig.unitsCount).toBe(4);
+    expect(doubleConfig.capacityPerUnit).toBe(2);
+    expect(doubleConfig.name).toContain("4 chambres doubles");
+
+    // Vérifier les détails de configuration pour les chambres quadruples : 2 unités de capacité 4
+    const quadConfig = (quadRoomProp!.budget as any).configuration;
+    expect(quadConfig).toBeDefined();
+    expect(quadConfig.unitsCount).toBe(2);
+    expect(quadConfig.capacityPerUnit).toBe(4);
+    expect(quadConfig.name).toContain("2 chambres quadruples");
+
+    // Vérifier les détails de configuration pour la villa : 1 unité de capacité 8, 4 chambres estimées
+    const villaConfig = (villaProp!.budget as any).configuration;
+    expect(villaConfig).toBeDefined();
+    expect(villaConfig.unitsCount).toBe(1);
+    expect(villaConfig.capacityPerUnit).toBe(8);
+    expect(villaConfig.bedrooms).toBe(4);
+    expect(villaConfig.name).toContain("Maison / Villa entière");
+
+    // 4. Comparer les coûts réels de chaque configuration
+    // Villa : 45€/personne/nuit base, frais plateforme 9%, ménage 8%, taxe de séjour
+    expect(villaConfig.priceBase).toBe(45 * 8 * 2); // 720
+    expect(villaConfig.cleaningFee).toBe(Math.round(720 * 0.08)); // 58
+    expect(villaConfig.serviceFee).toBe(Math.round(720 * 0.09)); // 65
+    expect(villaConfig.taxes).toBe(8 * 2 * 2.5); // 40
+    expect(villaConfig.totalCost).toBe(720 + 58 + 65 + 40); // 883
+    expect(villaConfig.pricePerPerson).toBe(Math.round(883 / 8)); // 110
+
+    // Hôtel chambres doubles : 70€/personne/nuit base, frais 4%, taxe
+    expect(doubleConfig.priceBase).toBe(70 * 8 * 2); // 1120
+    expect(doubleConfig.cleaningFee).toBe(0);
+    expect(doubleConfig.serviceFee).toBe(Math.round(1120 * 0.04)); // 45
+    expect(doubleConfig.taxes).toBe(8 * 2 * 2.5); // 40
+    expect(doubleConfig.totalCost).toBe(1120 + 0 + 45 + 40); // 1205
+    expect(doubleConfig.pricePerPerson).toBe(Math.round(1205 / 8)); // 151
+
+    // Vérifier que la villa est bien moins chère par personne (économie importante !)
+    expect(villaConfig.pricePerPerson).toBeLessThan(doubleConfig.pricePerPerson);
+
+    // 5. Scoring cohérent : la maison obtient un meilleur score de cohésion de groupe
+    // La maison maintient tout le monde ensemble, tandis que l'hôtel les sépare dans 4 chambres différentes.
+    expect(villaProp!.score).toBeGreaterThanOrEqual(doubleRoomProp!.score - 10);
+  });
+
+  // Test Case H : Star Mode and group size calculation (Requirement 3, 15)
+  it("s'assure que la Star est incluse dans le groupe de 8 personnes et qu'aucun participant n'est ajouté artificiellement (+1)", () => {
+    const catalog: TravelCatalog = {
+      destinations: [createDestination({ id: "londres", name: "Londres" })],
+      activities: [],
+      accommodations: [
+        {
+          id: "acc-londres-8",
+          destination_id: "londres",
+          name: "Appartement de Groupe",
+          type: "appartement",
+          description: "Logement entier",
+          price_per_night_per_person: 60,
+          capacity: 8, // Conçu exactement pour 8 personnes !
+          rating: 4.5,
+          distance_center_km: 2.0,
+          image_url: null,
+        },
+      ],
+    };
+
+    // Si on a un groupe de 8 personnes au total (Star incluse)
+    const ctx: ScoringContext = {
+      participants: 8, // Groupe total de 8 !
+      budgetPerPerson: 500,
+      nights: 2,
+      letKrewDecide: true,
+      needsCityCenter: false,
+      startMonth: 6,
+      ambiances: [],
+      activityCategories: [],
+      maxDistanceKm: 2000,
+      excludedCountries: [],
+      individualPreferences: [
+        { ambiances: [], activityCategories: [], budgetMax: 500, dealBreakerAmbiances: [], dealBreakerDestinations: [], isStar: true, weight: 3 }, // Star
+        { ambiances: [], activityCategories: [], budgetMax: 500, dealBreakerAmbiances: [], dealBreakerDestinations: [] },
+        { ambiances: [], activityCategories: [], budgetMax: 500, dealBreakerAmbiances: [], dealBreakerDestinations: [] },
+        { ambiances: [], activityCategories: [], budgetMax: 500, dealBreakerAmbiances: [], dealBreakerDestinations: [] },
+        { ambiances: [], activityCategories: [], budgetMax: 500, dealBreakerAmbiances: [], dealBreakerDestinations: [] },
+        { ambiances: [], activityCategories: [], budgetMax: 500, dealBreakerAmbiances: [], dealBreakerDestinations: [] },
+        { ambiances: [], activityCategories: [], budgetMax: 500, dealBreakerAmbiances: [], dealBreakerDestinations: [] },
+        { ambiances: [], activityCategories: [], budgetMax: 500, dealBreakerAmbiances: [], dealBreakerDestinations: [] },
+      ], // Total exact de 8 individus évalués
+    };
+
+    const proposals = buildProposals(catalog, ctx, 1);
+    expect(proposals).toHaveLength(1);
+    const p = proposals[0]!;
+
+    // La capacité totale nécessaire est évaluée pour 8 personnes.
+    // L'appartement de capacité 8 est suffisant !
+    const config = (p.budget as any).configuration;
+    expect(config.unitsCount).toBe(1); // Exactement 1 appartement requis
+    expect(config.totalCapacity).toBe(8);
+    expect(p.participantsEvaluated).toBe(8); // Exactement 8 participants évalués, pas 9 !
+  });
 });

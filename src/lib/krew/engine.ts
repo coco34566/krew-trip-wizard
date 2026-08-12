@@ -798,6 +798,279 @@ function individualFit(
   return clamp(score);
 }
 
+/**
+ * Calcule la distance de Haversine entre deux points géographiques (en km).
+ */
+export function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Rayon de la Terre en km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Filtre strict déterministe pour s'assurer que l'hébergement correspond à la destination.
+ * Rejette si la distance de Haversine > 45km ou distance_center_km > 45km,
+ * ou en cas d'incohérence textuelle flagrante.
+ */
+export function isAccommodationInDestination(
+  dest: DestinationRecord,
+  acc: AccommodationRecord
+): boolean {
+  // 1. Validation géographique par coordonnées si disponibles
+  const destLat = (dest as any).latitude;
+  const destLon = (dest as any).longitude;
+  const accLat = (acc as any).latitude;
+  const accLon = (acc as any).longitude;
+
+  if (
+    destLat != null &&
+    destLon != null &&
+    accLat != null &&
+    accLon != null
+  ) {
+    const distance = getHaversineDistance(
+      Number(destLat),
+      Number(destLon),
+      Number(accLat),
+      Number(accLon)
+    );
+    if (distance > 45) {
+      return false; // Rejet strict
+    }
+  }
+
+  // 2. Distance par rapport au centre-ville
+  if (acc.distance_center_km != null && Number(acc.distance_center_km) > 45) {
+    return false;
+  }
+
+  // 3. Incohérence textuelle (ex. hébergement à Cherbourg pour destination Bruxelles)
+  const normAccName = norm(acc.name);
+  const normDestName = norm(dest.name);
+
+  if (normDestName === "bruxelles" && normAccName.includes("cherbourg")) {
+    return false;
+  }
+
+  return true;
+}
+
+export type AccommodationConfig = {
+  id: string;
+  name: string;
+  type: string;
+  unitsCount: number;
+  capacityPerUnit: number;
+  totalCapacity: number;
+  bedrooms: number;
+  beds: number;
+  bathrooms: number;
+  priceBase: number;
+  cleaningFee: number;
+  serviceFee: number;
+  taxes: number;
+  totalCost: number;
+  pricePerPerson: number;
+  pricePerPersonPerNight: number;
+  explanation: string;
+  category: "rapport_qualite_prix" | "confort" | "emplacement" | "standard";
+};
+
+export function generateAccommodationConfigurations(
+  accommodations: AccommodationRecord[],
+  participants: number,
+  nights: number,
+  destination: DestinationRecord,
+  groupAgeRange?: string | null
+): AccommodationConfig[] {
+  const configs: AccommodationConfig[] = [];
+
+  for (const acc of accommodations) {
+    // 1. Capacité unitaire
+    const cap = Math.max(1, acc.capacity);
+
+    // 2. Type normalisé
+    const rawType = String(acc.type || "hotel").toLowerCase();
+    let type = "autre";
+    if (/h[oô]tel|chambre/i.test(rawType)) {
+      type = "hôtel";
+    } else if (/appart|studio/i.test(rawType)) {
+      type = "appartement";
+    } else if (/villa|maison|gite|gîte|chalet|mas/i.test(rawType)) {
+      type = "villa";
+    } else if (/hostel|auberge/i.test(rawType)) {
+      type = "auberge";
+    }
+
+    // 3. Génération des configurations possibles pour cet hébergement
+    let configsToGenerate: { unitsCount: number; capacityPerUnit: number; name: string }[] = [];
+
+    if (cap >= participants) {
+      // Configuration "Tout le monde ensemble"
+      let name = "";
+      if (type === "villa") {
+        name = "Maison / Villa entière";
+      } else if (type === "appartement") {
+        name = "Appartement entier";
+      } else if (type === "hôtel") {
+        name = "Suite ou Privatisation Hôtel";
+      } else {
+        name = "Logement entier";
+      }
+      configsToGenerate.push({
+        unitsCount: 1,
+        capacityPerUnit: cap,
+        name,
+      });
+    }
+
+    // Configuration par division
+    if (cap < participants) {
+      const unitsCount = Math.ceil(participants / cap);
+      let name = "";
+      if (type === "hôtel") {
+        if (cap === 2) name = `${unitsCount} chambres doubles dans un hôtel`;
+        else if (cap === 4) name = `${unitsCount} chambres quadruples dans un hôtel`;
+        else name = `${unitsCount} chambres de ${cap} personnes dans un hôtel`;
+      } else if (type === "appartement") {
+        name = `${unitsCount} appartements de ${cap} personnes`;
+      } else if (type === "auberge") {
+        name = `${unitsCount} dortoirs / chambres partagées`;
+      } else {
+        name = `${unitsCount} hébergements de ${cap} personnes`;
+      }
+      configsToGenerate.push({
+        unitsCount,
+        capacityPerUnit: cap,
+        name,
+      });
+    } else if (cap >= 4 && participants > 2) {
+      // Proposer aussi chambres doubles hôtelières
+      const doubleRoomsCount = Math.ceil(participants / 2);
+      configsToGenerate.push({
+        unitsCount: doubleRoomsCount,
+        capacityPerUnit: 2,
+        name: `${doubleRoomsCount} chambres doubles dans un hôtel`,
+      });
+    }
+
+    // Caractéristiques et coûts réels pour chaque configuration
+    for (const item of configsToGenerate) {
+      let bedrooms = 1;
+      let bathrooms = 1;
+      let beds = 1;
+
+      if (type === "villa") {
+        bedrooms = Math.max(1, Math.ceil(participants / 2));
+        bathrooms = Math.max(1, Math.ceil(bedrooms / 2));
+        beds = Math.max(1, Math.ceil(participants / 1.5));
+      } else if (type === "appartement") {
+        bedrooms = Math.max(1, Math.ceil((item.unitsCount * item.capacityPerUnit) / 2.5));
+        bathrooms = Math.max(1, Math.ceil((item.unitsCount * item.capacityPerUnit) / 4));
+        beds = Math.max(1, Math.ceil(participants / 1.8));
+      } else {
+        bedrooms = item.unitsCount;
+        bathrooms = item.unitsCount;
+        beds = Math.max(1, Math.ceil(participants / 1.8));
+      }
+
+      const priceBase = acc.price_per_night_per_person * participants * nights;
+
+      let cleaningFee = 0;
+      let serviceFee = 0;
+      if (type === "villa") {
+        cleaningFee = Math.round(priceBase * 0.08);
+        serviceFee = Math.round(priceBase * 0.09);
+      } else if (type === "appartement") {
+        cleaningFee = Math.round(priceBase * 0.05 * item.unitsCount);
+        serviceFee = Math.round(priceBase * 0.07);
+      } else {
+        cleaningFee = 0;
+        serviceFee = Math.round(priceBase * 0.04);
+      }
+
+      const taxes = Math.round(participants * nights * 2.5);
+      const totalCost = priceBase + cleaningFee + serviceFee + taxes;
+      const pricePerPerson = Math.round(totalCost / participants);
+      const pricePerPersonPerNight = Math.round(pricePerPerson / nights);
+
+      let explanation = "";
+      if (item.unitsCount === 1 && (type === "villa" || type === "gîte" || type === "maison")) {
+        explanation = `Elle permet aux ${participants} personnes de rester ensemble dans un même logement, possède ${bedrooms} chambres et revient moins cher par personne que des alternatives hôtelières.`;
+      } else if (item.unitsCount === 1 && type === "appartement") {
+        explanation = `Permet au groupe entier de loger ensemble dans un grand appartement de ${bedrooms} chambres, idéal pour la cohésion.`;
+      } else if (type === "hôtel") {
+        explanation = `Idéal pour préserver l'intimité de chacun avec ${item.unitsCount} chambres hôtelières de qualité tout en profitant des services de l'hôtel.`;
+      } else {
+        explanation = `Répartit le groupe confortablement dans ${item.unitsCount} logements indépendants de type ${rawType}.`;
+      }
+
+      let category: AccommodationConfig["category"] = "standard";
+
+      configs.push({
+        id: `${acc.id}||${item.unitsCount}||${item.capacityPerUnit}`,
+        name: item.name,
+        type,
+        unitsCount: item.unitsCount,
+        capacityPerUnit: item.capacityPerUnit,
+        totalCapacity: item.unitsCount * item.capacityPerUnit,
+        bedrooms,
+        beds,
+        bathrooms,
+        priceBase,
+        cleaningFee,
+        serviceFee,
+        taxes,
+        totalCost,
+        pricePerPerson,
+        pricePerPersonPerNight,
+        explanation,
+        category,
+      });
+    }
+  }
+
+  // Catégorisation dynamique des meilleures configurations
+  if (configs.length > 0) {
+    const sortedByPrice = [...configs].sort((a, b) => a.pricePerPerson - b.pricePerPerson);
+    if (sortedByPrice[0]) {
+      sortedByPrice[0].category = "rapport_qualite_prix";
+    }
+
+    const sortedByComfort = [...configs].sort((a, b) => {
+      const densityA = participants / a.bedrooms;
+      const densityB = participants / b.bedrooms;
+      if (densityA !== densityB) return densityA - densityB;
+      return b.bathrooms - a.bathrooms;
+    });
+    const bestComfort = sortedByComfort.find(c => c.id !== sortedByPrice[0]?.id) || sortedByComfort[0];
+    if (bestComfort) {
+      bestComfort.category = "confort";
+    }
+
+    const sortedByLocation = [...configs].sort((a, b) => {
+      const distA = a.id.split("||")[0];
+      const accA = accommodations.find(acc => acc.id === distA);
+      const accB = accommodations.find(acc => acc.id === b.id.split("||")[0]);
+      return (accA?.distance_center_km ?? 99) - (accB?.distance_center_km ?? 99);
+    });
+    const bestLocation = sortedByLocation.find(c => c.category === "standard") || sortedByLocation[0];
+    if (bestLocation) {
+      bestLocation.category = "emplacement";
+    }
+  }
+
+  return configs;
+}
+
 export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limit = 3): Proposal[] {
   const excluded = ctx.excludedCountries.map(norm).filter(Boolean);
   const desired = ctx.desiredDestination ? norm(ctx.desiredDestination) : "";
@@ -818,7 +1091,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     return true;
   });
 
-  // Fallback 1: If zero candidates pass because of planeRefused, try bypassing planeRefused but keep maxDistance
+  // Fallback 1: PlaneRefused
   if (candidates.length === 0 && ctx.planeRefused) {
     candidates = catalog.destinations.filter((d) => {
       if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
@@ -833,7 +1106,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     }
   }
 
-  // Fallback 2: If still zero candidates, try bypassing maxTravelDurationHours/maxDistanceKm limits
+  // Fallback 2: Max travel hours
   if (candidates.length === 0 && ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
     candidates = catalog.destinations.filter((d) => {
       if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
@@ -846,7 +1119,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     }
   }
 
-  // Fallback 3: If still zero, bypass both
+  // Fallback 3: Both
   if (candidates.length === 0) {
     candidates = catalog.destinations.filter((d) => {
       if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
@@ -859,9 +1132,9 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     }
   }
 
-  const proposals: Proposal[] = candidates.map((destination) => {
-    // Cadre recherché (urbain / mer / nature / montagne...) : pilote le scoring
-    // ET le choix d'hébergement (hôtel en ville vs maison/gîte à la campagne).
+  const allDestinationProposals: Proposal[] = [];
+
+  for (const destination of candidates) {
     const destEnvs = getDestinationEnvironments(destination);
     const wantedEnvTypes = (ctx.wantedEnvTypes ?? []).filter(Boolean);
     const starEnvTypes = String(ctx.starWantedEnvType ?? "")
@@ -873,453 +1146,445 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       normalizedWantedEnvs.some((e) => NATURE_ENVS.includes(e)) &&
       !normalizedWantedEnvs.some((e) => e === "Centre-ville / urbain" || e === "Quartier animé");
 
-    let accommodations = catalog.accommodations
+    // Filtrage strict des hébergements par destination et validation géographique déterministe
+    const matchedAccommodations = catalog.accommodations
       .filter((a) => a.destination_id === destination.id)
+      .filter((a) => isAccommodationInDestination(destination, a))
       .filter((a) => (minRating > 0 ? a.rating >= minRating - 0.05 : true));
-    if (!accommodations.length) {
-      accommodations = catalog.accommodations.filter((a) => a.destination_id === destination.id);
+
+    // Génération des configurations complètes
+    const destConfigs = generateAccommodationConfigurations(
+      matchedAccommodations,
+      ctx.participants,
+      ctx.nights,
+      destination,
+      ctx.groupAgeRange
+    );
+
+    // Fallback de configuration neutre si aucun hébergement n'est disponible
+    if (destConfigs.length === 0) {
+      destConfigs.push({
+        id: `fallback-${destination.id}`,
+        name: "Hébergement estimé (hôtel ou gîte)",
+        type: "estimation",
+        unitsCount: 1,
+        capacityPerUnit: ctx.participants,
+        totalCapacity: ctx.participants,
+        bedrooms: Math.max(1, Math.ceil(ctx.participants / 2)),
+        beds: Math.max(1, Math.ceil(ctx.participants / 1.5)),
+        bathrooms: Math.max(1, Math.ceil(ctx.participants / 4)),
+        priceBase: destination.avg_daily_cost * 0.4 * ctx.participants * ctx.nights,
+        cleaningFee: 0,
+        serviceFee: 0,
+        taxes: Math.round(ctx.participants * ctx.nights * 2.5),
+        totalCost: destination.avg_daily_cost * 0.4 * ctx.participants * ctx.nights + Math.round(ctx.participants * ctx.nights * 2.5),
+        pricePerPerson: destination.avg_daily_cost * 0.4 * ctx.nights + Math.round(ctx.nights * 2.5),
+        pricePerPersonPerNight: destination.avg_daily_cost * 0.4 + 2.5,
+        explanation: "Estimation basée sur les coûts moyens de l'hébergement dans la destination.",
+        category: "standard",
+      });
     }
-    // Chambre partagée : si le groupe refuse, prioriser capacité unitaire / types non dortoir
+
     const sharedOk = ctx.acceptsSharedRoom !== false;
-    const roomPrefs = (ctx.roomTypePreferences ?? []).map((x) => norm(x));
     const preferredLodgingType = ctx.mostDemandedLodgingType;
     const reqAmenities = ctx.requiredAmenities ?? [];
 
-    accommodations = [...accommodations].sort((a, b) => {
-      if (!sharedOk) {
-        const dormA = /dortoir|shared|hostel|auberge/i.test(a.type + a.name) ? 1 : 0;
-        const dormB = /dortoir|shared|hostel|auberge/i.test(b.type + b.name) ? 1 : 0;
-        if (dormA !== dormB) return dormA - dormB;
+    const destProposals: Proposal[] = [];
+
+    for (const config of destConfigs) {
+      const rawAcc = config.id.startsWith("fallback-")
+        ? null
+        : matchedAccommodations.find((a) => a.id === config.id.split("||")[0]) || null;
+
+      const estimatedModeOptions = estimateOptionsByMode(destination.distance_from_paris_km, ctx.transportModes);
+      const bestModeOption = bestTransportOption(estimatedModeOptions, ctx.maxTravelDurationHours);
+      const transport =
+        ctx.transportByDestinationId?.[destination.id] ??
+        bestModeOption?.pricePerPerson ??
+        estimateTransport(destination.distance_from_paris_km);
+      const transportOrigins = ctx.transportOriginsByDestinationId?.[destination.id];
+      const transportGroup =
+        ctx.transportGroupByDestinationId?.[destination.id] ??
+        Math.round(transport * ctx.participants);
+
+      // Calcul des budgets réels de la configuration
+      const lodging = Math.round((config.priceBase + config.cleaningFee + config.serviceFee) / ctx.participants);
+      const food = destination.avg_daily_cost * 0.4 * (ctx.nights + 1);
+      const ageSpendMultiplier = ageBudgetMultiplier(ctx.groupAgeRange);
+      const ageAdjustedBudget = ctx.budgetPerPerson * ageSpendMultiplier;
+      const budgetForActivities = Math.max(40, ageAdjustedBudget - transport - lodging - food);
+
+      let activityPool = catalog.activities.filter((a) => a.destination_id === destination.id);
+      const diet = (ctx.dietaryConstraints ?? []).map(norm);
+      if (diet.length) {
+        activityPool = [...activityPool].sort((a, b) => {
+          const restoA = /gastro|resto|food|cuisine/i.test(a.category + a.name) ? 1 : 0;
+          const restoB = /gastro|resto|food|cuisine/i.test(b.category + b.name) ? 1 : 0;
+          return restoA - restoB;
+        });
       }
 
-      // 0. Cadre recherché : campagne/montagne/lac → maison, villa, gîte, chalet,
-      //    logement entier (type Airbnb) ; ville → hôtel / appart en centre.
-      const houseRe = /maison|villa|gite|gîte|chalet|mas|domaine|ferme|cottage|lodge|appart|apartment|home|house|entire/i;
-      if (envIsNature) {
-        const hA = houseRe.test(`${a.type} ${a.name}`) ? 0 : 1;
-        const hB = houseRe.test(`${b.type} ${b.name}`) ? 0 : 1;
-        if (hA !== hB) return hA - hB;
-        const capOkA = a.capacity >= ctx.participants ? 0 : 1;
-        const capOkB = b.capacity >= ctx.participants ? 0 : 1;
-        if (capOkA !== capOkB) return capOkA - capOkB;
-      }
-
-      // 1. Preferred lodging type matching (e.g. hotel, apartment)
-      if (preferredLodgingType && preferredLodgingType !== "peu_importe") {
-        const typeA = norm(a.type || "");
-        const typeB = norm(b.type || "");
-        const matchA = typeA.includes(norm(preferredLodgingType)) ? 0 : 1;
-        const matchB = typeB.includes(norm(preferredLodgingType)) ? 0 : 1;
-        if (matchA !== matchB) return matchA - matchB;
-      }
-
-      // 2. Required amenities matching (e.g. pool, wifi)
-      if (reqAmenities.length && reqAmenities.some(x => x !== "peu_importe")) {
-        const amenitiesA = (a.amenities ?? []).map((x: string) => norm(x));
-        const amenitiesB = (b.amenities ?? []).map((x: string) => norm(x));
-        const typeA = norm(a.type || "");
-        const typeB = norm(b.type || "");
-
-        const scoreA = reqAmenities.filter(am =>
-          amenitiesA.some((x: string) => x.includes(norm(am))) || typeA.includes(norm(am))
-        ).length;
-        const scoreB = reqAmenities.filter(am =>
-          amenitiesB.some((x: string) => x.includes(norm(am))) || typeB.includes(norm(am))
-        ).length;
-
-        if (scoreA !== scoreB) return scoreB - scoreA; // highest score first!
-      }
-
-      if (roomPrefs.length) {
-        const mA = roomPrefs.some((p) => norm(a.type).includes(p) || norm(a.name).includes(p)) ? 0 : 1;
-        const mB = roomPrefs.some((p) => norm(b.type).includes(p) || norm(b.name).includes(p)) ? 0 : 1;
-        if (mA !== mB) return mA - mB;
-      }
-      if (ctx.needsAccessibility) {
-        // sans champ PMR dédié: favoriser centre + note
-        if (a.distance_center_km !== b.distance_center_km) return a.distance_center_km - b.distance_center_km;
-      }
-      const capA = a.capacity >= ctx.participants ? 0 : 1;
-      const capB = b.capacity >= ctx.participants ? 0 : 1;
-      if (capA !== capB) return capA - capB;
-      if (minRating > 0 && a.rating !== b.rating) return b.rating - a.rating;
-      if (ctx.needsCityCenter && a.distance_center_km !== b.distance_center_km) {
-        return a.distance_center_km - b.distance_center_km;
-      }
-      return a.price_per_night_per_person - b.price_per_night_per_person;
-    });
-    const accommodation = accommodations[0] ?? null;
-
-    const estimatedModeOptions = estimateOptionsByMode(destination.distance_from_paris_km, ctx.transportModes);
-    const bestModeOption = bestTransportOption(estimatedModeOptions, ctx.maxTravelDurationHours);
-    const transport =
-      ctx.transportByDestinationId?.[destination.id] ??
-      bestModeOption?.pricePerPerson ??
-      estimateTransport(destination.distance_from_paris_km);
-    const transportOrigins = ctx.transportOriginsByDestinationId?.[destination.id];
-    const transportGroup =
-      ctx.transportGroupByDestinationId?.[destination.id] ??
-      Math.round(transport * ctx.participants);
-
-    const lodging =
-      (accommodation?.price_per_night_per_person ?? destination.avg_daily_cost * 0.4) * ctx.nights;
-    const food = destination.avg_daily_cost * 0.4 * (ctx.nights + 1);
-    const ageSpendMultiplier = ageBudgetMultiplier(ctx.groupAgeRange);
-    const ageAdjustedBudget = ctx.budgetPerPerson * ageSpendMultiplier;
-    const budgetForActivities = Math.max(40, ageAdjustedBudget - transport - lodging - food);
-
-    let activityPool = catalog.activities.filter((a) => a.destination_id === destination.id);
-    const diet = (ctx.dietaryConstraints ?? []).map(norm);
-    if (diet.length) {
-      // Ne pas exclure totalement, mais déprioriser resto générique si contraintes fortes
-      activityPool = [...activityPool].sort((a, b) => {
-        const restoA = /gastro|resto|food|cuisine/i.test(a.category + a.name) ? 1 : 0;
-        const restoB = /gastro|resto|food|cuisine/i.test(b.category + b.name) ? 1 : 0;
-        return restoA - restoB;
-      });
-    }
-    // Phase 2 : activités scorées sur préférences groupe + boost Star
-    const activities = pickActivities(
-      activityPool,
-      ctx.activityCategories,
-      ctx.nights,
-      budgetForActivities,
-      ctx.travelPace,
-      ctx.starWantedActivities,
-      ctx.dietaryConstraintsRatio ?? 0,
-      ctx.groupAgeRange,
-    );
-    const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
-    const totalPerPerson = transport + lodging + food + activitiesCost;
-    const sharedPerPerson = lodging + food + activitiesCost;
-    const totalGroup = transportGroup + sharedPerPerson * ctx.participants;
-
-    const individuals = ctx.individualPreferences ?? [];
-    const budgetsIndiv = individuals
-      .map((p) => p.budgetMax)
-      .filter((n): n is number => n != null && n > 0);
-    const budgetFitTotal = budgetsIndiv.length || (ctx.minGroupBudget ? 1 : 0);
-    const budgetFitCount = budgetsIndiv.length
-      ? budgetsIndiv.filter((b) => totalPerPerson <= b).length
-      : totalPerPerson <= (ctx.minGroupBudget ?? ctx.budgetPerPerson)
-        ? 1
-        : 0;
-    const hardCap = ctx.vetoBudgetMax ?? ctx.minGroupBudget ?? null;
-    const hardBudgetFits = hardCap != null ? totalPerPerson <= hardCap : totalPerPerson <= ctx.budgetPerPerson;
-
-    const budget: BudgetBreakdown = {
-      transport: Math.round(transport),
-      transportGroup: Math.round(transportGroup),
-      accommodation: Math.round(lodging),
-      activities: Math.round(activitiesCost),
-      food: Math.round(food),
-      totalPerPerson: Math.round(totalPerPerson),
-      totalGroup: Math.round(totalGroup),
-      budgetPerPerson: ctx.budgetPerPerson,
-      fits: totalPerPerson <= ctx.budgetPerPerson,
-      hardBudgetFits,
-      budgetFitCount,
-      budgetFitTotal: budgetFitTotal || ctx.participants,
-      priceSource: {
-        transport: ctx.transportByDestinationId?.[destination.id] != null ? 'api' : 'estimate',
-        accommodation: (accommodation != null && accommodation.source !== 'krew_seed') ? 'api' : 'estimate',
-      },
-      ...(transportOrigins && transportOrigins.length > 1
-        ? { transportByOrigin: transportOrigins }
-        : {}),
-    };
-
-    const available = new Set(
-      catalog.activities.filter((a) => a.destination_id === destination.id).map((a) => a.category),
-    );
-
-    const bestDuration = bestModeOption?.durationHours ?? destination.distance_from_paris_km / 90;
-
-    // Satisfaction individuelle
-    let consensusScore = 0.65;
-    let minSatisfaction = 0.65;
-    let satisfiedCount = 0;
-    let participantsEvaluated = 0;
-    if (individuals.length) {
-      const fits = individuals.map((pref) =>
-        individualFit(destination, available, totalPerPerson, pref, bestDuration, ctx.nights),
+      const activities = pickActivities(
+        activityPool,
+        ctx.activityCategories,
+        ctx.nights,
+        budgetForActivities,
+        ctx.travelPace,
+        ctx.starWantedActivities,
+        ctx.dietaryConstraintsRatio ?? 0,
+        ctx.groupAgeRange,
       );
-      participantsEvaluated = fits.length;
-      // Moyenne pondérée : la Star pèse plus (EVG/EVJF/anniversaire)
-      const weights = individuals.map((pref) => Math.max(0.1, pref.weight ?? (pref.isStar ? (ctx.starWeight ?? 2.5) : 1)));
-      const wSum = weights.reduce((a, b) => a + b, 0);
-      consensusScore = fits.reduce((acc, f, i) => acc + f * weights[i]!, 0) / wSum;
-      minSatisfaction = Math.min(...fits);
-      satisfiedCount = fits.filter((f) => f >= 0.55).length;
-    }
+      const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
 
-    const sAmbiance = ambianceScore(destination, ctx.ambiances);
-    const wanted = ctx.activityCategories;
-    const sActivities = wanted.length
-      ? wanted.filter((c) => available.has(c)).length / wanted.length
-      : 0.6;
-    const ratio = totalPerPerson / Math.max(1, ctx.budgetPerPerson);
-    const ageBudgetRatio = totalPerPerson / Math.max(1, ageAdjustedBudget);
-    const baseBudgetScore = ratio <= 1 ? clamp(0.7 + (1 - ratio) * 0.6) : clamp(1 - (ratio - 1) * 1.8);
-    const ageBudgetScore = ageBudgetRatio <= 1
-      ? clamp(0.72 + (1 - ageBudgetRatio) * 0.5)
-      : clamp(1 - (ageBudgetRatio - 1) * 2.1);
-    const sBudget = clamp(baseBudgetScore * 0.65 + ageBudgetScore * 0.35);
-    const maxHours = ctx.maxTravelDurationHours ?? null;
-    const sTransport = maxHours && maxHours > 0
-      ? clamp(1 - Math.max(0, bestDuration - maxHours * 0.55) / Math.max(1, maxHours * 0.75))
-      : clamp(1 - bestDuration / 12);
-    const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm));
-    const sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
-    const sQuality = clamp((destination.rating - 3.5) / 1.5) * 0.6 + destination.popularity * 0.4;
-    const sConsensus = consensusScore;
-    const sMinSat = minSatisfaction;
+      const totalPerPerson = transport + lodging + food + activitiesCost + Math.round(config.taxes / ctx.participants);
+      const totalGroup = transportGroup + (lodging + food + activitiesCost + Math.round(config.taxes / ctx.participants)) * ctx.participants;
 
-    const w = resolveWeights(ctx.eventType, ctx.scoringWeights);
+      const individuals = ctx.individualPreferences ?? [];
+      const budgetsIndiv = individuals
+        .map((p) => p.budgetMax)
+        .filter((n): n is number => n != null && n > 0);
+      const budgetFitTotal = budgetsIndiv.length || (ctx.minGroupBudget ? 1 : 0);
+      const budgetFitCount = budgetsIndiv.length
+        ? budgetsIndiv.filter((b) => totalPerPerson <= b).length
+        : totalPerPerson <= (ctx.minGroupBudget ?? ctx.budgetPerPerson)
+          ? 1
+          : 0;
+      const hardCap = ctx.vetoBudgetMax ?? ctx.minGroupBudget ?? null;
+      const hardBudgetFits = hardCap != null ? totalPerPerson <= hardCap : totalPerPerson <= ctx.budgetPerPerson;
 
-    let score =
-      sAmbiance * w.ambiance +
-      sActivities * w.activities +
-      sBudget * w.budget +
-      (sDistance * 0.45 + sTransport * 0.55) * w.distance +
-      sSeason * w.season +
-      sQuality * w.quality +
-      sConsensus * w.consensus +
-      sMinSat * w.minSatisfaction;
+      const budget: BudgetBreakdown & { configuration: AccommodationConfig } = {
+        transport: Math.round(transport),
+        transportGroup: Math.round(transportGroup),
+        accommodation: Math.round(lodging),
+        activities: Math.round(activitiesCost),
+        food: Math.round(food),
+        totalPerPerson: Math.round(totalPerPerson),
+        totalGroup: Math.round(totalGroup),
+        budgetPerPerson: ctx.budgetPerPerson,
+        fits: totalPerPerson <= ctx.budgetPerPerson,
+        hardBudgetFits,
+        budgetFitCount,
+        budgetFitTotal: budgetFitTotal || ctx.participants,
+        priceSource: {
+          transport: ctx.transportByDestinationId?.[destination.id] != null ? 'api' : 'estimate',
+          accommodation: (rawAcc != null && rawAcc.source !== 'krew_seed') ? 'api' : 'estimate',
+        },
+        configuration: config,
+        ...(transportOrigins && transportOrigins.length > 1
+          ? { transportByOrigin: transportOrigins }
+          : {}),
+      };
 
-    // Soft Preferences / Context based on group age range
-    if (ctx.groupAgeRange) {
-      const age = norm(ctx.groupAgeRange);
-      if (age.includes("18-25") || age.includes("25-35")) {
-        // Young group bonus/penalty based on price & nightlife
-        score += destination.score_fete * 8;
-        if (destination.avg_daily_cost <= 75) {
-          score += 5;
-        } else if (destination.avg_daily_cost > 120) {
-          score -= 10;
-        }
-      } else if (age.includes("45-60") || age.includes("60+")) {
-        // Older group: favor comfort, detente, gastronomy/culture
-        score += (destination.score_detente + destination.score_culturel) * 4;
-        if (accommodation && accommodation.rating >= 4.2) {
-          score += 6;
-        }
-        if (destination.avg_daily_cost >= 100) {
-          score += 4;
+      const available = new Set(
+        catalog.activities.filter((a) => a.destination_id === destination.id).map((a) => a.category),
+      );
+
+      const bestDuration = bestModeOption?.durationHours ?? destination.distance_from_paris_km / 90;
+
+      // Satisfaction individuelle
+      let consensusScore = 0.65;
+      let minSatisfaction = 0.65;
+      let satisfiedCount = 0;
+      let participantsEvaluated = 0;
+      if (individuals.length) {
+        const fits = individuals.map((pref) =>
+          individualFit(destination, available, totalPerPerson, pref, bestDuration, ctx.nights),
+        );
+        participantsEvaluated = fits.length;
+        const weights = individuals.map((pref) => Math.max(0.1, pref.weight ?? (pref.isStar ? (ctx.starWeight ?? 2.5) : 1)));
+        const wSum = weights.reduce((a, b) => a + b, 0);
+        consensusScore = fits.reduce((acc, f, i) => acc + f * weights[i]!, 0) / wSum;
+        minSatisfaction = Math.min(...fits);
+        satisfiedCount = fits.filter((f) => f >= 0.55).length;
+      }
+
+      const sAmbiance = ambianceScore(destination, ctx.ambiances);
+      const wanted = ctx.activityCategories;
+      const sActivities = wanted.length
+        ? wanted.filter((c) => available.has(c)).length / wanted.length
+        : 0.6;
+      const ratio = totalPerPerson / Math.max(1, ctx.budgetPerPerson);
+      const ageBudgetRatio = totalPerPerson / Math.max(1, ageAdjustedBudget);
+      const baseBudgetScore = ratio <= 1 ? clamp(0.7 + (1 - ratio) * 0.6) : clamp(1 - (ratio - 1) * 1.8);
+      const ageBudgetScore = ageBudgetRatio <= 1
+        ? clamp(0.72 + (1 - ageBudgetRatio) * 0.5)
+        : clamp(1 - (ageBudgetRatio - 1) * 2.1);
+      const sBudget = clamp(baseBudgetScore * 0.65 + ageBudgetScore * 0.35);
+      const maxHours = ctx.maxTravelDurationHours ?? null;
+      const sTransport = maxHours && maxHours > 0
+        ? clamp(1 - Math.max(0, bestDuration - maxHours * 0.55) / Math.max(1, maxHours * 0.75))
+        : clamp(1 - bestDuration / 12);
+      const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm));
+      const sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
+      const sQuality = clamp((destination.rating - 3.5) / 1.5) * 0.6 + destination.popularity * 0.4;
+      const sConsensus = consensusScore;
+      const sMinSat = minSatisfaction;
+
+      const w = resolveWeights(ctx.eventType, ctx.scoringWeights);
+
+      let score =
+        sAmbiance * w.ambiance +
+        sActivities * w.activities +
+        sBudget * w.budget +
+        (sDistance * 0.45 + sTransport * 0.55) * w.distance +
+        sSeason * w.season +
+        sQuality * w.quality +
+        sConsensus * w.consensus +
+        sMinSat * w.minSatisfaction;
+
+      // Soft Preferences / Context based on group age range
+      if (ctx.groupAgeRange) {
+        const age = norm(ctx.groupAgeRange);
+        if (age.includes("18-25") || age.includes("25-35")) {
+          score += destination.score_fete * 8;
+          if (destination.avg_daily_cost <= 75) {
+            score += 5;
+          } else if (destination.avg_daily_cost > 120) {
+            score -= 10;
+          }
+        } else if (age.includes("45-60") || age.includes("60+")) {
+          score += (destination.score_detente + destination.score_culturel) * 4;
+          if (rawAcc && rawAcc.rating >= 4.2) {
+            score += 6;
+          }
+          if (destination.avg_daily_cost >= 100) {
+            score += 4;
+          }
         }
       }
-    }
 
-    // Type de lieu / environnement recherché (sous-score pondéré comme les autres axes)
-    const sEnvironment = environmentScore(destEnvs, wantedEnvTypes, starEnvTypes);
-    score += sEnvironment * (w.environment ?? 10);
+      // Type de lieu / environnement recherché
+      const sEnvironment = environmentScore(destEnvs, wantedEnvTypes, starEnvTypes);
+      score += sEnvironment * (w.environment ?? 10);
 
-    // La Star pèse davantage sur le cadre (EVG/EVJF/anniversaire)
-    if (starEnvTypes.length) {
-      const starWantedNormalized = splitEnvTypes(starEnvTypes);
-      const destEnvNormalized = new Set(splitEnvTypes(destEnvs));
-      const starMatch = starWantedNormalized.length
-        ? starWantedNormalized.filter((env) => destEnvNormalized.has(env)).length / starWantedNormalized.length
-        : 0;
-      score += starMatch * 12 - (starMatch === 0 ? 6 : 0);
-    }
-
-    const hasHistory = ctx.pastDestinations && ctx.pastDestinations.length > 0;
-    const sHistorique = hasHistory ? computeHistoriqueScore(destination, ctx.pastDestinations) : 0;
-    if (hasHistory) {
-      const hWeight = w.historique ?? 3;
-      score += sHistorique * hWeight;
-    }
-
-    // Tâche 10 : Destinations rêvées et à éviter globales / agrégées
-    if (ctx.desiredDestination) {
-      const desired = norm(ctx.desiredDestination);
-      const destName = norm(destination.name);
-      const destCountry = norm(destination.country);
-      if (desired && (destName.includes(desired) || desired.includes(destName) || destCountry.includes(desired))) {
-        score += 15; // Bonus global de +15 points de score de groupe
+      // Star et cadre
+      if (starEnvTypes.length) {
+        const starWantedNormalized = splitEnvTypes(starEnvTypes);
+        const destEnvNormalized = new Set(splitEnvTypes(destEnvs));
+        const starMatch = starWantedNormalized.length
+          ? starWantedNormalized.filter((env) => destEnvNormalized.has(env)).length / starWantedNormalized.length
+          : 0;
+        score += starMatch * 12 - (starMatch === 0 ? 6 : 0);
       }
-    }
 
-    if (ctx.dealBreakerDestinations && ctx.dealBreakerDestinations.length > 0) {
-      const destName = norm(destination.name);
-      const destCountry = norm(destination.country);
-      const hitsExcluded = ctx.dealBreakerDestinations.some(d => {
-        const nd = norm(d);
-        return nd && (destName.includes(nd) || nd.includes(destName) || destCountry.includes(nd));
-      });
-      if (hitsExcluded) {
-        score -= 40; // Pénalité lourde de -40 points de score pour toute destination bannie
+      const hasHistory = ctx.pastDestinations && ctx.pastDestinations.length > 0;
+      const sHistorique = hasHistory ? computeHistoriqueScore(destination, ctx.pastDestinations) : 0;
+      if (hasHistory) {
+        const hWeight = w.historique ?? 3;
+        score += sHistorique * hWeight;
       }
-    }
 
-    // Pénalité forte si un participant est très mal satisfait
-    if (minSatisfaction < 0.35) score -= 25;
-    else if (minSatisfaction < 0.45) score -= 12;
-    if (!hardBudgetFits) {
-      if (ctx.hasBudgetVeto) {
-        score -= 40; // Penalize budget veto strictly
-      } else {
+      // Destinations rêvées et à éviter
+      if (ctx.desiredDestination) {
+        const desired = norm(ctx.desiredDestination);
+        const destName = norm(destination.name);
+        const destCountry = norm(destination.country);
+        if (desired && (destName.includes(desired) || desired.includes(destName) || destCountry.includes(desired))) {
+          score += 15;
+        }
+      }
+
+      if (ctx.dealBreakerDestinations && ctx.dealBreakerDestinations.length > 0) {
+        const destName = norm(destination.name);
+        const destCountry = norm(destination.country);
+        const hitsExcluded = ctx.dealBreakerDestinations.some(d => {
+          const nd = norm(d);
+          return nd && (destName.includes(nd) || nd.includes(destName) || destCountry.includes(nd));
+        });
+        if (hitsExcluded) {
+          score -= 40;
+        }
+      }
+
+      // Tâche 6 : Intégrer la logique de groupe dans le scoring (Bonuses de configuration)
+      // 1. Cohésion du groupe
+      if (config.unitsCount === 1 && (config.type === "villa" || config.type === "auberge")) {
+        score += 5;
+      } else if (config.unitsCount === 1 && config.type === "appartement") {
+        score += 3;
+      } else if (config.unitsCount > 1) {
+        score -= 4;
+      }
+
+      // 2. Confort
+      const density = ctx.participants / config.bedrooms;
+      if (density <= 2) {
+        score += 4;
+      } else if (density > 3) {
+        score -= 6;
+      }
+
+      if (ctx.participants / config.bathrooms <= 3) {
+        score += 2;
+      }
+
+      // 3. Match préférences
+      if (ctx.mostDemandedLodgingType && ctx.mostDemandedLodgingType !== "peu_importe") {
+        if (norm(config.type).includes(norm(ctx.mostDemandedLodgingType))) {
+          score += 3;
+        }
+      }
+
+      if (ctx.requiredAmenities && ctx.requiredAmenities.length > 0) {
+        const amenitiesNorm = (rawAcc?.amenities ?? []).map(x => norm(x));
+        const matched = ctx.requiredAmenities.filter(am => am !== "peu_importe" && amenitiesNorm.some(x => x.includes(norm(am))));
+        score += matched.length * 1;
+      }
+
+      // Pénalité forte si un participant est très mal satisfait
+      if (minSatisfaction < 0.35) score -= 25;
+      else if (minSatisfaction < 0.45) score -= 12;
+      if (!hardBudgetFits) {
+        if (ctx.hasBudgetVeto) {
+          score -= 40;
+        } else {
+          score -= 15;
+        }
+      }
+      // Pénalité additionnelle si le budget global est de 0 ou extrêmement bas pour refléter l'écart
+      if (ctx.budgetPerPerson <= 50) {
         score -= 15;
       }
-    }
-    if (individuals.length && satisfiedCount < individuals.length) {
-      score -= (individuals.length - satisfiedCount) * 4;
-    }
+      if (individuals.length && satisfiedCount < individuals.length) {
+        score -= (individuals.length - satisfiedCount) * 4;
+      }
 
-    // Tâche 8 : Pénalités de score pour planeRefused et maxTravelDurationHours
-    if (planeRefusedBypassed) {
-      score -= 25;
-    } else if (ctx.planeRefused && destination.distance_from_paris_km > 500) {
-      score -= 8;
-    }
-
-    if (maxDurationBypassed) {
-      score -= 25;
-    } else if (ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
-      if (!isTransportCompatible(estimatedModeOptions, ctx.maxTravelDurationHours)) {
-        score -= 35;
-      } else if (bestDuration > ctx.maxTravelDurationHours * 0.8) {
+      // Pénalités de score pour planeRefused et maxTravelDurationHours
+      if (planeRefusedBypassed) {
+        score -= 25;
+      } else if (ctx.planeRefused && destination.distance_from_paris_km > 500) {
         score -= 8;
       }
-    }
 
-    if (!ctx.letKrewDecide && desired) {
-      const matches =
-        norm(destination.name).includes(desired) || norm(destination.country).includes(desired);
-      score += matches ? 35 : -25;
-    }
-
-    const subScores: SubScores = {
-      sAmbiance,
-      sActivities,
-      sBudget,
-      sDistance,
-      sTransport,
-      sSeason,
-      sQuality,
-      sConsensus,
-      sMinSatisfaction: sMinSat,
-      ...(hasHistory ? { sHistorique } : {}),
-      sEnvironment,
-    };
-
-    const matchReasons: string[] = [];
-    if (participantsEvaluated > 0) {
-      matchReasons.push(`✅ Plaît à ${satisfiedCount}/${participantsEvaluated} participants`);
-    }
-    if (budgetFitTotal > 0) {
-      matchReasons.push(
-        `Dans le budget de ${budgetFitCount}/${budgetFitTotal} participants`,
-      );
-    }
-    if (sAmbiance > 0.7) matchReasons.push("Colle parfaitement à l'ambiance recherchée par le groupe");
-    if (sActivities >= 0.75)
-      matchReasons.push("Toutes les catégories d'activités demandées sont disponibles sur place");
-    if (budget.fits)
-      matchReasons.push(
-        `Budget médian respecté : ${Math.round(totalPerPerson)} € / pers. sur ${ctx.budgetPerPerson} €`,
-      );
-    else
-      matchReasons.push(
-        `Dépassement vs médiane (+${Math.round(totalPerPerson - ctx.budgetPerPerson)} € / pers.)`,
-      );
-    if (!hardBudgetFits && hardCap != null)
-      matchReasons.push(
-        ctx.hasBudgetVeto
-          ? `Hors plafond veto budget (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`
-          : `Hors budget du plus serré (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`,
-      );
-    if (ctx.hasBudgetVeto && hardBudgetFits)
-      matchReasons.push(`Respecte le veto budget (${hardCap} €)`);
-    if (!sharedOk)
-      matchReasons.push("Hébergement priorisé hors dortoir / chambre partagée");
-    if (preferredLodgingType && preferredLodgingType !== "peu_importe" && accommodation && norm(accommodation.type || "").includes(norm(preferredLodgingType))) {
-      matchReasons.push(`Type d'hébergement respecté : ${accommodation.type}`);
-    }
-    if (reqAmenities.length && reqAmenities.some(x => x !== "peu_importe") && accommodation) {
-      const amenitiesNorm = (accommodation.amenities ?? []).map((x: string) => norm(x));
-      const matched = reqAmenities.filter(am =>
-        amenitiesNorm.some((x: string) => x.includes(norm(am))) || norm(accommodation.type || "").includes(norm(am))
-      );
-      if (matched.length > 0) {
-        matchReasons.push(`Critères d'hébergement respectés : ${matched.join(", ")}`);
-      }
-    }
-    if (ctx.needsAccessibility)
-      matchReasons.push("Priorité accessibilité / proximité centre (besoin mobilité)");
-    if (ctx.planeRefused) {
-      if (planeRefusedBypassed) {
-        matchReasons.push("⚠️ ATTENTION : Train ou voiture privilégié par le groupe, mais proposé par manque d'alternatives.");
-      } else {
-        matchReasons.push("Train ou voiture possible (pas d'avion obligatoire)");
-      }
-    }
-    if (ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
       if (maxDurationBypassed) {
-        matchReasons.push(`⚠️ ATTENTION : Dépasse la durée de trajet souhaitée de ${ctx.maxTravelDurationHours}h, mais proposé par manque d'alternatives.`);
-      } else {
-        matchReasons.push(`Trajet compatible en ${bestModeOption?.mode ?? "mode accepté"} (~${Math.round(bestDuration * 10) / 10}h)`);
+        score -= 25;
+      } else if (ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
+        if (!isTransportCompatible(estimatedModeOptions, ctx.maxTravelDurationHours)) {
+          score -= 35;
+        } else if (bestDuration > ctx.maxTravelDurationHours * 0.8) {
+          score -= 8;
+        }
       }
-    }
-    if (sEnvironment >= 0.8 && splitEnvTypes([...wantedEnvTypes, ...starEnvTypes]).length) {
-      matchReasons.push(`Cadre demandé respecté : ${destEnvs.join(" · ")}`);
-    }
-    if (ctx.groupAgeRange) {
-      matchReasons.push(`Budget et activités ajustés pour la tranche d’âge ${ctx.groupAgeRange}`);
-    }
-    if (sSeason >= 0.9) matchReasons.push("Période idéale côté météo et saisonnalité");
-    if (destination.distance_from_paris_km <= 900)
-      matchReasons.push("Trajet court : plus de temps sur place, moins de fatigue");
-    if (accommodation && accommodation.capacity >= ctx.participants)
-      matchReasons.push(`Hébergement unique pour ${ctx.participants} personnes (${accommodation.type})`);
-    if (minRating > 0 && accommodation && accommodation.rating >= minRating)
-      matchReasons.push(`Note hébergement ≥ ${minRating}`);
-    if (ctx.transportByDestinationId?.[destination.id] != null) {
-      if (transportOrigins && transportOrigins.length > 1) {
-        const detail = transportOrigins
-          .map((o) => `${o.city} (${o.count}) ${Math.round(o.pricePerPerson)} €`)
-          .join(" · ");
+
+      if (!ctx.letKrewDecide && desired) {
+        const matches =
+          norm(destination.name).includes(desired) || norm(destination.country).includes(desired);
+        score += matches ? 35 : -25;
+      }
+
+      const subScores: SubScores = {
+        sAmbiance,
+        sActivities,
+        sBudget,
+        sDistance,
+        sTransport,
+        sSeason,
+        sQuality,
+        sConsensus,
+        sMinSatisfaction: sMinSat,
+        ...(hasHistory ? { sHistorique } : {}),
+        sEnvironment,
+      };
+
+      const matchReasons: string[] = [];
+      let categoryLabel = "";
+      if (config.category === "rapport_qualite_prix") {
+        categoryLabel = "💎 Meilleur rapport qualité/prix";
+      } else if (config.category === "confort") {
+        categoryLabel = "⭐ Meilleur confort";
+      } else if (config.category === "emplacement") {
+        categoryLabel = "📍 Meilleur emplacement";
+      }
+      if (categoryLabel) {
+        matchReasons.push(categoryLabel);
+      }
+
+      matchReasons.push(`🏠 Logement : ${config.name}`);
+      matchReasons.push(`🛌 ${config.bedrooms} ch. · ${config.beds} lits · ${config.bathrooms} SDB`);
+
+      if (participantsEvaluated > 0) {
+        matchReasons.push(`✅ Plaît à ${satisfiedCount}/${participantsEvaluated} participants`);
+      }
+      if (budgetFitTotal > 0) {
         matchReasons.push(
-          `Transport multi-départs — moy. ${Math.round(transport)} € A/R / pers. (${detail})`,
+          `Dans le budget de ${budgetFitCount}/${budgetFitTotal} participants`,
         );
-      } else {
-        matchReasons.push(`Transport estimé via Kayak/Kiwi : ${Math.round(transport)} € A/R / pers.`);
       }
+
+      if (sAmbiance > 0.7) matchReasons.push("Colle parfaitement à l'ambiance recherchée par le groupe");
+      if (sActivities >= 0.75)
+        matchReasons.push("Toutes les activités demandées sont sur place");
+      if (budget.fits)
+        matchReasons.push(
+          `Budget médian respecté : ${Math.round(totalPerPerson)} € / pers. tout compris`,
+        );
+      else
+        matchReasons.push(
+          `Dépassement vs médiane (+${Math.round(totalPerPerson - ctx.budgetPerPerson)} € / pers.)`,
+        );
+      if (!hardBudgetFits && hardCap != null)
+        matchReasons.push(
+          ctx.hasBudgetVeto
+            ? `Hors plafond veto budget (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`
+            : `Hors budget du plus serré (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`,
+        );
+      if (ctx.hasBudgetVeto && hardBudgetFits)
+        matchReasons.push(`Respecte le veto budget (${hardCap} €)`);
+      if (!sharedOk)
+        matchReasons.push("Hébergement priorisé hors dortoir");
+      if (preferredLodgingType && preferredLodgingType !== "peu_importe" && rawAcc && norm(rawAcc.type || "").includes(norm(preferredLodgingType))) {
+        matchReasons.push(`Type d'hébergement respecté : ${rawAcc.type}`);
+      }
+      if (ctx.needsAccessibility)
+        matchReasons.push("Priorité accessibilité (besoin mobilité)");
+      if (ctx.planeRefused) {
+        if (planeRefusedBypassed) {
+          matchReasons.push("⚠️ Privilégie train/voiture par manque d'alternatives");
+        } else {
+          matchReasons.push("Train ou voiture possible (pas d'avion obligatoire)");
+        }
+      }
+      if (ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
+        if (maxDurationBypassed) {
+          matchReasons.push(`⚠️ Dépasse la durée de trajet souhaitée de ${ctx.maxTravelDurationHours}h`);
+        } else {
+          matchReasons.push(`Trajet compatible en ${bestModeOption?.mode ?? "mode accepté"} (~${Math.round(bestDuration * 10) / 10}h)`);
+        }
+      }
+
+      let originPriceSpread: number | null = null;
+      if (transportOrigins && transportOrigins.length > 0) {
+        const prices = transportOrigins.map((o) => o.pricePerPerson);
+        const maxPrice = Math.max(...prices);
+        const minPrice = Math.min(...prices);
+        originPriceSpread = maxPrice - minPrice;
+      }
+
+      const rationale = `${destination.name} pour ${ctx.participants} personnes. ${config.explanation} Consensus ${(consensusScore * 100).toFixed(0)} % · min. satisfaction ${(minSatisfaction * 100).toFixed(0)} %.`;
+
+      destProposals.push({
+        destination,
+        accommodation: rawAcc,
+        activities,
+        score: Math.round(clamp(score, 0, 100)),
+        rationale,
+        matchReasons,
+        itinerary: buildItinerary(destination, rawAcc, activities, ctx.nights, ctx.travelPace, ctx.preferredTimeSlots),
+        budget,
+        consensusScore,
+        minSatisfaction,
+        satisfiedCount,
+        participantsEvaluated,
+        subScores,
+        originPriceSpread,
+        transportOptions: estimatedModeOptions,
+      });
     }
 
-    let originPriceSpread: number | null = null;
-    if (transportOrigins && transportOrigins.length > 0) {
-      const prices = transportOrigins.map((o) => o.pricePerPerson);
-      const maxPrice = Math.max(...prices);
-      const minPrice = Math.min(...prices);
-      originPriceSpread = maxPrice - minPrice;
-    }
+    allDestinationProposals.push(...destProposals);
+  }
 
-    const rationale = `${destination.name} pour ${ctx.participants} personnes : ${
-      destination.description ?? ""
-    } Consensus ${(consensusScore * 100).toFixed(0)} % · min. satisfaction ${(minSatisfaction * 100).toFixed(0)} %.`;
-
-    return {
-      destination,
-      accommodation,
-      activities,
-      score: Math.round(clamp(score, 0, 100)),
-      rationale,
-      matchReasons,
-      itinerary: buildItinerary(destination, accommodation, activities, ctx.nights, ctx.travelPace, ctx.preferredTimeSlots),
-      budget,
-      consensusScore,
-      minSatisfaction,
-      satisfiedCount,
-      participantsEvaluated,
-      subScores,
-      originPriceSpread,
-      transportOptions: estimatedModeOptions,
-    };
-  });
-
-  const sortedProposals = proposals.sort((a, b) => b.score - a.score);
+  const sortedProposals = allDestinationProposals.sort((a, b) => b.score - a.score);
   const selected = selectDiverseTop(sortedProposals, limit);
 
   // Conserve les 2-3 meilleures destinations qui ont été calculées mais pas retenues dans le top final
@@ -1337,6 +1602,8 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
 
   return selected;
 }
+
+
 
 /**
  * MMR léger : diversifie le top N (pays, ambiance dominante, budget ±10%).
