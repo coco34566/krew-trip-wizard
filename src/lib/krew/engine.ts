@@ -5,7 +5,7 @@
  * du groupe, puis produisent des propositions scorées.
  */
 import { AMBIANCE_SCORE_COLUMN, type Ambiance } from "./constants";
-import { bestTransportOption, estimateOptionsByMode, isTransportCompatible, type TransportOption } from "./transport-compatibility";
+import { bestTransportOption, estimateOptionsByMode, isTransportCompatible, type TransportOption, normalizeTransportModes } from "./transport-compatibility";
 
 export type DestinationRecord = {
   id: string;
@@ -85,6 +85,8 @@ export type IndividualPreference = {
   desiredDestination?: string;
   wantedEnvType?: string | null;
   groupAgeRange?: string | null;
+  durationNightsMin?: number | null;
+  durationNightsMax?: number | null;
 };
 
 export type ScoringWeights = {
@@ -725,10 +727,33 @@ function individualFit(
   availableCategories: Set<string>,
   totalPerPerson: number,
   pref: IndividualPreference,
+  bestDuration?: number | null,
+  nights?: number | null,
 ): number {
   if (hitsDealBreaker(dest, pref.dealBreakerAmbiances, pref.dealBreakerDestinations)) {
     return 0;
   }
+
+  // Hard constraint: Budget Veto
+  if (pref.budgetPriority === "veto" && pref.budgetMax != null && totalPerPerson > pref.budgetMax) {
+    return 0;
+  }
+
+  // Hard constraint: Max travel hours
+  if (pref.maxTravelHours != null && bestDuration != null && bestDuration > pref.maxTravelHours) {
+    return 0;
+  }
+
+  // Hard constraint: Transport modes compatibility
+  if (pref.transportModes && pref.transportModes.length > 0) {
+    const userModes = normalizeTransportModes(pref.transportModes);
+    const userModeOptions = estimateOptionsByMode(dest.distance_from_paris_km, pref.transportModes);
+    const hasCompatibleUserMode = userModeOptions.some(o => pref.maxTravelHours == null || o.durationHours <= pref.maxTravelHours);
+    if (!hasCompatibleUserMode) {
+      return 0;
+    }
+  }
+
   let sAmb = ambianceScore(dest, pref.ambiances.length ? pref.ambiances : []);
   const wanted = pref.activityCategories;
   const sAct = wanted.length
@@ -749,10 +774,20 @@ function individualFit(
 
   let score = sAmb * 0.34 + sAct * 0.27 + sBudget * 0.27 + sEnv * 0.12;
 
+  // Soft preference: duration_nights
+  if (nights != null) {
+    if (pref.durationNightsMin != null && nights < pref.durationNightsMin) {
+      score -= 0.15;
+    }
+    if (pref.durationNightsMax != null && nights > pref.durationNightsMax) {
+      score -= 0.15;
+    }
+  }
+
   // Bonus si la destination correspond à la destination rêvée du participant (s'il en a une)
   // On compare de manière souple
-  if (pref.desired_destination || (pref as any).desiredDestination) {
-    const desired = norm(pref.desired_destination || (pref as any).desiredDestination || "");
+  if (pref.desired_destination || pref.desiredDestination) {
+    const desired = norm(pref.desired_destination || pref.desiredDestination || "");
     const destName = norm(dest.name);
     const destCountry = norm(dest.country);
     if (desired && (destName.includes(desired) || desired.includes(destName) || destCountry.includes(desired))) {
@@ -998,6 +1033,8 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       catalog.activities.filter((a) => a.destination_id === destination.id).map((a) => a.category),
     );
 
+    const bestDuration = bestModeOption?.durationHours ?? destination.distance_from_paris_km / 90;
+
     // Satisfaction individuelle
     let consensusScore = 0.65;
     let minSatisfaction = 0.65;
@@ -1005,7 +1042,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     let participantsEvaluated = 0;
     if (individuals.length) {
       const fits = individuals.map((pref) =>
-        individualFit(destination, available, totalPerPerson, pref),
+        individualFit(destination, available, totalPerPerson, pref, bestDuration, ctx.nights),
       );
       participantsEvaluated = fits.length;
       // Moyenne pondérée : la Star pèse plus (EVG/EVJF/anniversaire)
@@ -1028,7 +1065,6 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       ? clamp(0.72 + (1 - ageBudgetRatio) * 0.5)
       : clamp(1 - (ageBudgetRatio - 1) * 2.1);
     const sBudget = clamp(baseBudgetScore * 0.65 + ageBudgetScore * 0.35);
-    const bestDuration = bestModeOption?.durationHours ?? destination.distance_from_paris_km / 90;
     const maxHours = ctx.maxTravelDurationHours ?? null;
     const sTransport = maxHours && maxHours > 0
       ? clamp(1 - Math.max(0, bestDuration - maxHours * 0.55) / Math.max(1, maxHours * 0.75))
@@ -1050,6 +1086,29 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sQuality * w.quality +
       sConsensus * w.consensus +
       sMinSat * w.minSatisfaction;
+
+    // Soft Preferences / Context based on group age range
+    if (ctx.groupAgeRange) {
+      const age = norm(ctx.groupAgeRange);
+      if (age.includes("18-25") || age.includes("25-35")) {
+        // Young group bonus/penalty based on price & nightlife
+        score += destination.score_fete * 8;
+        if (destination.avg_daily_cost <= 75) {
+          score += 5;
+        } else if (destination.avg_daily_cost > 120) {
+          score -= 10;
+        }
+      } else if (age.includes("45-60") || age.includes("60+")) {
+        // Older group: favor comfort, detente, gastronomy/culture
+        score += (destination.score_detente + destination.score_culturel) * 4;
+        if (accommodation && accommodation.rating >= 4.2) {
+          score += 6;
+        }
+        if (destination.avg_daily_cost >= 100) {
+          score += 4;
+        }
+      }
+    }
 
     // Type de lieu / environnement recherché (sous-score pondéré comme les autres axes)
     const sEnvironment = environmentScore(destEnvs, wantedEnvTypes, starEnvTypes);
@@ -1097,9 +1156,15 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     // Pénalité forte si un participant est très mal satisfait
     if (minSatisfaction < 0.35) score -= 25;
     else if (minSatisfaction < 0.45) score -= 12;
-    if (!hardBudgetFits) score -= 10;
+    if (!hardBudgetFits) {
+      if (ctx.hasBudgetVeto) {
+        score -= 40; // Penalize budget veto strictly
+      } else {
+        score -= 15;
+      }
+    }
     if (individuals.length && satisfiedCount < individuals.length) {
-      score -= (individuals.length - satisfiedCount) * 3;
+      score -= (individuals.length - satisfiedCount) * 4;
     }
 
     // Tâche 8 : Pénalités de score pour planeRefused et maxTravelDurationHours
