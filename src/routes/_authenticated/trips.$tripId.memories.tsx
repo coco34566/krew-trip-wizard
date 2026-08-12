@@ -95,7 +95,7 @@ function MemoriesPage() {
         console.error("Failed to load trip photos", error);
         throw error;
       }
-      return data as Photo[];
+      return data as unknown as Photo[];
     },
   });
 
