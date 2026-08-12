@@ -1116,41 +1116,6 @@ export type Database = {
           },
         ]
       }
-      trip_photos: {
-        Row: {
-          id: string
-          trip_id: string
-          url: string
-          author: string
-          likes: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          trip_id: string
-          url: string
-          author: string
-          likes?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          trip_id?: string
-          url?: string
-          author?: string
-          likes?: number
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trip_photos_trip_id_fkey"
-            columns: ["trip_id"]
-            isOneToOne: false
-            referencedRelation: "trips"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       trip_transport_time_prefs: {
         Row: {
           created_at: string

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, Copy, Link2, Loader2, UserPlus, Users, Crown, Shield } from "lucide-react";
+import { ArrowLeft, Check, Copy, Link2, Loader2, UserPlus, Users, Crown, Shield, Star } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -134,7 +134,7 @@ function InvitePage() {
   const combinedParticipants = useMemo(() => {
     if (!hasStar) return rawParticipants;
 
-    const starExists = rawParts => rawParts.some((p: any) => {
+    const starExists = (rawParts: any[]) => rawParts.some((p: any) => {
       const isStarByUid = p.user_id && p.user_id === starUid;
       const isStarByName = celebratedPerson && p.display_name &&
         p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===

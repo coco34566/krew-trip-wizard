@@ -858,10 +858,10 @@ function TripDetail() {
   const starUid = trip?.star_user_id || "star-virtual-uid";
   const hasStar = Boolean(trip?.has_star || celebratedPerson);
 
-  const combinedParticipants = useMemo(() => {
+  const combinedParticipants = (() => {
     if (!hasStar) return rawParticipants;
 
-    const starExists = rawParts => rawParts.some((p: any) => {
+    const starExists = (rawParts: any[]) => rawParts.some((p: any) => {
       const isStarByUid = p.user_id && p.user_id === starUid;
       const isStarByName = celebratedPerson && p.display_name &&
         p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
@@ -895,7 +895,7 @@ function TripDetail() {
     };
 
     return [...rawParticipants, starVirtual];
-  }, [rawParticipants, trip, tripId, hasStar, starUid, celebratedPerson]);
+  })();
 
   const participants = combinedParticipants;
   const destinationSelected = recommendations.some((r) => r.is_selected);
