@@ -34,6 +34,7 @@ import {
   generateTasksForTrip,
   updateTaskStatus,
   reassignTask,
+  setCoOrganizer,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress, getMyParticipantPreferences, declareMyStatus } from "@/lib/participant-preferences.functions";
 import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
@@ -153,6 +154,24 @@ function TripDetail() {
   const updateTaskStatusFn = useServerFn(updateTaskStatus);
   const reassignTaskFn = useServerFn(reassignTask);
   const generateTasksForTripFn = useServerFn(generateTasksForTrip);
+  const setCoOrg = useServerFn(setCoOrganizer);
+
+  const setCoOrgMutation = useMutation({
+    mutationFn: ({ coOrganizerId }: { coOrganizerId: string | null }) =>
+      setCoOrg({ data: { tripId, coOrganizerId } }),
+    onSuccess: (_, variables) => {
+      if (variables.coOrganizerId) {
+        toast.success("Co-organisateur·rice nommé·e !");
+      } else {
+        toast.success("Rôle co-organisateur·rice retiré.");
+      }
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error("Erreur lors de la mise à jour des rôles.");
+    },
+  });
 
   const { data: readiness } = useQuery({
     queryKey: ["generation-readiness", tripId],
@@ -636,6 +655,30 @@ function TripDetail() {
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
   }, [tripPreview?.start_date, tripPreview?.end_date, tripPreview?.name]);
 
+  const exclusiveEndStr = useMemo(() => {
+    const tEndDate = tripPreview?.end_date;
+    if (!tEndDate) return "";
+    const endDateObj = new Date(tEndDate);
+    endDateObj.setDate(endDateObj.getDate() + 1);
+    return endDateObj.toISOString().slice(0, 10);
+  }, [tripPreview?.end_date]);
+
+  const outlookCalendarUrl = useMemo(() => {
+    const tStartDate = tripPreview?.start_date;
+    const tName = tripPreview?.name;
+    if (!tStartDate || !exclusiveEndStr) return "";
+    const title = encodeURIComponent(tName || "Mon Voyage Krew");
+    return `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${title}&startdt=${tStartDate}&enddt=${exclusiveEndStr}&allday=true`;
+  }, [tripPreview?.start_date, exclusiveEndStr, tripPreview?.name]);
+
+  const office365CalendarUrl = useMemo(() => {
+    const tStartDate = tripPreview?.start_date;
+    const tName = tripPreview?.name;
+    if (!tStartDate || !exclusiveEndStr) return "";
+    const title = encodeURIComponent(tName || "Mon Voyage Krew");
+    return `https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${title}&startdt=${tStartDate}&enddt=${exclusiveEndStr}&allday=true`;
+  }, [tripPreview?.start_date, exclusiveEndStr, tripPreview?.name]);
+
   function buildWhatsAppInviteMessage() {
     const trip = tripPreview || {};
     const eventTypeStr = trip.event_type ? String(trip.event_type).replace(/_/g, " ") : "";
@@ -764,15 +807,6 @@ function TripDetail() {
     return starMode === "secret";
   }, [tripPreview, isStar]);
 
-  useEffect(() => {
-    if (data && tripPreview) {
-      // Si l'utilisateur courant est admin (isOwner) et que l'invitation n'a pas été finalisée
-      const isCompleted = (tripPreview.group_logistics as any)?.invite_step_completed;
-      if (data.isOwner && !isCompleted) {
-        navigate({ to: "/trips/$tripId/invite", params: { tripId } });
-      }
-    }
-  }, [data, tripPreview, navigate, tripId]);
 
   if (isLoading || !data) {
     return (
@@ -819,7 +853,51 @@ function TripDetail() {
     activity_id: string;
     user_id: string;
   }[];
-  const participants = (data.participants ?? []) as any[];
+  const rawParticipants = (data.participants ?? []) as any[];
+  const celebratedPerson = trip?.celebrated_person;
+  const starUid = trip?.star_user_id || "star-virtual-uid";
+  const hasStar = Boolean(trip?.has_star || celebratedPerson);
+
+  const combinedParticipants = useMemo(() => {
+    if (!hasStar) return rawParticipants;
+
+    const starExists = rawParts => rawParts.some((p: any) => {
+      const isStarByUid = p.user_id && p.user_id === starUid;
+      const isStarByName = celebratedPerson && p.display_name &&
+        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+      return isStarByUid || isStarByName;
+    });
+
+    if (starExists(rawParticipants)) {
+      return rawParticipants.map((p) => {
+        const isStarByUid = p.user_id && p.user_id === starUid;
+        const isStarByName = celebratedPerson && p.display_name &&
+          p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+          celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+        if (isStarByUid || isStarByName) {
+          return { ...p, isStar: true };
+        }
+        return p;
+      });
+    }
+
+    const starVirtual = {
+      id: "star-virtual-id",
+      trip_id: tripId,
+      user_id: starUid,
+      email: "star@krew.travel",
+      display_name: celebratedPerson || "La Star",
+      status: "accepte",
+      role: "membre",
+      isStar: true,
+      created_at: new Date().toISOString(),
+    };
+
+    return [...rawParticipants, starVirtual];
+  }, [rawParticipants, trip, tripId, hasStar, starUid, celebratedPerson]);
+
+  const participants = combinedParticipants;
   const destinationSelected = recommendations.some((r) => r.is_selected);
   const selectedReco = recommendations.find((r) => r.is_selected);
   const logistics = ((trip as any).group_logistics || {}) as any;
@@ -855,14 +933,14 @@ function TripDetail() {
         tripId={tripId}
         trip={{
           ...trip,
-          participants: data.participants
+          participants: participants
         }}
         isOwner={data.isOwner}
-        participantsCount={(data.participants?.length ?? trip.participants_count) || 1}
+        participantsCount={progress?.total || participants.length}
         progressAnswered={progress?.answered ?? 0}
-        progressTotal={progress?.expected ?? progress?.total ?? trip.participants_count ?? 1}
+        progressTotal={progress?.total || participants.length}
         availabilityAnswered={availData?.answered ?? 0}
-        availabilityExpected={availData?.expected ?? trip.participants_count ?? 1}
+        availabilityExpected={progress?.total || participants.length}
         provisionalStart={trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date}
         provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
         myAvailabilityDone={Boolean(availData?.mine)}
@@ -934,17 +1012,15 @@ function TripDetail() {
           </div>
           <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
             <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Budget Groupe</dt>
-            <dd className="mt-0.5 font-semibold text-primary">
-              {costSplitData?.totalReserved != null || costSplitData?.totalEstimated != null ? (
+            <dd className="mt-0.5 font-semibold text-primary text-sm">
+              {(costSplitData?.totalReserved != null && costSplitData.totalReserved > 0) || (costSplitData?.totalEstimated != null && costSplitData.totalEstimated > 0) ? (
                 <div className="text-xs space-y-0.5 font-normal">
                   <div className="flex justify-between gap-1"><span>Réel Réservé :</span> <span className="font-bold text-emerald-600">{formatEuro(costSplitData.totalReserved ?? 0)}</span></div>
                   <div className="flex justify-between gap-1"><span>Reste Estimé :</span> <span className="font-bold text-amber-600">{formatEuro(costSplitData.totalEstimated ?? 0)}</span></div>
                 </div>
               ) : liveBudget.total > 0
                 ? `~${formatEuro(liveBudget.total)} / pers.`
-                : liveBudget.baseBudget > 0
-                  ? `cible ${formatEuro(liveBudget.baseBudget)}`
-                  : "—"}
+                : "À définir"}
             </dd>
           </div>
           <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
@@ -1978,13 +2054,27 @@ function TripDetail() {
                 : "Ajoute les dates de ton séjour à ton calendrier."}
             </p>
             <div className="flex flex-wrap gap-2.5">
-              <Button onClick={handleDownloadIcs} variant="hero" size="sm" className="gap-1.5">
-                <CalendarDays className="size-4" /> Télécharger .ics
+              <Button onClick={handleDownloadIcs} variant="hero" size="sm" className="gap-1.5" title="Recommandé pour iPhone, iOS, Apple Calendar et Mac">
+                <CalendarDays className="size-4" /> Télécharger .ics (Apple / Universel)
               </Button>
               {googleCalendarUrl && (
                 <Button asChild variant="outline" size="sm" className="gap-1.5">
                   <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
-                    Ajouter à Google Calendar
+                    Google Calendar
+                  </a>
+                </Button>
+              )}
+              {outlookCalendarUrl && (
+                <Button asChild variant="outline" size="sm" className="gap-1.5">
+                  <a href={outlookCalendarUrl} target="_blank" rel="noopener noreferrer">
+                    Outlook / Live
+                  </a>
+                </Button>
+              )}
+              {office365CalendarUrl && (
+                <Button asChild variant="outline" size="sm" className="gap-1.5">
+                  <a href={office365CalendarUrl} target="_blank" rel="noopener noreferrer">
+                    Microsoft 365
                   </a>
                 </Button>
               )}
@@ -2065,149 +2155,199 @@ function TripDetail() {
         </section>
       )}
 
-      <section id="invite-section" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-        <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-          <UserPlus className="size-5 text-primary" />
-          Inviter la bande
-        </h2>
-        <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">
-            Envoie ce lien (WhatsApp, SMS, Instagram…) — tes ami·e·s rejoignent le voyage et répondent au questionnaire.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Input readOnly value={shareUrl} className="max-w-md font-mono text-xs" />
-            <Button
-              type="button"
-              variant="hero"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(shareUrl);
-                  setShareCopied(true);
-                  toast.success("Lien copié !");
-                  setTimeout(() => setShareCopied(false), 2000);
-                } catch {
-                  toast.error("Impossible de copier — sélectionne le lien manuellement");
-                }
+      <section id="invite-section" className="mt-8 space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+        {/* 1. Le groupe */}
+        <div>
+          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+            <Users className="size-5 text-primary" />
+            Le groupe
+          </h2>
+          {data.isOwner ? (
+            <form
+              className="mt-4 flex flex-wrap gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (email.trim()) inviteMutation.mutate();
               }}
             >
-              {shareCopied ? <Check /> : <Copy />}
-              {shareCopied ? "Copié" : "Copier le lien"}
-            </Button>
-            <Button
-              type="button"
-              className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
-              onClick={() => {
-                const text = buildWhatsAppInviteMessage();
-                const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                window.open(url, "_blank", "noopener,noreferrer");
-              }}
-            >
-              WhatsApp
-            </Button>
-            {data.isOwner ? (
-              (() => {
-                const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
-                return (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={missingParticipants.length === 0}
-                    className={missingParticipants.length === 0 ? "" : "bg-amber-500 text-white hover:bg-amber-600 border-transparent"}
-                    onClick={() => {
-                      const text = buildWhatsAppRemindMessage();
-                      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                      window.open(url, "_blank", "noopener,noreferrer");
-                    }}
-                  >
-                    🔔 {missingParticipants.length === 0 ? "Tout le monde a répondu" : "Relancer les retardataires"}
-                  </Button>
-                );
-              })()
-            ) : null}
-            {typeof navigator !== "undefined" && typeof (navigator as any).share === "function" ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  (navigator as any).share({
-                    title: data.trip.name,
-                    text: `Rejoins mon voyage « ${data.trip.name} » sur Krew — ${shareUrl}`,
-                    url: shareUrl,
-                  })
-                }
-              >
-                <Link2 /> Partager
+              <Input
+                type="email"
+                placeholder="email@ami.fr"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="max-w-xs"
+              />
+              <Button type="submit" variant="hero" disabled={inviteMutation.isPending}>
+                <UserPlus /> Ajouter un email
               </Button>
-            ) : null}
-          </div>
+            </form>
+          ) : null}
+
+          <ul className="mt-4 space-y-2">
+            {participants.length === 0 ? (
+              <li className="text-sm text-muted-foreground">Personne n'est encore invité·e.</li>
+            ) : (
+              participants.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-border bg-card p-4 gap-3"
+                >
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium">{p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}</p>
+                      {p.user_id === trip.owner_id ? (
+                        <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20">
+                          Organisateur·rice
+                        </Badge>
+                      ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                        <Badge variant="lagoon" className="gap-1 px-1.5 py-0 text-[10px]">
+                          Co-organisateur·rice
+                        </Badge>
+                      ) : null}
+                      {p.isStar ? (
+                        <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20">
+                          <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {p.email && p.email !== "star@krew.travel" ? <p className="text-sm text-muted-foreground mt-0.5">{p.email}</p> : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
+                    <Badge variant={p.status === "accepte" ? "success" : p.status === "absent" ? "destructive" : "muted"}>{p.status}</Badge>
+                    {p.user_id === data.userId ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-7 px-2"
+                        onClick={() => {
+                          const nextStatus = (p.status as string) === "absent" ? "accepte" : "absent";
+                          declareStatusMutation.mutate(nextStatus);
+                        }}
+                      >
+                        {(p.status as string) === "absent" ? "Rétablir participation" : "Se déclarer absent·e"}
+                      </Button>
+                    ) : null}
+                    {data.isCreator && p.user_id && p.user_id !== trip.owner_id && !p.isStar ? (
+                      p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-destructive hover:bg-destructive/5 h-7 px-2"
+                          disabled={setCoOrgMutation.isPending}
+                          onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
+                        >
+                          Retirer co-org
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs text-primary hover:bg-primary/5 h-7 px-2"
+                          disabled={setCoOrgMutation.isPending}
+                          onClick={() => setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })}
+                        >
+                          Nommer co-org
+                        </Button>
+                      )
+                    ) : null}
+                    {data.isOwner ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Retirer ${p.email}`}
+                        className="size-8"
+                        onClick={() => removeMutation.mutate(p.id)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
         </div>
 
-        <h3 className="mt-8 font-display text-lg font-semibold">Le groupe</h3>
-        {data.isOwner ? (
-          <form
-            className="mt-4 flex flex-wrap gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (email.trim()) inviteMutation.mutate();
-            }}
-          >
-            <Input
-              type="email"
-              placeholder="email@ami.fr"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="max-w-xs"
-            />
-            <Button type="submit" variant="hero" disabled={inviteMutation.isPending}>
-              <UserPlus /> Inviter
-            </Button>
-          </form>
-        ) : null}
+        <Separator />
 
-        <ul className="mt-5 space-y-2">
-          {participants.length === 0 ? (
-            <li className="text-sm text-muted-foreground">Personne n'est encore invité·e.</li>
-          ) : (
-            participants.map((p) => (
-              <li
-                key={p.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-border bg-card p-4 gap-3"
+        {/* 2. Inviter de nouveaux participants */}
+        <div>
+          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+            <UserPlus className="size-5 text-primary" />
+            Inviter de nouveaux participants
+          </h2>
+          <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">
+              Envoie ce lien (WhatsApp, SMS, Instagram…) — tes ami·e·s rejoignent le voyage et répondent au questionnaire.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Input readOnly value={shareUrl} className="max-w-md font-mono text-xs" />
+              <Button
+                type="button"
+                variant="hero"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    setShareCopied(true);
+                    toast.success("Lien copié !");
+                    setTimeout(() => setShareCopied(false), 2000);
+                  } catch {
+                    toast.error("Impossible de copier — sélectionne le lien manuellement");
+                  }
+                }}
               >
-                <div>
-                  <p className="font-medium">{p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}</p>
-                  <p className="text-sm text-muted-foreground">{p.email}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
-                  <Badge variant={p.status === "accepte" ? "success" : p.status === "absent" ? "destructive" : "muted"}>{p.status}</Badge>
-                  {p.user_id === data.userId ? (
+                {shareCopied ? <Check /> : <Copy />}
+                {shareCopied ? "Copié" : "Copier le lien"}
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+                onClick={() => {
+                  const text = buildWhatsAppInviteMessage();
+                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }}
+              >
+                WhatsApp
+              </Button>
+              {data.isOwner ? (
+                (() => {
+                  const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+                  return (
                     <Button
+                      type="button"
                       variant="outline"
-                      size="sm"
-                      className="text-xs h-7 px-2"
+                      disabled={missingParticipants.length === 0}
+                      className={missingParticipants.length === 0 ? "" : "bg-amber-500 text-white hover:bg-amber-600 border-transparent"}
                       onClick={() => {
-                        const nextStatus = (p.status as string) === "absent" ? "accepte" : "absent";
-                        declareStatusMutation.mutate(nextStatus);
+                        const text = buildWhatsAppRemindMessage();
+                        const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                        window.open(url, "_blank", "noopener,noreferrer");
                       }}
                     >
-                      {(p.status as string) === "absent" ? "Rétablir participation" : "Se déclarer absent·e"}
+                      🔔 {missingParticipants.length === 0 ? "Tout le monde a répondu" : "Relancer les retardataires"}
                     </Button>
-                  ) : null}
-                  {data.isOwner ? (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Retirer ${p.email}`}
-                      className="size-8"
-                      onClick={() => removeMutation.mutate(p.id)}
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  ) : null}
-                </div>
-              </li>
-            ))
-          )}
-        </ul>
+                  );
+                })()
+              ) : null}
+              {typeof navigator !== "undefined" && typeof (navigator as any).share === "function" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    (navigator as any).share({
+                      title: data.trip.name,
+                      text: `Rejoins mon voyage « ${data.trip.name} » sur Krew — ${shareUrl}`,
+                      url: shareUrl,
+                    })
+                  }
+                >
+                  <Link2 /> Partager
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
       </section>
       {data.isOwner && (trip.status as string) !== "annule" ? (
         <section className="mt-10 space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
