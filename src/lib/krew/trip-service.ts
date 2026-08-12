@@ -513,6 +513,8 @@ export async function aggregateParticipantPreferences(
       weight: isStar ? starWeight : 1,
       wantedEnvType: r.wanted_env_type ?? null,
       groupAgeRange: r.group_age_range ?? null,
+      durationNightsMin: r.duration_nights_min != null ? Number(r.duration_nights_min) : null,
+      durationNightsMax: r.duration_nights_max != null ? Number(r.duration_nights_max) : null,
     };
   });
 

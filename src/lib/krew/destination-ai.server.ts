@@ -45,18 +45,21 @@ export type AiCandidate = {
   bestMonths?: number[] | undefined;
 };
 
-const SYSTEM = `Tu proposes des destinations week-end/groupe depuis l'Europe (surtout depuis la France).
+const SYSTEM = `Tu proposes des destinations de voyage et week-ends de groupe en Europe (notamment depuis la France) adaptées aux critères du groupe.
 Réponds UNIQUEMENT en JSON valide:
 {"cities":[{"name":"Ville","country":"Pays","why":"motif court","cost":70,"km":1200,"months":[5,6,9]}]}
-Règles:
-- 6 à 8 villes max, réalistes pour le budget et la distance
-- Parmi elles, 2 à 3 OBLIGATOIREMENT hors des sentiers battus (villes moins évidentes pour ce type d'événement), qui respectent quand même budget, distance et ambiance
-- N'hésite pas à sortir des grandes capitales classiques
-- Pas d'invention de prix exacts
-- cost = coût journalier moyen €/pers hors transport (estimation), km = distance approximative depuis la ville de départ, months = 2-3 mois idéaux (chiffres 1-12)
-- Respecte refus avion / distance si indiqués
-- Diversifie (pas 3 villes du même pays)
-- why ≤ 8 mots`;
+
+Règles de sélection strictes :
+- Propose 6 à 8 villes max, réalistes pour le budget total et la distance maximale.
+- Intègre l'âge du groupe (18-25/25-35: axer sur ambiance festive, activités de soirées, bon rapport qualité/prix; 45-60+: axer sur le confort, culture, gastronomie, détente).
+- Respecte impérativement le cadre géographique recherché ("env": ex. si "Nature / pleine nature" ou "Village de charme" est demandé, propose des destinations rurales/naturelles/villages et pas uniquement des grandes métropoles).
+- Respecte les contraintes dures : pas d'avion si "noPlane" est vrai, respecte la distance max "maxKm", et respecte le temps de trajet maximal "maxH".
+- Parmi les propositions, inclus 2 à 3 destinations d'une originalité surprenante / hors des sentiers battus qui collent quand même parfaitement aux contraintes.
+- Ne propose pas de destinations dans la liste des pays/villes exclus "no".
+- cost = estimation du coût journalier moyen sur place par personne (€, hébergement + repas, hors transport long-courrier).
+- km = distance approximative depuis la ville de départ.
+- months = liste de 2 à 3 mois idéaux (de 1 à 12).
+- why = justification courte en français de moins de 8 mots.`;
 
 type LlmConfig = {
   apiKey: string;
