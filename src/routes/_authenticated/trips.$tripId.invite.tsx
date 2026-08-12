@@ -126,13 +126,51 @@ function InvitePage() {
     }
     setStarModeHydrated(true);
   }
-  const participants = (data.participants ?? []) as {
-    id: string;
-    email: string;
-    display_name: string | null;
-    status: string;
-    user_id?: string | null;
-  }[];
+  const rawParticipants = (data.participants ?? []) as any[];
+  const celebratedPerson = trip?.celebrated_person;
+  const starUid = trip?.star_user_id || "star-virtual-uid";
+  const hasStar = Boolean(trip?.has_star || celebratedPerson);
+
+  const combinedParticipants = useMemo(() => {
+    if (!hasStar) return rawParticipants;
+
+    const starExists = rawParts => rawParts.some((p: any) => {
+      const isStarByUid = p.user_id && p.user_id === starUid;
+      const isStarByName = celebratedPerson && p.display_name &&
+        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+      return isStarByUid || isStarByName;
+    });
+
+    if (starExists(rawParticipants)) {
+      return rawParticipants.map((p) => {
+        const isStarByUid = p.user_id && p.user_id === starUid;
+        const isStarByName = celebratedPerson && p.display_name &&
+          p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
+          celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+        if (isStarByUid || isStarByName) {
+          return { ...p, isStar: true };
+        }
+        return p;
+      });
+    }
+
+    const starVirtual = {
+      id: "star-virtual-id",
+      trip_id: tripId,
+      user_id: starUid,
+      email: "star@krew.travel",
+      display_name: celebratedPerson || "La Star",
+      status: "accepte",
+      role: "membre",
+      isStar: true,
+      created_at: new Date().toISOString(),
+    };
+
+    return [...rawParticipants, starVirtual];
+  }, [rawParticipants, trip, tripId, hasStar, starUid, celebratedPerson]);
+
+  const participants = combinedParticipants;
   const answered = progress?.answered ?? 0;
   const total = Math.max(progress?.total ?? participants.length, trip.participants_count || 1);
 
@@ -232,6 +270,11 @@ function InvitePage() {
                     ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
                       <Badge variant="lagoon" className="gap-1 px-1.5 py-0 text-[10px]">
                         <Shield className="size-2.5" /> Co-organisateur·rice
+                      </Badge>
+                    ) : null}
+                    {p.isStar ? (
+                      <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20">
+                        <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
                       </Badge>
                     ) : null}
                   </div>

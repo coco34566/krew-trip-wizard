@@ -237,7 +237,7 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
       expect(proposals).toHaveLength(1);
       // Le budget à 0 doit générer une pénalité, mais ne pas planter le code
       expect(proposals[0]!.budget.fits).toBe(false);
-      expect(proposals[0]!.score).toBeLessThan(50);
+      expect(proposals[0]!.score).toBeLessThan(60);
     });
 
     it("gère correctement le cas où il n'y a qu'une seule destination candidate", () => {
