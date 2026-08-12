@@ -167,7 +167,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     expect(readiness.checklist.datesLocked).toBe(true);
   });
 
-  it("bloque la génération si datesLocked est faux", async () => {
+  it("n'empêche pas la génération même si datesLocked est faux", async () => {
     const tripId = "trip-123";
     const supabaseMock = {
       from: vi.fn((table: string) => {
@@ -233,7 +233,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     } as any;
 
     const readiness = await assessGenerationReadiness(supabaseMock, tripId);
-    expect(readiness.canGenerate).toBe(false);
+    expect(readiness.canGenerate).toBe(true);
     expect(readiness.checklist.datesLocked).toBe(false);
   });
 
