@@ -1073,7 +1073,7 @@ function TripDetail() {
 
         {(availData as any)?.schemaMissing ? (
           <p className="text-sm text-destructive">
-            Table dispos absente — exécute le SQL trip_availability dans Lovable.
+            Table dispos absente — exécute le SQL dans l'éditeur Supabase.
           </p>
         ) : (trip as any).dates_locked || availData?.trip?.datesLocked ? (
           <div className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3">
@@ -1771,7 +1771,7 @@ function TripDetail() {
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground">
                 Source :{" "}
-                {(trip as any).group_itinerary?.source === "ai" ? "IA Lovable" : "modèle local"}
+                {(trip as any).group_itinerary?.source === "ai" ? "IA Krew" : "modèle local"}
                 {(trip as any).group_itinerary?.destination
                   ? ` · ${(trip as any).group_itinerary.destination}`
                   : ""}

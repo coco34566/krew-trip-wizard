@@ -254,7 +254,7 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
       const msg = String(existing.error.message || existing.error);
       if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
         throw new Error(
-          "Table trip_availability absente. Exécute le SQL dispos dans Lovable (Cloud → SQL Editor).",
+          "Table trip_availability absente. Exécute le SQL dispos dans Supabase (SQL Editor).",
         );
       }
       throw existing.error;
@@ -279,7 +279,7 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
       const msg = String(error.message || error);
       if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
         throw new Error(
-          "Table trip_availability absente. Exécute le SQL dispos dans Lovable (Cloud → SQL Editor).",
+          "Table trip_availability absente. Exécute le SQL dispos dans Supabase (SQL Editor).",
         );
       }
       throw new Error(`Enregistrement dispos impossible: ${msg}`);

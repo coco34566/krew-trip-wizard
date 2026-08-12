@@ -55,7 +55,7 @@ function MentionsLegalesPage() {
       <LegalSection title="2. Hébergement">
         <p>
           Le Service est hébergé via l&apos;infrastructure cloud de l&apos;éditeur de la plateforme de
-          déploiement utilisée (ex. Lovable Cloud) et des prestataires techniques associés, notamment
+          déploiement utilisée (ex. Vercel) et des prestataires techniques associés, notamment
           pour la base de données et l&apos;authentification (Supabase ou équivalent).
         </p>
         <p>
