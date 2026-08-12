@@ -82,6 +82,8 @@ export type IndividualPreference = {
   weight?: number;
   desired_destination?: string;
   desiredDestination?: string;
+  wantedEnvType?: string | null;
+  groupAgeRange?: string | null;
 };
 
 export type ScoringWeights = {
@@ -186,6 +188,8 @@ export type ScoringContext = {
   starWantedEnvType?: string | null;
   /** Caractéristiques des destinations précédemment appréciées (trips validés passés). */
   pastDestinations?: { country: string; dominantAmbiance: string }[];
+  /** Tranche d’âge majoritaire du groupe, issue des questionnaires participants. */
+  groupAgeRange?: string | null;
 };
 
 export type ItineraryDay = {
@@ -408,6 +412,51 @@ export function getDestinationEnvironments(dest: DestinationRecord | string): st
     return ["Nature / pleine nature", "Village de charme"];
   }
   return ["Centre-ville / urbain"];
+}
+
+
+function ageBudgetMultiplier(groupAgeRange?: string | null): number {
+  const age = norm(groupAgeRange ?? "");
+  if (!age) return 1;
+  if (age.includes("18-25") || age.includes("25-35") || age.includes("18") || age.includes("jeune")) return 0.85;
+  if (age.includes("45-60") || age.includes("60+") || age.includes("60") || age.includes("senior")) return 1.18;
+  if (age.includes("35-45")) return 1.05;
+  return 1;
+}
+
+function normalizeEnvType(value: string): string | null {
+  const n = norm(value);
+  if (!n) return null;
+  if (/champetre|campagne|rural|nature|pleine nature|foret|forêt|domaine|gite|gîte/.test(n)) return "Nature / pleine nature";
+  if (/village|charme/.test(n)) return "Village de charme";
+  if (/mer|plage|bord de mer|ocean|océan|cote|côte/.test(n)) return "Bord de mer";
+  if (/montagne|alpes|ski/.test(n)) return "Montagne";
+  if (/lac|riviere|rivière/.test(n)) return "Lac / rivière";
+  if (/anime|animé|quartier|sortie/.test(n)) return "Quartier animé";
+  if (/ville|urbain|centre/.test(n)) return "Centre-ville / urbain";
+  return value.trim();
+}
+
+function splitEnvTypes(values: (string | null | undefined)[]): string[] {
+  return values
+    .flatMap((v) => String(v ?? "").split(/[,;|]/))
+    .map((v) => normalizeEnvType(v.trim()))
+    .filter((v): v is string => Boolean(v));
+}
+
+function environmentScore(destEnvs: string[], wantedEnvTypes: string[], starEnvTypes: string[]): number {
+  const wanted = splitEnvTypes(wantedEnvTypes);
+  const starWanted = splitEnvTypes(starEnvTypes);
+  const destNorms = new Set(splitEnvTypes(destEnvs));
+  if (!wanted.length && !starWanted.length) return 0.6;
+
+  const groupScore = wanted.length
+    ? wanted.filter((env) => destNorms.has(env)).length / wanted.length
+    : 0.6;
+  const starScore = starWanted.length
+    ? starWanted.filter((env) => destNorms.has(env)).length / starWanted.length
+    : groupScore;
+  return clamp(groupScore * 0.72 + starScore * 0.28);
 }
 
 function ambianceScore(dest: DestinationRecord, ambiances: string[]): number {
@@ -689,7 +738,13 @@ function individualFit(
   }
 
   // Tâche 10 : Destinations rêvées / à éviter individuelles
-  let score = sAmb * 0.4 + sAct * 0.3 + sBudget * 0.3;
+  const prefEnv = splitEnvTypes([pref.wantedEnvType]);
+  const destEnvSet = new Set(splitEnvTypes(getDestinationEnvironments(dest)));
+  const sEnv = prefEnv.length
+    ? prefEnv.filter((env) => destEnvSet.has(env)).length / prefEnv.length
+    : 0.6;
+
+  let score = sAmb * 0.34 + sAct * 0.27 + sBudget * 0.27 + sEnv * 0.12;
 
   // Bonus si la destination correspond à la destination rêvée du participant (s'il en a une)
   // On compare de manière souple
@@ -771,9 +826,10 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+    const normalizedWantedEnvs = splitEnvTypes([...wantedEnvTypes, ...starEnvTypes]);
     const envIsNature =
-      [...wantedEnvTypes, ...starEnvTypes].some((e) => NATURE_ENVS.includes(e)) &&
-      ![...wantedEnvTypes, ...starEnvTypes].some((e) => e === "Centre-ville / urbain" || e === "Quartier animé");
+      normalizedWantedEnvs.some((e) => NATURE_ENVS.includes(e)) &&
+      !normalizedWantedEnvs.some((e) => e === "Centre-ville / urbain" || e === "Quartier animé");
 
     let accommodations = catalog.accommodations
       .filter((a) => a.destination_id === destination.id)
@@ -863,7 +919,9 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     const lodging =
       (accommodation?.price_per_night_per_person ?? destination.avg_daily_cost * 0.4) * ctx.nights;
     const food = destination.avg_daily_cost * 0.4 * (ctx.nights + 1);
-    const budgetForActivities = Math.max(40, ctx.budgetPerPerson - transport - lodging - food);
+    const ageSpendMultiplier = ageBudgetMultiplier(ctx.groupAgeRange);
+    const ageAdjustedBudget = ctx.budgetPerPerson * ageSpendMultiplier;
+    const budgetForActivities = Math.max(40, ageAdjustedBudget - transport - lodging - food);
 
     let activityPool = catalog.activities.filter((a) => a.destination_id === destination.id);
     const diet = (ctx.dietaryConstraints ?? []).map(norm);
@@ -884,7 +942,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       ctx.travelPace,
       ctx.starWantedActivities,
       ctx.dietaryConstraintsRatio ?? 0,
-      (ctx as any).groupAgeRange,
+      ctx.groupAgeRange,
     );
     const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
     const totalPerPerson = transport + lodging + food + activitiesCost;
@@ -954,7 +1012,12 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       ? wanted.filter((c) => available.has(c)).length / wanted.length
       : 0.6;
     const ratio = totalPerPerson / Math.max(1, ctx.budgetPerPerson);
-    const sBudget = ratio <= 1 ? clamp(0.7 + (1 - ratio) * 0.6) : clamp(1 - (ratio - 1) * 1.8);
+    const ageBudgetRatio = totalPerPerson / Math.max(1, ageAdjustedBudget);
+    const baseBudgetScore = ratio <= 1 ? clamp(0.7 + (1 - ratio) * 0.6) : clamp(1 - (ratio - 1) * 1.8);
+    const ageBudgetScore = ageBudgetRatio <= 1
+      ? clamp(0.72 + (1 - ageBudgetRatio) * 0.5)
+      : clamp(1 - (ageBudgetRatio - 1) * 2.1);
+    const sBudget = clamp(baseBudgetScore * 0.65 + ageBudgetScore * 0.35);
     const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm));
     const sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
     const sQuality = clamp((destination.rating - 3.5) / 1.5) * 0.6 + destination.popularity * 0.4;
@@ -974,14 +1037,16 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sMinSat * w.minSatisfaction;
 
     // Type de lieu / environnement recherché (sous-score pondéré comme les autres axes)
-    const sEnvironment = wantedEnvTypes.length
-      ? clamp(wantedEnvTypes.filter((env) => destEnvs.includes(env)).length / wantedEnvTypes.length)
-      : 0.6;
+    const sEnvironment = environmentScore(destEnvs, wantedEnvTypes, starEnvTypes);
     score += sEnvironment * (w.environment ?? 10);
 
     // La Star pèse davantage sur le cadre (EVG/EVJF/anniversaire)
     if (starEnvTypes.length) {
-      const starMatch = starEnvTypes.filter((env) => destEnvs.includes(env)).length / starEnvTypes.length;
+      const starWantedNormalized = splitEnvTypes(starEnvTypes);
+      const destEnvNormalized = new Set(splitEnvTypes(destEnvs));
+      const starMatch = starWantedNormalized.length
+        ? starWantedNormalized.filter((env) => destEnvNormalized.has(env)).length / starWantedNormalized.length
+        : 0;
       score += starMatch * 12 - (starMatch === 0 ? 6 : 0);
     }
 
@@ -1054,6 +1119,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sConsensus,
       sMinSatisfaction: sMinSat,
       ...(hasHistory ? { sHistorique } : {}),
+      sEnvironment,
     };
 
     const matchReasons: string[] = [];
@@ -1113,6 +1179,12 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       } else {
         matchReasons.push("Temps de trajet estimé dans la limite du groupe");
       }
+    }
+    if (sEnvironment >= 0.8 && splitEnvTypes([...wantedEnvTypes, ...starEnvTypes]).length) {
+      matchReasons.push(`Cadre demandé respecté : ${destEnvs.join(" · ")}`);
+    }
+    if (ctx.groupAgeRange) {
+      matchReasons.push(`Budget et activités ajustés pour la tranche d’âge ${ctx.groupAgeRange}`);
     }
     if (sSeason >= 0.9) matchReasons.push("Période idéale côté météo et saisonnalité");
     if (destination.distance_from_paris_km <= 900)

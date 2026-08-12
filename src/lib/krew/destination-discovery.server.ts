@@ -17,6 +17,9 @@ export type DiscoveryInput = {
   departureCity: string;
   participants: number;
   eventType?: string;
+  wantedEnvTypes?: string[];
+  starWantedEnvType?: string | null;
+  groupAgeRange?: string | null;
 };
 
 export type CandidateDestination = {
@@ -575,6 +578,11 @@ export function discoverCandidateDestinations(
   const ambiances = input.ambiances.filter(Boolean);
   const activities = input.activityCategories.filter(Boolean);
   const eventType = input.eventType ?? "";
+  const wantedEnvs = (input.wantedEnvTypes ?? []).join(", ").toLowerCase();
+  const wantsNature = /nature|campagne|champetre|champêtre|village|montagne|lac|rivi/.test(wantedEnvs + " " + String(input.starWantedEnvType ?? "").toLowerCase());
+  const wantsUrban = /urbain|centre|ville|anime|animé/.test(wantedEnvs);
+  const youngGroup = /18-25|25-35|jeune/.test(String(input.groupAgeRange ?? "").toLowerCase());
+  const olderGroup = /45-60|60\+|60|senior/.test(String(input.groupAgeRange ?? "").toLowerCase());
 
   // Dédupliquer au cas où (Lisbonne apparaît 2x dans le profil)
   const seen = new Set<string>();
@@ -624,18 +632,32 @@ export function discoverCandidateDestinations(
     // Boost type d'événement
     const sEvent = eventType && city.eventBoost.includes(eventType) ? 1 : 0.6;
 
+    const sEnvironment = wantsNature
+      ? city.lodgingFocus === "maison_groupe" ? 1 : city.lodgingFocus === "les_deux" ? 0.78 : 0.25
+      : wantsUrban
+        ? city.lodgingFocus === "citybreak" ? 1 : city.lodgingFocus === "les_deux" ? 0.78 : 0.35
+        : 0.6;
+
+    const sAgeBudget = youngGroup
+      ? Math.max(0.1, 1 - Math.max(0, estimatedTotal - input.budgetPerPerson * 0.85) / Math.max(1, input.budgetPerPerson))
+      : olderGroup
+        ? Math.min(1, sBudget + (city.dailyCost >= 95 ? 0.15 : 0))
+        : sBudget;
+
     const affinity =
       sAmbiance * 32 +
       sActivities * 22 +
-      sBudget * 22 +
+      (sBudget * 14 + sAgeBudget * 8) +
       sDistance * 10 +
       sSeason * 8 +
-      sEvent * 6;
+      sEvent * 6 +
+      sEnvironment * 12;
 
     const reasons: string[] = [];
     if (sAmbiance >= 0.75) reasons.push("ambiance recherchée");
     if (sActivities >= 0.6) reasons.push("activités demandées");
     if (sBudget >= 0.7) reasons.push("budget compatible");
+    if (sEnvironment >= 0.8) reasons.push(wantsNature ? "cadre campagne/nature" : "cadre urbain demandé");
     if (sEvent >= 1) reasons.push(`idéal ${eventType.toUpperCase()}`);
     if (sSeason >= 0.9) reasons.push("bonne saison");
 

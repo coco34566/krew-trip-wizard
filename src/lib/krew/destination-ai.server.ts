@@ -27,6 +27,9 @@ export type AiDiscoveryInput = {
   maxTravelHours?: number | null;
   starWanted?: string[];
   starDealBreakers?: string[];
+  wantedEnvTypes?: string[];
+  starWantedEnvType?: string | null;
+  groupAgeRange?: string | null;
 };
 
 export type AiCandidate = {
@@ -125,6 +128,9 @@ function fingerprint(input: AiDiscoveryInput): string {
     plane: Boolean(input.planeRefused),
     h: input.maxTravelHours ?? null,
     sw: [...(input.starWanted || [])].sort().slice(0, 6),
+    env: [...(input.wantedEnvTypes || [])].sort().slice(0, 4),
+    starEnv: input.starWantedEnvType ?? null,
+    age: input.groupAgeRange ?? null,
   });
 }
 
@@ -148,6 +154,9 @@ function compactUser(input: AiDiscoveryInput): string {
   if (input.maxTravelHours) o["maxH"] = input.maxTravelHours;
   if (input.starWanted?.length) o["star"] = input.starWanted.slice(0, 4);
   if (input.starDealBreakers?.length) o["starNo"] = input.starDealBreakers.slice(0, 4);
+  if (input.wantedEnvTypes?.length) o["env"] = input.wantedEnvTypes.slice(0, 4);
+  if (input.starWantedEnvType) o["starEnv"] = input.starWantedEnvType;
+  if (input.groupAgeRange) o["age"] = input.groupAgeRange;
   return JSON.stringify(o);
 }
 
