@@ -284,6 +284,8 @@ export async function aggregateParticipantPreferences(
           transport_mode_accepted: ["peu importe"],
           max_travel_duration_hours: null,
           blackout_dates: [],
+          wanted_env_type: starData.wanted_env_type ?? null,
+          group_age_range: null,
         });
       }
     }
@@ -506,6 +508,7 @@ export async function aggregateParticipantPreferences(
         .filter(Boolean),
       transportModes: r.transport_mode_accepted ?? ["peu importe"],
       maxTravelHours: Number(r.max_travel_duration_hours ?? 0) || null,
+      desiredDestination: r.desired_destination ?? null,
       isStar,
       weight: isStar ? starWeight : 1,
       wantedEnvType: r.wanted_env_type ?? null,
@@ -517,8 +520,13 @@ export async function aggregateParticipantPreferences(
   const ageRangeFreq = frequencies(ageRanges as string[]);
   const groupAgeRange = byFrequency(ageRangeFreq)[0] ?? null;
 
-  const envTypes = rows.map((r) => r.wanted_env_type).filter(Boolean);
-  const envTypeFreq = frequencies(envTypes as string[]);
+  const envTypes = rows.flatMap((r) =>
+    String(r.wanted_env_type ?? "")
+      .split(/[,;|]/)
+      .map((v) => v.trim())
+      .filter(Boolean),
+  );
+  const envTypeFreq = frequencies(envTypes);
   const wantedEnvTypes = byFrequency(envTypeFreq);
 
   // Incohérences détectées (pour l'organisateur)
@@ -982,9 +990,9 @@ export async function generateRecommendationsForTrip(
   const partsRes = await supabase.from("trip_participants").select("*").eq("trip_id", tripId);
   const participants = partsRes.data ?? [];
   const ctx = buildScoringContext(trip.data, prefsToUse, participants);
-  (ctx as any).groupAgeRange = aggregated.groupAgeRange;
-  (ctx as any).wantedEnvTypes = aggregated.wantedEnvTypes;
-  (ctx as any).starWantedEnvType = aggregated.starWantedEnvType;
+  ctx.groupAgeRange = aggregated.groupAgeRange;
+  ctx.wantedEnvTypes = aggregated.wantedEnvTypes;
+  ctx.starWantedEnvType = aggregated.starWantedEnvType;
   if (aggregated.participantsCount && aggregated.participantsCount > 0) {
     // If we have aggregated participants count from preferences, we can still use ctx.participants as calculated from the actual/effective group count since preferences represents a subset of active members.
     ctx.participants = getEffectiveParticipantsCount(trip.data, participants);
@@ -1057,6 +1065,9 @@ export async function generateRecommendationsForTrip(
       maxTravelHours: (aggregated as any).maxTravelDurationHours ?? null,
       starWanted: aggregated.starWantedActivities ?? [],
       starDealBreakers: aggregated.starDealBreakers ?? [],
+      wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
+      starWantedEnvType: aggregated.starWantedEnvType ?? null,
+      groupAgeRange: aggregated.groupAgeRange ?? null,
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)

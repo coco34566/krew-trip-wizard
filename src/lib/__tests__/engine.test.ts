@@ -176,6 +176,64 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
     expect(diverse[1]!.destination.name).not.toBe("Madrid");
   });
 
+
+  it("favorise les destinations campagne quand la majorité demande un événement champêtre", () => {
+    const catalog: TravelCatalog = {
+      destinations: [
+        mockDestination({ id: "urban", name: "Paris", env_tags: ["Centre-ville / urbain", "Quartier animé"], avg_daily_cost: 120 }),
+        mockDestination({ id: "rural", name: "Dordogne", env_tags: ["Nature / pleine nature", "Village de charme"], avg_daily_cost: 80, distance_from_paris_km: 550, score_detente: 0.9 }),
+      ],
+      activities: [],
+      accommodations: [],
+    };
+
+    const ctx: ScoringContext = {
+      participants: 6,
+      budgetPerPerson: 450,
+      nights: 2,
+      letKrewDecide: true,
+      needsCityCenter: false,
+      startMonth: 6,
+      ambiances: ["detente"],
+      activityCategories: [],
+      maxDistanceKm: 1000,
+      excludedCountries: [],
+      wantedEnvTypes: ["événement champêtre", "Nature / pleine nature", "Village de charme"],
+      individualPreferences: [],
+    };
+
+    const proposals = buildProposals(catalog, ctx, 2);
+    expect(proposals[0]!.destination.name).toBe("Dordogne");
+    expect(proposals[0]!.subScores.sEnvironment).toBeGreaterThan(0.7);
+  });
+
+  it("resserre le score budget des groupes jeunes face aux propositions chères", () => {
+    const catalog: TravelCatalog = {
+      destinations: [mockDestination({ avg_daily_cost: 130 })],
+      activities: [],
+      accommodations: [],
+    };
+    const baseCtx: ScoringContext = {
+      participants: 4,
+      budgetPerPerson: 400,
+      nights: 2,
+      letKrewDecide: true,
+      needsCityCenter: true,
+      startMonth: 6,
+      ambiances: [],
+      activityCategories: [],
+      maxDistanceKm: 1000,
+      excludedCountries: [],
+      individualPreferences: [],
+    };
+
+    const young = buildProposals(catalog, { ...baseCtx, groupAgeRange: "18-25" }, 1)[0]!;
+    const older = buildProposals(catalog, { ...baseCtx, groupAgeRange: "45-60" }, 1)[0]!;
+
+    expect(young.subScores.sBudget).toBeLessThan(older.subScores.sBudget);
+  });
+
+
   describe("Cas limites (edge cases)", () => {
     it("gère correctement le cas où aucun participant n'a encore répondu", () => {
       const catalog: TravelCatalog = {
