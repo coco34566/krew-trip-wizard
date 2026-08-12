@@ -238,7 +238,7 @@ export const createTrip = createServerFn({ method: "POST" })
     if (trip.error) {
       throw new Error(
         `Création voyage impossible: ${trip.error.message || JSON.stringify(trip.error)}. ` +
-          "Vérifie le SQL trips (RLS insert + colonnes) dans Lovable.",
+          "Vérifie le SQL trips (RLS insert + colonnes) dans Supabase.",
       );
     }
     if (!trip.data?.id) {

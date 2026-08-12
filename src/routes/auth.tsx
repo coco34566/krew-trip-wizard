@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/krew/Logo";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/auth")({
@@ -120,15 +119,17 @@ function AuthPage() {
   }
 
   async function googleSignIn() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: returnUrl()!,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: returnUrl() || undefined,
+      },
     });
-    if (result.error) {
+    if (error) {
+      console.error("Erreur de connexion Google Supabase:", error);
       toast.error("Connexion Google impossible pour le moment.");
       return;
     }
-    if (result.redirected) return;
-    goAfterAuth();
   }
 
   return (

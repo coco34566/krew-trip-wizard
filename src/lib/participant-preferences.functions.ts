@@ -380,7 +380,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
         if (retry.error) {
           throw new Error(
             `Enregistrement préférences impossible: ${retry.error.message}. ` +
-              "Exécute le SQL trip_participant_preferences dans Lovable.",
+              "Exécute le SQL trip_participant_preferences dans Supabase.",
           );
         }
         error = null;

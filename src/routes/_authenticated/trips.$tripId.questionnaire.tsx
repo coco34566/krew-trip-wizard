@@ -273,7 +273,7 @@ function ParticipantQuestionnaire() {
         return;
       }
       if (msg.includes("trip_participant_preferences") || msg.includes("schema cache") || msg.includes("SQL")) {
-        console.error("Base incomplète : exécute le SQL « trip_participant_preferences » dans Lovable (Cloud → SQL).", msg);
+        console.error("Base incomplète : exécute le SQL « trip_participant_preferences » dans l'éditeur Supabase.", msg);
         toast.error("Une erreur est survenue, réessaie dans un instant.");
         return;
       }
