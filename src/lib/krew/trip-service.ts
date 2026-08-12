@@ -990,9 +990,9 @@ export async function generateRecommendationsForTrip(
   const partsRes = await supabase.from("trip_participants").select("*").eq("trip_id", tripId);
   const participants = partsRes.data ?? [];
   const ctx = buildScoringContext(trip.data, prefsToUse, participants);
-  ctx.groupAgeRange = aggregated.groupAgeRange;
-  ctx.wantedEnvTypes = aggregated.wantedEnvTypes;
-  ctx.starWantedEnvType = aggregated.starWantedEnvType;
+  ctx.groupAgeRange = aggregated.groupAgeRange ?? null;
+  ctx.wantedEnvTypes = aggregated.wantedEnvTypes ?? [];
+  ctx.starWantedEnvType = aggregated.starWantedEnvType ?? null;
   if (aggregated.participantsCount && aggregated.participantsCount > 0) {
     // If we have aggregated participants count from preferences, we can still use ctx.participants as calculated from the actual/effective group count since preferences represents a subset of active members.
     ctx.participants = getEffectiveParticipantsCount(trip.data, participants);
