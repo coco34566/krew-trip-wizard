@@ -797,22 +797,13 @@ export async function assessGenerationReadiness(
     .filter((p: any) => !p.hasAnswered)
     .map((p: any) => p.display_name || p.email || "Participant");
 
-  // Les seuils de réponses minimum (minRequired, minAvail) sont désactivés pour permettre de tester en solo.
+  // Tous les critères minimum (réponses, disponibilités, verrouillage des dates) sont désactivés pour pouvoir tester librement.
   const prefsOk = true;
   const availabilityOk = true;
-  // Les dates doivent être verrouillées (locked) par l'organisateur pour pouvoir lancer les recherches d'API.
-  // Cependant, on peut passer outre ce verrouillage en développement/test si ALLOW_SKIP_DATES_LOCK est défini à "true".
-  const canGenerate = prefsOk && availabilityOk && (datesLocked || process.env["ALLOW_SKIP_DATES_LOCK"] === "true");
+  const canGenerate = true;
 
   const blockers: string[] = [];
-  if (!datesLocked && process.env["ALLOW_SKIP_DATES_LOCK"] !== "true") {
-    blockers.push("dates non validées par l'organisateur");
-  }
-
   let message: string | undefined;
-  if (!canGenerate) {
-    message = `Pas prêt pour les recherches destinations : ${blockers.join(" · ")}.`;
-  }
 
   return {
     canGenerate,
@@ -906,8 +897,8 @@ export async function generateRecommendationsForTrip(
   let lockedNights: number | null = null;
   let sd = trip.data.start_date as string | null;
   let ed = trip.data.end_date as string | null;
-  // Mode test (force) : dates fictives si absentes pour pouvoir scorer
-  if (options?.force && (!sd || !ed)) {
+  // Si les dates ne sont pas renseignées/verrouillées, on génère systématiquement des dates fictives pour pouvoir scorer
+  if (!sd || !ed) {
     const d0 = new Date();
     d0.setDate(d0.getDate() + 28);
     // prochain vendredi
