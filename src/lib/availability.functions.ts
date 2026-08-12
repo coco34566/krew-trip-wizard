@@ -65,6 +65,36 @@ export const getTripAvailability = createServerFn({ method: "GET" })
       durationNights: Number(r.duration_nights ?? 2) || 2,
     }));
 
+    const rawParticipants = participants.data ?? [];
+    const activeParticipants = rawParticipants.filter((p: any) => p.status !== "absent");
+
+    // Try to find the star in the participants list
+    let starParticipant = null;
+    const celebratedPerson = trip.data?.celebrated_person;
+    if (celebratedPerson) {
+      const normalizedCelebrated = celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+      for (const p of activeParticipants) {
+        if ((trip.data as any)?.star_user_id && p.user_id === (trip.data as any).star_user_id) {
+          starParticipant = p;
+          break;
+        }
+        const name = String(p.display_name ?? "")
+          .normalize("NFD")
+          .replace(/\p{M}/gu, "")
+          .toLowerCase()
+          .trim();
+        if (name && (name === normalizedCelebrated || name.includes(normalizedCelebrated) || normalizedCelebrated.includes(name))) {
+          starParticipant = p;
+          break;
+        }
+      }
+    } else if ((trip.data as any)?.star_user_id) {
+      starParticipant = activeParticipants.find(p => p.user_id === (trip.data as any).star_user_id) || null;
+    }
+
+    // Resolve starUid safely (never use the form-filler's user ID, e.g. organizer, unless it's the actual star)
+    const starUid = starParticipant?.user_id || (trip.data as any)?.star_user_id || "star-virtual-uid";
+
     // Prendre en compte les disponibilités de la star si remplies dans trip_star_preferences
     try {
       const starPrefs = await supabase
@@ -77,7 +107,6 @@ export const getTripAvailability = createServerFn({ method: "GET" })
         const starHasAvail = (starPrefs.data.available_dates && starPrefs.data.available_dates.length > 0) ||
                             (starPrefs.data.blocked_dates && starPrefs.data.blocked_dates.length > 0);
         if (starHasAvail) {
-          const starUid = starPrefs.data.user_id || "star-virtual-uid";
           const alreadyHasAvail = entries.some((e) => e.userId === starUid);
           if (!alreadyHasAvail) {
             entries.push({

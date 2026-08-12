@@ -448,17 +448,6 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
 
   const celebratedPerson = tripRes.data?.celebrated_person;
   const hasStar = Boolean(tripRes.data?.has_star || celebratedPerson);
-  const starUid = starPrefs.data?.user_id || tripRes.data?.star_user_id || "star-virtual-uid";
-
-  const starHasPrefs = starPrefs.data && (
-    (starPrefs.data.wanted_activities && starPrefs.data.wanted_activities.length > 0) ||
-    (starPrefs.data.ambiances && starPrefs.data.ambiances.length > 0) ||
-    starPrefs.data.submitted_at
-  );
-  const starHasAvail = starPrefs.data && (
-    (starPrefs.data.available_dates && starPrefs.data.available_dates.length > 0) ||
-    (starPrefs.data.blocked_dates && starPrefs.data.blocked_dates.length > 0)
-  );
 
   const rawParticipants = participants.data ?? [];
   // Filter out absent participants
@@ -466,16 +455,41 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
 
   // Try to find the star in the participants list
   let starParticipant = null;
-  for (const p of activeParticipants) {
-    const isStarByUid = p.user_id && p.user_id === starUid;
-    const isStarByName = celebratedPerson && p.display_name &&
-      p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-      celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-    if (isStarByUid || isStarByName) {
-      starParticipant = p;
-      break;
+  if (celebratedPerson) {
+    const normalizedCelebrated = celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+    for (const p of activeParticipants) {
+      if (tripRes.data?.star_user_id && p.user_id === tripRes.data.star_user_id) {
+        starParticipant = p;
+        break;
+      }
+      const name = String(p.display_name ?? "")
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+        .toLowerCase()
+        .trim();
+      if (name && (name === normalizedCelebrated || name.includes(normalizedCelebrated) || normalizedCelebrated.includes(name))) {
+        starParticipant = p;
+        break;
+      }
     }
+  } else if (tripRes.data?.star_user_id) {
+    starParticipant = activeParticipants.find(p => p.user_id === tripRes.data.star_user_id) || null;
   }
+
+  // Resolve starUid safely (never use the form-filler's user ID, e.g. organizer, unless it's the actual star)
+  const starUid = starParticipant?.user_id || tripRes.data?.star_user_id || "star-virtual-uid";
+
+  const starHasPrefs = starPrefs.data && (
+    (starPrefs.data.wanted_activities && starPrefs.data.wanted_activities.length > 0) ||
+    (starPrefs.data.ambiances && starPrefs.data.ambiances.length > 0) ||
+    starPrefs.data.wanted_env_type ||
+    starPrefs.data.desired_destination ||
+    starPrefs.data.submitted_at
+  );
+  const starHasAvail = starPrefs.data && (
+    (starPrefs.data.available_dates && starPrefs.data.available_dates.length > 0) ||
+    (starPrefs.data.blocked_dates && starPrefs.data.blocked_dates.length > 0)
+  );
 
   const partsList: any[] = [];
   const processedUserIds = new Set();

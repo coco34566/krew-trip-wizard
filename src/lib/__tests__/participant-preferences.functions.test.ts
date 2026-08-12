@@ -123,4 +123,237 @@ describe('getParticipantsProgress', () => {
     expect(result.participants[1].isStar).toBe(true); // Titi is correctly marked as the star
     expect(result.participants[1].hasAnswered).toBe(true); // star has answered since starPrefs is filled
   });
+
+  describe("Krew dashboard Star logic and double counting scenarios", () => {
+    const createSupabaseMock = ({
+      participantsCount = 6,
+      celebratedPerson = "Léa",
+      hasStar = true,
+      starUserId = "star-uid",
+      participants = [] as any[],
+      preferences = [] as any[],
+      availabilities = [] as any[],
+      starPrefs = null as any,
+    }) => {
+      const tripsData = {
+        participants_count: participantsCount,
+        celebrated_person: celebratedPerson,
+        has_star: hasStar,
+        star_user_id: starUserId,
+        owner_id: "orga-uid",
+      };
+
+      return {
+        from: (table: string) => {
+          let data: any = [];
+          if (table === "trips") data = tripsData;
+          else if (table === "trip_participants") data = participants;
+          else if (table === "trip_participant_preferences") data = preferences;
+          else if (table === "trip_availability") data = availabilities;
+          else if (table === "trip_star_preferences") data = starPrefs;
+
+          const queryChain = {
+            select: () => queryChain,
+            eq: () => queryChain,
+            maybeSingle: async () => ({ data, error: null }),
+            then: (resolve: any) => resolve({ data, error: null }),
+          };
+          return queryChain as any;
+        },
+      } as any;
+    };
+
+    it("Scenario 1 : Groupe de 6, personne n'a répondu", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+        ],
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.expected).toBe(6);
+      expect(result.answered).toBe(0);
+      expect(result.availabilityAnswered).toBe(0);
+    });
+
+    it("Scenario 2 : Groupe de 6, organisateur uniquement", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+        ],
+        preferences: [{ user_id: "orga-uid" }],
+        availabilities: [{ user_id: "orga-uid" }],
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.expected).toBe(6);
+      expect(result.answered).toBe(1);
+      expect(result.availabilityAnswered).toBe(1);
+    });
+
+    it("Scenario 3 : Groupe de 6, Star uniquement", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+        ],
+        starPrefs: {
+          user_id: "orga-uid", // Rempli par l'organisateur (user_id est l'id de l'orga en base)
+          submitted_at: "2026-08-12",
+          available_dates: ["2026-08-15"],
+        },
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.expected).toBe(6);
+      expect(result.answered).toBe(1); // La star uniquement (les prefs de l'orga ne sont pas remplies)
+      expect(result.availabilityAnswered).toBe(1); // La star uniquement
+    });
+
+    it("Scenario 4 : Groupe de 6, organisateur + Star", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+        ],
+        preferences: [{ user_id: "orga-uid" }],
+        availabilities: [{ user_id: "orga-uid" }],
+        starPrefs: {
+          user_id: "orga-uid", // rempli par l'orga
+          submitted_at: "2026-08-12",
+          available_dates: ["2026-08-15"],
+        },
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.expected).toBe(6);
+      expect(result.answered).toBe(2);
+      expect(result.availabilityAnswered).toBe(2);
+    });
+
+    it("Scenario 5 : Groupe de 6, organisateur + Star + 2 participants", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p3", user_id: "p3-uid", email: "p3@krew.travel", display_name: "Participant 3", status: "accepte" },
+          { id: "p4", user_id: "p4-uid", email: "p4@krew.travel", display_name: "Participant 4", status: "accepte" },
+        ],
+        preferences: [{ user_id: "orga-uid" }, { user_id: "p3-uid" }, { user_id: "p4-uid" }],
+        availabilities: [{ user_id: "orga-uid" }, { user_id: "p3-uid" }, { user_id: "p4-uid" }],
+        starPrefs: {
+          user_id: "orga-uid", // rempli par l'orga
+          submitted_at: "2026-08-12",
+          available_dates: ["2026-08-15"],
+        },
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.expected).toBe(6);
+      expect(result.answered).toBe(4);
+      expect(result.availabilityAnswered).toBe(4);
+    });
+
+    it("Scenario 6 : Groupe de 6, tout le monde", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p3", user_id: "p3-uid", email: "p3@krew.travel", display_name: "Participant 3", status: "accepte" },
+          { id: "p4", user_id: "p4-uid", email: "p4@krew.travel", display_name: "Participant 4", status: "accepte" },
+          { id: "p5", user_id: "p5-uid", email: "p5@krew.travel", display_name: "Participant 5", status: "accepte" },
+          { id: "p6", user_id: "p6-uid", email: "p6@krew.travel", display_name: "Participant 6", status: "accepte" },
+        ],
+        preferences: [
+          { user_id: "orga-uid" },
+          { user_id: "p3-uid" },
+          { user_id: "p4-uid" },
+          { user_id: "p5-uid" },
+          { user_id: "p6-uid" },
+        ],
+        availabilities: [
+          { user_id: "orga-uid" },
+          { user_id: "p3-uid" },
+          { user_id: "p4-uid" },
+          { user_id: "p5-uid" },
+          { user_id: "p6-uid" },
+        ],
+        starPrefs: {
+          user_id: "orga-uid", // rempli par l'orga
+          submitted_at: "2026-08-12",
+          available_dates: ["2026-08-15"],
+        },
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.expected).toBe(6);
+      expect(result.answered).toBe(6);
+      expect(result.availabilityAnswered).toBe(6);
+    });
+
+    it("Scenario 7 : Questionnaire Star rempli uniquement pour les préférences", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+        ],
+        starPrefs: {
+          user_id: "orga-uid",
+          submitted_at: "2026-08-12",
+        },
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.answered).toBe(1); // Star a répondu aux préférences
+      expect(result.availabilityAnswered).toBe(0); // Star n'a pas répondu aux dispos
+    });
+
+    it("Scenario 8 : Questionnaire Star rempli uniquement pour les disponibilités", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+        ],
+        starPrefs: {
+          user_id: "orga-uid",
+          available_dates: ["2026-08-15"],
+        },
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.answered).toBe(0); // Star n'a pas de préférences
+      expect(result.availabilityAnswered).toBe(1); // Star a répondu aux dispos
+    });
+
+    it("Scenario 9 : Questionnaire Star rempli pour les deux", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+        ],
+        starPrefs: {
+          user_id: "orga-uid",
+          submitted_at: "2026-08-12",
+          available_dates: ["2026-08-15"],
+        },
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.answered).toBe(1);
+      expect(result.availabilityAnswered).toBe(1);
+    });
+
+    it("Scenario 10, 11 & 12 : Pas de double comptage de la Star, dénominateur inchangé", async () => {
+      const supabase = createSupabaseMock({
+        participants: [
+          { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+        ],
+        preferences: [{ user_id: "orga-uid" }],
+        availabilities: [{ user_id: "orga-uid" }],
+        starPrefs: {
+          user_id: "orga-uid", // l'id de l'orga est stocké dans le user_id de la star car rempli par lui
+          submitted_at: "2026-08-12",
+          available_dates: ["2026-08-15"],
+        },
+      });
+      const result = await getParticipantsProgressHelper(supabase, "trip-123");
+      expect(result.expected).toBe(6); // dénominateur reste 6, la Star n'en crée pas une 7e
+      expect(result.answered).toBe(2); // 1 orga + 1 star = 2, pas de double comptage de l'orga ou de la star
+      expect(result.availabilityAnswered).toBe(2); // 1 orga + 1 star = 2
+    });
+  });
 });
