@@ -858,7 +858,7 @@ function TripDetail() {
   const starUid = trip?.star_user_id || "star-virtual-uid";
   const hasStar = Boolean(trip?.has_star || celebratedPerson);
 
-  const combinedParticipants = useMemo(() => {
+  const combinedParticipants = (() => {
     if (!hasStar) return rawParticipants;
 
     const starExists = rawParts => rawParts.some((p: any) => {
@@ -895,7 +895,7 @@ function TripDetail() {
     };
 
     return [...rawParticipants, starVirtual];
-  }, [rawParticipants, trip, tripId, hasStar, starUid, celebratedPerson]);
+  })();
 
   const participants = combinedParticipants;
   const destinationSelected = recommendations.some((r) => r.is_selected);
