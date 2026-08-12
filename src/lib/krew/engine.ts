@@ -5,6 +5,7 @@
  * du groupe, puis produisent des propositions scorées.
  */
 import { AMBIANCE_SCORE_COLUMN, type Ambiance } from "./constants";
+import { bestTransportOption, estimateOptionsByMode, isTransportCompatible, type TransportOption } from "./transport-compatibility";
 
 export type DestinationRecord = {
   id: string;
@@ -105,6 +106,7 @@ export type SubScores = {
   sActivities: number;
   sBudget: number;
   sDistance: number;
+  sTransport: number;
   sSeason: number;
   sQuality: number;
   sConsensus: number;
@@ -245,6 +247,7 @@ export type Proposal = {
   /** Sous-scores 0–1 exposés pour feedback / apprentissage. */
   subScores: SubScores;
   originPriceSpread?: number | null;
+  transportOptions?: TransportOption[];
 };
 
 const clamp = (v: number, min = 0, max = 1) => Math.min(max, Math.max(min, v));
@@ -774,6 +777,8 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
     if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
     if (ctx.planeRefused && d.distance_from_paris_km > 700) return false;
+    const modeOptions = estimateOptionsByMode(d.distance_from_paris_km, ctx.transportModes);
+    if (!isTransportCompatible(modeOptions, ctx.maxTravelDurationHours)) return false;
     if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
     return true;
   });
@@ -783,6 +788,8 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     candidates = catalog.destinations.filter((d) => {
       if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
       if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
+      const modeOptions = estimateOptionsByMode(d.distance_from_paris_km, ctx.transportModes);
+      if (!isTransportCompatible(modeOptions, ctx.maxTravelDurationHours)) return false;
       if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
       return true;
     });
@@ -908,8 +915,11 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     });
     const accommodation = accommodations[0] ?? null;
 
+    const estimatedModeOptions = estimateOptionsByMode(destination.distance_from_paris_km, ctx.transportModes);
+    const bestModeOption = bestTransportOption(estimatedModeOptions, ctx.maxTravelDurationHours);
     const transport =
       ctx.transportByDestinationId?.[destination.id] ??
+      bestModeOption?.pricePerPerson ??
       estimateTransport(destination.distance_from_paris_km);
     const transportOrigins = ctx.transportOriginsByDestinationId?.[destination.id];
     const transportGroup =
@@ -1018,6 +1028,11 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       ? clamp(0.72 + (1 - ageBudgetRatio) * 0.5)
       : clamp(1 - (ageBudgetRatio - 1) * 2.1);
     const sBudget = clamp(baseBudgetScore * 0.65 + ageBudgetScore * 0.35);
+    const bestDuration = bestModeOption?.durationHours ?? destination.distance_from_paris_km / 90;
+    const maxHours = ctx.maxTravelDurationHours ?? null;
+    const sTransport = maxHours && maxHours > 0
+      ? clamp(1 - Math.max(0, bestDuration - maxHours * 0.55) / Math.max(1, maxHours * 0.75))
+      : clamp(1 - bestDuration / 12);
     const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm));
     const sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
     const sQuality = clamp((destination.rating - 3.5) / 1.5) * 0.6 + destination.popularity * 0.4;
@@ -1030,7 +1045,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sAmbiance * w.ambiance +
       sActivities * w.activities +
       sBudget * w.budget +
-      sDistance * w.distance +
+      (sDistance * 0.45 + sTransport * 0.55) * w.distance +
       sSeason * w.season +
       sQuality * w.quality +
       sConsensus * w.consensus +
@@ -1097,8 +1112,9 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     if (maxDurationBypassed) {
       score -= 25;
     } else if (ctx.maxTravelDurationHours && ctx.maxTravelDurationHours > 0) {
-      const estimatedHours = destination.distance_from_paris_km / 90;
-      if (estimatedHours > ctx.maxTravelDurationHours * 0.8) {
+      if (!isTransportCompatible(estimatedModeOptions, ctx.maxTravelDurationHours)) {
+        score -= 35;
+      } else if (bestDuration > ctx.maxTravelDurationHours * 0.8) {
         score -= 8;
       }
     }
@@ -1114,6 +1130,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       sActivities,
       sBudget,
       sDistance,
+      sTransport,
       sSeason,
       sQuality,
       sConsensus,
@@ -1177,7 +1194,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       if (maxDurationBypassed) {
         matchReasons.push(`⚠️ ATTENTION : Dépasse la durée de trajet souhaitée de ${ctx.maxTravelDurationHours}h, mais proposé par manque d'alternatives.`);
       } else {
-        matchReasons.push("Temps de trajet estimé dans la limite du groupe");
+        matchReasons.push(`Trajet compatible en ${bestModeOption?.mode ?? "mode accepté"} (~${Math.round(bestDuration * 10) / 10}h)`);
       }
     }
     if (sEnvironment >= 0.8 && splitEnvTypes([...wantedEnvTypes, ...starEnvTypes]).length) {
@@ -1233,6 +1250,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       participantsEvaluated,
       subScores,
       originPriceSpread,
+      transportOptions: estimatedModeOptions,
     };
   });
 

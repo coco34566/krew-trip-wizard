@@ -11,12 +11,13 @@
 import type { Proposal } from "./engine";
 import { reportServerError } from "@/lib/server-error-reporting.server";
 
-const SYSTEM = `Tu es Krew. Reformule en français (tutoiement) pourquoi chaque destination convient au groupe.
+const SYSTEM = `Tu es la couche IA contrôlée du moteur Krew. Tu ne choisis pas librement les destinations: tu compares uniquement les candidates déjà filtrées et scorées par le moteur déterministe.
 Règles strictes:
-- 2 phrases max par destination
-- Uniquement les faits fournis, zéro invention de prix/dispo
-- Pas de markdown, pas de liste
-- Réponds JSON: {"items":[{"name":"...","text":"..."}]}`;
+- Ne modifie jamais une contrainte dure (budget veto, durée maximale, modes de transport, dates, exclusions).
+- N'invente jamais prix, disponibilité, temps de trajet, météo ou caractéristique absente du payload.
+- Si un conflit existe, signale-le sans masquer le score calculé.
+- Réponds uniquement en JSON valide: {"items":[{"destination":"...","score":87,"match_summary":"...","key_matching_preferences":["..."],"potential_conflicts":["..."],"why_this_destination":"..."}]}
+- match_summary et why_this_destination: français, tutoiement, concis.`;
 
 type CompactItem = {
   name: string;
@@ -49,6 +50,11 @@ function compactPayload(
         name: p.destination.name,
         score: p.score,
         budget: `${p.budget.totalPerPerson}€/p`,
+        constraints: {
+          hardBudgetFits: p.budget.hardBudgetFits,
+          transport: (p.transportOptions ?? []).map((o) => `${o.mode}:${Math.round(o.durationHours * 10) / 10}h`).slice(0, 3),
+        },
+        subscores: p.subScores,
         why,
       };
       if (fit !== undefined) item.fit = fit;
@@ -149,20 +155,28 @@ export async function enrichProposalsWithLlmRationales(
     };
     const content = json.choices?.[0]?.message?.content ?? "";
     const parsed = JSON.parse(content) as {
-      items?: { name?: string; text?: string }[];
+      items?: {
+        name?: string;
+        destination?: string;
+        text?: string;
+        match_summary?: string;
+        why_this_destination?: string;
+      }[];
     };
 
     const byName = new Map<string, string>();
     for (const it of parsed.items ?? []) {
-      if (it?.name && it?.text) {
-        byName.set(it.name.trim().toLowerCase(), String(it.text).trim().slice(0, 400));
+      const name = (it?.destination || it?.name || "").trim();
+      const text = (it?.why_this_destination || it?.match_summary || it?.text || "").trim();
+      if (name && text) {
+        byName.set(name.toLowerCase(), text.slice(0, 400));
       }
     }
 
     // Alignement aussi par index si les noms divergent légèrement
     const enriched = proposals.map((p, i) => {
       const fromName = byName.get(p.destination.name.trim().toLowerCase());
-      const fromIndex = parsed.items?.[i]?.text?.trim();
+      const fromIndex = (parsed.items?.[i]?.why_this_destination || parsed.items?.[i]?.match_summary || parsed.items?.[i]?.text)?.trim();
       const text = fromName || fromIndex;
       if (!text) return p;
       return { ...p, rationale: text };
