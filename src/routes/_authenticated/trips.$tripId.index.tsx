@@ -861,7 +861,7 @@ function TripDetail() {
   const combinedParticipants = (() => {
     if (!hasStar) return rawParticipants;
 
-    const starExists = rawParts => rawParts.some((p: any) => {
+    const starExists = (rawParts: any[]) => rawParts.some((p: any) => {
       const isStarByUid = p.user_id && p.user_id === starUid;
       const isStarByName = celebratedPerson && p.display_name &&
         p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
