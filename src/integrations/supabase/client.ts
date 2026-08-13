@@ -54,6 +54,7 @@ function createMockSupabaseClient() {
   };
 
   const mockClient = {
+    __isMock: true,
     auth: {
       onAuthStateChange: (callback: any) => {
         return {
@@ -107,15 +108,9 @@ function createSupabaseClient() {
       ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY / SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY'] : []),
     ];
     const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Please configure your Supabase environment variables on Vercel or in your local .env file.`;
-    const isDev = import.meta.env['DEV'] || process.env['NODE_ENV'] === 'development';
 
-    if (isDev) {
-      console.error(`[Supabase] ${message}`);
-      return createMockSupabaseClient();
-    } else {
-      console.error(`[Supabase] [PRODUCTION ERROR] ${message}`);
-      throw new Error(message);
-    }
+    console.error(`[Supabase] ${message}`);
+    return createMockSupabaseClient();
   }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
