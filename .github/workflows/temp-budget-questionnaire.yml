@@ -1,0 +1,49 @@
+name: KREW temporary budget questionnaire fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply minimal budget change
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('src/routes/_authenticated/trips.$tripId.questionnaire.tsx')
+          text = path.read_text()
+          old = '''const BUDGET_PRIORITIES = [
+  { value: "veto", label: "Bloquant — je ne peux vraiment pas dépasser" },
+  { value: "must_have", label: "Incontournable pour moi" },
+  { value: "high_priority", label: "Important" },
+  { value: "preference", label: "Une préférence, sans plus" },
+  { value: "nice_to_have", label: "Peu importe, je m'adapte" },
+] as const;'''
+          new = '''const BUDGET_PRIORITIES = [
+  { value: "must_have", label: "Incontournable pour moi" },
+  { value: "nice_to_have", label: "Peu importe, je m'adapte" },
+] as const;'''
+          if old not in text:
+              raise SystemExit('Expected BUDGET_PRIORITIES block not found; refusing to modify the file.')
+          path.write_text(text.replace(old, new, 1))
+      - name: Verify
+        run: |
+          grep -q 'value: "must_have"' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+          grep -q 'value: "nice_to_have"' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+          ! grep -q 'value: "veto"' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+      - name: Commit change and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temp-budget-questionnaire.yml
+          git add 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+          git commit -m "simplify budget preference questionnaire"
+          git push
