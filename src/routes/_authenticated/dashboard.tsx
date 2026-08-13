@@ -109,10 +109,11 @@ function Dashboard() {
     retry: false,
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: tripsError } = useQuery({
     queryKey: ["my-trips", user?.id],
     queryFn: () => fetchTrips(),
     enabled: !!user && !authLoading,
+    retry: false,
   });
 
   const trips = (data?.trips ?? []) as TripRow[];
@@ -161,7 +162,14 @@ function Dashboard() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {tripsError ? (
+        <div className="mt-8 rounded-3xl border border-destructive/30 bg-destructive/5 p-6">
+          <h2 className="font-display text-lg font-semibold text-destructive">Impossible de charger tes voyages</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Erreur réelle du chargement : {String((tripsError as any)?.message ?? tripsError)}
+          </p>
+        </div>
+      ) : isLoading ? (
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           <Skeleton className="h-36 rounded-3xl" />
           <Skeleton className="h-36 rounded-3xl" />
