@@ -1,0 +1,47 @@
+name: KREW budget questionnaire fix v2
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply minimal budget change
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          path = Path('src/routes/_authenticated/trips.$tripId.questionnaire.tsx')
+          text = path.read_text()
+          pattern = r'const BUDGET_PRIORITIES = \[.*?\] as const;'
+          new = '''const BUDGET_PRIORITIES = [
+  { value: "must_have", label: "Incontournable pour moi" },
+  { value: "nice_to_have", label: "Peu importe, je m'adapte" },
+] as const;'''
+          text2, count = re.subn(pattern, new, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit('BUDGET_PRIORITIES block not found; refusing to modify the file.')
+          path.write_text(text2)
+      - name: Verify
+        run: |
+          grep -q 'value: "must_have"' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+          grep -q 'value: "nice_to_have"' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+          ! grep -q 'value: "veto"' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+          ! grep -q 'value: "high_priority"' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+          ! grep -q 'value: "preference"' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+      - name: Commit change and remove temporary workflows
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temp-budget-questionnaire.yml .github/workflows/temp-budget-fix-v2.yml
+          git add 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
+          git commit -m "simplify budget preference questionnaire"
+          git push
