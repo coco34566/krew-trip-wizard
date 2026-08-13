@@ -27,6 +27,63 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 
+function createMockSupabaseClient() {
+  console.warn(
+    "[Supabase Client] Environment variables are missing. Utilizing a safe mock Supabase client to prevent application crash."
+  );
+
+  const mockQueryBuilder = {
+    select: () => mockQueryBuilder,
+    insert: () => mockQueryBuilder,
+    update: () => mockQueryBuilder,
+    delete: () => mockQueryBuilder,
+    eq: () => mockQueryBuilder,
+    neq: () => mockQueryBuilder,
+    gt: () => mockQueryBuilder,
+    lt: () => mockQueryBuilder,
+    gte: () => mockQueryBuilder,
+    lte: () => mockQueryBuilder,
+    like: () => mockQueryBuilder,
+    ilike: () => mockQueryBuilder,
+    in: () => mockQueryBuilder,
+    order: () => mockQueryBuilder,
+    limit: () => mockQueryBuilder,
+    single: async () => ({ data: null, error: null }),
+    maybeSingle: async () => ({ data: null, error: null }),
+    then: (resolve: any) => resolve({ data: [], error: null }),
+  };
+
+  const mockClient = {
+    auth: {
+      onAuthStateChange: (callback: any) => {
+        return {
+          data: {
+            subscription: {
+              unsubscribe: () => {},
+            },
+          },
+        };
+      },
+      getSession: async () => ({ data: { session: null }, error: null }),
+      getUser: async () => ({ data: { user: null }, error: null }),
+      signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
+      signUp: async () => ({ data: { user: null, session: null }, error: null }),
+      signOut: async () => ({ error: null }),
+    },
+    from: () => mockQueryBuilder,
+    rpc: async () => ({ data: null, error: null }),
+    storage: {
+      from: () => ({
+        upload: async () => ({ data: null, error: null }),
+        download: async () => ({ data: null, error: null }),
+        getPublicUrl: () => ({ data: { publicUrl: "" } }),
+      }),
+    },
+  };
+
+  return mockClient as any;
+}
+
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
@@ -50,8 +107,15 @@ function createSupabaseClient() {
       ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY / SUPABASE_ANON_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY'] : []),
     ];
     const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Please configure your Supabase environment variables on Vercel or in your local .env file.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
+    const isDev = import.meta.env['DEV'] || process.env['NODE_ENV'] === 'development';
+
+    if (isDev) {
+      console.error(`[Supabase] ${message}`);
+      return createMockSupabaseClient();
+    } else {
+      console.error(`[Supabase] [PRODUCTION ERROR] ${message}`);
+      throw new Error(message);
+    }
   }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
