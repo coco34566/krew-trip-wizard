@@ -21,7 +21,7 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createMockSupabaseClient() {
-  console.error('[Supabase Client] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+  console.error('[Supabase Client] Missing NEXT_PUBLIC_krewproject_SUPABASE_URL or NEXT_PUBLIC_krewproject_SUPABASE_PUBLISHABLE_KEY.');
   const mockQueryBuilder = {
     select: () => mockQueryBuilder, insert: () => mockQueryBuilder, update: () => mockQueryBuilder,
     delete: () => mockQueryBuilder, eq: () => mockQueryBuilder, neq: () => mockQueryBuilder,
@@ -48,13 +48,13 @@ function createMockSupabaseClient() {
 }
 
 function createSupabaseClient() {
-  // Vercel environment variables used by KREW's frontend.
-  const supabaseUrl = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return createMockSupabaseClient();
+  // Vercel/Supabase integration variables used by KREW's frontend.
+  const supabaseUrl = import.meta.env.NEXT_PUBLIC_krewproject_SUPABASE_URL;
+  const supabasePublishableKey = import.meta.env.NEXT_PUBLIC_krewproject_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !supabasePublishableKey) return createMockSupabaseClient();
 
-  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
-    global: { fetch: createSupabaseFetch(supabaseAnonKey) },
+  return createClient<Database>(supabaseUrl, supabasePublishableKey, {
+    global: { fetch: createSupabaseFetch(supabasePublishableKey) },
     auth: {
       storage: typeof window !== 'undefined' ? localStorage : undefined,
       persistSession: true,
