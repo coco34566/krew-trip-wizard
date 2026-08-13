@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { isTripAdmin } from "../krew/engine";
-import { setCoOrganizerHelper } from "../trips.functions";
+import { setCoOrganizerHelper, inviteParticipantHelper, removeParticipantHelper } from "../trips.functions";
 
 describe("Co-organisateur (engine.ts)", () => {
   it("autorise l'organisateur principal (isTripAdmin)", () => {
@@ -152,5 +152,159 @@ describe("setCoOrganizerHelper (trips.functions.ts)", () => {
     await expect(
       setCoOrganizerHelper(supabase, "some-user", tripId, "user-co-org")
     ).rejects.toThrow("Voyage introuvable");
+  });
+});
+
+describe("Gestion des invitations (inviteParticipantHelper / removeParticipantHelper)", () => {
+  it("autorise l'organisateur principal à inviter un participant", async () => {
+    const tripId = "trip-123";
+    const ownerId = "user-owner";
+
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: { id: tripId, owner_id: ownerId, co_organizer_id: null },
+      error: null,
+    });
+    const singleMock = vi.fn().mockResolvedValue({
+      data: { id: "p-new", trip_id: tripId, email: "new@krew.travel" },
+      error: null,
+    });
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "trips") {
+          return { select: () => ({ eq: () => ({ maybeSingle: maybeSingleMock }) }) };
+        }
+        if (table === "trip_participants") {
+          return { upsert: () => ({ select: () => ({ single: singleMock }) }) };
+        }
+        return {} as any;
+      }),
+    } as any;
+
+    const res = await inviteParticipantHelper(supabase, ownerId, {
+      tripId,
+      email: "new@krew.travel",
+    });
+    expect(res.id).toBe("p-new");
+  });
+
+  it("autorise le co-organisateur à inviter un participant", async () => {
+    const tripId = "trip-123";
+    const coOrgId = "user-co-org";
+
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: { id: tripId, owner_id: "user-owner", co_organizer_id: coOrgId },
+      error: null,
+    });
+    const singleMock = vi.fn().mockResolvedValue({
+      data: { id: "p-new", trip_id: tripId, email: "new@krew.travel" },
+      error: null,
+    });
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "trips") {
+          return { select: () => ({ eq: () => ({ maybeSingle: maybeSingleMock }) }) };
+        }
+        if (table === "trip_participants") {
+          return { upsert: () => ({ select: () => ({ single: singleMock }) }) };
+        }
+        return {} as any;
+      }),
+    } as any;
+
+    const res = await inviteParticipantHelper(supabase, coOrgId, {
+      tripId,
+      email: "new@krew.travel",
+    });
+    expect(res.id).toBe("p-new");
+  });
+
+  it("interdit à un participant normal d'inviter quelqu'un", async () => {
+    const tripId = "trip-123";
+    const normalUserId = "user-normal";
+
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: { id: tripId, owner_id: "user-owner", co_organizer_id: "user-co-org" },
+      error: null,
+    });
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "trips") {
+          return { select: () => ({ eq: () => ({ maybeSingle: maybeSingleMock }) }) };
+        }
+        return {} as any;
+      }),
+    } as any;
+
+    await expect(
+      inviteParticipantHelper(supabase, normalUserId, { tripId, email: "new@krew.travel" })
+    ).rejects.toThrow("seul l'organisateur ou co-organisateur peut inviter des participants");
+  });
+
+  it("autorise le co-organisateur à supprimer un participant", async () => {
+    const tripId = "trip-123";
+    const coOrgId = "user-co-org";
+    const partId = "part-abc";
+
+    const partMaybeSingleMock = vi.fn().mockResolvedValue({
+      data: { id: partId, trip_id: tripId },
+      error: null,
+    });
+    const tripMaybeSingleMock = vi.fn().mockResolvedValue({
+      data: { id: tripId, owner_id: "user-owner", co_organizer_id: coOrgId },
+      error: null,
+    });
+    const deleteMock = vi.fn().mockResolvedValue({ error: null });
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "trip_participants") {
+          return {
+            select: () => ({ eq: () => ({ maybeSingle: partMaybeSingleMock }) }),
+            delete: () => ({ eq: deleteMock }),
+          };
+        }
+        if (table === "trips") {
+          return { select: () => ({ eq: () => ({ maybeSingle: tripMaybeSingleMock }) }) };
+        }
+        return {} as any;
+      }),
+    } as any;
+
+    const res = await removeParticipantHelper(supabase, coOrgId, { participantId: partId });
+    expect(res).toEqual({ ok: true });
+  });
+
+  it("interdit à un participant normal de supprimer un autre participant", async () => {
+    const tripId = "trip-123";
+    const normalUserId = "user-normal";
+    const partId = "part-abc";
+
+    const partMaybeSingleMock = vi.fn().mockResolvedValue({
+      data: { id: partId, trip_id: tripId },
+      error: null,
+    });
+    const tripMaybeSingleMock = vi.fn().mockResolvedValue({
+      data: { id: tripId, owner_id: "user-owner", co_organizer_id: "user-co-org" },
+      error: null,
+    });
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "trip_participants") {
+          return { select: () => ({ eq: () => ({ maybeSingle: partMaybeSingleMock }) }) };
+        }
+        if (table === "trips") {
+          return { select: () => ({ eq: () => ({ maybeSingle: tripMaybeSingleMock }) }) };
+        }
+        return {} as any;
+      }),
+    } as any;
+
+    await expect(
+      removeParticipantHelper(supabase, normalUserId, { participantId: partId })
+    ).rejects.toThrow("seul l'organisateur ou co-organisateur peut retirer des participants");
   });
 });

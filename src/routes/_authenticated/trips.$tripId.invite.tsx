@@ -212,23 +212,37 @@ function InvitePage() {
         <p className="mt-2 break-all rounded-2xl border border-border bg-background/80 px-3 py-2 font-mono text-xs">
           {shareUrl || "…"}
         </p>
-        <Button
-          className="mt-3 w-full sm:w-auto"
-          variant="outline"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(shareUrl);
-              setCopied(true);
-              toast.success("Lien copié");
-              setTimeout(() => setCopied(false), 2000);
-            } catch {
-              toast.error("Copie impossible");
-            }
-          }}
-        >
-          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-          {copied ? "Copié" : "Copier le lien"}
-        </Button>
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
+          <Button
+            className="w-full sm:w-auto"
+            variant="outline"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(shareUrl);
+                setCopied(true);
+                toast.success("Lien copié");
+                setTimeout(() => setCopied(false), 2000);
+              } catch {
+                toast.error("Copie impossible");
+              }
+            }}
+          >
+            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+            {copied ? "Copié" : "Copier le lien"}
+          </Button>
+          <Button
+            type="button"
+            className="w-full sm:w-auto bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+            onClick={() => {
+              const tripName = trip?.name ? ` « ${trip.name} »` : "";
+              const text = `Salut ! On organise un voyage${tripName} avec KREW ✈️\nRejoins le groupe pour découvrir le projet et donner tes dispos :\n${shareUrl}`;
+              const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+              window.open(url, "_blank", "noopener,noreferrer");
+            }}
+          >
+            Partager sur WhatsApp
+          </Button>
+        </div>
       </section>
 
       {data.isOwner ? (
