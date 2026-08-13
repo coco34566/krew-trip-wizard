@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Mail, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,8 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showConfirmationSent, setShowConfirmationSent] = useState(false);
+  const [resending, setResending] = useState(false);
   const { next } = Route.useSearch();
 
   const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
@@ -82,29 +85,34 @@ function AuthPage() {
       return;
     }
 
-    // Normally Supabase returns a session immediately when email confirmation is disabled.
-    // If a session is unexpectedly absent, retry with the same credentials. This makes the
-    // signup flow resilient to a transient auth/session response without pretending that
-    // an email confirmation is required.
-    if (!data.session) {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      setBusy(false);
-      if (signInData.session) {
-        goAfterAuth();
-        return;
-      }
-      console.error("Inscription réussie mais aucune session Supabase:", signInError);
-      const msg = signInError?.message?.toLowerCase() ?? "";
-      if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) {
-        toast.error("Supabase demande encore une confirmation e-mail. Vérifie que « Confirm email » est bien désactivé dans Authentication → Providers → Email.");
-      } else {
-        toast.error("Le compte a été créé, mais KREW n'a pas pu ouvrir la session. Vérifie la configuration Supabase puis réessaie.");
-      }
+    setBusy(false);
+    if (data.user && !data.session) {
+      setShowConfirmationSent(true);
       return;
     }
 
-    setBusy(false);
     navigate({ to: "/dashboard" });
+  }
+
+  async function resendConfirmationEmail() {
+    setResending(true);
+    const resendOptions: { emailRedirectTo?: string } = {};
+    const rUrl = returnUrl();
+    if (rUrl !== undefined) resendOptions.emailRedirectTo = rUrl;
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: resendOptions,
+    });
+    setResending(false);
+
+    if (error) {
+      console.error("Erreur d'envoi d'email de confirmation:", error);
+      toast.error("Impossible de renvoyer l'e-mail de confirmation pour le moment.");
+    } else {
+      toast.success("Un nouvel e-mail de confirmation a été envoyé !");
+    }
   }
 
   async function googleSignIn() {
@@ -113,6 +121,51 @@ function AuthPage() {
       console.error("Erreur de connexion Google Supabase:", error);
       toast.error("Connexion Google impossible pour le moment.");
     }
+  }
+
+  if (showConfirmationSent) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center bg-hero-gradient px-4 py-12">
+        <div className="w-full max-w-md">
+          <Link to="/" className="mb-8 flex justify-center">
+            <Logo size="lg" withTagline />
+          </Link>
+          <div className="glass-panel rounded-3xl p-6 shadow-elevated sm:p-8 text-center space-y-6">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Mail className="h-6 w-6" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="font-display text-2xl font-bold text-foreground">Compte créé !</h2>
+              <p className="text-sm text-muted-foreground">
+                Vérifie ta boîte mail pour confirmer ton adresse e-mail.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-surface p-4 text-left text-sm text-muted-foreground leading-relaxed">
+              Un e-mail de confirmation a été envoyé à <strong className="text-foreground">{email}</strong>. Clique sur le lien présent dans cet e-mail pour activer ton compte KREW.
+            </div>
+            <div className="space-y-3 pt-2">
+              <Button
+                variant="hero"
+                size="lg"
+                className="w-full"
+                onClick={resendConfirmationEmail}
+                disabled={resending}
+              >
+                {resending ? "Renvoi en cours..." : "Renvoyer l'e-mail de confirmation"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="lg"
+                className="w-full gap-2"
+                onClick={() => setShowConfirmationSent(false)}
+              >
+                <ArrowLeft className="h-4 w-4" /> Retour à la connexion
+              </Button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (

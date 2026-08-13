@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Check, Copy, Link2, Loader2, UserPlus, Users, Crown, Shield, Star } from "lucide-react";
@@ -34,13 +34,24 @@ function InvitePage() {
   const setCoOrg = useServerFn(setCoOrganizer);
   const finishInvite = useServerFn(finalizeInvitationStep);
 
+  const [refetchIntervalValue, setRefetchIntervalValue] = useState<number | false>(1000);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setRefetchIntervalValue(false);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const { data, isLoading } = useQuery({
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
+    refetchInterval: refetchIntervalValue,
   });
   const { data: progress } = useQuery({
     queryKey: ["trip-progress", tripId],
     queryFn: () => fetchProgress({ data: { tripId } }),
+    refetchInterval: refetchIntervalValue,
   });
 
   const [email, setEmail] = useState("");
