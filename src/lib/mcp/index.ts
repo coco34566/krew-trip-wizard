@@ -4,7 +4,12 @@ import getTripTool from "./tools/get-trip";
 import listRecommendationsTool from "./tools/list-recommendations";
 import createTripTool from "./tools/create-trip";
 
-const projectRef = import.meta.env['VITE_SUPABASE_PROJECT_ID'] ?? "project-ref-unset";
+const supabaseUrl =
+  import.meta.env.NEXT_PUBLIC_krewproject_SUPABASE_URL ??
+  import.meta.env.krewproject_SUPABASE_URL ??
+  "";
+
+const projectRef = supabaseUrl.match(/^https:\/\/([a-z0-9]+)\.supabase\.co/i)?.[1] ?? "project-ref-unset";
 
 export default defineMcp({
   name: "krew-your-group-trip-planner",
