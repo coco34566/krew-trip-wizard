@@ -357,6 +357,75 @@ export const getGenerationReadiness = createServerFn({ method: "GET" })
     return assessGenerationReadiness(context.supabase, data.tripId);
   });
 
+export async function inviteParticipantHelper(
+  supabase: any,
+  userId: string,
+  data: { tripId: string; email: string; displayName?: string }
+) {
+  const tripRes = await supabase
+    .from("trips")
+    .select("id, owner_id, co_organizer_id")
+    .eq("id", data.tripId)
+    .maybeSingle();
+  if (tripRes.error) throw tripRes.error;
+  if (!tripRes.data) throw new Error("Voyage introuvable");
+  const trip = tripRes.data as any;
+
+  if (!isTripAdmin(trip, userId)) {
+    throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut inviter des participants");
+  }
+
+  const result = await supabase
+    .from("trip_participants")
+    .upsert(
+      {
+        trip_id: data.tripId,
+        email: data.email.toLowerCase(),
+        display_name: data.displayName ?? null,
+      },
+      { onConflict: "trip_id,email" },
+    )
+    .select("*")
+    .single();
+  if (result.error) throw result.error;
+  return result.data;
+}
+
+export async function removeParticipantHelper(
+  supabase: any,
+  userId: string,
+  data: { participantId: string }
+) {
+  const partRes = await supabase
+    .from("trip_participants")
+    .select("id, trip_id")
+    .eq("id", data.participantId)
+    .maybeSingle();
+  if (partRes.error) throw partRes.error;
+  if (!partRes.data) throw new Error("Participant introuvable");
+  const participant = partRes.data as any;
+
+  const tripRes = await supabase
+    .from("trips")
+    .select("id, owner_id, co_organizer_id")
+    .eq("id", participant.trip_id)
+    .maybeSingle();
+  if (tripRes.error) throw tripRes.error;
+  if (!tripRes.data) throw new Error("Voyage introuvable");
+  const trip = tripRes.data as any;
+
+  if (!isTripAdmin(trip, userId)) {
+    throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut retirer des participants");
+  }
+
+  const { error } = await supabase
+    .from("trip_participants")
+    .delete()
+    .eq("id", data.participantId);
+  if (error) throw error;
+  return { ok: true };
+}
+
 export const inviteParticipant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -365,21 +434,8 @@ export const inviteParticipant = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const result = await supabase
-      .from("trip_participants")
-      .upsert(
-        {
-          trip_id: data.tripId,
-          email: data.email.toLowerCase(),
-          display_name: data.displayName ?? null,
-        },
-        { onConflict: "trip_id,email" },
-      )
-      .select("*")
-      .single();
-    if (result.error) throw result.error;
-    return result.data;
+    const { supabase, userId } = context;
+    return inviteParticipantHelper(supabase, userId, data);
   });
 
 export const removeParticipant = createServerFn({ method: "POST" })
@@ -388,12 +444,8 @@ export const removeParticipant = createServerFn({ method: "POST" })
     z.object({ participantId: z.string().uuid() }).parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("trip_participants")
-      .delete()
-      .eq("id", data.participantId);
-    if (error) throw error;
-    return { ok: true };
+    const { supabase, userId } = context;
+    return removeParticipantHelper(supabase, userId, data);
   });
 
 export const finalizeInvitationStep = createServerFn({ method: "POST" })
