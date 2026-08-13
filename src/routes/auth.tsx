@@ -115,14 +115,6 @@ function AuthPage() {
     }
   }
 
-  async function googleSignIn() {
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: returnUrl() || undefined } });
-    if (error) {
-      console.error("Erreur de connexion Google Supabase:", error);
-      toast.error("Connexion Google impossible pour le moment.");
-    }
-  }
-
   if (showConfirmationSent) {
     return (
       <main className="relative flex min-h-screen items-center justify-center bg-hero-gradient px-4 py-12">
@@ -191,8 +183,6 @@ function AuthPage() {
               </form>
             </TabsContent>
           </Tabs>
-          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" /></div>
-          <Button variant="glass" size="lg" className="w-full" onClick={googleSignIn}>Continuer avec Google</Button>
         </div>
       </div>
     </main>

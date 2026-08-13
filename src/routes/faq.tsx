@@ -21,7 +21,7 @@ const FAQS = [
   },
   {
     q: "Mes ami·e·s doivent-ils/elles créer un compte pour répondre ?",
-    a: "Oui, pour garantir la sécurité et s'assurer que chacun·e gère de façon autonome ses propres réponses et disponibilités, chaque participant·e crée un compte gratuit en quelques secondes (via email ou Google/Apple). Ainsi, personne ne peut modifier les réponses d'un·e autre !",
+    a: "Oui, pour garantir la sécurité et s'assurer que chacun·e gère de façon autonome ses propres réponses et disponibilités, chaque participant·e crée un compte gratuit en quelques secondes avec son e-mail. Ainsi, personne ne peut modifier les réponses d'un·e autre !",
   },
   {
     q: "Qu'est-ce que « la star » du voyage ?",
