@@ -11,53 +11,30 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
     const headers = new Headers(
       typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined,
     );
-
-    if (init?.headers) {
-      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
-    }
-
-    // New Supabase API keys are opaque strings, not bearer JWTs.
+    if (init?.headers) new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
       headers.delete('Authorization');
     }
-
     headers.set('apikey', supabaseKey);
     return fetch(input, { ...init, headers });
   };
 }
 
 function createMockSupabaseClient() {
-  console.error(
-    '[Supabase Client] Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY. ' +
-      'The app is running without Supabase until these variables are available at build time.',
-  );
-
+  console.error('[Supabase Client] Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.');
   const mockQueryBuilder = {
-    select: () => mockQueryBuilder,
-    insert: () => mockQueryBuilder,
-    update: () => mockQueryBuilder,
-    delete: () => mockQueryBuilder,
-    eq: () => mockQueryBuilder,
-    neq: () => mockQueryBuilder,
-    gt: () => mockQueryBuilder,
-    lt: () => mockQueryBuilder,
-    gte: () => mockQueryBuilder,
-    lte: () => mockQueryBuilder,
-    like: () => mockQueryBuilder,
-    ilike: () => mockQueryBuilder,
-    in: () => mockQueryBuilder,
-    order: () => mockQueryBuilder,
-    limit: () => mockQueryBuilder,
+    select: () => mockQueryBuilder, insert: () => mockQueryBuilder, update: () => mockQueryBuilder,
+    delete: () => mockQueryBuilder, eq: () => mockQueryBuilder, neq: () => mockQueryBuilder,
+    gt: () => mockQueryBuilder, lt: () => mockQueryBuilder, gte: () => mockQueryBuilder,
+    lte: () => mockQueryBuilder, like: () => mockQueryBuilder, ilike: () => mockQueryBuilder,
+    in: () => mockQueryBuilder, order: () => mockQueryBuilder, limit: () => mockQueryBuilder,
     single: async () => ({ data: null, error: null }),
     maybeSingle: async () => ({ data: null, error: null }),
     then: (resolve: any) => resolve({ data: [], error: null }),
   };
-
   return {
     auth: {
-      onAuthStateChange: () => ({
-        data: { subscription: { unsubscribe: () => {} } },
-      }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
       getSession: async () => ({ data: { session: null }, error: null }),
       getUser: async () => ({ data: { user: null }, error: null }),
       signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
@@ -66,31 +43,18 @@ function createMockSupabaseClient() {
     },
     from: () => mockQueryBuilder,
     rpc: async () => ({ data: null, error: null }),
-    storage: {
-      from: () => ({
-        upload: async () => ({ data: null, error: null }),
-        download: async () => ({ data: null, error: null }),
-        getPublicUrl: () => ({ data: { publicUrl: '' } }),
-      }),
-    },
+    storage: { from: () => ({ upload: async () => ({ data: null, error: null }), download: async () => ({ data: null, error: null }), getPublicUrl: () => ({ data: { publicUrl: '' } }) }) },
   } as any;
 }
 
 function createSupabaseClient() {
-  // Vite replaces import.meta.env.VITE_* at build time.
-  // Keep this client-side configuration canonical and avoid process.env,
-  // which is not guaranteed to exist in the browser bundle.
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  // Vercel environment variables used by KREW's frontend.
+  const supabaseUrl = import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) return createMockSupabaseClient();
 
-  if (!supabaseUrl || !supabasePublishableKey) {
-    return createMockSupabaseClient();
-  }
-
-  return createClient<Database>(supabaseUrl, supabasePublishableKey, {
-    global: {
-      fetch: createSupabaseFetch(supabasePublishableKey),
-    },
+  return createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    global: { fetch: createSupabaseFetch(supabaseAnonKey) },
     auth: {
       storage: typeof window !== 'undefined' ? localStorage : undefined,
       persistSession: true,
@@ -101,7 +65,6 @@ function createSupabaseClient() {
 }
 
 let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
-
 export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
   get(_, prop, receiver) {
     if (!_supabase) _supabase = createSupabaseClient();
