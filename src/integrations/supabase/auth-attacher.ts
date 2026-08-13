@@ -7,7 +7,21 @@ import { supabase } from './client'
 export const attachSupabaseAuth = createMiddleware({ type: 'function' }).client(
   async ({ next }) => {
     const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
+    let session = data.session
+
+    // Only refresh when the current access token is actually close to expiry.
+    // Do not refresh on every server-function call: that can race with other
+    // Supabase auth requests and cause the server function to receive a stale
+    // JWT while the client has already rotated its session.
+    if (session?.expires_at) {
+      const expiresIn = session.expires_at * 1000 - Date.now()
+      if (expiresIn > 0 && expiresIn < 60_000) {
+        const refreshed = await supabase.auth.refreshSession()
+        session = refreshed.data.session ?? session
+      }
+    }
+
+    const token = session?.access_token
     return next({
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
