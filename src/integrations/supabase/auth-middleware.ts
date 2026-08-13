@@ -19,8 +19,19 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(async ({ next }) => {
-  const SUPABASE_URL = process.env['krewproject_SUPABASE_URL'] || process.env['SUPABASE_URL'] || process.env['NEXT_PUBLIC_krewproject_SUPABASE_URL'];
-  const SUPABASE_PUBLISHABLE_KEY = process.env['krewproject_SUPABASE_PUBLISHABLE_KEY'] || process.env['krewproject_SUPABASE_ANON_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_ANON_KEY'];
+  // Prefer the exact same public project URL/key pair used by the browser.
+  // This prevents the server from authenticating against a different/stale
+  // Supabase API key when the Vercel/Supabase integration exposes multiple names.
+  const SUPABASE_URL =
+    process.env['NEXT_PUBLIC_krewproject_SUPABASE_URL'] ||
+    process.env['krewproject_SUPABASE_URL'] ||
+    process.env['SUPABASE_URL'];
+  const SUPABASE_PUBLISHABLE_KEY =
+    process.env['NEXT_PUBLIC_krewproject_SUPABASE_PUBLISHABLE_KEY'] ||
+    process.env['krewproject_SUPABASE_PUBLISHABLE_KEY'] ||
+    process.env['krewproject_SUPABASE_ANON_KEY'] ||
+    process.env['SUPABASE_PUBLISHABLE_KEY'] ||
+    process.env['SUPABASE_ANON_KEY'];
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     throw new Error('Missing Supabase environment variables from the Vercel/Supabase integration.');
@@ -31,7 +42,7 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
   const authHeader = request.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) throw new Error('Unauthorized: Bearer token required');
 
-  const token = authHeader.replace('Bearer ', '');
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
   if (!token || token.split('.').length !== 3) throw new Error('Unauthorized: Invalid token');
 
   const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -40,7 +51,10 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
   });
 
   const { data, error } = await supabase.auth.getUser(token);
-  if (error || !data?.user) throw new Error('Unauthorized: Invalid token');
+  if (error || !data?.user) {
+    console.error('[Supabase Auth Middleware Error] failed to getUser from token:', error);
+    throw new Error('Unauthorized: Invalid token');
+  }
 
   return next({
     context: {
