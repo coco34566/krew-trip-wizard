@@ -5,7 +5,7 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { buildProposals, dominantAmbiance, type Proposal, type ScoringContext } from "./engine";
+import { buildProposals, dominantAmbiance, getNormalizedBudgetPriority, type Proposal, type ScoringContext } from "./engine";
 import { reportServerError } from "@/lib/server-error-reporting.server";
 import { loadTravelCatalog } from "./providers.server";
 import { discoverCandidateDestinations, listCityProfilesForNames } from "./destination-discovery.server";
@@ -263,7 +263,7 @@ export async function aggregateParticipantPreferences(
           ambiances: starData.ambiances ?? [],
           activity_categories: starData.wanted_activities ?? [],
           budget_max: null,
-          budget_priority: "preference",
+          budget_priority: "nice_to_have",
           date_flex_days: 0,
           required_amenities: [],
           min_accommodation_rating: null,
@@ -340,9 +340,9 @@ export async function aggregateParticipantPreferences(
     ),
   );
 
-  // Veto budget : si un participant a budget_priority = veto, son budget_max est un plafond dur
+  // Veto budget : si un participant a budget_priority = must_have (ou veto/high_priority), son budget_max est un plafond dur
   const vetoBudgets = rows
-    .filter((r) => String(r.budget_priority ?? "").toLowerCase() === "veto")
+    .filter((r) => getNormalizedBudgetPriority(r.budget_priority) === "must_have")
     .map((r) => Number(r.budget_max ?? 0))
     .filter((n) => n > 0);
   const vetoBudgetMax = vetoBudgets.length ? Math.min(...vetoBudgets) : null;
@@ -497,7 +497,7 @@ export async function aggregateParticipantPreferences(
       ambiances: r.ambiances ?? [],
       activityCategories: r.activity_categories ?? [],
       budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
-      budgetPriority: r.budget_priority ?? "preference",
+      budgetPriority: r.budget_priority ?? "nice_to_have",
       dealBreakerAmbiances: [
         ...(r.deal_breaker_ambiances ?? []),
         // Deal-breakers star appliqués en dur si c'est la star
@@ -542,10 +542,10 @@ export async function aggregateParticipantPreferences(
         message: `destination souhaitée « ${desired} » aussi dans les exclusions`,
       });
     }
-    if (String(r.budget_priority ?? "").toLowerCase() === "veto" && !(Number(r.budget_max) > 0)) {
+    if (getNormalizedBudgetPriority(r.budget_priority) === "must_have" && !(Number(r.budget_max) > 0)) {
       inconsistencies.push({
         userId: r.user_id ?? null,
-        message: `veto budget sans budget_max renseigné`,
+        message: `budget incontournable sans budget_max renseigné`,
       });
     }
   }

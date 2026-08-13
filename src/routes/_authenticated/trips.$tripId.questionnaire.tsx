@@ -46,10 +46,7 @@ const ROOM_TYPES = [
 ] as const;
 
 const BUDGET_PRIORITIES = [
-  { value: "veto", label: "Bloquant — je ne peux vraiment pas dépasser" },
   { value: "must_have", label: "Incontournable pour moi" },
-  { value: "high_priority", label: "Important" },
-  { value: "preference", label: "Une préférence, sans plus" },
   { value: "nice_to_have", label: "Peu importe, je m'adapte" },
 ] as const;
 
@@ -116,7 +113,7 @@ function ParticipantQuestionnaire() {
 
   const [budgetMax, setBudgetMax] = useState(400);
   const [budgetPriority, setBudgetPriority] =
-    useState<(typeof BUDGET_PRIORITIES)[number]["value"]>("preference");
+    useState<(typeof BUDGET_PRIORITIES)[number]["value"]>("nice_to_have");
 
   const [departureCity, setDepartureCity] = useState("");
   const [desiredDestination, setDesiredDestination] = useState("");
@@ -154,10 +151,12 @@ function ParticipantQuestionnaire() {
           setAccessibilityNeeds(Boolean((preferences as any).accessibility_needs));
           setActivityCategories(preferences.activity_categories ?? []);
           setBudgetMax(Number(preferences.budget_max ?? 400));
-          setBudgetPriority(
-            (preferences.budget_priority as (typeof BUDGET_PRIORITIES)[number]["value"]) ??
-              "preference",
-          );
+          const dbPriority = preferences.budget_priority;
+          let resolvedPriority: (typeof BUDGET_PRIORITIES)[number]["value"] = "nice_to_have";
+          if (dbPriority === "must_have" || dbPriority === "veto" || dbPriority === "high_priority") {
+            resolvedPriority = "must_have";
+          }
+          setBudgetPriority(resolvedPriority);
           setDesiredDestination(preferences.desired_destination ?? "");
           setExcludedDestinations((preferences.excluded_destinations ?? []).join(", "));
           setDietaryConstraints(preferences.dietary_constraints ?? []);
@@ -580,19 +579,6 @@ function ParticipantQuestionnaire() {
             value={[maxTravelDurationHours]}
             onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
           />
-        </div>
-        <div>
-          <Label className="mb-2 block">Priorité budget</Label>
-          <div className="flex flex-wrap gap-2">
-            {([
-              { v: "preference", l: "Souhait (flexible)" },
-              { v: "veto", l: "Veto (ne pas dépasser)" },
-            ] as const).map((o) => (
-              <Chip key={o.v} active={budgetPriority === o.v} onClick={() => setBudgetPriority(o.v)}>
-                {o.l}
-              </Chip>
-            ))}
-          </div>
         </div>
         <div className="flex items-center gap-3">
           <button

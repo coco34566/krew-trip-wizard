@@ -667,4 +667,99 @@ describe("Recommender Integration Tests", () => {
     expect(config.totalCapacity).toBe(8);
     expect(p.participantsEvaluated).toBe(8); // Exactement 8 participants évalués, pas 9 !
   });
+
+  // Test Case I : New Budget Scoring Model (must_have vs nice_to_have)
+  it("gère correctement le nouveau modèle de priorité budget (must_have vs nice_to_have)", () => {
+    const catalog: TravelCatalog = {
+      destinations: [
+        createDestination({
+          id: "madrid",
+          slug: "madrid",
+          name: "Madrid",
+          avg_daily_cost: 110,
+          distance_from_paris_km: 1050,
+        }),
+      ],
+      activities: [],
+      accommodations: [
+        {
+          id: "acc-madrid",
+          destination_id: "madrid",
+          name: "Hôtel Madrid",
+          type: "hôtel",
+          description: "Hôtel central",
+          price_per_night_per_person: 80,
+          capacity: 4,
+          rating: 4.3,
+          distance_center_km: 1.0,
+          image_url: null,
+        },
+      ],
+    };
+
+    // total cost per person roughly: lodging (80*2 = 160) + food (110*0.4*3 = 132) + transport (~130) = ~422€
+    const ctx: ScoringContext = {
+      participants: 2,
+      budgetPerPerson: 500,
+      nights: 2,
+      letKrewDecide: true,
+      needsCityCenter: true,
+      startMonth: 6,
+      ambiances: [],
+      activityCategories: [],
+      maxDistanceKm: 2000,
+      excludedCountries: [],
+      individualPreferences: [
+        {
+          // Participant A: nice_to_have (can accept even if over budget, soft penalty)
+          budgetMax: 350,
+          budgetPriority: "nice_to_have",
+          ambiances: [],
+          activityCategories: [],
+          dealBreakerAmbiances: [],
+          dealBreakerDestinations: [],
+        },
+        {
+          // Participant B: nice_to_have (has higher budget)
+          budgetMax: 600,
+          budgetPriority: "nice_to_have",
+          ambiances: [],
+          activityCategories: [],
+          dealBreakerAmbiances: [],
+          dealBreakerDestinations: [],
+        }
+      ],
+    };
+
+    const proposalsSoft = buildProposals(catalog, ctx, 1);
+    expect(proposalsSoft).toHaveLength(1);
+    const propSoft = proposalsSoft[0]!;
+
+    // For nice_to_have, the participant is slightly penalised but satisfaction never drops to 0, so overall score remains reasonable
+    expect(propSoft.minSatisfaction).toBeGreaterThan(0.1);
+    expect(propSoft.score).toBeGreaterThan(40);
+
+    // Now if Participant A changes to must_have (Incontournable)
+    const ctxMustHave: ScoringContext = {
+      ...ctx,
+      hasBudgetVeto: true,
+      vetoBudgetMax: 350,
+      individualPreferences: [
+        {
+          ...ctx.individualPreferences![0]!,
+          budgetPriority: "must_have",
+        },
+        ctx.individualPreferences![1]!
+      ],
+    };
+
+    const proposalsMust = buildProposals(catalog, ctxMustHave, 1);
+    expect(proposalsMust).toHaveLength(1);
+    const propMust = proposalsMust[0]!;
+
+    // Since participant A has must_have and budget exceeds 350, fit is 0
+    expect(propMust.minSatisfaction).toBe(0);
+    // And group score has strong veto penalties, making the score very low
+    expect(propMust.score).toBeLessThan(40);
+  });
 });
