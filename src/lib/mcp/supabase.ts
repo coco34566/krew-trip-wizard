@@ -21,32 +21,23 @@ function configuredEnv(names: readonly string[]): string | undefined {
 }
 
 function supabaseProjectUrl(): string {
-  const url = configuredEnv(["SUPABASE_URL", "VITE_SUPABASE_URL"]);
-  if (!url) throw new Error("SUPABASE_URL (or VITE_SUPABASE_URL) is required");
+  const url = configuredEnv([
+    "krewproject_SUPABASE_URL",
+    "NEXT_PUBLIC_krewproject_SUPABASE_URL",
+  ]);
+  if (!url) throw new Error("krewproject_SUPABASE_URL is required");
   return url;
 }
 
 function supabasePublishableKey(): string {
-  const direct = configuredEnv(["SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY"]);
-  if (direct) return direct;
-  const keyset = runtimeEnv("SUPABASE_PUBLISHABLE_KEYS");
-  if (keyset) {
-    try {
-      const parsed: unknown = JSON.parse(keyset);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        const keys = parsed as Record<string, unknown>;
-        const key = [keys['default'], ...Object.values(keys)]
-          .find((v): v is string => typeof v === "string" && v.trim().startsWith("sb_publishable_"))
-          ?.trim();
-        if (key) return key;
-      }
-    } catch {
-      // fall through to legacy names
-    }
-  }
-  const legacy = configuredEnv(["SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY"]);
-  if (legacy) return legacy;
-  throw new Error("SUPABASE_PUBLISHABLE_KEY, SUPABASE_PUBLISHABLE_KEYS, or SUPABASE_ANON_KEY is required");
+  const key = configuredEnv([
+    "krewproject_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_krewproject_SUPABASE_PUBLISHABLE_KEY",
+    "krewproject_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_krewproject_SUPABASE_ANON_KEY",
+  ]);
+  if (key) return key;
+  throw new Error("krewproject_SUPABASE_PUBLISHABLE_KEY (or krewproject_SUPABASE_ANON_KEY) is required");
 }
 
 export function supabaseForUser(ctx: ToolContext) {
