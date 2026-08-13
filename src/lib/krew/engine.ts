@@ -719,6 +719,14 @@ function hitsDealBreaker(
   return false;
 }
 
+export function getNormalizedBudgetPriority(p: string | null | undefined): "must_have" | "nice_to_have" {
+  const clean = String(p ?? "").toLowerCase().trim();
+  if (clean === "must_have" || clean === "veto" || clean === "high_priority") {
+    return "must_have";
+  }
+  return "nice_to_have";
+}
+
 /**
  * Fit 0–1 d'un participant pour une destination / offre donnée.
  */
@@ -734,8 +742,9 @@ function individualFit(
     return 0;
   }
 
-  // Hard constraint: Budget Veto
-  if (pref.budgetPriority === "veto" && pref.budgetMax != null && totalPerPerson > pref.budgetMax) {
+  // Hard constraint: Budget must_have (Incontournable)
+  const priority = getNormalizedBudgetPriority(pref.budgetPriority);
+  if (priority === "must_have" && pref.budgetMax != null && totalPerPerson > pref.budgetMax) {
     return 0;
   }
 
@@ -762,7 +771,18 @@ function individualFit(
   let sBudget = 0.7;
   if (pref.budgetMax != null && pref.budgetMax > 0) {
     const ratio = totalPerPerson / pref.budgetMax;
-    sBudget = ratio <= 1 ? clamp(0.75 + (1 - ratio) * 0.5) : clamp(1 - (ratio - 1) * 2);
+    const priority = getNormalizedBudgetPriority(pref.budgetPriority);
+    if (priority === "must_have") {
+      if (ratio > 1.0) {
+        return 0; // Extra safety
+      }
+      sBudget = clamp(0.85 + (1 - ratio) * 0.15);
+    } else {
+      // nice_to_have: soft preference
+      sBudget = ratio <= 1
+        ? clamp(0.75 + (1 - ratio) * 0.25)
+        : clamp(0.75 - (ratio - 1) * 0.5, 0.2, 0.75); // soft penalty, minimum 0.2
+    }
   }
 
   // Tâche 10 : Destinations rêvées / à éviter individuelles

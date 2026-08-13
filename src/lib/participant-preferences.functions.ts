@@ -11,7 +11,7 @@ export const participantPreferencesSchema = z.object({
   budgetMax: z.number().min(0).max(20000).optional(),
   budgetPriority: z
     .enum(["must_have", "high_priority", "preference", "nice_to_have", "irrelevant", "veto"])
-    .default("preference"),
+    .default("nice_to_have"),
   durationNightsMin: z.number().int().min(1).max(21).optional(),
   durationNightsMax: z.number().int().min(1).max(21).optional(),
   desiredDestination: z.string().max(120).optional(),
@@ -323,7 +323,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       max_travel_duration_hours: (data as any).maxTravelDurationHours ?? null,
       accessibility_needs: (data as any).accessibilityNeeds ?? false,
       blackout_dates: (data as any).blackoutDates ?? [],
-      budget_priority: (data as any).budgetPriority ?? "preference",
+      budget_priority: (data as any).budgetPriority ?? "nice_to_have",
       preferred_time_slots: (data as any).preferredTimeSlots ?? [],
       group_age_range: (data as any).groupAgeRange ?? null,
       wanted_env_type: (data as any).wantedEnvType ?? null,
@@ -363,7 +363,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
           ambiances: (data as any).ambiances ?? [],
           activity_categories: (data as any).activityCategories ?? [],
           budget_max: (data as any).budgetMax ?? null,
-          budget_priority: (data as any).budgetPriority ?? "preference",
+          budget_priority: (data as any).budgetPriority ?? "nice_to_have",
           duration_nights_min: (data as any).durationNightsMin ?? null,
           duration_nights_max: (data as any).durationNightsMax ?? null,
           desired_destination: (data as any).desiredDestination ?? null,
