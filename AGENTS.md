@@ -1,3 +1,16 @@
+
+## KREW — Documentation de référence pour les agents
+
+Avant toute modification du projet, consulter :
+
+- `PROJECT_CONTEXT.md` — contexte et architecture ;
+- `DEVELOPMENT_RULES.md` — règles de développement ;
+- `AI_WORKFLOW.md` — processus de travail ;
+- `CHANGE_SAFETY.md` — zones sensibles et précautions.
+
+Ces documents sont complémentaires et doivent être utilisés ensemble.
+
+
 <!-- LOVABLE:BEGIN -->
 > [!IMPORTANT]
 > This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
