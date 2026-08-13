@@ -21,7 +21,6 @@ export const getTripAvailability = createServerFn({ method: "GET" })
         .from("trip_participants")
         .select("id, user_id, email, display_name, status")
         .eq("trip_id", data.tripId),
-      supabase.from("trip_preferences").select("duration_nights").eq("trip_id", data.tripId).maybeSingle(),
     ]);
     if (rows.error) {
       const msg = String(rows.error.message || rows.error);
@@ -55,7 +54,10 @@ export const getTripAvailability = createServerFn({ method: "GET" })
     }
     if (participants.error) throw participants.error;
 
-    const nights = Number(prefs.data?.duration_nights ?? trip.data.duration_nights ?? 2) || 2;
+    // The duration entered when creating the trip is the group-wide source of truth.
+    // trip_availability.duration_nights is retained only for backward compatibility.
+    const tripDurationNights = Number((trip.data as any).duration_nights);
+    const nights = Number.isFinite(tripDurationNights) ? Math.max(0, tripDurationNights) : 2;
 
     const entries: AvailabilityEntry[] = (rows.data ?? []).map((r: any) => ({
       userId: r.user_id as string,
@@ -123,13 +125,7 @@ export const getTripAvailability = createServerFn({ method: "GET" })
       console.warn("Skipped star availability aggregation in getTripAvailability", e);
     }
 
-    // Calcul optimal de la durée du séjour pour le groupe
-    const submittedNights = (rows.data ?? []).map((r: any) => Number(r.duration_nights)).filter((n) => n > 0);
-    const optNights = submittedNights.length > 0
-      ? Math.round(submittedNights.reduce((a, b) => a + b, 0) / submittedNights.length)
-      : nights;
-
-    const windowsRaw = rankDateWindows(entries, optNights, 5);
+    const windowsRaw = rankDateWindows(entries, nights, 5);
     const nameByUser = new Map<string, string>();
     for (const p of participants.data ?? []) {
       const uid = p.user_id as string | null;
@@ -295,12 +291,11 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
         flexDays: Number(r.flex_days ?? 0),
         durationNights: Number(r.duration_nights ?? 2) || 2,
       }));
-      const nights = Number(trip.data.duration_nights ?? 2) || 2;
-      const submittedNights = all.data.map((r: any) => Number(r.duration_nights)).filter((n) => n > 0);
-      const optNights = submittedNights.length > 0
-        ? Math.round(submittedNights.reduce((a, b) => a + b, 0) / submittedNights.length)
-        : nights;
-      const windows = rankDateWindows(entries, optNights, 3);
+      // Always use the trip creation duration for group date proposals.
+      // Individual availability durations are stored for compatibility only.
+      const tripDurationNights = Number((trip.data as any).duration_nights);
+      const nights = Number.isFinite(tripDurationNights) ? Math.max(0, tripDurationNights) : 2;
+      const windows = rankDateWindows(entries, nights, 3);
       const best = windows[0];
       if (best) {
         const patch: Record<string, unknown> = {
