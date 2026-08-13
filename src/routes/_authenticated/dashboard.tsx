@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMyTrips, listMyPriceWatches, cancelTrip } from "@/lib/trips.functions";
 import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -87,13 +88,14 @@ function TripCard({
 }
 
 function Dashboard() {
+  const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const cancelFn = useServerFn(cancelTrip);
   const cancelMutation = useMutation({
     mutationFn: (tripId: string) => cancelFn({ data: { tripId, hardDelete: false } }),
     onSuccess: () => {
       toast.success("Voyage annulé");
-      queryClient.invalidateQueries({ queryKey: ["my-trips"] });
+      queryClient.invalidateQueries({ queryKey: ["my-trips", user?.id] });
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Annulation impossible").slice(0, 120)),
   });
@@ -101,12 +103,17 @@ function Dashboard() {
   const fetchTrips = useServerFn(listMyTrips);
   const fetchPriceWatches = useServerFn(listMyPriceWatches);
   const { data: watchData } = useQuery({
-    queryKey: ["price-watches"],
+    queryKey: ["price-watches", user?.id],
     queryFn: () => fetchPriceWatches({}),
+    enabled: !!user && !authLoading,
     retry: false,
   });
 
-  const { data, isLoading } = useQuery({ queryKey: ["my-trips"], queryFn: () => fetchTrips() });
+  const { data, isLoading } = useQuery({
+    queryKey: ["my-trips", user?.id],
+    queryFn: () => fetchTrips(),
+    enabled: !!user && !authLoading,
+  });
 
   const trips = (data?.trips ?? []) as TripRow[];
   const invitations = (data?.invitations ?? []) as { id: string; trips: TripRow | null }[];
