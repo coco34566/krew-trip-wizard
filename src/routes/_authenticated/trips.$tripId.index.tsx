@@ -2206,7 +2206,11 @@ function TripDetail() {
             {participants.length === 0 ? (
               <li className="text-sm text-muted-foreground">Personne n'est encore invité·e.</li>
             ) : (
-              participants.map((p) => (
+              participants.map((p) => {
+                const picks = (logistics.transportPicks ?? []) as any[];
+                const userPick = p.user_id ? picks.find((pk: any) => pk.userId === p.user_id) : null;
+                const city = (progress?.participants?.find((pr: any) => pr.user_id === p.user_id)?.departure_city) || p.departure_city || (userPick?.city) || null;
+                return (
                 <li
                   key={p.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-border bg-card p-4 gap-3"
@@ -2230,6 +2234,12 @@ function TripDetail() {
                       ) : null}
                     </div>
                     {p.email && p.email !== "star@krew.travel" ? <p className="text-sm text-muted-foreground mt-0.5">{p.email}</p> : null}
+                    {city || userPick ? (
+                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        {city ? <span>📍 Départ : <strong className="text-foreground">{city}</strong></span> : null}
+                        {userPick ? <span>🚆 Trajet : <strong className="text-foreground">{userPick.modeLabel || userPick.mode} ({userPick.label})</strong></span> : null}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
                     <Badge variant={p.status === "accepte" ? "success" : p.status === "absent" ? "destructive" : "muted"}>{p.status}</Badge>

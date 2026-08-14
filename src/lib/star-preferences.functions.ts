@@ -122,14 +122,21 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
       .eq("trip_id", data.tripId)
       .maybeSingle();
 
-    const isActualStar = trip.data.star_user_id === userId;
+    let starUserId = trip.data.star_user_id;
+    if (!starUserId && !isAdmin) {
+      // Un participant remplit le questionnaire Star en mode participant -> il est la Star
+      starUserId = userId;
+      await supabase
+        .from("trips")
+        .update({ star_user_id: userId, has_star: true } as any)
+        .eq("id", data.tripId);
+    }
+
+    const isActualStar = starUserId === userId;
     const payload = {
       trip_id: data.tripId,
       filled_by: userId,
-      // Si la personne qui remplit le questionnaire n'est pas la Star elle-même,
-      // on enregistre le star_user_id (ou null s'il s'agit d'une Star virtuelle)
-      // pour éviter de lier les préférences de la Star au compte de l'organisateur.
-      user_id: isActualStar ? userId : (trip.data.star_user_id || null),
+      user_id: isActualStar ? userId : (starUserId || null),
       wanted_activities: data.wantedActivities,
       deal_breakers: data.dealBreakers,
       ambiances: data.ambiances,
