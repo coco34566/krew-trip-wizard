@@ -1,0 +1,86 @@
+import { describe, it, expect } from "vitest";
+import { rankDateWindows, type AvailabilityEntry, windowOkFor } from "../krew/availability";
+
+describe("Duration Days vs Nights rules", () => {
+  it("covers 1 day correctly (same start and end date)", () => {
+    const entries: AvailabilityEntry[] = [
+      {
+        userId: "user-1",
+        availableDates: ["2026-08-01"],
+        blockedDates: [],
+        flexDays: 0,
+        durationNights: 0,
+      },
+    ];
+
+    // 1 day = 0 nights
+    const windows = rankDateWindows(entries, 0, 1);
+    expect(windows.length).toBeGreaterThan(0);
+    const best = windows[0]!;
+    expect(best.start).toBe("2026-08-01");
+    expect(best.end).toBe("2026-08-01"); // same start and end date!
+    expect(best.nights).toBe(0);
+    expect(best.covered).toBe(1);
+    expect(best.coverageRatio).toBe(1);
+  });
+
+  it("covers 2 days correctly (J1/J2, Saturday and Sunday, which is 1 night)", () => {
+    const entries: AvailabilityEntry[] = [
+      {
+        userId: "user-1",
+        availableDates: ["2026-08-01", "2026-08-02"],
+        blockedDates: [],
+        flexDays: 0,
+        durationNights: 1,
+      },
+    ];
+
+    // 2 days = 1 night
+    const windows = rankDateWindows(entries, 1, 1);
+    expect(windows.length).toBeGreaterThan(0);
+    const best = windows[0]!;
+    expect(best.start).toBe("2026-08-01");
+    expect(best.end).toBe("2026-08-02"); // J1 and J2 (Saturday to Sunday)
+    expect(best.nights).toBe(1);
+    expect(best.covered).toBe(1);
+    expect(best.coverageRatio).toBe(1);
+  });
+
+  it("covers 3 days correctly (J1/J2/J3, which is 2 nights)", () => {
+    const entries: AvailabilityEntry[] = [
+      {
+        userId: "user-1",
+        availableDates: ["2026-08-01", "2026-08-02", "2026-08-03"],
+        blockedDates: [],
+        flexDays: 0,
+        durationNights: 2,
+      },
+    ];
+
+    // 3 days = 2 nights
+    const windows = rankDateWindows(entries, 2, 1);
+    expect(windows.length).toBeGreaterThan(0);
+    const best = windows[0]!;
+    expect(best.start).toBe("2026-08-01");
+    expect(best.end).toBe("2026-08-03"); // J1, J2, J3 (Saturday to Monday)
+    expect(best.nights).toBe(2);
+    expect(best.covered).toBe(1);
+    expect(best.coverageRatio).toBe(1);
+  });
+
+  it("prohibits windows if a participant's availability does not fully cover the window", () => {
+    const entries: AvailabilityEntry[] = [
+      {
+        userId: "user-1",
+        availableDates: ["2026-08-01", "2026-08-02"], // Saturday and Sunday only (2 days)
+        blockedDates: [],
+        flexDays: 0,
+        durationNights: 2,
+      },
+    ];
+
+    // A 3 days trip (2 nights, Saturday to Monday) cannot fit in Saturday/Sunday availability
+    const isOk = windowOkFor(entries[0]!, "2026-08-01", "2026-08-03");
+    expect(isOk).toBe(false);
+  });
+});

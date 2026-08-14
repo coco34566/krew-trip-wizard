@@ -21,6 +21,11 @@ export const getTripAvailability = createServerFn({ method: "GET" })
         .from("trip_participants")
         .select("id, user_id, email, display_name, status")
         .eq("trip_id", data.tripId),
+      supabase
+        .from("trip_preferences")
+        .select("duration_nights")
+        .eq("trip_id", data.tripId)
+        .maybeSingle(),
     ]);
     if (rows.error) {
       const msg = String(rows.error.message || rows.error);

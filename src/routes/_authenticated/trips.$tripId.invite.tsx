@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getTripDetail, inviteParticipant, removeParticipant, setCoOrganizer, finalizeInvitationStep } from "@/lib/trips.functions";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
@@ -43,21 +44,31 @@ function InvitePage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
     refetchInterval: refetchIntervalValue,
+    retry: 3,
+    retryDelay: 1000,
   });
-  const { data: progress } = useQuery({
+  const { data: progress, isError: isProgressError, refetch: refetchProgress } = useQuery({
     queryKey: ["trip-progress", tripId],
     queryFn: () => fetchProgress({ data: { tripId } }),
     refetchInterval: refetchIntervalValue,
+    retry: 3,
+    retryDelay: 1000,
   });
 
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
   const [starMode, setStarMode] = useState<"secret" | "participant">("secret");
-  const [starModeHydrated, setStarModeHydrated] = useState(false);
+
+  const savedMode = (data?.trip?.group_logistics as any)?.star_mode;
+  useEffect(() => {
+    if (savedMode === "secret" || savedMode === "participant") {
+      setStarMode(savedMode);
+    }
+  }, [savedMode]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -119,24 +130,34 @@ function InvitePage() {
     },
   });
 
+  if (isError && !data) {
+    return (
+      <main className="mx-auto max-w-2xl px-4 py-10 space-y-4 text-center">
+        <h1 className="text-2xl font-bold text-destructive">Une erreur est survenue</h1>
+        <p className="text-sm text-muted-foreground">
+          Impossible de charger les détails du voyage pour le moment.
+        </p>
+        <Button onClick={() => { refetch(); refetchProgress(); }}>
+          Réessayer
+        </Button>
+      </main>
+    );
+  }
+
   if (isLoading || !data) {
     return (
       <main className="mx-auto max-w-2xl space-y-4 px-4 py-10">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-48 w-full rounded-3xl" />
+        <div className="flex flex-col items-center justify-center space-y-4 py-12">
+          <Loader2 className="size-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground animate-pulse">
+            Chargement des détails du voyage...
+          </p>
+        </div>
       </main>
     );
   }
 
   const trip = data.trip as any;
-
-  if (!starModeHydrated && trip?.group_logistics) {
-    const savedMode = (trip.group_logistics as any)?.star_mode;
-    if (savedMode === "secret" || savedMode === "participant") {
-      setStarMode(savedMode);
-    }
-    setStarModeHydrated(true);
-  }
   const rawParticipants = (data.participants ?? []) as any[];
   const celebratedPerson = trip?.celebrated_person;
   const starUid = trip?.star_user_id || "star-virtual-uid";
@@ -230,39 +251,80 @@ function InvitePage() {
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
             {copied ? "Copié" : "Copier le lien"}
           </Button>
-          <Button
-            type="button"
-            className="w-full sm:w-auto bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
-            onClick={() => {
-              const tripName = trip?.name ? ` « ${trip.name} »` : "";
-              const text = `Salut ! On organise un voyage${tripName} avec KREW ✈️\nRejoins le groupe pour découvrir le projet et donner tes dispos :\n${shareUrl}`;
-              const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-              window.open(url, "_blank", "noopener,noreferrer");
-            }}
-          >
-            Partager sur WhatsApp
-          </Button>
         </div>
       </section>
 
       {data.isOwner ? (
-        <section className="mt-6 rounded-3xl border border-border bg-card p-5">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <UserPlus className="size-4" /> Ajouter par email
+        <section className="mt-6 rounded-3xl border border-border bg-card p-5 space-y-4">
+          <h2 className="flex items-center gap-2 font-semibold text-foreground">
+            <UserPlus className="size-4 text-primary" /> Inviter de nouveaux participants ou relancer le groupe
           </h2>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <Input
-              type="email"
-              placeholder="ami@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Button
-              disabled={!email.trim() || inviteMutation.isPending}
-              onClick={() => inviteMutation.mutate()}
-            >
-              {inviteMutation.isPending ? <Loader2 className="animate-spin" /> : "Inviter"}
-            </Button>
+
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Ajouter par email</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                type="email"
+                placeholder="ami@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <Button
+                disabled={!email.trim() || inviteMutation.isPending}
+                onClick={() => inviteMutation.mutate()}
+                className="shrink-0"
+              >
+                {inviteMutation.isPending ? <Loader2 className="animate-spin" /> : "Inviter"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="border-t border-border/40 pt-4 space-y-2">
+            <Label className="text-xs text-muted-foreground">Partager ou relancer sur WhatsApp</Label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                className="flex-1 bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+                onClick={() => {
+                  const tripName = trip?.name ? ` « ${trip.name} »` : "";
+                  const text = `Salut ! On organise un voyage${tripName} avec KREW ✈️\nRejoins-nous et donne tes dispos en 2 min : 👉 ${shareUrl}`;
+                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }}
+              >
+                Inviter sur WhatsApp
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10"
+                onClick={() => {
+                  const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+                  const lines: string[] = [
+                    `🔔 Petit rappel pour le voyage « ${trip.name || "notre voyage"} » !`,
+                    "",
+                    "Certain·es d'entre nous n'ont pas encore eu le temps de remplir leurs infos :",
+                  ];
+
+                  for (const p of missingParticipants) {
+                    const name = p.display_name || p.email?.split("@")[0] || "Ami";
+                    const missing: string[] = [];
+                    if (!p.hasAnsweredAvailability) missing.push("disponibilités 📅");
+                    if (!p.hasAnswered) missing.push("préférences ⚙️");
+                    lines.push(`• *${name}* : il te manque tes ${missing.join(" et ")}`);
+                  }
+
+                  lines.push("");
+                  lines.push(`Prenez 2 petites minutes pour compléter vos infos : 👉 ${window.location.origin}/trips/${trip.id}`);
+                  const text = lines.join("\n");
+                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                  window.open(url, "_blank", "noopener,noreferrer");
+                }}
+                disabled={!progress?.participants?.some(p => !p.hasAnswered || !p.hasAnsweredAvailability)}
+              >
+                Relancer les retardataires
+              </Button>
+            </div>
           </div>
         </section>
       ) : null}

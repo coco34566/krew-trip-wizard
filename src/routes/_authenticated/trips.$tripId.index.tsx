@@ -704,9 +704,8 @@ function TripDetail() {
       lines.push(`Date prévue : ${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")}`);
     }
     lines.push("");
-    lines.push("Rejoins le groupe, indique tes dispos et tes préférences ici :");
     if (typeof window !== "undefined" && trip.id) {
-      lines.push(`${window.location.origin}/join/${trip.id}`);
+      lines.push(`Rejoins-nous et donne tes dispos en 2 min : 👉 ${window.location.origin}/join/${trip.id}`);
     }
     return lines.join("\n");
   }
@@ -749,9 +748,8 @@ function TripDetail() {
     }
 
     lines.push("");
-    lines.push("Retrouve tous les détails et complète tes infos ici :");
     if (typeof window !== "undefined" && trip.id) {
-      lines.push(`${window.location.origin}/trips/${trip.id}`);
+      lines.push(`Retrouve tous les détails et complète tes infos : 👉 ${window.location.origin}/trips/${trip.id}`);
     }
     return lines.join("\n");
   }
@@ -774,9 +772,8 @@ function TripDetail() {
     }
 
     lines.push("");
-    lines.push("Prenez 2 petites minutes pour compléter vos infos ici :");
     if (typeof window !== "undefined" && trip.id) {
-      lines.push(`${window.location.origin}/trips/${trip.id}`);
+      lines.push(`Prenez 2 petites minutes pour compléter vos infos : 👉 ${window.location.origin}/trips/${trip.id}`);
     }
     return lines.join("\n");
   }
