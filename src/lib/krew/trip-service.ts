@@ -744,9 +744,12 @@ export async function assessGenerationReadiness(
 
   // Find the star participant
   let starParticipant = null;
+  const ownerId = trip.data?.owner_id || null;
+  const coOrganizerId = (trip.data as any)?.co_organizer_id || null;
   if (celebratedPerson) {
     const normalizedCelebrated = celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
     for (const p of activeParticipants) {
+      const isOwner = p.user_id && (p.user_id === ownerId || p.user_id === coOrganizerId);
       if ((trip.data as any)?.star_user_id && p.user_id === (trip.data as any).star_user_id) {
         starParticipant = p;
         break;
@@ -756,7 +759,7 @@ export async function assessGenerationReadiness(
         .replace(/\p{M}/gu, "")
         .toLowerCase()
         .trim();
-      if (name && (name === normalizedCelebrated || name.includes(normalizedCelebrated) || normalizedCelebrated.includes(name))) {
+      if (!isOwner && name && (name === normalizedCelebrated || name.includes(normalizedCelebrated) || normalizedCelebrated.includes(name))) {
         starParticipant = p;
         break;
       }

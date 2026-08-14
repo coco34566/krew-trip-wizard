@@ -792,7 +792,8 @@ function TripDetail() {
     // Find the star participant
     const starPart = participants.find((p) => {
       const isStarByUid = p.user_id && p.user_id === starUid;
-      const isStarByName = celebratedPerson && p.display_name &&
+      const isOwner = p.user_id && (p.user_id === tripPreview.owner_id || p.user_id === tripPreview.co_organizer_id);
+      const isStarByName = !isOwner && celebratedPerson && p.display_name &&
         p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
         celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
       return isStarByUid || isStarByName;
