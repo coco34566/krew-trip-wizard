@@ -23,6 +23,7 @@ export type AiDiscoveryInput = {
   wantedEnvTypes?: string[];
   starWantedEnvType?: string | null;
   groupAgeRange?: string | null;
+  freeNotes?: string[];
   scoringSignals?: {
     desiredDestination?: string | null;
     letKrewDecide?: boolean;
@@ -142,6 +143,7 @@ function compactUser(input: AiDiscoveryInput): string {
     wantedEnvTypes: input.wantedEnvTypes || [],
     starWantedEnvType: input.starWantedEnvType ?? null,
     groupAgeRange: input.groupAgeRange ?? null,
+    freeNotes: input.freeNotes || [],
   };
 
   if (input.scoringSignals) {

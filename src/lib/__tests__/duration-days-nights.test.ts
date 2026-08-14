@@ -83,4 +83,43 @@ describe("Duration Days vs Nights rules", () => {
     const isOk = windowOkFor(entries[0]!, "2026-08-01", "2026-08-03");
     expect(isOk).toBe(false);
   });
+
+  it("finds the exact requested duration (3 days = 2 nights) when common availability spans 4 days", () => {
+    // Example from spec:
+    // Requested trip = 3 days (2 nights)
+    // A available: 10-13 August (10, 11, 12, 13)
+    // B available: 11-14 August (11, 12, 13, 14)
+    // C available: 11-13 August (11, 12, 13)
+    // Expected: propose 11-13 August = 3 days (2 nights)
+    const entries: AvailabilityEntry[] = [
+      {
+        userId: "A",
+        availableDates: ["2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13"],
+        blockedDates: [],
+        flexDays: 0,
+      },
+      {
+        userId: "B",
+        availableDates: ["2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14"],
+        blockedDates: [],
+        flexDays: 0,
+      },
+      {
+        userId: "C",
+        availableDates: ["2026-08-11", "2026-08-12", "2026-08-13"],
+        blockedDates: [],
+        flexDays: 0,
+      },
+    ];
+
+    // Requested duration = 3 days = 2 nights
+    const windows = rankDateWindows(entries, 2, 5);
+    expect(windows.length).toBeGreaterThan(0);
+    const topWindow = windows[0]!;
+    expect(topWindow.start).toBe("2026-08-11");
+    expect(topWindow.end).toBe("2026-08-13"); // 11 to 13 = 3 days / 2 nights!
+    expect(topWindow.covered).toBe(3);
+    expect(topWindow.total).toBe(3);
+    expect(topWindow.nights).toBe(2);
+  });
 });

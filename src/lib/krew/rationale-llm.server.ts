@@ -96,14 +96,17 @@ function getLlmConfig(): {
  */
 export async function enrichProposalsWithLlmRationales(
   proposals: Proposal[],
-  meta: { eventType?: string | null; participants: number },
+  meta: { eventType?: string | null; participants: number; freeNotes?: string[] },
 ): Promise<{ proposals: Proposal[]; usedLlm: boolean; error?: string }> {
   if (!proposals.length) return { proposals, usedLlm: false };
 
   const cfg = getLlmConfig();
   if (!cfg) return { proposals, usedLlm: false };
 
-  const payload = compactPayload(meta.eventType, meta.participants, proposals);
+  const payload = compactPayload(meta.eventType, meta.participants, proposals) as any;
+  if (meta.freeNotes?.length) {
+    payload.freeNotes = meta.freeNotes;
+  }
   const user = JSON.stringify(payload);
 
   try {

@@ -155,6 +155,7 @@ function compactCtx(input: ActivityAiInput): Record<string, unknown> {
   if (input.starWanted?.length) o["star"] = input.starWanted.slice(0, 5);
   if (input.dietaryConstraints?.length) o["diet"] = input.dietaryConstraints.slice(0, 4);
   if (input.travelPace) o["pace"] = input.travelPace;
+  if (input.preferredTimeSlots?.length) o["preferredSlots"] = input.preferredTimeSlots;
   if (input.matchReasons?.length) o["match"] = input.matchReasons.slice(0, 6);
   if (input.destinationScore != null) o["score"] = Math.round(Number(input.destinationScore));
   if (input.scoredActivityLabels?.length) o["seedActs"] = input.scoredActivityLabels.slice(0, 8);

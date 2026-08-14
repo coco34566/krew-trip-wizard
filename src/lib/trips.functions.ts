@@ -864,11 +864,24 @@ export const joinTrip = createServerFn({ method: "POST" })
 
     const trip = await supabaseAdmin
       .from("trips")
-      .select("id, owner_id, name")
+      .select("id, owner_id, name, celebrated_person, star_user_id")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
+
+    // Auto-liaison de star_user_id si absent et que le prénom correspond à la Star
+    if (!trip.data.star_user_id && trip.data.celebrated_person && firstName && trip.data.owner_id !== userId) {
+      const norm = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+      const celebNorm = norm(trip.data.celebrated_person);
+      const firstNorm = norm(firstName);
+      if (celebNorm && firstNorm && (celebNorm === firstNorm || celebNorm.includes(firstNorm) || firstNorm.includes(celebNorm))) {
+        await supabaseAdmin
+          .from("trips")
+          .update({ star_user_id: userId, has_star: true })
+          .eq("id", data.tripId);
+      }
+    }
 
     if (trip.data.owner_id === userId) {
       if (firstName) {
@@ -2210,7 +2223,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         totalGroupParticipants,
         nights,
         dest,
-        aggregated.groupAgeRange
+        aggregated.groupAgeRange,
+        aggregated.individualPreferences
       );
 
       return {
@@ -2615,6 +2629,17 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           budget,
           group.maxTravelDurationHours
         );
+
+        // Proposition de trajet partagé si un autre participant a fait ce choix
+        const otherPicks = Array.isArray(prev.transportPicks) ? prev.transportPicks : [];
+        const matchingPick = otherPicks.find((pk: any) =>
+          norm(pk.city || "") === norm(from) &&
+          norm(pk.mode || "") === norm(m.mode) &&
+          !group.participants.some(p => p.participantId === pk.userId)
+        );
+        if (matchingPick) {
+          matchReasonsList.push(`Choisi par ${matchingPick.displayName} — vous pouvez voyager ensemble !`);
+        }
 
         transports.push({
           city: from,

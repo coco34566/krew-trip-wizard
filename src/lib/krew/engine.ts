@@ -6,6 +6,7 @@
  */
 import { AMBIANCE_SCORE_COLUMN, type Ambiance } from "./constants";
 import { bestTransportOption, estimateOptionsByMode, isTransportCompatible, type TransportOption, normalizeTransportModes } from "./transport-compatibility";
+import { estimateDistanceKm } from "./deep-links";
 
 export type DestinationRecord = {
   id: string;
@@ -576,6 +577,7 @@ function activityMatchScore(
   starWanted: string[],
   dietaryConstraintsRatio = 0,
   groupAgeRange?: string | null,
+  preferredTimeSlots: string[] = [],
 ): number {
   let s = Number(a.rating ?? 0) * 0.15;
   if (wantedCategories.includes(a.category)) s += 1.2;
@@ -608,6 +610,16 @@ function activityMatchScore(
     }
   }
 
+  // Rythme & créneaux horaires
+  if (preferredTimeSlots.length > 0) {
+    const normSlots = preferredTimeSlots.map((st) => st.toLowerCase());
+    const isNight = /soirees|bars_clubs|night/i.test(a.category) || blob.includes("soir") || blob.includes("night");
+    const isMorning = /culture|museum|visite/i.test(a.category) || blob.includes("matin") || blob.includes("balade");
+    if (normSlots.some((st) => st.includes("soir") || st.includes("nuit")) && isNight) s += 0.8;
+    if (normSlots.some((st) => st.includes("matin")) && isMorning) s += 0.8;
+    if (normSlots.some((st) => st.includes("apres") || st.includes("midi")) && !isNight) s += 0.4;
+  }
+
   return s;
 }
 
@@ -624,6 +636,7 @@ function pickActivities(
   starWantedActivities?: string[] | null,
   dietaryConstraintsRatio = 0,
   groupAgeRange?: string | null,
+  preferredTimeSlots: string[] = [],
 ): ActivityRecord[] {
   const perDay = activitiesPerDayForPace(travelPace);
   const maxCount = Math.max(perDay, (nights + 1) * perDay - (travelPace === "chill" ? 1 : 0));
@@ -633,8 +646,8 @@ function pickActivities(
   const starWanted = starWantedActivities ?? [];
 
   const rank = (a: ActivityRecord, b: ActivityRecord) =>
-    activityMatchScore(b, wantedCategories, starWanted, dietaryConstraintsRatio, groupAgeRange) -
-    activityMatchScore(a, wantedCategories, starWanted, dietaryConstraintsRatio, groupAgeRange);
+    activityMatchScore(b, wantedCategories, starWanted, dietaryConstraintsRatio, groupAgeRange, preferredTimeSlots) -
+    activityMatchScore(a, wantedCategories, starWanted, dietaryConstraintsRatio, groupAgeRange, preferredTimeSlots);
 
   // 1) Priorité aux envies Star (si renseignées)
   for (const w of starWanted) {
@@ -764,14 +777,14 @@ function hitsDealBreaker(
   dealAmbiances: string[],
   dealDestinations: string[],
 ): boolean {
-  for (const d of dealDestinations) {
+  for (const d of dealDestinations ?? []) {
     const nd = norm(d);
     if (!nd) continue;
     if (norm(dest.name).includes(nd) || norm(dest.country).includes(nd) || nd.includes(norm(dest.name))) {
       return true;
     }
   }
-  for (const a of dealAmbiances) {
+  for (const a of dealAmbiances ?? []) {
     const col = AMBIANCE_SCORE_COLUMN[a as Ambiance];
     if (!col) continue;
     const v = Number((dest as unknown as Record<string, number>)[col] ?? 0);
@@ -810,23 +823,27 @@ function individualFit(
     return 0;
   }
 
-  // Hard constraint: Max travel hours
-  if (pref.maxTravelHours != null && bestDuration != null && bestDuration > pref.maxTravelHours) {
-    return 0;
-  }
+  // Transport compatibility from participant's actual departure city
+  let sTransportPart = 0.7;
+  const pCity = pref.departureCity || "Paris";
+  const pDist = estimateDistanceKm(pCity, dest.name, dest.distance_from_paris_km);
+  const pModeOptions = estimateOptionsByMode(pDist, pref.transportModes);
 
-  // Hard constraint: Transport modes compatibility
   if (pref.transportModes && pref.transportModes.length > 0) {
-    const userModes = normalizeTransportModes(pref.transportModes);
-    const userModeOptions = estimateOptionsByMode(dest.distance_from_paris_km, pref.transportModes);
-    const hasCompatibleUserMode = userModeOptions.some(o => pref.maxTravelHours == null || o.durationHours <= pref.maxTravelHours);
+    const hasCompatibleUserMode = pModeOptions.some(
+      (o) => pref.maxTravelHours == null || o.durationHours <= pref.maxTravelHours,
+    );
     if (!hasCompatibleUserMode) {
-      return 0;
+      sTransportPart = 0.15; // Low satisfaction for this participant without becoming a hard group veto
+    } else {
+      const bestOpt = bestTransportOption(pModeOptions, pref.maxTravelHours);
+      sTransportPart = bestOpt ? clamp(1.0 - bestOpt.durationHours / 12, 0.3, 1.0) : 0.7;
     }
   }
 
-  let sAmb = ambianceScore(dest, pref.ambiances.length ? pref.ambiances : []);
-  const wanted = pref.activityCategories;
+  const ambiances = pref.ambiances ?? [];
+  let sAmb = ambianceScore(dest, ambiances.length ? ambiances : []);
+  const wanted = pref.activityCategories ?? [];
   const sAct = wanted.length
     ? wanted.filter((c) => availableCategories.has(c)).length / wanted.length
     : 0.6;
@@ -854,7 +871,7 @@ function individualFit(
     ? prefEnv.filter((env) => destEnvSet.has(env)).length / prefEnv.length
     : 0.6;
 
-  let score = sAmb * 0.34 + sAct * 0.27 + sBudget * 0.27 + sEnv * 0.12;
+  let score = sAmb * 0.28 + sAct * 0.23 + sBudget * 0.23 + sEnv * 0.11 + sTransportPart * 0.15;
 
   // Soft preference: duration_nights
   if (nights != null) {
@@ -971,9 +988,23 @@ export function generateAccommodationConfigurations(
   participants: number,
   nights: number,
   destination: DestinationRecord,
-  groupAgeRange?: string | null
+  groupAgeRange?: string | null,
+  individualPreferences?: IndividualPreference[]
 ): AccommodationConfig[] {
   const configs: AccommodationConfig[] = [];
+
+  // Détection des demandes de chambre individuelle vs partagée
+  let soloCount = 0;
+  if (individualPreferences && individualPreferences.length > 0) {
+    for (const pref of individualPreferences) {
+      const roomPref = norm((pref as any).roomTypePreference || (pref as any).room_type_preference || "");
+      const acceptsShared = (pref as any).acceptsSharedRoom ?? (pref as any).accepts_shared_room ?? true;
+      if (roomPref.includes("individuelle") || roomPref.includes("single") || roomPref.includes("solo") || acceptsShared === false) {
+        soloCount++;
+      }
+    }
+  }
+  const remainingCount = Math.max(0, participants - soloCount);
 
   for (const acc of accommodations) {
     // 1. Capacité unitaire
@@ -993,7 +1024,13 @@ export function generateAccommodationConfigurations(
     }
 
     // 3. Génération des configurations possibles pour cet hébergement
-    let configsToGenerate: { unitsCount: number; capacityPerUnit: number; name: string }[] = [];
+    let configsToGenerate: {
+      unitsCount: number;
+      capacityPerUnit: number;
+      name: string;
+      isMixed?: boolean;
+      customExplanation?: string;
+    }[] = [];
 
     if (cap >= participants) {
       // Configuration "Tout le monde ensemble"
@@ -1011,6 +1048,19 @@ export function generateAccommodationConfigurations(
         unitsCount: 1,
         capacityPerUnit: cap,
         name,
+      });
+    }
+
+    // Configuration mixte si certains veulent solo et d'autres partagent
+    if (soloCount > 0 && remainingCount > 0) {
+      const sharedUnits = Math.ceil(remainingCount / 2);
+      const totalUnits = soloCount + sharedUnits;
+      configsToGenerate.push({
+        unitsCount: totalUnits,
+        capacityPerUnit: 2,
+        name: `${soloCount} chambre(s) individuelle(s) + ${sharedUnits} chambre(s) double(s)`,
+        isMixed: true,
+        customExplanation: `Configuration mixte sur mesure : ${soloCount} chambre(s) individuelle(s) pour préserver l'intimité de ceux qui le demandent, et ${sharedUnits} chambre(s) partagée(s) pour le reste du groupe.`,
       });
     }
 
@@ -1084,15 +1134,17 @@ export function generateAccommodationConfigurations(
       const pricePerPerson = Math.round(totalCost / participants);
       const pricePerPersonPerNight = Math.round(pricePerPerson / nights);
 
-      let explanation = "";
-      if (item.unitsCount === 1 && (type === "villa" || type === "gîte" || type === "maison")) {
-        explanation = `Elle permet aux ${participants} personnes de rester ensemble dans un même logement, possède ${bedrooms} chambres et revient moins cher par personne que des alternatives hôtelières.`;
-      } else if (item.unitsCount === 1 && type === "appartement") {
-        explanation = `Permet au groupe entier de loger ensemble dans un grand appartement de ${bedrooms} chambres, idéal pour la cohésion.`;
-      } else if (type === "hôtel") {
-        explanation = `Idéal pour préserver l'intimité de chacun avec ${item.unitsCount} chambres hôtelières de qualité tout en profitant des services de l'hôtel.`;
-      } else {
-        explanation = `Répartit le groupe confortablement dans ${item.unitsCount} logements indépendants de type ${rawType}.`;
+      let explanation = item.customExplanation || "";
+      if (!explanation) {
+        if (item.unitsCount === 1 && (type === "villa" || type === "gîte" || type === "maison")) {
+          explanation = `Elle permet aux ${participants} personnes de rester ensemble dans un même logement, possède ${bedrooms} chambres et revient moins cher par personne que des alternatives hôtelières.`;
+        } else if (item.unitsCount === 1 && type === "appartement") {
+          explanation = `Permet au groupe entier de loger ensemble dans un grand appartement de ${bedrooms} chambres, idéal pour la cohésion.`;
+        } else if (type === "hôtel") {
+          explanation = `Idéal pour préserver l'intimité de chacun avec ${item.unitsCount} chambres hôtelières de qualité tout en profitant des services de l'hôtel.`;
+        } else {
+          explanation = `Répartit le groupe confortablement dans ${item.unitsCount} logements indépendants de type ${rawType}.`;
+        }
       }
 
       let category: AccommodationConfig["category"] = "standard";
@@ -1116,7 +1168,8 @@ export function generateAccommodationConfigurations(
         pricePerPersonPerNight,
         explanation,
         category,
-      });
+        isMixed: item.isMixed ?? false,
+      } as any);
     }
   }
 
@@ -1229,18 +1282,37 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       !normalizedWantedEnvs.some((e) => e === "Centre-ville / urbain" || e === "Quartier animé");
 
     // Filtrage strict des hébergements par destination et validation géographique déterministe
-    const matchedAccommodations = catalog.accommodations
+    let matchedAccommodations = catalog.accommodations
       .filter((a) => a.destination_id === destination.id)
       .filter((a) => isAccommodationInDestination(destination, a))
       .filter((a) => (minRating > 0 ? a.rating >= minRating - 0.05 : true));
 
-    // Génération des configurations complètes
+    // Élimination des options incompatibles avec les équipements explicitement obligatoires
+    const reqAmenitiesClean = (ctx.requiredAmenities ?? [])
+      .map(norm)
+      .filter((a) => a && a !== "peu_importe" && a !== "none");
+
+    if (reqAmenitiesClean.length > 0) {
+      const withAmenities = matchedAccommodations.filter((acc) => {
+        const accAmenities = (acc.amenities ?? []).map(norm);
+        const nameAndType = norm(`${acc.name} ${acc.type} ${acc.description ?? ""}`);
+        return reqAmenitiesClean.every((req) =>
+          accAmenities.some((a) => a.includes(req) || req.includes(a)) || nameAndType.includes(req)
+        );
+      });
+      if (withAmenities.length > 0) {
+        matchedAccommodations = withAmenities;
+      }
+    }
+
+    // Génération des configurations complètes avec prise en compte des préférences individuelles de chambre
     const destConfigs = generateAccommodationConfigurations(
       matchedAccommodations,
       ctx.participants,
       ctx.nights,
       destination,
-      ctx.groupAgeRange
+      ctx.groupAgeRange,
+      ctx.individualPreferences
     );
 
     // Fallback de configuration neutre si aucun hébergement n'est disponible
@@ -1315,6 +1387,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         ctx.starWantedActivities,
         ctx.dietaryConstraintsRatio ?? 0,
         ctx.groupAgeRange,
+        ctx.preferredTimeSlots ?? [],
       );
       const activitiesCost = activities.reduce((sum, a) => sum + a.price_per_person, 0);
 
@@ -1376,7 +1449,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         const weights = individuals.map((pref) => Math.max(0.1, pref.weight ?? (pref.isStar ? (ctx.starWeight ?? 2.5) : 1)));
         const wSum = weights.reduce((a, b) => a + b, 0);
         consensusScore = fits.reduce((acc, f, i) => acc + f * weights[i]!, 0) / wSum;
-        minSatisfaction = Math.min(...fits);
+        minSatisfaction = fits.includes(0) ? 0 : Math.max(0.1, Math.min(...fits));
         satisfiedCount = fits.filter((f) => f >= 0.55).length;
       }
 
@@ -1434,15 +1507,16 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       // Soft Preferences / Context based on group age range
       if (ctx.groupAgeRange) {
         const age = norm(ctx.groupAgeRange);
+        const cost = destination.avg_daily_cost ?? (destination as any).daily_cost_avg ?? 80;
         if (age.includes("18-25") || age.includes("25-35")) {
-          score += destination.score_fete * 8;
-          if (destination.avg_daily_cost <= 75) {
+          score += (destination.score_fete ?? 0.5) * 8;
+          if (cost <= 75) {
             score += 5;
-          } else if (destination.avg_daily_cost > 120) {
+          } else if (cost > 120) {
             score -= 10;
           }
         } else if (age.includes("45-60") || age.includes("60+")) {
-          score += (destination.score_detente + destination.score_culturel) * 4;
+          score += ((destination.score_detente ?? 0.5) + (destination.score_culturel ?? 0.5)) * 4;
           if (rawAcc && rawAcc.rating >= 4.2) {
             score += 6;
           }
