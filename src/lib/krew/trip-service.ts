@@ -1093,6 +1093,37 @@ export async function generateRecommendationsForTrip(
       wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
       starWantedEnvType: aggregated.starWantedEnvType ?? null,
       groupAgeRange: aggregated.groupAgeRange ?? null,
+      scoringSignals: {
+        desiredDestination: ctx.desiredDestination ?? null,
+        letKrewDecide: letKrewDecide,
+        starWeight: ctx.starWeight ?? null,
+        scoringWeights: ctx.scoringWeights ? (ctx.scoringWeights as unknown as Record<string, number>) : null,
+        individualPreferences: (aggregated.individualPreferences ?? []) as Array<Record<string, unknown>>,
+        hardConstraints: {
+          maxDistanceKm: ctx.maxDistanceKm,
+          planeRefused: ctx.planeRefused,
+          maxTravelHours: ctx.maxTravelDurationHours ?? null,
+          excludedCountries: ctx.excludedCountries,
+          vetoBudgetMax: aggregated.vetoBudgetMax ?? null,
+          hasBudgetVeto: aggregated.hasBudgetVeto ?? false,
+          dealBreakerAmbiances: aggregated.dealBreakerAmbiances ?? [],
+          dealBreakerDestinations: aggregated.dealBreakerDestinations ?? [],
+          starDealBreakers: aggregated.starDealBreakers ?? [],
+        },
+        softPreferences: {
+          ambiances: ctx.ambiances,
+          activityCategories: ctx.activityCategories,
+          nights: ctx.nights,
+          participants: ctx.participants,
+          departureOrigins: aggregated.departureOrigins ?? [],
+          wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
+          starWantedEnvType: aggregated.starWantedEnvType ?? null,
+          starWantedActivities: aggregated.starWantedActivities ?? [],
+          groupAgeRange: aggregated.groupAgeRange ?? null,
+          eventType: trip.data.event_type || null,
+          blackoutDates: aggregated.blackoutDates ?? [],
+        },
+      },
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
@@ -1145,7 +1176,7 @@ export async function generateRecommendationsForTrip(
       }
     }
 
-    mergedCandidates = mergedCandidates.slice(0, 12);
+    mergedCandidates = mergedCandidates.slice(0, 50);
     discoverySource = aiCities.length ? "merged" : "local";
     discoveryMeta = mergedCandidates.map((c) => ({
       name: c.name,
