@@ -60,6 +60,7 @@ export const getStarPreferences = createServerFn({ method: "GET" })
             departureAirportOrStation: prefs.data.departure_airport_or_station ?? null,
             updatedAt: (prefs.data.updated_at || prefs.data.submitted_at) as string | null,
             wantedEnvType: prefs.data.wanted_env_type ?? null,
+            weatherPreference: prefs.data.weather_preference ?? 1,
           }
         : null,
     };
@@ -82,6 +83,7 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
         departureCity: z.string().optional().nullable(),
         departureAirportOrStation: z.string().optional().nullable(),
         wantedEnvType: z.string().optional().nullable(),
+        weatherPreference: z.number().int().min(0).max(2).default(1),
       })
       .parse(data),
   )
@@ -141,6 +143,7 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
       submitted_at: existing.data?.submitted_at ?? now,
       updated_at: now,
       wanted_env_type: data.wantedEnvType ?? null,
+      weather_preference: data.weatherPreference ?? 1,
     };
 
     const { error } = await supabase

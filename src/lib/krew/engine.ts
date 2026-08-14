@@ -497,6 +497,63 @@ function seasonScoreWithFlex(dest: DestinationRecord, startMonth: number, dateFl
   return best;
 }
 
+/**
+ * Calcule un weatherScore complémentaire :
+ * - Si des dates précises avec données de prévisions réelles sont disponibles dans climate.forecast, on les utilise.
+ * - Sinon, on utilise les normales historiques du ou des mois concernés dans climate.months.
+ */
+export function computeWeatherScore(
+  dest: DestinationRecord,
+  startDate?: string | null,
+  endDate?: string | null,
+  startMonth = 5
+): number {
+  const climate = (dest as any).climate;
+  if (!climate || typeof climate !== "object") {
+    return 0.6; // Fallback par défaut
+  }
+
+  // 1. Essai avec les données prévisionnelles réelles si disponibles
+  const forecast = climate.forecast;
+  if (Array.isArray(forecast) && forecast.length > 0 && startDate) {
+    const startIso = startDate.slice(0, 10);
+    const endIso = endDate ? endDate.slice(0, 10) : startIso;
+    const relevantForecasts = forecast.filter((f: any) => f.date >= startIso && f.date <= endIso);
+
+    if (relevantForecasts.length > 0) {
+      const temps = relevantForecasts.map((f: any) => Number(f.tempMax ?? f.temperature_2m_max ?? 20));
+      const rain = relevantForecasts.map((f: any) => Number(f.precipitationMm ?? f.precipitation_sum ?? 0));
+
+      const tempAvg = temps.reduce((a, b) => a + b, 0) / temps.length;
+      const totalRain = rain.reduce((a, b) => a + b, 0);
+
+      // On score par rapport à une température idéale (23°C) et l'absence de pluie
+      const tempScore = 1.0 - Math.min(0.6, Math.abs(tempAvg - 23) * 0.05);
+      const rainScore = 1.0 - Math.min(0.8, totalRain * 0.05);
+
+      return clamp(tempScore * 0.6 + rainScore * 0.4, 0.1, 1.0);
+    }
+  }
+
+  // 2. Sinon, données historiques adaptées à la période
+  const months = climate.months;
+  if (Array.isArray(months) && months.length > 0) {
+    const mData = months.find((m: any) => m.month === startMonth);
+    if (mData) {
+      const tempMaxAvg = Number(mData.tempMaxAvg ?? mData.temp_max_avg ?? 18);
+      const precipitationMm = Number(mData.precipitationMm ?? mData.precipitation_mm ?? 50);
+
+      // Température idéale à 22°C, précipitation modérée à 150mm/mois max
+      const tempScore = 1.0 - Math.min(0.6, Math.abs(tempMaxAvg - 22) * 0.04);
+      const rainScore = 1.0 - Math.min(0.8, precipitationMm / 150);
+
+      return clamp(tempScore * 0.6 + rainScore * 0.4, 0.15, 1.0);
+    }
+  }
+
+  return 0.6; // Fallback
+}
+
 function activitiesPerDayForPace(travelPace?: string | null): number {
   const p = (travelPace ?? "equilibre").toLowerCase();
   if (p === "chill") return 1;
@@ -1335,7 +1392,26 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         ? clamp(1 - Math.max(0, bestDuration - maxHours * 0.55) / Math.max(1, maxHours * 0.75))
         : clamp(1 - bestDuration / 12);
       const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm));
-      const sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
+
+      let sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
+      const hasClimate = (destination as any).climate && typeof (destination as any).climate === "object";
+      if (hasClimate) {
+        const weatherScoreVal = computeWeatherScore(destination, (ctx as any).startDate, (ctx as any).endDate, ctx.startMonth);
+        sSeason = sSeason * 0.3 + weatherScoreVal * 0.7;
+      }
+
+      // Prise en compte de la préférence météo du groupe + Star + Organisateur
+      const weatherPref = (ctx as any).groupWeatherPreference;
+      if (weatherPref != null) {
+        if (weatherPref === 0) {
+          sSeason = 1.0; // Ne modifie pas artificiellement le classement si tout le monde est agnostique
+        } else if (weatherPref > 1.0) {
+          sSeason = Math.pow(sSeason, 1.5); // Accentue les différences pour une forte demande météo
+        } else if (weatherPref < 1.0) {
+          sSeason = 1.0 - (1.0 - sSeason) * weatherPref; // Atténue les différences pour une demande faible
+        }
+      }
+
       const sQuality = clamp((destination.rating - 3.5) / 1.5) * 0.6 + destination.popularity * 0.4;
       const sConsensus = consensusScore;
       const sMinSat = minSatisfaction;
@@ -1781,12 +1857,22 @@ export function scoreTransportOption(
     pricePerPerson: number;
     durationHours: number;
     respectedConstraints?: string[];
+    outsideTimeWindow?: boolean;
   },
   budgetPerPerson: number,
   maxTravelDurationHours: number | null
 ): { score: number; matchReasons: string[] } {
   let score = 70; // Base score
   const matchReasons: string[] = [];
+
+  // 0. Time Window constraint check
+  if (option.outsideTimeWindow) {
+    score -= 40; // Heavy penalty for violating hard schedule constraints
+    matchReasons.push("⚠️ Hors de tes contraintes horaires");
+  } else if (option.respectedConstraints && option.respectedConstraints.length > 0) {
+    score += 5;
+    matchReasons.push("Respecte tes contraintes horaires");
+  }
 
   // 1. Budget Fit Scoring
   const transportBudget = budgetPerPerson * 0.25; // Allocating 25% of total budget to transport

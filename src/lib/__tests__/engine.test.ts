@@ -4,6 +4,7 @@ import {
   selectDiverseTop,
   generateRejectionReason,
   computeHistoriqueScore,
+  computeWeatherScore,
   type TravelCatalog,
   type ScoringContext,
   type DestinationRecord,
@@ -424,6 +425,76 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
       expect(prop.budget.priceSource).toBeDefined();
       expect(prop.budget.priceSource?.transport).toBe("api");
       expect(prop.budget.priceSource?.accommodation).toBe("api");
+    });
+
+    it("gère correctement le score météo et les préférences météo du groupe", () => {
+      const destWithClimate = {
+        id: "dest-climate",
+        name: "Nice",
+        country: "France",
+        best_months: [6, 7, 8],
+        climate: {
+          months: [
+            { month: 6, tempMaxAvg: 25, precipitationMm: 20 },
+            { month: 12, tempMaxAvg: 11, precipitationMm: 120 }
+          ],
+          forecast: [
+            { date: "2026-06-15", tempMax: 24, precipitationMm: 0 },
+            { date: "2026-06-16", tempMax: 26, precipitationMm: 0 }
+          ]
+        }
+      } as any;
+
+      // 1. Test computeWeatherScore avec prévisions réelles
+      const forecastScore = computeWeatherScore(destWithClimate, "2026-06-15", "2026-06-16", 6);
+      expect(forecastScore).toBeGreaterThan(0.8);
+
+      // 2. Test computeWeatherScore avec données historiques (quand pas de dates/prévisions adaptées)
+      const historicalScore = computeWeatherScore(destWithClimate, null, null, 6);
+      expect(historicalScore).toBeGreaterThan(0.7);
+
+      // 3. Test de l'influence de la préférence météo (agnostique = pas de modification, forte = accentuation)
+      const catalog = {
+        destinations: [destWithClimate],
+        accommodations: [],
+        activities: []
+      };
+
+      const ctxAgnostic: ScoringContext = {
+        participants: 2,
+        budgetPerPerson: 500,
+        nights: 2,
+        letKrewDecide: true,
+        needsCityCenter: true,
+        startMonth: 12,
+        ambiances: [],
+        activityCategories: [],
+        maxDistanceKm: 2000,
+        excludedCountries: [],
+        groupWeatherPreference: 0, // Tout le monde est agnostique !
+      };
+
+      const propsAgnostic = buildProposals(catalog, ctxAgnostic, 1);
+      // sSeason doit être égal à 1.0 car tout le monde est agnostique
+      expect(propsAgnostic[0]?.subScores.sSeason).toBe(1.0);
+
+      const ctxPrioritize: ScoringContext = {
+        participants: 2,
+        budgetPerPerson: 500,
+        nights: 2,
+        letKrewDecide: true,
+        needsCityCenter: true,
+        startMonth: 12, // Décembre (météo pourrie à Nice)
+        ambiances: [],
+        activityCategories: [],
+        maxDistanceKm: 2000,
+        excludedCountries: [],
+        groupWeatherPreference: 2, // Forte préférence météo !
+      };
+
+      const propsPrioritize = buildProposals(catalog, ctxPrioritize, 1);
+      // sSeason doit être très bas car météo pourrie + forte préférence météo (pénalité accentuée)
+      expect(propsPrioritize[0]?.subScores.sSeason).toBeLessThan(0.4);
     });
   });
 });

@@ -40,6 +40,7 @@ export const participantPreferencesSchema = z.object({
   blackoutDates: z.array(z.string()).default([]),
   groupAgeRange: z.string().max(80).optional(),
   wantedEnvType: z.string().max(120).optional(),
+  weatherPreference: z.number().int().min(0).max(2).default(1),
 });
 
 export type ParticipantPreferencesInput = z.infer<typeof participantPreferencesSchema>;
@@ -327,6 +328,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       preferred_time_slots: (data as any).preferredTimeSlots ?? [],
       group_age_range: (data as any).groupAgeRange ?? null,
       wanted_env_type: (data as any).wantedEnvType ?? null,
+      weather_preference: (data as any).weatherPreference ?? 1,
     };
 
     if (existingPref.data) {
@@ -373,6 +375,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
           free_text: (data as any).freeText ?? null,
           submitted_at: payload.submitted_at ?? now,
           updated_at: now,
+          weather_preference: (data as any).weatherPreference ?? 1,
         };
         const retry = await supabase
           .from("trip_participant_preferences")

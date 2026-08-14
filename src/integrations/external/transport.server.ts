@@ -41,8 +41,10 @@ const num = (v: unknown): number => {
 /**
  * Extrait les heures de départ (aller) et de retour (inbound) d'un vol pour le filtrage horaire.
  */
-function extractItemTimes(item: any, provider: string): { outboundTime: string | null; returnTime: string | null } {
+function extractItemTimes(item: any, provider: string): { outboundTime: string | null; outboundArrivalTime: string | null; returnDepartureTime: string | null; returnTime: string | null } {
   let outboundTime: string | null = null;
+  let outboundArrivalTime: string | null = null;
+  let returnDepartureTime: string | null = null;
   let returnTime: string | null = null;
 
   if (provider === "kayak") {
@@ -52,10 +54,18 @@ function extractItemTimes(item: any, provider: string): { outboundTime: string |
       if (dep0) {
         outboundTime = dep0.includes("T") ? dep0.split("T")[1]?.slice(0, 5) || null : dep0.slice(0, 5);
       }
+      const arr0 = legs[0]?.arrival || legs[0]?.arrivalTime;
+      if (arr0) {
+        outboundArrivalTime = arr0.includes("T") ? arr0.split("T")[1]?.slice(0, 5) || null : arr0.slice(0, 5);
+      }
       if (legs.length > 1) {
         const dep1 = legs[1]?.departure || legs[1]?.departureTime;
         if (dep1) {
-          returnTime = dep1.includes("T") ? dep1.split("T")[1]?.slice(0, 5) || null : dep1.slice(0, 5);
+          returnDepartureTime = dep1.includes("T") ? dep1.split("T")[1]?.slice(0, 5) || null : dep1.slice(0, 5);
+        }
+        const arr1 = legs[1]?.arrival || legs[1]?.arrivalTime;
+        if (arr1) {
+          returnTime = arr1.includes("T") ? arr1.split("T")[1]?.slice(0, 5) || null : arr1.slice(0, 5);
         }
       }
     } else {
@@ -67,18 +77,29 @@ function extractItemTimes(item: any, provider: string): { outboundTime: string |
     if (locDep) {
       outboundTime = locDep.includes("T") ? locDep.split("T")[1]?.slice(0, 5) || null : locDep.slice(0, 5);
     }
+    const locArr = item?.local_arrival;
+    if (locArr) {
+      outboundArrivalTime = locArr.includes("T") ? locArr.split("T")[1]?.slice(0, 5) || null : locArr.slice(0, 5);
+    }
     const route = item?.route;
     if (Array.isArray(route)) {
       const returnSeg = route.find((r: any) => r.return === 1 || r.return === true);
-      if (returnSeg && returnSeg.local_departure) {
-        returnTime = returnSeg.local_departure.includes("T")
-          ? returnSeg.local_departure.split("T")[1]?.slice(0, 5) || null
-          : returnSeg.local_departure.slice(0, 5);
+      if (returnSeg) {
+        if (returnSeg.local_departure) {
+          returnDepartureTime = returnSeg.local_departure.includes("T")
+            ? returnSeg.local_departure.split("T")[1]?.slice(0, 5) || null
+            : returnSeg.local_departure.slice(0, 5);
+        }
+        if (returnSeg.local_arrival) {
+          returnTime = returnSeg.local_arrival.includes("T")
+            ? returnSeg.local_arrival.split("T")[1]?.slice(0, 5) || null
+            : returnSeg.local_arrival.slice(0, 5);
+        }
       }
     }
   }
 
-  return { outboundTime, returnTime };
+  return { outboundTime, outboundArrivalTime, returnDepartureTime, returnTime };
 }
 
 /**
@@ -89,7 +110,9 @@ function pickCheapestPriceInWindow(
   items: any[],
   provider: string,
   earliestDepartureTime?: string | null,
-  latestReturnTime?: string | null
+  latestReturnTime?: string | null,
+  latestArrivalTime?: string | null,
+  earliestReturnDepartureTime?: string | null
 ): { best: any; outsideWindow: boolean } | null {
   if (!items || items.length === 0) return null;
 
@@ -109,10 +132,16 @@ function pickCheapestPriceInWindow(
     );
     if (price <= 0) continue;
 
-    const { outboundTime, returnTime } = extractItemTimes(item, provider);
+    const { outboundTime, outboundArrivalTime, returnDepartureTime, returnTime } = extractItemTimes(item, provider);
 
     let match = true;
     if (earliestDepartureTime && outboundTime && outboundTime < earliestDepartureTime) {
+      match = false;
+    }
+    if (latestArrivalTime && outboundArrivalTime && outboundArrivalTime > latestArrivalTime) {
+      match = false;
+    }
+    if (earliestReturnDepartureTime && returnDepartureTime && returnDepartureTime < earliestReturnDepartureTime) {
       match = false;
     }
     if (latestReturnTime && returnTime && returnTime > latestReturnTime) {
@@ -166,6 +195,8 @@ export async function searchTransportRoundTrip(opts: {
   distanceKm?: number;
   earliestDepartureTime?: string | null;
   latestReturnTime?: string | null;
+  latestArrivalTime?: string | null;
+  earliestReturnDepartureTime?: string | null;
 }): Promise<TransportQuote> {
   const key = process.env["HOTELS_RAPIDAPI_KEY"] ?? process.env["KAYAK_RAPIDAPI_KEY"] ?? "";
   const kayakHost = process.env["KAYAK_SEARCH_RAPIDAPI_HOST"] ?? "kayak-search.p.rapidapi.com";
@@ -211,7 +242,14 @@ export async function searchTransportRoundTrip(opts: {
     ].filter(Array.isArray) as any[][];
     const items = lists.find((a) => a.length > 0) ?? [];
 
-    const result = pickCheapestPriceInWindow(items, "kayak", opts.earliestDepartureTime, opts.latestReturnTime);
+    const result = pickCheapestPriceInWindow(
+      items,
+      "kayak",
+      opts.earliestDepartureTime,
+      opts.latestReturnTime,
+      opts.latestArrivalTime,
+      opts.earliestReturnDepartureTime
+    );
     if (result) {
       return {
         pricePerPerson: Math.round(result.best.price),
@@ -255,7 +293,14 @@ export async function searchTransportRoundTrip(opts: {
 
     const items = kiwiPayload?.data;
     if (Array.isArray(items)) {
-      const result = pickCheapestPriceInWindow(items, "kiwi", opts.earliestDepartureTime, opts.latestReturnTime);
+      const result = pickCheapestPriceInWindow(
+        items,
+        "kiwi",
+        opts.earliestDepartureTime,
+        opts.latestReturnTime,
+        opts.latestArrivalTime,
+        opts.earliestReturnDepartureTime
+      );
       if (result) {
         return {
           pricePerPerson: Math.round(result.best.price),

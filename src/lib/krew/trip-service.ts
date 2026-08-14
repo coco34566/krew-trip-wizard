@@ -125,6 +125,9 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Recor
       prefs?.["max_travel_duration_hours"] != null ? Number(prefs["max_travel_duration_hours"]) : null,
     planeRefused: Boolean(prefs?.["plane_refused"]),
     blackoutDates: prefs?.["blackout_dates"] ?? [],
+    groupWeatherPreference: prefs?.["group_weather_preference"] ?? 1.0,
+    startDate: trip.start_date ?? null,
+    endDate: trip.end_date ?? null,
   };
 }
 
@@ -179,6 +182,7 @@ type ParticipantPrefRow = {
   blackout_dates: string[] | null;
   group_age_range?: string | null;
   wanted_env_type?: string | null;
+  weather_preference?: number | null;
 };
 
 function frequencies(values: string[]): Record<string, number> {
@@ -207,7 +211,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type",
+      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference",
     )
     .eq("trip_id", tripId);
   if (res.error) {
@@ -297,6 +301,7 @@ export async function aggregateParticipantPreferences(
           blackout_dates: [],
           wanted_env_type: starData.wanted_env_type ?? null,
           group_age_range: null,
+          weather_preference: starData.weather_preference ?? 1,
         });
       }
     }
@@ -530,6 +535,7 @@ export async function aggregateParticipantPreferences(
       groupAgeRange: r.group_age_range ?? null,
       durationNightsMin: r.duration_nights_min != null ? Number(r.duration_nights_min) : null,
       durationNightsMax: r.duration_nights_max != null ? Number(r.duration_nights_max) : null,
+      weatherPreference: r.weather_preference ?? 1,
     };
   });
 
@@ -545,6 +551,12 @@ export async function aggregateParticipantPreferences(
   );
   const envTypeFreq = frequencies(envTypes);
   const wantedEnvTypes = byFrequency(envTypeFreq);
+
+  // Calcul de la préférence météo moyenne du groupe + Star + Organisateur
+  const weatherPrefs = rows.map((r) => Number(r.weather_preference ?? 1));
+  const groupWeatherPreference = weatherPrefs.length
+    ? weatherPrefs.reduce((a, b) => a + b, 0) / weatherPrefs.length
+    : 1.0;
 
   // Incohérences détectées (pour l'organisateur)
   const inconsistencies: { userId: string | null; message: string }[] = [];
@@ -607,6 +619,7 @@ export async function aggregateParticipantPreferences(
     groupAgeRange,
     wantedEnvTypes,
     starWantedEnvType,
+    groupWeatherPreference,
   };
 }
 
@@ -994,6 +1007,7 @@ export async function generateRecommendationsForTrip(
       max_travel_duration_hours: aggregated.maxTravelDurationHours,
       plane_refused: aggregated.planeRefused,
       blackout_dates: aggregated.blackoutDates,
+      group_weather_preference: aggregated.groupWeatherPreference,
       // Distance max resserrée si durée trajet max renseignée (~80 km/h équivalent)
       max_distance_km: aggregated.maxTravelDurationHours
         ? Math.min(
@@ -1015,6 +1029,7 @@ export async function generateRecommendationsForTrip(
   const partsRes = await supabase.from("trip_participants").select("*").eq("trip_id", tripId);
   const participants = partsRes.data ?? [];
   const ctx = buildScoringContext(trip.data, prefsToUse, participants);
+  ctx.groupWeatherPreference = aggregated.groupWeatherPreference ?? 1.0;
   ctx.groupAgeRange = aggregated.groupAgeRange ?? null;
   ctx.wantedEnvTypes = aggregated.wantedEnvTypes ?? [];
   ctx.starWantedEnvType = aggregated.starWantedEnvType ?? null;
@@ -1093,37 +1108,6 @@ export async function generateRecommendationsForTrip(
       wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
       starWantedEnvType: aggregated.starWantedEnvType ?? null,
       groupAgeRange: aggregated.groupAgeRange ?? null,
-      scoringSignals: {
-        desiredDestination: ctx.desiredDestination ?? null,
-        letKrewDecide: letKrewDecide,
-        starWeight: ctx.starWeight ?? null,
-        scoringWeights: ctx.scoringWeights ? (ctx.scoringWeights as unknown as Record<string, number>) : null,
-        individualPreferences: (aggregated.individualPreferences ?? []) as Array<Record<string, unknown>>,
-        hardConstraints: {
-          maxDistanceKm: ctx.maxDistanceKm,
-          planeRefused: ctx.planeRefused,
-          maxTravelHours: ctx.maxTravelDurationHours ?? null,
-          excludedCountries: ctx.excludedCountries,
-          vetoBudgetMax: aggregated.vetoBudgetMax ?? null,
-          hasBudgetVeto: aggregated.hasBudgetVeto ?? false,
-          dealBreakerAmbiances: aggregated.dealBreakerAmbiances ?? [],
-          dealBreakerDestinations: aggregated.dealBreakerDestinations ?? [],
-          starDealBreakers: aggregated.starDealBreakers ?? [],
-        },
-        softPreferences: {
-          ambiances: ctx.ambiances,
-          activityCategories: ctx.activityCategories,
-          nights: ctx.nights,
-          participants: ctx.participants,
-          departureOrigins: aggregated.departureOrigins ?? [],
-          wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
-          starWantedEnvType: aggregated.starWantedEnvType ?? null,
-          starWantedActivities: aggregated.starWantedActivities ?? [],
-          groupAgeRange: aggregated.groupAgeRange ?? null,
-          eventType: trip.data.event_type || null,
-          blackoutDates: aggregated.blackoutDates ?? [],
-        },
-      },
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
@@ -1176,7 +1160,7 @@ export async function generateRecommendationsForTrip(
       }
     }
 
-    mergedCandidates = mergedCandidates.slice(0, 50);
+    mergedCandidates = mergedCandidates.slice(0, 12);
     discoverySource = aiCities.length ? "merged" : "local";
     discoveryMeta = mergedCandidates.map((c) => ({
       name: c.name,
