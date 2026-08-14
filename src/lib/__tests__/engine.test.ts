@@ -475,8 +475,9 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
       };
 
       const propsAgnostic = buildProposals(catalog, ctxAgnostic, 1);
-      // sSeason doit être égal à 1.0 car tout le monde est agnostique
-      expect(propsAgnostic[0]?.subScores.sSeason).toBe(1.0);
+      // sSeason reste le score saisonnier pur et sWeather doit être égal à 1.0 car tout le monde est agnostique
+      expect(propsAgnostic[0]?.subScores.sSeason).toBeDefined();
+      expect(propsAgnostic[0]?.subScores.sWeather).toBe(1.0);
 
       const ctxPrioritize: ScoringContext = {
         participants: 2,
@@ -493,8 +494,9 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
       };
 
       const propsPrioritize = buildProposals(catalog, ctxPrioritize, 1);
-      // sSeason doit être très bas car météo pourrie + forte préférence météo (pénalité accentuée)
-      expect(propsPrioritize[0]?.subScores.sSeason).toBeLessThan(0.4);
+      // sSeason reste le score de saison pur (non altéré par groupWeatherPreference), sWeather reflète la pénalité météo
+      expect(propsPrioritize[0]?.subScores.sSeason).toBeDefined();
+      expect(propsPrioritize[0]?.subScores.sWeather).toBeLessThan(0.4);
     });
   });
 });

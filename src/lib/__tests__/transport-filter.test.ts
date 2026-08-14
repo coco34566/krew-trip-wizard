@@ -4,6 +4,84 @@ import {
   scoreTransportOption,
   computeGroupTimeWindowExtended,
 } from "../krew/engine";
+import { checkTransportTimeCompatibility } from "../../integrations/external/transport.server";
+
+describe("Filtre Horaire Transport (checkTransportTimeCompatibility)", () => {
+  const constraints = {
+    earliestDepartureTime: "08:00",
+    latestArrivalTime: "12:00",
+    earliestReturnDepartureTime: "16:00",
+    latestReturnTime: "20:00",
+  };
+
+  it("heure connue + compatible → OK (isCompatible: true)", () => {
+    const times = {
+      outboundTime: "09:00",
+      outboundArrivalTime: "11:00",
+      returnDepartureTime: "17:00",
+      returnTime: "19:00",
+    };
+    const res = checkTransportTimeCompatibility(times, constraints, true);
+    expect(res.isCompatible).toBe(true);
+  });
+
+  it("heure connue + incompatible → exclu (isCompatible: false)", () => {
+    // outboundTime 07:00 est < 08:00
+    const res1 = checkTransportTimeCompatibility(
+      { outboundTime: "07:00", outboundArrivalTime: "10:00", returnDepartureTime: "17:00", returnTime: "19:00" },
+      constraints,
+      true,
+    );
+    expect(res1.isCompatible).toBe(false);
+
+    // outboundArrivalTime 13:00 est > 12:00
+    const res2 = checkTransportTimeCompatibility(
+      { outboundTime: "09:00", outboundArrivalTime: "13:00", returnDepartureTime: "17:00", returnTime: "19:00" },
+      constraints,
+      true,
+    );
+    expect(res2.isCompatible).toBe(false);
+
+    // returnDepartureTime 15:00 est < 16:00
+    const res3 = checkTransportTimeCompatibility(
+      { outboundTime: "09:00", outboundArrivalTime: "11:00", returnDepartureTime: "15:00", returnTime: "19:00" },
+      constraints,
+      true,
+    );
+    expect(res3.isCompatible).toBe(false);
+
+    // returnTime 21:00 est > 20:00
+    const res4 = checkTransportTimeCompatibility(
+      { outboundTime: "09:00", outboundArrivalTime: "11:00", returnDepartureTime: "17:00", returnTime: "21:00" },
+      constraints,
+      true,
+    );
+    expect(res4.isCompatible).toBe(false);
+  });
+
+  it("heure inconnue + contrainte impérative → exclu (isCompatible: false)", () => {
+    const timesMissingOutbound = {
+      outboundTime: null,
+      outboundArrivalTime: "11:00",
+      returnDepartureTime: "17:00",
+      returnTime: "19:00",
+    };
+    const res = checkTransportTimeCompatibility(timesMissingOutbound, constraints, true);
+    expect(res.isCompatible).toBe(false);
+    expect(res.reason).toContain("impérative");
+  });
+
+  it("préférence souple + heure inconnue → ne pas exclure automatiquement (isCompatible: true)", () => {
+    const timesMissingOutbound = {
+      outboundTime: null,
+      outboundArrivalTime: null,
+      returnDepartureTime: null,
+      returnTime: null,
+    };
+    const res = checkTransportTimeCompatibility(timesMissingOutbound, constraints, false);
+    expect(res.isCompatible).toBe(true);
+  });
+});
 
 describe("Filtre Horaire Transport (engine.ts)", () => {
   it("gère le cas où aucun participant n'a de préférence", () => {

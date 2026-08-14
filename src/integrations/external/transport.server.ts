@@ -103,6 +103,81 @@ function extractItemTimes(item: any, provider: string): { outboundTime: string |
 }
 
 /**
+ * Vérifie la compatibilité d'une option de transport avec les 4 contraintes horaires :
+ * 1) départ aller (outboundTime >= earliestDepartureTime)
+ * 2) arrivée aller (outboundArrivalTime <= latestArrivalTime)
+ * 3) départ retour (returnDepartureTime >= earliestReturnDepartureTime)
+ * 4) arrivée retour (returnTime <= latestReturnTime)
+ *
+ * Règles :
+ * - heure connue + compatible → OK
+ * - heure connue + incompatible → exclu
+ * - heure inconnue + contrainte impérative → exclu / non compatible
+ * - préférence souple + heure inconnue → ne pas exclure automatiquement
+ */
+export function checkTransportTimeCompatibility(
+  times: {
+    outboundTime?: string | null;
+    outboundArrivalTime?: string | null;
+    returnDepartureTime?: string | null;
+    returnTime?: string | null;
+  },
+  constraints: {
+    earliestDepartureTime?: string | null;
+    latestArrivalTime?: string | null;
+    earliestReturnDepartureTime?: string | null;
+    latestReturnTime?: string | null;
+  },
+  isImperative: boolean = true,
+): { isCompatible: boolean; reason?: string } {
+  // 1. Départ aller (départ au plus tôt)
+  if (constraints.earliestDepartureTime) {
+    if (times.outboundTime) {
+      if (times.outboundTime < constraints.earliestDepartureTime) {
+        return { isCompatible: false, reason: `Départ aller (${times.outboundTime}) trop tôt (exigé >= ${constraints.earliestDepartureTime})` };
+      }
+    } else if (isImperative) {
+      return { isCompatible: false, reason: `Heure de départ aller inconnue alors que la contrainte de départ (${constraints.earliestDepartureTime}) est impérative` };
+    }
+  }
+
+  // 2. Arrivée aller (arrivée au plus tard)
+  if (constraints.latestArrivalTime) {
+    if (times.outboundArrivalTime) {
+      if (times.outboundArrivalTime > constraints.latestArrivalTime) {
+        return { isCompatible: false, reason: `Arrivée aller (${times.outboundArrivalTime}) trop tardive (exigée <= ${constraints.latestArrivalTime})` };
+      }
+    } else if (isImperative) {
+      return { isCompatible: false, reason: `Heure d'arrivée aller inconnue alors que la contrainte d'arrivée (${constraints.latestArrivalTime}) est impérative` };
+    }
+  }
+
+  // 3. Départ retour (départ retour au plus tôt)
+  if (constraints.earliestReturnDepartureTime) {
+    if (times.returnDepartureTime) {
+      if (times.returnDepartureTime < constraints.earliestReturnDepartureTime) {
+        return { isCompatible: false, reason: `Départ retour (${times.returnDepartureTime}) trop tôt (exigé >= ${constraints.earliestReturnDepartureTime})` };
+      }
+    } else if (isImperative) {
+      return { isCompatible: false, reason: `Heure de départ retour inconnue alors que la contrainte de départ retour (${constraints.earliestReturnDepartureTime}) est impérative` };
+    }
+  }
+
+  // 4. Arrivée retour (arrivée retour au plus tard)
+  if (constraints.latestReturnTime) {
+    if (times.returnTime) {
+      if (times.returnTime > constraints.latestReturnTime) {
+        return { isCompatible: false, reason: `Arrivée retour (${times.returnTime}) trop tardive (exigée <= ${constraints.latestReturnTime})` };
+      }
+    } else if (isImperative) {
+      return { isCompatible: false, reason: `Heure d'arrivée retour inconnue alors que la contrainte d'arrivée retour (${constraints.latestReturnTime}) est impérative` };
+    }
+  }
+
+  return { isCompatible: true };
+}
+
+/**
  * Sélectionne la meilleure offre de transport dans la fenêtre horaire souhaitée.
  * Fallback sur la moins chère globale si aucune n'est compatible.
  */
@@ -112,12 +187,20 @@ function pickCheapestPriceInWindow(
   earliestDepartureTime?: string | null,
   latestReturnTime?: string | null,
   latestArrivalTime?: string | null,
-  earliestReturnDepartureTime?: string | null
+  earliestReturnDepartureTime?: string | null,
+  isImperative: boolean = true
 ): { best: any; outsideWindow: boolean } | null {
   if (!items || items.length === 0) return null;
 
   let bestInWindow: any = null;
   let bestOverall: any = null;
+
+  const constraints = {
+    earliestDepartureTime,
+    latestArrivalTime,
+    earliestReturnDepartureTime,
+    latestReturnTime,
+  };
 
   for (const item of items) {
     const price = num(
@@ -132,21 +215,8 @@ function pickCheapestPriceInWindow(
     );
     if (price <= 0) continue;
 
-    const { outboundTime, outboundArrivalTime, returnDepartureTime, returnTime } = extractItemTimes(item, provider);
-
-    let match = true;
-    if (earliestDepartureTime && outboundTime && outboundTime < earliestDepartureTime) {
-      match = false;
-    }
-    if (latestArrivalTime && outboundArrivalTime && outboundArrivalTime > latestArrivalTime) {
-      match = false;
-    }
-    if (earliestReturnDepartureTime && returnDepartureTime && returnDepartureTime < earliestReturnDepartureTime) {
-      match = false;
-    }
-    if (latestReturnTime && returnTime && returnTime > latestReturnTime) {
-      match = false;
-    }
+    const times = extractItemTimes(item, provider);
+    const { isCompatible } = checkTransportTimeCompatibility(times, constraints, isImperative);
 
     const priceObj = {
       price,
@@ -158,7 +228,7 @@ function pickCheapestPriceInWindow(
       bestOverall = priceObj;
     }
 
-    if (match) {
+    if (isCompatible) {
       if (!bestInWindow || price < bestInWindow.price) {
         bestInWindow = priceObj;
       }
