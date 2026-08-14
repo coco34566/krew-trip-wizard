@@ -870,18 +870,6 @@ export const joinTrip = createServerFn({ method: "POST" })
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
 
-    // Auto-liaison de star_user_id si absent et que le prénom correspond à la Star
-    if (!trip.data.star_user_id && trip.data.celebrated_person && firstName && trip.data.owner_id !== userId) {
-      const norm = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      const celebNorm = norm(trip.data.celebrated_person);
-      const firstNorm = norm(firstName);
-      if (celebNorm && firstNorm && (celebNorm === firstNorm || celebNorm.includes(firstNorm) || firstNorm.includes(celebNorm))) {
-        await supabaseAdmin
-          .from("trips")
-          .update({ star_user_id: userId, has_star: true })
-          .eq("id", data.tripId);
-      }
-    }
 
     if (trip.data.owner_id === userId) {
       if (firstName) {
@@ -1350,11 +1338,7 @@ export const getCostSplit = createServerFn({ method: "GET" })
     let estimatedTransportSum = 0;
 
     for (const p of participants) {
-      const isStarByUid = p.user_id && p.user_id === starUid;
-      const isStarByName = celebratedPerson && p.display_name &&
-        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      const isStar = isStarByUid || isStarByName;
+      const isStar = Boolean(p.user_id && starUid && p.user_id === starUid);
 
       let city = "";
       if (isStar && (starPrefsRes.data as any)?.departure_city) {
@@ -2631,7 +2615,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         );
 
         // Proposition de trajet partagé si un autre participant a fait ce choix
-        const otherPicks = Array.isArray(prev.transportPicks) ? prev.transportPicks : [];
+        const currentLogistics = (trip.group_logistics as any) || {};
+        const otherPicks = Array.isArray(currentLogistics.transportPicks) ? currentLogistics.transportPicks : [];
         const matchingPick = otherPicks.find((pk: any) =>
           norm(pk.city || "") === norm(from) &&
           norm(pk.mode || "") === norm(m.mode) &&
@@ -3134,11 +3119,8 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
 
     const assignable = participants.filter((p) => {
       if ((p.status as string) === "absent") return false;
-      const isStarByUid = p.user_id && p.user_id === starUid;
-      const isStarByName = celebratedPerson && p.display_name &&
-        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      return !isStarByUid && !isStarByName;
+      const isStarByUid = Boolean(p.user_id && starUid && p.user_id === starUid);
+      return !isStarByUid;
     });
 
     // Fallback if no assignable participant exists

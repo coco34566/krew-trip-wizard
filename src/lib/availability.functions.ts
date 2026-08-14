@@ -75,35 +75,14 @@ export const getTripAvailability = createServerFn({ method: "GET" })
     const rawParticipants = participants.data ?? [];
     const activeParticipants = rawParticipants.filter((p: any) => p.status !== "absent");
 
-    // Try to find the star in the participants list
-    let starParticipant = null;
-    const celebratedPerson = trip.data?.celebrated_person;
-    const ownerId = trip.data?.owner_id || null;
-    const coOrganizerId = (trip.data as any)?.co_organizer_id || null;
-    if (celebratedPerson) {
-      const normalizedCelebrated = celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      for (const p of activeParticipants) {
-        const isOwner = p.user_id && (p.user_id === ownerId || p.user_id === coOrganizerId);
-        if ((trip.data as any)?.star_user_id && p.user_id === (trip.data as any).star_user_id) {
-          starParticipant = p;
-          break;
-        }
-        const name = String(p.display_name ?? "")
-          .normalize("NFD")
-          .replace(/\p{M}/gu, "")
-          .toLowerCase()
-          .trim();
-        if (!isOwner && name && (name === normalizedCelebrated || name.includes(normalizedCelebrated) || normalizedCelebrated.includes(name))) {
-          starParticipant = p;
-          break;
-        }
-      }
-    } else if ((trip.data as any)?.star_user_id) {
-      starParticipant = activeParticipants.find(p => p.user_id === (trip.data as any).star_user_id) || null;
-    }
+    // Find the star in the participants list strictly via star_user_id
+    const starUserId = (trip.data as any)?.star_user_id || null;
+    const starParticipant = starUserId
+      ? activeParticipants.find(p => p.user_id === starUserId) || null
+      : null;
 
     // Resolve starUid safely (never use the form-filler's user ID, e.g. organizer, unless it's the actual star)
-    const starUid = starParticipant?.user_id || (trip.data as any)?.star_user_id || "star-virtual-uid";
+    const starUid = starParticipant?.user_id || starUserId || "star-virtual-uid";
 
     // Prendre en compte les disponibilités de la star si remplies dans trip_star_preferences
     try {
