@@ -187,128 +187,177 @@ export const getTripDetail = createServerFn({ method: "GET" })
     };
   });
 
-export const createTrip = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => tripInputSchema.parse(data))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+export async function createTripHelper(
+  supabase: any,
+  userId: string,
+  email: string,
+  data: z.infer<typeof tripInputSchema>
+) {
+  const wantsStar =
+    Boolean(data.celebratedPerson) ||
+    ["evg", "evjf", "anniversaire", "retraite"].includes(String(data.eventType));
 
-    const wantsStar =
-      Boolean(data.celebratedPerson) ||
-      ["evg", "evjf", "anniversaire", "retraite"].includes(String(data.eventType));
+  // Payloads progressifs : on élargit le fallback si le schéma Lovable est incomplet
+  const fullPayload: Record<string, unknown> = {
+    owner_id: userId,
+    name: data.name,
+    event_type: data.eventType,
+    celebrated_person: data.celebratedPerson ?? null,
+    start_date: data.startDate ?? null,
+    end_date: data.endDate ?? null,
+    participants_count: data.participants,
+    budget_per_person: data.budgetPerPerson ?? 400,
+    departure_city: data.departureCity || "Paris",
+    status: "en_preparation",
+    has_star: wantsStar,
+  };
+  const midPayload: Record<string, unknown> = {
+    owner_id: userId,
+    name: data.name,
+    event_type: data.eventType,
+    celebrated_person: data.celebratedPerson ?? null,
+    participants_count: data.participants,
+    budget_per_person: data.budgetPerPerson ?? 400,
+    departure_city: data.departureCity || "Paris",
+    status: "en_preparation",
+  };
+  const minimalPayload: Record<string, unknown> = {
+    owner_id: userId,
+    name: data.name,
+    event_type: data.eventType,
+    participants_count: data.participants ?? 2,
+  };
 
-    // Payloads progressifs : on élargit le fallback si le schéma Lovable est incomplet
-    const fullPayload: Record<string, unknown> = {
+  let trip;
+  if (wantsStar) {
+    // Pour les voyages nécessitant une Star (EVG, EVJF, Anniversaire, Retraite) :
+    // On s'assure que celebrated_person et has_star sont TOUJOURS présents dans les fallbacks
+    // et qu'on ne masque pas les erreurs en tombant sur un payload sans Star.
+    const starMidPayload: Record<string, unknown> = {
+      ...midPayload,
+      has_star: true,
+    };
+    const starMinimalPayload: Record<string, unknown> = {
       owner_id: userId,
       name: data.name,
       event_type: data.eventType,
       celebrated_person: data.celebratedPerson ?? null,
-      start_date: data.startDate ?? null,
-      end_date: data.endDate ?? null,
-      participants_count: data.participants,
-      budget_per_person: data.budgetPerPerson ?? 400,
-      departure_city: data.departureCity || "Paris",
-      status: "en_preparation",
-      has_star: wantsStar,
-    };
-    const midPayload: Record<string, unknown> = {
-      owner_id: userId,
-      name: data.name,
-      event_type: data.eventType,
-      celebrated_person: data.celebratedPerson ?? null,
-      participants_count: data.participants,
-      budget_per_person: data.budgetPerPerson ?? 400,
-      departure_city: data.departureCity || "Paris",
-      status: "en_preparation",
-    };
-    const minimalPayload: Record<string, unknown> = {
-      owner_id: userId,
-      name: data.name,
-      event_type: data.eventType,
       participants_count: data.participants ?? 2,
+      has_star: true,
     };
 
-    let trip = await supabase.from("trips").insert(fullPayload as any).select("*").single();
+    trip = await supabase.from("trips").insert(fullPayload as any).select("*").single();
     if (trip.error) {
+      console.error("createTrip [Star Type] fullPayload failed:", trip.error);
+      trip = await supabase.from("trips").insert(starMidPayload as any).select("*").single();
+    }
+    if (trip.error) {
+      console.error("createTrip [Star Type] starMidPayload failed:", trip.error);
+      trip = await supabase.from("trips").insert(starMinimalPayload as any).select("*").single();
+    }
+    if (trip.error) {
+      console.error("createTrip [Star Type] starMinimalPayload failed:", trip.error);
+      throw new Error(
+        `Création voyage impossible (type Star): ${trip.error.message || JSON.stringify(trip.error)}. ` +
+          "Vérifie le SQL trips (RLS insert + colonnes) dans Supabase.",
+      );
+    }
+  } else {
+    // Comportement hérité pour les voyages sans Star (Défaut / Weekend / etc.)
+    trip = await supabase.from("trips").insert(fullPayload as any).select("*").single();
+    if (trip.error) {
+      console.warn("createTrip fullPayload failed:", trip.error);
       trip = await supabase.from("trips").insert(midPayload as any).select("*").single();
     }
     if (trip.error) {
+      console.warn("createTrip midPayload failed:", trip.error);
       trip = await supabase.from("trips").insert(minimalPayload as any).select("*").single();
     }
     if (trip.error) {
+      console.error("createTrip minimalPayload failed:", trip.error);
       throw new Error(
         `Création voyage impossible: ${trip.error.message || JSON.stringify(trip.error)}. ` +
           "Vérifie le SQL trips (RLS insert + colonnes) dans Supabase.",
       );
     }
-    if (!trip.data?.id) {
-      throw new Error("Création voyage impossible: aucune donnée retournée");
-    }
+  }
+  if (!trip.data?.id) {
+    throw new Error("Création voyage impossible: aucune donnée retournée");
+  }
 
-    const prefs = await supabase.from("trip_preferences").insert({
-      trip_id: trip.data.id,
-      average_age: data.averageAge ?? null,
-      relation: data.relation ?? null,
-      ambiances: data.ambiances ?? [],
-      activity_categories: data.activityCategories ?? [],
-      desired_destination: data.desiredDestination ?? null,
-      let_krew_decide: data.letKrewDecide ?? true,
-      max_distance_km: data.maxDistanceKm ?? null,
-      excluded_countries: data.excludedCountries ?? [],
-      duration_nights: data.durationNights ?? 2,
-      max_budget: data.maxBudget ?? null,
-      needs_city_center: data.needsCityCenter ?? false,
-      mobility_notes: data.mobilityNotes ?? null,
-      dietary_constraints: data.dietaryConstraints ?? [],
-      availability_notes: data.availabilityNotes ?? null,
-    });
-    // Ne pas annuler le voyage si la table prefs est absente / partielle
-    if (prefs.error) {
-      console.error("trip_preferences insert skipped", prefs.error.message);
-    }
+  const prefs = await supabase.from("trip_preferences").insert({
+    trip_id: trip.data.id,
+    average_age: data.averageAge ?? null,
+    relation: data.relation ?? null,
+    ambiances: data.ambiances ?? [],
+    activity_categories: data.activityCategories ?? [],
+    desired_destination: data.desiredDestination ?? null,
+    let_krew_decide: data.letKrewDecide ?? true,
+    max_distance_km: data.maxDistanceKm ?? null,
+    excluded_countries: data.excludedCountries ?? [],
+    duration_nights: data.durationNights ?? 2,
+    max_budget: data.maxBudget ?? null,
+    needs_city_center: data.needsCityCenter ?? false,
+    mobility_notes: data.mobilityNotes ?? null,
+    dietary_constraints: data.dietaryConstraints ?? [],
+    availability_notes: data.availabilityNotes ?? null,
+  });
+  // Ne pas annuler le voyage si la table prefs est absente / partielle
+  if (prefs.error) {
+    console.error("trip_preferences insert skipped", prefs.error.message);
+  }
 
-    const organizerName = (data as any).organizerFirstName
-      ? String((data as any).organizerFirstName).trim()
-      : null;
+  const organizerName = data.organizerFirstName
+    ? String(data.organizerFirstName).trim()
+    : null;
 
-    const partInsert = await supabase.from("trip_participants").insert({
+  const partInsert = await supabase.from("trip_participants").insert({
+    trip_id: trip.data.id,
+    user_id: userId,
+    email: email,
+    display_name: organizerName,
+    role: "organisateur",
+    status: "accepte",
+  });
+  if (partInsert.error) {
+    // Fallback sans rôle custom si contrainte DB
+    const retry = await supabase.from("trip_participants").insert({
       trip_id: trip.data.id,
       user_id: userId,
-      email: (context.claims.email as string | undefined) ?? "",
+      email: email,
       display_name: organizerName,
-      role: "organisateur",
       status: "accepte",
     });
-    if (partInsert.error) {
-      // Fallback sans rôle custom si contrainte DB
-      const retry = await supabase.from("trip_participants").insert({
-        trip_id: trip.data.id,
-        user_id: userId,
-        email: (context.claims.email as string | undefined) ?? "",
-        display_name: organizerName,
-        status: "accepte",
-      });
-      if (retry.error) {
-        console.error("trip_participants insert failed", retry.error);
-        // Le voyage existe déjà : on ne bloque pas, l'owner reste identifiable via owner_id
-      }
+    if (retry.error) {
+      console.error("trip_participants insert failed", retry.error);
+      // Le voyage existe déjà : on ne bloque pas, l'owner reste identifiable via owner_id
     }
+  }
 
-    // Optionnel : synchronise le prénom sur le profil
-    if (organizerName) {
-      try {
-        await supabase
-          .from("profiles")
-          .upsert(
-            { id: userId, full_name: organizerName, updated_at: new Date().toISOString() },
-            { onConflict: "id" },
-          );
-      } catch {
-        /* ignore */
-      }
+  // Optionnel : synchronise le prénom sur le profil
+  if (organizerName) {
+    try {
+      await supabase
+        .from("profiles")
+        .upsert(
+          { id: userId, full_name: organizerName, updated_at: new Date().toISOString() },
+          { onConflict: "id" },
+        );
+    } catch {
+      /* ignore */
     }
+  }
 
-    return { tripId: trip.data.id as string };
+  return { tripId: trip.data.id as string };
+}
+
+export const createTrip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => tripInputSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const email = (context.claims.email as string | undefined) ?? "";
+    return createTripHelper(supabase, userId, email, data);
   });
 
 export const generateRecommendations = createServerFn({ method: "POST" })

@@ -89,7 +89,7 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id, co_organizer_id, celebrated_person, group_logistics")
+      .select("id, owner_id, co_organizer_id, celebrated_person, group_logistics, star_user_id")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -120,10 +120,14 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
       .eq("trip_id", data.tripId)
       .maybeSingle();
 
+    const isActualStar = trip.data.star_user_id === userId;
     const payload = {
       trip_id: data.tripId,
       filled_by: userId,
-      user_id: userId,
+      // Si la personne qui remplit le questionnaire n'est pas la Star elle-même,
+      // on enregistre le star_user_id (ou null s'il s'agit d'une Star virtuelle)
+      // pour éviter de lier les préférences de la Star au compte de l'organisateur.
+      user_id: isActualStar ? userId : (trip.data.star_user_id || null),
       wanted_activities: data.wantedActivities,
       deal_breakers: data.dealBreakers,
       ambiances: data.ambiances,

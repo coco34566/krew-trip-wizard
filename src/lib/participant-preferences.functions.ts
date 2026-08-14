@@ -415,7 +415,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
 
 export async function getParticipantsProgressHelper(supabase: any, tripId: string) {
   const [tripRes, participants, preferences, availabilities, starPrefs] = await Promise.all([
-    supabase.from("trips").select("participants_count, celebrated_person, has_star, star_user_id").eq("id", tripId).maybeSingle(),
+    supabase.from("trips").select("participants_count, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id").eq("id", tripId).maybeSingle(),
     supabase
       .from("trip_participants")
       .select("id, user_id, email, display_name, status")
@@ -455,9 +455,12 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
 
   // Try to find the star in the participants list
   let starParticipant = null;
+  const ownerId = tripRes.data?.owner_id || null;
+  const coOrganizerId = (tripRes.data as any)?.co_organizer_id || null;
   if (celebratedPerson) {
     const normalizedCelebrated = celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
     for (const p of activeParticipants) {
+      const isOwner = p.user_id && (p.user_id === ownerId || p.user_id === coOrganizerId);
       if (tripRes.data?.star_user_id && p.user_id === tripRes.data.star_user_id) {
         starParticipant = p;
         break;
@@ -467,7 +470,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
         .replace(/\p{M}/gu, "")
         .toLowerCase()
         .trim();
-      if (name && (name === normalizedCelebrated || name.includes(normalizedCelebrated) || normalizedCelebrated.includes(name))) {
+      if (!isOwner && name && (name === normalizedCelebrated || name.includes(normalizedCelebrated) || normalizedCelebrated.includes(name))) {
         starParticipant = p;
         break;
       }
