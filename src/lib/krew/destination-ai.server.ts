@@ -7,7 +7,7 @@
  * 2) Sinon OpenAI / Groq / xAI si cles presentes
  * 3) Sinon caller → scoring local
  *
- * Anti-tokens : JSON compact, max_tokens 280, cache 6h.
+ * Anti-tokens : JSON compact, max_tokens 700, cache 6h.
  */
 
 import { reportServerError } from "@/lib/server-error-reporting.server";
@@ -50,7 +50,9 @@ Réponds UNIQUEMENT en JSON valide:
 {"cities":[{"name":"Ville","country":"Pays","why":"motif court","cost":70,"km":1200,"months":[5,6,9]}]}
 
 Règles de sélection strictes :
-- Propose 6 à 8 villes max, réalistes pour le budget total et la distance maximale.
+- Propose 8 à 10 villes max, réalistes pour le budget total et la distance maximale. La liste doit être suffisamment large pour permettre au moteur déterministe de retenir plusieurs options.
+- Ne te limite pas aux capitales ou aux destinations les plus connues : propose aussi des villes secondaires, régions de charme ou destinations originales lorsque les critères du groupe s'y prêtent.
+- Recherche une vraie diversité de profils : au moins 2 options urbaines/culturelles, 2 options nature/expérience ou littoral lorsque compatibles, et 2 options plus originales/hors des sentiers battus lorsque compatibles.
 - Intègre l'âge du groupe (18-25/25-35: axer sur ambiance festive, activités de soirées, bon rapport qualité/prix; 45-60+: axer sur le confort, culture, gastronomie, détente).
 - Respecte impérativement le cadre géographique recherché ("env": ex. si "Nature / pleine nature" ou "Village de charme" est demandé, propose des destinations rurales/naturelles/villages et pas uniquement des grandes métropoles).
 - Respecte les contraintes dures : pas d'avion si "noPlane" est vrai, respecte la distance max "maxKm", et respecte le temps de trajet maximal "maxH".
@@ -59,7 +61,8 @@ Règles de sélection strictes :
 - cost = estimation du coût journalier moyen sur place par personne (€, hébergement + repas, hors transport long-courrier).
 - km = distance approximative depuis la ville de départ.
 - months = liste de 2 à 3 mois idéaux (de 1 à 12).
-- why = justification courte en français de moins de 8 mots.`;
+- why = justification courte en français de moins de 8 mots.
+- Une destination souhaitée par le groupe peut être incluse et valorisée, mais elle ne doit jamais rendre les autres propositions exclusives lorsque KREW est autorisé à décider.`;
 
 type LlmConfig = {
   apiKey: string;
@@ -69,7 +72,6 @@ type LlmConfig = {
 };
 
 function getLlmConfig(): LlmConfig | null {
-  // 1) Lovable AI natif (Cloud)
   const lovableKey = process.env["LOVABLE_API_KEY"];
   if (lovableKey) {
     return {
@@ -85,7 +87,6 @@ function getLlmConfig(): LlmConfig | null {
     };
   }
 
-  // 2) Providers externes (optionnel)
   if (process.env["GROQ_API_KEY"]) {
     return {
       apiKey: process.env["GROQ_API_KEY"],
@@ -142,24 +143,24 @@ const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 
 function compactUser(input: AiDiscoveryInput): string {
   const o: Record<string, unknown> = {
-    "event": (input.eventType || "groupe").slice(0, 20),
-    "n": input.participants,
-    "nights": input.nights,
-    "budget": Math.round(input.budgetPerPerson),
-    "from": (input.departureCity || "Paris").slice(0, 24),
-    "maxKm": Math.round(input.maxDistanceKm),
-    "month": input.startMonth,
+    event: (input.eventType || "groupe").slice(0, 20),
+    n: input.participants,
+    nights: input.nights,
+    budget: Math.round(input.budgetPerPerson),
+    from: (input.departureCity || "Paris").slice(0, 24),
+    maxKm: Math.round(input.maxDistanceKm),
+    month: input.startMonth,
   };
-  if (input.ambiances?.length) o["vibe"] = input.ambiances.slice(0, 5);
-  if (input.activityCategories?.length) o["acts"] = input.activityCategories.slice(0, 6);
-  if (input.excludedCountries?.length) o["no"] = input.excludedCountries.slice(0, 6);
-  if (input.planeRefused) o["noPlane"] = true;
-  if (input.maxTravelHours) o["maxH"] = input.maxTravelHours;
-  if (input.starWanted?.length) o["star"] = input.starWanted.slice(0, 4);
-  if (input.starDealBreakers?.length) o["starNo"] = input.starDealBreakers.slice(0, 4);
-  if (input.wantedEnvTypes?.length) o["env"] = input.wantedEnvTypes.slice(0, 4);
-  if (input.starWantedEnvType) o["starEnv"] = input.starWantedEnvType;
-  if (input.groupAgeRange) o["age"] = input.groupAgeRange;
+  if (input.ambiances?.length) o.vibe = input.ambiances.slice(0, 5);
+  if (input.activityCategories?.length) o.acts = input.activityCategories.slice(0, 6);
+  if (input.excludedCountries?.length) o.no = input.excludedCountries.slice(0, 6);
+  if (input.planeRefused) o.noPlane = true;
+  if (input.maxTravelHours) o.maxH = input.maxTravelHours;
+  if (input.starWanted?.length) o.star = input.starWanted.slice(0, 4);
+  if (input.starDealBreakers?.length) o.starNo = input.starDealBreakers.slice(0, 4);
+  if (input.wantedEnvTypes?.length) o.env = input.wantedEnvTypes.slice(0, 4);
+  if (input.starWantedEnvType) o.starEnv = input.starWantedEnvType;
+  if (input.groupAgeRange) o.age = input.groupAgeRange;
   return JSON.stringify(o);
 }
 
@@ -188,7 +189,7 @@ function parseCities(raw: string): AiCandidate[] {
           : [];
         const candidate: any = {
           name: String(c.name || "").trim(),
-          affinity: Math.max(10, 100 - i * 8),
+          affinity: Math.max(10, 100 - i * 6),
           reason: String(c.why || "suggéré par Krew IA").slice(0, 80),
         };
         if (c.country) candidate.country = String(c.country).trim();
@@ -198,15 +199,12 @@ function parseCities(raw: string): AiCandidate[] {
         return candidate as AiCandidate;
       })
       .filter((c) => c.name.length >= 2)
-      .slice(0, 8);
+      .slice(0, 10);
   } catch {
     return [];
   }
 }
 
-/**
- * Shortlist IA — Lovable AI en premier.
- */
 export async function discoverDestinationsWithAi(
   input: AiDiscoveryInput,
 ): Promise<{
@@ -237,7 +235,7 @@ export async function discoverDestinationsWithAi(
       body: JSON.stringify({
         model: cfg.model,
         temperature: 0.4,
-        max_tokens: 520,
+        max_tokens: 700,
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: user },
