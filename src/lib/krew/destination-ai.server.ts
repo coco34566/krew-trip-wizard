@@ -1,7 +1,7 @@
 import { reportServerError } from "@/lib/server-error-reporting.server";
 
 /**
- * IA de découverte : AIMLAPI en priorité, puis anciens providers en fallback.
+ * IA de découverte : AIMLAPI en priorité, OpenAI en fallback.
  * L'IA explore largement les possibilités ; le moteur KREW reste responsable
  * des contraintes dures, du scoring final et de la diversification.
  */
@@ -73,28 +73,29 @@ Règles de découverte :
 
 Qualité attendue : la liste doit être réellement influencée par le profil du groupe. Deux groupes avec des préférences très différentes doivent obtenir des listes sensiblement différentes.`;
 
-type LlmConfig = { apiKey: string; baseUrl: string; model: string; provider: "aimlapi" | "lovable" | "groq" | "xai" | "openai" };
+type LlmConfig = { apiKey: string; baseUrl: string; model: string; provider: "aimlapi" | "openai" };
 
-function getLlmConfig(): LlmConfig | null {
-  const key = process.env["AIMLAPI_API_KEY"];
-  if (key) return {
-    apiKey: key,
-    baseUrl: (process.env["AIMLAPI_BASE_URL"] || "https://api.aimlapi.com/v1").replace(/\/$/, ""),
-    model: process.env["AIMLAPI_MODEL"] || "google/gemini-2.5-flash",
-    provider: "aimlapi",
-  };
-
-  const lovableKey = process.env["LOVABLE_API_KEY"];
-  if (lovableKey) return {
-    apiKey: lovableKey,
-    baseUrl: (process.env["LOVABLE_AI_BASE_URL"] || "https://ai.gateway.lovable.dev/v1").replace(/\/$/, ""),
-    model: process.env["LLM_DISCOVERY_MODEL"] || process.env["LOVABLE_AI_MODEL"] || "google/gemini-2.5-flash",
-    provider: "lovable",
-  };
-  if (process.env["GROQ_API_KEY"]) return { apiKey: process.env["GROQ_API_KEY"], baseUrl: "https://api.groq.com/openai/v1", model: process.env["LLM_DISCOVERY_MODEL"] || "llama-3.1-8b-instant", provider: "groq" };
-  if (process.env["XAI_API_KEY"]) return { apiKey: process.env["XAI_API_KEY"], baseUrl: "https://api.x.ai/v1", model: process.env["LLM_DISCOVERY_MODEL"] || "grok-2-latest", provider: "xai" };
-  if (process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"]) return { apiKey: (process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"]) as string, baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(/\/$/, ""), model: process.env["LLM_DISCOVERY_MODEL"] || process.env["LLM_RATIONALE_MODEL"] || "gpt-4o-mini", provider: "openai" };
-  return null;
+function getLlmConfigs(): LlmConfig[] {
+  const configs: LlmConfig[] = [];
+  const aimlapiKey = process.env["AIMLAPI_API_KEY"];
+  if (aimlapiKey) {
+    configs.push({
+      apiKey: aimlapiKey,
+      baseUrl: (process.env["AIMLAPI_BASE_URL"] || "https://api.aimlapi.com/v1").replace(/\/$/, ""),
+      model: process.env["AIMLAPI_MODEL"] || "google/gemini-2.5-flash",
+      provider: "aimlapi",
+    });
+  }
+  const openaiKey = process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"];
+  if (openaiKey) {
+    configs.push({
+      apiKey: openaiKey,
+      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(/\/$/, ""),
+      model: process.env["LLM_DISCOVERY_MODEL"] || "gpt-4o-mini",
+      provider: "openai",
+    });
+  }
+  return configs;
 }
 
 function fingerprint(input: AiDiscoveryInput): string {
@@ -151,7 +152,6 @@ function compactUser(input: AiDiscoveryInput): string {
       scoringWeights: input.scoringSignals.scoringWeights ?? null,
       hardConstraints: input.scoringSignals.hardConstraints ?? null,
       softPreferences: input.scoringSignals.softPreferences ?? null,
-      // Toutes les préférences individuelles disponibles : aucune troncature volontaire.
       individualPreferences: input.scoringSignals.individualPreferences ?? [],
     };
   }
@@ -185,37 +185,47 @@ function parseCities(raw: string): AiCandidate[] {
 }
 
 export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promise<{ cities: AiCandidate[]; usedLlm: boolean; provider?: string; error?: string; cached?: boolean }> {
-  const cfg = getLlmConfig();
-  if (!cfg) return { cities: [], usedLlm: false, error: "no_llm_key" };
+  const configs = getLlmConfigs();
+  if (!configs.length) return { cities: [], usedLlm: false, error: "no_llm_key" };
   const fp = fingerprint(input);
   const hit = cache.get(fp);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return { cities: hit.cities, usedLlm: true, provider: cfg.provider, cached: true };
-  try {
-    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: cfg.model,
-        temperature: 0.55,
-        max_tokens: 5000,
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: compactUser(input) },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      reportServerError(new Error(`LLM HTTP ${res.status}: ${errText.slice(0, 160)}`), { provider: cfg.provider, kind: "destination-ai", departureCity: input.departureCity });
-      return { cities: [], usedLlm: false, provider: cfg.provider, error: `llm_http_${res.status}:${errText.slice(0, 160)}` };
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return { cities: hit.cities, usedLlm: true, provider: configs[0].provider, cached: true };
+
+  let lastError = "";
+  for (const cfg of configs) {
+    try {
+      const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: cfg.model,
+          temperature: 0.55,
+          max_tokens: 5000,
+          messages: [
+            { role: "system", content: SYSTEM },
+            { role: "user", content: compactUser(input) },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        lastError = `llm_http_${res.status}:${errText.slice(0, 160)}`;
+        reportServerError(new Error(lastError), { provider: cfg.provider, kind: "destination-ai", departureCity: input.departureCity });
+        continue;
+      }
+      const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+      const cities = parseCities(json.choices?.[0]?.message?.content ?? "");
+      if (!cities.length) {
+        lastError = "llm_empty_parse";
+        reportServerError(new Error(lastError), { provider: cfg.provider, kind: "destination-ai", departureCity: input.departureCity });
+        continue;
+      }
+      cache.set(fp, { at: Date.now(), cities });
+      return { cities, usedLlm: true, provider: cfg.provider };
+    } catch (e) {
+      lastError = String(e).slice(0, 160);
+      reportServerError(e, { provider: cfg.provider, kind: "destination-ai", departureCity: input.departureCity });
     }
-    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const cities = parseCities(json.choices?.[0]?.message?.content ?? "");
-    if (!cities.length) return { cities: [], usedLlm: false, provider: cfg.provider, error: "llm_empty_parse" };
-    cache.set(fp, { at: Date.now(), cities });
-    return { cities, usedLlm: true, provider: cfg.provider };
-  } catch (e) {
-    reportServerError(e, { provider: cfg.provider, kind: "destination-ai", departureCity: input.departureCity });
-    return { cities: [], usedLlm: false, provider: cfg.provider, error: String(e).slice(0, 160) };
   }
+  return { cities: [], usedLlm: false, provider: configs[0].provider, error: lastError || "llm_failed" };
 }
