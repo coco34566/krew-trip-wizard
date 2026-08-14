@@ -65,6 +65,10 @@ export type ActivityAiInput = {
     arrival?: string | null;
     departure?: string | null;
   }[];
+  individualPreferences?: any[];
+  groupAgeRange?: string | null;
+  starWantedEnvType?: string | null;
+  wantedEnvTypes?: string[];
 };
 
 
@@ -72,44 +76,26 @@ type LlmConfig = {
   apiKey: string;
   baseUrl: string;
   model: string;
+  provider: "aimlapi" | "openai";
 };
 
 function getLlmConfig(): LlmConfig | null {
-  if (process.env["LOVABLE_API_KEY"]) {
+  const aimlapiKey = process.env["AIMLAPI_API_KEY"];
+  if (aimlapiKey) {
     return {
-      apiKey: process.env["LOVABLE_API_KEY"],
-      baseUrl: (process.env["LOVABLE_AI_BASE_URL"] || "https://ai.gateway.lovable.dev/v1").replace(
-        /\/$/,
-        "",
-      ),
-      model:
-        process.env["LLM_DISCOVERY_MODEL"] ||
-        process.env["LOVABLE_AI_MODEL"] ||
-        "google/gemini-2.5-flash",
+      apiKey: aimlapiKey,
+      baseUrl: (process.env["AIMLAPI_BASE_URL"] || "https://api.aimlapi.com/v1").replace(/\/$/, ""),
+      model: process.env["AIMLAPI_MODEL"] || "google/gemini-2.5-flash",
+      provider: "aimlapi",
     };
   }
-  if (process.env["GROQ_API_KEY"]) {
+  const openaiKey = process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"];
+  if (openaiKey) {
     return {
-      apiKey: process.env["GROQ_API_KEY"],
-      baseUrl: "https://api.groq.com/openai/v1",
-      model: process.env["LLM_DISCOVERY_MODEL"] || "llama-3.1-8b-instant",
-    };
-  }
-  if (process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"]) {
-    return {
-      apiKey: (process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"]) as string,
-      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(
-        /\/$/,
-        "",
-      ),
+      apiKey: openaiKey,
+      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(/\/$/, ""),
       model: process.env["LLM_DISCOVERY_MODEL"] || "gpt-4o-mini",
-    };
-  }
-  if (process.env["XAI_API_KEY"]) {
-    return {
-      apiKey: process.env["XAI_API_KEY"],
-      baseUrl: "https://api.x.ai/v1",
-      model: process.env["LLM_DISCOVERY_MODEL"] || "grok-2-latest",
+      provider: "openai",
     };
   }
   return null;
@@ -176,6 +162,18 @@ function compactCtx(input: ActivityAiInput): Record<string, unknown> {
   if (input.earliestGroupDeparture) o["departAfter"] = input.earliestGroupDeparture;
   if (input.transportPicksSummary?.length) {
     o["transports"] = input.transportPicksSummary.slice(0, 8);
+  }
+  if (input.groupAgeRange) o["ageRange"] = input.groupAgeRange;
+  if (input.starWantedEnvType) o["starEnv"] = input.starWantedEnvType;
+  if (input.wantedEnvTypes?.length) o["envTypes"] = input.wantedEnvTypes;
+  if (input.individualPreferences?.length) {
+    o["individualPrefs"] = input.individualPreferences.map(p => ({
+      isStar: p.isStar,
+      ambiances: p.ambiances,
+      activityCategories: p.activityCategories,
+      budgetMax: p.budgetMax,
+      wantedEnvType: p.wantedEnvType,
+    }));
   }
   return o;
 

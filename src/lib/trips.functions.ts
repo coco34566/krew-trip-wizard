@@ -1679,7 +1679,10 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           arrival: p.arrivalTime || p.time,
           departure: p.departureTime,
         })),
-
+        individualPreferences: aggregated.individualPreferences,
+        groupAgeRange: aggregated.groupAgeRange,
+        starWantedEnvType: aggregated.starWantedEnvType,
+        wantedEnvTypes: aggregated.wantedEnvTypes,
       },
       seedLabels,
     );
@@ -2170,7 +2173,9 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       estimatedRoomsNeeded = acceptsShared ? Math.ceil(totalGroupParticipants / 4) : Math.ceil(totalGroupParticipants / 2);
     }
 
-    // Embed bedding config into each hotel card
+    const { generateAccommodationConfigurations } = await import("@/lib/krew/engine");
+
+    // Embed bedding config and full configurations comparison into each hotel card
     const scoredHotelsWithBedding = hotels.map(h => {
       const isEntireLodging = /maison|villa|appartement|chalet|gite|gîte|apartment|house/i.test(h.type + h.name);
       const beddingInfo = {
@@ -2182,9 +2187,55 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           ? `Logement entier pour le groupe (${totalGroupParticipants} pers.) — environ ${estimatedRoomsNeeded} chambres requises.`
           : `Configuration chambres d'hôtel — environ ${estimatedRoomsNeeded} chambres de type ${roomTypePref} nécessaires.`,
       };
+
+      let dbRow = matchedHotels.find((x: any) => String(x.id) === h.id);
+      if (!dbRow) {
+        // Mock dbRow for generic portal seeds to allow configuration comparison
+        dbRow = {
+          id: h.id,
+          destination_id: destId,
+          name: h.name,
+          type: h.type,
+          price_per_night_per_person: h.pricePerNight,
+          capacity: h.id.includes("villa") || h.id.includes("airbnb") || h.id.includes("maison") ? totalGroupParticipants : 2,
+          rating: h.rating,
+          distance_center_km: h.distanceCenterKm ?? 2.0,
+          description: h.name,
+          image_url: null,
+        } as any;
+      }
+
+      const configs = generateAccommodationConfigurations(
+        [dbRow!],
+        totalGroupParticipants,
+        nights,
+        dest,
+        aggregated.groupAgeRange
+      );
+
       return {
         ...h,
         beddingInfo,
+        configs: configs.map(c => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          unitsCount: c.unitsCount,
+          capacityPerUnit: c.capacityPerUnit,
+          totalCapacity: c.totalCapacity,
+          bedrooms: c.bedrooms,
+          beds: c.beds,
+          bathrooms: c.bathrooms,
+          priceBase: c.priceBase,
+          cleaningFee: c.cleaningFee,
+          serviceFee: c.serviceFee,
+          taxes: c.taxes,
+          totalCost: c.totalCost,
+          pricePerPerson: c.pricePerPerson,
+          pricePerPersonPerNight: c.pricePerPersonPerNight,
+          explanation: c.explanation,
+          category: c.category,
+        })),
       };
     });
 
@@ -2478,6 +2529,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
       let flightApiPrice: number | null = null;
       let flightApiUrl: string | null = null;
+      let flightOutsideWindow = false;
       const isFlightAllowed = !planeRefused && (!hasModeFilter || acceptedModes.some(m => m.includes("avion") || m.includes("flight")));
 
       if (isFlightAllowed && distanceKm >= 250) {
@@ -2489,10 +2541,15 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             returnDate: checkout,
             adults: Math.min(Math.max(1, group.participants.length), 9),
             distanceKm,
+            earliestDepartureTime: group.earliestDepartureTime,
+            latestArrivalTime: group.latestArrivalTime,
+            earliestReturnDepartureTime: group.earliestReturnDepartureTime,
+            latestReturnTime: group.latestReturnTime,
           });
           if (apiQuote?.pricePerPerson > 0) {
             flightApiPrice = apiQuote.pricePerPerson;
             flightApiUrl = apiQuote.url ?? null;
+            flightOutsideWindow = !!apiQuote.outsideTimeWindow;
           }
         } catch (e) {
           providerErrors.push(`transport ${from}: ${String(e).slice(0, 80)}`);
@@ -2553,7 +2610,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             pricePerPerson: price,
             durationHours: duration,
             respectedConstraints,
-          },
+            outsideTimeWindow: m.mode === "flight" ? flightOutsideWindow : false,
+          } as any,
           budget,
           group.maxTravelDurationHours
         );

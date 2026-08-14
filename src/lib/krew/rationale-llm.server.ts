@@ -67,39 +67,27 @@ function getLlmConfig(): {
   apiKey: string;
   baseUrl: string;
   model: string;
+  provider: "aimlapi" | "openai";
 } | null {
-  // Lovable AI natif d'abord
-  if (process.env["LOVABLE_API_KEY"]) {
+  const aimlapiKey = process.env["AIMLAPI_API_KEY"];
+  if (aimlapiKey) {
     return {
-      apiKey: process.env["LOVABLE_API_KEY"],
-      baseUrl: (process.env["LOVABLE_AI_BASE_URL"] || "https://ai.gateway.lovable.dev/v1").replace(
-        /\/$/,
-        "",
-      ),
-      model:
-        process.env["LLM_RATIONALE_MODEL"] ||
-        process.env["LOVABLE_AI_MODEL"] ||
-        "google/gemini-2.5-flash",
+      apiKey: aimlapiKey,
+      baseUrl: (process.env["AIMLAPI_BASE_URL"] || "https://api.aimlapi.com/v1").replace(/\/$/, ""),
+      model: process.env["AIMLAPI_RATIONALE_MODEL"] || process.env["AIMLAPI_MODEL"] || "google/gemini-2.5-flash",
+      provider: "aimlapi",
     };
   }
-  const apiKey =
-    process.env["OPENAI_API_KEY"] ||
-    process.env["GROQ_API_KEY"] ||
-    process.env["XAI_API_KEY"] ||
-    process.env["LLM_API_KEY"];
-  if (!apiKey) return null;
-  const baseUrl = (
-    process.env["LLM_RATIONALE_BASE_URL"] ||
-    (process.env["GROQ_API_KEY"] ? "https://api.groq.com/openai/v1" : null) ||
-    (process.env["XAI_API_KEY"] ? "https://api.x.ai/v1" : null) ||
-    "https://api.openai.com/v1"
-  ).replace(/\/$/, "");
-  const model =
-    process.env["LLM_RATIONALE_MODEL"] ||
-    (process.env["GROQ_API_KEY"] ? "llama-3.1-8b-instant" : null) ||
-    (process.env["XAI_API_KEY"] ? "grok-2-latest" : null) ||
-    "gpt-4o-mini";
-  return { apiKey, baseUrl, model };
+  const openaiKey = process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"];
+  if (openaiKey) {
+    return {
+      apiKey: openaiKey,
+      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(/\/$/, ""),
+      model: process.env["LLM_RATIONALE_MODEL"] || "gpt-4o-mini",
+      provider: "openai",
+    };
+  }
+  return null;
 }
 
 /**

@@ -1495,6 +1495,27 @@ function TripDetail() {
                           </a>
                         ))}
                     </div>
+                    {h.configs && h.configs.length > 0 && (
+                      <div className="mt-4 space-y-2 border-t border-border/40 pt-3">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+                          Configurations de couchage recommandées :
+                        </p>
+                        <div className="space-y-2">
+                          {h.configs.map((c: any) => (
+                            <div key={c.id} className="text-xs bg-muted/40 rounded-xl p-2.5 border border-border/40">
+                              <div className="flex items-center justify-between font-medium">
+                                <span>{c.name}</span>
+                                <span className="text-primary">{formatEuro(c.pricePerPerson)} / pers.</span>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                🛌 {c.bedrooms} ch. · 🛌 {c.beds} lits · 🚿 {c.bathrooms} SDB · Total : {formatEuro(c.totalCost)} (frais inclus)
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-1 italic leading-snug">{c.explanation}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </article>
                 );
               })}

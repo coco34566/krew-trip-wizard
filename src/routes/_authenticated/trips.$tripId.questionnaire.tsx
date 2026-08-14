@@ -129,6 +129,7 @@ function ParticipantQuestionnaire() {
 
   const [groupAgeRange, setGroupAgeRange] = useState<string>("");
   const [wantedEnvTypes, setWantedEnvTypes] = useState<string[]>([]);
+  const [weatherPreference, setWeatherPreference] = useState<number>(1);
 
   useEffect(() => {
     fetchMine({ data: { tripId } })
@@ -143,6 +144,7 @@ function ParticipantQuestionnaire() {
           );
           setGroupAgeRange((preferences as any).group_age_range ?? "");
           setWantedEnvTypes((preferences as any).wanted_env_type ? (preferences as any).wanted_env_type.split(", ") : []);
+          setWeatherPreference(preferences.weather_preference ?? 1);
           setAmbiances(preferences.ambiances ?? []);
           setDealBreakerAmbiances((preferences as any).deal_breaker_ambiances ?? []);
           setDepartureAirportOrStation((preferences as any).departure_airport_or_station ?? "");
@@ -246,6 +248,7 @@ function ParticipantQuestionnaire() {
           preferredTimeSlots,
           groupAgeRange: groupAgeRange || undefined,
           wantedEnvType: wantedEnvTypes.join(", ") || undefined,
+          weatherPreference,
         },
       });
       setIsEditing(true);
@@ -532,6 +535,30 @@ function ParticipantQuestionnaire() {
                 >
                   {env.label}
                 </Chip>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2 pt-2 border-t border-border/40">
+            <Label className="font-semibold block text-sm">Quelle importance accordes-tu à la météo pour ce voyage ?</Label>
+            <div className="flex flex-col gap-2">
+              {[
+                { v: 2, label: "☀️ Je veux privilégier une destination avec de bonnes chances de beau temps" },
+                { v: 1, label: "🌤️ C’est un plus, mais ce n’est pas déterminant" },
+                { v: 0, label: "🌍 La météo n’est pas un critère pour moi" }
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => setWeatherPreference(opt.v)}
+                  className={cn(
+                    "rounded-xl border px-4 py-2.5 text-left text-sm transition-colors cursor-pointer",
+                    weatherPreference === opt.v
+                      ? "border-primary bg-primary/15 text-foreground shadow-glow"
+                      : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
+                  )}
+                >
+                  {opt.label}
+                </button>
               ))}
             </div>
           </div>
