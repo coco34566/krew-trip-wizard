@@ -70,8 +70,8 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
 
   const paymentStatus = useMemo(() => {
     if (!payments || payments.length === 0) return "unpaid";
-    if (payments.some((p) => p.status === "paid")) return "paid";
-    if (payments.some((p) => p.status === "pending")) return "pending";
+    if (payments.some((p: any) => p.status === "paid")) return "paid";
+    if (payments.some((p: any) => p.status === "pending")) return "pending";
     return "unpaid";
   }, [payments]);
 

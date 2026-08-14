@@ -476,7 +476,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
       }
     }
   } else if (tripRes.data?.star_user_id) {
-    starParticipant = activeParticipants.find(p => p.user_id === tripRes.data.star_user_id) || null;
+    starParticipant = activeParticipants.find((p: any) => p.user_id === tripRes.data.star_user_id) || null;
   }
 
   // Resolve starUid safely (never use the form-filler's user ID, e.g. organizer, unless it's the actual star)
@@ -510,6 +510,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
 
     partsList.push({
       ...p,
+      display_name: isStar && celebratedPerson ? celebratedPerson : (p.display_name ?? p.email?.split("@")[0] ?? "Participant"),
       isStar,
       hasAnswered,
       hasAnsweredAvailability,

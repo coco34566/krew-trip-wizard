@@ -484,7 +484,7 @@ export const inviteParticipant = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    return inviteParticipantHelper(supabase, userId, data);
+    return inviteParticipantHelper(supabase, userId, data as any);
   });
 
 export const removeParticipant = createServerFn({ method: "POST" })

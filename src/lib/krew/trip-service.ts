@@ -711,7 +711,7 @@ export async function assessGenerationReadiness(
   const [trip, participants, prefs, avail, starPrefsRes] = await Promise.all([
     supabase
       .from("trips")
-      .select("participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date, celebrated_person, has_star, star_user_id")
+      .select("participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id")
       .eq("id", tripId)
       .single(),
     supabase
