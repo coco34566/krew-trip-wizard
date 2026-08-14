@@ -247,6 +247,13 @@ export async function aggregateParticipantPreferences(
 
   // Intégrer les préférences de la star si elle a rempli le questionnaire spécifique (sans avoir de compte)
   try {
+    const tripQuery = supabase
+      .from("trips")
+      .select("event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id")
+      .eq("id", tripId);
+    const tripMeta = typeof tripQuery.maybeSingle === "function"
+      ? await tripQuery.maybeSingle()
+      : (typeof tripQuery.single === "function" ? await tripQuery.single() : await tripQuery);
     const starQuery = supabase
       .from("trip_star_preferences")
       .select("*")
@@ -255,7 +262,11 @@ export async function aggregateParticipantPreferences(
     const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
 
     if (!starPrefs.error && starData) {
-      const starUid = starData.user_id || "star-virtual-uid";
+      // S'assurer que starUid ne correspond pas à l'organisateur (owner_id / co_organizer_id)
+      // sauf si l'organisateur est explicitement identifié comme la Star.
+      const isOwner = tripMeta.data?.owner_id === starData.user_id || tripMeta.data?.co_organizer_id === starData.user_id;
+      const isActualStar = tripMeta.data?.star_user_id === starData.user_id;
+      const starUid = (starData.user_id && (!isOwner || isActualStar)) ? starData.user_id : "star-virtual-uid";
       const alreadyHasPref = rows.some((r) => r.user_id === starUid);
       if (!alreadyHasPref) {
         rows.push({
@@ -458,7 +469,11 @@ export async function aggregateParticipantPreferences(
       starWantedActivities = starData.wanted_activities ?? [];
       starDealBreakers = starData.deal_breakers ?? [];
       starWantedEnvType = starData.wanted_env_type ?? null;
-      if (!starUserId && starData.user_id) starUserId = starData.user_id;
+      const isOwner = tripMeta.data?.owner_id === starData.user_id || tripMeta.data?.co_organizer_id === starData.user_id;
+      const isActualStar = tripMeta.data?.star_user_id === starData.user_id;
+      if (!starUserId && starData.user_id && (!isOwner || isActualStar)) {
+        starUserId = starData.user_id;
+      }
       // Si le questionnaire star est rempli, on force un poids élevé même hors EVG
       if (starWeight < 2.5) starWeight = 2.5;
     }
