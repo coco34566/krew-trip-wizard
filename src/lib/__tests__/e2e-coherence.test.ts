@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { rankDateWindows } from "../krew/availability";
-import { generateAccommodationConfigurations, buildProposals } from "../krew/engine";
+import {
+  generateAccommodationConfigurations,
+  buildProposals,
+  type TravelCatalog,
+  type ScoringContext,
+  type DestinationRecord,
+  type AccommodationRecord,
+  type ActivityRecord,
+} from "../krew/engine";
 
 describe("E2E Coherence & Pipeline Integration Test", () => {
-  it("executes the end-to-end pipeline with full coherence across all 6 areas", () => {
-    // 1. Participant Questionnaire & Star setup
+  it("executes end-to-end pipeline cleanly with multi-city departures, Star weighting, and mixed accommodations", () => {
     const starUserId = "user-star-123";
     const celebratedPerson = "Julie";
 
@@ -23,10 +30,11 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
       {
         userId: starUserId,
         isStar: true,
+        weight: 3.2,
         departureCity: "Lyon",
         transportModesAccepted: ["train"],
         maxTravelDurationHours: 3,
-        acceptsSharedRoom: false, // Star wants solo room!
+        acceptsSharedRoom: false, // Star wants solo room
         roomTypePreference: "individuelle",
         travelPace: "equilibre",
         preferredTimeSlots: ["matin", "soiree"],
@@ -34,13 +42,14 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
       },
       {
         userId: "user-3",
-        departureCity: "Paris",
-        transportModesAccepted: ["train"],
-        maxTravelDurationHours: 4,
+        departureCity: "Marseille",
+        transportModesAccepted: ["plane", "train"],
+        maxTravelDurationHours: 5,
         acceptsSharedRoom: true,
         roomTypePreference: "partagee",
         travelPace: "equilibre",
         preferredTimeSlots: ["soiree"],
+        freeText: "Fan de soleil et plages",
       },
     ];
 
@@ -64,13 +73,13 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
     );
 
     expect(rankedDates.length).toBeGreaterThan(0);
-    const bestDateWindow = rankedDates[0];
+    const bestDateWindow = rankedDates[0]!;
     expect(bestDateWindow.start).toBe("2025-08-11");
     expect(bestDateWindow.end).toBe("2025-08-13");
     expect(bestDateWindow.nights).toBe(2);
 
-    // 3. Accommodations: Mixed configuration (1 solo for Star + 1 shared room for 2 participants)
-    const mockAccommodation = {
+    // 3. Accommodations: Mixed configuration
+    const mockAccommodation: AccommodationRecord = {
       id: "acc-1",
       destination_id: "dest-1",
       name: "Grand Hôtel Spa",
@@ -83,7 +92,7 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
       amenities: ["wifi", "pool", "spa"],
     };
 
-    const mockDestination = {
+    const mockDestination: DestinationRecord = {
       id: "dest-1",
       slug: "bruxelles",
       name: "Bruxelles",
@@ -91,13 +100,9 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
       description: "Capitale culturelle et gourmande",
       image_url: "https://example.com/bruxelles.jpg",
       ambiances: ["festif", "culture"],
-      daily_cost_avg: 80,
       avg_daily_cost: 80,
-      dist_paris_km: 300,
       distance_from_paris_km: 300,
       best_months: [8],
-      has_airport: true,
-      has_train_station: true,
       rating: 4.5,
       popularity: 0.8,
       score_fete: 0.8,
@@ -110,10 +115,10 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
     };
 
     const lodgingConfigs = generateAccommodationConfigurations(
-      [mockAccommodation as any],
+      [mockAccommodation],
       participants.length,
       requestedNights,
-      mockDestination as any,
+      mockDestination,
       null,
       [
         { userId: starUserId, roomTypePreference: "individuelle", acceptsSharedRoom: false },
@@ -126,8 +131,8 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
     const mixedConfig = lodgingConfigs.find((c) => c.isMixed || c.name.includes("individuelle"));
     expect(mixedConfig).toBeDefined();
 
-    // 4. Scoring & Recommendations
-    const catalog = {
+    // 4. Catalog and Context setup
+    const catalog: TravelCatalog = {
       destinations: [mockDestination],
       accommodations: [mockAccommodation],
       activities: [
@@ -147,10 +152,10 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
           price_per_person: 20,
           rating: 4.7,
         },
-      ],
+      ] as ActivityRecord[],
     };
 
-    const ctx = {
+    const ctx: ScoringContext = {
       participants: 3,
       nights: requestedNights,
       travelPace: "equilibre",
@@ -162,7 +167,7 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
       starWantedActivities: ["spa"],
       starWeight: 3.2,
       celebratedPerson,
-      individualPreferences: participants,
+      individualPreferences: participants as any,
       excludedCountries: [],
       dealBreakerDestinations: [],
       dealBreakerAmbiances: [],
@@ -170,13 +175,99 @@ describe("E2E Coherence & Pipeline Integration Test", () => {
       maxDistanceKm: 2000,
     };
 
-    const proposals = buildProposals(catalog as any, ctx as any);
+    const proposals = buildProposals(catalog, ctx);
     expect(proposals.length).toBeGreaterThan(0);
-    const topProposal = proposals[0];
+    const topProposal = proposals[0]!;
 
     expect(topProposal.destination.name).toBe("Bruxelles");
+    expect(Number.isNaN(topProposal.score)).toBe(false);
     expect(topProposal.score).toBeGreaterThan(0);
     expect(topProposal.itinerary).toBeDefined();
     expect(topProposal.budget.totalPerPerson).toBeGreaterThan(0);
+  });
+
+  it("handles multi-city transport compatibility without hard vetoing the entire group when one participant has restrictive limits", () => {
+    const mockDestination: DestinationRecord = {
+      id: "dest-2",
+      slug: "lisbonne",
+      name: "Lisbonne",
+      country: "Portugal",
+      description: "Ville côtière ensoleillée",
+      image_url: null,
+      ambiances: ["festif", "farniente"],
+      avg_daily_cost: 70,
+      distance_from_paris_km: 1450,
+      best_months: [8],
+      rating: 4.7,
+      popularity: 0.9,
+      score_fete: 0.9,
+      score_aventure: 0.6,
+      score_detente: 0.8,
+      score_luxe: 0.5,
+      score_insolite: 0.6,
+      score_sportif: 0.5,
+      score_culturel: 0.8,
+    };
+
+    const mockAccommodation: AccommodationRecord = {
+      id: "acc-2",
+      destination_id: "dest-2",
+      name: "Lisbon Sun Hostel",
+      type: "hôtel",
+      price_per_night: 150,
+      price_per_night_per_person: 40,
+      rating: 4.6,
+      capacity: 8,
+      bedrooms: 3,
+      amenities: ["wifi"],
+    };
+
+    const catalog: TravelCatalog = {
+      destinations: [mockDestination],
+      accommodations: [mockAccommodation],
+      activities: [],
+    };
+
+    // Participant A from Paris accepts flight (Paris->Lisbon flight ~ 2.5h -> highly compatible)
+    // Participant B from Lyon accepts train only with max 3h (Lyon->Lisbon train ~ 15h -> incompatible for B)
+    const ctx: ScoringContext = {
+      participants: 2,
+      nights: 2,
+      travelPace: "equilibre",
+      ambiances: ["festif"],
+      activityCategories: ["soirees"],
+      budgetPerPerson: 400,
+      departureCity: "Paris",
+      individualPreferences: [
+        {
+          userId: "user-paris",
+          departureCity: "Paris",
+          transportModes: ["flight"],
+          maxTravelHours: 4,
+          budgetPriority: "nice_to_have",
+        },
+        {
+          userId: "user-lyon-restrictive",
+          departureCity: "Lyon",
+          transportModes: ["train"],
+          maxTravelHours: 3,
+          budgetPriority: "nice_to_have",
+        },
+      ] as any,
+      excludedCountries: [],
+      dealBreakerDestinations: [],
+      dealBreakerAmbiances: [],
+      startMonth: 8,
+      maxDistanceKm: 2500,
+    };
+
+    const proposals = buildProposals(catalog, ctx);
+    expect(proposals.length).toBeGreaterThan(0);
+    const proposal = proposals[0]!;
+
+    // Individual transport mismatch for participant B reduces satisfaction score without eliminating Lisbonne for the group
+    expect(proposal.destination.name).toBe("Lisbonne");
+    expect(proposal.score).toBeGreaterThan(0);
+    expect(Number.isNaN(proposal.score)).toBe(false);
   });
 });

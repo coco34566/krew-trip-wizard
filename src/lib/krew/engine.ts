@@ -6,6 +6,7 @@
  */
 import { AMBIANCE_SCORE_COLUMN, type Ambiance } from "./constants";
 import { bestTransportOption, estimateOptionsByMode, isTransportCompatible, type TransportOption, normalizeTransportModes } from "./transport-compatibility";
+import { estimateDistanceKm } from "./deep-links";
 
 export type DestinationRecord = {
   id: string;
@@ -822,18 +823,21 @@ function individualFit(
     return 0;
   }
 
-  // Hard constraint: Max travel hours
-  if (pref.maxTravelHours != null && bestDuration != null && bestDuration > pref.maxTravelHours) {
-    return 0;
-  }
+  // Transport compatibility from participant's actual departure city
+  let sTransportPart = 0.7;
+  const pCity = pref.departureCity || "Paris";
+  const pDist = estimateDistanceKm(pCity, dest.name, dest.distance_from_paris_km);
+  const pModeOptions = estimateOptionsByMode(pDist, pref.transportModes);
 
-  // Hard constraint: Transport modes compatibility
   if (pref.transportModes && pref.transportModes.length > 0) {
-    const userModes = normalizeTransportModes(pref.transportModes);
-    const userModeOptions = estimateOptionsByMode(dest.distance_from_paris_km, pref.transportModes);
-    const hasCompatibleUserMode = userModeOptions.some(o => pref.maxTravelHours == null || o.durationHours <= pref.maxTravelHours);
+    const hasCompatibleUserMode = pModeOptions.some(
+      (o) => pref.maxTravelHours == null || o.durationHours <= pref.maxTravelHours,
+    );
     if (!hasCompatibleUserMode) {
-      return 0;
+      sTransportPart = 0.15; // Low satisfaction for this participant without becoming a hard group veto
+    } else {
+      const bestOpt = bestTransportOption(pModeOptions, pref.maxTravelHours);
+      sTransportPart = bestOpt ? clamp(1.0 - bestOpt.durationHours / 12, 0.3, 1.0) : 0.7;
     }
   }
 
@@ -867,7 +871,7 @@ function individualFit(
     ? prefEnv.filter((env) => destEnvSet.has(env)).length / prefEnv.length
     : 0.6;
 
-  let score = sAmb * 0.34 + sAct * 0.27 + sBudget * 0.27 + sEnv * 0.12;
+  let score = sAmb * 0.28 + sAct * 0.23 + sBudget * 0.23 + sEnv * 0.11 + sTransportPart * 0.15;
 
   // Soft preference: duration_nights
   if (nights != null) {
@@ -1445,7 +1449,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         const weights = individuals.map((pref) => Math.max(0.1, pref.weight ?? (pref.isStar ? (ctx.starWeight ?? 2.5) : 1)));
         const wSum = weights.reduce((a, b) => a + b, 0);
         consensusScore = fits.reduce((acc, f, i) => acc + f * weights[i]!, 0) / wSum;
-        minSatisfaction = Math.min(...fits);
+        minSatisfaction = fits.includes(0) ? 0 : Math.max(0.1, Math.min(...fits));
         satisfiedCount = fits.filter((f) => f >= 0.55).length;
       }
 

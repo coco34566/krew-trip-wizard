@@ -1110,6 +1110,7 @@ export async function generateRecommendationsForTrip(
       wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
       starWantedEnvType: aggregated.starWantedEnvType ?? null,
       groupAgeRange: aggregated.groupAgeRange ?? null,
+      freeNotes: aggregated.freeTextNotes ?? [],
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)

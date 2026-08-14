@@ -123,13 +123,23 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
       .maybeSingle();
 
     let starUserId = trip.data.star_user_id;
-    if (!starUserId && !isAdmin) {
-      // Un participant remplit le questionnaire Star en mode participant -> il est la Star
-      starUserId = userId;
-      await supabase
-        .from("trips")
-        .update({ star_user_id: userId, has_star: true } as any)
-        .eq("id", data.tripId);
+    // Si aucun star_user_id n'est encore défini, vérifier de manière explicite si le nom/prénom du participant correspond sans ambiguïté à celebrated_person
+    if (!starUserId && trip.data.celebrated_person) {
+      const pRes = await supabase
+        .from("trip_participants")
+        .select("display_name, email")
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      const celebNorm = trip.data.celebrated_person.trim().toLowerCase();
+      const dispNorm = (pRes.data?.display_name || "").trim().toLowerCase();
+      if (dispNorm && (dispNorm === celebNorm || dispNorm.startsWith(celebNorm))) {
+        starUserId = userId;
+        await supabase
+          .from("trips")
+          .update({ star_user_id: userId, has_star: true } as any)
+          .eq("id", data.tripId);
+      }
     }
 
     const isActualStar = starUserId === userId;
