@@ -110,6 +110,7 @@ export type SubScores = {
   sDistance: number;
   sTransport: number;
   sSeason: number;
+  sWeather?: number;
   sQuality: number;
   sConsensus: number;
   sMinSatisfaction: number;
@@ -194,6 +195,10 @@ export type ScoringContext = {
   pastDestinations?: { country: string; dominantAmbiance: string }[];
   /** Tranche d’âge majoritaire du groupe, issue des questionnaires participants. */
   groupAgeRange?: string | null;
+  /** Préférence météo agrégée du groupe (0 = agnostique, 1 = neutre, 2 = prioritaire). */
+  groupWeatherPreference?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
 };
 
 export type ItineraryDay = {
@@ -1393,22 +1398,20 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         : clamp(1 - bestDuration / 12);
       const sDistance = clamp(1 - destination.distance_from_paris_km / Math.max(300, ctx.maxDistanceKm));
 
-      let sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
-      const hasClimate = (destination as any).climate && typeof (destination as any).climate === "object";
-      if (hasClimate) {
-        const weatherScoreVal = computeWeatherScore(destination, (ctx as any).startDate, (ctx as any).endDate, ctx.startMonth);
-        sSeason = sSeason * 0.3 + weatherScoreVal * 0.7;
-      }
+      // sSeason est le score saisonnier déterministe KREW pur (sans injection directe météo)
+      const sSeason = seasonScoreWithFlex(destination, ctx.startMonth, ctx.dateFlexDays);
 
-      // Prise en compte de la préférence météo du groupe + Star + Organisateur
+      // sWeather (weatherScore) est un signal distinct calculé via Open-Meteo / climate + importance météo du groupe
+      let sWeather = computeWeatherScore(destination, (ctx as any).startDate, (ctx as any).endDate, ctx.startMonth);
+
       const weatherPref = (ctx as any).groupWeatherPreference;
       if (weatherPref != null) {
         if (weatherPref === 0) {
-          sSeason = 1.0; // Ne modifie pas artificiellement le classement si tout le monde est agnostique
+          sWeather = 1.0; // Ne modifie pas artificiellement le classement si tout le monde est agnostique
         } else if (weatherPref > 1.0) {
-          sSeason = Math.pow(sSeason, 1.5); // Accentue les différences pour une forte demande météo
+          sWeather = Math.pow(sWeather, 1.5); // Accentue les différences pour une forte demande météo
         } else if (weatherPref < 1.0) {
-          sSeason = 1.0 - (1.0 - sSeason) * weatherPref; // Atténue les différences pour une demande faible
+          sWeather = 1.0 - (1.0 - sWeather) * weatherPref; // Atténue les différences pour une demande faible
         }
       }
 
@@ -1423,7 +1426,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         sActivities * w.activities +
         sBudget * w.budget +
         (sDistance * 0.45 + sTransport * 0.55) * w.distance +
-        sSeason * w.season +
+        (sSeason * 0.5 + sWeather * 0.5) * w.season +
         sQuality * w.quality +
         sConsensus * w.consensus +
         sMinSat * w.minSatisfaction;
@@ -1575,6 +1578,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         sDistance,
         sTransport,
         sSeason,
+        sWeather,
         sQuality,
         sConsensus,
         sMinSatisfaction: sMinSat,
