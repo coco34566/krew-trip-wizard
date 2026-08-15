@@ -1,18 +1,12 @@
-import { useRef, useMemo } from "react";
-import { ImageDown, Wallet, CreditCard } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
+import { useRef } from "react";
+import { ImageDown, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { formatEuro } from "@/lib/krew/constants";
 import {
   formatCostSplitText,
   type CostSplitResult,
 } from "@/lib/krew/cost-split";
-import { createGroupPaymentSession } from "@/lib/trips.functions";
-import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
   split: CostSplitResult;
@@ -20,60 +14,8 @@ type Props = {
   tripId?: string;
 };
 
-export function CostSplitCard({ split, tripName, tripId }: Props) {
+export function CostSplitCard({ split, tripName }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const paySessionFn = useServerFn(createGroupPaymentSession);
-
-  // Fetch only this user's payments
-  const { data: payments, isLoading: isPaymentsLoading } = useQuery({
-    queryKey: ["trip-payments", tripId],
-    queryFn: async () => {
-      if (!tripId) return null;
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data: part } = await supabase
-        .from("trip_participants")
-        .select("id")
-        .eq("trip_id", tripId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!part) return null;
-
-      const { data, error } = await supabase
-        .from("trip_payments")
-        .select("status, amount_cents")
-        .eq("trip_id", tripId)
-        .eq("participant_id", part.id);
-      if (error) {
-        console.error("Error fetching payments:", error);
-        return null;
-      }
-      return data;
-    },
-    enabled: !!tripId,
-  });
-
-  const payMutation = useMutation({
-    mutationFn: () => paySessionFn({ data: { tripId: tripId! } }),
-    onSuccess: (res: any) => {
-      if (res?.url) {
-        window.location.href = res.url;
-      } else {
-        toast.error("URL de paiement non reçue");
-      }
-    },
-    onError: (e: any) => {
-      toast.error(String(e?.message ?? "Erreur lors de la création de la session de paiement"));
-    },
-  });
-
-  const paymentStatus = useMemo(() => {
-    if (!payments || payments.length === 0) return "unpaid";
-    if (payments.some((p: any) => p.status === "paid")) return "paid";
-    if (payments.some((p: any) => p.status === "pending")) return "pending";
-    return "unpaid";
-  }, [payments]);
 
   const shareOnWhatsApp = () => {
     const text = formatCostSplitText(split, tripName);
@@ -131,10 +73,9 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
       a.href = url;
       a.download = `krew-repartition-${split.destinationName.replace(/\s+/g, "-").toLowerCase()}.png`;
       a.click();
-      toast.success("Image téléchargée");
     } catch (e) {
       console.error(e);
-      toast.error("Export image impossible — utilise la copie texte");
+      window.alert("Export image impossible — utilise la copie texte");
     }
   }
 
@@ -153,42 +94,6 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          {tripId && !isPaymentsLoading && (
-            <div className="mr-2">
-              {paymentStatus === "paid" ? (
-                <Badge variant="success" className="px-3 py-1 text-xs">
-                  Payé ✅
-                </Badge>
-              ) : paymentStatus === "pending" ? (
-                <div className="flex items-center gap-2">
-                  <Badge variant="sun" className="px-3 py-1 text-xs">
-                    Paiement en attente ⏳
-                  </Badge>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={payMutation.isPending}
-                    onClick={() => payMutation.mutate()}
-                    className="h-8 gap-1.5"
-                  >
-                    <CreditCard className="size-4" /> Réessayer
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="hero"
-                  size="sm"
-                  disabled={payMutation.isPending}
-                  onClick={() => payMutation.mutate()}
-                  className="h-8 gap-1.5"
-                >
-                  <CreditCard className="size-4" /> Payer ma part
-                </Button>
-              )}
-            </div>
-          )}
           <Button
             type="button"
             className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
