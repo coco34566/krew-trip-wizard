@@ -17,7 +17,8 @@ function formatRemainingTime(seconds: number): string {
 }
 
 /**
- * Atomically checks and consumes a rate-limit slot.
+ * Atomically checks the rate limit.
+ * User-level checks are read-only; trip-level checks consume the slot.
  * Fails closed if the database cannot evaluate the limit.
  */
 export async function assertNotRateLimited(
@@ -47,5 +48,24 @@ export async function assertNotRateLimited(
       ? `Limite d'appels par utilisateur atteinte pour '${kind}'. Réessaie dans ${formatRemainingTime(remainingSeconds)}.`
       : `Une génération est déjà en cours, réessaie dans ${formatRemainingTime(remainingSeconds)}.`;
     throw new Error(`RATE_LIMITED: ${message}`);
+  }
+}
+
+/**
+ * Releases the latest trip-level reservation when a generation fails before
+ * producing a usable result. The database function re-checks the caller identity.
+ */
+export async function releaseRateLimit(
+  supabase: SupabaseClient,
+  options: Pick<RateLimitOptions, "tripId" | "userId" | "kind">,
+): Promise<void> {
+  const { error } = await supabase.rpc("release_generation_rate_limit", {
+    p_trip_id: options.tripId,
+    p_user_id: options.userId,
+    p_kind: options.kind,
+  });
+
+  if (error) {
+    console.error("[RateLimit] Impossible de libérer la réservation", error);
   }
 }
