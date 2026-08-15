@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateRecommendationsForTrip } from "@/lib/krew/trip-service";
 
 export const participantPreferencesSchema = z.object({
@@ -120,36 +122,42 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
   });
 
 export async function attachParticipantToTrip(
-  supabase: any,
+  supabase: SupabaseClient,
   tripId: string,
   userId: string,
-  userEmail: string | undefined | null,
+  email: string,
 ) {
-  const email = normalizeEmail(userEmail);
-  if (!email) throw new Error("User email missing from context.claims.email");
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user || user.id !== userId || user.email?.toLowerCase() !== email?.toLowerCase()) {
+    return { success: false, error: "Utilisateur non autorisé" };
+  }
 
-  // Update using case-insensitive email match to avoid casing issues
-  const { data: updatedRows, error: updateError } = await supabase
+  const { data: participant, error: findError } = await supabase
+    .from("trip_participants")
+    .select("id, user_id, status")
+    .eq("trip_id", tripId)
+    .eq("email", email)
+    .maybeSingle();
+
+  if (findError) {
+    return { success: false, error: findError.message };
+  }
+  if (!participant) {
+    return { success: false, error: "Participant non trouvé" };
+  }
+  if (participant.user_id && participant.user_id !== userId) {
+    return { success: false, error: "Participant déjà rattaché" };
+  }
+
+  const { error: updateError } = await supabaseAdmin
     .from("trip_participants")
     .update({ user_id: userId, status: "accepte" })
-    .eq("trip_id", tripId)
-    .ilike("email", email)
-    .is("user_id", null)
-    .select();
+    .eq("id", participant.id);
 
-  if (updateError) throw updateError;
-
-  if (!updatedRows || updatedRows.length === 0) {
-    throw new Error(`No pending invitation found for email ${userEmail} on trip ${tripId}`);
+  if (updateError) {
+    return { success: false, error: updateError.message };
   }
-
-  if (updatedRows.length > 1) {
-    throw new Error(
-      `Multiple pending invitations matched for email ${userEmail} on trip ${tripId}`,
-    );
-  }
-
-  return updatedRows[0];
+  return { success: true };
 }
 
 /**
