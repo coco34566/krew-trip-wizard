@@ -49,8 +49,8 @@ function ConfidentialitePage() {
             (ambiances, activités, budget, ville de départ individuelle, etc.) ;
           </li>
           <li>
-            <strong>Technique</strong> : logs de connexion, données de sécurité, cookies strictement
-            nécessaires au fonctionnement.
+            <strong>Technique</strong> : logs de connexion, données de sécurité et éléments
+            strictement nécessaires au fonctionnement du Service.
           </li>
         </ul>
         <p>
@@ -67,10 +67,10 @@ function ConfidentialitePage() {
             création et gestion de ton compte, création des voyages de groupe, invitations de tes ami·e·s, scoring et propositions de destinations adaptées, et calcul de la répartition des coûts.
           </li>
           <li>
-            <strong>Consentement</strong> : pour le questionnaire de préférences et de disponibilités, et pour le dépôt des cookies non essentiels (analytiques, marketing) via notre bandeau de consentement.
+            <strong>Consentement</strong> : lorsque celui-ci est requis pour un traitement particulier.
           </li>
           <li>
-            <strong>Intérêt légitime</strong> : pour la sécurité du site, la prévention des abus et fraudes, et l&apos;amélioration continue de notre produit (via des statistiques anonymes ou pseudonymisées).
+            <strong>Intérêt légitime</strong> : pour la sécurité du site, la prévention des abus et fraudes, et l&apos;amélioration continue de notre produit lorsque les conditions de ce fondement sont réunies.
           </li>
           <li>
             <strong>Profilage et recommandations</strong> : Krew analyse les préférences renseignées par les membres d&apos;un voyage afin d&apos;identifier les besoins et préférences du groupe et de générer des recommandations personnalisées, notamment pour les destinations, activités, hébergements et organisation du voyage. Ce traitement repose sur les données nécessaires à la fourniture du Service et sert à assister les utilisateurs dans leurs choix. Les recommandations produites par Krew constituent des suggestions et ne constituent pas, à elles seules, une décision produisant un effet juridique ou un effet significatif similaire à l&apos;égard d&apos;une personne.
@@ -83,7 +83,7 @@ function ConfidentialitePage() {
 
       <LegalSection title="4. Destinataires">
         <p>
-          Les données sont hébergées de manière sécurisée en Union européenne sur les serveurs de notre prestataire technique <strong>Supabase</strong> (Dublin, Irlande). Elles sont accessibles uniquement aux administrateurs de Krew et ne sont en aucun cas vendues à des tiers.
+          Les données sont hébergées de manière sécurisée en Union européenne sur les serveurs de notre prestataire technique <strong>Supabase</strong>. Elles sont accessibles selon les droits prévus par le fonctionnement du Service et ne sont en aucun cas vendues à des tiers.
         </p>
         <p>
           Les participants d&apos;un même voyage peuvent voir certaines informations liées au groupe
@@ -135,9 +135,12 @@ function ConfidentialitePage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Cookies">
+      <LegalSection title="8. Cookies et traceurs">
         <p>
-          Le Service utilise des cookies essentiels nécessaires à l&apos;authentification de ton compte (gérés par Supabase) et au fonctionnement technique de l&apos;application. Aucun cookie non essentiel (cookies analytiques ou de personnalisation publicitaire) n&apos;est déposé sans ton consentement explicite recueilli via notre bandeau de cookies conforme (Accepter / Refuser / Personnaliser). Tu peux modifier tes choix à tout moment en vidant le cache de ton navigateur ou en cliquant sur le lien de politique de confidentialité.
+          À ce jour, Krew n&apos;active pas de cookies ou traceurs non essentiels d&apos;analyse d&apos;audience ou de publicité dans l&apos;application. Le fonctionnement du Service peut utiliser des mécanismes techniques nécessaires à l&apos;authentification et à la gestion de session, notamment via Supabase.
+        </p>
+        <p>
+          Si des cookies ou traceurs non essentiels sont ajoutés ultérieurement, ils ne seront activés qu&apos;après mise en place d&apos;un mécanisme de consentement conforme et l&apos;information correspondante sera mise à jour.
         </p>
       </LegalSection>
 
