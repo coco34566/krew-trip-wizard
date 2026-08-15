@@ -279,8 +279,15 @@ function InvitePage() {
                 onClick={() => {
                   const tripName = trip?.name ? ` « ${trip.name} »` : "";
                   const text = `Salut ! On organise un voyage${tripName} avec KREW ✈️\nRejoins-nous et donne tes dispos en 2 min : 👉 ${shareUrl}`;
-                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                  window.open(url, "_blank", "noopener,noreferrer");
+                  const encodedText = encodeURIComponent(text);
+                  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+                  if (isMobile) {
+                    window.location.href = `whatsapp://send?text=${encodedText}`;
+                    return;
+                  }
+
+                  window.open(`https://wa.me/?text=${encodedText}`, "_blank", "noopener,noreferrer");
                 }}
               >
                 Inviter sur WhatsApp
@@ -399,7 +406,6 @@ function InvitePage() {
         </ul>
       </section>
 
-      {/* Rôle & Comportement de la Star (EVG, EVJF, Anniversaire, Retraite) */}
       {(trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type)) ? (
         <section className="mt-6 rounded-3xl border border-border bg-card p-5">
           <h2 className="flex items-center gap-2 font-semibold text-foreground">
