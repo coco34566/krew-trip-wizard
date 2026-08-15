@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { getParticipantsProgressHelper } from "../participant-preferences.functions";
 import { aggregateParticipantPreferences, assessGenerationReadiness } from "../krew/trip-service";
-import { getTripAvailability } from "../availability.functions";
+import { getTripAvailabilityHelper } from "../availability.functions";
 
 describe("Participant Identity & Star Resolution Tests", () => {
   it("differentiates two participants with the same first name ('Julie') and correctly identifies Star via star_user_id", async () => {
@@ -214,5 +214,68 @@ describe("Participant Identity & Star Resolution Tests", () => {
     // 3. Check assessGenerationReadiness
     const readiness = await assessGenerationReadiness(mockSupabase as any, tripId);
     expect(readiness.canGenerate).toBe(true);
+  });
+
+  it("CAS 3 & 4: Star configured with name 'Camille' displayed as 'Camille' (never 'Participant') and normal participant display name preserved in getTripAvailability", async () => {
+    const tripId = "trip-star-camille";
+    const starUserId = "user-star-camille";
+
+    const tripsData = {
+      id: tripId,
+      name: "EVJF de Camille",
+      event_type: "evjf",
+      celebrated_person: "Camille",
+      has_star: true,
+      star_user_id: starUserId,
+      owner_id: "user-organizer",
+      duration_nights: 1,
+      participants_count: 3,
+    };
+
+    const participantsData = [
+      { id: "p-orga", user_id: "user-organizer", email: "orga@example.com", display_name: "Juliet", status: "accepte" },
+      { id: "p-camille", user_id: starUserId, email: "camille@example.com", display_name: null, status: "accepte" },
+      { id: "p-participant", user_id: "user-normal", email: "sarah@example.com", display_name: "Sarah", status: "accepte" },
+    ];
+
+    const availData = [
+      { user_id: "user-organizer", available_dates: ["2026-08-01", "2026-08-02"], flex_days: 0, duration_nights: 1 },
+      { user_id: starUserId, available_dates: ["2026-08-01", "2026-08-02"], flex_days: 0, duration_nights: 1 },
+      { user_id: "user-normal", available_dates: ["2026-08-01", "2026-08-02"], flex_days: 0, duration_nights: 1 },
+    ];
+
+    const mockSupabase = {
+      from: (table: string) => {
+        let data: any = [];
+        if (table === "trips") data = tripsData;
+        else if (table === "trip_participants") data = participantsData;
+        else if (table === "trip_availability") data = availData;
+        else if (table === "trip_preferences") data = { duration_nights: 1 };
+        else if (table === "trip_star_preferences") data = null;
+
+        const chain = {
+          select: () => chain,
+          eq: () => chain,
+          single: async () => ({ data, error: null }),
+          maybeSingle: async () => ({ data, error: null }),
+          then: (resolve: any) => resolve({ data, error: null }),
+        };
+        return chain as any;
+      },
+    };
+
+    const result = await getTripAvailabilityHelper(mockSupabase as any, "user-organizer", tripId);
+
+    expect(result.windows.length).toBeGreaterThan(0);
+    const topWindow = result.windows[0]!;
+
+    const availableNames = topWindow.availablePeople.map((p) => p.name);
+    // Star must be "Camille" and NOT "Participant" or null
+    expect(availableNames).toContain("Camille");
+    expect(availableNames).not.toContain("Participant");
+
+    // Normal participant "Sarah" and organizer "Juliet" must preserve their names
+    expect(availableNames).toContain("Juliet");
+    expect(availableNames).toContain("Sarah");
   });
 });
