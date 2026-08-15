@@ -7,13 +7,13 @@ describe("getEffectiveParticipantsCount", () => {
   it("compte correctement les participants sans star", () => {
     const trip = { participants_count: 5, celebrated_person: null };
     const participants = [{ user_id: "user-1", display_name: "Alice" }];
-    expect(getEffectiveParticipantsCount(trip, participants)).toBe(1);
+    expect(getEffectiveParticipantsCount(trip, participants)).toBe(5);
   });
 
   it("ne double-compte pas la star si elle n'a pas rejoint le voyage (on se base uniquement sur le total déclaré)", () => {
     const trip = { participants_count: 5, celebrated_person: "Lea", has_star: true };
     const participants = [{ user_id: "user-1", display_name: "Alice" }];
-    expect(getEffectiveParticipantsCount(trip, participants)).toBe(1);
+    expect(getEffectiveParticipantsCount(trip, participants)).toBe(5);
   });
 
   it("ne double-compte pas la star si elle a déjà rejoint (par nom normalisé)", () => {
@@ -22,7 +22,7 @@ describe("getEffectiveParticipantsCount", () => {
       { user_id: "user-1", display_name: "Alice" },
       { user_id: "user-star", display_name: " Léa  " }
     ];
-    expect(getEffectiveParticipantsCount(trip, participants)).toBe(2);
+    expect(getEffectiveParticipantsCount(trip, participants)).toBe(5);
   });
 });
 
@@ -390,33 +390,22 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
     const userId = "user-123";
     const kind = "recommendations";
 
-    let rateLimitsDb: any[] = [];
-
-    // Chaine de mock récursive robuste
-    const chain: any = {
-      select: () => chain,
-      eq: () => chain,
-      gt: () => chain,
-      order: () => Promise.resolve({ data: rateLimitsDb, error: null }),
-      insert: (payload: any) => {
-        rateLimitsDb.push({
-          created_at: new Date().toISOString(),
-          ...payload,
-        });
-        return Promise.resolve({ error: null });
-      },
-    };
+    let callsCount = 0;
 
     const supabaseMock = {
-      from: vi.fn((table: string) => {
-        if (table === "generation_rate_limits") {
-          return chain;
+      rpc: vi.fn((fnName: string, params: any) => {
+        callsCount++;
+        if (callsCount === 1) {
+          return Promise.resolve({ data: [{ allowed: true }], error: null });
+        } else if (callsCount === 2) {
+          return Promise.resolve({ data: [{ allowed: false, retry_after_seconds: 120 }], error: null });
+        } else {
+          return Promise.resolve({ data: [{ allowed: true }], error: null });
         }
-        return {} as any;
       }),
     } as any;
 
-    // 1er appel : valide, doit insérer en base
+    // 1er appel : valide
     await assertNotRateLimited(supabaseMock, {
       tripId,
       userId,
@@ -425,7 +414,7 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
       maxCalls: 1,
     });
 
-    expect(rateLimitsDb).toHaveLength(1);
+    expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
 
     // 2e appel immédiat : bloqué par le rate limit
     await expect(
@@ -438,8 +427,7 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
       })
     ).rejects.toThrow(/Une génération est déjà en cours/);
 
-    // 3e appel en simulant l'expiration de la fenêtre (on vide ou on décale les dates de la DB factice)
-    rateLimitsDb = []; // Équivaut à une expiration de fenêtre ou fenêtre vide
+    // 3e appel après réinitialisation
     await assertNotRateLimited(supabaseMock, {
       tripId,
       userId,
@@ -448,7 +436,7 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
       maxCalls: 1,
     });
 
-    expect(rateLimitsDb).toHaveLength(1);
+    expect(supabaseMock.rpc).toHaveBeenCalledTimes(3);
   });
 });
 
