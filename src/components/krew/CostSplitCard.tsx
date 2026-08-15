@@ -16,45 +16,28 @@ type Props = { split: CostSplitResult; tripName?: string; tripId?: string };
 export function CostSplitCard({ split, tripName, tripId }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const paySessionFn = useServerFn(createGroupPaymentSession);
-  const { data: payments, isLoading: isPaymentsLoading } = useQuery({
-    queryKey: ["trip-payments", tripId],
-    queryFn: async () => {
-      if (!tripId) return null;
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-      const { data: part } = await supabase.from("trip_participants").select("id").eq("trip_id", tripId).eq("user_id", user.id).maybeSingle();
-      if (!part) return null;
-      const { data, error } = await supabase.from("trip_payments").select("status, amount_cents").eq("trip_id", tripId).eq("participant_id", part.id);
-      if (error) { console.error("Error fetching payments:", error); return null; }
-      return data;
-    }, enabled: !!tripId,
-  });
-  const payMutation = useMutation({
-    mutationFn: () => paySessionFn({ data: { tripId: tripId! } }),
-    onSuccess: (res: any) => { if (res?.url) window.location.href = res.url; else toast.error("URL de paiement non reçue"); },
-    onError: (e: any) => toast.error(String(e?.message ?? "Erreur lors de la création de la session de paiement")),
-  });
-  const paymentStatus = useMemo(() => {
-    if (!payments || payments.length === 0) return "unpaid";
-    if (payments.some((p: any) => p.status === "paid")) return "paid";
-    if (payments.some((p: any) => p.status === "pending")) return "pending";
-    return "unpaid";
-  }, [payments]);
+  const { data: payments, isLoading: isPaymentsLoading } = useQuery({ queryKey: ["trip-payments", tripId], queryFn: async () => { if (!tripId) return null; const { data: { user } } = await supabase.auth.getUser(); if (!user) return null; const { data: part } = await supabase.from("trip_participants").select("id").eq("trip_id", tripId).eq("user_id", user.id).maybeSingle(); if (!part) return null; const { data, error } = await supabase.from("trip_payments").select("status, amount_cents").eq("trip_id", tripId).eq("participant_id", part.id); if (error) { console.error("Error fetching payments:", error); return null; } return data; }, enabled: !!tripId });
+  const payMutation = useMutation({ mutationFn: () => paySessionFn({ data: { tripId: tripId! } }), onSuccess: (res: any) => { if (res?.url) window.location.href = res.url; else toast.error("URL de paiement non reçue"); }, onError: (e: any) => toast.error(String(e?.message ?? "Erreur lors de la création de la session de paiement")) });
+  const paymentStatus = useMemo(() => { if (!payments || payments.length === 0) return "unpaid"; if (payments.some((p: any) => p.status === "paid")) return "paid"; if (payments.some((p: any) => p.status === "pending")) return "pending"; return "unpaid"; }, [payments]);
 
   const shareOnWhatsApp = () => {
     const text = formatCostSplitText(split, tripName);
     const encodedText = encodeURIComponent(text);
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile) {
-      window.location.href = `whatsapp://send?text=${encodedText}`;
+      // Launch the native WhatsApp URL scheme from a hidden iframe so Safari keeps the current KREW page.
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = `whatsapp://send?text=${encodedText}`;
+      document.body.appendChild(iframe);
+      window.setTimeout(() => iframe.remove(), 1500);
       return;
     }
     window.open(`https://wa.me/?text=${encodedText}`, "_blank", "noopener,noreferrer");
   };
 
   async function exportImage() {
-    const el = ref.current;
-    if (!el) return;
+    const el = ref.current; if (!el) return;
     try {
       const width = el.scrollWidth; const height = el.scrollHeight; const scale = 2;
       const canvas = document.createElement("canvas"); canvas.width = width * scale; canvas.height = height * scale;
