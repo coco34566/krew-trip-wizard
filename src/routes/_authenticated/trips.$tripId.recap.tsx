@@ -362,27 +362,41 @@ function TripRecapPage() {
                     </p>
                   </div>
 
-                  {links.origins.map((origin) => (
-                    <div
-                      key={origin.originCity}
-                      className="rounded-2xl border border-border/80 bg-surface/30 p-4"
-                    >
-                      <p className="text-sm font-medium">
-                        Depuis {origin.originCity}{" "}
-                        <span className="text-muted-foreground">
-                          ({origin.adults} pers.)
-                          {origin.distanceKm < 9000
-                            ? ` · ~${origin.distanceKm} km`
-                            : ""}
-                        </span>
-                      </p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <ExternalLinkButton href={origin.googleFlights} variant="hero">
-                          <Plane className="size-3.5" /> Google Flights
-                        </ExternalLinkButton>
-                        <ExternalLinkButton href={origin.kayak}>
-                          <Plane className="size-3.5" /> Kayak
-                        </ExternalLinkButton>
+                  {links.origins.map((origin) => {
+                    const transportOrigins = Array.isArray((budget as any)?.transportByOrigin)
+                      ? (budget as any).transportByOrigin
+                      : [];
+                    const matchedTransport = transportOrigins.find(
+                      (t: any) => String(t.city || "").toLowerCase().trim() === origin.originCity.toLowerCase().trim()
+                    );
+                    const transportOfferUrl = matchedTransport?.url || matchedTransport?.searchUrl || null;
+
+                    return (
+                      <div
+                        key={origin.originCity}
+                        className="rounded-2xl border border-border/80 bg-surface/30 p-4"
+                      >
+                        <p className="text-sm font-medium">
+                          Depuis {origin.originCity}{" "}
+                          <span className="text-muted-foreground">
+                            ({origin.adults} pers.)
+                            {origin.distanceKm < 9000
+                              ? ` · ~${origin.distanceKm} km`
+                              : ""}
+                          </span>
+                        </p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {transportOfferUrl ? (
+                            <ExternalLinkButton href={transportOfferUrl} variant="hero">
+                              <Plane className="size-3.5" /> Voir l&apos;offre {matchedTransport?.label || matchedTransport?.provider || "réelle"}
+                            </ExternalLinkButton>
+                          ) : null}
+                          <ExternalLinkButton href={origin.googleFlights} variant={transportOfferUrl ? "outline" : "hero"}>
+                            <Plane className="size-3.5" /> Google Flights
+                          </ExternalLinkButton>
+                          <ExternalLinkButton href={origin.kayak}>
+                            <Plane className="size-3.5" /> Kayak
+                          </ExternalLinkButton>
                         {origin.showTrain && origin.omio ? (
                           <ExternalLinkButton href={origin.omio}>
                             <Train className="size-3.5" /> Omio

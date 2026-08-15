@@ -2,50 +2,57 @@ import { describe, it, expect, vi } from 'vitest';
 import { attachParticipantToTrip } from '../participant-preferences.functions';
 
 describe('attachParticipantToTrip', () => {
-  it('attaches only the matching unclaimed invite when there is a matching invite', async () => {
+  it('attaches only the matching unclaimed invite when there are 3 unclaimed invites', async () => {
     const tripId = 'trip-123';
     const userId = 'user-1';
     const userEmail = 'match@example.com';
 
-    const maybeSingleMock = vi.fn().mockResolvedValue({
-      data: { id: 3, trip_id: tripId, email: userEmail, user_id: null },
-      error: null,
-    });
-    const eqEmailMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
-    const eqTripMock = vi.fn(() => ({ eq: eqEmailMock }));
-    const selectMock = vi.fn(() => ({ eq: eqTripMock }));
+    // Mock behavior: from('trip_participants').update(...).eq(...).ilike(...).is(...).select() returns one updated row
+    const selectMock = vi.fn().mockResolvedValue({ data: [{ id: 3, trip_id: tripId, email: userEmail, user_id: userId }], error: null });
+    const isMock = vi.fn(() => ({ select: selectMock }));
+    const ilikeMock = vi.fn(() => ({ is: isMock }));
+    const eqMock = vi.fn(() => ({ ilike: ilikeMock }));
+    const updateMock = vi.fn(() => ({ eq: eqMock }));
+    const fromMock = vi.fn(() => ({ update: updateMock }));
+    const authMock = { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId, email: userEmail } } }) };
+    const supabase = { from: fromMock, auth: authMock } as any;
 
-    const updateEqMock = vi.fn().mockResolvedValue({ error: null });
-    const updateMock = vi.fn(() => ({ eq: updateEqMock }));
-
-    const fromMock = vi.fn(() => ({ select: selectMock, update: updateMock }));
-    const supabase = { from: fromMock } as any;
-
-    const res = await attachParticipantToTrip(supabase, tripId, userId, userEmail);
+    const updated = await attachParticipantToTrip(supabase, tripId, userId, userEmail);
 
     expect(fromMock).toHaveBeenCalledWith('trip_participants');
-    expect(selectMock).toHaveBeenCalledWith('id, user_id, status');
-    expect(eqTripMock).toHaveBeenCalledWith('trip_id', tripId);
-    expect(eqEmailMock).toHaveBeenCalledWith('email', userEmail);
-    expect(res).toEqual({ success: true });
+    expect(updateMock).toHaveBeenCalledWith({ user_id: userId, status: 'accepte' });
+    expect(eqMock).toHaveBeenCalledWith('trip_id', tripId);
+    expect(ilikeMock).toHaveBeenCalledWith('email', userEmail);
+    expect(isMock).toHaveBeenCalledWith('user_id', null);
+    expect(selectMock).toHaveBeenCalled();
+
+    expect(updated).toEqual({ id: 3, trip_id: tripId, email: userEmail, user_id: userId });
   });
 
-  it('returns error when no matching unclaimed invite exists', async () => {
+  it('throws when no matching unclaimed invite exists', async () => {
     const tripId = 'trip-123';
     const userId = 'user-1';
     const userEmail = 'nomatch@example.com';
 
-    const maybeSingleMock = vi.fn().mockResolvedValue({ data: null, error: null });
-    const eqEmailMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
-    const eqTripMock = vi.fn(() => ({ eq: eqEmailMock }));
-    const selectMock = vi.fn(() => ({ eq: eqTripMock }));
+    const selectMock = vi.fn().mockResolvedValue({ data: [], error: null });
+    const isMock = vi.fn(() => ({ select: selectMock }));
+    const ilikeMock = vi.fn(() => ({ is: isMock }));
+    const eqMock = vi.fn(() => ({ ilike: ilikeMock }));
+    const updateMock = vi.fn(() => ({ eq: eqMock }));
+    const fromMock = vi.fn(() => ({ update: updateMock }));
+    const authMock = { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId, email: userEmail } } }) };
+    const supabase = { from: fromMock, auth: authMock } as any;
 
-    const fromMock = vi.fn(() => ({ select: selectMock }));
-    const supabase = { from: fromMock } as any;
+    await expect(attachParticipantToTrip(supabase, tripId, userId, userEmail)).rejects.toThrow(
+      `No pending invitation found for email ${userEmail} on trip ${tripId}`,
+    );
 
-    const res = await attachParticipantToTrip(supabase, tripId, userId, userEmail);
-
-    expect(res).toEqual({ success: false, error: 'Participant non trouvé' });
+    expect(fromMock).toHaveBeenCalledWith('trip_participants');
+    expect(updateMock).toHaveBeenCalledWith({ user_id: userId, status: 'accepte' });
+    expect(eqMock).toHaveBeenCalledWith('trip_id', tripId);
+    expect(ilikeMock).toHaveBeenCalledWith('email', userEmail);
+    expect(isMock).toHaveBeenCalledWith('user_id', null);
+    expect(selectMock).toHaveBeenCalled();
   });
 });
 
