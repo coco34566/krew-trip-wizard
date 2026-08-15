@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -19,10 +20,36 @@ const WEIGHT_COL: Record<(typeof SUBS)[number], string> = {
   s_quality: "quality_weight",
 };
 
+async function isAuthorizedCronRequest(request: Request): Promise<boolean> {
+  const provided = request.headers.get("x-krew-cron-secret");
+  if (!provided) return false;
+
+  const { data: expected, error } = await supabaseAdmin.rpc(
+    "get_recalibrate_cron_secret",
+  );
+  if (error || typeof expected !== "string" || expected.length === 0) {
+    console.error("Recalibration auth configuration error", error);
+    return false;
+  }
+
+  const providedBytes = Buffer.from(provided, "utf8");
+  const expectedBytes = Buffer.from(expected, "utf8");
+  if (providedBytes.length !== expectedBytes.length) return false;
+
+  return timingSafeEqual(providedBytes, expectedBytes);
+}
+
 export const Route = createFileRoute("/api/recalibrate")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        if (!(await isAuthorizedCronRequest(request))) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
         try {
           const [feedbackRes, reactionsRes] = await Promise.all([
             supabaseAdmin.from("scoring_feedback").select("*"),
@@ -67,9 +94,7 @@ export const Route = createFileRoute("/api/recalibrate")({
               return counts ? (counts.likes > counts.dislikes) : false;
             }).length;
 
-            if (positiveCount < 3) {
-              continue;
-            }
+            if (positiveCount < 3) continue;
 
             const { data: current } = await supabaseAdmin
               .from("scoring_weights")
