@@ -3088,149 +3088,153 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
   });
 
 
+export async function generateTasksForTripHelper(supabase: any, tripId: string) {
+  // 1. Fetch trip and its itinerary
+  const tripRes = await supabase
+    .from("trips")
+    .select("group_itinerary, celebrated_person, has_star, star_user_id")
+    .eq("id", tripId)
+    .maybeSingle();
+
+  if (tripRes.error) throw tripRes.error;
+  if (!tripRes.data) throw new Error("Voyage introuvable");
+
+  const itinerary = (tripRes.data as any).group_itinerary;
+  if (!itinerary || !Array.isArray(itinerary.days)) {
+    return { ok: false, message: "Aucun planning généré pour ce voyage. Veuillez générer le planning d'abord." };
+  }
+
+  // 2. Fetch all active participants
+  const partsRes = await supabase
+    .from("trip_participants")
+    .select("id, user_id, email, display_name, status")
+    .eq("trip_id", tripId);
+
+  if (partsRes.error) throw partsRes.error;
+  const participants = partsRes.data ?? [];
+
+  // Identify the star to exclude her from automatic assignment
+  const celebratedPerson = tripRes.data.celebrated_person;
+  const starUid = tripRes.data.star_user_id || "star-virtual-uid";
+
+  const assignable = participants.filter((p: any) => {
+    if ((p.status as string) === "absent") return false;
+    const isStarByUid = Boolean(p.user_id && starUid && p.user_id === starUid);
+    return !isStarByUid;
+  });
+
+  // Fallback if no assignable participant exists
+  const fallbackAssignees = assignable.length > 0 ? assignable : participants.filter((p: any) => (p.status as string) !== "absent");
+
+  // 3. Fetch existing tasks
+  const tasksRes = await supabase
+    .from("trip_tasks" as any)
+    .select("*")
+    .eq("trip_id", tripId);
+
+  const existingTasks = (tasksRes.error ? [] : (tasksRes.data ?? [])) as any[];
+
+  // 4. Generate tasks
+  const tasksToUpsert = [];
+  const activeSlotIds = new Set<string>();
+  let newTaskIndex = 0;
+
+  for (const day of itinerary.days) {
+    const slots = day.slots ?? [];
+    for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
+      const slot = slots[slotIndex];
+      if (slot && ["resto", "activite", "bar"].includes(slot.type)) {
+        const slotId = `${day.day}-${slotIndex}`;
+        activeSlotIds.add(slotId);
+        const existing = existingTasks.find((t) => t.slot_id === slotId);
+
+        let assignedId = null;
+        let taskStatus = "todo";
+        let isManual = false;
+        let taskId = undefined;
+
+        let defaultTitle = "";
+        if (slot.type === "resto") defaultTitle = `Réserver le restaurant : ${slot.label}`;
+        else if (slot.type === "activite") defaultTitle = `Réserver l'activité : ${slot.label}`;
+        else defaultTitle = `Vérifier / réserver : ${slot.label}`;
+
+        if (existing) {
+          taskId = existing.id;
+          assignedId = existing.assigned_participant_id;
+          taskStatus = existing.status;
+          isManual = existing.is_manually_assigned;
+
+          // Reset status and manual assignment if the generated title changed
+          if (existing.title !== defaultTitle) {
+            taskStatus = "todo";
+            isManual = false;
+          }
+        } else {
+          if (fallbackAssignees.length > 0) {
+            const p = fallbackAssignees[newTaskIndex % fallbackAssignees.length]!;
+            assignedId = p.id;
+            newTaskIndex++;
+          }
+        }
+
+        tasksToUpsert.push({
+          ...(taskId ? { id: taskId } : {}),
+          trip_id: tripId,
+          slot_id: slotId,
+          title: defaultTitle,
+          type: slot.type,
+          assigned_participant_id: assignedId,
+          status: taskStatus,
+          booking_url: slot.url || null,
+          start_time: slot.time || null,
+          day_date: day.date || null,
+          price: slot.priceHint != null ? String(slot.priceHint) : null,
+          is_manually_assigned: isManual,
+        });
+      }
+    }
+  }
+
+  if (tasksToUpsert.length > 0) {
+    const { error: upsertErr } = await supabase
+      .from("trip_tasks" as any)
+      .upsert(tasksToUpsert, { onConflict: "trip_id,slot_id" });
+    if (upsertErr) {
+      console.error("Erreur lors de l'upsert des tâches de voyage :", upsertErr);
+      throw upsertErr;
+    }
+  }
+
+  // Clean up orphan tasks that no longer exist in the new itinerary slots
+  if (activeSlotIds.size > 0) {
+    const { error: deleteErr } = await supabase
+      .from("trip_tasks" as any)
+      .delete()
+      .eq("trip_id", tripId)
+      .not("slot_id", "in", `(${Array.from(activeSlotIds).join(",")})`);
+    if (deleteErr) {
+      console.error("Erreur lors de la suppression des tâches orphelines :", deleteErr);
+      throw deleteErr;
+    }
+  } else {
+    const { error: deleteErr } = await supabase
+      .from("trip_tasks" as any)
+      .delete()
+      .eq("trip_id", tripId);
+    if (deleteErr) {
+      console.error("Erreur lors du nettoyage total des tâches :", deleteErr);
+      throw deleteErr;
+    }
+  }
+
+  return { ok: true, count: tasksToUpsert.length };
+}
+
 export const generateTasksForTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
-
-    // 1. Fetch trip and its itinerary
-    const tripRes = await supabase
-      .from("trips")
-      .select("group_itinerary, celebrated_person, has_star, star_user_id")
-      .eq("id", data.tripId)
-      .maybeSingle();
-
-    if (tripRes.error) throw tripRes.error;
-    if (!tripRes.data) throw new Error("Voyage introuvable");
-
-    const itinerary = (tripRes.data as any).group_itinerary;
-    if (!itinerary || !Array.isArray(itinerary.days)) {
-      return { ok: false, message: "Aucun planning généré pour ce voyage. Veuillez générer le planning d'abord." };
-    }
-
-    // 2. Fetch all active participants
-    const partsRes = await supabase
-      .from("trip_participants")
-      .select("id, user_id, email, display_name, status")
-      .eq("trip_id", data.tripId);
-
-    if (partsRes.error) throw partsRes.error;
-    const participants = partsRes.data ?? [];
-
-    // Identify the star to exclude her from automatic assignment
-    const celebratedPerson = tripRes.data.celebrated_person;
-    const starUid = tripRes.data.star_user_id || "star-virtual-uid";
-
-    const assignable = participants.filter((p) => {
-      if ((p.status as string) === "absent") return false;
-      const isStarByUid = Boolean(p.user_id && starUid && p.user_id === starUid);
-      return !isStarByUid;
-    });
-
-    // Fallback if no assignable participant exists
-    const fallbackAssignees = assignable.length > 0 ? assignable : participants.filter(p => (p.status as string) !== "absent");
-
-    // 3. Fetch existing tasks
-    const tasksRes = await supabase
-      .from("trip_tasks" as any)
-      .select("*")
-      .eq("trip_id", data.tripId);
-
-    const existingTasks = (tasksRes.error ? [] : (tasksRes.data ?? [])) as any[];
-
-    // 4. Generate tasks
-    const tasksToUpsert = [];
-    let newTaskIndex = 0;
-
-    for (const day of itinerary.days) {
-      const slots = day.slots ?? [];
-      for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
-        const slot = slots[slotIndex];
-        if (slot && ["resto", "activite", "bar"].includes(slot.type)) {
-          const slotId = `${day.day}-${slotIndex}`;
-          const existing = existingTasks.find((t) => t.slot_id === slotId);
-
-          let assignedId = null;
-          let taskStatus = "todo";
-          let isManual = false;
-          let taskId = undefined;
-
-          let defaultTitle = "";
-          if (slot.type === "resto") defaultTitle = `Réserver le restaurant : ${slot.label}`;
-          else if (slot.type === "activite") defaultTitle = `Réserver l'activité : ${slot.label}`;
-          else defaultTitle = `Vérifier / réserver : ${slot.label}`;
-
-          if (existing) {
-            taskId = existing.id;
-            assignedId = existing.assigned_participant_id;
-            taskStatus = existing.status;
-            isManual = existing.is_manually_assigned;
-
-            // Reset status and manual assignment if the generated title changed
-            if (existing.title !== defaultTitle) {
-              taskStatus = "todo";
-              isManual = false;
-            }
-          } else {
-            if (fallbackAssignees.length > 0) {
-              const p = fallbackAssignees[newTaskIndex % fallbackAssignees.length]!;
-              assignedId = p.id;
-              newTaskIndex++;
-            }
-          }
-
-          tasksToUpsert.push({
-            ...(taskId ? { id: taskId } : {}),
-            trip_id: data.tripId,
-            slot_id: slotId,
-            title: defaultTitle,
-            type: slot.type,
-            assigned_participant_id: assignedId,
-            status: taskStatus,
-            booking_url: slot.url || null,
-            start_time: slot.time || null,
-            day_date: day.date || null,
-            price: slot.priceHint != null ? String(slot.priceHint) : null,
-            is_manually_assigned: isManual,
-          });
-        }
-      }
-    }
-
-    if (tasksToUpsert.length > 0) {
-      const { error } = await supabase.from("trip_tasks" as any).upsert(tasksToUpsert);
-      if (error) throw error;
-    }
-
-    // Clean up orphan tasks that no longer exist in the new itinerary slots
-    const activeSlotIds = new Set<string>();
-    for (const day of itinerary.days) {
-      const slots = day.slots ?? [];
-      for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
-        const slot = slots[slotIndex];
-        if (slot && ["resto", "activite", "bar"].includes(slot.type)) {
-          activeSlotIds.add(`${day.day}-${slotIndex}`);
-        }
-      }
-    }
-
-    if (activeSlotIds.size > 0) {
-      const { error: deleteErr } = await supabase
-        .from("trip_tasks" as any)
-        .delete()
-        .eq("trip_id", data.tripId)
-        .not("slot_id", "in", `(${Array.from(activeSlotIds).map(id => `'${id}'`).join(",")})`);
-      if (deleteErr) throw deleteErr;
-    } else {
-      const { error: deleteErr } = await supabase
-        .from("trip_tasks" as any)
-        .delete()
-        .eq("trip_id", data.tripId);
-      if (deleteErr) throw deleteErr;
-    }
-
-    return { ok: true, count: tasksToUpsert.length };
+    return generateTasksForTripHelper(context.supabase, data.tripId);
   });
 
 
