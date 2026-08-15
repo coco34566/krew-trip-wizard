@@ -25,3 +25,13 @@ La compatibilité temps de trajet est évaluée en OR sur les modes acceptés: u
 ## IA contrôlée
 
 Le prompt de rationale impose un JSON exploitable et interdit au LLM d'inventer prix, disponibilités, temps de trajet ou caractéristiques factuelles. Le LLM reformule et départage les candidates déjà filtrées/scorées; il ne peut pas annuler une contrainte dure.
+
+## KNOWN GAP — Star deal-breaker (écart historique)
+
+Le mapping questionnaire déclarait les deal-breakers de la Star comme des contraintes dures, alors que l'application réelle de cette contrainte n'était pas correctement matérialisée dans le pipeline d'application des contraintes. Cette divergence entre **statut déclaré dans `QUESTIONNAIRE_SIGNAL_MAPPING`** et **application effective** a été identifiée lors du reverse-engineering.
+
+Le correctif est désormais prévu comme faisant partie de l'implémentation cible et doit être validé par les tests associés. Une fois le correctif testé, cette section doit rester comme trace historique de l'écart initial, et non comme description du comportement cible.
+
+## Référence de comportement actuel
+
+La documentation détaillée du moteur doit être maintenue à partir du code et des tests réels. Les règles produit relatives à la Star, aux contraintes, au scoring, à la satisfaction, à la diversification et au rôle du LLM sont synthétisées dans `.agents/skills/krew-product/SKILL.md`; ce fichier reste la référence détaillée du reverse-engineering et de la correspondance code ↔ comportement.
