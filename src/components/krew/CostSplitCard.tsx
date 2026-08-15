@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { ImageDown, Wallet } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/lib/krew/constants";
@@ -73,9 +74,10 @@ export function CostSplitCard({ split, tripName }: Props) {
       a.href = url;
       a.download = `krew-repartition-${split.destinationName.replace(/\s+/g, "-").toLowerCase()}.png`;
       a.click();
+      toast.success("Image téléchargée");
     } catch (e) {
       console.error(e);
-      window.alert("Export image impossible — utilise la copie texte");
+      toast.error("Export image impossible — utilise la copie texte");
     }
   }
 
