@@ -73,6 +73,9 @@ function ConfidentialitePage() {
             <strong>Intérêt légitime</strong> : pour la sécurité du site, la prévention des abus et fraudes, et l&apos;amélioration continue de notre produit (via des statistiques anonymes ou pseudonymisées).
           </li>
           <li>
+            <strong>Profilage et recommandations</strong> : Krew analyse les préférences renseignées par les membres d&apos;un voyage afin d&apos;identifier les besoins et préférences du groupe et de générer des recommandations personnalisées, notamment pour les destinations, activités, hébergements et organisation du voyage. Ce traitement repose sur les données nécessaires à la fourniture du Service et sert à assister les utilisateurs dans leurs choix. Les recommandations produites par Krew constituent des suggestions et ne constituent pas, à elles seules, une décision produisant un effet juridique ou un effet significatif similaire à l&apos;égard d&apos;une personne.
+          </li>
+          <li>
             <strong>Cas particulier de « la star » (personne mise à l&apos;honneur)</strong> : Lorsqu&apos;un·e organisateur·rice renseigne les préférences et disponibilités d&apos;une personne tierce (« la star ») sans compte, il ou elle garantit avoir recueilli au préalable le consentement exprès de cette dernière pour la collecte et la transmission de ses préférences de voyage à Krew. Ces données sont exclusivement utilisées pour enrichir le scoring de ce voyage et ne servent à aucune autre finalité.
           </li>
         </ul>
