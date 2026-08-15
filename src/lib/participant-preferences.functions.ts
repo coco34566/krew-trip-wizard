@@ -93,21 +93,11 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
 
     // Determine if current user is the Star and star_mode is secret
     let isSecretStar = false;
-    const celebratedPerson = trip.data.celebrated_person;
-    const starUid = trip.data.star_user_id || "star-virtual-uid";
+    const starUid = trip.data.star_user_id;
     const starMode = (trip.data.group_logistics as any)?.star_mode ?? "secret";
 
-    if (participantRow) {
-      const isStarByUid = participantRow.user_id && participantRow.user_id === starUid;
-      const isStarByName = celebratedPerson && participantRow.display_name &&
-        participantRow.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      const isStar = isStarByUid || isStarByName || (userId === starUid);
-
-      if (isStar && starMode === "secret") {
-        isSecretStar = true;
-      }
-    } else if (userId === starUid && starMode === "secret") {
+    const isStar = Boolean(starUid && userId === starUid);
+    if (isStar && starMode === "secret") {
       isSecretStar = true;
     }
 
@@ -456,34 +446,14 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   // Filter out absent participants
   const activeParticipants = rawParticipants.filter((p: any) => p.status !== "absent");
 
-  // Try to find the star in the participants list
-  let starParticipant = null;
-  const ownerId = tripRes.data?.owner_id || null;
-  const coOrganizerId = (tripRes.data as any)?.co_organizer_id || null;
-  if (celebratedPerson) {
-    const normalizedCelebrated = celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-    for (const p of activeParticipants) {
-      const isOwner = p.user_id && (p.user_id === ownerId || p.user_id === coOrganizerId);
-      if (tripRes.data?.star_user_id && p.user_id === tripRes.data.star_user_id) {
-        starParticipant = p;
-        break;
-      }
-      const name = String(p.display_name ?? "")
-        .normalize("NFD")
-        .replace(/\p{M}/gu, "")
-        .toLowerCase()
-        .trim();
-      if (!isOwner && name && (name === normalizedCelebrated || name.includes(normalizedCelebrated) || normalizedCelebrated.includes(name))) {
-        starParticipant = p;
-        break;
-      }
-    }
-  } else if (tripRes.data?.star_user_id) {
-    starParticipant = activeParticipants.find((p: any) => p.user_id === tripRes.data.star_user_id) || null;
-  }
+  // Find the star in the participants list strictly via star_user_id
+  const starUserId = tripRes.data?.star_user_id || null;
+  const starParticipant = starUserId
+    ? activeParticipants.find((p: any) => p.user_id === starUserId) || null
+    : null;
 
   // Resolve starUid safely (never use the form-filler's user ID, e.g. organizer, unless it's the actual star)
-  const starUid = starParticipant?.user_id || tripRes.data?.star_user_id || "star-virtual-uid";
+  const starUid = starParticipant?.user_id || starUserId || "star-virtual-uid";
 
   const starHasPrefs = starPrefs.data && (
     (starPrefs.data.wanted_activities && starPrefs.data.wanted_activities.length > 0) ||

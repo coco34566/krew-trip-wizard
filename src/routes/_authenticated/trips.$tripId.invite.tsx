@@ -166,21 +166,12 @@ function InvitePage() {
   const combinedParticipants = useMemo(() => {
     if (!hasStar) return rawParticipants;
 
-    const starExists = (rawParts: any[]) => rawParts.some((p: any) => {
-      const isStarByUid = p.user_id && p.user_id === starUid;
-      const isStarByName = celebratedPerson && p.display_name &&
-        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      return isStarByUid || isStarByName;
-    });
+    const starExists = (rawParts: any[]) => rawParts.some((p: any) => Boolean(p.user_id && starUid && p.user_id === starUid));
 
     if (starExists(rawParticipants)) {
       return rawParticipants.map((p) => {
-        const isStarByUid = p.user_id && p.user_id === starUid;
-        const isStarByName = celebratedPerson && p.display_name &&
-          p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-          celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-        if (isStarByUid || isStarByName) {
+        const isStarByUid = Boolean(p.user_id && starUid && p.user_id === starUid);
+        if (isStarByUid) {
           return { ...p, isStar: true };
         }
         return p;
@@ -200,7 +191,7 @@ function InvitePage() {
     };
 
     return [...rawParticipants, starVirtual];
-  }, [rawParticipants, trip, tripId, hasStar, starUid, celebratedPerson]);
+  }, [rawParticipants, tripId, hasStar, starUid, celebratedPerson]);
 
   const participants = combinedParticipants;
   const answered = progress?.answered ?? 0;

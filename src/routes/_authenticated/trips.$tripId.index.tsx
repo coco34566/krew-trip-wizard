@@ -782,21 +782,8 @@ function TripDetail() {
 
   const isStar = useMemo(() => {
     if (!tripPreview || !data?.userId) return false;
-    const celebratedPerson = tripPreview.celebrated_person;
-    const starUid = tripPreview.star_user_id || "star-virtual-uid";
-    const participants = (data.participants ?? []) as any[];
-
-    // Find the star participant
-    const starPart = participants.find((p) => {
-      const isStarByUid = p.user_id && p.user_id === starUid;
-      const isOwner = p.user_id && (p.user_id === tripPreview.owner_id || p.user_id === tripPreview.co_organizer_id);
-      const isStarByName = !isOwner && celebratedPerson && p.display_name &&
-        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      return isStarByUid || isStarByName;
-    });
-
-    return starPart?.user_id === data.userId;
+    const starUid = tripPreview.star_user_id;
+    return Boolean(starUid && data.userId === starUid);
   }, [tripPreview, data]);
 
   const isSecretStar = useMemo(() => {
@@ -859,21 +846,12 @@ function TripDetail() {
   const combinedParticipants = (() => {
     if (!hasStar) return rawParticipants;
 
-    const starExists = (rawParts: any[]) => rawParts.some((p: any) => {
-      const isStarByUid = p.user_id && p.user_id === starUid;
-      const isStarByName = celebratedPerson && p.display_name &&
-        p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-        celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      return isStarByUid || isStarByName;
-    });
+    const starExists = (rawParts: any[]) => rawParts.some((p: any) => Boolean(p.user_id && starUid && p.user_id === starUid));
 
     if (starExists(rawParticipants)) {
       return rawParticipants.map((p) => {
-        const isStarByUid = p.user_id && p.user_id === starUid;
-        const isStarByName = celebratedPerson && p.display_name &&
-          p.display_name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim() ===
-          celebratedPerson.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-        if (isStarByUid || isStarByName) {
+        const isStarByUid = Boolean(p.user_id && starUid && p.user_id === starUid);
+        if (isStarByUid) {
           return { ...p, isStar: true };
         }
         return p;
@@ -2292,8 +2270,9 @@ function TripDetail() {
                     ) : null}
                   </div>
                 </li>
-              ))
-            )}
+              );
+            })
+          )}
           </ul>
         </div>
 

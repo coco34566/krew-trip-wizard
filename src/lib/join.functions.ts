@@ -78,19 +78,6 @@ export const joinTrip = createServerFn({ method: "POST" })
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
 
-    // Auto-liaison de star_user_id si absent et que le prénom correspond à la Star
-    if (!trip.data.star_user_id && trip.data.celebrated_person && firstName && trip.data.owner_id !== userId) {
-      const norm = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-      const celebNorm = norm(trip.data.celebrated_person);
-      const firstNorm = norm(firstName);
-      if (celebNorm && firstNorm && (celebNorm === firstNorm || celebNorm.includes(firstNorm) || firstNorm.includes(celebNorm))) {
-        await supabaseAdmin
-          .from("trips")
-          .update({ star_user_id: userId, has_star: true })
-          .eq("id", data.tripId);
-      }
-    }
-
     if (trip.data.owner_id === userId) {
       if (firstName) {
         await supabaseAdmin
