@@ -37,6 +37,7 @@ import {
   setCoOrganizer,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress, getMyParticipantPreferences, declareMyStatus } from "@/lib/participant-preferences.functions";
+import { openWhatsAppShare } from "@/lib/share";
 import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
 import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
@@ -956,11 +957,7 @@ function TripDetail() {
             className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
             onClick={() => {
               const text = buildWhatsAppStatusMessage();
-              window.open(
-                `https://wa.me/?text=${encodeURIComponent(text)}`,
-                "_blank",
-                "noopener,noreferrer",
-              );
+              openWhatsAppShare(text);
             }}
           >
             Partager sur WhatsApp
@@ -2312,8 +2309,7 @@ function TripDetail() {
                 className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
                 onClick={() => {
                   const text = buildWhatsAppInviteMessage();
-                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                  window.open(url, "_blank", "noopener,noreferrer");
+                  openWhatsAppShare(text);
                 }}
               >
                 WhatsApp
@@ -2329,8 +2325,7 @@ function TripDetail() {
                       className={missingParticipants.length === 0 ? "" : "bg-amber-500 text-white hover:bg-amber-600 border-transparent"}
                       onClick={() => {
                         const text = buildWhatsAppRemindMessage();
-                        const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                        window.open(url, "_blank", "noopener,noreferrer");
+                        openWhatsAppShare(text);
                       }}
                     >
                       🔔 {missingParticipants.length === 0 ? "Tout le monde a répondu" : "Relancer les retardataires"}
