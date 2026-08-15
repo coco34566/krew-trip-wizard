@@ -1425,7 +1425,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
           accommodation: (rawAcc != null && rawAcc.source !== 'krew_seed') ? 'api' : 'estimate',
         },
         configuration: config,
-        ...(transportOrigins && transportOrigins.length > 1
+        ...(transportOrigins && transportOrigins.length > 0
           ? { transportByOrigin: transportOrigins }
           : {}),
       };

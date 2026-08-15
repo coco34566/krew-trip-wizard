@@ -179,4 +179,61 @@ describe("pipeline accommodation and transport offers tests", () => {
     expect(proposals[0]?.destination.name).toBe("Annecy");
     expect(proposals[0]?.score).toBeGreaterThan(0);
   });
+
+  it("F. single origin with transport offers retains transportByOrigin and offer URLs", () => {
+    const catalog: TravelCatalog = {
+      destinations: [
+        {
+          id: "dest-1",
+          slug: "annecy",
+          name: "Annecy",
+          country: "France",
+          distance_from_paris_km: 550,
+          avg_daily_cost: 80,
+          best_months: [6, 7, 8, 9],
+          score_fete: 0.7,
+          score_detente: 0.9,
+          score_culturel: 0.6,
+          score_aventure: 0.8,
+          score_luxe: 0.5,
+          score_insolite: 0.6,
+          score_sportif: 0.8,
+          rating: 4.5,
+          popularity: 0.8,
+        },
+      ],
+      activities: [],
+      accommodations: [],
+    };
+
+    const ctx = buildScoringContext(
+      { participants_count: 6, budget_per_person: 400, start_date: "2026-08-01", event_type: "evg" } as any,
+      { ambiances: ["fete"] },
+    );
+
+    ctx.transportOriginsByDestinationId = {
+      "dest-1": [
+        {
+          city: "Paris",
+          count: 6,
+          pricePerPerson: 120,
+          provider: "kayak",
+          mode: "flight",
+          label: "Vol Direct A",
+          url: "https://provider.example/deal/flight-a",
+          searchUrl: "https://www.kayak.fr/flights/PAR-GVA/2026-08-01/2026-08-03?adults=6",
+        },
+      ],
+    };
+
+    const proposals = buildProposals(catalog, ctx, 1);
+    expect(proposals).toHaveLength(1);
+
+    const budget = proposals[0]?.budget as any;
+    expect(budget.transportByOrigin).toBeDefined();
+    expect(budget.transportByOrigin).toHaveLength(1);
+    expect(budget.transportByOrigin[0].city).toBe("Paris");
+    expect(budget.transportByOrigin[0].url).toBe("https://provider.example/deal/flight-a");
+    expect(budget.transportByOrigin[0].searchUrl).toContain("adults=6");
+  });
 });

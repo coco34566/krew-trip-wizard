@@ -414,7 +414,8 @@ function TripRecapPage() {
                         ) : null}
                       </div>
                     </div>
-                  ))}
+                  );
+                })}
 
                   <Separator />
 
