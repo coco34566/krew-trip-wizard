@@ -1114,12 +1114,25 @@ export const getTripRecap = createServerFn({ method: "GET" })
               }
             : null,
           accommodation: r.accommodations
-            ? {
-                id: r.accommodations.id as string,
-                name: r.accommodations.name as string,
-                type: r.accommodations.type as string,
-                bookingUrl: (r.accommodations.booking_url || r.accommodations.url) as string | null,
-              }
+            ? (() => {
+                const acc = r.accommodations;
+                const priceOfferUrl = Array.isArray(acc?.price_offers)
+                  ? acc.price_offers[0]?.url || acc.price_offers[0]?.booking_url
+                  : (acc?.price_offers as any)?.url || (acc?.price_offers as any)?.booking_url;
+                const directUrl = acc?.booking_url || acc?.url || priceOfferUrl;
+                const destName = r.destinations?.name || "";
+                const groupAdults = Math.max(1, Number(trip.data.participants_count) || 1);
+                const noRooms = Math.max(1, Math.ceil(groupAdults / 2));
+                const exactDeepLink = destName
+                  ? `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(`${acc?.name ?? ""} ${destName}`)}&group_adults=${groupAdults}&no_rooms=${noRooms}&selected_currency=EUR`
+                  : null;
+                return {
+                  id: acc.id as string,
+                  name: acc.name as string,
+                  type: acc.type as string,
+                  bookingUrl: (directUrl || exactDeepLink) as string | null,
+                };
+              })()
             : null,
           myReaction: rInfo.myReaction,
           likesCount: rInfo.likesCount,
@@ -1951,9 +1964,10 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
     const effCount = getEffectiveParticipantsCount(trip, participants);
     const adults = Math.min(Math.max(1, effCount), 8);
+    const noRooms = Math.max(1, Math.ceil(effCount / 2));
 
     const bookingSearchUrl = (q: string) =>
-      `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(q)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=1&selected_currency=EUR`;
+      `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(q)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=${noRooms}&selected_currency=EUR`;
     const googleHotelsUrl = (q: string) =>
       `https://www.google.com/travel/hotels?q=${encodeURIComponent(`hotels ${q} ${checkin} ${checkout}`)}`;
     const hotelsComUrl = (q: string) =>
@@ -2028,15 +2042,21 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         score += 0.1;
         reasons.push("proche centre");
       }
-      const primary = h.booking_url || h.url || bookingSearchUrl(`${h.name} ${destName}`);
-      const links = [
-        { label: "Booking", url: bookingSearchUrl(`${h.name} ${destName}`) },
-        { label: "Google Hotels", url: googleHotelsUrl(`${h.name} ${destName}`) },
-        { label: "Hotels.com", url: hotelsComUrl(destName) },
-      ];
-      if (h.booking_url || h.url) {
-        links.unshift({ label: "Réserver", url: String(h.booking_url || h.url) });
+      const priceOfferUrl = Array.isArray(h.price_offers)
+        ? h.price_offers[0]?.url || h.price_offers[0]?.booking_url
+        : (h.price_offers as any)?.url || (h.price_offers as any)?.booking_url;
+      const directUrl = h.booking_url || h.url || priceOfferUrl;
+      const exactDeepLink = bookingSearchUrl(`${h.name} ${destName}`);
+      const genericFallback = bookingSearchUrl(destName);
+      const primary = directUrl || exactDeepLink || genericFallback;
+
+      const links: { label: string; url: string }[] = [];
+      if (directUrl) {
+        links.push({ label: "Réserver", url: String(directUrl) });
       }
+      links.push({ label: "Booking", url: exactDeepLink });
+      links.push({ label: "Google Hotels", url: googleHotelsUrl(`${h.name} ${destName}`) });
+      links.push({ label: "Hotels.com", url: hotelsComUrl(destName) });
       return {
         id: String(h.id),
         name: h.name,
@@ -2456,14 +2476,15 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       }
     };
 
-    const linksForMode = (mode: string, from: string, to: string) => {
+    const linksForMode = (mode: string, from: string, to: string, groupSize: number) => {
       const f = encodeURIComponent(from);
       const d = encodeURIComponent(to);
+      const gAdults = Math.min(Math.max(1, groupSize), 9);
       if (mode === "flight") {
         return [
           {
-            label: "Kayak",
-            url: `https://www.kayak.fr/flights/${f}-${d}/${checkin}/${checkout}?sort=bestflight_a`,
+            label: "Kayak (vol)",
+            url: `https://www.kayak.fr/flights/${f}-${d}/${checkin}/${checkout}?adults=${gAdults}&sort=price_a`,
           },
         ];
       }
@@ -2471,7 +2492,11 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         return [
           {
             label: "SNCF Connect",
-            url: `https://www.sncf-connect.com/fr-fr/train/horaires/${f}/${d}`,
+            url: `https://www.sncf-connect.com/app/home/search/?originLabel=${f}&destinationLabel=${d}&outwardDate=${checkin}&inwardDate=${checkout}&passengers=${gAdults}`,
+          },
+          {
+            label: "Trainline",
+            url: `https://www.thetrainline.com/search/${f}/${d}/${checkin}/${checkout}`,
           },
         ];
       }
@@ -2480,6 +2505,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           {
             label: "BlaBlaCar",
             url: `https://www.blablacar.fr/search?fn=${f}&tn=${d}&db=${checkin}`,
+          },
+        ];
+      }
+      if (mode === "bus") {
+        return [
+          {
+            label: "Omio (bus)",
+            url: `https://www.omio.fr/search?departurePosition=${f}&arrivalPosition=${d}&departureDate=${checkin}&returnDate=${checkout}&adults=${gAdults}`,
           },
         ];
       }
@@ -2500,6 +2533,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       modeLabel: string;
       label: string;
       url: string | null;
+      searchUrl?: string | null;
+      provider?: string | null;
       note?: string;
       links: { label: string; url: string }[];
       durationHours: number;
@@ -2530,9 +2565,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       const acceptedModes = group.transportModeAccepted.map(m => m.toLowerCase().trim());
       const hasModeFilter = acceptedModes.length > 0 && !acceptedModes.includes("peu importe");
 
-      let flightApiPrice: number | null = null;
-      let flightApiUrl: string | null = null;
-      let flightOutsideWindow = false;
+      let flightApiQuote: import("@/integrations/external/transport.server").TransportQuote | null = null;
       const isFlightAllowed = !planeRefused && (!hasModeFilter || acceptedModes.some(m => m.includes("avion") || m.includes("flight")));
 
       if (isFlightAllowed && distanceKm >= 250) {
@@ -2550,9 +2583,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             latestReturnTime: group.latestReturnTime,
           });
           if (apiQuote?.pricePerPerson > 0) {
-            flightApiPrice = apiQuote.pricePerPerson;
-            flightApiUrl = apiQuote.url ?? null;
-            flightOutsideWindow = !!apiQuote.outsideTimeWindow;
+            flightApiQuote = apiQuote;
           }
         } catch (e) {
           providerErrors.push(`transport ${from}: ${String(e).slice(0, 80)}`);
@@ -2584,10 +2615,34 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         }
 
         let price = priceForMode(m.mode);
-        if (m.mode === "flight" && flightApiPrice) price = Math.round(flightApiPrice);
-        const links = linksForMode(m.mode, from, destName);
-        if (m.mode === "flight" && flightApiUrl) {
-          links.unshift({ label: "Offre trouvée", url: flightApiUrl });
+        let directUrl: string | null = null;
+        let exactSearchUrl: string | null = null;
+        let providerName: string | null = null;
+        let flightOutsideWindow = false;
+
+        if (m.mode === "flight" && flightApiQuote) {
+          price = Math.round(flightApiQuote.pricePerPerson);
+          directUrl = flightApiQuote.url ?? null;
+          exactSearchUrl = flightApiQuote.searchUrl ?? null;
+          providerName = flightApiQuote.provider ?? "kayak";
+          flightOutsideWindow = !!flightApiQuote.outsideTimeWindow;
+        }
+
+        const modeLinks = linksForMode(m.mode, from, destName, group.participants.length);
+        if (!exactSearchUrl && modeLinks[0]) {
+          exactSearchUrl = modeLinks[0].url;
+        }
+
+        const primaryUrl = directUrl || exactSearchUrl || modeLinks[0]?.url || null;
+
+        const links: { label: string; url: string }[] = [];
+        if (directUrl) {
+          links.push({ label: "Voir l'offre directe", url: directUrl });
+        }
+        for (const ml of modeLinks) {
+          if (!links.some(l => l.url === ml.url)) {
+            links.push(ml);
+          }
         }
 
         const respectedConstraints: string[] = [];
@@ -2638,9 +2693,11 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           mode: m.mode,
           modeLabel: m.modeLabel,
           label: `A/R ${m.modeLabel.toLowerCase()} ${from} → ${destName}`,
-          url: links[0]?.url ?? null,
-          note: m.mode === "flight" && flightApiPrice
-            ? "prix API réel"
+          url: primaryUrl,
+          searchUrl: exactSearchUrl,
+          provider: providerName,
+          note: m.mode === "flight" && flightApiQuote
+            ? (providerName ? `prix ${providerName} réel` : "prix API réel")
             : "prix indicatif basé sur la distance",
           links: links.slice(0, 4),
           durationHours: duration,
