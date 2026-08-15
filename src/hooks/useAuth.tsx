@@ -10,15 +10,42 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
+
+    // Register the auth listener before doing any explicit session read.
+    // Supabase emits INITIAL_SESSION after loading the persisted session from storage;
+    // listening to that event avoids a startup race where the UI briefly concludes that
+    // the user is signed out before the persisted session has been restored.
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       if (!mounted) return;
-      setSession(data.session);
+
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setLoading(false);
+        return;
+      }
+
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
+      ) {
+        setSession(next);
+        setLoading(false);
+      }
+    });
+
+    // Keep an explicit fallback for browsers where the initial auth event can be
+    // delayed or missed during startup. getSession() also refreshes an expired
+    // persisted session when possible.
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+      if (!error && data.session) {
+        setSession(data.session);
+      }
       setLoading(false);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
-      setLoading(false);
-    });
+
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
