@@ -11,6 +11,7 @@ import {
   formatCostSplitText,
   type CostSplitResult,
 } from "@/lib/krew/cost-split";
+import { openWhatsAppShare } from "@/lib/share";
 import { createGroupPaymentSession } from "@/lib/trips.functions";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -77,8 +78,7 @@ export function CostSplitCard({ split, tripName, tripId }: Props) {
 
   const shareOnWhatsApp = () => {
     const text = formatCostSplitText(split, tripName);
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    openWhatsAppShare(text);
   };
 
   async function exportImage() {

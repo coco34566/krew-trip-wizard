@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { getTripDetail, inviteParticipant, removeParticipant, setCoOrganizer, finalizeInvitationStep } from "@/lib/trips.functions";
+import { openWhatsAppShare } from "@/lib/share";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { STAR_EVENT_TYPES, eventTypeLabel } from "@/lib/krew/constants";
 import { useNavigate } from "@tanstack/react-router";
@@ -279,8 +280,7 @@ function InvitePage() {
                 onClick={() => {
                   const tripName = trip?.name ? ` « ${trip.name} »` : "";
                   const text = `Salut ! On organise un voyage${tripName} avec KREW ✈️\nRejoins-nous et donne tes dispos en 2 min : 👉 ${shareUrl}`;
-                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                  window.open(url, "_blank", "noopener,noreferrer");
+                  openWhatsAppShare(text);
                 }}
               >
                 Inviter sur WhatsApp
@@ -308,8 +308,7 @@ function InvitePage() {
                   lines.push("");
                   lines.push(`Prenez 2 petites minutes pour compléter vos infos : 👉 ${window.location.origin}/trips/${trip.id}`);
                   const text = lines.join("\n");
-                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                  window.open(url, "_blank", "noopener,noreferrer");
+                  openWhatsAppShare(text);
                 }}
                 disabled={!progress?.participants?.some(p => !p.hasAnswered || !p.hasAnsweredAvailability)}
               >
