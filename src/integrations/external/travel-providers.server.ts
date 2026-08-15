@@ -138,19 +138,31 @@ function extractPrice(raw: any): number {
   return 0;
 }
 
-function normalizeHotel(raw: any, provider: string): HotelOffer | null {
-  const externalId = String(
+function normalizeHotel(raw: any, provider: string, searchParams?: SearchParams): HotelOffer | null {
+  const rawId = String(
     raw?.id ?? raw?.hotel_id ?? raw?.property_id ?? raw?.hotelId ?? raw?.propertyId ?? raw?.dest_id ?? "",
   );
   const name =
     raw?.name ?? raw?.hotel_name ?? raw?.property?.name ?? raw?.title ?? raw?.headline?.text ?? null;
-  if (!externalId || !name) return null;
+  if (!rawId || !name) return null;
 
   const price = extractPrice(raw);
   if (price <= 0) return null;
 
+  const rawUrl = raw?.commerceInfo?.externalUrl ?? raw?.url ?? raw?.deeplink ?? raw?.booking_url ?? null;
+
+  // Build specific search deep link when raw API offer lacks explicit direct URL to avoid 404s
+  const individualUrl = rawUrl || (() => {
+    const checkin = searchParams?.checkin ? `&checkin=${searchParams.checkin}` : "";
+    const checkout = searchParams?.checkout ? `&checkout=${searchParams.checkout}` : "";
+    const adults = searchParams?.adults ? `&group_adults=${searchParams.adults}` : "";
+    const rooms = searchParams?.rooms ? `&no_rooms=${searchParams.rooms}` : "";
+    const query = encodeURIComponent(`${name} ${searchParams?.destination ?? ""}`.trim());
+    return `https://www.booking.com/searchresults.fr.html?ss=${query}${checkin}${checkout}${adults}${rooms}&selected_currency=EUR`;
+  })();
+
   return {
-    externalId: `${provider}:${externalId}`,
+    externalId: `${provider}:${rawId}`,
     name: String(name),
     type: String(
       raw?.accommodation_type_name ?? raw?.propertyType ?? raw?.accommodationType ?? "hotel",
@@ -179,7 +191,7 @@ function normalizeHotel(raw: any, provider: string): HotelOffer | null {
         provider,
         pricePerNight: Math.round(price),
         currency: String(raw?.currency ?? raw?.currencycode ?? raw?.currency_code ?? "EUR"),
-        url: raw?.commerceInfo?.externalUrl ?? raw?.url ?? raw?.deeplink ?? raw?.booking_url ?? null,
+        url: individualUrl,
       },
     ],
   };
@@ -250,7 +262,7 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
           const raw = h?.property
             ? { ...h.property, ...h, price: extractPrice(h) || extractPrice(h.property) }
             : h;
-          return normalizeHotel(raw, "booking.com");
+          return normalizeHotel(raw, "booking.com", p);
         })
         .filter((h): h is HotelOffer => Boolean(h));
     },
@@ -273,7 +285,7 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
       return pickArray(payload)
         .map((h) => {
           const raw = h?.property ? { ...h.property, ...h } : h;
-          return normalizeHotel(raw, "booking.com");
+          return normalizeHotel(raw, "booking.com", p);
         })
         .filter((h): h is HotelOffer => Boolean(h));
     },
@@ -317,7 +329,7 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
       });
 
       return pickArray(locPayload)
-        .map((h) => normalizeHotel(h?.property ? { ...h.property, ...h } : h, "hotels.com"))
+        .map((h) => normalizeHotel(h?.property ? { ...h.property, ...h } : h, "hotels.com", p))
         .filter((h): h is HotelOffer => Boolean(h));
     },
   });
@@ -350,7 +362,7 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
             destination: p.destination,
             adults: String(Math.min(Math.max(1, p.adults), 8)),
             ...(p.checkin ? { start_date: p.checkin } : {}),
-            ...(p.checkout ? { end_date: p.checkout } : {}),
+            ...(p.checkout ? { checkout: p.checkout } : {}),
           }),
       ];
 
@@ -359,7 +371,7 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
         try {
           const payload = await attempt();
           const hotels = pickArray(payload)
-            .map((h) => normalizeHotel(h, "expedia"))
+            .map((h) => normalizeHotel(h, "expedia", p))
             .filter((h): h is HotelOffer => Boolean(h));
           if (hotels.length) return hotels;
         } catch (e) {
@@ -376,6 +388,7 @@ function hotelSources(cfg: ProviderConfig): HotelSource[] {
 /** Fusionne les hôtels des sources et compare les prix par nom. */
 export async function searchHotelsAllProviders(cfg: ProviderConfig, params: SearchParams) {
   const sources = hotelSources(cfg);
+  console.info(`[TRACE B. PARAMÈTRES ENVOYÉS AUX FOURNISSEURS] destination=${params.destination}, dates=${params.checkin}..${params.checkout}, adults=${params.adults}, rooms=${params.rooms}`);
   const results = await Promise.allSettled(sources.map((s) => s.run(params)));
   const errors: string[] = [];
   const merged = new Map<string, HotelOffer>();
@@ -384,8 +397,10 @@ export async function searchHotelsAllProviders(cfg: ProviderConfig, params: Sear
     const provider = sources[i]?.provider ?? "inconnu";
     if (r.status === "rejected") {
       errors.push(`${provider}: ${String(r.reason).slice(0, 250)}`);
+      console.info(`[TRACE C. RÉPONSE FOURNISSEUR ERROR] provider=${provider}, err=${String(r.reason).slice(0, 200)}`);
       return;
     }
+    console.info(`[TRACE C. RÉPONSE FOURNISSEUR OK] provider=${provider}, count_raw=${r.value.length}, with_url=${r.value.filter(h => h.offers.some(o => Boolean(o.url))).length}`);
     for (const hotel of r.value) {
       const dedupeKey = hotel.name.toLowerCase().replace(/[^a-z0-9]/g, "");
       const existing = merged.get(dedupeKey);

@@ -1984,6 +1984,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     // Filter to ensure absolute geographical coherence
     const matchedHotels = (hotelsRes.data ?? []).filter((h: any) => h.destination_id === destId);
+    console.info(`[TRACE F. PERSISTANCE & G. SCORING IN LOGISTICS] destId=${destId}, destName=${destName}, matchedHotels_in_db=${matchedHotels.length}, sample_ids=${matchedHotels.slice(0, 3).map((h: any) => h.id).join(", ")}`);
 
     type HotelCard = {
       id: string;

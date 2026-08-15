@@ -131,6 +131,8 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Recor
 }
 
 export function serializeProposal(tripId: string, proposal: Proposal) {
+  const accId = proposal.accommodation?.id ?? null;
+  console.info(`[TRACE H. SÉRIALISATION] trip_id=${tripId}, dest=${proposal.destination.name}, proposal.accommodation_name=${proposal.accommodation?.name}, accommodation_id=${accId}`);
   return {
     trip_id: tripId,
     destination_id: proposal.destination.id,
