@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
@@ -29,9 +29,33 @@ export const Route = createFileRoute("/_authenticated/account")({
 function AccountPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [firstName, setFirstName] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProfile() {
+      if (!user?.id) return;
+
+      const { data, error: profileError } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!cancelled && !profileError) {
+        setFirstName(data?.full_name?.trim() || null);
+      }
+    }
+
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   async function handleDeleteAccount() {
     setDeleting(true);
@@ -49,6 +73,14 @@ function AccountPage() {
     navigate({ to: "/auth", replace: true, search: {} });
   }
 
+  const createdAt = user?.created_at
+    ? new Intl.DateTimeFormat("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(user.created_at))
+    : "—";
+
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-14">
       <div className="mb-8">
@@ -64,10 +96,20 @@ function AccountPage() {
             <CardTitle>Mes informations</CardTitle>
             <CardDescription>Les informations utilisées pour votre compte KREW.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {firstName ? (
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground">Prénom</p>
+                <p className="mt-1 font-medium">{firstName}</p>
+              </div>
+            ) : null}
             <div className="rounded-lg border border-border bg-muted/30 p-4">
               <p className="text-sm text-muted-foreground">Adresse e-mail</p>
               <p className="mt-1 break-all font-medium">{user?.email ?? "—"}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">Date de création du compte</p>
+              <p className="mt-1 font-medium">{createdAt}</p>
             </div>
           </CardContent>
         </Card>
