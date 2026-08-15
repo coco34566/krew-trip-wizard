@@ -1,83 +1,167 @@
-# AI Workflow — Archived
+# KREW — Guide de travail pour les agents IA
 
-This file is retained for historical reference only. It is not an active instruction source.
+## Objectif
 
-The active AI workflow and development rules are maintained in `.agents/skills/krew-core/SKILL.md` and `AGENTS.md`.
+Ce document définit la méthode de travail à suivre par toute IA intervenant sur KREW.
 
-Original archived content:
+Il ne remplace pas les règles techniques du projet.
 
-# AI Workflow – KREW
+---
 
-Ce document décrit la méthode de travail attendue pour toute IA intervenant sur le projet KREW.
+# 1. Comprendre avant de modifier
 
-## 1. Comprendre avant de modifier
+Lorsqu'un problème est signalé :
 
-Avant toute modification :
-- Identifier précisément le problème.
-- Identifier les fichiers et fonctions concernés.
-- Vérifier les dépendances et consommateurs.
-- Ne pas corriger « au hasard ».
+1. reformuler précisément le problème ;
+2. identifier le parcours utilisateur concerné ;
+3. localiser le code responsable ;
+4. rechercher les fonctions et composants associés ;
+5. rechercher les modifications récentes susceptibles d'avoir introduit le problème.
 
-## 2. Identifier la cause racine
+Ne pas commencer par modifier le premier fichier qui semble lié au problème.
 
-Une IA ne doit pas traiter uniquement le symptôme.
-Elle doit rechercher la cause réelle dans le code et les données.
+---
 
-## 3. Vérifier l’état existant
+# 2. Identifier la cause racine
 
-Avant modification :
-- Vérifier l’état Git.
-- Vérifier les modifications déjà présentes.
-- Vérifier les tests existants.
-- Vérifier les workflows concernés.
+Avant d'appliquer un correctif :
 
-## 4. Choisir la modification
+- déterminer où le comportement incorrect apparaît ;
+- déterminer pourquoi il apparaît ;
+- distinguer cause et symptôme ;
+- vérifier si un changement récent est responsable.
+
+Lorsque plusieurs causes sont possibles, les vérifier une par une.
+
+---
+
+# 3. Vérifier l'état existant
+
+Avant de modifier :
+
+- vérifier la branche ;
+- vérifier les derniers commits ;
+- vérifier les changements récents ;
+- vérifier les workflows ;
+- vérifier les variables d'environnement si elles sont pertinentes ;
+- vérifier les dépendances externes.
+
+Ne jamais supposer que le dépôt correspond à une ancienne version connue.
+
+---
+
+# 4. Choisir la modification
 
 Privilégier :
-- la modification minimale ;
-- la conservation des comportements existants ;
-- l’absence de refactorisation hors sujet.
 
-## 5. Implémenter
+- le plus petit changement permettant de résoudre le problème ;
+- la conservation des interfaces existantes ;
+- la conservation du comportement déjà validé ;
+- une solution facile à tester et à revenir en arrière.
 
-Modifier uniquement ce qui est nécessaire à la résolution du problème identifié.
+Éviter les refactorings non nécessaires.
 
-Ne jamais modifier les secrets ou les valeurs sensibles dans le code.
+---
 
-## 6. Tester
+# 5. Implémenter
 
-Après modification, vérifier selon le contexte :
-- compilation / typecheck / lint ;
-- tests automatisés ;
-- déploiement / environnement ;
-- parcours fonctionnel réel.
+Pendant l'implémentation :
 
-Un build réussi ne prouve pas qu’une fonctionnalité fonctionne.
+- ne pas modifier des fichiers sans rapport ;
+- ne pas supprimer de logique existante sans justification ;
+- ne pas modifier les secrets ;
+- ne pas modifier les variables d'environnement de production sans nécessité ;
+- ne pas contourner les checks pour faire passer une PR.
 
-## 7. Pull Request
+---
 
-Avant une PR :
-- vérifier le diff ;
-- vérifier les fichiers modifiés ;
-- vérifier les checks ;
-- distinguer les erreurs préexistantes des régressions.
+# 6. Tester
 
-## 8. Déploiement
+Après implémentation :
 
-Quand pertinent :
-- vérifier le Preview ;
-- tester le parcours concerné ;
-- vérifier la production après merge.
+### Niveau 1 — code
 
-## 9. Fin d’une tâche
+Vérifier :
 
-Indiquer clairement :
-- ce qui a été modifié ;
-- pourquoi ;
-- les fichiers concernés ;
-- les validations effectuées ;
-- ce qui reste non vérifié.
+- TypeScript ;
+- lint ;
+- build ;
+- erreurs évidentes.
 
-## 10. Principe important
+### Niveau 2 — fonctionnalité
 
-Le code et les tests sont la source de vérité pour le comportement réel du projet. La documentation ne doit pas être considérée comme plus fiable que l’implémentation actuelle.
+Tester le parcours utilisateur directement concerné.
+
+### Niveau 3 — régression
+
+Tester les fonctionnalités qui utilisent la même logique.
+
+### Niveau 4 — environnement
+
+Vérifier :
+
+- GitHub Actions ;
+- Vercel Preview ;
+- erreurs runtime ;
+- logs pertinents.
+
+---
+
+# 7. Pull Request
+
+Avant fusion :
+
+1. inspecter le diff ;
+2. vérifier que seuls les fichiers nécessaires ont changé ;
+3. vérifier les checks ;
+4. vérifier le déploiement Preview ;
+5. tester la fonctionnalité sur la Preview.
+
+Si un check échoue :
+
+- identifier son origine ;
+- déterminer s'il est lié au changement ;
+- corriger la cause ;
+- ou documenter pourquoi il est obsolète.
+
+Ne jamais simplement ignorer un check rouge.
+
+---
+
+# 8. Déploiement
+
+Après fusion :
+
+1. vérifier que `main` contient bien le changement ;
+2. attendre le déploiement Vercel ;
+3. vérifier que le déploiement correspond au commit attendu ;
+4. tester le parcours utilisateur en production.
+
+---
+
+# 9. Fin d'une tâche
+
+Une tâche n'est terminée que lorsque :
+
+- le problème initial est corrigé ;
+- le code est intégré ;
+- les checks pertinents sont compris ;
+- le déploiement est terminé ;
+- la fonctionnalité est testée.
+
+Si une de ces étapes n'a pas pu être effectuée, l'indiquer explicitement.
+
+---
+
+# 10. Principe important
+
+Ne jamais confondre :
+
+- « le code a été modifié »
+- « le build fonctionne »
+- « le déploiement fonctionne »
+- « la fonctionnalité fonctionne »
+
+Ce sont quatre validations différentes.
+
+Une tâche fonctionnelle doit être considérée comme terminée uniquement lorsque la fonctionnalité elle-même a été vérifiée.
