@@ -18,8 +18,16 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env['krewproject_SUPABASE_URL'] || process.env['SUPABASE_URL'] || process.env['NEXT_PUBLIC_krewproject_SUPABASE_URL'] || 'https://dummy.supabase.co';
-  const SUPABASE_SERVICE_ROLE_KEY = process.env['krewproject_SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_SERVICE_ROLE_KEY'] || 'dummy_service_role_key';
+  const SUPABASE_URL = process.env['krewproject_SUPABASE_URL'] || process.env['SUPABASE_URL'] || process.env['NEXT_PUBLIC_krewproject_SUPABASE_URL'];
+  const SUPABASE_SERVICE_ROLE_KEY = process.env['krewproject_SUPABASE_SERVICE_ROLE_KEY'] || process.env['SUPABASE_SERVICE_ROLE_KEY'];
+
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    const missing = [
+      ...(!SUPABASE_URL ? ['krewproject_SUPABASE_URL'] : []),
+      ...(!SUPABASE_SERVICE_ROLE_KEY ? ['krewproject_SUPABASE_SERVICE_ROLE_KEY'] : []),
+    ];
+    throw new Error(`Missing Supabase environment variable(s): ${missing.join(', ')}.`);
+  }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
     global: { fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY) },
