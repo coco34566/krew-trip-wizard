@@ -24,6 +24,52 @@ describe("Duration Days vs Nights rules", () => {
     expect(best.coverageRatio).toBe(1);
   });
 
+  it("CAS 1: trip configured for 2 days -> persisted duration_nights = 1 -> group date window J1 -> J2 (1 night)", () => {
+    const durationDays = 2;
+    const durationNights = Math.max(1, durationDays - 1); // 1 night
+    expect(durationNights).toBe(1);
+
+    const entries: AvailabilityEntry[] = [
+      {
+        userId: "user-1",
+        availableDates: ["2026-08-01", "2026-08-02", "2026-08-03"],
+        blockedDates: [],
+        flexDays: 0,
+        durationNights,
+      },
+    ];
+
+    const windows = rankDateWindows(entries, durationNights, 1);
+    expect(windows.length).toBeGreaterThan(0);
+    const best = windows[0]!;
+    expect(best.start).toBe("2026-08-01");
+    expect(best.end).toBe("2026-08-02"); // J1 -> J2 and NOT J1 -> J3
+    expect(best.nights).toBe(1);
+  });
+
+  it("CAS 2: trip configured for 3 days -> persisted duration_nights = 2 -> group date window J1 -> J3 (2 nights)", () => {
+    const durationDays = 3;
+    const durationNights = Math.max(1, durationDays - 1); // 2 nights
+    expect(durationNights).toBe(2);
+
+    const entries: AvailabilityEntry[] = [
+      {
+        userId: "user-1",
+        availableDates: ["2026-08-01", "2026-08-02", "2026-08-03", "2026-08-04"],
+        blockedDates: [],
+        flexDays: 0,
+        durationNights,
+      },
+    ];
+
+    const windows = rankDateWindows(entries, durationNights, 1);
+    expect(windows.length).toBeGreaterThan(0);
+    const best = windows[0]!;
+    expect(best.start).toBe("2026-08-01");
+    expect(best.end).toBe("2026-08-03"); // J1 -> J3 (2 nights)
+    expect(best.nights).toBe(2);
+  });
+
   it("covers 2 days correctly (J1/J2, Saturday and Sunday, which is 1 night)", () => {
     const entries: AvailabilityEntry[] = [
       {

@@ -210,6 +210,7 @@ export async function createTripHelper(
     departure_city: data.departureCity || "Paris",
     status: "en_preparation",
     has_star: wantsStar,
+    duration_nights: data.durationNights ?? 2,
   };
   const midPayload: Record<string, unknown> = {
     owner_id: userId,
@@ -220,12 +221,14 @@ export async function createTripHelper(
     budget_per_person: data.budgetPerPerson ?? 400,
     departure_city: data.departureCity || "Paris",
     status: "en_preparation",
+    duration_nights: data.durationNights ?? 2,
   };
   const minimalPayload: Record<string, unknown> = {
     owner_id: userId,
     name: data.name,
     event_type: data.eventType,
     participants_count: data.participants ?? 2,
+    duration_nights: data.durationNights ?? 2,
   };
 
   let trip;
@@ -236,6 +239,7 @@ export async function createTripHelper(
     const starMidPayload: Record<string, unknown> = {
       ...midPayload,
       has_star: true,
+      duration_nights: data.durationNights ?? 2,
     };
     const starMinimalPayload: Record<string, unknown> = {
       owner_id: userId,
@@ -244,6 +248,7 @@ export async function createTripHelper(
       celebrated_person: data.celebratedPerson ?? null,
       participants_count: data.participants ?? 2,
       has_star: true,
+      duration_nights: data.durationNights ?? 2,
     };
 
     trip = await supabase.from("trips").insert(fullPayload as any).select("*").single();
