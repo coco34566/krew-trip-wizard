@@ -137,8 +137,11 @@ export function CookieConsent() {
               description="Personnalisation de l'expérience, publicité et mesure des campagnes lorsque ces services sont activés."
               checked={consent.personalization || consent.advertising}
               onChange={(value) => {
-                updateCategory("personalization", value);
-                updateCategory("advertising", value);
+                setConsent((current) => ({
+                  ...current,
+                  personalization: value,
+                  advertising: value,
+                }));
               }}
             />
             <CategoryRow
