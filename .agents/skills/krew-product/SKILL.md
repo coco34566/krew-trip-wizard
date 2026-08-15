@@ -4,6 +4,10 @@
 
 This skill defines durable KREW product rules. It is provider-independent and must not be changed merely to accommodate a technical tool or integration.
 
+## Product experience
+
+KREW should provide a simple, fluid and premium-feeling group trip planning experience. This is a product direction, not a reason to introduce unrelated UI rewrites during technical fixes.
+
 ## Group-first recommendation
 
 KREW recommends trips for a group, while preserving individual preferences so the engine can evaluate individual satisfaction rather than reducing everyone to a single undifferentiated profile.
@@ -58,13 +62,19 @@ Accommodation preferences can include lodging type, room type, shared-room accep
 
 Document and implement only behavior that actually exists. Future accommodation concepts must not be presented as current functionality.
 
-## Dates
+## Dates and trip duration
 
-The group date model includes start date, end date, month, flexibility and blackout dates. Group flexibility is conservative and blackout dates are aggregated across participants according to the current engine behavior.
+The trip duration is an explicit business datum when defined at trip/group level and must remain the reference for dependent calculations. Do not silently replace an explicit trip duration with an average of participant preferences.
+
+Always distinguish calendar days, nights and dates. A duration of N nights generally corresponds to N+1 calendar days, but calculations must use the unit appropriate to the specific business context.
+
+The group date model also includes start date, end date, month, flexibility and blackout dates. Group flexibility is conservative and blackout dates are aggregated across participants according to the current engine behavior.
 
 ## Scoring
 
 KREW uses multi-dimensional deterministic scoring. Current dimensions include ambiance, activities, budget, distance, transport, season, weather, quality, consensus, minimum satisfaction, history and environment.
+
+A change to a scoring input must be checked for its effect on existing scores, ranking, extreme results and missing-data cases.
 
 Scoring weights vary by event type and may be overridden through the supported scoring-weight configuration. Do not replace event-specific weighting with a universal weight set without an explicit product decision.
 
