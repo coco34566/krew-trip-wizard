@@ -29,8 +29,9 @@ function ConfidentialitePage() {
           Contact vie privée :{" "}
           <a className="text-primary underline" href="mailto:privacy@krew.app">
             privacy@krew.app
-          </a>{" "}
-          [à remplacer par votre adresse réelle].
+          </a>
+          . Cette adresse pourra être remplacée par l&apos;adresse officielle de l&apos;éditeur lors de
+          la mise en place de la structure juridique définitive.
         </p>
       </LegalSection>
 
@@ -38,87 +39,169 @@ function ConfidentialitePage() {
         <p>Selon votre usage, nous pouvons traiter notamment :</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong>Compte</strong> : email, identifiant technique, éventuel nom d&apos;affichage ;
+            <strong>Compte</strong> : email, identifiant technique, prénom et, si Krew le collecte,
+            nom ou nom d&apos;affichage, ainsi que les informations liées à la création et à la gestion du compte ;
           </li>
           <li>
             <strong>Voyages</strong> : nom du voyage, dates, ville de départ, budget, préférences,
-            contraintes ;
+            contraintes et informations nécessaires à l&apos;organisation du voyage ;
           </li>
           <li>
-            <strong>Participants</strong> : emails d&apos;invitation, réponses au questionnaire
-            (ambiances, activités, budget, ville de départ individuelle, etc.) ;
+            <strong>Participants</strong> : informations d&apos;invitation, réponses aux questionnaires,
+            préférences, disponibilités et informations nécessaires à la personnalisation du voyage ;
           </li>
           <li>
-            <strong>Technique</strong> : logs de connexion, données de sécurité et éléments
-            strictement nécessaires au fonctionnement du Service.
+            <strong>Personne mise à l&apos;honneur (« la Star »)</strong> : lorsqu&apos;un organisateur renseigne
+            ses préférences, disponibilités et informations nécessaires à l&apos;organisation du voyage ;
+          </li>
+          <li>
+            <strong>Contenus et photos</strong> : contenus que les utilisateurs choisissent de transmettre
+            au Service dans le cadre d&apos;un voyage ;
+          </li>
+          <li>
+            <strong>Technique</strong> : données de connexion, sécurité, journaux techniques et éléments
+            strictement nécessaires au fonctionnement et à la sécurisation du Service.
           </li>
         </ul>
         <p>
-          Krew n&apos;a pas vocation à collecter des données sensibles au sens du RGPD, sauf si vous
-          les renseignez spontanément (ex. contraintes alimentaires, mobilité).
+          Certaines réponses libres ou informations relatives à l&apos;alimentation, à la mobilité ou à
+          l&apos;accessibilité peuvent, selon leur contenu, révéler des informations particulièrement
+          sensibles. Krew demande de ne renseigner que les informations nécessaires au voyage et met en
+          œuvre des mesures de protection adaptées. Les données ne sont pas réutilisées pour une finalité
+          différente de celle annoncée sans fondement juridique approprié.
         </p>
       </LegalSection>
 
       <LegalSection title="3. Finalités et bases légales">
-        <p>Nous traitons vos données personnelles (emails, prénoms, préférences de voyage) sur les bases légales suivantes :</p>
+        <p>
+          Les données sont traitées uniquement pour des finalités déterminées, explicites et légitimes,
+          notamment :
+        </p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
             <strong>Fourniture du Service</strong> (exécution du contrat ou mesures précontractuelles) :
-            création et gestion de ton compte, création des voyages de groupe, invitations de tes ami·e·s, scoring et propositions de destinations adaptées, et calcul de la répartition des coûts.
+            création et gestion du compte, création des voyages de groupe, invitations, gestion des
+            participants, questionnaires, organisation du voyage, calcul de la répartition des coûts,
+            scoring et génération de propositions adaptées.
           </li>
           <li>
-            <strong>Consentement</strong> : lorsque celui-ci est requis pour un traitement particulier.
+            <strong>Sécurité et prévention des abus</strong> (intérêt légitime, lorsque les conditions de
+            ce fondement sont réunies) : sécurisation du Service, prévention des fraudes et des usages
+            abusifs, détection et résolution des incidents.
           </li>
           <li>
-            <strong>Intérêt légitime</strong> : pour la sécurité du site, la prévention des abus et fraudes, et l&apos;amélioration continue de notre produit lorsque les conditions de ce fondement sont réunies.
+            <strong>Amélioration du Service</strong> : analyse technique et fonctionnelle nécessaire à
+            l&apos;amélioration de Krew, dans le respect de la base légale applicable et du principe de
+            minimisation.
           </li>
           <li>
-            <strong>Profilage et recommandations</strong> : Krew analyse les préférences renseignées par les membres d&apos;un voyage afin d&apos;identifier les besoins et préférences du groupe et de générer des recommandations personnalisées, notamment pour les destinations, activités, hébergements et organisation du voyage. Ce traitement repose sur les données nécessaires à la fourniture du Service et sert à assister les utilisateurs dans leurs choix. Les recommandations produites par Krew constituent des suggestions et ne constituent pas, à elles seules, une décision produisant un effet juridique ou un effet significatif similaire à l&apos;égard d&apos;une personne.
+            <strong>Profilage et recommandations</strong> : Krew analyse les préférences renseignées par
+            les membres d&apos;un voyage afin d&apos;identifier les besoins et préférences du groupe et de
+            générer des recommandations personnalisées, notamment pour les destinations, activités,
+            hébergements et organisation du voyage. Les recommandations constituent des suggestions et ne
+            constituent pas, à elles seules, une décision produisant un effet juridique ou un effet
+            significatif similaire à l&apos;égard d&apos;une personne.
           </li>
           <li>
-            <strong>Cas particulier de « la star » (personne mise à l&apos;honneur)</strong> : Lorsqu&apos;un·e organisateur·rice renseigne les préférences et disponibilités d&apos;une personne tierce (« la star ») sans compte, il ou elle garantit avoir recueilli au préalable le consentement exprès de cette dernière pour la collecte et la transmission de ses préférences de voyage à Krew. Ces données sont exclusivement utilisées pour enrichir le scoring de ce voyage et ne servent à aucune autre finalité.
+            <strong>Consentement</strong> : lorsque celui-ci constitue la base légale requise pour une
+            finalité particulière, notamment certains cookies et traceurs non essentiels ou certaines
+            communications commerciales. Le consentement peut être retiré à tout moment dans les mêmes
+            conditions de simplicité que son recueil.
+          </li>
+          <li>
+            <strong>Cas particulier de « la Star »</strong> : lorsqu&apos;un organisateur renseigne les
+            préférences et disponibilités d&apos;une personne tierce sans compte, il doit s&apos;assurer de
+            disposer d&apos;un fondement juridique approprié pour transmettre ces informations à Krew et
+            informer la personne concernée conformément au RGPD. Ces données sont utilisées pour
+            l&apos;organisation et la personnalisation du voyage concerné.
           </li>
         </ul>
       </LegalSection>
 
-      <LegalSection title="4. Destinataires">
+      <LegalSection title="4. Destinataires et partage des données">
         <p>
-          Les données sont hébergées de manière sécurisée en Union européenne sur les serveurs de notre prestataire technique <strong>Supabase</strong>. Elles sont accessibles selon les droits prévus par le fonctionnement du Service et ne sont en aucun cas vendues à des tiers.
+          Les données sont accessibles uniquement aux personnes et prestataires qui en ont besoin pour
+          les finalités décrites dans la présente politique, avec des mesures d&apos;accès adaptées.
         </p>
         <p>
           Les participants d&apos;un même voyage peuvent voir certaines informations liées au groupe
-          (ex. progression des réponses, propositions), selon le fonctionnement du produit.
+          (par exemple certaines réponses ou propositions), selon le fonctionnement du produit et les
+          règles d&apos;accès applicables au voyage.
         </p>
         <p>
-          Des appels à des API tierces (recherche d&apos;hôtels, vols, etc.) peuvent transmettre des
-          paramètres de recherche (ville, dates, nombre de personnes) strictement nécessaires à
-          l&apos;obtention d&apos;une estimation. Ces prestataires agissent selon leurs propres
-          conditions.
+          Krew peut utiliser des prestataires techniques, notamment pour l&apos;hébergement, la base de
+          données, l&apos;authentification, les services applicatifs et la recherche d&apos;offres de voyage.
+          Lorsque des API tierces sont utilisées pour rechercher des vols, hébergements ou activités,
+          seuls les paramètres nécessaires à la recherche sont transmis lorsque cela est possible
+          (par exemple destination, dates et nombre de personnes). Les prestataires concernés traitent
+          les données selon leurs propres engagements et les instructions applicables.
         </p>
-      </LegalSection>
-
-      <LegalSection title="5. Transferts hors UE">
         <p>
-          Selon l&apos;hébergeur et les outils utilisés, des données peuvent être traitées en dehors
-          de l&apos;Union européenne. Le cas échéant, des garanties appropriées (clauses
-          contractuelles types, etc.) sont mises en place par les prestataires concernés.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="6. Durées de conservation">
-        <p>
-          Tes données de compte et de voyage sont conservées tant que ton compte est actif. En cas d&apos;inactivité prolongée de ton compte, tes données personnelles sont supprimées au bout de <strong>3 ans</strong> après ta dernière activité sur le Service. Les voyages inactifs et leurs questionnaires associés sont également purgés après un délai raisonnable.
+          À ce jour, Krew ne vend pas les données personnelles des utilisateurs à des tiers. Toute
+          nouvelle finalité de partage, de publicité ciblée ou de monétisation des données devra être
+          définie, documentée et mise en œuvre avec le fondement juridique, l&apos;information et, lorsque
+          nécessaire, le consentement appropriés avant son activation.
         </p>
       </LegalSection>
 
-      <LegalSection title="7. Vos droits (RGPD)">
+      <LegalSection title="5. Transferts hors Union européenne">
         <p>
-          Conformément au Règlement (UE) 2016/679 et à la loi Informatique et Libertés, vous disposez
-          d&apos;un droit d&apos;accès, de rectification, d&apos;effacement, de limitation, de
-          portabilité, et d&apos;opposition pour motifs légitimes.
+          Certains prestataires techniques peuvent traiter des données en dehors de l&apos;Union européenne
+          ou de l&apos;Espace économique européen. Lorsque cela est le cas, Krew met en œuvre les garanties
+          requises par le RGPD, telles qu&apos;une décision d&apos;adéquation ou des garanties contractuelles
+          appropriées, selon la situation. Les informations relatives aux prestataires concernés seront
+          précisées et tenues à jour lorsque les fournisseurs utilisés par Krew seront définitivement
+          sélectionnés.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="6. Durées de conservation et suppression du compte">
+        <p>
+          Krew ne conserve pas les données personnelles indéfiniment. Chaque catégorie de données est
+          conservée pendant la durée nécessaire à la finalité pour laquelle elle a été collectée, sous
+          réserve des durées imposées par la loi ou nécessaires à la constatation, à l&apos;exercice ou à la
+          défense de droits en justice.
         </p>
         <p>
-          Pour les exercer :{" "}
+          Vous pouvez demander la suppression de votre compte directement depuis l&apos;espace « Mes
+          informations ». La suppression entraîne la suppression des données personnelles qui n&apos;ont plus
+          de raison légale d&apos;être conservées. Certaines données peuvent toutefois être conservées pendant
+          la durée légalement nécessaire, notamment lorsqu&apos;une obligation légale, comptable, fiscale ou
+          un litige le justifie. Ces données sont alors conservées séparément ou avec des mesures adaptées
+          lorsque cela est nécessaire.
+        </p>
+        <p>
+          Pour les comptes ou données inactifs, Krew applique des règles de purge définies en fonction des
+          finalités et obligations applicables. Les éventuelles durées précises seront documentées dans la
+          politique interne de conservation et mises à jour dans la présente politique lorsqu&apos;elles seront
+          définitivement arrêtées.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="7. Utilisation des données par les systèmes d&apos;IA">
+        <p>
+          Les données personnelles collectées pour le fonctionnement de Krew ne sont pas automatiquement
+          réutilisées pour entraîner des modèles d&apos;IA. Une utilisation ultérieure à des fins d&apos;entraînement,
+          d&apos;amélioration de modèles ou de développement de nouveaux services constituerait une finalité
+          distincte qui devra être définie, justifiée et documentée avant sa mise en œuvre.
+        </p>
+        <p>
+          Le cas échéant, Krew appliquera les principes de minimisation, de limitation des finalités et de
+          protection des données, et déterminera le fondement juridique approprié ainsi que les modalités
+          d&apos;information et, lorsque nécessaire, de consentement ou d&apos;opposition des personnes concernées.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="8. Vos droits (RGPD)">
+        <p>
+          Conformément au Règlement (UE) 2016/679 et à la loi Informatique et Libertés, vous disposez,
+          selon les conditions applicables, d&apos;un droit d&apos;accès, de rectification, d&apos;effacement, de
+          limitation, de portabilité et d&apos;opposition. Lorsque le traitement repose sur votre consentement,
+          vous pouvez retirer celui-ci à tout moment sans remettre en cause la licéité des traitements
+          effectués avant son retrait.
+        </p>
+        <p>
+          Pour exercer vos droits :{" "}
           <a className="text-primary underline" href="mailto:privacy@krew.app">
             privacy@krew.app
           </a>
@@ -135,28 +218,46 @@ function ConfidentialitePage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Cookies et traceurs">
+      <LegalSection title="9. Cookies et traceurs">
         <p>
-          À ce jour, Krew n&apos;active pas de cookies ou traceurs non essentiels d&apos;analyse d&apos;audience ou de publicité dans l&apos;application. Le fonctionnement du Service peut utiliser des mécanismes techniques nécessaires à l&apos;authentification et à la gestion de session, notamment via Supabase.
+          Krew distingue les traceurs strictement nécessaires au fonctionnement du Service des traceurs
+          nécessitant un consentement. Les traceurs nécessaires peuvent notamment être utilisés pour
+          l&apos;authentification, la sécurité, la gestion de session et les fonctionnalités essentielles.
         </p>
         <p>
-          Si des cookies ou traceurs non essentiels sont ajoutés ultérieurement, ils ne seront activés qu&apos;après mise en place d&apos;un mécanisme de consentement conforme et l&apos;information correspondante sera mise à jour.
+          Krew pourra à l&apos;avenir utiliser, après mise en place des mécanismes de consentement requis,
+          des traceurs destinés notamment à la mesure d&apos;audience, à la personnalisation, à la publicité
+          ciblée, au retargeting et aux fonctionnalités de réseaux sociaux. Ces finalités seront présentées
+          de manière distincte afin de permettre un choix libre et granulaire.
+        </p>
+        <p>
+          Les traceurs nécessitant un consentement ne seront pas déposés ou lus avant le consentement
+          requis. Le choix pourra être retiré ou modifié simplement à tout moment. La liste des traceurs,
+          leurs fournisseurs, finalités et durées sera tenue à jour dans le dispositif de gestion des
+          cookies lorsqu&apos;ils seront activés.
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Sécurité">
+      <LegalSection title="10. Sécurité">
         <p>
-          Des mesures techniques et organisationnelles raisonnables sont mises en œuvre (contrôle
-          d&apos;accès, chiffrement en transit, politiques d&apos;accès base de données). Aucun
-          système n&apos;est infaillible ; signalez tout incident suspect à l&apos;éditeur.
+          Krew met en œuvre des mesures techniques et organisationnelles adaptées aux risques, notamment
+          des contrôles d&apos;accès, des politiques de sécurité de la base de données, du chiffrement en
+          transit et des mécanismes de protection des comptes et des données. L&apos;accès aux données est
+          limité selon les besoins du Service.
+        </p>
+        <p>
+          Aucun système n&apos;est infaillible. Toute vulnérabilité ou utilisation suspecte peut être signalée
+          à l&apos;éditeur à l&apos;adresse de contact indiquée dans les mentions légales ou à l&apos;adresse vie privée
+          ci-dessus.
         </p>
       </LegalSection>
 
-      <LegalSection title="10. Modifications">
+      <LegalSection title="11. Modifications">
         <p>
-          La présente politique peut être mise à jour. La date de dernière mise à jour figure en
-          tête de page. En cas de changement substantiel, une information pourra être affichée sur
-          le Service.
+          La présente politique peut être mise à jour pour tenir compte de l&apos;évolution de Krew, de ses
+          prestataires ou de la réglementation. La date de dernière mise à jour figure en tête de page.
+          En cas de changement substantiel affectant les personnes concernées, une information appropriée
+          pourra être affichée sur le Service.
         </p>
       </LegalSection>
     </LegalPage>
