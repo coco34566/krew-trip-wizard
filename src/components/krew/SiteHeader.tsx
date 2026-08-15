@@ -76,6 +76,9 @@ export function SiteHeader() {
                   <DropdownMenuItem asChild>
                     <Link to="/dashboard">Tableau de bord</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/account">Mon compte</Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 size-4" /> Se déconnecter
                   </DropdownMenuItem>
