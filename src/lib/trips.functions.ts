@@ -1984,6 +1984,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     // Filter to ensure absolute geographical coherence
     const matchedHotels = (hotelsRes.data ?? []).filter((h: any) => h.destination_id === destId);
+    console.info(`[TRACE F. PERSISTANCE & G. SCORING IN LOGISTICS] destId=${destId}, destName=${destName}, matchedHotels_in_db=${matchedHotels.length}, sample_ids=${matchedHotels.slice(0, 3).map((h: any) => h.id).join(", ")}`);
 
     type HotelCard = {
       id: string;
@@ -2042,19 +2043,24 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         score += 0.1;
         reasons.push("proche centre");
       }
-      const priceOfferUrl = Array.isArray(h.price_offers)
-        ? h.price_offers[0]?.url || h.price_offers[0]?.booking_url
-        : (h.price_offers as any)?.url || (h.price_offers as any)?.booking_url;
+      // Prioritize supplier offer URLs / direct links over generic searches
+      const offersList = Array.isArray(h.price_offers) ? h.price_offers : [];
+      const offerWithUrl = offersList.find((o: any) => Boolean(o.url || o.booking_url));
+      const priceOfferUrl = offerWithUrl?.url || offerWithUrl?.booking_url;
       const directUrl = h.booking_url || h.url || priceOfferUrl;
+      const providerName = h.best_provider || offerWithUrl?.provider || h.source || null;
+
       const exactDeepLink = bookingSearchUrl(`${h.name} ${destName}`);
       const genericFallback = bookingSearchUrl(destName);
       const primary = directUrl || exactDeepLink || genericFallback;
 
       const links: { label: string; url: string }[] = [];
       if (directUrl) {
-        links.push({ label: "Réserver", url: String(directUrl) });
+        const label = providerName ? `Réserver sur ${providerName}` : "Réserver";
+        links.push({ label, url: String(directUrl) });
+      } else {
+        links.push({ label: "Recherche Booking", url: exactDeepLink });
       }
-      links.push({ label: "Booking", url: exactDeepLink });
       links.push({ label: "Google Hotels", url: googleHotelsUrl(`${h.name} ${destName}`) });
       links.push({ label: "Hotels.com", url: hotelsComUrl(destName) });
       return {
@@ -2746,6 +2752,16 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       .update({ group_logistics: logisticsWithVotes, updated_at: new Date().toISOString() } as any)
       .eq("id", data.tripId);
 
+    // Update selected recommendation accommodation_id if a top hotel was selected or top scored
+    const bestHotelId = topHotels[0]?.id;
+    if (bestHotelId && !bestHotelId.startsWith("portal-")) {
+      await supabase
+        .from("recommendations")
+        .update({ accommodation_id: bestHotelId })
+        .eq("trip_id", data.tripId)
+        .eq("is_selected", true);
+    }
+
     return { ok: true, logistics: logisticsWithVotes };
   });
 
@@ -2803,6 +2819,15 @@ export const voteHotel = createServerFn({ method: "POST" })
       .update({ group_logistics: next, updated_at: new Date().toISOString() } as any)
       .eq("id", data.tripId);
     if (error) throw error;
+
+    if (topId && !topId.startsWith("portal-")) {
+      await supabase
+        .from("recommendations")
+        .update({ accommodation_id: topId })
+        .eq("trip_id", data.tripId)
+        .eq("is_selected", true);
+    }
+
     return { ok: true, hotelVotes: votes, selectedHotelId: topId };
   });
 

@@ -60,12 +60,25 @@ export async function refreshExternalCatalogForTrip(
   }
 
   const nights: number = prefs?.duration_nights ?? Math.max(1, trip.duration_nights ?? 2);
-  // La taille du séjour est une donnée du voyage, pas le nombre de questionnaires reçus.
-  // Les préférences connues restent celles de `aggregated` et peuvent être partielles.
-  const participants: number = Math.max(1, Number(trip.participants_count) || 2);
+  const checkin =
+    (trip.start_date as string) ||
+    new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
+  const checkout =
+    (trip.end_date as string) ||
+    new Date(new Date(checkin).getTime() + nights * 86400000).toISOString().slice(0, 10);
+
+  const partsRes = await supabaseAdmin
+    .from("trip_participants")
+    .select("id, user_id, email, display_name, status")
+    .eq("trip_id", tripId);
+  const participantsList = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
+  const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
+  const effCount = getEffectiveParticipantsCount(trip, participantsList);
+  const participants: number = Math.max(1, effCount);
+
   const climate = await fetchClimate(place.latitude, place.longitude, {
-    startDate: trip.start_date ?? null,
-    endDate: trip.end_date ?? null,
+    startDate: checkin,
+    endDate: checkout,
   });
 
   const normalizedQuery = destinationQuery
@@ -97,9 +110,6 @@ export async function refreshExternalCatalogForTrip(
     klookHost: process.env["KLOOK_RAPIDAPI_HOST"],
   };
 
-  // Recherche fournisseur : la taille du groupe vient toujours de trips.participants_count.
-  // Le nombre de chambres est dérivé uniquement comme fallback lorsque le questionnaire
-  // ne permet pas de calculer une configuration plus précise.
   const soloRoomRequests = (aggregated.individualPreferences ?? []).filter((p: any) => {
     const room = String(p.roomTypePreference ?? p.room_type_preference ?? "").toLowerCase();
     return p.acceptsSharedRoom === false || /solo|single|individuelle/.test(room);
@@ -110,8 +120,8 @@ export async function refreshExternalCatalogForTrip(
     destination: existingDest.data?.name ?? place.name,
     latitude: place.latitude,
     longitude: place.longitude,
-    checkin: trip.start_date ?? null,
-    checkout: trip.end_date ?? null,
+    checkin,
+    checkout,
     adults: participants,
     rooms,
     requiredAmenities: aggregated.requiredAmenities ?? [],
@@ -121,6 +131,8 @@ export async function refreshExternalCatalogForTrip(
   const providerErrors: string[] = [];
   let hotels: Awaited<ReturnType<typeof searchHotelsAllProviders>>["hotels"] = [];
   let activities: Awaited<ReturnType<typeof searchActivitiesAllProviders>>["activities"] = [];
+
+  console.info(`[TRACE A. DONNÉES KREW ENTRANTES] trip_id=${tripId}, destination=${searchParams.destination}, checkin=${checkin}, checkout=${checkout}, participants_count=${participants}, rooms=${rooms}, budget=${aggregated.aggregatedBudget}, minRating=${aggregated.minAccommodationRating}, reqAmenities=${JSON.stringify(aggregated.requiredAmenities ?? [])}`);
 
   if (rapidApiKey) {
     console.info("[Krew API] Clé HOTELS_RAPIDAPI_KEY détectée. Lancement de la recherche d'hôtels et d'activités réels.");
@@ -136,18 +148,26 @@ export async function refreshExternalCatalogForTrip(
     providerErrors.push("Aucune clé RapidAPI configurée : seules la météo et la saisonnalité ont été mises à jour.");
   }
 
+  const countRaw = hotels.length;
+  console.info(`[TRACE C. RÉPONSE FOURNISSEUR TOTAL] hotels_raw_count=${countRaw}, offers_total=${hotels.reduce((s, h) => s + h.offers.length, 0)}`);
+
   // Appliquer immédiatement les contraintes d'hébergement qui sont représentables
   // de façon fiable avec les données fournisseur normalisées. Les autres restent
   // disponibles au moteur de scoring afin de ne jamais inventer une contrainte.
   const minRating = Number(aggregated.minAccommodationRating ?? 0);
+  const countBeforeRatingFilter = hotels.length;
   if (minRating > 0) {
     hotels = hotels.filter((h) => !h.rating || h.rating >= minRating);
   }
+  const countAfterRatingFilter = hotels.length;
 
-  // Ne jamais transformer une offre fournisseur sans URL en "offre réservable".
-  // Elle peut rester dans le catalogue pour enrichissement/scoring, mais seule une
-  // offre disposant d'un lien fournisseur réel est éligible à une carte actionnable.
+  const countBeforeUrlFilter = hotels.length;
+  const lostMissingUrl = hotels.filter((h) => !h.offers.some((offer) => Boolean(offer.url)));
+  console.info(`[TRACE D. NORMALISATION & E. FILTRES KREW] hotels_before_url_filter=${countBeforeUrlFilter}, lost_missing_url=${lostMissingUrl.length}, names_lost_missing_url=${lostMissingUrl.map(h => h.name).join(", ")}`);
+
   hotels = hotels.filter((h) => h.offers.some((offer) => Boolean(offer.url)));
+  const countAfterUrlFilter = hotels.length;
+  console.info(`[TRACE E. FILTRES SUMMARY] raw=${countRaw}, after_rating_filter=${countAfterRatingFilter}, after_url_filter=${countAfterUrlFilter}`);
 
   const nightlyPrices = hotels
     .map((h) => h.offers[0]?.pricePerNight ?? 0)
@@ -207,9 +227,10 @@ export async function refreshExternalCatalogForTrip(
     });
     const res = await supabaseAdmin
       .from("accommodations")
-      .upsert(rows as never, { onConflict: "source,external_id" });
+      .upsert(rows as never, { onConflict: "source,external_id" })
+      .select("id");
     if (res.error) providerErrors.push(`upsert hébergements: ${res.error.message}`);
-    else accommodationsCount = rows.length;
+    else accommodationsCount = res.data?.length ?? rows.length;
   }
 
   let activitiesCount = 0;
