@@ -42,15 +42,18 @@ export async function refreshExternalCatalogForTrip(
   const searchParams = { destination: existingDest.data?.name ?? place.name, latitude: place.latitude, longitude: place.longitude, checkin, checkout, adults: participants, rooms, requiredAmenities: aggregated.requiredAmenities ?? [], roomTypePreferences: aggregated.roomTypePreferences ?? [] };
   const providerErrors: string[] = [];
   let hotels: Awaited<ReturnType<typeof searchHotelsAllProviders>>["hotels"] = [];
-  const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? "";
-  if (rapidApiKey) {
-    console.info("[Krew API] Clé HOTELS_RAPIDAPI_KEY détectée. Recherche hébergements uniquement.");
+  const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? process.env["RAPIDAPI_KEY"] ?? "";
+  const stayApiKey = process.env["STAYAPI_API_KEY"] ?? "";
+
+  if (!stayApiKey && !rapidApiKey) {
+    providerErrors.push("STAYAPI_API_KEY is not configured");
+  } else {
+    console.info("[Krew API] Recherche hébergements en cours via StayAPI / fallback RapidAPI...");
     const hotelRes = await searchHotelsAllProviders({ rapidApiKey, hotelsHost: process.env["HOTELS_RAPIDAPI_HOST"] ?? process.env["HOTELS_COM_RAPIDAPI_HOST"], hotelsComHost: process.env["HOTELS_COM_RAPIDAPI_HOST"] ?? process.env["HOTELS_RAPIDAPI_HOST"], bookingHost: process.env["BOOKING_RAPIDAPI_HOST"], expediaHost: process.env["EXPEDIA_RAPIDAPI_HOST"] }, searchParams);
     hotels = hotelRes.hotels;
     providerErrors.push(...hotelRes.errors);
-  } else {
-    providerErrors.push("Aucune clé RapidAPI configurée pour la recherche d'hébergements.");
   }
+
   const minRating = Number(aggregated.minAccommodationRating ?? 0);
   if (minRating > 0) hotels = hotels.filter((h) => !h.rating || h.rating >= minRating);
   hotels = hotels.filter((h) => h.offers.some((offer) => Boolean(offer.url)));

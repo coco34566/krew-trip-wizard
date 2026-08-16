@@ -5,6 +5,7 @@
  * et le provider des activités existant.
  */
 import { reportServerError } from "@/lib/server-error-reporting.server";
+import { searchHotelsStayApi } from "./stayapi-hotels.server";
 
 export type ProviderConfig = {
   rapidApiKey: string;
@@ -78,20 +79,6 @@ async function rapid(host: string, key: string, path: string, params: Record<str
   return res.json() as Promise<any>;
 }
 
-async function stayApi(path: string, params: Record<string, string>) {
-  const key = process.env.STAYAPI_API_KEY;
-  if (!key) throw new Error("STAYAPI_API_KEY is not configured");
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch(`https://api.stayapi.com${path}?${qs}`, {
-    headers: { "x-api-key": key, Accept: "application/json" },
-  });
-  const text = await res.text();
-  let body: any;
-  try { body = JSON.parse(text); } catch { body = { raw: text }; }
-  if (!res.ok || body?.success === false) throw new Error(`StayAPI ${path} → ${res.status}: ${JSON.stringify(body).slice(0, 500)}`);
-  return body;
-}
-
 const num = (v: unknown): number => {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   const n = Number(String(v ?? "").replace(/[^\d.,-]/g, "").replace(",", "."));
@@ -155,34 +142,6 @@ function normalizeHotel(raw: any, provider: string): HotelOffer | null {
       url: raw?.url ?? raw?.commerceInfo?.externalUrl ?? raw?.deeplink ?? raw?.booking_url ?? null,
     }],
   };
-}
-
-async function resolveStayApiDestination(destination: string) {
-  const payload = await stayApi("/v1/booking/destinations", { query: destination });
-  const candidates = pickArray(payload);
-  const exact = candidates.find((d: any) => String(d?.name ?? d?.label ?? d?.city_name ?? "").toLowerCase() === destination.toLowerCase());
-  const city = candidates.find((d: any) => String(d?.type ?? d?.dest_type ?? "").toLowerCase() === "city");
-  const d = exact ?? city ?? candidates[0];
-  const id = d?.dest_id ?? d?.destination_id ?? d?.id;
-  if (!id) throw new Error(`StayAPI: destination ID introuvable pour "${destination}"`);
-  return { id: String(id), type: String(d?.dest_type ?? d?.type ?? "CITY").toUpperCase() };
-}
-
-async function searchHotelsStayApi(params: SearchParams): Promise<HotelOffer[]> {
-  const destination = await resolveStayApiDestination(params.destination);
-  const payload = await stayApi("/v1/booking/search", {
-    dest_id: destination.id,
-    dest_type: destination.type,
-    ...(params.checkin ? { checkin: params.checkin } : {}),
-    ...(params.checkout ? { checkout: params.checkout } : {}),
-    adults: String(Math.max(1, params.adults)),
-    rooms: String(Math.max(1, params.rooms ?? Math.ceil(params.adults / 2))),
-    rows_per_page: "100",
-    offset: "0",
-    language: "fr-fr",
-    currency: "EUR",
-  });
-  return pickArray(payload).map((h) => normalizeHotel(h, "stayapi/booking")).filter((h): h is HotelOffer => Boolean(h));
 }
 
 function rapidHotelSources(cfg: ProviderConfig) {
