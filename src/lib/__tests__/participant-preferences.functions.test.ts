@@ -14,7 +14,8 @@ describe('attachParticipantToTrip', () => {
     const eqMock = vi.fn(() => ({ ilike: ilikeMock }));
     const updateMock = vi.fn(() => ({ eq: eqMock }));
     const fromMock = vi.fn(() => ({ update: updateMock }));
-    const supabase = { from: fromMock } as any;
+    const authMock = { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId, email: userEmail } } }) };
+    const supabase = { from: fromMock, auth: authMock } as any;
 
     const updated = await attachParticipantToTrip(supabase, tripId, userId, userEmail);
 
@@ -39,7 +40,8 @@ describe('attachParticipantToTrip', () => {
     const eqMock = vi.fn(() => ({ ilike: ilikeMock }));
     const updateMock = vi.fn(() => ({ eq: eqMock }));
     const fromMock = vi.fn(() => ({ update: updateMock }));
-    const supabase = { from: fromMock } as any;
+    const authMock = { getUser: vi.fn().mockResolvedValue({ data: { user: { id: userId, email: userEmail } } }) };
+    const supabase = { from: fromMock, auth: authMock } as any;
 
     await expect(attachParticipantToTrip(supabase, tripId, userId, userEmail)).rejects.toThrow(
       `No pending invitation found for email ${userEmail} on trip ${tripId}`,

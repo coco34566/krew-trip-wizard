@@ -20,10 +20,9 @@ import { fetchClimate, geocodeDestination } from "@/integrations/external/geo-we
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
   if (!trip) return Math.max(1, participants?.length || 1);
-  const baseCount = Array.isArray(participants) && participants.length > 0
-    ? participants.length
-    : Number(trip.participants_count) || 1;
-  return Math.max(1, baseCount);
+  const declaredCount = Number(trip.participants_count) || 0;
+  const actualCount = Array.isArray(participants) ? participants.length : 0;
+  return Math.max(declaredCount, actualCount, 1);
 }
 
 export const tripInputSchema = z.object({
@@ -1399,7 +1398,16 @@ export async function generateRecommendationsForTrip(
     const originsLimited = originsForQuote.slice(0, 4);
 
     for (const dest of catalogFinal.destinations.slice(0, 5)) {
-      const originQuotes: { city: string; count: number; pricePerPerson: number }[] = [];
+      const originQuotes: {
+        city: string;
+        count: number;
+        pricePerPerson: number;
+        provider?: string;
+        mode?: string;
+        label?: string;
+        url?: string | null;
+        searchUrl?: string | null;
+      }[] = [];
       let groupTransport = 0;
       let peopleQuoted = 0;
 
@@ -1416,7 +1424,16 @@ export async function generateRecommendationsForTrip(
             latestReturnTime,
           });
           const price = quote.pricePerPerson;
-          originQuotes.push({ city: origin.city, count: origin.count, pricePerPerson: price });
+          originQuotes.push({
+            city: origin.city,
+            count: origin.count,
+            pricePerPerson: price,
+            provider: quote.provider,
+            mode: quote.mode,
+            label: quote.label,
+            url: quote.url ?? null,
+            searchUrl: quote.searchUrl ?? null,
+          });
           groupTransport += price * origin.count;
           peopleQuoted += origin.count;
           if (quote.rawError) {

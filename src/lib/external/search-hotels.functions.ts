@@ -60,13 +60,27 @@ export async function refreshExternalCatalogForTrip(
   }
 
   const nights: number = prefs?.duration_nights ?? Math.max(1, trip.duration_nights ?? 2);
-  const participants: number = Math.max(1, trip.participants_count ?? 2);
+  const checkin =
+    (trip.start_date as string) ||
+    new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
+  const checkout =
+    (trip.end_date as string) ||
+    new Date(new Date(checkin).getTime() + nights * 86400000).toISOString().slice(0, 10);
+
+  const partsRes = await supabaseAdmin
+    .from("trip_participants")
+    .select("id, user_id, email, display_name, status")
+    .eq("trip_id", tripId);
+  const participantsList = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
+  const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
+  const effCount = getEffectiveParticipantsCount(trip, participantsList);
+  const participants: number = Math.max(1, effCount);
+
   const climate = await fetchClimate(place.latitude, place.longitude, {
-    startDate: trip.start_date ?? null,
-    endDate: trip.end_date ?? null,
+    startDate: checkin,
+    endDate: checkout,
   });
 
-  // Rechercher d'abord si une destination existe déjà avec ce nom ou un nom proche
   const normalizedQuery = destinationQuery
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -85,7 +99,6 @@ export async function refreshExternalCatalogForTrip(
   const source = existingDest.data?.source ?? "krew_discovery";
 
   const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? "";
-  // Hosts optionnels — défauts dans DEFAULT_RAPIDAPI_HOSTS (travel-providers.server.ts)
   const providerConfig = {
     rapidApiKey,
     hotelsHost: process.env["HOTELS_RAPIDAPI_HOST"] ?? process.env["HOTELS_COM_RAPIDAPI_HOST"],
@@ -96,13 +109,21 @@ export async function refreshExternalCatalogForTrip(
     tripadvisorHost: process.env["TRIPADVISOR_RAPIDAPI_HOST"],
     klookHost: process.env["KLOOK_RAPIDAPI_HOST"],
   };
+
+  const soloRoomRequests = (aggregated.individualPreferences ?? []).filter((p: any) => {
+    const room = String(p.roomTypePreference ?? p.room_type_preference ?? "").toLowerCase();
+    return p.acceptsSharedRoom === false || /solo|single|individuelle/.test(room);
+  }).length;
+  const rooms = Math.max(1, Math.ceil((participants + soloRoomRequests) / 2));
+
   const searchParams = {
     destination: existingDest.data?.name ?? place.name,
     latitude: place.latitude,
     longitude: place.longitude,
-    checkin: trip.start_date ?? null,
-    checkout: trip.end_date ?? null,
+    checkin,
+    checkout,
     adults: participants,
+    rooms,
     requiredAmenities: aggregated.requiredAmenities ?? [],
     roomTypePreferences: aggregated.roomTypePreferences ?? [],
   };
@@ -125,7 +146,19 @@ export async function refreshExternalCatalogForTrip(
     providerErrors.push("Aucune clé RapidAPI configurée : seules la météo et la saisonnalité ont été mises à jour.");
   }
 
-  // Coût quotidien moyen déduit des prix réels observés.
+  // Appliquer immédiatement les contraintes d'hébergement qui sont représentables
+  // de façon fiable avec les données fournisseur normalisées. Les autres restent
+  // disponibles au moteur de scoring afin de ne jamais inventer une contrainte.
+  const minRating = Number(aggregated.minAccommodationRating ?? 0);
+  if (minRating > 0) {
+    hotels = hotels.filter((h) => !h.rating || h.rating >= minRating);
+  }
+
+  // Ne jamais transformer une offre fournisseur sans URL en "offre réservable".
+  // Elle peut rester dans le catalogue pour enrichissement/scoring, mais seule une
+  // offre disposant d'un lien fournisseur réel est éligible à une carte actionnable.
+  hotels = hotels.filter((h) => h.offers.some((offer) => Boolean(offer.url)));
+
   const nightlyPrices = hotels
     .map((h) => h.offers[0]?.pricePerNight ?? 0)
     .filter((p) => p > 0)
@@ -161,7 +194,7 @@ export async function refreshExternalCatalogForTrip(
   let accommodationsCount = 0;
   if (hotels.length) {
     const rows = hotels.slice(0, 30).map((h) => {
-      const best = h.offers[0];
+      const best = h.offers.find((offer) => Boolean(offer.url)) ?? h.offers[0];
       return {
         destination_id: destinationId,
         name: h.name,
@@ -184,9 +217,10 @@ export async function refreshExternalCatalogForTrip(
     });
     const res = await supabaseAdmin
       .from("accommodations")
-      .upsert(rows as never, { onConflict: "source,external_id" });
+      .upsert(rows as never, { onConflict: "source,external_id" })
+      .select("id");
     if (res.error) providerErrors.push(`upsert hébergements: ${res.error.message}`);
-    else accommodationsCount = rows.length;
+    else accommodationsCount = res.data?.length ?? rows.length;
   }
 
   let activitiesCount = 0;
@@ -232,10 +266,6 @@ export const searchExternalForTrip = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ tripId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-
-    // Résout la destination souhaitée en cherchant d'abord au niveau du voyage
-    // (`trip_preferences`), puis, si vide, la destination la plus citée dans
-    // les questionnaires individuels des participants (`trip_participant_preferences`).
     const destinationQuery = await resolveDesiredDestination(supabase, data.tripId);
     if (!destinationQuery) {
       return {

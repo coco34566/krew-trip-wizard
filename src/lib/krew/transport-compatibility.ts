@@ -9,6 +9,10 @@ export type TransportOption = {
   source: "api" | "estimate";
   connections?: number;
   label: string;
+  /** URL de l'offre fournisseur précise, lorsqu'elle existe. */
+  url?: string | null;
+  /** URL de recherche exacte, utilisée uniquement comme fallback. */
+  searchUrl?: string | null;
 };
 
 const norm = (s: string) =>
@@ -30,12 +34,12 @@ export function estimateOptionsByMode(distanceKm: number, modes: string[] | unde
   const canonical = normalizeTransportModes(modes);
   return canonical.map((mode) => {
     if (mode === "flight") {
-      return { mode, durationHours: Math.max(2, distanceKm / 720 + 1.6), pricePerPerson: estimateTransportFromDistance(distanceKm), source: "estimate", connections: distanceKm > 1800 ? 1 : 0, label: "Vol estimé porte-à-porte" };
+      return { mode, durationHours: Math.max(2, distanceKm / 720 + 1.6), pricePerPerson: estimateTransportFromDistance(distanceKm), source: "estimate", connections: distanceKm > 1800 ? 1 : 0, label: "Vol estimé porte-à-porte", url: null, searchUrl: null };
     }
     if (mode === "train") {
-      return { mode, durationHours: Math.max(0.5, distanceKm / 185 + 0.5), pricePerPerson: Math.max(35, distanceKm * 0.13), source: "estimate", connections: distanceKm > 750 ? 1 : 0, label: "Train estimé" };
+      return { mode, durationHours: Math.max(0.5, distanceKm / 185 + 0.5), pricePerPerson: Math.max(35, distanceKm * 0.13), source: "estimate", connections: distanceKm > 750 ? 1 : 0, label: "Train estimé", url: null, searchUrl: null };
     }
-    return { mode, durationHours: Math.max(0.5, distanceKm / 82 + 0.25), pricePerPerson: Math.max(25, distanceKm * 0.11), source: "estimate", connections: 0, label: "Voiture estimée" };
+    return { mode, durationHours: Math.max(0.5, distanceKm / 82 + 0.25), pricePerPerson: Math.max(25, distanceKm * 0.11), source: "estimate", connections: 0, label: "Voiture estimée", url: null, searchUrl: null };
   });
 }
 
