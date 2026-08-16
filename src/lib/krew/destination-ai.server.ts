@@ -105,7 +105,21 @@ type InteractionResponse = {
 
 function getGeminiConfig(): GeminiConfig | null {
   const apiKey = process.env["GEMINI_API_KEY"];
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.info("[Gemini env diagnostic]", {
+      processEnvPresent: false,
+      geminiEnvNames: Object.keys(process.env).filter((key) => key.startsWith("GEMINI")),
+      vercelEnv: process.env["VERCEL_ENV"] ?? null,
+      vercelGitCommitRef: process.env["VERCEL_GIT_COMMIT_REF"] ?? null,
+    });
+    return null;
+  }
+  console.info("[Gemini env diagnostic]", {
+    processEnvPresent: true,
+    geminiEnvNames: Object.keys(process.env).filter((key) => key.startsWith("GEMINI")),
+    vercelEnv: process.env["VERCEL_ENV"] ?? null,
+    vercelGitCommitRef: process.env["VERCEL_GIT_COMMIT_REF"] ?? null,
+  });
   return {
     apiKey,
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/interactions",
