@@ -6,7 +6,8 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  buildProposals,
+  buildDestinationProposals,
+  evaluateDestinationHardConstraints,
   filterDestinationsByHardConstraints,
   dominantAmbiance,
   getNormalizedBudgetPriority,
@@ -1160,6 +1161,17 @@ export async function generateRecommendationsForTrip(
 
   // ——— Phase 1 : budget + transport individuels → contrainte de destination ———
   ctx.departureOrigins = aggregated.departureOrigins ?? [];
+  // Gemini receives the same KREW weights that deterministic scoring will use.
+  try {
+    const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
+    const { data: wRow } = await supabase.from("scoring_weights").select("*").eq("event_type", eventKey).maybeSingle();
+    if (wRow) ctx.scoringWeights = {
+      ambiance: Number(wRow.ambiance_weight), activities: Number(wRow.activities_weight), budget: Number(wRow.budget_weight),
+      distance: Number(wRow.distance_weight), season: Number(wRow.season_weight), quality: Number(wRow.quality_weight),
+      consensus: Number(wRow.consensus_weight ?? 18), minSatisfaction: Number(wRow.min_satisfaction_weight ?? 15),
+    };
+    ctx.eventType = eventKey;
+  } catch { /* optional table: engine defaults remain authoritative */ }
   ctx.planeRefused = Boolean(aggregated.planeRefused);
   ctx.transportModes = aggregated.transportModes ?? [];
   // Si le groupe refuse l'avion, on resserre fortement la distance (train/covoit)
@@ -1198,7 +1210,7 @@ export async function generateRecommendationsForTrip(
     const primaryDeparture =
       (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
       (trip.data.departure_city as string) ||
-      "Paris";
+      "Origine non renseignée";
 
     const discoveryInput = {
       ambiances: ctx.ambiances,
@@ -1209,6 +1221,9 @@ export async function generateRecommendationsForTrip(
       startMonth: ctx.startMonth,
       excludedCountries: ctx.excludedCountries,
       departureCity: primaryDeparture,
+      departureOrigins: aggregated.departureOrigins,
+      startDate: recommendationDates.startDate,
+      endDate: recommendationDates.endDate,
       participants: ctx.participants,
       ...(trip.data.event_type ? { eventType: trip.data.event_type as string } : {}),
       planeRefused: Boolean((aggregated as any).planeRefused),
@@ -1224,6 +1239,19 @@ export async function generateRecommendationsForTrip(
       discoveryBranches: routeDiscovery(readiness.profile.selectedConcepts).branches,
       localMobility: aggregated.groupLocalMobility ?? null,
       accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
+      transportModes: ctx.transportModes,
+      refusedTransportModes: ctx.planeRefused ? ["flight"] : [],
+      budgetMedian: aggregated.aggregatedBudget,
+      budgetMinimum: aggregated.minGroupBudget,
+      budgetVeto: aggregated.vetoBudgetMax,
+      rhythm: { pace: ctx.travelPace, dateFlexDays: ctx.dateFlexDays, preferredTimeSlots: ctx.preferredTimeSlots },
+      accommodationSignals: {
+        type: ctx.mostDemandedLodgingType, roomTypes: ctx.roomTypePreferences, acceptsSharedRoom: ctx.acceptsSharedRoom,
+        role: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole,
+        requiredAmenities: ctx.requiredAmenities, minimumRating: ctx.minAccommodationRating,
+        cityCenter: ctx.needsCityCenter, localMobility: ctx.groupLocalMobility,
+      },
+      historySignals: ctx.pastDestinations,
       relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
         ambiances: p.ambiances,
         activities: p.activityCategories,
@@ -1288,12 +1316,17 @@ export async function generateRecommendationsForTrip(
       candidateClass: c.candidateClass,
       matchedSignals: c.matchedSignals,
       compromiseFor: c.compromiseFor,
+      strongMatches: c.strongMatches,
+      groupsSatisfied: c.groupsSatisfied,
+      starMatches: c.starMatches,
+      potentialWeaknesses: c.potentialWeaknesses,
+      hardConstraintAssessment: c.hardConstraintAssessment,
       confidence: c.confidence,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities);
-    console.info(`[discovery] gemini candidates: ${aiCities.length}`);
-    console.info(`[discovery] local candidates: ${ruleBased.length}`);
-    console.info(`[discovery] merged candidates: ${mergedCandidates.length}`);
+    console.info(`[discovery] Gemini candidates: ${aiCities.length}`);
+    console.info(`[discovery] Local candidates: ${ruleBased.length}`);
+    console.info(`[discovery] Merged candidates: ${mergedCandidates.length}`);
 
     if (resolvedDestination && letKrewDecide) {
       const normResolved = normCity(resolvedDestination);
@@ -1570,7 +1603,7 @@ export async function generateRecommendationsForTrip(
   > = {};
 
   // Origines : questionnaires individuels, sinon ville du voyage
-  const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
+  const tripOrigin = ((trip.data.departure_city as string) || "Origine non renseignée").trim() || "Origine non renseignée";
   const departureOrigins =
     aggregated.departureOrigins && aggregated.departureOrigins.length > 0
       ? aggregated.departureOrigins
@@ -1693,40 +1726,30 @@ export async function generateRecommendationsForTrip(
 
   // 5) Scoring final → 4 destinations. The Top 3 product rule applies to
   // stay concepts, while the established destination UI displays four options.
-  // Poids depuis DB si dispo
-  try {
-    const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
-    const { data: wRow } = await supabase
-      .from("scoring_weights")
-      .select("*")
-      .eq("event_type", eventKey)
-      .maybeSingle();
-    if (wRow) {
-      ctxWithTransport.scoringWeights = {
-        ambiance: Number(wRow.ambiance_weight),
-        activities: Number(wRow.activities_weight),
-        budget: Number(wRow.budget_weight),
-        distance: Number(wRow.distance_weight),
-        season: Number(wRow.season_weight),
-        quality: Number(wRow.quality_weight),
-        consensus: Number(wRow.consensus_weight ?? 18),
-        minSatisfaction: Number(wRow.min_satisfaction_weight ?? 15),
-      };
-    }
-    ctxWithTransport.eventType = eventKey;
-  } catch {
-    /* table absente → défauts engine */
-  }
-
   const afterHardConstraints = filterDestinationsByHardConstraints(
     catalogFinal.destinations,
     ctxWithTransport,
   );
-  console.info(`[discovery] after hard constraints: ${afterHardConstraints.length}`);
-  const scoredPool = buildProposals(catalogFinal, ctxWithTransport, 20);
-  console.info(`[discovery] after scoring: ${scoredPool.length}`);
+  const evaluations = catalogFinal.destinations.map((destination) => ({ destination, result: evaluateDestinationHardConstraints(destination, ctxWithTransport) }));
+  const rejected = evaluations.filter(({ result }) => !result.accepted);
+  const reasonCounts = new Map<string, number>();
+  for (const { destination, result } of rejected) {
+    for (const reason of result.reasons) reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
+    console.info(`[discovery] hard-rejected: ${destination.name}=${result.reasons.join("+")}`);
+  }
+  console.info(`[discovery] Hard-compatible: ${afterHardConstraints.length}`);
+  console.info(`[discovery] Hard-rejected: ${rejected.length}`);
+  console.info(`[discovery] Rejection reasons: ${[...reasonCounts].map(([reason, count]) => `${reason}=${count}`).join(", ") || "none"}`);
+  const geminiNames = new Set(mergedCandidates.filter((candidate) => candidate.provenance.includes("gemini")).map((candidate) => normCity(candidate.name)));
+  const evaluatedGemini = evaluations.filter(({ destination }) => geminiNames.has(normCity(destination.name)));
+  const rejectedGemini = evaluatedGemini.filter(({ result }) => !result.accepted);
+  if (evaluatedGemini.length >= 5 && rejectedGemini.length / evaluatedGemini.length >= 0.6) {
+    console.warn(`[discovery] warning: ${rejectedGemini.length}/${evaluatedGemini.length} Gemini candidates were rejected by KREW hard constraints; check brief alignment.`);
+  }
+  const scoredPool = buildDestinationProposals(catalogFinal, ctxWithTransport, 20);
+  console.info(`[discovery] Destination-scored: ${scoredPool.length}`);
   let proposals = selectTopDestinationProposals(scoredPool, 4);
-  console.info(`[discovery] final shortlist: ${proposals.length}`);
+  console.info(`[discovery] Final shortlist: ${proposals.length}`);
   const provenanceByName = new Map(
     mergedCandidates.map((candidate) => [normCity(candidate.name), candidate.provenance]),
   );

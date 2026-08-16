@@ -178,6 +178,21 @@ describe("Gemini destination discovery provider order", () => {
   it("builds hard/soft sections without turning soft preferences into constraints", () => {
     const brief = buildKrewDiscoveryBrief({
       ...input,
+      startDate: "2026-06-12",
+      endDate: "2026-06-15",
+      departureOrigins: [
+        { city: "Lyon", count: 5 },
+        { city: "Genève", count: 3 },
+      ],
+      transportModes: ["train", "car"],
+      refusedTransportModes: ["flight"],
+      budgetMedian: 550,
+      budgetMinimum: 420,
+      budgetVeto: 400,
+      groupAgeRange: "25-35",
+      rhythm: { pace: "equilibre", preferredTimeSlots: ["soir"] },
+      accommodationSignals: { type: "house", role: "centerpiece", pool: true },
+      historySignals: [{ country: "Italie", dominantAmbiance: "culture" }],
       stayProfiles: [{ id: "city_discovery", score: 78, evidence: ["culture"] }],
       selectedConcepts: [
         {
@@ -202,9 +217,26 @@ describe("Gemini destination discovery provider order", () => {
     });
     expect(brief.hardConstraints).toMatchObject({ planeRefused: true, budgetVeto: 500 });
     expect(brief.hardConstraints).not.toHaveProperty("travelPace");
+    expect(brief.context).toMatchObject({
+      startDate: "2026-06-12",
+      endDate: "2026-06-15",
+      ageRange: "25-35",
+      departureOrigins: [
+        { city: "Lyon", count: 5 },
+        { city: "Genève", count: 3 },
+      ],
+    });
+    expect(brief.hardConstraints).toMatchObject({
+      acceptedTransportModes: ["train", "car"],
+      refusedTransportModes: ["flight"],
+    });
     expect(brief.priorities).toMatchObject({
       travelPace: "equilibre",
       scoringWeights: { ambiance: 20, activities: 18 },
+      medianBudgetPerPerson: 550,
+      mostConstrainedBudget: 420,
+      budgetVeto: 400,
+      accommodation: { type: "house", role: "centerpiece", pool: true },
     });
     expect(brief.collectiveProfiles[0]?.evidence).toEqual(["culture"]);
     expect(brief.validatedConcepts[0]?.title).toBe("Ville et nature");

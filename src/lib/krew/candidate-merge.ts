@@ -25,6 +25,11 @@ export type AiEstimate = {
   matchedSignals?: string[] | undefined;
   compromiseFor?: string[] | undefined;
   confidence?: number | undefined;
+  strongMatches?: string[] | undefined;
+  groupsSatisfied?: string[] | undefined;
+  starMatches?: string[] | undefined;
+  potentialWeaknesses?: string[] | undefined;
+  hardConstraintAssessment?: Record<string, string> | undefined;
 };
 
 export type MergedCandidate = {
@@ -46,6 +51,11 @@ export type MergedCandidate = {
   matchedSignals?: string[] | undefined;
   compromiseFor?: string[] | undefined;
   confidence?: number | undefined;
+  strongMatches?: string[] | undefined;
+  groupsSatisfied?: string[] | undefined;
+  starMatches?: string[] | undefined;
+  potentialWeaknesses?: string[] | undefined;
+  hardConstraintAssessment?: Record<string, string> | undefined;
 };
 
 /** Normalisation de nom de ville (identique à `norm()` de la découverte locale). */
@@ -106,6 +116,11 @@ export function mergeCandidates(
         matchedSignals: c.matchedSignals,
         compromiseFor: c.compromiseFor,
         confidence: c.confidence,
+        strongMatches: c.strongMatches,
+        groupsSatisfied: c.groupsSatisfied,
+        starMatches: c.starMatches,
+        potentialWeaknesses: c.potentialWeaknesses,
+        hardConstraintAssessment: c.hardConstraintAssessment,
       });
       continue;
     }
@@ -127,6 +142,11 @@ export function mergeCandidates(
       matchedSignals: c.matchedSignals,
       compromiseFor: c.compromiseFor,
       confidence: c.confidence,
+      strongMatches: c.strongMatches,
+      groupsSatisfied: c.groupsSatisfied,
+      starMatches: c.starMatches,
+      potentialWeaknesses: c.potentialWeaknesses,
+      hardConstraintAssessment: c.hardConstraintAssessment,
     });
   }
 

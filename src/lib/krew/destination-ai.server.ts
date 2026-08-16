@@ -16,6 +16,9 @@ export type AiDiscoveryInput = {
   nights: number;
   startMonth: number;
   departureCity: string;
+  departureOrigins?: Array<{ city: string; count: number }>;
+  startDate?: string | null;
+  endDate?: string | null;
   participants: number;
   excludedCountries: string[];
   planeRefused?: boolean;
@@ -31,6 +34,15 @@ export type AiDiscoveryInput = {
   discoveryBranches?: Array<"urban" | "regional" | "outdoor" | "property_led">;
   localMobility?: string | null;
   accommodationRole?: string | null;
+  transportModes?: string[];
+  preferredTransportMode?: string | null;
+  refusedTransportModes?: string[];
+  budgetMedian?: number | null;
+  budgetMinimum?: number | null;
+  budgetVeto?: number | null;
+  rhythm?: Record<string, unknown>;
+  accommodationSignals?: Record<string, unknown>;
+  historySignals?: Array<Record<string, unknown>>;
   relevantIndividualPreferences?: Array<Record<string, unknown>>;
   scoringSignals?: {
     desiredDestination?: string | null;
@@ -57,6 +69,11 @@ export type AiCandidate = {
   candidateClass: "strong_match" | "smart_compromise" | "gem";
   matchedSignals: string[];
   compromiseFor: string[];
+  strongMatches: string[];
+  groupsSatisfied: string[];
+  starMatches: string[];
+  potentialWeaknesses: string[];
+  hardConstraintAssessment?: Record<string, string>;
   confidence?: number;
 };
 
@@ -68,7 +85,8 @@ export type KrewDiscoveryBrief = {
   validatedConcepts: StayConcept[];
   star: Record<string, unknown>;
   groupDynamics: {
-    consensus: string[];
+    strongConsensus: string[];
+    majority: string[];
     divergences: string[];
     importantMinorities: string[];
   };
@@ -84,7 +102,7 @@ Tu es un moteur de découverte, pas le décideur final.
 KREW appliquera ensuite ses contraintes dures, son scoring déterministe individuel et collectif, le poids de la Star et la diversification. Utilise les signaux fournis pour explorer des candidats susceptibles de satisfaire le groupe, mais ne calcule pas le score final à la place de KREW. Tu n'es ni un moteur de réservation, ni un moteur hôtel ou activité.
 
 Réponds UNIQUEMENT en JSON valide :
-{"destinations":[{"name":"Luberon","country":"France","region":"Provence","destinationType":"region_territory","anchorPlaces":["Gordes","Lourmarin"],"candidateClass":"smart_compromise","why":"villages, gastronomie et nature accessibles","matchedSignals":["gastronomie","nature"],"compromiseFor":["urbain","outdoor"],"estimatedDailyCost":70,"estimatedDistanceKm":700,"bestMonths":[5,6,9],"confidence":0.8}]}
+{"destinations":[{"name":"Luberon","country":"France","region":"Provence","destinationType":"region_territory","anchorPlaces":["Gordes","Lourmarin"],"candidateClass":"smart_compromise","why":"villages, gastronomie et nature accessibles","strongMatches":["gastronomie","nature"],"groupsSatisfied":["majorité nature","minorité culture"],"starMatches":["gastronomie"],"potentialWeaknesses":["mobilité locale"],"hardConstraintAssessment":{"transport":"plausible depuis les origines","budget":"estimation compatible","dates":"bonne saison"},"estimatedDailyCost":70,"estimatedDistanceKm":700,"bestMonths":[5,6,9],"confidence":0.8}]}
 
 Règles de découverte :
 - Génère idéalement 30 à 50 destinations candidates différentes lorsque le profil le permet.
@@ -99,6 +117,7 @@ Règles de découverte :
 - Cherche aussi des compromis intelligents lorsque les préférences des participants sont différentes ou contradictoires.
 - Inclue plusieurs options moins évidentes lorsqu'elles sont plausiblement compatibles, afin que KREW puisse ensuite sélectionner une véritable "pépite".
 - Les contraintes explicitement identifiées comme dures doivent être respectées autant que possible pendant la génération, mais KREW reste l'autorité finale pour les vérifier.
+- The following hard constraints will be deterministically verified by KREW after your response. Do not waste candidates on destinations that clearly violate them.
 - Ne rejette pas une candidate uniquement à cause d'une estimation incertaine : une estimation IA de coût, distance ou saison n'est jamais une vérité et pourra être vérifiée ensuite.
 - cost = estimation du coût journalier moyen par personne en euros, hébergement + repas, hors transport longue distance.
 - km = distance approximative depuis la ville de départ.
@@ -151,13 +170,19 @@ export function buildKrewDiscoveryBrief(input: AiDiscoveryInput): KrewDiscoveryB
       participants: input.participants,
       nights: input.nights,
       departure: input.departureCity,
+      departureOrigins: input.departureOrigins,
       month: input.startMonth,
+      startDate: input.startDate ?? undefined,
+      endDate: input.endDate ?? undefined,
+      ageRange: input.groupAgeRange ?? undefined,
     },
     hardConstraints: {
       excludedDestinations: compactValues(input.excludedCountries),
       maxDistanceKm: input.maxDistanceKm,
       planeRefused: input.planeRefused || undefined,
       maxTravelHours: input.maxTravelHours ?? undefined,
+      acceptedTransportModes: compactValues(input.transportModes),
+      refusedTransportModes: compactValues(input.refusedTransportModes),
       starDealBreakers: compactValues(input.starDealBreakers),
       ...(input.scoringSignals?.hardConstraints ?? {}),
     },
@@ -166,9 +191,15 @@ export function buildKrewDiscoveryBrief(input: AiDiscoveryInput): KrewDiscoveryB
       activities: compactValues(input.activityCategories),
       environments: compactValues(input.wantedEnvTypes),
       targetBudgetPerPerson: input.budgetPerPerson,
+      medianBudgetPerPerson: input.budgetMedian ?? undefined,
+      mostConstrainedBudget: input.budgetMinimum ?? undefined,
+      budgetVeto: input.budgetVeto ?? undefined,
       maxDistanceKm: input.maxDistanceKm,
       localMobility: input.localMobility,
       accommodationRole: input.accommodationRole,
+      rhythm: input.rhythm,
+      accommodation: input.accommodationSignals,
+      history: input.historySignals,
       notes: compactValues(input.freeNotes).slice(0, 6),
       ...(input.scoringSignals?.softPreferences ?? {}),
       scoringWeights: input.scoringSignals?.scoringWeights ?? undefined,
@@ -183,7 +214,10 @@ export function buildKrewDiscoveryBrief(input: AiDiscoveryInput): KrewDiscoveryB
       dealBreakers: compactValues(input.starDealBreakers),
     },
     groupDynamics: {
-      consensus,
+      strongConsensus: consensus,
+      majority: [...signalCounts]
+        .filter(([, count]) => count >= Math.ceil(individuals.length / 2))
+        .map(([key]) => key),
       divergences: [...dimensions]
         .filter(([, values]) => values.size > 1)
         .map(([field, values]) => `${field}:${[...values].join(" vs ")}`),
@@ -298,6 +332,11 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
         candidateClass?: string;
         matchedSignals?: string[];
         compromiseFor?: string[];
+        strongMatches?: string[];
+        groupsSatisfied?: string[];
+        starMatches?: string[];
+        potentialWeaknesses?: string[];
+        hardConstraintAssessment?: Record<string, string>;
         confidence?: number;
       }>;
       cities?: Array<{
@@ -330,6 +369,11 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
       candidateClass?: string;
       matchedSignals?: string[];
       compromiseFor?: string[];
+      strongMatches?: string[];
+      groupsSatisfied?: string[];
+      starMatches?: string[];
+      potentialWeaknesses?: string[];
+      hardConstraintAssessment?: Record<string, string>;
       confidence?: number;
     }>;
 
@@ -365,7 +409,18 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
             : "strong_match",
           matchedSignals: compactValues(c.matchedSignals).slice(0, 8),
           compromiseFor: compactValues(c.compromiseFor).slice(0, 6),
+          strongMatches: compactValues(c.strongMatches ?? c.matchedSignals).slice(0, 8),
+          groupsSatisfied: compactValues(c.groupsSatisfied).slice(0, 8),
+          starMatches: compactValues(c.starMatches).slice(0, 6),
+          potentialWeaknesses: compactValues(c.potentialWeaknesses).slice(0, 6),
         };
+        if (c.hardConstraintAssessment && typeof c.hardConstraintAssessment === "object") {
+          out.hardConstraintAssessment = Object.fromEntries(
+            Object.entries(c.hardConstraintAssessment)
+              .slice(0, 3)
+              .map(([key, value]) => [key, String(value).slice(0, 100)]),
+          );
+        }
         if (c.country) out.country = String(c.country).trim();
         if (c.region) out.region = String(c.region).trim();
         const cost = c.estimatedDailyCost ?? c.cost;

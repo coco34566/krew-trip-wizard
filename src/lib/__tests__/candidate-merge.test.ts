@@ -6,7 +6,12 @@ import {
   type AiEstimate,
 } from "../krew/candidate-merge";
 import type { CandidateDestination } from "../krew/destination-discovery.server";
-import { buildProposals, type DestinationRecord, type ScoringContext } from "../krew/engine";
+import {
+  buildDestinationProposals,
+  evaluateDestinationHardConstraints,
+  type DestinationRecord,
+  type ScoringContext,
+} from "../krew/engine";
 
 const rule: CandidateDestination[] = [
   { name: "Lisbonne", country: "Portugal", distanceKm: 1450, affinity: 80, reason: "ambiance" },
@@ -171,7 +176,7 @@ describe("Gemini candidates at the KREW scoring boundary", () => {
   };
 
   it("lets a compatible new Gemini destination enter normal KREW scoring", () => {
-    const proposals = buildProposals(
+    const proposals = buildDestinationProposals(
       { destinations: [destination], accommodations: [], activities: [] },
       baseContext,
       4,
@@ -180,11 +185,38 @@ describe("Gemini candidates at the KREW scoring boundary", () => {
   });
 
   it("eliminates a Gemini destination that violates a KREW hard constraint", () => {
-    const proposals = buildProposals(
+    const proposals = buildDestinationProposals(
       { destinations: [destination], accommodations: [], activities: [] },
       { ...baseContext, excludedCountries: ["France"] },
       4,
     );
     expect(proposals).toHaveLength(0);
+  });
+
+  it("scores a destination without inventory even when hotel criteria exist", () => {
+    const proposals = buildDestinationProposals(
+      { destinations: [destination], accommodations: [], activities: [] },
+      { ...baseContext, requiredAmenities: ["pool"], minAccommodationRating: 4.5 },
+      4,
+    );
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.accommodation).toBeNull();
+    expect(proposals[0]?.activities).toEqual([]);
+  });
+
+  it("does not use the Paris proxy as a hard constraint for a Lyon origin", () => {
+    const evaluation = evaluateDestinationHardConstraints(
+      { ...destination, distance_from_paris_km: 5_000 },
+      { ...baseContext, departureOrigins: [{ city: "Lyon", count: 4 }], maxDistanceKm: 800 },
+    );
+    expect(evaluation).toEqual({ accepted: true, reasons: [] });
+  });
+
+  it("returns deterministic hard rejection reasons", () => {
+    const evaluation = evaluateDestinationHardConstraints(destination, {
+      ...baseContext,
+      excludedCountries: ["France"],
+    });
+    expect(evaluation).toEqual({ accepted: false, reasons: ["excluded_country"] });
   });
 });

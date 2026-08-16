@@ -1216,31 +1216,40 @@ export function generateAccommodationConfigurations(
   return configs;
 }
 
+export type DestinationHardConstraintReason = "excluded_country" | "excluded_destination" | "max_travel_duration" | "transport_mode" | "plane_refused" | "budget_veto" | "deal_breaker";
+
+export function evaluateDestinationHardConstraints(destination: DestinationRecord, ctx: ScoringContext): { accepted: boolean; reasons: DestinationHardConstraintReason[] } {
+  const reasons: DestinationHardConstraintReason[] = [];
+  const excluded = ctx.excludedCountries.map(norm).filter(Boolean);
+  if (excluded.includes(norm(destination.country))) reasons.push("excluded_country");
+  if (excluded.includes(norm(destination.name))) reasons.push("excluded_destination");
+  const origins = ctx.departureOrigins ?? [];
+  // A Paris-relative seed value must never reject a trip departing elsewhere.
+  const canUseParisDistance = origins.length === 0 || origins.every((origin) => norm(origin.city) === "paris");
+  if (canUseParisDistance) {
+    const distance = destination.distance_from_paris_km;
+    if (distance > ctx.maxDistanceKm * 1.15) reasons.push("max_travel_duration");
+    if (ctx.planeRefused && distance > 700) reasons.push("plane_refused");
+    const options = estimateOptionsByMode(distance, ctx.transportModes).filter((option) => !ctx.planeRefused || option.mode !== "flight");
+    if (!options.length) reasons.push("transport_mode");
+    else if (!isTransportCompatible(options, ctx.maxTravelDurationHours)) reasons.push("max_travel_duration");
+  }
+  if (hitsDealBreaker(destination, ctx.dealBreakerAmbiances ?? [], ctx.dealBreakerDestinations ?? [])) reasons.push("deal_breaker");
+  if (ctx.hasBudgetVeto && ctx.vetoBudgetMax != null) {
+    const transport = canUseParisDistance ? estimateTransport(destination.distance_from_paris_km) : 0;
+    if (destination.avg_daily_cost * (ctx.nights + 1) + transport > ctx.vetoBudgetMax) reasons.push("budget_veto");
+  }
+  return { accepted: reasons.length === 0, reasons: [...new Set(reasons)] };
+}
+
 export function filterDestinationsByHardConstraints(
   destinations: DestinationRecord[],
   ctx: ScoringContext,
 ): DestinationRecord[] {
-  const excluded = ctx.excludedCountries.map(norm).filter(Boolean);
-  const dealAmb = ctx.dealBreakerAmbiances ?? [];
-  const dealDest = ctx.dealBreakerDestinations ?? [];
-  const allowedTransportOptions = (distanceKm: number) =>
-    estimateOptionsByMode(distanceKm, ctx.transportModes).filter(
-      (option) => !ctx.planeRefused || option.mode !== "flight",
-    );
-
-  return destinations.filter((d) => {
-    if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
-    if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
-    if (ctx.planeRefused && d.distance_from_paris_km > 700) return false;
-    const modeOptions = allowedTransportOptions(d.distance_from_paris_km);
-    if (!modeOptions.length) return false;
-    if (!isTransportCompatible(modeOptions, ctx.maxTravelDurationHours)) return false;
-    if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
-    return true;
-  });
+  return destinations.filter((destination) => evaluateDestinationHardConstraints(destination, ctx).accepted);
 }
 
-export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limit = 3): Proposal[] {
+export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limit = 3, options: { destinationOnly?: boolean } = {}): Proposal[] {
   const desired = ctx.desiredDestination ? norm(ctx.desiredDestination) : "";
   const minRating = ctx.minAccommodationRating ?? 0;
   const allowedTransportOptions = (distanceKm: number) =>
@@ -1290,7 +1299,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     }
 
     // Génération des configurations complètes avec prise en compte des préférences individuelles de chambre
-    const destConfigs = generateAccommodationConfigurations(
+    const destConfigs = options.destinationOnly ? [] : generateAccommodationConfigurations(
       matchedAccommodations,
       ctx.participants,
       ctx.nights,
@@ -1301,7 +1310,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
 
     // Fallback de configuration neutre si aucun hébergement n'est disponible
     if (destConfigs.length === 0) {
-      if (ctx.hasBudgetVeto || reqAmenitiesClean.length > 0 || minRating > 0) continue;
+      if (!options.destinationOnly && (ctx.hasBudgetVeto || reqAmenitiesClean.length > 0 || minRating > 0)) continue;
       destConfigs.push({
         id: `fallback-${destination.id}`,
         name: "Hébergement estimé (hôtel ou gîte)",
@@ -1774,7 +1783,10 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
   return selected;
 }
 
-
+/** Destination-level scoring: no real accommodation or activity inventory is required. */
+export function buildDestinationProposals(catalog: TravelCatalog, ctx: ScoringContext, limit = 3): Proposal[] {
+  return buildProposals({ destinations: catalog.destinations, accommodations: [], activities: [] }, ctx, limit, { destinationOnly: true });
+}
 
 /**
  * Final ranking is relevance-first. Diversity never replaces a better score.
