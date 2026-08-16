@@ -1875,7 +1875,11 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
 export const proposeStayAndTransport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
-    z.object({ tripId: z.string().uuid(), refreshExternal: z.boolean().optional() }).parse(data),
+    z.object({
+      tripId: z.string().uuid(),
+      refreshExternal: z.boolean().optional(),
+      includeTransport: z.boolean().optional(),
+    }).parse(data),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -2467,7 +2471,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     const transports: TransportCard[] = [];
 
-    for (const group of subGroups) {
+    for (const group of data.includeTransport === false ? [] : subGroups) {
       const from = group.departureCity;
       const acceptedModes = group.transportModeAccepted.map(m => m.toLowerCase().trim());
       const hasModeFilter = acceptedModes.length > 0 && !acceptedModes.includes("peu importe");
@@ -2633,7 +2637,11 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       checkin,
       checkout,
       hotels: topHotels,
-      transports,
+      transports: data.includeTransport === false
+        ? (Array.isArray((trip.group_logistics as any)?.transports)
+            ? (trip.group_logistics as any).transports
+            : [])
+        : transports,
       providerErrors,
       generatedAt: new Date().toISOString(),
     };
