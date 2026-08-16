@@ -20,7 +20,12 @@ export type DiscoveryInput = {
   wantedEnvTypes?: string[];
   starWantedEnvType?: string | null;
   groupAgeRange?: string | null;
+  discoveryBranches?: Array<"urban" | "regional" | "outdoor" | "property_led">;
+  localMobility?: string | null;
+  accommodationRole?: string | null;
 };
+
+export type DestinationType = "city" | "town_village" | "region_territory" | "outdoor_area";
 
 export type CandidateDestination = {
   name: string;
@@ -30,7 +35,25 @@ export type CandidateDestination = {
   /** Score interne 0–100 pour trier les candidates avant appel API. */
   affinity: number;
   reason: string;
+  destinationType?: DestinationType;
+  region?: string;
+  anchorPlaces?: string[];
 };
+
+type AreaProfile = CandidateDestination & {
+  activities: string[];
+  branches: Array<"regional" | "outdoor">;
+  carHelpful: boolean;
+};
+
+const AREA_PROFILES: AreaProfile[] = [
+  { name: "Luberon", country: "France", region: "Provence-Alpes-Côte d’Azur", destinationType: "region_territory", anchorPlaces: ["Gordes", "Lourmarin", "Bonnieux", "Apt"], distanceKm: 720, affinity: 70, reason: "villages de charme et maison de groupe", activities: ["gastronomie", "culturel", "velo", "randonnée"], branches: ["regional"], carHelpful: true },
+  { name: "Bourgogne", country: "France", region: "Bourgogne-Franche-Comté", destinationType: "region_territory", anchorPlaces: ["Beaune", "Dijon", "Chablis", "Vézelay"], distanceKm: 310, affinity: 68, reason: "patrimoine, gastronomie et villages", activities: ["gastronomie", "culturel", "velo"], branches: ["regional"], carHelpful: true },
+  { name: "Vercors", country: "France", region: "Auvergne-Rhône-Alpes", destinationType: "outdoor_area", anchorPlaces: ["Villard-de-Lans", "Autrans", "Lans-en-Vercors"], distanceKm: 580, affinity: 72, reason: "massif adapté aux activités outdoor", activities: ["randonnée", "velo", "ski", "sport"], branches: ["outdoor"], carHelpful: true },
+  { name: "Dolomites", country: "Italie", region: "Trentin-Haut-Adige", destinationType: "outdoor_area", anchorPlaces: ["Cortina d’Ampezzo", "Ortisei", "Canazei"], distanceKm: 1050, affinity: 74, reason: "montagne, randonnée et ski", activities: ["randonnée", "velo", "ski", "sport"], branches: ["outdoor"], carHelpful: true },
+  { name: "Lac d’Annecy", country: "France", region: "Haute-Savoie", destinationType: "outdoor_area", anchorPlaces: ["Annecy", "Talloires", "Doussard"], distanceKm: 540, affinity: 70, reason: "lac, voile, vélo et randonnée", activities: ["nautique", "voile", "velo", "randonnée"], branches: ["outdoor"], carHelpful: false },
+  { name: "Côte basque", country: "France", region: "Nouvelle-Aquitaine", destinationType: "region_territory", anchorPlaces: ["Biarritz", "Saint-Jean-de-Luz", "Guéthary", "Bayonne"], distanceKm: 770, affinity: 69, reason: "surf, littoral et petites villes", activities: ["surf", "nautique", "gastronomie"], branches: ["regional", "outdoor"], carHelpful: false },
+];
 
 type CityProfile = {
   name: string;
@@ -593,9 +616,10 @@ export function discoverCandidateDestinations(
     return true;
   });
 
+  const branches = new Set(input.discoveryBranches?.length ? input.discoveryBranches : ["urban"]);
   const scored: CandidateDestination[] = [];
 
-  for (const city of uniqueProfiles) {
+  if (branches.has("urban")) for (const city of uniqueProfiles) {
     if (excluded.has(norm(city.country)) || excluded.has(norm(city.name))) continue;
     if (city.distanceKm > input.maxDistanceKm * 1.2) continue;
 
@@ -667,7 +691,20 @@ export function discoverCandidateDestinations(
       distanceKm: city.distanceKm,
       affinity: Math.round(affinity * 10) / 10,
       reason: reasons.length ? reasons.join(" · ") : "correspond aux critères du groupe",
+      destinationType: "city",
+      anchorPlaces: [city.name],
     });
+  }
+
+  for (const area of AREA_PROFILES) {
+    if (!area.branches.some((branch) => branches.has(branch))) continue;
+    if (excluded.has(norm(area.country)) || excluded.has(norm(area.name))) continue;
+    if (area.distanceKm > input.maxDistanceKm * 1.2) continue;
+    const requested = activities.map(norm);
+    const hits = requested.filter((activity) => area.activities.some((known) => norm(known).includes(activity) || activity.includes(norm(known)))).length;
+    const activityBoost = requested.length ? (hits / requested.length) * 24 : 8;
+    const mobilityPenalty = input.localMobility === "walk_transit" && area.carHelpful ? 18 : 0;
+    scored.push({ ...area, affinity: Math.round((area.affinity + activityBoost - mobilityPenalty) * 10) / 10 });
   }
 
   scored.sort((a, b) => b.affinity - a.affinity);
@@ -680,4 +717,10 @@ export function listCityProfilesForNames(names: string[]) {
   return CITY_PROFILES.filter((c) =>
     want.has(c.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim()),
   );
+}
+
+
+export function listAreaProfilesForNames(names: string[]) {
+  const want = new Set(names.map(norm));
+  return AREA_PROFILES.filter((area) => want.has(norm(area.name)));
 }

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { assessGenerationReadiness, generateRecommendationsForTrip, getEffectiveParticipantsCount } from "../krew/trip-service";
+import {
+  assessGenerationReadiness,
+  generateRecommendationsForTrip,
+  getEffectiveParticipantsCount,
+} from "../krew/trip-service";
 import { assertNotRateLimited } from "../krew/rate-limit.server";
 import { appendAffiliateParam, buildOriginDeepLinks } from "../krew/deep-links";
 
@@ -20,14 +24,14 @@ describe("getEffectiveParticipantsCount", () => {
     const trip = { participants_count: 5, celebrated_person: "Léa", has_star: true };
     const participants = [
       { user_id: "user-1", display_name: "Alice" },
-      { user_id: "user-star", display_name: " Léa  " }
+      { user_id: "user-star", display_name: " Léa  " },
     ];
     expect(getEffectiveParticipantsCount(trip, participants)).toBe(5);
   });
 });
 
 describe("Trip Service & Readiness (trip-service.ts)", () => {
-  it("autorise la génération même si aucune préférence n'est renseignée (prefsOk reste true)", async () => {
+  it("bloque la génération si aucune préférence n’est renseignée", async () => {
     const tripId = "trip-123";
     const supabaseMock = {
       from: vi.fn((table: string) => {
@@ -37,7 +41,12 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
               eq: () => ({
                 single: () =>
                   Promise.resolve({
-                    data: { participants_count: 3, dates_locked: true, start_date: "2026-08-01", end_date: "2026-08-03" },
+                    data: {
+                      participants_count: 3,
+                      dates_locked: true,
+                      start_date: "2026-08-01",
+                      end_date: "2026-08-03",
+                    },
                     error: null,
                   }),
               }),
@@ -75,10 +84,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [
-                    { user_id: "u1" },
-                    { user_id: "u2" },
-                  ], // 2 dispos -> availabilityOk reste true
+                  data: [{ user_id: "u1" }, { user_id: "u2" }], // 2 dispos -> availabilityOk reste true
                   error: null,
                 }),
             }),
@@ -91,8 +97,8 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     } as any;
 
     const readiness = await assessGenerationReadiness(supabaseMock, tripId);
-    expect(readiness.canGenerate).toBe(true);
-    expect(readiness.checklist.prefsOk).toBe(true);
+    expect(readiness.canGenerate).toBe(false);
+    expect(readiness.checklist.prefsOk).toBe(false);
     expect(readiness.checklist.availabilityOk).toBe(true);
     expect(readiness.checklist.datesLocked).toBe(true);
   });
@@ -107,7 +113,13 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
               eq: () => ({
                 single: () =>
                   Promise.resolve({
-                    data: { participants_count: 3, dates_locked: true, start_date: "2026-08-01", end_date: "2026-08-03" },
+                    data: {
+                      stay_profile_validated_at: "2026-08-01T00:00:00Z",
+                      participants_count: 3,
+                      dates_locked: true,
+                      start_date: "2026-08-01",
+                      end_date: "2026-08-03",
+                    },
                     error: null,
                   }),
               }),
@@ -177,7 +189,11 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
               eq: () => ({
                 single: () =>
                   Promise.resolve({
-                    data: { participants_count: 3, dates_locked: false }, // Dates non validées !
+                    data: {
+                      stay_profile_validated_at: "2026-08-01T00:00:00Z",
+                      participants_count: 3,
+                      dates_locked: false,
+                    }, // Dates non validées !
                     error: null,
                   }),
               }),
@@ -203,10 +219,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [
-                    { user_id: "u1" },
-                    { user_id: "u2" },
-                  ],
+                  data: [{ user_id: "u1" }, { user_id: "u2" }],
                   error: null,
                 }),
             }),
@@ -217,10 +230,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [
-                    { user_id: "u1" },
-                    { user_id: "u2" },
-                  ],
+                  data: [{ user_id: "u1" }, { user_id: "u2" }],
                   error: null,
                 }),
             }),
@@ -248,7 +258,11 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
               eq: () => ({
                 single: () =>
                   Promise.resolve({
-                    data: { participants_count: 3, dates_locked: false }, // Dates non validées !
+                    data: {
+                      stay_profile_validated_at: "2026-08-01T00:00:00Z",
+                      participants_count: 3,
+                      dates_locked: false,
+                    }, // Dates non validées !
                     error: null,
                   }),
               }),
@@ -274,10 +288,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [
-                    { user_id: "u1" },
-                    { user_id: "u2" },
-                  ],
+                  data: [{ user_id: "u1" }, { user_id: "u2" }],
                   error: null,
                 }),
             }),
@@ -288,10 +299,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [
-                    { user_id: "u1" },
-                    { user_id: "u2" },
-                  ],
+                  data: [{ user_id: "u1" }, { user_id: "u2" }],
                   error: null,
                 }),
             }),
@@ -321,7 +329,13 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
               eq: () => ({
                 single: () =>
                   Promise.resolve({
-                    data: { participants_count: 2, dates_locked: true, start_date: "2026-08-01", end_date: "2026-08-03" },
+                    data: {
+                      stay_profile_validated_at: "2026-08-01T00:00:00Z",
+                      participants_count: 2,
+                      dates_locked: true,
+                      start_date: "2026-08-01",
+                      end_date: "2026-08-03",
+                    },
                     error: null,
                   }),
               }),
@@ -361,10 +375,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
             select: () => ({
               eq: () =>
                 Promise.resolve({
-                  data: [
-                    { user_id: "u1" },
-                    { user_id: "u2" },
-                  ],
+                  data: [{ user_id: "u1" }, { user_id: "u2" }],
                   error: null,
                 }),
             }),
@@ -398,7 +409,10 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
         if (callsCount === 1) {
           return Promise.resolve({ data: [{ allowed: true }], error: null });
         } else if (callsCount === 2) {
-          return Promise.resolve({ data: [{ allowed: false, retry_after_seconds: 120 }], error: null });
+          return Promise.resolve({
+            data: [{ allowed: false, retry_after_seconds: 120 }],
+            error: null,
+          });
         } else {
           return Promise.resolve({ data: [{ allowed: true }], error: null });
         }
@@ -424,7 +438,7 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
         kind,
         windowSeconds: 300,
         maxCalls: 1,
-      })
+      }),
     ).rejects.toThrow(/Une génération est déjà en cours/);
 
     // 3e appel après réinitialisation

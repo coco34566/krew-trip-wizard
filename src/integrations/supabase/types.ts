@@ -19,6 +19,11 @@ export type Database = {
           best_provider: string | null
           booking_url: string | null
           capacity: number
+          availability_verified: boolean
+          price_verified: boolean
+          verification_state: string
+          bedrooms: number | null
+          onsite_activity_categories: string[]
           description: string | null
           destination_id: string
           distance_center_km: number
@@ -38,6 +43,11 @@ export type Database = {
           best_provider?: string | null
           booking_url?: string | null
           capacity?: number
+          availability_verified?: boolean
+          price_verified?: boolean
+          verification_state?: string
+          bedrooms?: number | null
+          onsite_activity_categories?: string[]
           description?: string | null
           destination_id: string
           distance_center_km?: number
@@ -57,6 +67,11 @@ export type Database = {
           best_provider?: string | null
           booking_url?: string | null
           capacity?: number
+          availability_verified?: boolean
+          price_verified?: boolean
+          verification_state?: string
+          bedrooms?: number | null
+          onsite_activity_categories?: string[]
           description?: string | null
           destination_id?: string
           distance_center_km?: number
@@ -269,6 +284,9 @@ export type Database = {
           climate: Json
           country: string
           description: string | null
+          destination_type: string
+          anchor_places: string[]
+          region_name: string | null
           distance_from_paris_km: number
           env_tags: string[]
           external_id: string | null
@@ -296,6 +314,9 @@ export type Database = {
           climate?: Json
           country: string
           description?: string | null
+          destination_type?: string
+          anchor_places?: string[]
+          region_name?: string | null
           distance_from_paris_km?: number
           env_tags?: string[]
           external_id?: string | null
@@ -323,6 +344,9 @@ export type Database = {
           climate?: Json
           country?: string
           description?: string | null
+          destination_type?: string
+          anchor_places?: string[]
+          region_name?: string | null
           distance_from_paris_km?: number
           env_tags?: string[]
           external_id?: string | null

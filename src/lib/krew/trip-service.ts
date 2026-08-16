@@ -5,10 +5,20 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { buildProposals, dominantAmbiance, getNormalizedBudgetPriority, type Proposal, type ScoringContext } from "./engine";
+import {
+  buildProposals,
+  dominantAmbiance,
+  getNormalizedBudgetPriority,
+  type Proposal,
+  type ScoringContext,
+} from "./engine";
 import { reportServerError } from "@/lib/server-error-reporting.server";
 import { loadTravelCatalog } from "./providers.server";
-import { discoverCandidateDestinations, listCityProfilesForNames } from "./destination-discovery.server";
+import {
+  discoverCandidateDestinations,
+  listAreaProfilesForNames,
+  listCityProfilesForNames,
+} from "./destination-discovery.server";
 import { discoverDestinationsWithAi } from "./destination-ai.server";
 import {
   aiCandidateToDestinationRow,
@@ -16,8 +26,10 @@ import {
   normCity,
   type MergedCandidate,
 } from "./candidate-merge";
-import { fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
+import { distanceFromParisKm, fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery } from "./stay-profiles";
+import { discoverProperties, propertyToAccommodationRow, resolvePropertyDestination } from "./property-discovery.server";
+import { attachAnchorEnrichments } from "./discovery-enrichment";
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
   if (!trip) return Math.max(1, participants?.length || 1);
@@ -69,6 +81,7 @@ type TripRow = {
   participants_count: number;
   budget_per_person: number;
   start_date: string | null;
+  end_date: string | null;
 };
 
 type PreferencesRow = {
@@ -83,7 +96,11 @@ type PreferencesRow = {
   max_budget: number | null;
 } | null;
 
-export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Record<string, any>, participants?: any[]): ScoringContext {
+export function buildScoringContext(
+  trip: TripRow,
+  prefs: PreferencesRow & Record<string, any>,
+  participants?: any[],
+): ScoringContext {
   const startMonth = trip.start_date
     ? new Date(trip.start_date).getMonth() + 1
     : new Date().getMonth() + 1;
@@ -104,7 +121,9 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Recor
     travelPace: prefs?.["travel_pace"] ?? null,
     dateFlexDays: prefs?.["date_flex_days"] ?? null,
     minAccommodationRating:
-      prefs?.["min_accommodation_rating"] != null ? Number(prefs["min_accommodation_rating"]) : null,
+      prefs?.["min_accommodation_rating"] != null
+        ? Number(prefs["min_accommodation_rating"])
+        : null,
     minGroupBudget: prefs?.["min_group_budget"] != null ? Number(prefs["min_group_budget"]) : null,
     vetoBudgetMax: prefs?.["veto_budget_max"] != null ? Number(prefs["veto_budget_max"]) : null,
     hasBudgetVeto: Boolean(prefs?.["has_budget_veto"]),
@@ -118,17 +137,27 @@ export function buildScoringContext(trip: TripRow, prefs: PreferencesRow & Recor
     preferredTimeSlots: prefs?.["preferred_time_slots"] ?? [],
     acceptsSharedRoom: prefs?.["accepts_shared_room"] ?? true,
     roomTypePreferences: prefs?.["room_type_preferences"] ?? [],
-    mostDemandedLodgingType: prefs?.["mostDemandedLodgingType"] ?? prefs?.["most_demanded_lodging_type"] ?? null,
+    mostDemandedLodgingType:
+      prefs?.["mostDemandedLodgingType"] ?? prefs?.["most_demanded_lodging_type"] ?? null,
     requiredAmenities: prefs?.["required_amenities"] ?? prefs?.["requiredAmenities"] ?? [],
     needsAccessibility: Boolean(prefs?.["needs_accessibility"]),
     maxTravelDurationHours:
-      prefs?.["max_travel_duration_hours"] != null ? Number(prefs["max_travel_duration_hours"]) : null,
+      prefs?.["max_travel_duration_hours"] != null
+        ? Number(prefs["max_travel_duration_hours"])
+        : null,
     planeRefused: Boolean(prefs?.["plane_refused"]),
     blackoutDates: prefs?.["blackout_dates"] ?? [],
     groupWeatherPreference: prefs?.["group_weather_preference"] ?? 1.0,
     startDate: trip.start_date ?? null,
     endDate: trip.end_date ?? null,
+    datesVerified: Boolean(trip.start_date && trip.end_date),
   };
+}
+
+export function resolveRecommendationDates(trip: { start_date?: string | null; end_date?: string | null }) {
+  const startDate = trip.start_date ?? null;
+  const endDate = trip.end_date ?? null;
+  return { startDate, endDate, verifiedForDates: Boolean(startDate && endDate) };
 }
 
 export function serializeProposal(tripId: string, proposal: Proposal) {
@@ -154,7 +183,41 @@ export function serializeProposal(tripId: string, proposal: Proposal) {
   };
 }
 
+export async function replaceRecommendationsSafely(
+  supabase: SupabaseClient,
+  tripId: string,
+  rows: ReturnType<typeof serializeProposal>[],
+) {
+  if (!rows.length) return { replaced: false, count: 0 };
+  const existing = await supabase.from("recommendations").select("id").eq("trip_id", tripId);
+  if (existing.error) throw existing.error;
+  const inserted = await supabase.from("recommendations").insert(rows).select("id");
+  if (inserted.error) throw inserted.error;
+  const oldIds = (existing.data ?? []).map((row: any) => row.id).filter(Boolean);
+  if (oldIds.length) {
+    const deleted = await supabase.from("recommendations").delete().in("id", oldIds);
+    if (deleted.error) throw deleted.error;
+  }
+  return { replaced: true, count: inserted.data?.length ?? rows.length };
+}
+
+export function requiresLegacyProfileValidation(profile: GenerationReadiness["profile"]): boolean {
+  return profile.legacyBypass && profile.selectedConcepts.length === 0;
+}
+
+export function selectTopDestinationProposals(proposals: Proposal[], limit = 4): Proposal[] {
+  const bestByDestination = new Map<string, Proposal>();
+  for (const proposal of [...proposals].sort((a, b) => b.score - a.score)) {
+    if (!bestByDestination.has(proposal.destination.id)) {
+      bestByDestination.set(proposal.destination.id, proposal);
+    }
+  }
+  return [...bestByDestination.values()].slice(0, limit);
+}
+
 type ParticipantPrefRow = {
+  /** Internal marker: identity resolved from trip metadata/star preferences, never persisted. */
+  __isStar?: boolean;
   user_id?: string | null;
   ambiances: string[] | null;
   activity_categories: string[] | null;
@@ -187,6 +250,51 @@ type ParticipantPrefRow = {
   wanted_env_type?: string | null;
   weather_preference?: number | null;
 };
+
+const STAR_VIRTUAL_USER_ID = "star-virtual-uid";
+
+function mergeUnique(values: Array<string[] | null | undefined>): string[] {
+  return [...new Set(values.flatMap((value) => value ?? []))];
+}
+
+function getExistingStarRowIndex(
+  rows: ParticipantPrefRow[],
+  trip: { star_user_id?: string | null; owner_id?: string | null; co_organizer_id?: string | null },
+  starPreferenceUserId?: string | null,
+): number {
+  if (trip.star_user_id) return rows.findIndex((row) => row.user_id === trip.star_user_id);
+  const preferenceBelongsToParticipant =
+    starPreferenceUserId &&
+    starPreferenceUserId !== trip.owner_id &&
+    starPreferenceUserId !== trip.co_organizer_id;
+  return preferenceBelongsToParticipant
+    ? rows.findIndex((row) => row.user_id === starPreferenceUserId)
+    : -1;
+}
+
+function getStarWeight(eventType: string, hasStar: boolean): number {
+  if (!hasStar) return 1;
+  if (eventType === "evg" || eventType === "evjf") return 3.2;
+  if (eventType === "anniversaire" || eventType === "retraite") return 2.8;
+  return 2.5;
+}
+
+export function aggregateLocalMobility(
+  preferences: Array<{ localMobility?: "walk_transit" | "car_if_worth_it" | "car_ok" | null; weight?: number }>,
+) {
+  const scores = { walk_transit: 0, car_if_worth_it: 0, car_ok: 0 };
+  let total = 0;
+  for (const preference of preferences) {
+    if (!preference.localMobility) continue;
+    const weight = Math.max(0.1, preference.weight ?? 1);
+    scores[preference.localMobility] += weight;
+    total += weight;
+  }
+  if (!total) return { value: null, consensus: 0, scores };
+  const order = ["walk_transit", "car_if_worth_it", "car_ok"] as const;
+  const value = order.reduce((best, current) => scores[current] > scores[best] ? current : best);
+  return { value, consensus: scores[value] / total, scores };
+}
 
 function frequencies(values: string[]): Record<string, number> {
   const out: Record<string, number> = {};
@@ -251,33 +359,58 @@ export async function aggregateParticipantPreferences(
   }
 
   const rows = (res.data ?? []) as ParticipantPrefRow[];
+  let resolvedTripMeta: any = null;
+  let resolvedStarData: any = null;
 
-  // Intégrer les préférences de la star si elle a rempli le questionnaire spécifique (sans avoir de compte)
+  // Resolve Star identity once, merge Star-specific answers into an existing participant when
+  // possible, otherwise create exactly one explicitly marked virtual Star row.
   try {
     const tripQuery = supabase
       .from("trips")
       .select("event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id")
       .eq("id", tripId);
-    const tripMeta = typeof tripQuery.maybeSingle === "function"
-      ? await tripQuery.maybeSingle()
-      : (typeof tripQuery.single === "function" ? await tripQuery.single() : await tripQuery);
-    const starQuery = supabase
-      .from("trip_star_preferences")
-      .select("*")
-      .eq("trip_id", tripId);
-    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
+    const tripMeta =
+      typeof tripQuery.maybeSingle === "function"
+        ? await tripQuery.maybeSingle()
+        : typeof tripQuery.single === "function"
+          ? await tripQuery.single()
+          : await tripQuery;
+    const starQuery = supabase.from("trip_star_preferences").select("*").eq("trip_id", tripId);
+    const starPrefs =
+      typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
     const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
+    resolvedTripMeta = tripMeta.data ?? null;
+    resolvedStarData = !starPrefs.error ? starData : null;
 
     if (!starPrefs.error && starData) {
-      // S'assurer que starUid ne correspond pas à l'organisateur (owner_id / co_organizer_id)
-      // sauf si l'organisateur est explicitement identifié comme la Star.
-      const isOwner = tripMeta.data?.owner_id === starData.user_id || tripMeta.data?.co_organizer_id === starData.user_id;
-      const isActualStar = tripMeta.data?.star_user_id === starData.user_id;
-      const starUid = (starData.user_id && (!isOwner || isActualStar)) ? starData.user_id : "star-virtual-uid";
-      const alreadyHasPref = rows.some((r) => r.user_id === starUid);
-      if (!alreadyHasPref) {
+      const existingIndex = getExistingStarRowIndex(rows, tripMeta.data ?? {}, starData.user_id);
+      if (existingIndex >= 0) {
+        const existing = rows[existingIndex]!;
+        rows[existingIndex] = {
+          ...existing,
+          __isStar: true,
+          ambiances: mergeUnique([existing.ambiances, starData.ambiances]),
+          activity_categories: mergeUnique([
+            existing.activity_categories,
+            starData.wanted_activities,
+          ]),
+          excluded_destinations: mergeUnique([
+            existing.excluded_destinations,
+            starData.excluded_destinations,
+          ]),
+          deal_breaker_ambiances: mergeUnique([
+            existing.deal_breaker_ambiances,
+            starData.deal_breakers,
+          ]),
+          desired_destination: starData.desired_destination ?? existing.desired_destination,
+          wanted_env_type: starData.wanted_env_type ?? existing.wanted_env_type,
+          local_mobility: starData.local_mobility ?? existing.local_mobility,
+          accommodation_role: starData.accommodation_role ?? existing.accommodation_role,
+        };
+      } else {
         rows.push({
-          user_id: starUid,
+          __isStar: true,
+          user_id: tripMeta.data?.star_user_id ?? STAR_VIRTUAL_USER_ID,
           ambiances: starData.ambiances ?? [],
           activity_categories: starData.wanted_activities ?? [],
           budget_max: null,
@@ -309,6 +442,9 @@ export async function aggregateParticipantPreferences(
           accommodation_role: starData.accommodation_role ?? null,
         });
       }
+    } else if (tripMeta.data?.star_user_id) {
+      const existing = rows.find((row) => row.user_id === tripMeta.data.star_user_id);
+      if (existing) existing.__isStar = true;
     }
   } catch (e) {
     console.warn("Skipped star injection in aggregateParticipantPreferences", e);
@@ -372,20 +508,21 @@ export async function aggregateParticipantPreferences(
   const dietaryConstraints = Array.from(
     new Set(rows.flatMap((r) => r.dietary_constraints ?? []).filter(Boolean)),
   );
-  const dietaryConstraintsRows = rows.filter((r) => r.dietary_constraints && r.dietary_constraints.length > 0);
+  const dietaryConstraintsRows = rows.filter(
+    (r) => r.dietary_constraints && r.dietary_constraints.length > 0,
+  );
   const dietaryConstraintsRatio = rows.length ? dietaryConstraintsRows.length / rows.length : 0;
 
   const preferredTimeSlots = (() => {
     const freq: Record<string, number> = {};
-    for (const r of rows) for (const s of r.preferred_time_slots ?? []) freq[s] = (freq[s] ?? 0) + 1;
+    for (const r of rows)
+      for (const s of r.preferred_time_slots ?? []) freq[s] = (freq[s] ?? 0) + 1;
     return Object.entries(freq)
       .sort((a, b) => b[1] - a[1])
       .map(([k]) => k);
   })();
 
-  const acceptsSharedRoom = rows.length
-    ? rows.every((r) => r.accepts_shared_room === true)
-    : true;
+  const acceptsSharedRoom = rows.length ? rows.every((r) => r.accepts_shared_room === true) : true;
   const roomTypePreferences = Array.from(
     new Set(rows.map((r) => r.room_type_preference).filter((x): x is string => Boolean(x))),
   );
@@ -416,9 +553,7 @@ export async function aggregateParticipantPreferences(
   const maxTravelHoursList = rows
     .map((r) => Number(r.max_travel_duration_hours ?? 0))
     .filter((n) => n > 0);
-  const maxTravelDurationHours = maxTravelHoursList.length
-    ? Math.min(...maxTravelHoursList)
-    : null;
+  const maxTravelDurationHours = maxTravelHoursList.length ? Math.min(...maxTravelHoursList) : null;
 
   const transportModes = Array.from(
     new Set(rows.flatMap((r) => r.transport_mode_accepted ?? []).filter(Boolean)),
@@ -447,68 +582,39 @@ export async function aggregateParticipantPreferences(
   let starUserId: string | null = null;
   let celebratedPerson: string | null = null;
   let starWantedEnvType: string | null = null;
-  try {
-    const tripMeta = await supabase
-      .from("trips")
-      .select("event_type, celebrated_person, has_star, star_user_id")
-      .eq("id", tripId)
-      .maybeSingle();
-    const et = String(tripMeta.data?.event_type ?? "").toLowerCase();
-    celebratedPerson = (tripMeta.data?.celebrated_person as string) || null;
-    starUserId = (tripMeta.data as any)?.star_user_id ?? null;
-    const hasStar =
-      Boolean((tripMeta.data as any)?.has_star) ||
-      Boolean(celebratedPerson) ||
-      ["evg", "evjf", "anniversaire", "retraite"].includes(et);
-    // Poids Star : toujours plus fort que le reste du groupe
-    if (hasStar) {
-      if (et === "evg" || et === "evjf") starWeight = 3.2;
-      else if (et === "anniversaire" || et === "retraite") starWeight = 2.8;
-      else starWeight = 2.5;
-    } else {
-      starWeight = 1;
-    }
-    const starQuery = supabase
-      .from("trip_star_preferences")
-      .select("*")
-      .eq("trip_id", tripId);
-    const starPrefs = typeof starQuery.maybeSingle === "function" ? await starQuery.maybeSingle() : await starQuery;
-    const starData = Array.isArray(starPrefs.data) ? starPrefs.data[0] : starPrefs.data;
-
-    if (starData) {
-      starWantedActivities = starData.wanted_activities ?? [];
-      starDealBreakers = starData.deal_breakers ?? [];
-      starWantedEnvType = starData.wanted_env_type ?? null;
-      const isOwner = tripMeta.data?.owner_id === starData.user_id || tripMeta.data?.co_organizer_id === starData.user_id;
-      const isActualStar = tripMeta.data?.star_user_id === starData.user_id;
-      if (!starUserId && starData.user_id && (!isOwner || isActualStar)) {
-        starUserId = starData.user_id;
-      }
-      // Si le questionnaire star est rempli, on force un poids élevé même hors EVG
-      if (starWeight < 2.5) starWeight = 2.5;
-    }
-
-  } catch {
-    /* table absente → ignore */
+  const et = String(resolvedTripMeta?.event_type ?? "").toLowerCase();
+  celebratedPerson = resolvedTripMeta?.celebrated_person || null;
+  starUserId = resolvedTripMeta?.star_user_id ?? null;
+  const hasStar =
+    Boolean(resolvedTripMeta?.has_star) ||
+    Boolean(celebratedPerson) ||
+    Boolean(resolvedStarData) ||
+    ["evg", "evjf", "anniversaire", "retraite"].includes(et);
+  starWeight = getStarWeight(et, hasStar);
+  if (resolvedStarData) {
+    starWantedActivities = resolvedStarData.wanted_activities ?? [];
+    starDealBreakers = resolvedStarData.deal_breakers ?? [];
+    starWantedEnvType = resolvedStarData.wanted_env_type ?? null;
   }
 
   const individualPreferences = rows.map((r) => {
     const uid = (r.user_id as string) || null;
-    const isStar = Boolean(starUserId && uid && uid === starUserId);
+    const isStar = Boolean(r.__isStar || (starUserId && uid && uid === starUserId));
     return {
       ambiances: r.ambiances ?? [],
       activityCategories: r.activity_categories ?? [],
       budgetMax: Number(r.budget_max ?? 0) > 0 ? Number(r.budget_max) : null,
       budgetPriority: r.budget_priority ?? "nice_to_have",
-      dealBreakerAmbiances: [
-        ...(r.deal_breaker_ambiances ?? []),
+      dealBreakerAmbiances: mergeUnique([
+        r.deal_breaker_ambiances,
         // Deal-breakers star appliqués en dur si c'est la star
-        ...(isStar ? starDealBreakers : []),
-      ],
+        isStar ? starDealBreakers : [],
+      ]),
       dealBreakerDestinations: (r.excluded_destinations ?? [])
         .map((s) => String(s).trim())
         .filter(Boolean),
       transportModes: r.transport_mode_accepted ?? ["peu importe"],
+      departureCity: r.departure_city ?? null,
       maxTravelHours: Number(r.max_travel_duration_hours ?? 0) || null,
       desiredDestination: r.desired_destination ?? null,
       isStar,
@@ -524,6 +630,7 @@ export async function aggregateParticipantPreferences(
       accommodationRole: r.accommodation_role ?? null,
     };
   });
+  const localMobility = aggregateLocalMobility(individualPreferences);
 
   const ageRanges = rows.map((r) => r.group_age_range).filter(Boolean);
   const ageRangeFreq = frequencies(ageRanges as string[]);
@@ -559,7 +666,10 @@ export async function aggregateParticipantPreferences(
         message: `destination souhaitée « ${desired} » aussi dans les exclusions`,
       });
     }
-    if (getNormalizedBudgetPriority(r.budget_priority) === "must_have" && !(Number(r.budget_max) > 0)) {
+    if (
+      getNormalizedBudgetPriority(r.budget_priority) === "must_have" &&
+      !(Number(r.budget_max) > 0)
+    ) {
       inconsistencies.push({
         userId: r.user_id ?? null,
         message: `budget incontournable sans budget_max renseigné`,
@@ -587,6 +697,8 @@ export async function aggregateParticipantPreferences(
     dealBreakerAmbiances,
     dealBreakerDestinations,
     individualPreferences,
+    groupLocalMobility: localMobility.value,
+    localMobilityConsensus: localMobility.consensus,
     starWantedActivities,
     starDealBreakers,
     starWeight,
@@ -610,7 +722,9 @@ export async function aggregateParticipantPreferences(
     wantedEnvTypes,
     starWantedEnvType,
     groupWeatherPreference,
-    stayProfileAffinities, stayConcepts, discoveryRoute,
+    stayProfileAffinities,
+    stayConcepts,
+    discoveryRoute,
   };
 }
 
@@ -657,7 +771,7 @@ async function enrichCatalogWithExternalApis(
   const { refreshExternalCatalogForTrip } = await import("@/lib/external/search-hotels.functions");
   const providerErrors: string[] = [];
 
-  for (const destName of destinationNames.slice(0, 5)) {
+  for (const destName of [...new Set(destinationNames)].slice(0, 12)) {
     try {
       const externalRes = await refreshExternalCatalogForTrip(supabase, tripId, destName);
       if (externalRes.providerErrors?.length) {
@@ -670,7 +784,6 @@ async function enrichCatalogWithExternalApis(
 
   return providerErrors;
 }
-
 
 export type GenerationReadiness = {
   canGenerate: boolean;
@@ -697,11 +810,36 @@ export type GenerationReadiness = {
     availabilityOk: boolean;
     datesLocked: boolean;
   };
+  profile: {
+    questionnairesReady: boolean;
+    validated: boolean;
+    legacyBypass: boolean;
+    calculatedConcepts: any[];
+    selectedConcepts: any[];
+  };
   message?: string;
 };
 
 const MIN_ANSWERS = 1;
 const MIN_ANSWER_RATIO = 0.4;
+
+export function evaluateStayProfileGate(input: {
+  answered: number;
+  expected: number;
+  validated: boolean;
+  hasExistingRecommendations: boolean;
+}) {
+  const questionnairesReady =
+    input.answered >= MIN_ANSWERS &&
+    input.answered / Math.max(input.expected, 1) >= MIN_ANSWER_RATIO;
+  const legacyBypass = input.hasExistingRecommendations;
+  return {
+    questionnairesReady,
+    legacyBypass,
+    profileValidated: input.validated || legacyBypass,
+    canGenerate: legacyBypass || (questionnairesReady && input.validated),
+  };
+}
 
 export async function assessGenerationReadiness(
   supabase: SupabaseClient,
@@ -715,7 +853,9 @@ export async function assessGenerationReadiness(
   const [trip, participants, prefs, avail, starPrefsRes] = await Promise.all([
     supabase
       .from("trips")
-      .select("participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id")
+      .select(
+        "participants_count, dates_locked, start_date, end_date, provisional_start_date, provisional_end_date, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, stay_concepts_calculated, stay_concepts_selected, stay_profile_validated_at",
+      )
       .eq("id", tripId)
       .single(),
     supabase
@@ -802,24 +942,45 @@ export async function assessGenerationReadiness(
   const availabilityAnswered = partsList.filter((p) => p.hasAnsweredAvailability).length;
 
   const datesLocked = Boolean((trip.data as any)?.dates_locked);
-  const lockedStart = datesLocked
-    ? ((trip.data as any).start_date as string | null)
-    : null;
-  const lockedEnd = datesLocked
-    ? ((trip.data as any).end_date as string | null)
-    : null;
+  const lockedStart = datesLocked ? ((trip.data as any).start_date as string | null) : null;
+  const lockedEnd = datesLocked ? ((trip.data as any).end_date as string | null) : null;
 
   const missingLabels = partsList
     .filter((p: any) => !p.hasAnswered)
     .map((p: any) => p.display_name || p.email || "Participant");
 
-  // Tous les critères minimum (réponses, disponibilités, verrouillage des dates) sont désactivés pour pouvoir tester librement.
-  const prefsOk = true;
+  // Availability/date behavior is intentionally unchanged by the profile step.
   const availabilityOk = true;
-  const canGenerate = true;
+  const recs = await supabase.from("recommendations").select("id").eq("trip_id", tripId);
+  const gate = evaluateStayProfileGate({
+    answered,
+    expected,
+    validated: Boolean((trip.data as any).stay_profile_validated_at),
+    hasExistingRecommendations: !recs.error && Boolean(recs.data?.length),
+  });
+  const prefsOk = gate.questionnairesReady;
+  const legacyBypass = gate.legacyBypass;
+  const calculatedConcepts = prefsOk ? (aggregated.stayConcepts ?? []).slice(0, 3) : [];
+  const persistedCalculated = ((trip.data as any).stay_concepts_calculated ?? []) as any[];
+  const selectedConcepts = ((trip.data as any).stay_concepts_selected ?? []) as any[];
+  const validated = gate.profileValidated;
+  const canGenerate = gate.canGenerate;
 
-  const blockers: string[] = [];
+  // Persist calculation opportunistically for admins; RLS safely rejects participant writes.
+  if (
+    prefsOk &&
+    !(trip.data as any).stay_profile_validated_at &&
+    JSON.stringify(persistedCalculated) !== JSON.stringify(calculatedConcepts)
+  ) {
+    await supabase
+      .from("trips")
+      .update({ stay_concepts_calculated: calculatedConcepts } as any)
+      .eq("id", tripId);
+  }
+
   let message: string | undefined;
+  if (!prefsOk) message = "Les questionnaires n’ont pas encore atteint le seuil requis.";
+  else if (!validated) message = "Validez d’abord le profil du voyage.";
 
   return {
     canGenerate,
@@ -844,6 +1005,13 @@ export async function assessGenerationReadiness(
       availabilityOk,
       datesLocked,
     },
+    profile: {
+      questionnairesReady: prefsOk,
+      validated,
+      legacyBypass,
+      calculatedConcepts: persistedCalculated.length ? persistedCalculated : calculatedConcepts,
+      selectedConcepts,
+    },
     ...(message ? { message } : {}),
   };
 }
@@ -855,11 +1023,24 @@ export async function generateRecommendationsForTrip(
 ) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const readiness = await assessGenerationReadiness(supabase, tripId);
-  if (!options?.force && !readiness.canGenerate) {
+  if (!readiness.profile.validated || (!options?.force && !readiness.canGenerate)) {
     return {
       count: 0,
       skipped: true,
       readiness,
+      providerErrors: [] as string[],
+      shortlist: [] as string[],
+    };
+  }
+  if (requiresLegacyProfileValidation(readiness.profile)) {
+    return {
+      count: 0,
+      skipped: true,
+      skipReason: "legacy_profile_validation_required",
+      readiness: {
+        ...readiness,
+        message: "Validez le profil du voyage avant de régénérer les propositions existantes.",
+      },
       providerErrors: [] as string[],
       shortlist: [] as string[],
     };
@@ -911,22 +1092,9 @@ export async function generateRecommendationsForTrip(
 
   // Nuits = dates validées (start/end) si présentes, sinon durée questionnaire
   let lockedNights: number | null = null;
-  let sd = trip.data.start_date as string | null;
-  let ed = trip.data.end_date as string | null;
-  // Si les dates ne sont pas renseignées/verrouillées, on génère systématiquement des dates fictives pour pouvoir scorer
-  if (!sd || !ed) {
-    const d0 = new Date();
-    d0.setDate(d0.getDate() + 28);
-    // prochain vendredi
-    d0.setDate(d0.getDate() + ((5 - d0.getDay() + 7) % 7));
-    sd = d0.toISOString().slice(0, 10);
-    const d1 = new Date(d0);
-    d1.setDate(d1.getDate() + 2);
-    ed = d1.toISOString().slice(0, 10);
-    // n'écrit pas en base — uniquement pour le scoring de cette génération
-    (trip.data as any).start_date = sd;
-    (trip.data as any).end_date = ed;
-  }
+  const recommendationDates = resolveRecommendationDates(trip.data);
+  const sd = recommendationDates.startDate;
+  const ed = recommendationDates.endDate;
   if (sd && ed) {
     const ms = new Date(ed + "T12:00:00Z").getTime() - new Date(sd + "T12:00:00Z").getTime();
     const days = Math.round(ms / (24 * 3600 * 1000));
@@ -943,15 +1111,14 @@ export async function generateRecommendationsForTrip(
       ...preferences.data,
       ambiances: aggregated.ambiances.length
         ? aggregated.ambiances
-        : preferences.data?.ambiances ?? [],
+        : (preferences.data?.ambiances ?? []),
       activity_categories: aggregated.activityCategories.length
         ? aggregated.activityCategories
-        : preferences.data?.activity_categories ?? [],
+        : (preferences.data?.activity_categories ?? []),
       max_budget:
-        aggregated.aggregatedBudget ??
-        preferences.data?.max_budget ??
-        trip.data.budget_per_person,
-      duration_nights: lockedNights ?? preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
+        aggregated.aggregatedBudget ?? preferences.data?.max_budget ?? trip.data.budget_per_person,
+      duration_nights:
+        lockedNights ?? preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
       required_amenities: aggregated.requiredAmenities,
       min_accommodation_rating: aggregated.minAccommodationRating,
       travel_pace: aggregated.medianTravelPace,
@@ -974,7 +1141,7 @@ export async function generateRecommendationsForTrip(
       needs_accessibility: aggregated.needsAccessibility,
       needs_city_center: aggregated.needsAccessibility
         ? true
-        : preferences.data?.needs_city_center ?? true,
+        : (preferences.data?.needs_city_center ?? true),
       max_travel_duration_hours: aggregated.maxTravelDurationHours,
       plane_refused: aggregated.planeRefused,
       blackout_dates: aggregated.blackoutDates,
@@ -985,7 +1152,7 @@ export async function generateRecommendationsForTrip(
             Number(preferences.data?.max_distance_km ?? 2000),
             Math.round(Number(aggregated.maxTravelDurationHours) * 90),
           )
-        : preferences.data?.max_distance_km ?? undefined,
+        : (preferences.data?.max_distance_km ?? undefined),
     } as any;
   }
 
@@ -1003,6 +1170,7 @@ export async function generateRecommendationsForTrip(
   ctx.groupWeatherPreference = aggregated.groupWeatherPreference ?? 1.0;
   ctx.groupAgeRange = aggregated.groupAgeRange ?? null;
   ctx.wantedEnvTypes = aggregated.wantedEnvTypes ?? [];
+  ctx.groupLocalMobility = aggregated.groupLocalMobility ?? null;
   ctx.starWantedEnvType = aggregated.starWantedEnvType ?? null;
   if (aggregated.participantsCount && aggregated.participantsCount > 0) {
     // If we have aggregated participants count from preferences, we can still use ctx.participants as calculated from the actual/effective group count since preferences represents a subset of active members.
@@ -1011,10 +1179,7 @@ export async function generateRecommendationsForTrip(
   ctx.pastDestinations = pastDestinations;
   // Fusion exclusions individuelles + trip-level
   const mergedExcluded = Array.from(
-    new Set([
-      ...(ctx.excludedCountries ?? []),
-      ...(aggregated.dealBreakerDestinations ?? []),
-    ]),
+    new Set([...(ctx.excludedCountries ?? []), ...(aggregated.dealBreakerDestinations ?? [])]),
   );
   ctx.excludedCountries = mergedExcluded;
   if (aggregated.needsAccessibility) ctx.needsCityCenter = true;
@@ -1081,8 +1246,17 @@ export async function generateRecommendationsForTrip(
       groupAgeRange: aggregated.groupAgeRange ?? null,
       freeNotes: aggregated.individualPreferences.map((p: any) => p.freeText).filter(Boolean),
       stayProfiles: aggregated.stayProfileAffinities ?? [],
-      selectedConcepts: aggregated.stayConcepts ?? [],
-      discoveryBranches: aggregated.discoveryRoute?.branches ?? ["urban"],
+      selectedConcepts: readiness.profile.selectedConcepts,
+      discoveryBranches: routeDiscovery(readiness.profile.selectedConcepts).branches,
+      localMobility: aggregated.groupLocalMobility ?? null,
+      accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
+      relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
+        activities: p.activityCategories,
+        environment: p.wantedEnvType,
+        mobility: p.localMobility,
+        accommodationRole: p.accommodationRole,
+        isStar: p.isStar,
+      })),
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
@@ -1094,7 +1268,7 @@ export async function generateRecommendationsForTrip(
       // non bloquant — visible côté logs / providerErrors
       console.warn("[discovery] AI unavailable:", ai.error);
     }
-    const aiCities = (ai.cities ?? []).map((c) => ({
+    const aiCities = (ai.candidates ?? []).map((c) => ({
       name: c.name,
       country: c.country,
       affinity: c.affinity,
@@ -1102,6 +1276,9 @@ export async function generateRecommendationsForTrip(
       dailyCost: c.dailyCost,
       distanceKm: c.distanceKm,
       bestMonths: c.bestMonths,
+      region: c.region,
+      destinationType: c.destinationType,
+      anchorPlaces: c.anchorPlaces,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities);
 
@@ -1119,6 +1296,8 @@ export async function generateRecommendationsForTrip(
           dailyCost: profile?.dailyCost,
           distanceKm: profile?.distanceKm,
           bestMonths: profile?.bestMonths,
+          destinationType: "city",
+          anchorPlaces: [resolvedDestination],
         });
       } else {
         mergedCandidates = mergedCandidates.map((c) => {
@@ -1147,9 +1326,12 @@ export async function generateRecommendationsForTrip(
 
   // 1b) Matérialise les destinations scorées en catalogue (sinon l'enrichissement / scoring n'a rien à scorer)
   const profiles = listCityProfilesForNames(shortlistNames);
+  const areaProfiles = listAreaProfilesForNames(shortlistNames);
   const profileKeys = new Set(profiles.map((p) => normCity(p.name)));
   for (const p of profiles) {
-    const slug = normCity(p.name).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const slug = normCity(p.name)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     try {
       await supabaseAdmin.from("destinations").upsert(
         {
@@ -1205,6 +1387,66 @@ export async function generateRecommendationsForTrip(
     }
   }
 
+  for (const area of areaProfiles) {
+    const ambiance = (area as any).ambiances ?? {};
+    const row = { slug: normCity(area.name).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""), name: area.name,
+      country: area.country, avg_daily_cost: (area as any).dailyCost, distance_from_paris_km: area.distanceKm,
+      best_months: (area as any).bestMonths ?? [], popularity: 0.5, rating: 3.8,
+      score_fete: ambiance.fete ?? 0.5, score_aventure: ambiance.aventure ?? 0.5,
+      score_detente: ambiance.detente ?? 0.5, score_luxe: ambiance.luxe ?? 0.5,
+      score_insolite: ambiance.insolite ?? 0.5, score_sportif: ambiance.sportif ?? 0.5,
+      score_culturel: ambiance.culturel ?? 0.5, destination_type: area.destinationType ?? "region_territory",
+      region_name: area.region ?? null, anchor_places: area.anchorPlaces ?? [area.name] };
+    try {
+      await supabaseAdmin.from("destinations").upsert({ ...row, source: "krew_discovery", external_id: `discovery:${area.name.toLowerCase()}` } as any, { onConflict: "source,external_id" });
+    } catch (e) {
+      reportServerError(e, { provider: "krew_discovery", kind: "catalog_upsert_area", destination: area.name });
+    }
+  }
+
+  // Property-led exploration is additive: failures never interrupt normal destination discovery.
+  if (routeDiscovery(readiness.profile.selectedConcepts).propertyDiscovery) {
+    try {
+      const properties = await discoverProperties({
+        concepts: readiness.profile.selectedConcepts,
+        participants: ctx.participants,
+        territories: mergedCandidates.flatMap((candidate) => [candidate.name, ...(candidate.anchorPlaces ?? [])]).slice(0, 6),
+        amenities: aggregated.requiredAmenities ?? [],
+        activities: ctx.activityCategories,
+        environment: aggregated.wantedEnvTypes ?? [],
+        localMobility: aggregated.groupLocalMobility ?? null,
+        accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
+      });
+      for (const property of properties) {
+        const resolvedPropertyLocation = resolvePropertyDestination(property);
+        if (!resolvedPropertyLocation) continue;
+        const geo = await geocodeDestination([resolvedPropertyLocation.name, resolvedPropertyLocation.country].filter(Boolean).join(", "));
+        if (!geo) continue;
+        const destinationName = resolvedPropertyLocation.name;
+        const slug = `property-${normCity(destinationName).replace(/[^a-z0-9]+/g, "-")}`;
+        const destination = await supabaseAdmin.from("destinations").upsert({
+          slug,
+          name: destinationName,
+          country: property.country || geo.country || "France",
+          destination_type: "region_territory",
+          anchor_places: [property.locality || destinationName],
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+          distance_from_paris_km: distanceFromParisKm(geo.latitude, geo.longitude),
+          source: "property_discovery",
+          external_id: `property-location:${slug}`,
+        } as any, { onConflict: "source,external_id" }).select("id").single();
+        if (!destination.data?.id) continue;
+        if (!shortlistNames.some((name) => normCity(name) === normCity(destinationName))) shortlistNames.push(destinationName);
+        const accommodation = propertyToAccommodationRow(property, destination.data.id, ctx.participants, ctx.nights);
+        if (!accommodation) continue;
+        await supabaseAdmin.from("accommodations").upsert(accommodation as any, { onConflict: "source,external_id" });
+      }
+    } catch (error) {
+      reportServerError(error, { provider: "property_discovery", kind: "property_pipeline", tripId });
+    }
+  }
+
   // 1c) Villes proposées par l'IA absentes du catalogue → ligne `ai_estimate`
   //     (estimations LLM + saison réelle via Open-Meteo quand disponible).
   const aiOnly = mergedCandidates.filter(
@@ -1237,11 +1479,9 @@ export async function generateRecommendationsForTrip(
         /* météo indisponible → on garde l'estimation LLM */
       }
 
-      const row = aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
-      await supabaseAdmin.from("destinations").upsert(
-        { ...row, latitude, longitude } as any,
-        { onConflict: "source,external_id" },
-      );
+      // A geocoded AI suggestion is still exploratory: geocoding does not verify its cost or fit.
+      void aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
+      void latitude; void longitude;
     } catch (e) {
       reportServerError(e, {
         provider: "destination-ai",
@@ -1259,15 +1499,30 @@ export async function generateRecommendationsForTrip(
     console.info("[discovery] shortlist locale scorée:", shortlistNames.join(", "));
   }
 
+  const enrichmentPlaces = [...new Set([
+    ...mergedCandidates.flatMap((candidate) =>
+      candidate.destinationType === "city" ? [candidate.name] : (candidate.anchorPlaces ?? [candidate.name]),
+    ),
+    ...shortlistNames,
+  ])];
+  // Activity discovery is useful without dates; the provider boundary itself
+  // skips date-dependent hotel availability when dates are unknown.
   const providerErrors = await enrichCatalogWithExternalApis(
     supabase,
     tripId,
-    shortlistNames.slice(0, 6),
+    [...new Set(enrichmentPlaces.length ? enrichmentPlaces : shortlistNames)].slice(0, 12),
   );
 
   // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
   //    (sans ce filtre, loadTravelCatalog recharge tout le seed SQL)
-  const catalog = await loadTravelCatalog(supabase, catalogQuery);
+  const loadedCatalog = await loadTravelCatalog(supabase, catalogQuery);
+  const catalog = attachAnchorEnrichments(
+    loadedCatalog,
+    loadedCatalog.destinations.filter((destination) =>
+      shortlistNames.some((name) => normCity(name) === normCity(destination.name)) &&
+      (destination.anchor_places?.length ?? 0) > 0,
+    ),
+  );
   const normName = (s: string) =>
     s
       .normalize("NFD")
@@ -1277,6 +1532,7 @@ export async function generateRecommendationsForTrip(
   const shortlistSet = new Set(shortlistNames.map(normName).filter(Boolean));
 
   const destinationsInShortlist = catalog.destinations.filter((d) => {
+    if ((d as any).source === "ai_estimate") return false;
     const n = normName(d.name);
     const c = normName(d.country);
     return (
@@ -1302,6 +1558,15 @@ export async function generateRecommendationsForTrip(
     ),
   };
 
+  catalogFinal.accommodations = catalogFinal.accommodations.filter((a: any) =>
+    !String(a.source ?? "").startsWith("property_web:") ||
+    (a.price_verified === true && a.availability_verified === true && a.verification_state === "confirmed"));
+  const propertyIds = new Set(catalogFinal.destinations.filter((d: any) => d.source === "property_discovery").map((d) => d.id));
+  if (propertyIds.size) {
+    const verifiedIds = new Set(catalogFinal.accommodations.filter((a) => propertyIds.has(a.destination_id)).map((a) => a.destination_id));
+    catalogFinal.destinations = catalogFinal.destinations.filter((d) => !propertyIds.has(d.id) || verifiedIds.has(d.id));
+  }
+
   if (apiAccIds.size > 0) {
     const apiAccommodations = catalogFinal.accommodations.filter((a) => apiAccIds.has(a.id));
     if (apiAccommodations.length > 0) {
@@ -1314,7 +1579,9 @@ export async function generateRecommendationsForTrip(
           apiAccommodations.length > 0
             ? [
                 ...apiAccommodations,
-                ...catalogFinal.accommodations.filter((a) => !apiAccIds.has(a.id) && !destWithApi.has(a.destination_id)),
+                ...catalogFinal.accommodations.filter(
+                  (a) => !apiAccIds.has(a.id) && !destWithApi.has(a.destination_id),
+                ),
               ]
             : catalogFinal.accommodations,
       };
@@ -1397,23 +1664,14 @@ export async function generateRecommendationsForTrip(
       console.warn("Erreur filtres horaires", e);
     }
 
-    let checkin = (trip.data.start_date as string | null) ?? null;
-    let checkout = (trip.data.end_date as string | null) ?? null;
-    if (!checkin) {
-      const d = new Date();
-      d.setDate(d.getDate() + 21);
-      checkin = d.toISOString().slice(0, 10);
-    }
-    if (!checkout) {
-      const d = new Date(checkin);
-      d.setDate(d.getDate() + (ctx.nights || 2));
-      checkout = d.toISOString().slice(0, 10);
-    }
+    const checkin = recommendationDates.startDate;
+    const checkout = recommendationDates.endDate;
+    if (!checkin || !checkout) providerErrors.push("Transport non vérifié : dates réelles absentes");
 
     // Limiter le fan-out API : max 5 destinations × max 4 origines distinctes
     const originsLimited = originsForQuote.slice(0, 4);
 
-    for (const dest of catalogFinal.destinations.slice(0, 5)) {
+    for (const dest of checkin && checkout ? catalogFinal.destinations.slice(0, 5) : []) {
       const originQuotes: {
         city: string;
         count: number;
@@ -1432,14 +1690,18 @@ export async function generateRecommendationsForTrip(
           const quote = await searchTransportRoundTrip({
             originCity: origin.city,
             destinationCity: dest.name,
-            departDate: checkin,
-            returnDate: checkout,
+            departDate: checkin!,
+            returnDate: checkout!,
             adults: Math.min(Math.max(1, origin.count), 9),
             distanceKm: dest.distance_from_paris_km,
             earliestDepartureTime,
             latestReturnTime,
           });
           const price = quote.pricePerPerson;
+          if (quote.dataKind !== "provider_offer") {
+            providerErrors.push(`transport ${origin.city}→${dest.name}: cotation estimée ignorée`);
+            continue;
+          }
           originQuotes.push({
             city: origin.city,
             count: origin.count,
@@ -1456,9 +1718,7 @@ export async function generateRecommendationsForTrip(
             providerErrors.push(`transport ${origin.city}→${dest.name}: ${quote.rawError}`);
           }
         } catch (e) {
-          providerErrors.push(
-            `transport ${origin.city}→${dest.name}: ${String(e).slice(0, 120)}`,
-          );
+          providerErrors.push(`transport ${origin.city}→${dest.name}: ${String(e).slice(0, 120)}`);
         }
       }
 
@@ -1485,7 +1745,8 @@ export async function generateRecommendationsForTrip(
     departureOrigins: originsForQuote,
   };
 
-  // 5) Scoring final → top 3
+  // 5) Scoring final → 4 destinations. The Top 3 product rule applies to
+  // stay concepts, while the established destination UI displays four options.
   // Poids depuis DB si dispo
   try {
     const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
@@ -1511,14 +1772,17 @@ export async function generateRecommendationsForTrip(
     /* table absente → défauts engine */
   }
 
-  let proposals = buildProposals(catalogFinal, ctxWithTransport, 4);
+  let proposals = selectTopDestinationProposals(
+    buildProposals(catalogFinal, ctxWithTransport, 20),
+    4,
+  );
 
   // Rationales LLM (1 call groupé, tokens min) — fallback = texte moteur
   let llmRationales = false;
   try {
     const { enrichProposalsWithLlmRationales } = await import("./rationale-llm.server");
     const llmRes = await enrichProposalsWithLlmRationales(proposals, {
-      eventType: ((trip.data.event_type as string | null) || ctxWithTransport.eventType || null),
+      eventType: (trip.data.event_type as string | null) || ctxWithTransport.eventType || null,
       participants: ctx.participants,
     });
     proposals = llmRes.proposals;
@@ -1527,7 +1791,6 @@ export async function generateRecommendationsForTrip(
   } catch (e) {
     providerErrors.push(`llm-rationale: ${String(e).slice(0, 120)}`);
   }
-
 
   // Enregistre les sous-scores de toutes les propositions proposées (pour feedback ultérieur)
   try {
@@ -1555,27 +1818,33 @@ export async function generateRecommendationsForTrip(
     /* feedback table optionnelle */
   }
 
-  const deleted = await supabase.from("recommendations").delete().eq("trip_id", tripId);
-  if (deleted.error) throw deleted.error;
-
   const rows = proposals.map((p) => serializeProposal(tripId, p));
-  if (rows.length) {
-    const inserted = await supabase.from("recommendations").insert(rows);
-    if (inserted.error) throw inserted.error;
+  if (!rows.length) {
+    return {
+      count: 0,
+      generationState: "no_admissible_proposals",
+      providerErrors,
+      shortlist: shortlistNames,
+      apiAccommodations: apiAccIds.size,
+      llmRationales,
+      readiness,
+    };
   }
+  await replaceRecommendationsSafely(supabase, tripId, rows);
 
   const runnerUps = (proposals as any).runnerUps || [];
   const updated = await supabase
     .from("trips")
     .update({
-      status: "propositions",
-      runner_ups: runnerUps
+      ...(rows.length ? { status: "propositions" } : {}),
+      runner_ups: runnerUps,
     })
     .eq("id", tripId);
   if (updated.error) throw updated.error;
 
   return {
     count: rows.length,
+    generationState: rows.length ? "generated" : "no_admissible_proposals",
     providerErrors,
     shortlist: shortlistNames,
     apiAccommodations: apiAccIds.size,

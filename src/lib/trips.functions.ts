@@ -2,10 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateRecommendationsForTrip, tripInputSchema } from "@/lib/krew/trip-service";
+import {
+  aggregateParticipantPreferences,
+  generateRecommendationsForTrip,
+  tripInputSchema,
+} from "@/lib/krew/trip-service";
+import type { StayConcept } from "@/lib/krew/stay-profiles";
 import { assertNotRateLimited } from "@/lib/krew/rate-limit.server";
-import { isTripAdmin, computeGroupTimeWindow, computeGroupTimeWindowExtended, scoreTransportOption } from "@/lib/krew/engine";
-
+import {
+  isTripAdmin,
+  computeGroupTimeWindow,
+  computeGroupTimeWindowExtended,
+  scoreTransportOption,
+} from "@/lib/krew/engine";
 
 /** Libellé de stade aligné sur le parcours hub (pas le status enum brut). */
 function computeJourneyStage(input: {
@@ -42,7 +51,9 @@ export const listMyTrips = createServerFn({ method: "GET" })
       console.error("listMyTrips owned", owned.error.message);
       owned = (await supabase
         .from("trips")
-        .select("id, name, event_type, status, participants_count, created_at, owner_id, start_date, end_date")
+        .select(
+          "id, name, event_type, status, participants_count, created_at, owner_id, start_date, end_date",
+        )
         .eq("owner_id", userId)
         .order("created_at", { ascending: false })) as any;
     }
@@ -74,10 +85,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
     ];
     const uniqueIds = [...new Set(allTripIds)];
 
-    const stageByTrip: Record<
-      string,
-      { destinationSelected: boolean; hasItinerary: boolean }
-    > = {};
+    const stageByTrip: Record<string, { destinationSelected: boolean; hasItinerary: boolean }> = {};
     for (const id of uniqueIds) {
       stageByTrip[id] = { destinationSelected: false, hasItinerary: false };
     }
@@ -89,7 +97,10 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .select("trip_id")
           .in("trip_id", uniqueIds)
           .eq("is_selected", true),
-        supabase.from("trips").select("id, dates_locked, group_itinerary, start_date").in("id", uniqueIds),
+        supabase
+          .from("trips")
+          .select("id, dates_locked, group_itinerary, start_date")
+          .in("id", uniqueIds),
       ]);
       for (const r of selRecos.data ?? []) {
         const tid = (r as any).trip_id as string;
@@ -173,8 +184,19 @@ export const getTripDetail = createServerFn({ method: "GET" })
       activityRows = activities.error ? [] : (activities.data ?? []);
     }
 
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const calculatedConcepts = (aggregated.stayConcepts ?? []).slice(0, 3);
+    const storedCalculated = ((trip.data as any).stay_concepts_calculated ?? []) as StayConcept[];
+    const profile = {
+      calculatedConcepts: storedCalculated.length ? storedCalculated : calculatedConcepts,
+      selectedConcepts: ((trip.data as any).stay_concepts_selected ?? []) as StayConcept[],
+      validated: Boolean((trip.data as any).stay_profile_validated_at) || recos.length > 0,
+      legacyBypass: recos.length > 0 && !(trip.data as any).stay_profile_validated_at,
+    };
+
     return {
       trip: trip.data,
+      profile,
       isOwner: isTripAdmin(trip.data, userId),
       isCreator: trip.data.owner_id === userId,
       userId,
@@ -191,7 +213,7 @@ export async function createTripHelper(
   supabase: any,
   userId: string,
   email: string,
-  data: z.infer<typeof tripInputSchema>
+  data: z.infer<typeof tripInputSchema>,
 ) {
   const wantsStar =
     Boolean(data.celebratedPerson) ||
@@ -251,14 +273,26 @@ export async function createTripHelper(
       duration_nights: data.durationNights ?? 2,
     };
 
-    trip = await supabase.from("trips").insert(fullPayload as any).select("*").single();
+    trip = await supabase
+      .from("trips")
+      .insert(fullPayload as any)
+      .select("*")
+      .single();
     if (trip.error) {
       console.error("createTrip [Star Type] fullPayload failed:", trip.error);
-      trip = await supabase.from("trips").insert(starMidPayload as any).select("*").single();
+      trip = await supabase
+        .from("trips")
+        .insert(starMidPayload as any)
+        .select("*")
+        .single();
     }
     if (trip.error) {
       console.error("createTrip [Star Type] starMidPayload failed:", trip.error);
-      trip = await supabase.from("trips").insert(starMinimalPayload as any).select("*").single();
+      trip = await supabase
+        .from("trips")
+        .insert(starMinimalPayload as any)
+        .select("*")
+        .single();
     }
     if (trip.error) {
       console.error("createTrip [Star Type] starMinimalPayload failed:", trip.error);
@@ -269,14 +303,26 @@ export async function createTripHelper(
     }
   } else {
     // Comportement hérité pour les voyages sans Star (Défaut / Weekend / etc.)
-    trip = await supabase.from("trips").insert(fullPayload as any).select("*").single();
+    trip = await supabase
+      .from("trips")
+      .insert(fullPayload as any)
+      .select("*")
+      .single();
     if (trip.error) {
       console.warn("createTrip fullPayload failed:", trip.error);
-      trip = await supabase.from("trips").insert(midPayload as any).select("*").single();
+      trip = await supabase
+        .from("trips")
+        .insert(midPayload as any)
+        .select("*")
+        .single();
     }
     if (trip.error) {
       console.warn("createTrip midPayload failed:", trip.error);
-      trip = await supabase.from("trips").insert(minimalPayload as any).select("*").single();
+      trip = await supabase
+        .from("trips")
+        .insert(minimalPayload as any)
+        .select("*")
+        .single();
     }
     if (trip.error) {
       console.error("createTrip minimalPayload failed:", trip.error);
@@ -312,9 +358,7 @@ export async function createTripHelper(
     console.error("trip_preferences insert skipped", prefs.error.message);
   }
 
-  const organizerName = data.organizerFirstName
-    ? String(data.organizerFirstName).trim()
-    : null;
+  const organizerName = data.organizerFirstName ? String(data.organizerFirstName).trim() : null;
 
   const partInsert = await supabase.from("trip_participants").insert({
     trip_id: trip.data.id,
@@ -365,6 +409,55 @@ export const createTrip = createServerFn({ method: "POST" })
     return createTripHelper(supabase, userId, email, data);
   });
 
+export const stayProfileValidationSchema = z.object({
+  tripId: z.string().uuid(),
+  selectedConceptIds: z.array(z.string()).min(1).max(3),
+});
+
+export function selectValidatedStayConcepts(
+  calculated: StayConcept[],
+  selectedConceptIds: string[],
+): StayConcept[] {
+  if (!calculated.length) throw new Error("Aucun concept de voyage calculé");
+  if (!selectedConceptIds.length) throw new Error("Sélectionnez au moins un concept de voyage");
+  const allowed = new Set(calculated.map((concept) => concept.id));
+  if (selectedConceptIds.some((id) => !allowed.has(id))) {
+    throw new Error("Concept de voyage invalide");
+  }
+  return calculated.filter((concept) => selectedConceptIds.includes(concept.id));
+}
+
+export const validateStayProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => stayProfileValidationSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("owner_id, co_organizer_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data || !isTripAdmin(trip.data, userId)) {
+      throw new Error(
+        "403 Forbidden: seul l’organisateur ou co-organisateur peut valider le profil",
+      );
+    }
+    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const calculated = (aggregated.stayConcepts ?? []).slice(0, 3) as StayConcept[];
+    const selected = selectValidatedStayConcepts(calculated, data.selectedConceptIds);
+    const { error } = await supabase
+      .from("trips")
+      .update({
+        stay_concepts_calculated: calculated,
+        stay_concepts_selected: selected,
+        stay_profile_validated_at: new Date().toISOString(),
+      } as any)
+      .eq("id", data.tripId);
+    if (error) throw error;
+    return { calculatedConcepts: calculated, selectedConcepts: selected, validated: true };
+  });
+
 export const generateRecommendations = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -372,6 +465,14 @@ export const generateRecommendations = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("owner_id, co_organizer_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data || !isTripAdmin(trip.data, userId))
+      throw new Error("403 Forbidden: génération réservée aux organisateurs");
 
     // Check user-level rate limit first (across all trips)
     const userWindow = Number(process.env["RATE_LIMIT_USER_RECOMMENDATIONS_WINDOW_SEC"]) || 300;
@@ -414,7 +515,7 @@ export const getGenerationReadiness = createServerFn({ method: "GET" })
 export async function inviteParticipantHelper(
   supabase: any,
   userId: string,
-  data: { tripId: string; email: string; displayName?: string }
+  data: { tripId: string; email: string; displayName?: string },
 ) {
   const tripRes = await supabase
     .from("trips")
@@ -426,7 +527,9 @@ export async function inviteParticipantHelper(
   const trip = tripRes.data as any;
 
   if (!isTripAdmin(trip, userId)) {
-    throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut inviter des participants");
+    throw new Error(
+      "403 Forbidden: seul l'organisateur ou co-organisateur peut inviter des participants",
+    );
   }
 
   const result = await supabase
@@ -448,7 +551,7 @@ export async function inviteParticipantHelper(
 export async function removeParticipantHelper(
   supabase: any,
   userId: string,
-  data: { participantId: string }
+  data: { participantId: string },
 ) {
   const partRes = await supabase
     .from("trip_participants")
@@ -469,13 +572,12 @@ export async function removeParticipantHelper(
   const trip = tripRes.data as any;
 
   if (!isTripAdmin(trip, userId)) {
-    throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut retirer des participants");
+    throw new Error(
+      "403 Forbidden: seul l'organisateur ou co-organisateur peut retirer des participants",
+    );
   }
 
-  const { error } = await supabase
-    .from("trip_participants")
-    .delete()
-    .eq("id", data.participantId);
+  const { error } = await supabase.from("trip_participants").delete().eq("id", data.participantId);
   if (error) throw error;
   return { ok: true };
 }
@@ -484,7 +586,11 @@ export const inviteParticipant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
     z
-      .object({ tripId: z.string().uuid(), email: z.string().email(), displayName: z.string().max(80).optional() })
+      .object({
+        tripId: z.string().uuid(),
+        email: z.string().email(),
+        displayName: z.string().max(80).optional(),
+      })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -525,7 +631,9 @@ export const finalizeInvitationStep = createServerFn({ method: "POST" })
     const trip = tripRes.data as any;
 
     if (!isTripAdmin(trip, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut finaliser cette étape");
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut finaliser cette étape",
+      );
     }
 
     const logistics = (trip.group_logistics || {}) as any;
@@ -646,11 +754,7 @@ export const getGroupTransportTimeWindow = createServerFn({ method: "GET" })
         .from("trip_transport_time_prefs")
         .select("earliest_departure_time, latest_return_time")
         .eq("trip_id", data.tripId),
-      supabase
-        .from("trips")
-        .select("group_logistics")
-        .eq("id", data.tripId)
-        .maybeSingle()
+      supabase.from("trips").select("group_logistics").eq("id", data.tripId).maybeSingle(),
     ]);
 
     if (rowsRes.error) throw rowsRes.error;
@@ -678,7 +782,10 @@ export const toggleVote = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     if (existing.data) {
-      const { error } = await supabase.from("recommendation_votes").delete().eq("id", existing.data.id);
+      const { error } = await supabase
+        .from("recommendation_votes")
+        .delete()
+        .eq("id", existing.data.id);
       if (error) throw error;
       return { voted: false };
     }
@@ -701,7 +808,10 @@ export const selectRecommendation = createServerFn({ method: "POST" })
     const { supabase } = context;
 
     // Désélectionne les autres propositions
-    await supabase.from("recommendations").update({ is_selected: false }).eq("trip_id", data.tripId);
+    await supabase
+      .from("recommendations")
+      .update({ is_selected: false })
+      .eq("trip_id", data.tripId);
 
     // Sélectionne la reco choisie + récupère le nom de destination
     const { data: reco, error: recoError } = await supabase
@@ -754,7 +864,11 @@ export const selectRecommendation = createServerFn({ method: "POST" })
         .select("id, destination_id, score, budget")
         .eq("id", data.recommendationId)
         .maybeSingle();
-      const tripRow = await supabase.from("trips").select("event_type").eq("id", data.tripId).maybeSingle();
+      const tripRow = await supabase
+        .from("trips")
+        .select("event_type")
+        .eq("id", data.tripId)
+        .maybeSingle();
       const eventType = ((tripRow.data as any)?.event_type as string) || "default";
       const destId = full.data?.destination_id;
       if (destId) {
@@ -809,8 +923,7 @@ export const getJoinPreview = createServerFn({ method: "GET" })
       .split("#")[0]!
       .trim();
     // UUID souple (évite échec si casing / tirets)
-    const uuidRe =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRe.test(tripId)) {
       throw new Error("Lien d'invitation invalide (identifiant manquant ou incorrect).");
     }
@@ -875,7 +988,6 @@ export const joinTrip = createServerFn({ method: "POST" })
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
 
-
     if (trip.data.owner_id === userId) {
       if (firstName) {
         await supabaseAdmin
@@ -905,7 +1017,12 @@ export const joinTrip = createServerFn({ method: "POST" })
     const existing = byUser.data ? byUser : byEmail;
 
     if (existing.data) {
-      const patch: { user_id?: string | null; email?: string; status?: "invite" | "accepte" | "refuse" | "absent"; display_name?: string | null } = { user_id: userId, email, status: "accepte" };
+      const patch: {
+        user_id?: string | null;
+        email?: string;
+        status?: "invite" | "accepte" | "refuse" | "absent";
+        display_name?: string | null;
+      } = { user_id: userId, email, status: "accepte" };
       if (firstName) patch["display_name"] = firstName;
       const updated = await supabaseAdmin
         .from("trip_participants")
@@ -959,7 +1076,6 @@ export const joinTrip = createServerFn({ method: "POST" })
     return { tripId: data.tripId, alreadyMember: false, isOwner: false };
   });
 
-
 /** Données pour la page Récap du groupe (propositions + origines départ). */
 export const getTripRecap = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -993,7 +1109,11 @@ export const getTripRecap = createServerFn({ method: "GET" })
         .eq("trip_id", data.tripId)
         .order("score", { ascending: false })
         .limit(3),
-      supabase.from("trip_preferences").select("duration_nights").eq("trip_id", data.tripId).maybeSingle(),
+      supabase
+        .from("trip_preferences")
+        .select("duration_nights")
+        .eq("trip_id", data.tripId)
+        .maybeSingle(),
       (async () => {
         const { getParticipantsProgress } = await import("@/lib/participant-preferences.functions");
         // fallback inline if no handler export
@@ -1002,9 +1122,13 @@ export const getTripRecap = createServerFn({ method: "GET" })
             .from("trip_participant_preferences")
             .select("user_id")
             .eq("trip_id", data.tripId);
-          const parts = await supabase.from("trip_participants").select("id, user_id").eq("trip_id", data.tripId);
+          const parts = await supabase
+            .from("trip_participants")
+            .select("id, user_id")
+            .eq("trip_id", data.tripId);
           const total = Math.max((parts.data ?? []).length, 1);
-          const answered = new Set((prefs.data ?? []).map((p: any) => p.user_id).filter(Boolean)).size;
+          const answered = new Set((prefs.data ?? []).map((p: any) => p.user_id).filter(Boolean))
+            .size;
           return { answered, total };
         } catch {
           return { answered: 0, total: 0 };
@@ -1098,7 +1222,11 @@ export const getTripRecap = createServerFn({ method: "GET" })
       departureOrigins,
       progress,
       recommendations: (recommendations.data ?? []).map((r: any) => {
-        const rInfo = reactionsByReco.get(r.id) ?? { myReaction: null, likesCount: 0, dislikesCount: 0 };
+        const rInfo = reactionsByReco.get(r.id) ?? {
+          myReaction: null,
+          likesCount: 0,
+          dislikesCount: 0,
+        };
         return {
           id: r.id as string,
           score: Number(r.score ?? 0),
@@ -1141,7 +1269,6 @@ export const getTripRecap = createServerFn({ method: "GET" })
       }),
     };
   });
-
 
 /** Enregistre / rafraîchit un suivi de prix pour une proposition. */
 export const watchPrice = createServerFn({ method: "POST" })
@@ -1201,7 +1328,9 @@ export const listMyPriceWatches = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const res = await supabase
       .from("price_watch")
-      .select("id, trip_id, recommendation_id, destination_name, last_checked_at, created_at, trips(name, status)")
+      .select(
+        "id, trip_id, recommendation_id, destination_name, last_checked_at, created_at, trips(name, status)",
+      )
       .eq("created_by", userId)
       .order("last_checked_at", { ascending: false })
       .limit(20);
@@ -1230,13 +1359,19 @@ export const setBookingStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const tripRes = await supabase.from("trips").select("id, owner_id, group_logistics, co_organizer_id").eq("id", data.tripId).maybeSingle();
+    const tripRes = await supabase
+      .from("trips")
+      .select("id, owner_id, group_logistics, co_organizer_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     const trip = tripRes.data as any;
 
     if (!isTripAdmin(trip, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut modifier les statuts de réservation");
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut modifier les statuts de réservation",
+      );
     }
 
     const logistics = (trip.group_logistics || {}) as any;
@@ -1303,8 +1438,15 @@ export const getCostSplit = createServerFn({ method: "GET" })
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
     const [prefsRes, starPrefsRes] = await Promise.all([
-      supabase.from("trip_participant_preferences").select("user_id, departure_city").eq("trip_id", data.tripId),
-      supabase.from("trip_star_preferences").select("user_id, departure_city").eq("trip_id", data.tripId).maybeSingle(),
+      supabase
+        .from("trip_participant_preferences")
+        .select("user_id, departure_city")
+        .eq("trip_id", data.tripId),
+      supabase
+        .from("trip_star_preferences")
+        .select("user_id, departure_city")
+        .eq("trip_id", data.tripId)
+        .maybeSingle(),
     ]);
 
     const prefMap = new Map<string, string>();
@@ -1315,7 +1457,8 @@ export const getCostSplit = createServerFn({ method: "GET" })
     }
 
     const celebratedPerson = trip.data?.celebrated_person;
-    const starUid = (starPrefsRes.data as any)?.user_id || (trip.data as any)?.star_user_id || "star-virtual-uid";
+    const starUid =
+      (starPrefsRes.data as any)?.user_id || (trip.data as any)?.star_user_id || "star-virtual-uid";
 
     const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
     const budget = (reco.data.budget ?? {}) as any;
@@ -1331,12 +1474,16 @@ export const getCostSplit = createServerFn({ method: "GET" })
 
     const getPriceForCity = (city: string) => {
       const target = normCity(city);
-      const match = budgetOrigins.find((bo: any) => normCity(bo.city || bo.originCity || "") === target);
-      return match ? Number(match.pricePerPerson ?? match.price ?? fallbackTransport) : fallbackTransport;
+      const match = budgetOrigins.find(
+        (bo: any) => normCity(bo.city || bo.originCity || "") === target,
+      );
+      return match
+        ? Number(match.pricePerPerson ?? match.price ?? fallbackTransport)
+        : fallbackTransport;
     };
 
     const logistics = (trip.data.group_logistics || {}) as any;
-    const hotelBookingStatus = logistics.hotelBookingStatus || 'estimé';
+    const hotelBookingStatus = logistics.hotelBookingStatus || "estimé";
     const picks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
     const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
     const totalGroupParticipants = getEffectiveParticipantsCount(trip.data, participants);
@@ -1374,8 +1521,9 @@ export const getCostSplit = createServerFn({ method: "GET" })
       let isTransportReserved = false;
 
       if (userPick) {
-        transportPrice = userPick.pricePerPerson != null ? Number(userPick.pricePerPerson) : fallbackTransport;
-        isTransportReserved = userPick.status === 'réservé';
+        transportPrice =
+          userPick.pricePerPerson != null ? Number(userPick.pricePerPerson) : fallbackTransport;
+        isTransportReserved = userPick.status === "réservé";
       } else {
         transportPrice = getPriceForCity(city);
       }
@@ -1395,7 +1543,7 @@ export const getCostSplit = createServerFn({ method: "GET" })
         pricePerPerson: transportPrice,
         isReserved: isTransportReserved,
         userId: p.user_id || null,
-        transportStatus: userPick?.status || 'estimé',
+        transportStatus: userPick?.status || "estimé",
       });
     }
 
@@ -1406,15 +1554,13 @@ export const getCostSplit = createServerFn({ method: "GET" })
         pricePerPerson: fallbackTransport,
         isReserved: false,
         userId: null,
-        transportStatus: 'estimé',
+        transportStatus: "estimé",
       });
       estimatedTransportSum += fallbackTransport * totalGroupParticipants;
     }
 
     const destName =
-      (reco.data as any).destinations?.name ??
-      budget.destinationName ??
-      "Destination";
+      (reco.data as any).destinations?.name ?? budget.destinationName ?? "Destination";
 
     const split = buildCostSplit({
       destinationName: destName,
@@ -1426,15 +1572,19 @@ export const getCostSplit = createServerFn({ method: "GET" })
       participants: totalGroupParticipants || 1,
     } as any);
 
-    const isHotelReserved = hotelBookingStatus === 'réservé';
-    const sharedCostReserved = isHotelReserved ? (accommodationCost) : 0;
-    const sharedCostEstimated = isHotelReserved ? 0 : (accommodationCost);
+    const isHotelReserved = hotelBookingStatus === "réservé";
+    const sharedCostReserved = isHotelReserved ? accommodationCost : 0;
+    const sharedCostEstimated = isHotelReserved ? 0 : accommodationCost;
 
     const activitiesCost = Number(budget.activities ?? 0);
     const foodCost = Number(budget.food ?? 0);
 
-    const totalReserved = reservedTransportSum + sharedCostReserved + (isHotelReserved ? (activitiesCost + foodCost) : 0);
-    const totalEstimated = estimatedTransportSum + sharedCostEstimated + (isHotelReserved ? 0 : (activitiesCost + foodCost));
+    const totalReserved =
+      reservedTransportSum + sharedCostReserved + (isHotelReserved ? activitiesCost + foodCost : 0);
+    const totalEstimated =
+      estimatedTransportSum +
+      sharedCostEstimated +
+      (isHotelReserved ? 0 : activitiesCost + foodCost);
 
     return {
       tripName: trip.data.name as string,
@@ -1452,13 +1602,12 @@ export const getCostSplit = createServerFn({ method: "GET" })
             ...l,
             userId: pl?.userId || null,
             isTransportReserved: pl?.isReserved || false,
-            transportStatus: pl?.transportStatus || 'estimé',
+            transportStatus: pl?.transportStatus || "estimé",
           };
         }),
       },
     };
   });
-
 
 /** Annule un voyage (owner / co-org only). Soft-delete via status annule — sort des listes actives. */
 export const cancelTrip = createServerFn({ method: "POST" })
@@ -1475,7 +1624,8 @@ export const cancelTrip = createServerFn({ method: "POST" })
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
-    if (!isTripAdmin(trip.data, userId)) throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut annuler");
+    if (!isTripAdmin(trip.data, userId))
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut annuler");
 
     if (data.hardDelete) {
       // CASCADE sur participants, prefs, recos si FK ON DELETE CASCADE
@@ -1543,7 +1693,9 @@ export const finalizeSelectedActivities = createServerFn({ method: "POST" })
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
     if (!isTripAdmin(trip.data, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut valider les activités");
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut valider les activités",
+      );
     }
     const { error } = await supabase
       .from("trips")
@@ -1582,13 +1734,18 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const [tripRes, partsRes, timePrefsRes] = await Promise.all([
       supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle(),
       supabase.from("trip_participants").select("*").eq("trip_id", data.tripId),
-      supabase.from("trip_transport_time_prefs").select("earliest_departure_time, latest_return_time").eq("trip_id", data.tripId),
+      supabase
+        .from("trip_transport_time_prefs")
+        .select("earliest_departure_time, latest_return_time")
+        .eq("trip_id", data.tripId),
     ]);
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     const trip = tripRes.data as any;
     if (!isTripAdmin(trip, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut générer le planning");
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut générer le planning",
+      );
     }
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
@@ -1604,9 +1761,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     }
 
     const destName =
-      (selected.data as any).destinations?.name ||
-      trip.desired_destination ||
-      "Destination";
+      (selected.data as any).destinations?.name || trip.desired_destination || "Destination";
     const destCountry = (selected.data as any).destinations?.country || null;
 
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
@@ -1638,9 +1793,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const picks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
     // Les horaires de transport retenus priment. À défaut, le calcul part des
     // contraintes de départ/retour et de la durée porte-à-porte conservée.
-    const arrivals = picks
-      .map((p: any) => p.arrivalTime || p.time)
-      .filter(Boolean) as string[];
+    const arrivals = picks.map((p: any) => p.arrivalTime || p.time).filter(Boolean) as string[];
     const departures = picks.map((p: any) => p.departureTime).filter(Boolean) as string[];
 
     let latestArrival: string | null = null;
@@ -1659,11 +1812,23 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
     const effCount = getEffectiveParticipantsCount(trip, participants);
 
-    const groupEarliestDeparture = (timePrefsRes.data ?? []).map((row: any) => row.earliest_departure_time).filter(Boolean).sort().at(-1) ?? null;
-    const groupLatestReturnHome = (timePrefsRes.data ?? []).map((row: any) => row.latest_return_time).filter(Boolean).sort()[0] ?? null;
-    const retainedDurations = picks.map((pick: any) => Number(pick.durationHours)).filter((duration: number) => Number.isFinite(duration) && duration > 0);
+    const groupEarliestDeparture =
+      (timePrefsRes.data ?? [])
+        .map((row: any) => row.earliest_departure_time)
+        .filter(Boolean)
+        .sort()
+        .at(-1) ?? null;
+    const groupLatestReturnHome =
+      (timePrefsRes.data ?? [])
+        .map((row: any) => row.latest_return_time)
+        .filter(Boolean)
+        .sort()[0] ?? null;
+    const retainedDurations = picks
+      .map((pick: any) => Number(pick.durationHours))
+      .filter((duration: number) => Number.isFinite(duration) && duration > 0);
     const transportDurationHours = retainedDurations.length ? Math.max(...retainedDurations) : null;
-    const tripProfile = aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null;
+    const tripProfile =
+      aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null;
 
     const result = await generateItineraryWithAi(
       {
@@ -1674,9 +1839,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         nights,
         participants: effCount,
         budgetPerPerson:
-          Number(aggregated.aggregatedBudget) ||
-          Number(trip.budget_per_person) ||
-          400,
+          Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400,
         eventType: trip.event_type,
         tripProfile,
         ambiances: aggregated.ambiances ?? [],
@@ -1776,18 +1939,19 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     const [tripRes, partsRes] = await Promise.all([
       supabase
         .from("trips")
-        .select("id, owner_id, co_organizer_id, group_itinerary, group_logistics, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type, celebrated_person, has_star, star_user_id")
+        .select(
+          "id, owner_id, co_organizer_id, group_itinerary, group_logistics, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type, celebrated_person, has_star, star_user_id",
+        )
         .eq("id", data.tripId)
         .maybeSingle(),
-      supabase
-        .from("trip_participants")
-        .select("*")
-        .eq("trip_id", data.tripId)
+      supabase.from("trip_participants").select("*").eq("trip_id", data.tripId),
     ]);
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     if (!isTripAdmin(tripRes.data, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut régénérer un créneau");
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut régénérer un créneau",
+      );
     }
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
@@ -1834,7 +1998,8 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         participants: effCount,
         budgetPerPerson: Number((tripRes.data as any).budget_per_person) || 400,
         eventType: (tripRes.data as any).event_type,
-        tripProfile: aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null,
+        tripProfile:
+          aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null,
         ambiances: aggregated.ambiances ?? [],
         activityCategories: aggregated.activityCategories ?? [],
         starWanted: aggregated.starWantedActivities ?? [],
@@ -1844,9 +2009,28 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         groupAgeRange: aggregated.groupAgeRange ?? null,
         starWantedEnvType: aggregated.starWantedEnvType ?? null,
         wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
-        latestGroupArrival: ((tripRes.data as any).group_logistics?.transportPicks ?? []).map((p: any) => p.arrivalTime || p.time).filter(Boolean).sort().at(-1) ?? null,
-        earliestGroupDeparture: ((tripRes.data as any).group_logistics?.transportPicks ?? []).map((p: any) => p.departureTime).filter(Boolean).sort()[0] ?? null,
-        transportPicksSummary: ((tripRes.data as any).group_logistics?.transportPicks ?? []).map((p: any) => ({ city: p.city, mode: p.modeLabel || p.mode, outboundDeparture: p.outboundDepartureTime, arrival: p.arrivalTime || p.time, departure: p.departureTime, returnArrival: p.returnArrivalTime, durationHours: p.durationHours })),
+        latestGroupArrival:
+          ((tripRes.data as any).group_logistics?.transportPicks ?? [])
+            .map((p: any) => p.arrivalTime || p.time)
+            .filter(Boolean)
+            .sort()
+            .at(-1) ?? null,
+        earliestGroupDeparture:
+          ((tripRes.data as any).group_logistics?.transportPicks ?? [])
+            .map((p: any) => p.departureTime)
+            .filter(Boolean)
+            .sort()[0] ?? null,
+        transportPicksSummary: ((tripRes.data as any).group_logistics?.transportPicks ?? []).map(
+          (p: any) => ({
+            city: p.city,
+            mode: p.modeLabel || p.mode,
+            outboundDeparture: p.outboundDepartureTime,
+            arrival: p.arrivalTime || p.time,
+            departure: p.departureTime,
+            returnArrival: p.returnArrivalTime,
+            durationHours: p.durationHours,
+          }),
+        ),
       },
       current,
       data.day,
@@ -1862,7 +2046,10 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
           .select("name, booking_url")
           .eq("destination_id", destinationId);
         if (acts?.length) {
-          const match = acts.find((a: any) => a.name && a.name.toLowerCase().trim() === result.slot.label.toLowerCase().trim());
+          const match = acts.find(
+            (a: any) =>
+              a.name && a.name.toLowerCase().trim() === result.slot.label.toLowerCase().trim(),
+          );
           if (match?.booking_url) {
             result.slot.url = match.booking_url;
           }
@@ -1929,10 +2116,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
     const isActiveMember = participants.some((p: any) => p.user_id === userId);
     if (generateHotels && !isTripAdmin(trip, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut chercher les hébergements");
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut chercher les hébergements",
+      );
     }
     if (generateTransport && !isTripAdmin(trip, userId) && !isActiveMember) {
-      throw new Error("403 Forbidden: seuls les participants du voyage peuvent chercher les transports");
+      throw new Error(
+        "403 Forbidden: seuls les participants du voyage peuvent chercher les transports",
+      );
     }
 
     const selected = await supabase
@@ -1958,9 +2149,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     let providerErrors: string[] = [];
     if (generateHotels && data.refreshExternal !== false) {
       try {
-        const { refreshExternalCatalogForTrip } = await import(
-          "@/lib/external/search-hotels.functions"
-        );
+        const { refreshExternalCatalogForTrip } =
+          await import("@/lib/external/search-hotels.functions");
         const ext = await refreshExternalCatalogForTrip(supabase, data.tripId, destName);
         if (ext?.providerErrors?.length) providerErrors = ext.providerErrors;
         if (!ext.ok || ext.accommodationsCount === 0) {
@@ -1972,8 +2162,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       }
     }
 
-    const budget =
-      Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400;
+    const budget = Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400;
     const nights = (() => {
       if (trip.start_date && trip.end_date) {
         const ms =
@@ -2277,14 +2466,18 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     // Fetch trip participant preferences for departure cities and travel options
     const prefsRes = await supabase
       .from("trip_participant_preferences")
-      .select("user_id, departure_city, max_travel_duration_hours, transport_mode_accepted, room_type_preference, accepts_shared_room")
+      .select(
+        "user_id, departure_city, max_travel_duration_hours, transport_mode_accepted, room_type_preference, accepts_shared_room",
+      )
       .eq("trip_id", data.tripId);
     const prefsList = prefsRes.data ?? [];
 
     // Fetch transport time preferences
     const timePrefsRes = await supabase
       .from("trip_transport_time_prefs")
-      .select("participant_id, earliest_departure_time, latest_return_time, latest_arrival_time, earliest_return_departure_time")
+      .select(
+        "participant_id, earliest_departure_time, latest_return_time, latest_arrival_time, earliest_return_departure_time",
+      )
       .eq("trip_id", data.tripId);
     const timePrefsList = timePrefsRes.data ?? [];
 
@@ -2300,8 +2493,11 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       const latestArrivalTime = tp?.latest_arrival_time || null;
       const earliestReturnDepartureTime = tp?.earliest_return_departure_time || null;
       const latestReturnTime = tp?.latest_return_time || null;
-      const maxTravelDurationHours = pref?.max_travel_duration_hours != null ? Number(pref.max_travel_duration_hours) : null;
-      const transportModeAccepted = Array.isArray(pref?.transport_mode_accepted) ? pref.transport_mode_accepted : ["peu importe"];
+      const maxTravelDurationHours =
+        pref?.max_travel_duration_hours != null ? Number(pref.max_travel_duration_hours) : null;
+      const transportModeAccepted = Array.isArray(pref?.transport_mode_accepted)
+        ? pref.transport_mode_accepted
+        : ["peu importe"];
 
       return {
         participantId: p.id,
@@ -2365,9 +2561,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       });
     }
 
-    const { searchTransportRoundTrip, estimateTransportFromDistance } = await import(
-      "@/integrations/external/transport.server"
-    );
+    const { searchTransportRoundTrip, estimateTransportFromDistance } =
+      await import("@/integrations/external/transport.server");
 
     const baseFlight = estimateTransportFromDistance(distanceKm);
     const priceForMode = (mode: string): number => {
@@ -2375,7 +2570,9 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         case "flight":
           return Math.round(baseFlight);
         case "train":
-          return Math.round(baseFlight * (distanceKm <= 500 ? 0.85 : distanceKm <= 900 ? 1.05 : 1.25));
+          return Math.round(
+            baseFlight * (distanceKm <= 500 ? 0.85 : distanceKm <= 900 ? 1.05 : 1.25),
+          );
         case "bus":
           return Math.round(baseFlight * 0.45);
         case "car":
@@ -2496,11 +2693,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     for (const group of generateTransport ? subGroups : []) {
       const from = group.departureCity;
-      const acceptedModes = group.transportModeAccepted.map(m => m.toLowerCase().trim());
+      const acceptedModes = group.transportModeAccepted.map((m) => m.toLowerCase().trim());
       const hasModeFilter = acceptedModes.length > 0 && !acceptedModes.includes("peu importe");
 
-      let flightApiQuote: import("@/integrations/external/transport.server").TransportQuote | null = null;
-      const isFlightAllowed = !planeRefused && (!hasModeFilter || acceptedModes.some(m => m.includes("avion") || m.includes("flight")));
+      let flightApiQuote: import("@/integrations/external/transport.server").TransportQuote | null =
+        null;
+      const isFlightAllowed =
+        !planeRefused &&
+        (!hasModeFilter || acceptedModes.some((m) => m.includes("avion") || m.includes("flight")));
 
       if (isFlightAllowed && distanceKm >= 250) {
         try {
@@ -2517,8 +2717,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             latestReturnTime: group.latestReturnTime,
           });
           if (apiQuote?.pricePerPerson > 0) {
-            const hasImperativeTimeConstraint = Boolean(group.earliestDepartureTime || group.latestArrivalTime || group.earliestReturnDepartureTime || group.latestReturnTime);
-            if (!(apiQuote.dataKind === "krew_estimate" && hasImperativeTimeConstraint)) flightApiQuote = apiQuote;
+            const hasImperativeTimeConstraint = Boolean(
+              group.earliestDepartureTime ||
+              group.latestArrivalTime ||
+              group.earliestReturnDepartureTime ||
+              group.latestReturnTime,
+            );
+            if (!(apiQuote.dataKind === "krew_estimate" && hasImperativeTimeConstraint))
+              flightApiQuote = apiQuote;
           }
         } catch (e) {
           providerErrors.push(`transport ${from}: ${String(e).slice(0, 80)}`);
@@ -2529,12 +2735,13 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         if (!m.enabled) continue;
 
         if (hasModeFilter) {
-          const matched = acceptedModes.some(am => {
+          const matched = acceptedModes.some((am) => {
             if (m.mode === "flight") return am.includes("avion") || am.includes("flight");
             if (m.mode === "train") return am.includes("train");
             if (m.mode === "bus") return am.includes("bus");
             if (m.mode === "car") return am.includes("voiture") || am.includes("car");
-            if (m.mode === "covoiturage") return am.includes("covoit") || am.includes("share") || am.includes("car");
+            if (m.mode === "covoiturage")
+              return am.includes("covoit") || am.includes("share") || am.includes("car");
             if (m.mode === "ferry") return am.includes("ferry") || am.includes("bateau");
             return false;
           });
@@ -2575,7 +2782,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           links.push({ label: "Voir l'offre directe", url: directUrl });
         }
         for (const ml of modeLinks) {
-          if (!links.some(l => l.url === ml.url)) {
+          if (!links.some((l) => l.url === ml.url)) {
             links.push(ml);
           }
         }
@@ -2594,7 +2801,9 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           respectedConstraints.push(`Retour avant ${group.latestReturnTime}`);
         }
         if (group.maxTravelDurationHours) {
-          respectedConstraints.push(`Durée < ${group.maxTravelDurationHours}h (porte-à-porte ~${duration}h)`);
+          respectedConstraints.push(
+            `Durée < ${group.maxTravelDurationHours}h (porte-à-porte ~${duration}h)`,
+          );
         }
 
         const { score: scoreVal, matchReasons: matchReasonsList } = scoreTransportOption(
@@ -2652,16 +2861,26 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     }
 
     // Tri : par ville puis prix croissant
-    transports.sort(
-      (a, b) => a.city.localeCompare(b.city) || a.pricePerPerson - b.pricePerPerson,
-    );
+    transports.sort((a, b) => a.city.localeCompare(b.city) || a.pricePerPerson - b.pricePerPerson);
 
     // Mise à jour additive : une génération conserve l'autre domaine, ses votes et ses statuts.
     const prev = (trip.group_logistics as any) || {};
     const common = { destination: destName, country: destCountry, nights, checkin, checkout };
     const logisticsWithVotes = generateHotels
-      ? { ...prev, ...common, hotels: topHotels, hotelProviderErrors: providerErrors, hotelsGeneratedAt: new Date().toISOString() }
-      : { ...prev, ...common, transports, transportProviderErrors: providerErrors, transportsGeneratedAt: new Date().toISOString() };
+      ? {
+          ...prev,
+          ...common,
+          hotels: topHotels,
+          hotelProviderErrors: providerErrors,
+          hotelsGeneratedAt: new Date().toISOString(),
+        }
+      : {
+          ...prev,
+          ...common,
+          transports,
+          transportProviderErrors: providerErrors,
+          transportsGeneratedAt: new Date().toISOString(),
+        };
 
     await supabase
       .from("trips")
@@ -2681,7 +2900,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     return { ok: true, logistics: logisticsWithVotes };
   });
 
-
 /** Vote hôtel (1 vote / user, toggle). Stocké dans group_logistics.hotelVotes */
 export const voteHotel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -2690,12 +2908,18 @@ export const voteHotel = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const tripRes = await supabase.from("trips").select("id, group_logistics").eq("id", data.tripId).maybeSingle();
+    const tripRes = await supabase
+      .from("trips")
+      .select("id, group_logistics")
+      .eq("id", data.tripId)
+      .maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
 
     const logistics = ((tripRes.data as any).group_logistics || {}) as any;
-    const votes: { userId: string; hotelId: string; at: string }[] = Array.isArray(logistics.hotelVotes)
+    const votes: { userId: string; hotelId: string; at: string }[] = Array.isArray(
+      logistics.hotelVotes,
+    )
       ? [...logistics.hotelVotes]
       : [];
     const existing = votes.findIndex((v) => v.userId === userId);
@@ -2773,7 +2997,11 @@ export const pickTransport = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const tripRes = await supabase.from("trips").select("id, group_logistics").eq("id", data.tripId).maybeSingle();
+    const tripRes = await supabase
+      .from("trips")
+      .select("id, group_logistics")
+      .eq("id", data.tripId)
+      .maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
 
@@ -2795,7 +3023,9 @@ export const pickTransport = createServerFn({ method: "POST" })
     }
 
     const logistics = ((tripRes.data as any).group_logistics || {}) as any;
-    const picks: any[] = Array.isArray(logistics.transportPicks) ? [...logistics.transportPicks] : [];
+    const picks: any[] = Array.isArray(logistics.transportPicks)
+      ? [...logistics.transportPicks]
+      : [];
     const idx = picks.findIndex((p) => p.userId === userId);
     const entry = {
       userId,
@@ -2826,7 +3056,6 @@ export const pickTransport = createServerFn({ method: "POST" })
     return { ok: true, pick: entry, transportPicks: picks };
   });
 
-
 /** Filtres orga : fenêtres d'arrivée (jour 1) et départ (dernier jour) pour orienter recherches + planning. */
 export const setTransportTimeFilters = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -2851,7 +3080,9 @@ export const setTransportTimeFilters = createServerFn({ method: "POST" })
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     if (!isTripAdmin(tripRes.data, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut définir les filtres horaires");
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut définir les filtres horaires",
+      );
     }
     const logistics = ((tripRes.data as any).group_logistics || {}) as any;
     const next = {
@@ -2928,9 +3159,7 @@ export const reactToRecommendation = createServerFn({ method: "POST" })
 
 export const createGroupPaymentSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    z.object({ tripId: z.string().uuid() }).parse(data),
-  )
+  .inputValidator((data: unknown) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const email = (context.claims?.email as string | undefined)?.toLowerCase();
@@ -2987,13 +3216,14 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       .maybeSingle();
 
     const pCity = prefData?.departure_city || tripOrigin;
-    const cityRow = transportByOrigin.find(
-      (o: any) => o.city.toLowerCase() === pCity.toLowerCase()
-    ) || transportByOrigin[0];
+    const cityRow =
+      transportByOrigin.find((o: any) => o.city.toLowerCase() === pCity.toLowerCase()) ||
+      transportByOrigin[0];
 
     const participantsCount = Number(trip.data.participants_count) || 2;
     const split = buildCostSplit({
-      destinationName: (reco.data as any).destinations?.name || budget.destinationName || "Destination",
+      destinationName:
+        (reco.data as any).destinations?.name || budget.destinationName || "Destination",
       accommodation: Number(budget.accommodation ?? 0),
       activities: Number(budget.activities ?? 0),
       food: Number(budget.food ?? 0),
@@ -3002,23 +3232,26 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
       participants: participantsCount,
     });
 
-    const userLine = split.lines.find(
-      (l) => l.city.toLowerCase() === pCity.toLowerCase()
-    ) || split.lines[0];
+    const userLine =
+      split.lines.find((l) => l.city.toLowerCase() === pCity.toLowerCase()) || split.lines[0];
 
     const fallbackTransport = Number(budget.transport ?? 0);
-    const sharedCost = (Number(budget.accommodation ?? 0) + Number(budget.activities ?? 0) + Number(budget.food ?? 0)) / participantsCount;
-    const totalPerPerson = userLine ? userLine.totalPerPerson : (fallbackTransport + sharedCost);
+    const sharedCost =
+      (Number(budget.accommodation ?? 0) +
+        Number(budget.activities ?? 0) +
+        Number(budget.food ?? 0)) /
+      participantsCount;
+    const totalPerPerson = userLine ? userLine.totalPerPerson : fallbackTransport + sharedCost;
 
     if (totalPerPerson <= 0) {
       throw new Error("Le montant calculé pour ce séjour est invalide.");
     }
 
     const amountCents = totalPerPerson * 100;
-    const feePercent = Number(process.env['KREW_PLATFORM_FEE_PERCENT']) || 0;
+    const feePercent = Number(process.env["KREW_PLATFORM_FEE_PERCENT"]) || 0;
     const platformFeeCents = Math.round(amountCents * (feePercent / 100));
 
-    const stripeSecret = process.env['STRIPE_SECRET_KEY'];
+    const stripeSecret = process.env["STRIPE_SECRET_KEY"];
     if (!stripeSecret) {
       console.warn("STRIPE_SECRET_KEY non définie, simulation de session");
       const { data: fakePayment, error: fakeErr } = await supabase
@@ -3038,7 +3271,7 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
 
       return {
         sessionId: "fake_session",
-        url: `${process.env['VITE_APP_URL'] || "http://localhost:3000"}/trips/${data.tripId}/recap?payment_success=true&session_id=${fakePayment.stripe_session_id}`,
+        url: `${process.env["VITE_APP_URL"] || "http://localhost:3000"}/trips/${data.tripId}/recap?payment_success=true&session_id=${fakePayment.stripe_session_id}`,
       };
     }
 
@@ -3046,7 +3279,7 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
     const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" as any });
 
     const destName = (reco.data as any).destinations?.name || "Séjour Krew";
-    const originUrl = process.env['VITE_APP_URL'] || "http://localhost:3000";
+    const originUrl = process.env["VITE_APP_URL"] || "http://localhost:3000";
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -3091,7 +3324,6 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
     };
   });
 
-
 export const generateTasksForTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
@@ -3110,7 +3342,10 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
 
     const itinerary = (tripRes.data as any).group_itinerary;
     if (!itinerary || !Array.isArray(itinerary.days)) {
-      return { ok: false, message: "Aucun planning généré pour ce voyage. Veuillez générer le planning d'abord." };
+      return {
+        ok: false,
+        message: "Aucun planning généré pour ce voyage. Veuillez générer le planning d'abord.",
+      };
     }
 
     // 2. Fetch all active participants
@@ -3133,7 +3368,10 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
     });
 
     // Fallback if no assignable participant exists
-    const fallbackAssignees = assignable.length > 0 ? assignable : participants.filter(p => (p.status as string) !== "absent");
+    const fallbackAssignees =
+      assignable.length > 0
+        ? assignable
+        : participants.filter((p) => (p.status as string) !== "absent");
 
     // 3. Fetch existing tasks
     const tasksRes = await supabase
@@ -3224,7 +3462,13 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
         .from("trip_tasks" as any)
         .delete()
         .eq("trip_id", data.tripId)
-        .not("slot_id", "in", `(${Array.from(activeSlotIds).map(id => `'${id}'`).join(",")})`);
+        .not(
+          "slot_id",
+          "in",
+          `(${Array.from(activeSlotIds)
+            .map((id) => `'${id}'`)
+            .join(",")})`,
+        );
       if (deleteErr) throw deleteErr;
     } else {
       const { error: deleteErr } = await supabase
@@ -3236,7 +3480,6 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
 
     return { ok: true, count: tasksToUpsert.length };
   });
-
 
 export const updateTaskStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -3259,7 +3502,6 @@ export const updateTaskStatus = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
-
 
 export const reassignTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
