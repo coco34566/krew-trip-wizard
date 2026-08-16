@@ -75,7 +75,28 @@ export async function refreshExternalCatalogForTrip(
   let accommodationsCount = 0;
   if (hotels.length) {
     const rows = hotels.slice(0, 30).map((h) => { const best = h.offers.find((offer) => Boolean(offer.url)) ?? h.offers[0]; return { destination_id: destinationId, name: h.name, type: h.type || "hotel", description: h.description, price_per_night_per_person: Math.max(1, Math.round((best?.pricePerNight ?? 0) / Math.max(1, Math.ceil(participants / 2)))), capacity: Math.max(2, participants), rating: h.rating > 5 ? Math.round((h.rating / 2) * 10) / 10 : h.rating, distance_center_km: h.distanceCenterKm, image_url: h.imageUrl, price_offers: h.offers, best_provider: best?.provider ?? null, booking_url: best?.url ?? null, source: best?.provider ?? "stayapi", external_id: h.externalId }; });
-    const res = await supabaseAdmin.from("accommodations").upsert(rows as never, { onConflict: "source,external_id" }).select("id");
+    // Do not rely on a composite ON CONFLICT target here: some deployed KREW
+    // databases only have a partial unique index for (source, external_id),
+    // which PostgREST cannot infer. Resolve existing rows first, then let the
+    // regular primary-key upsert update them or insert new provider results.
+    const existing = await supabaseAdmin
+      .from("accommodations")
+      .select("id, source, external_id")
+      .in("external_id", rows.map((row) => row.external_id));
+    if (existing.error) {
+      providerErrors.push(`lecture hébergements existants: ${existing.error.message}`);
+    }
+    const existingIds = new Map(
+      (existing.data ?? []).map((row: any) => [`${row.source}:${row.external_id}`, row.id]),
+    );
+    const rowsWithIds = rows.map((row) => {
+      const id = existingIds.get(`${row.source}:${row.external_id}`);
+      return { ...row, id: id ?? crypto.randomUUID() };
+    });
+    const res = await supabaseAdmin
+      .from("accommodations")
+      .upsert(rowsWithIds as never, { onConflict: "id" })
+      .select("id");
     if (res.error) providerErrors.push(`upsert hébergements: ${res.error.message}`); else accommodationsCount = res.data?.length ?? rows.length;
   }
   console.info("[Krew API] StayAPI accommodation persistence", {
