@@ -1579,9 +1579,10 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       });
     }
 
-    const [tripRes, partsRes] = await Promise.all([
+    const [tripRes, partsRes, timePrefsRes] = await Promise.all([
       supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle(),
-      supabase.from("trip_participants").select("*").eq("trip_id", data.tripId)
+      supabase.from("trip_participants").select("*").eq("trip_id", data.tripId),
+      supabase.from("trip_transport_time_prefs").select("earliest_departure_time, latest_return_time").eq("trip_id", data.tripId),
     ]);
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
@@ -1593,7 +1594,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
     const selected = await supabase
       .from("recommendations")
-      .select("id, activity_ids, destinations(name, country)")
+      .select("id, destination_id, activity_ids, match_reasons, score, destinations(name, country)")
       .eq("trip_id", data.tripId)
       .eq("is_selected", true)
       .maybeSingle();
@@ -1635,8 +1636,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const { generateItineraryWithAi } = await import("@/lib/krew/activity-ai.server");
     const logistics = (trip.group_logistics || {}) as any;
     const picks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
-    const timeFilters = logistics.timeFilters || {};
-    // Dernière arrivée du groupe (jour 1) et premier départ retour
+    // Les horaires de transport retenus priment. À défaut, le calcul part des
+    // contraintes de départ/retour et de la durée porte-à-porte conservée.
     const arrivals = picks
       .map((p: any) => p.arrivalTime || p.time)
       .filter(Boolean) as string[];
@@ -1647,22 +1648,22 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
     if (arrivals.length > 0) {
       const sortedArrivals = [...arrivals].sort();
-      // Median/Majority
-      latestArrival = sortedArrivals[Math.floor(sortedArrivals.length / 2)] || null;
-    } else {
-      latestArrival = timeFilters.arriveBy || null;
+      latestArrival = sortedArrivals.at(-1) || null;
     }
 
     if (departures.length > 0) {
       const sortedDepartures = [...departures].sort();
-      // Median/Majority
-      earliestReturn = sortedDepartures[Math.floor(sortedDepartures.length / 2)] || null;
-    } else {
-      earliestReturn = timeFilters.departAfter || null;
+      earliestReturn = sortedDepartures[0] || null;
     }
 
     const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
     const effCount = getEffectiveParticipantsCount(trip, participants);
+
+    const groupEarliestDeparture = (timePrefsRes.data ?? []).map((row: any) => row.earliest_departure_time).filter(Boolean).sort().at(-1) ?? null;
+    const groupLatestReturnHome = (timePrefsRes.data ?? []).map((row: any) => row.latest_return_time).filter(Boolean).sort()[0] ?? null;
+    const retainedDurations = picks.map((pick: any) => Number(pick.durationHours)).filter((duration: number) => Number.isFinite(duration) && duration > 0);
+    const transportDurationHours = retainedDurations.length ? Math.max(...retainedDurations) : null;
+    const tripProfile = aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null;
 
     const result = await generateItineraryWithAi(
       {
@@ -1677,6 +1678,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           Number(trip.budget_per_person) ||
           400,
         eventType: trip.event_type,
+        tripProfile,
         ambiances: aggregated.ambiances ?? [],
         activityCategories: aggregated.activityCategories ?? [],
         starWanted: aggregated.starWantedActivities ?? [],
@@ -1688,16 +1690,23 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         scoredActivityLabels: seedLabels,
         latestGroupArrival: latestArrival,
         earliestGroupDeparture: earliestReturn,
+        latestReturnHome: groupLatestReturnHome,
+        earliestOutboundDeparture: groupEarliestDeparture,
+        transportDurationHours,
+        forceDiscoveryRefresh: data.force === true,
         transportPicksSummary: picks.slice(0, 12).map((p: any) => ({
           city: p.city,
           mode: p.modeLabel || p.mode,
+          outboundDeparture: p.outboundDepartureTime,
           arrival: p.arrivalTime || p.time,
           departure: p.departureTime,
+          returnArrival: p.returnArrivalTime,
+          durationHours: p.durationHours,
         })),
         individualPreferences: aggregated.individualPreferences,
-        groupAgeRange: aggregated.groupAgeRange,
-        starWantedEnvType: aggregated.starWantedEnvType,
-        wantedEnvTypes: aggregated.wantedEnvTypes,
+        groupAgeRange: aggregated.groupAgeRange ?? null,
+        starWantedEnvType: aggregated.starWantedEnvType ?? null,
+        wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
       },
       seedLabels,
     );
@@ -1767,7 +1776,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     const [tripRes, partsRes] = await Promise.all([
       supabase
         .from("trips")
-        .select("id, owner_id, co_organizer_id, group_itinerary, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type, celebrated_person, has_star, star_user_id")
+        .select("id, owner_id, co_organizer_id, group_itinerary, group_logistics, start_date, end_date, duration_nights, participants_count, budget_per_person, event_type, celebrated_person, has_star, star_user_id")
         .eq("id", data.tripId)
         .maybeSingle(),
       supabase
@@ -1825,11 +1834,19 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         participants: effCount,
         budgetPerPerson: Number((tripRes.data as any).budget_per_person) || 400,
         eventType: (tripRes.data as any).event_type,
+        tripProfile: aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null,
         ambiances: aggregated.ambiances ?? [],
         activityCategories: aggregated.activityCategories ?? [],
         starWanted: aggregated.starWantedActivities ?? [],
         dietaryConstraints: aggregated.dietaryConstraints ?? [],
         travelPace: aggregated.medianTravelPace,
+        individualPreferences: aggregated.individualPreferences,
+        groupAgeRange: aggregated.groupAgeRange ?? null,
+        starWantedEnvType: aggregated.starWantedEnvType ?? null,
+        wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
+        latestGroupArrival: ((tripRes.data as any).group_logistics?.transportPicks ?? []).map((p: any) => p.arrivalTime || p.time).filter(Boolean).sort().at(-1) ?? null,
+        earliestGroupDeparture: ((tripRes.data as any).group_logistics?.transportPicks ?? []).map((p: any) => p.departureTime).filter(Boolean).sort()[0] ?? null,
+        transportPicksSummary: ((tripRes.data as any).group_logistics?.transportPicks ?? []).map((p: any) => ({ city: p.city, mode: p.modeLabel || p.mode, outboundDeparture: p.outboundDepartureTime, arrival: p.arrivalTime || p.time, departure: p.departureTime, returnArrival: p.returnArrivalTime, durationHours: p.durationHours })),
       },
       current,
       data.day,
@@ -2746,6 +2763,9 @@ export const pickTransport = createServerFn({ method: "POST" })
         arrivalTime: z.string().max(10).optional().nullable(),
         /** Heure de départ retour HH:mm */
         departureTime: z.string().max(10).optional().nullable(),
+        durationHours: z.number().positive().max(72).optional().nullable(),
+        outboundDepartureTime: z.string().max(10).optional().nullable(),
+        returnArrivalTime: z.string().max(10).optional().nullable(),
         pricePerPerson: z.number().optional(),
         url: z.string().url().optional().nullable(),
       })
@@ -2787,6 +2807,9 @@ export const pickTransport = createServerFn({ method: "POST" })
       time: data.time || data.arrivalTime || null,
       arrivalTime: data.arrivalTime || data.time || null,
       departureTime: data.departureTime || null,
+      durationHours: data.durationHours ?? null,
+      outboundDepartureTime: data.outboundDepartureTime || null,
+      returnArrivalTime: data.returnArrivalTime || null,
       pricePerPerson: data.pricePerPerson ?? null,
       url: data.url || null,
       at: new Date().toISOString(),
