@@ -130,6 +130,8 @@ function ParticipantQuestionnaire() {
   const [groupAgeRange, setGroupAgeRange] = useState<string>("");
   const [wantedEnvTypes, setWantedEnvTypes] = useState<string[]>([]);
   const [weatherPreference, setWeatherPreference] = useState<number>(1);
+  const [localMobility, setLocalMobility] = useState<"walk_transit" | "car_if_worth_it" | "car_ok" | null>(null);
+  const [accommodationRole, setAccommodationRole] = useState<"base_only" | "part_of_stay" | "centerpiece" | null>(null);
 
   useEffect(() => {
     fetchMine({ data: { tripId } })
@@ -145,6 +147,8 @@ function ParticipantQuestionnaire() {
           setGroupAgeRange((preferences as any).group_age_range ?? "");
           setWantedEnvTypes((preferences as any).wanted_env_type ? (preferences as any).wanted_env_type.split(", ") : []);
           setWeatherPreference(preferences.weather_preference ?? 1);
+          setLocalMobility(preferences.local_mobility ?? null);
+          setAccommodationRole(preferences.accommodation_role ?? null);
           setAmbiances(preferences.ambiances ?? []);
           setDealBreakerAmbiances((preferences as any).deal_breaker_ambiances ?? []);
           setDepartureAirportOrStation((preferences as any).departure_airport_or_station ?? "");
@@ -249,6 +253,8 @@ function ParticipantQuestionnaire() {
           groupAgeRange: groupAgeRange || undefined,
           wantedEnvType: wantedEnvTypes.join(", ") || undefined,
           weatherPreference,
+          localMobility,
+          accommodationRole,
         },
       });
       setIsEditing(true);
@@ -332,6 +338,14 @@ function ParticipantQuestionnaire() {
       </p>
 
       <div className="mt-8 space-y-5">
+        <Section title="Votre façon de voyager" hint="Deux réponses rapides pour chercher la bonne forme de séjour.">
+          <div><Label className="mb-2 block">Sur place, vous préférez…</Label><div className="flex flex-col gap-2">
+            {[["walk_transit", "Tout faire à pied / transports"], ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"], ["car_ok", "Aucun problème pour se déplacer en voiture"]].map(([value, label]) => <Chip key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>{label}</Chip>)}
+          </div></div>
+          <div><Label className="mb-2 block">Le logement, pour vous, c’est plutôt…</Label><div className="flex flex-col gap-2">
+            {[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => <Chip key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</Chip>)}
+          </div></div>
+        </Section>
         <Section
           title="1. Envies & ambiance"
           hint="Obligatoire — sert à scorer les destinations et les activités."

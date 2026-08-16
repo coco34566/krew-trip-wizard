@@ -88,6 +88,8 @@ export type IndividualPreference = {
   groupAgeRange?: string | null;
   durationNightsMin?: number | null;
   durationNightsMax?: number | null;
+  localMobility?: "walk_transit" | "car_if_worth_it" | "car_ok" | null;
+  accommodationRole?: "base_only" | "part_of_stay" | "centerpiece" | null;
 };
 
 export type ScoringWeights = {
