@@ -1,77 +1,55 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { resolveStayApiDestination, searchHotelsStayApi } from "@/integrations/external/stayapi-hotels.server";
 
 export const Route = createFileRoute("/stayapi-test")({
   server: {
     handlers: {
       GET: async () => {
         const apiKey = process.env.STAYAPI_API_KEY;
-
         if (!apiKey) {
-          return Response.json(
-            { success: false, error: "STAYAPI_API_KEY is not configured" },
-            { status: 500 },
-          );
+          return Response.json({ success: false, error: "STAYAPI_API_KEY is not configured" }, { status: 500 });
         }
 
-        const params = new URLSearchParams({
-          dest_id: "-3233180",
-          dest_type: "CITY",
-          checkin: "2026-09-10",
-          checkout: "2026-09-14",
-          adults: "2",
-          rooms: "1",
-          children: "0",
-          rows_per_page: "10",
-          offset: "0",
-          language: "en-us",
-          currency: "EUR",
-        });
+        const destinationQuery = "Paris";
+        const checkin = "2026-09-10";
+        const checkout = "2026-09-14";
+        const adults = 2;
+        const rooms = 1;
 
         try {
-          const response = await fetch(
-            `https://api.stayapi.com/v1/booking/search?${params.toString()}`,
-            {
-              method: "GET",
-              headers: {
-                "x-api-key": apiKey,
-                Accept: "application/json",
-              },
+          const resolved = await resolveStayApiDestination(destinationQuery);
+          const hotels = await searchHotelsStayApi({
+            destination: destinationQuery,
+            latitude: 48.8566,
+            longitude: 2.3522,
+            destId: resolved.id,
+            destType: resolved.type,
+            checkin,
+            checkout,
+            adults,
+            rooms,
+          });
+
+          return Response.json({
+            success: true,
+            lookup: resolved,
+            request: {
+              destination: destinationQuery,
+              dest_id: resolved.id,
+              dest_type: resolved.type,
+              checkin,
+              checkout,
+              adults,
+              rooms,
+              currency: "EUR",
+              language: "fr-fr",
             },
-          );
-
-          const text = await response.text();
-          let data: unknown;
-
-          try {
-            data = JSON.parse(text);
-          } catch {
-            data = { raw: text };
-          }
-
-          return Response.json(
-            {
-              stayapi_status: response.status,
-              stayapi_ok: response.ok,
-              request: {
-                endpoint: "https://api.stayapi.com/v1/booking/search",
-                dest_id: "-3233180",
-                checkin: "2026-09-10",
-                checkout: "2026-09-14",
-                adults: 2,
-                rooms: 1,
-                currency: "EUR",
-                rows_per_page: 10,
-              },
-              data,
-            },
-            { status: response.ok ? 200 : response.status },
-          );
+            hotelsCount: hotels.length,
+            hotels: hotels.slice(0, 5),
+          });
         } catch (error) {
           return Response.json(
-            {
-              success: false,
-              error: error instanceof Error ? error.message : "Unknown error",
-            },
+            { success: false, error: error instanceof Error ? error.message : "Unknown error" },
             { status: 502 },
           );
         }
