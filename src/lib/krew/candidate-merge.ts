@@ -21,6 +21,10 @@ export type AiEstimate = {
   region?: string | undefined;
   destinationType?: DestinationType | undefined;
   anchorPlaces?: string[] | undefined;
+  candidateClass?: "strong_match" | "smart_compromise" | "gem" | undefined;
+  matchedSignals?: string[] | undefined;
+  compromiseFor?: string[] | undefined;
+  confidence?: number | undefined;
 };
 
 export type MergedCandidate = {
@@ -37,6 +41,11 @@ export type MergedCandidate = {
   destinationType?: DestinationType;
   anchorPlaces?: string[];
   verificationState?: "verified" | "estimated" | "unknown";
+  provenance: Array<"local" | "gemini">;
+  candidateClass?: "strong_match" | "smart_compromise" | "gem" | undefined;
+  matchedSignals?: string[] | undefined;
+  compromiseFor?: string[] | undefined;
+  confidence?: number | undefined;
 };
 
 /** Normalisation de nom de ville (identique à `norm()` de la découverte locale). */
@@ -73,6 +82,7 @@ export function mergeCandidates(
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces ?? [c.name],
       verificationState: "verified",
+      provenance: ["local"],
     });
   }
 
@@ -91,6 +101,11 @@ export function mergeCandidates(
         anchorPlaces: existing.anchorPlaces?.length
           ? existing.anchorPlaces
           : (c.anchorPlaces ?? []),
+        provenance: ["local", "gemini"],
+        candidateClass: c.candidateClass,
+        matchedSignals: c.matchedSignals,
+        compromiseFor: c.compromiseFor,
+        confidence: c.confidence,
       });
       continue;
     }
@@ -107,6 +122,11 @@ export function mergeCandidates(
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces?.length ? c.anchorPlaces : [c.name],
       verificationState: "estimated",
+      provenance: ["gemini"],
+      candidateClass: c.candidateClass,
+      matchedSignals: c.matchedSignals,
+      compromiseFor: c.compromiseFor,
+      confidence: c.confidence,
     });
   }
 
@@ -121,9 +141,15 @@ export type AiDestinationRow = {
   avg_daily_cost: number | null;
   distance_from_paris_km: number | null;
   best_months: number[];
-  popularity: null; rating: null;
-  score_fete: null; score_aventure: null; score_detente: null; score_luxe: null;
-  score_insolite: null; score_sportif: null; score_culturel: null;
+  popularity: null;
+  rating: null;
+  score_fete: null;
+  score_aventure: null;
+  score_detente: null;
+  score_luxe: null;
+  score_insolite: null;
+  score_sportif: null;
+  score_culturel: null;
   source: "ai_estimate";
   external_id: string;
   destination_type: DestinationType;
@@ -153,12 +179,18 @@ export function aiCandidateToDestinationRow(
     slug: slug || `ville-${Date.now()}`,
     name: candidate.name,
     country: candidate.country?.trim() || "Europe",
-    avg_daily_cost: null,
-    distance_from_paris_km: null,
+    avg_daily_cost: candidate.dailyCost ?? null,
+    distance_from_paris_km: candidate.distanceKm ?? null,
     best_months: months.filter((m) => Number.isInteger(m) && m >= 1 && m <= 12),
-    popularity: null, rating: null,
-    score_fete: null, score_aventure: null, score_detente: null, score_luxe: null,
-    score_insolite: null, score_sportif: null, score_culturel: null,
+    popularity: null,
+    rating: null,
+    score_fete: null,
+    score_aventure: null,
+    score_detente: null,
+    score_luxe: null,
+    score_insolite: null,
+    score_sportif: null,
+    score_culturel: null,
     source: "ai_estimate",
     external_id: `ai:${slug}`,
     destination_type: candidate.destinationType ?? "city",

@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   buildProposals,
+  filterDestinationsByHardConstraints,
   dominantAmbiance,
   getNormalizedBudgetPriority,
   type Proposal,
@@ -26,7 +27,6 @@ import {
   normCity,
   type MergedCandidate,
 } from "./candidate-merge";
-import { distanceFromParisKm, fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery } from "./stay-profiles";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
@@ -1225,12 +1225,44 @@ export async function generateRecommendationsForTrip(
       localMobility: aggregated.groupLocalMobility ?? null,
       accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
       relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
+        ambiances: p.ambiances,
         activities: p.activityCategories,
         environment: p.wantedEnvType,
         mobility: p.localMobility,
         accommodationRole: p.accommodationRole,
+        budget: p.budgetMax,
+        budgetPriority: p.budgetPriority,
+        transportModes: p.transportModes,
+        maxTravelHours: p.maxTravelHours,
+        desiredDestination: p.desiredDestination,
+        dealBreakerAmbiances: p.dealBreakerAmbiances,
+        dealBreakerDestinations: p.dealBreakerDestinations,
         isStar: p.isStar,
       })),
+      scoringSignals: {
+        desiredDestination: ctx.desiredDestination ?? null,
+        letKrewDecide: ctx.letKrewDecide ?? true,
+        starWeight: ctx.starWeight ?? null,
+        scoringWeights: ctx.scoringWeights ?? null,
+        hardConstraints: {
+          excludedDestinations: ctx.excludedCountries,
+          maxDistanceKm: ctx.maxDistanceKm,
+          budgetVeto: ctx.hasBudgetVeto ? ctx.vetoBudgetMax : undefined,
+          planeRefused: ctx.planeRefused,
+          maxTravelHours: ctx.maxTravelDurationHours,
+          dealBreakerAmbiances: ctx.dealBreakerAmbiances,
+          dealBreakerDestinations: ctx.dealBreakerDestinations,
+          accessibilityRequired: ctx.needsAccessibility,
+          requiredAmenities: ctx.requiredAmenities,
+        },
+        softPreferences: {
+          travelPace: ctx.travelPace,
+          weather: ctx.groupWeatherPreference,
+          ageRange: ctx.groupAgeRange,
+          lodgingType: ctx.mostDemandedLodgingType,
+          roomTypes: ctx.roomTypePreferences,
+        },
+      },
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
@@ -1240,7 +1272,7 @@ export async function generateRecommendationsForTrip(
     ]);
     if (ai.error) {
       // non bloquant — visible côté logs / providerErrors
-      console.warn("[discovery] AI unavailable:", ai.error);
+      console.warn(`[discovery] fallback: local KREW (${ai.error})`);
     }
     const aiCities = (ai.candidates ?? []).map((c) => ({
       name: c.name,
@@ -1253,8 +1285,15 @@ export async function generateRecommendationsForTrip(
       region: c.region,
       destinationType: c.destinationType,
       anchorPlaces: c.anchorPlaces,
+      candidateClass: c.candidateClass,
+      matchedSignals: c.matchedSignals,
+      compromiseFor: c.compromiseFor,
+      confidence: c.confidence,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities);
+    console.info(`[discovery] gemini candidates: ${aiCities.length}`);
+    console.info(`[discovery] local candidates: ${ruleBased.length}`);
+    console.info(`[discovery] merged candidates: ${mergedCandidates.length}`);
 
     if (resolvedDestination && letKrewDecide) {
       const normResolved = normCity(resolvedDestination);
@@ -1267,6 +1306,7 @@ export async function generateRecommendationsForTrip(
           affinity: 98,
           reason: "destination rêvée d'un participant (boostée)",
           source: profile ? "catalog" : "ai_estimate",
+          provenance: profile ? ["local"] : ["gemini"],
           dailyCost: profile?.dailyCost,
           distanceKm: profile?.distanceKm,
           bestMonths: profile?.bestMonths,
@@ -1288,7 +1328,6 @@ export async function generateRecommendationsForTrip(
       }
     }
 
-    mergedCandidates = mergedCandidates.slice(0, 12);
     discoverySource = aiCities.length ? "merged" : "local";
     discoveryMeta = mergedCandidates.map((c) => ({
       name: c.name,
@@ -1395,27 +1434,11 @@ export async function generateRecommendationsForTrip(
         .maybeSingle();
       if (known.data?.id) continue;
 
-      // Saison réelle : géocodage + normales climatiques, fallback estimation LLM
-      let bestMonths: number[] | undefined = candidate.bestMonths;
-      let latitude: number | null = null;
-      let longitude: number | null = null;
-      try {
-        const place = await geocodeDestination(
-          candidate.country ? `${candidate.name}, ${candidate.country}` : candidate.name,
-        );
-        if (place) {
-          latitude = place.latitude;
-          longitude = place.longitude;
-          const climate = await fetchClimate(place.latitude, place.longitude);
-          if (climate.bestMonths.length) bestMonths = climate.bestMonths;
-        }
-      } catch {
-        /* météo indisponible → on garde l'estimation LLM */
-      }
-
-      // A geocoded AI suggestion is still exploratory: geocoding does not verify its cost or fit.
-      void aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
-      void latitude; void longitude;
+      // Materialize estimates without any hotel/activity lookup. Verification state remains explicit.
+      const row = aiCandidateToDestinationRow(candidate, ctx.ambiances);
+      await supabaseAdmin.from("destinations").upsert(row as any, {
+        onConflict: "source,external_id",
+      });
     } catch (e) {
       reportServerError(e, {
         provider: "destination-ai",
@@ -1456,7 +1479,6 @@ export async function generateRecommendationsForTrip(
   const shortlistSet = new Set(shortlistNames.map(normName).filter(Boolean));
 
   const destinationsInShortlist = catalog.destinations.filter((d) => {
-    if ((d as any).source === "ai_estimate") return false;
     const n = normName(d.name);
     const c = normName(d.country);
     return (
@@ -1696,10 +1718,40 @@ export async function generateRecommendationsForTrip(
     /* table absente → défauts engine */
   }
 
-  let proposals = selectTopDestinationProposals(
-    buildProposals(catalogFinal, ctxWithTransport, 20),
-    4,
+  const afterHardConstraints = filterDestinationsByHardConstraints(
+    catalogFinal.destinations,
+    ctxWithTransport,
   );
+  console.info(`[discovery] after hard constraints: ${afterHardConstraints.length}`);
+  const scoredPool = buildProposals(catalogFinal, ctxWithTransport, 20);
+  console.info(`[discovery] after scoring: ${scoredPool.length}`);
+  let proposals = selectTopDestinationProposals(scoredPool, 4);
+  console.info(`[discovery] final shortlist: ${proposals.length}`);
+  const provenanceByName = new Map(
+    mergedCandidates.map((candidate) => [normCity(candidate.name), candidate.provenance]),
+  );
+  const finalSources = proposals.map((proposal) => {
+    const provenance = provenanceByName.get(normCity(proposal.destination.name));
+    return `${proposal.destination.name}=${provenance?.join("+") ?? "local"}`;
+  });
+  const finalSourceMap = Object.fromEntries(
+    proposals.map((proposal) => [
+      proposal.destination.name,
+      provenanceByName.get(normCity(proposal.destination.name)) ?? ["local"],
+    ]),
+  );
+  console.info(`[discovery] final sources: ${finalSources.join(", ")}`);
+  const geminiCount = mergedCandidates.filter((candidate) =>
+    candidate.provenance.includes("gemini"),
+  ).length;
+  const geminiSurvivors = proposals.filter((proposal) =>
+    provenanceByName.get(normCity(proposal.destination.name))?.includes("gemini"),
+  ).length;
+  if (geminiCount > 0 && geminiSurvivors === 0) {
+    console.warn(
+      `[discovery] warning: Gemini returned ${geminiCount} valid candidates but none survived KREW scoring.`,
+    );
+  }
 
   // Rationales LLM (1 call groupé, tokens min) — fallback = texte moteur
   let llmRationales = false;
@@ -1752,6 +1804,7 @@ export async function generateRecommendationsForTrip(
       apiAccommodations: apiAccIds.size,
       llmRationales,
       readiness,
+      discoverySources: finalSourceMap,
     };
   }
   await replaceRecommendationsSafely(supabase, tripId, rows);
@@ -1776,5 +1829,6 @@ export async function generateRecommendationsForTrip(
     departureOrigins: originsForQuote,
     readiness,
     llmRationales,
+    discoverySources: finalSourceMap,
   };
 }

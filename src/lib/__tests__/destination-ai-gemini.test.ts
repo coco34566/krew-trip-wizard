@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearDestinationAiCacheForTests,
+  buildKrewDiscoveryBrief,
   discoverDestinationsWithAi,
   REQUEST_TIMEOUT_MS,
   type AiDiscoveryInput,
@@ -67,6 +68,10 @@ describe("Gemini destination discovery provider order", () => {
       "x-goog-api-key": "server-secret",
     });
     expect(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body).model).toBe("gemini-test-model");
+    const requestInput = JSON.parse(JSON.parse(fetchMock.mock.calls[0]?.[1]?.body).input);
+    expect(requestInput).toHaveProperty("hardConstraints");
+    expect(requestInput).toHaveProperty("collectiveProfiles");
+    expect(requestInput).not.toHaveProperty("rawQuestionnaireRows");
   });
 
   it("returns no AI candidates so the caller can use local KREW fallback when Gemini fails", async () => {
@@ -144,8 +149,70 @@ describe("Gemini destination discovery provider order", () => {
     const merged = mergeCandidates([], result.candidates)[0]!;
     const row = aiCandidateToDestinationRow(merged);
     expect(merged.verificationState).toBe("estimated");
-    expect(row.avg_daily_cost).toBeNull();
-    expect(row.distance_from_paris_km).toBeNull();
+    expect(row.avg_daily_cost).toBe(99);
+    expect(row.distance_from_paris_km).toBe(1200);
+  });
+
+  it("parses exploration classes and their explanation signals", async () => {
+    process.env["GEMINI_API_KEY"] = "gemini";
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          response(
+            '{"destinations":[{"name":"Annecy","candidateClass":"strong_match","matchedSignals":["lac"],"compromiseFor":[],"confidence":0.9},{"name":"Grenoble","candidateClass":"smart_compromise","matchedSignals":["culture","outdoor"],"compromiseFor":["urbain","nature"]},{"name":"Die","candidateClass":"gem","matchedSignals":["nature"]}]}',
+          ),
+        ),
+    );
+    const result = await discoverDestinationsWithAi(input);
+    expect(result.candidates.map((candidate) => candidate.candidateClass)).toEqual([
+      "strong_match",
+      "smart_compromise",
+      "gem",
+    ]);
+    expect(result.candidates[1]?.compromiseFor).toEqual(["urbain", "nature"]);
+    expect(result.candidates[0]?.confidence).toBe(0.9);
+  });
+
+  it("builds hard/soft sections without turning soft preferences into constraints", () => {
+    const brief = buildKrewDiscoveryBrief({
+      ...input,
+      stayProfiles: [{ id: "city_discovery", score: 78, evidence: ["culture"] }],
+      selectedConcepts: [
+        {
+          id: "city+nature",
+          title: "Ville et nature",
+          profiles: ["city_discovery", "nature_disconnect"],
+          score: 75,
+          rationale: "compromis",
+        },
+      ],
+      relevantIndividualPreferences: [
+        { ambiances: ["fete"], activities: ["culture"], environment: "urbain" },
+        { ambiances: ["detente"], activities: ["randonnee"], environment: "nature" },
+        { ambiances: ["fete"], activities: ["culture"], environment: "urbain" },
+      ],
+      scoringSignals: {
+        starWeight: 1.8,
+        scoringWeights: { ambiance: 20, activities: 18 },
+        hardConstraints: { planeRefused: true, budgetVeto: 500 },
+        softPreferences: { travelPace: "equilibre" },
+      },
+    });
+    expect(brief.hardConstraints).toMatchObject({ planeRefused: true, budgetVeto: 500 });
+    expect(brief.hardConstraints).not.toHaveProperty("travelPace");
+    expect(brief.priorities).toMatchObject({
+      travelPace: "equilibre",
+      scoringWeights: { ambiance: 20, activities: 18 },
+    });
+    expect(brief.collectiveProfiles[0]?.evidence).toEqual(["culture"]);
+    expect(brief.validatedConcepts[0]?.title).toBe("Ville et nature");
+    expect(brief.star["weight"]).toBe(1.8);
+    expect(brief.groupDynamics.divergences).toEqual(
+      expect.arrayContaining([expect.stringContaining("environment")]),
+    );
+    expect(brief.groupDynamics.importantMinorities.length).toBeGreaterThan(0);
   });
 
   it("does not call an external LLM when Gemini is not configured", async () => {

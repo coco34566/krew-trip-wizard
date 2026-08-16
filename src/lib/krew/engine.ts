@@ -1216,18 +1216,19 @@ export function generateAccommodationConfigurations(
   return configs;
 }
 
-export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limit = 3): Proposal[] {
+export function filterDestinationsByHardConstraints(
+  destinations: DestinationRecord[],
+  ctx: ScoringContext,
+): DestinationRecord[] {
   const excluded = ctx.excludedCountries.map(norm).filter(Boolean);
-  const desired = ctx.desiredDestination ? norm(ctx.desiredDestination) : "";
   const dealAmb = ctx.dealBreakerAmbiances ?? [];
   const dealDest = ctx.dealBreakerDestinations ?? [];
-  const minRating = ctx.minAccommodationRating ?? 0;
   const allowedTransportOptions = (distanceKm: number) =>
     estimateOptionsByMode(distanceKm, ctx.transportModes).filter(
       (option) => !ctx.planeRefused || option.mode !== "flight",
     );
 
-  const candidates = catalog.destinations.filter((d) => {
+  return destinations.filter((d) => {
     if (excluded.includes(norm(d.country)) || excluded.includes(norm(d.name))) return false;
     if (d.distance_from_paris_km > ctx.maxDistanceKm * 1.15) return false;
     if (ctx.planeRefused && d.distance_from_paris_km > 700) return false;
@@ -1237,6 +1238,16 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
     if (hitsDealBreaker(d, dealAmb, dealDest)) return false;
     return true;
   });
+}
+
+export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limit = 3): Proposal[] {
+  const desired = ctx.desiredDestination ? norm(ctx.desiredDestination) : "";
+  const minRating = ctx.minAccommodationRating ?? 0;
+  const allowedTransportOptions = (distanceKm: number) =>
+    estimateOptionsByMode(distanceKm, ctx.transportModes).filter(
+      (option) => !ctx.planeRefused || option.mode !== "flight",
+    );
+  const candidates = filterDestinationsByHardConstraints(catalog.destinations, ctx);
 
   const allDestinationProposals: Proposal[] = [];
 
