@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { searchHotelsStayApi } from "../stayapi-hotels.server";
 
 const params = {
-  destination: "Paris",
-  latitude: 48.8566,
-  longitude: 2.3522,
+  destination: "Marrakech",
+  latitude: 31.6295,
+  longitude: -7.9811,
   checkin: "2026-09-10",
   checkout: "2026-09-14",
   adults: 2,
@@ -17,17 +17,16 @@ afterEach(() => {
 });
 
 describe("searchHotelsStayApi", () => {
-  it("uses the looked-up city and keeps a valid hotel without a provider deeplink", async () => {
+  it("uses Marrakech's top-level destination lookup before searching for hotels", async () => {
     process.env["STAYAPI_API_KEY"] = "test-key";
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            data: [
-              { dest_id: "region-id", dest_type: "REGION", name: "Île-de-France" },
-              { dest_id: "-1456928", dest_type: "CITY", name: "Paris" },
-            ],
+            dest_id: "-38833",
+            dest_type: "CITY",
+            data: [{ dest_id: "wrong-fallback-id", dest_type: "REGION", name: "Marrakech" }],
           }),
           { status: 200 },
         ),
@@ -54,7 +53,10 @@ describe("searchHotelsStayApi", () => {
     const hotels = await searchHotelsStayApi(params);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("dest_id=-1456928");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "/destinations/lookup?query=Marrakech&language=fr",
+    );
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("dest_id=-38833");
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("dest_type=CITY");
     expect(hotels).toHaveLength(1);
     expect(hotels[0]).toMatchObject({

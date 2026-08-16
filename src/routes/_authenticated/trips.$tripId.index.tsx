@@ -379,6 +379,17 @@ function TripDetail() {
   });
 
   const proposeLogisticsFn = useServerFn(proposeStayAndTransport);
+  const hotelLogisticsMutation = useMutation({
+    mutationFn: () =>
+      proposeLogisticsFn({ data: { tripId, refreshExternal: true, includeTransport: false } }),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      const nH = res?.logistics?.hotels?.length ?? 0;
+      toast.success(`Hébergements : ${nH} hôtels`);
+      document.getElementById("hub-logistics")?.scrollIntoView({ behavior: "smooth" });
+    },
+    onError: (e: any) => handleMutationError(e, "Recherche d’hébergements impossible"),
+  });
   const logisticsMutation = useMutation({
     mutationFn: () => proposeLogisticsFn({ data: { tripId, refreshExternal: true } }),
     onSuccess: (res: any) => {
@@ -1369,10 +1380,10 @@ function TripDetail() {
             {data.isOwner ? (
               <Button
                 variant="hero"
-                disabled={logisticsMutation.isPending}
-                onClick={() => logisticsMutation.mutate()}
+                disabled={hotelLogisticsMutation.isPending}
+                onClick={() => hotelLogisticsMutation.mutate()}
               >
-                {logisticsMutation.isPending ? (
+                {hotelLogisticsMutation.isPending ? (
                   <Loader2 className="animate-spin" />
                 ) : (
                   <Hotel />
