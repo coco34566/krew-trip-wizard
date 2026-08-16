@@ -41,6 +41,16 @@ export type PackingListInput = {
   manualItems?: PackingItem[];
 };
 
+export function isFinalTripPreparationReady(input: {
+  destinationSelected: boolean;
+  hasItinerary: boolean;
+  selectedActivityIds?: string[] | null;
+}): boolean {
+  return Boolean(
+    input.destinationSelected && input.hasItinerary && (input.selectedActivityIds?.length ?? 0) > 0,
+  );
+}
+
 const normalize = (value: string) =>
   value
     .toLowerCase()

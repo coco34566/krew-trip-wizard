@@ -89,6 +89,7 @@ import {
 import { getStarPreferences } from "@/lib/star-preferences.functions";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
+import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { isTripAdmin } from "@/lib/krew/engine";
 
@@ -1052,10 +1053,13 @@ function TripDetail() {
     toast.success("Calendrier .ics téléchargé !");
   };
 
-  const activitiesValidated = Boolean(
-    ((trip as any).selected_activity_ids?.length ?? 0) > 0 || (activityVotes ?? []).length > 0,
-  );
-  const finalRestitutionReady = destinationSelected && hasItinerary && activitiesValidated;
+  const selectedActivityIdsList = ((trip as any).selected_activity_ids ?? []) as string[];
+  const activitiesValidated = selectedActivityIdsList.length > 0;
+  const finalRestitutionReady = isFinalTripPreparationReady({
+    destinationSelected,
+    hasItinerary,
+    selectedActivityIds: selectedActivityIdsList,
+  });
   const tripEndDatePassed = Boolean(
     trip.end_date && new Date(trip.end_date + "T23:59:59") < new Date(),
   );
@@ -2347,7 +2351,12 @@ function TripDetail() {
             }
             durationDays={liveBudget.nights || 2}
             eventType={trip.event_type}
-            accommodation={liveBudget.topHotelName ? "hôtel" : String((trip as any).group_logistics?.accommodationType || "")}
+            accommodation={String(
+              logistics.hotels?.find((hotel: any) => hotel.id === logistics.selectedHotelId)?.type ||
+                (selectedReco as any)?.accommodations?.type ||
+                logistics.accommodationType ||
+                "",
+            )}
           /> : null}
         </div>
       ) : null}

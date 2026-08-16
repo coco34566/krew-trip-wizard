@@ -15,12 +15,20 @@ type Props = PackingListInput & {
   shoppingLinks?: Record<string, ShoppingLink | undefined>;
 };
 
+export function getAssignablePackingParticipants<T extends { id: string }>(participants: T[]): T[] {
+  return participants.filter((participant) => participant.id !== "star-virtual-id");
+}
+
 export function PackingListCard({
   tripId = "preview",
   participants = [],
   shoppingLinks = {},
   ...input
 }: Props) {
+  const assignableParticipants = useMemo(
+    () => getAssignablePackingParticipants(participants),
+    [participants],
+  );
   const storageKey = `krew:packing:${tripId}`;
   const [state, setState] = useState<{
     checked: Record<string, boolean>;
@@ -127,7 +135,7 @@ export function PackingListCard({
                   }
                 >
                   <option value="">Qui s'en charge ?</option>
-                  {participants.map((p) => (
+                  {assignableParticipants.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.display_name || p.email?.split("@")[0] || "Participant"}
                     </option>
