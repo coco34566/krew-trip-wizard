@@ -62,7 +62,7 @@ function normalizeHotel(raw: any): HotelOffer | null {
 }
 
 export async function searchHotelsStayApi(params: SearchParams & { destId?: string; destType?: string }): Promise<HotelOffer[]> {
-  const key = process.env.STAYAPI_API_KEY;
+  const key = process.env["STAYAPI_API_KEY"];
   if (!key) throw new Error("STAYAPI_API_KEY is not configured");
 
   let destId = params.destId;

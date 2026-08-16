@@ -6,7 +6,7 @@ function pickArray(payload: any): any[] {
 }
 
 export async function lookupStayApiDestination(query: string, language = "fr") {
-  const key = process.env.STAYAPI_API_KEY;
+  const key = process.env["STAYAPI_API_KEY"];
   if (!key) throw new Error("STAYAPI_API_KEY is not configured");
   const qs = new URLSearchParams({ query, language });
   const response = await fetch(`${ENDPOINT}?${qs}`, {

@@ -1936,8 +1936,12 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         );
         const ext = await refreshExternalCatalogForTrip(supabase, data.tripId, destName);
         if (ext?.providerErrors?.length) providerErrors = ext.providerErrors;
+        if (!ext.ok || ext.accommodationsCount === 0) {
+          throw new Error(ext.message ?? "StayAPI n'a retourné aucun hôtel exploitable");
+        }
       } catch (e) {
-        providerErrors.push(String(e).slice(0, 160));
+        const message = e instanceof Error ? e.message : String(e);
+        throw new Error(`Recherche StayAPI impossible : ${message.slice(0, 240)}`);
       }
     }
 
@@ -1972,13 +1976,13 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       `https://www.google.com/travel/hotels?q=${encodeURIComponent(`hotels ${q} ${checkin} ${checkout}`)}`;
     const hotelsComUrl = (q: string) =>
       `https://fr.hotels.com/Hotel-Search?destination=${encodeURIComponent(q)}&startDate=${checkin}&endDate=${checkout}&rooms=1&adults=${adults}`;
-    const airbnbUrl = (q: string) =>
-      `https://www.airbnb.fr/s/${encodeURIComponent(q)}/homes?checkin=${checkin}&checkout=${checkout}&adults=${adults}`;
-
-    if (!destId) {
-      return { ok: true, logistics: { hotels: [], transports: [] } };
-    }
-    let hotelsQuery = supabase.from("accommodations").select("*").eq("destination_id", destId).limit(50);
+    if (!destId) throw new Error("Destination sélectionnée invalide");
+    const hotelsQuery = supabase
+      .from("accommodations")
+      .select("*")
+      .eq("destination_id", destId)
+      .eq("source", "stayapi/booking")
+      .limit(50);
     const hotelsRes = await hotelsQuery;
     if (hotelsRes.error) throw hotelsRes.error;
 
@@ -2081,109 +2085,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     let hotels: HotelCard[] = matchedHotels.map(scoreHotel);
     hotels.sort((a, b) => b.score - a.score || b.rating - a.rating);
 
-    const hasRealHotels = hotels.length > 0;
-
-    if (!hasRealHotels) {
-      const seedPrices = [
-        Math.round(lodgingBudget * 0.55),
-        Math.round(lodgingBudget * 0.75),
-        Math.round(lodgingBudget * 0.95),
-        Math.round(lodgingBudget * 1.15),
-        Math.round(lodgingBudget * 1.4),
-      ];
-      const portalSeeds: HotelCard[] = [
-        {
-          id: "portal-budget",
-          name: `Options économiques — ${destName}`,
-          type: "recherche générique",
-          rating: 3.8,
-          pricePerNight: seedPrices[0]!,
-          totalEstimate: seedPrices[0]! * nights,
-          distanceCenterKm: null,
-          score: 0.1,
-          reasons: ["recherche générique", "budget serré", "idéal groupe"],
-          bookingUrl: bookingSearchUrl(`${destName} hôtel pas cher`),
-          links: [
-            { label: "Booking (pas cher)", url: bookingSearchUrl(`${destName} hôtel pas cher`) },
-            { label: "Google Hotels", url: googleHotelsUrl(destName) },
-          ],
-          source: "portal",
-        },
-        {
-          id: "portal-booking",
-          name: `Hôtels à ${destName}`,
-          type: "recherche générique",
-          rating: 4.2,
-          pricePerNight: seedPrices[1]!,
-          totalEstimate: seedPrices[1]! * nights,
-          distanceCenterKm: null,
-          score: 0.1,
-          reasons: ["recherche générique", "dates préremplies", "prix indicatif — confirmer sur Booking"],
-          bookingUrl: bookingSearchUrl(destName),
-          links: [
-            { label: "Booking", url: bookingSearchUrl(destName) },
-            { label: "Hotels.com", url: hotelsComUrl(destName) },
-          ],
-          source: "portal",
-        },
-        {
-          id: "portal-mid",
-          name: `Confort milieu de gamme — ${destName}`,
-          type: "recherche générique",
-          rating: 4.3,
-          pricePerNight: seedPrices[2]!,
-          totalEstimate: seedPrices[2]! * nights,
-          distanceCenterKm: null,
-          score: 0.1,
-          reasons: ["recherche générique", "bon rapport qualité/prix"],
-          bookingUrl: googleHotelsUrl(destName),
-          links: [
-            { label: "Google Hotels", url: googleHotelsUrl(destName) },
-            { label: "Booking", url: bookingSearchUrl(destName) },
-          ],
-          source: "portal",
-        },
-        {
-          id: "portal-airbnb",
-          name: `Maisons & appartements — ${destName}`,
-          type: "recherche générique",
-          rating: 4.5,
-          pricePerNight: seedPrices[1]!,
-          totalEstimate: seedPrices[1]! * nights,
-          distanceCenterKm: null,
-          score: 0.1,
-          reasons: ["recherche générique", "idéal groupe", "cuisine possible"],
-          bookingUrl: airbnbUrl(destName),
-          links: [{ label: "Airbnb", url: airbnbUrl(destName) }],
-          source: "portal",
-        },
-        {
-          id: "portal-premium",
-          name: `Coup de cœur / plus confort — ${destName}`,
-          type: "recherche générique",
-          rating: 4.6,
-          pricePerNight: seedPrices[3]!,
-          totalEstimate: seedPrices[3]! * nights,
-          distanceCenterKm: null,
-          score: 0.1,
-          reasons: ["recherche générique", "plus de confort"],
-          bookingUrl: bookingSearchUrl(`${destName} hôtel 4 étoiles`),
-          links: [
-            { label: "Booking 4★", url: bookingSearchUrl(`${destName} hôtel 4 étoiles`) },
-            { label: "Hotels.com", url: hotelsComUrl(destName) },
-          ],
-          source: "portal",
-        },
-      ];
-
-      const seen = new Set(hotels.map((h) => h.name.toLowerCase()));
-      for (const p of portalSeeds) {
-        if (!seen.has(p.name.toLowerCase())) {
-          hotels.push(p);
-          seen.add(p.name.toLowerCase());
-        }
-      }
-    }
+    if (!hotels.length) throw new Error(`Aucun hôtel StayAPI exploitable pour ${destName}`);
 
     // Compute bedding configurations based on participant preferences
     const totalGroupParticipants = Math.max(1, participants.length);
