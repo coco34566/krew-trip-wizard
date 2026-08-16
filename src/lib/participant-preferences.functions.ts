@@ -8,6 +8,8 @@ import { generateRecommendationsForTrip } from "@/lib/krew/trip-service";
 
 export const participantPreferencesSchema = z.object({
   tripId: z.string().uuid(),
+  localMobility: z.enum(["walk_transit", "car_if_worth_it", "car_ok"]).optional().nullable(),
+  accommodationRole: z.enum(["base_only", "part_of_stay", "centerpiece"]).optional().nullable(),
   ambiances: z.array(z.string()).default([]),
   activityCategories: z.array(z.string()).default([]),
   budgetMax: z.number().min(0).max(20000).optional(),
@@ -320,6 +322,8 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       group_age_range: (data as any).groupAgeRange ?? null,
       wanted_env_type: (data as any).wantedEnvType ?? null,
       weather_preference: (data as any).weatherPreference ?? 1,
+      local_mobility: data.localMobility ?? null,
+      accommodation_role: data.accommodationRole ?? null,
     };
 
     if (existingPref.data) {

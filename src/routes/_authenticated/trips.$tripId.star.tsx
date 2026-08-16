@@ -184,6 +184,8 @@ function StarQuestionnaire() {
   const [excludedDestinations, setExcludedDestinations] = useState("");
   const [wantedEnvTypes, setWantedEnvTypes] = useState<string[]>([]);
   const [weatherPreference, setWeatherPreference] = useState<number>(1);
+  const [localMobility, setLocalMobility] = useState<"walk_transit" | "car_if_worth_it" | "car_ok" | null>(null);
+  const [accommodationRole, setAccommodationRole] = useState<"base_only" | "part_of_stay" | "centerpiece" | null>(null);
 
   // Disponibilités de la star (iso → DayMode)
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
@@ -205,6 +207,8 @@ function StarQuestionnaire() {
         setExcludedDestinations((data.preferences.excludedDestinations ?? []).join(", "));
         setWantedEnvTypes((data.preferences as any).wantedEnvType ? (data.preferences as any).wantedEnvType.split(", ") : []);
         setWeatherPreference((data.preferences as any).weatherPreference ?? 1);
+        setLocalMobility((data.preferences as any).localMobility ?? null);
+        setAccommodationRole((data.preferences as any).accommodationRole ?? null);
 
         const m = new Map<string, DayMode>();
         for (const d of data.preferences.availableDates ?? []) m.set(d.slice(0, 10), "available");
@@ -295,6 +299,8 @@ function StarQuestionnaire() {
           blockedDates,
           wantedEnvType: wantedEnvTypes.join(", ") || undefined,
           weatherPreference,
+          localMobility,
+          accommodationRole,
         },
       });
     },
@@ -344,6 +350,13 @@ function StarQuestionnaire() {
         Complément dédié à <strong>{starName}</strong> — ne remplace pas le questionnaire du groupe.
         Ses réponses sont intégrées aux compteurs de participation et pèsent davantage dans les recommandations.
       </p>
+      <section className="mt-8 space-y-3 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-semibold">Votre façon de voyager</h2>
+        <Label>Sur place, vous préférez…</Label>
+        {[["walk_transit", "Tout faire à pied / transports"], ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"], ["car_ok", "Aucun problème pour se déplacer en voiture"]].map(([value, label]) => <Chip key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>{label}</Chip>)}
+        <Label>Le logement, pour vous, c’est plutôt…</Label>
+        {[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => <Chip key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</Chip>)}
+      </section>
 
       {/* Point de départ */}
       <section className="mt-8 space-y-3 rounded-2xl border border-border bg-card p-5">

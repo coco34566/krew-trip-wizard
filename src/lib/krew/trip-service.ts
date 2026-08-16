@@ -17,6 +17,7 @@ import {
   type MergedCandidate,
 } from "./candidate-merge";
 import { fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
+import { aggregateStayProfiles, buildStayConcepts, routeDiscovery } from "./stay-profiles";
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
   if (!trip) return Math.max(1, participants?.length || 1);
@@ -178,6 +179,9 @@ type ParticipantPrefRow = {
   departure_airport_or_station: string | null;
   transport_mode_accepted: string[] | null;
   max_travel_duration_hours: number | string | null;
+  free_text?: string | null;
+  local_mobility?: "walk_transit" | "car_if_worth_it" | "car_ok" | null;
+  accommodation_role?: "base_only" | "part_of_stay" | "centerpiece" | null;
   blackout_dates: string[] | null;
   group_age_range?: string | null;
   wanted_env_type?: string | null;
@@ -210,7 +214,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference, free_text",
+      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference, free_text, local_mobility, accommodation_role",
     )
     .eq("trip_id", tripId);
   if (res.error) {
@@ -301,6 +305,8 @@ export async function aggregateParticipantPreferences(
           wanted_env_type: starData.wanted_env_type ?? null,
           group_age_range: null,
           weather_preference: starData.weather_preference ?? 1,
+          local_mobility: starData.local_mobility ?? null,
+          accommodation_role: starData.accommodation_role ?? null,
         });
       }
     }
@@ -514,6 +520,8 @@ export async function aggregateParticipantPreferences(
       weatherPreference: r.weather_preference ?? 1,
       freeText: r.free_text || null,
       mobilityNotes: r.mobility_notes || null,
+      localMobility: r.local_mobility ?? null,
+      accommodationRole: r.accommodation_role ?? null,
     };
   });
 
@@ -535,6 +543,10 @@ export async function aggregateParticipantPreferences(
   const groupWeatherPreference = weatherPrefs.length
     ? weatherPrefs.reduce((a, b) => a + b, 0) / weatherPrefs.length
     : 1.0;
+
+  const stayProfileAffinities = aggregateStayProfiles(individualPreferences);
+  const stayConcepts = buildStayConcepts(stayProfileAffinities);
+  const discoveryRoute = routeDiscovery(stayConcepts);
 
   // Incohérences détectées (pour l'organisateur)
   const inconsistencies: { userId: string | null; message: string }[] = [];
@@ -598,6 +610,7 @@ export async function aggregateParticipantPreferences(
     wantedEnvTypes,
     starWantedEnvType,
     groupWeatherPreference,
+    stayProfileAffinities, stayConcepts, discoveryRoute,
   };
 }
 
@@ -1066,7 +1079,10 @@ export async function generateRecommendationsForTrip(
       wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
       starWantedEnvType: aggregated.starWantedEnvType ?? null,
       groupAgeRange: aggregated.groupAgeRange ?? null,
-      freeNotes: aggregated.freeTextNotes ?? [],
+      freeNotes: aggregated.individualPreferences.map((p: any) => p.freeText).filter(Boolean),
+      stayProfiles: aggregated.stayProfileAffinities ?? [],
+      selectedConcepts: aggregated.stayConcepts ?? [],
+      discoveryBranches: aggregated.discoveryRoute?.branches ?? ["urban"],
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
