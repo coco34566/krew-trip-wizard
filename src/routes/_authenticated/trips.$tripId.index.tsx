@@ -1448,10 +1448,10 @@ function TripDetail() {
                       ) : null}
                     </div>
                     <p className="mt-2 text-sm">
-                      {formatEuro(h.pricePerNight)} / nuit / pers.
+                      {formatEuro(h.pricePerNight)} / nuit / pers.{h.priceEstimated ? " (estimé)" : ""}
                       <span className="text-muted-foreground">
                         {" "}
-                        · ~{formatEuro(h.totalEstimate)} séjour
+                        · {formatEuro(h.totalEstimate)} séjour groupe
                       </span>
                     </p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">

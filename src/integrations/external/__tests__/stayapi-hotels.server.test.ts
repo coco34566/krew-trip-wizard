@@ -58,12 +58,30 @@ describe("searchHotelsStayApi", () => {
     );
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("dest_id=-38833");
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("dest_type=CITY");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("rows_per_page=100");
     expect(hotels).toHaveLength(1);
     expect(hotels[0]).toMatchObject({
       externalId: "stayapi/booking:42",
       name: "Hôtel Test",
-      offers: [{ provider: "stayapi/booking", pricePerNight: 180, url: null }],
+      offers: [{ provider: "stayapi/booking", pricePerNight: 45, groupStayTotal: 180, url: null }],
+      capacity: null,
+      accommodationClass: "OTHER",
     });
+  });
+
+  it("keeps canonical stay prices, provider links, capacity and entire-home classification", async () => {
+    process.env["STAYAPI_API_KEY"] = "test-key";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { hotels: [{
+      hotel_id: 7, hotel_name: "Thames Villa", accommodation_type_name: "Holiday home",
+      unit_configuration_label: "Entire villa · 3 bedrooms", min_total_price: 1200,
+      currency_code: "GBP", max_occupancy: 6, booking_url: "https://booking.example/real",
+    }] } }), { status: 200 })));
+
+    const [hotel] = await searchHotelsStayApi({ ...params, destId: "london", adults: 6, rooms: 1, checkin: "2026-08-21", checkout: "2026-08-23" });
+    expect(hotel).toBeDefined();
+    if (!hotel) throw new Error("expected normalized hotel");
+    expect(hotel).toMatchObject({ type: "entire_home", capacity: 6, accommodationClass: "ENTIRE_HOME" });
+    expect(hotel.offers[0]).toMatchObject({ rawAmount: 1200, rawBasis: "STAY_TOTAL", groupStayTotal: 1200, perPersonStay: 200, perPersonPerNight: 100, url: "https://booking.example/real", estimated: false });
   });
 
   it("rejects an HTTP 200 response with no valid hotels", async () => {

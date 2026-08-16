@@ -31,6 +31,14 @@ export type PriceOffer = {
   pricePerNight: number;
   currency: string;
   url: string | null;
+  /** Canonical provider price metadata. Prices are for the complete search party. */
+  rawAmount?: number;
+  rawBasis?: "STAY_TOTAL" | "NIGHT_TOTAL";
+  groupStayTotal?: number;
+  perPersonStay?: number;
+  perPersonPerNight?: number;
+  unitsCount?: number;
+  estimated?: boolean;
 };
 
 export type HotelOffer = {
@@ -42,6 +50,9 @@ export type HotelOffer = {
   distanceCenterKm: number;
   imageUrl: string | null;
   offers: PriceOffer[];
+  capacity: number | null;
+  unitsCount: number;
+  accommodationClass: "HOTEL" | "ENTIRE_HOME" | "HOSTEL" | "OTHER";
 };
 
 export type ActivityOffer = {
@@ -154,6 +165,9 @@ function normalizeHotel(raw: any, provider: string): HotelOffer | null {
       currency: String(raw?.currency ?? raw?.currency_code ?? raw?.currencycode ?? "EUR"),
       url: raw?.url ?? raw?.commerceInfo?.externalUrl ?? raw?.deeplink ?? raw?.booking_url ?? null,
     }],
+    capacity: null,
+    unitsCount: 1,
+    accommodationClass: /hostel|auberge/i.test(String(raw?.accommodation_type_name ?? raw?.propertyType ?? "")) ? "HOSTEL" : "HOTEL",
   };
 }
 

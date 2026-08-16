@@ -30,34 +30,66 @@ export async function resolveStayApiDestination(destination: string): Promise<{ 
   return lookupStayApiDestination(destination, "fr");
 }
 
-function normalizeHotel(raw: any): HotelOffer | null {
+function classifyAccommodation(raw: any): HotelOffer["accommodationClass"] {
+  const value = [raw?.accommodation_type_name, raw?.propertyType, raw?.type, raw?.unit_configuration_label, raw?.room_name, raw?.description]
+    .filter(Boolean).join(" ").toLowerCase();
+  if (/entire\s+(villa|apartment|home|house|chalet)|holiday\s+home|vacation\s+home|maison\s+enti[eè]re|appartement\s+entier|villa\s+enti[eè]re/.test(value)) return "ENTIRE_HOME";
+  if (/hostel|auberge|guesthouse|guest house/.test(value)) return "HOSTEL";
+  if (/hotel|hôtel|aparthotel|room|chambre/.test(value)) return "HOTEL";
+  return "OTHER";
+}
+
+function positiveInt(...values: unknown[]): number | null {
+  for (const value of values) {
+    const parsed = Math.floor(num(value));
+    if (parsed > 0) return parsed;
+  }
+  return null;
+}
+
+function normalizeHotel(raw: any, params: SearchParams): HotelOffer | null {
   const id = String(raw?.hotel_id ?? raw?.hotelId ?? raw?.property_id ?? raw?.id ?? "");
   const name = raw?.hotel_name ?? raw?.name ?? raw?.property?.name ?? raw?.title;
-  const amount = num(
-    raw?.price?.amount ??
-      raw?.min_total_price ??
-      raw?.composite_price_breakdown?.gross_amount_per_night?.value ??
-      raw?.composite_price_breakdown?.gross_amount?.value ??
-      raw?.priceBreakdown?.grossPrice ??
-      raw?.price ??
-      raw?.pricePerNight,
-  );
+  const stayTotal = num(raw?.min_total_price ?? raw?.composite_price_breakdown?.gross_amount?.value ?? raw?.priceBreakdown?.grossPrice);
+  const nightlyTotal = num(raw?.composite_price_breakdown?.gross_amount_per_night?.value ?? raw?.pricePerNight);
+  const genericAmount = num(raw?.price?.amount ?? raw?.price);
+  const amount = stayTotal || nightlyTotal || genericAmount;
   if (!id || !name || amount <= 0) return null;
 
+  const nights = Math.max(1, params.checkin && params.checkout
+    ? Math.round((new Date(`${params.checkout}T12:00:00Z`).getTime() - new Date(`${params.checkin}T12:00:00Z`).getTime()) / 86400000)
+    : 1);
+  const rawBasis = stayTotal > 0 ? "STAY_TOTAL" as const : "NIGHT_TOTAL" as const;
+  const groupStayTotal = rawBasis === "STAY_TOTAL" ? amount : amount * nights;
+  const unitsCount = Math.max(1, params.rooms ?? 1);
+  const capacity = positiveInt(raw?.max_occupancy, raw?.max_adults, raw?.capacity, raw?.room?.max_occupancy);
+  const accommodationClass = classifyAccommodation(raw);
+  const rawType = String(raw?.accommodation_type_name ?? raw?.propertyType ?? raw?.type ?? "other").toLowerCase();
+  const canonicalType = accommodationClass === "ENTIRE_HOME" ? "entire_home" : accommodationClass === "HOTEL" ? "hotel" : rawType;
   return {
     externalId: `stayapi/booking:${id}`,
     name: String(name),
-    type: String(raw?.accommodation_type_name ?? raw?.propertyType ?? raw?.type ?? "hotel").toLowerCase(),
-    description: raw?.room_name ?? raw?.unit_configuration_label ?? raw?.description ?? null,
+    type: canonicalType,
+    description: [raw?.unit_configuration_label, raw?.room_name, raw?.description].filter(Boolean).join(" · ") || null,
     rating: num(raw?.rating?.score ?? raw?.review_score ?? raw?.reviewScore ?? raw?.star_rating ?? 0),
     distanceCenterKm: num(raw?.distance_from_center ?? raw?.distance ?? 0),
     imageUrl: raw?.image_url ?? raw?.imageUrl ?? raw?.photoUrls?.[0] ?? raw?.main_photo_url ?? null,
     offers: [{
       provider: "stayapi/booking",
-      pricePerNight: Math.round(amount),
+      pricePerNight: Math.round(groupStayTotal / nights),
       currency: String(raw?.price?.currency ?? raw?.currency_code ?? "EUR"),
       url: raw?.url ?? raw?.booking_url ?? raw?.deeplink ?? null,
+      rawAmount: amount,
+      rawBasis,
+      groupStayTotal: Math.round(groupStayTotal),
+      perPersonStay: Math.round(groupStayTotal / Math.max(1, params.adults)),
+      perPersonPerNight: Math.round(groupStayTotal / Math.max(1, params.adults) / nights),
+      unitsCount,
+      estimated: genericAmount > 0 && stayTotal <= 0 && nightlyTotal <= 0,
     }],
+    capacity,
+    unitsCount,
+    accommodationClass,
   };
 }
 
@@ -99,7 +131,7 @@ export async function searchHotelsStayApi(params: SearchParams & { destId?: stri
     throw new Error(`StayAPI /v1/booking/search → ${response.status}: ${JSON.stringify(body).slice(0, 500)}`);
   }
 
-  const hotels = pickArray(body).map(normalizeHotel).filter((hotel): hotel is HotelOffer => Boolean(hotel));
+  const hotels = pickArray(body).map((hotel) => normalizeHotel(hotel, params)).filter((hotel): hotel is HotelOffer => Boolean(hotel));
   if (!hotels.length) throw new Error(`StayAPI: aucun hôtel trouvé pour dest_id "${destId}" (${params.destination})`);
   return hotels;
 }

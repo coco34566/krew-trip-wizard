@@ -57,12 +57,27 @@ export async function refreshExternalCatalogForTrip(
     }
   }
 
-  const minRating = Number(aggregated.minAccommodationRating ?? 0);
+  // The existing KREW allocation reserves 35% of the trip budget for lodging.
+  // A veto remains hard; the median/aggregated amount is the target.
+  const targetStayPerPerson = Math.max(0, Number(aggregated.aggregatedBudget ?? trip.budget_per_person ?? 0) * 0.35);
+  const hardTripCap = aggregated.hasBudgetVeto
+    ? Number(aggregated.vetoBudgetMax ?? 0)
+    : Number(aggregated.minGroupBudget ?? 0);
+  const hardStayPerPerson = hardTripCap > 0 ? hardTripCap * 0.35 : null;
   const rawHotelsCount = hotels.length;
+  if (hardStayPerPerson != null) {
+    hotels = hotels.filter((hotel) => (hotel.offers[0]?.perPersonStay ?? Infinity) <= hardStayPerPerson);
+  } else if (targetStayPerPerson > 0) {
+    // Keep a small premium band, but never allow massively over-target offers.
+    hotels = hotels.filter((hotel) => (hotel.offers[0]?.perPersonStay ?? Infinity) <= targetStayPerPerson * 1.25);
+  }
+  const minRating = Number(aggregated.minAccommodationRating ?? 0);
+  const afterBudgetCount = hotels.length;
   if (minRating > 0) hotels = hotels.filter((h) => !h.rating || h.rating >= minRating);
   console.info("[Krew API] StayAPI accommodation results", {
     destination: destinationQuery,
     rawHotelsCount,
+    afterBudgetCount,
     validHotelsCount: hotels.length,
     minRating,
   });
@@ -74,7 +89,7 @@ export async function refreshExternalCatalogForTrip(
   const destinationId = (destUpsert.data as { id: string }).id;
   let accommodationsCount = 0;
   if (hotels.length) {
-    const rows = hotels.slice(0, 30).map((h) => { const best = h.offers.find((offer) => Boolean(offer.url)) ?? h.offers[0]; return { destination_id: destinationId, name: h.name, type: h.type || "hotel", description: h.description, price_per_night_per_person: Math.max(1, Math.round((best?.pricePerNight ?? 0) / Math.max(1, Math.ceil(participants / 2)))), capacity: Math.max(2, participants), rating: h.rating > 5 ? Math.round((h.rating / 2) * 10) / 10 : h.rating, distance_center_km: h.distanceCenterKm, image_url: h.imageUrl, price_offers: h.offers, best_provider: best?.provider ?? null, booking_url: best?.url ?? null, source: best?.provider ?? "stayapi", external_id: h.externalId }; });
+    const rows = hotels.map((h) => { const best = h.offers.find((offer) => Boolean(offer.url)) ?? h.offers[0]; return { destination_id: destinationId, name: h.name, type: h.type || "other", description: h.description, price_per_night_per_person: Math.max(1, Math.round(best?.perPersonPerNight ?? 0)), capacity: h.capacity ?? 0, rating: h.rating > 5 ? Math.round((h.rating / 2) * 10) / 10 : h.rating, distance_center_km: h.distanceCenterKm, image_url: h.imageUrl, price_offers: h.offers, best_provider: best?.provider ?? null, booking_url: best?.url ?? null, source: best?.provider ?? "stayapi", external_id: h.externalId }; });
     // Do not rely on a composite ON CONFLICT target here: some deployed KREW
     // databases only have a partial unique index for (source, external_id),
     // which PostgREST cannot infer. Resolve existing rows first, then let the
