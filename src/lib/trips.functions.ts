@@ -1900,9 +1900,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     if (!tripRes.data) throw new Error("Voyage introuvable");
     const trip = tripRes.data as any;
 
-    if (!isTripAdmin(trip, userId)) {
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut chercher la logistique");
-    }
+    const generateHotels = data.includeTransport === false;
+    const generateTransport = !generateHotels;
 
     // Fetch active participants at the top so bedding config can use it
     const partsRes = await supabase
@@ -1911,6 +1910,13 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       .eq("trip_id", data.tripId);
     if (partsRes.error) throw partsRes.error;
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
+    const isActiveMember = participants.some((p: any) => p.user_id === userId);
+    if (generateHotels && !isTripAdmin(trip, userId)) {
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut chercher les hébergements");
+    }
+    if (generateTransport && !isTripAdmin(trip, userId) && !isActiveMember) {
+      throw new Error("403 Forbidden: seuls les participants du voyage peuvent chercher les transports");
+    }
 
     const selected = await supabase
       .from("recommendations")
@@ -1933,7 +1939,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
 
     let providerErrors: string[] = [];
-    if (data.refreshExternal !== false) {
+    if (generateHotels && data.refreshExternal !== false) {
       try {
         const { refreshExternalCatalogForTrip } = await import(
           "@/lib/external/search-hotels.functions"
@@ -1974,6 +1980,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const adults = Math.min(Math.max(1, effCount), 8);
     const noRooms = Math.max(1, Math.ceil(effCount / 2));
 
+    let topHotels: any[] = [];
+    if (generateHotels) {
     const bookingSearchUrl = (q: string) =>
       `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(q)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=${noRooms}&selected_currency=EUR`;
     const googleHotelsUrl = (q: string) =>
@@ -2248,7 +2256,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       }
     }
 
-    const topHotels = categorizedHotels;
+    topHotels = categorizedHotels;
+    }
 
     // ——— A/R multi-modes ———
     const tripOrigin = (trip.departure_city as string) || "Paris";
@@ -2456,22 +2465,25 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       earliestReturnDepartureTime?: string | null;
       latestReturnTime?: string | null;
       respectedConstraints?: string[];
+      dataKind?: "provider_offer" | "external_search" | "krew_estimate";
+      providerOffer?: import("@/integrations/external/transport.server").TransportQuote | null;
       score?: number;
       matchReasons?: string[];
     };
 
     const modeMeta: { mode: string; modeLabel: string; enabled: boolean }[] = [
       { mode: "flight", modeLabel: "Avion", enabled: !planeRefused && distanceKm >= 250 },
-      { mode: "train", modeLabel: "Train", enabled: distanceKm <= 1400 },
-      { mode: "bus", modeLabel: "Bus", enabled: distanceKm <= 1200 },
+      // Providers futurs : ne pas matérialiser une estimation de distance comme une offre réelle.
+      { mode: "train", modeLabel: "Train", enabled: false },
+      { mode: "bus", modeLabel: "Bus", enabled: false },
       { mode: "car", modeLabel: "Voiture", enabled: distanceKm <= 1000 },
       { mode: "covoiturage", modeLabel: "Covoiturage", enabled: distanceKm <= 800 },
-      { mode: "ferry", modeLabel: "Ferry", enabled: ["corse", "sardaigne", "angleterre", "majorque", "ibiza", "lisbonne", "rome", "athenes", "athens", "porto", "barcelone", "nice"].some(c => destName.toLowerCase().includes(c)) },
+      { mode: "ferry", modeLabel: "Ferry", enabled: false },
     ];
 
     const transports: TransportCard[] = [];
 
-    for (const group of data.includeTransport === false ? [] : subGroups) {
+    for (const group of generateTransport ? subGroups : []) {
       const from = group.departureCity;
       const acceptedModes = group.transportModeAccepted.map(m => m.toLowerCase().trim());
       const hasModeFilter = acceptedModes.length > 0 && !acceptedModes.includes("peu importe");
@@ -2494,7 +2506,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             latestReturnTime: group.latestReturnTime,
           });
           if (apiQuote?.pricePerPerson > 0) {
-            flightApiQuote = apiQuote;
+            const hasImperativeTimeConstraint = Boolean(group.earliestDepartureTime || group.latestArrivalTime || group.earliestReturnDepartureTime || group.latestReturnTime);
+            if (!(apiQuote.dataKind === "krew_estimate" && hasImperativeTimeConstraint)) flightApiQuote = apiQuote;
           }
         } catch (e) {
           providerErrors.push(`transport ${from}: ${String(e).slice(0, 80)}`);
@@ -2607,8 +2620,10 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           url: primaryUrl,
           searchUrl: exactSearchUrl,
           provider: providerName,
+          dataKind: m.mode === "flight" && flightApiQuote ? (flightApiQuote.dataKind ?? "provider_offer") : "krew_estimate",
+          providerOffer: m.mode === "flight" ? flightApiQuote : null,
           note: m.mode === "flight" && flightApiQuote
-            ? (providerName ? `prix ${providerName} réel` : "prix API réel")
+            ? (flightApiQuote.dataKind === "krew_estimate" ? "estimation KREW — aucun tarif fournisseur vérifié" : providerName ? `prix ${providerName} réel` : "prix API réel")
             : "prix indicatif basé sur la distance",
           links: links.slice(0, 4),
           durationHours: duration,
@@ -2630,31 +2645,12 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       (a, b) => a.city.localeCompare(b.city) || a.pricePerPerson - b.pricePerPerson,
     );
 
-    const logistics = {
-      destination: destName,
-      country: destCountry,
-      nights,
-      checkin,
-      checkout,
-      hotels: topHotels,
-      transports: data.includeTransport === false
-        ? (Array.isArray((trip.group_logistics as any)?.transports)
-            ? (trip.group_logistics as any).transports
-            : [])
-        : transports,
-      providerErrors,
-      generatedAt: new Date().toISOString(),
-    };
-
-    // Préserver votes hôtels + choix transports déjà enregistrés
+    // Mise à jour additive : une génération conserve l'autre domaine, ses votes et ses statuts.
     const prev = (trip.group_logistics as any) || {};
-    const logisticsWithVotes = {
-      ...logistics,
-      hotelVotes: Array.isArray(prev.hotelVotes) ? prev.hotelVotes : [],
-      transportPicks: Array.isArray(prev.transportPicks) ? prev.transportPicks : [],
-      selectedHotelId: prev.selectedHotelId ?? null,
-      hotelBookingStatus: prev.hotelBookingStatus ?? null,
-    };
+    const common = { destination: destName, country: destCountry, nights, checkin, checkout };
+    const logisticsWithVotes = generateHotels
+      ? { ...prev, ...common, hotels: topHotels, hotelProviderErrors: providerErrors, hotelsGeneratedAt: new Date().toISOString() }
+      : { ...prev, ...common, transports, transportProviderErrors: providerErrors, transportsGeneratedAt: new Date().toISOString() };
 
     await supabase
       .from("trips")
@@ -2663,7 +2659,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     // Update selected recommendation accommodation_id if a top hotel was selected or top scored
     const bestHotelId = topHotels[0]?.id;
-    if (bestHotelId && !bestHotelId.startsWith("portal-")) {
+    if (generateHotels && bestHotelId && !bestHotelId.startsWith("portal-")) {
       await supabase
         .from("recommendations")
         .update({ accommodation_id: bestHotelId })

@@ -18,6 +18,21 @@ export type TransportQuote = {
   searchUrl?: string | null;
   rawError?: string | null;
   outsideTimeWindow?: boolean;
+  dataKind?: "provider_offer" | "external_search" | "krew_estimate";
+  airline?: string | null;
+  origin?: string | null;
+  departureAirport?: string | null;
+  destination?: string | null;
+  arrivalAirport?: string | null;
+  outboundTime?: string | null;
+  outboundArrivalTime?: string | null;
+  returnDepartureTime?: string | null;
+  returnTime?: string | null;
+  durationMinutes?: number | null;
+  stops?: number;
+  segments?: unknown[];
+  adults?: number;
+  bookingToken?: string | null;
 };
 
 async function rapid(host: string, key: string, path: string, params: Record<string, string>) {
@@ -97,7 +112,7 @@ function extractItemTimes(item: any, provider: string): { outboundTime: string |
 
 export function checkTransportTimeCompatibility(
   times: { outboundTime?: string | null; outboundArrivalTime?: string | null; returnDepartureTime?: string | null; returnTime?: string | null },
-  constraints: { earliestDepartureTime?: string | null; latestArrivalTime?: string | null; earliestReturnDepartureTime?: string | null; latestReturnTime?: string | null },
+  constraints: { earliestDepartureTime?: string | null | undefined; latestArrivalTime?: string | null | undefined; earliestReturnDepartureTime?: string | null | undefined; latestReturnTime?: string | null | undefined },
   isImperative: boolean = true,
 ): { isCompatible: boolean; reason?: string } {
   if (constraints.earliestDepartureTime) {
@@ -165,6 +180,12 @@ export async function searchTransportRoundTrip(opts: {
   latestArrivalTime?: string | null;
   earliestReturnDepartureTime?: string | null;
 }): Promise<TransportQuote> {
+  try {
+    const { searchGoogleFlightsRoundTrip } = await import("./searchapi-google-flights.server");
+    return await searchGoogleFlightsRoundTrip(opts);
+  } catch (searchApiError) {
+    if (process.env["SEARCHAPI_API"]) reportServerError(searchApiError, { provider: "searchapi/google_flights", kind: "transport", originCity: opts.originCity, destinationCity: opts.destinationCity });
+  }
   const key = process.env["HOTELS_RAPIDAPI_KEY"] ?? process.env["KAYAK_RAPIDAPI_KEY"] ?? "";
   const kayakHost = process.env["KAYAK_SEARCH_RAPIDAPI_HOST"] ?? "kayak-search.p.rapidapi.com";
   const kiwiHost = process.env["KIWI_RAPIDAPI_HOST"] ?? "kiwi-com-cheap-flights.p.rapidapi.com";
@@ -173,7 +194,7 @@ export async function searchTransportRoundTrip(opts: {
   const exactSearchUrl = buildExactKayakSearchUrl({ ...opts, adults });
 
   if (!key) {
-    return { pricePerPerson: fallbackPrice, currency: "EUR", provider: "estimate", mode: "estimate", label: "Estimation (pas de clé RapidAPI)", url: null, searchUrl: exactSearchUrl, rawError: "missing_api_key" };
+    return { pricePerPerson: fallbackPrice, currency: "EUR", provider: "estimate", mode: "estimate", dataKind: "krew_estimate", label: "Estimation KREW (aucune offre avion vérifiée)", url: null, searchUrl: exactSearchUrl, rawError: "missing_api_key" };
   }
 
   let kayakError: any = null;
@@ -192,7 +213,7 @@ export async function searchTransportRoundTrip(opts: {
     const items = lists.find((a) => a.length > 0) ?? [];
     const result = pickCheapestPriceInWindow(items, "kayak", opts.earliestDepartureTime, opts.latestReturnTime, opts.latestArrivalTime, opts.earliestReturnDepartureTime);
     if (result) {
-      return { pricePerPerson: Math.round(result.best.price), currency: "EUR", provider: "kayak", mode: "flight", label: result.best.label, url: result.best.url, searchUrl: exactSearchUrl, rawError: null, outsideTimeWindow: result.outsideWindow };
+      return { pricePerPerson: Math.round(result.best.price), currency: "EUR", provider: "kayak", mode: "flight", dataKind: "provider_offer", label: result.best.label, url: result.best.url, searchUrl: exactSearchUrl, rawError: null, outsideTimeWindow: result.outsideWindow };
     }
   } catch (err) { kayakError = err; }
 
@@ -221,11 +242,11 @@ export async function searchTransportRoundTrip(opts: {
     if (Array.isArray(items)) {
       const result = pickCheapestPriceInWindow(items, "kiwi", opts.earliestDepartureTime, opts.latestReturnTime, opts.latestArrivalTime, opts.earliestReturnDepartureTime);
       if (result) {
-        return { pricePerPerson: Math.round(result.best.price), currency: "EUR", provider: "kiwi", mode: "flight", label: result.best.label, url: result.best.url, searchUrl: exactSearchUrl, rawError: null, outsideTimeWindow: result.outsideWindow };
+        return { pricePerPerson: Math.round(result.best.price), currency: "EUR", provider: "kiwi", mode: "flight", dataKind: "provider_offer", label: result.best.label, url: result.best.url, searchUrl: exactSearchUrl, rawError: null, outsideTimeWindow: result.outsideWindow };
       }
     }
   } catch (err) { kiwiError = err; }
 
   reportServerError(new Error(`Toutes les cotations de transport ont échoué. Kayak error: ${kayakError?.message || kayakError}. Kiwi error: ${kiwiError?.message || kiwiError}`), { provider: "kayak/kiwi", kind: "transport", originCity: opts.originCity, destinationCity: opts.destinationCity });
-  return { pricePerPerson: fallbackPrice, currency: "EUR", provider: "estimate", mode: "estimate", label: "Estimation (Kayak/Kiwi indisponibles)", url: null, searchUrl: exactSearchUrl, rawError: "no_live_quote" };
+  return { pricePerPerson: fallbackPrice, currency: "EUR", provider: "estimate", mode: "estimate", dataKind: "krew_estimate", label: "Estimation KREW (offres avion indisponibles)", url: null, searchUrl: exactSearchUrl, rawError: "no_live_quote" };
 }

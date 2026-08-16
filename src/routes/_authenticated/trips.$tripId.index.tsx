@@ -394,10 +394,9 @@ function TripDetail() {
     mutationFn: () => proposeLogisticsFn({ data: { tripId, refreshExternal: true } }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      const nH = res?.logistics?.hotels?.length ?? 0;
       const nT = res?.logistics?.transports?.length ?? 0;
-      toast.success(`Logistique : ${nH} hôtels · ${nT} trajets`);
-      document.getElementById("hub-logistics")?.scrollIntoView({ behavior: "smooth" });
+      toast.success(`Transports : ${nT} proposition(s)`);
+      document.getElementById("hub-transports")?.scrollIntoView({ behavior: "smooth" });
     },
     onError: (e: any) => handleMutationError(e, "Recherche logistique impossible"),
   });
@@ -1533,8 +1532,7 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {destinationSelected ? (
-        <section id="hub-transports" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+      <section id="hub-transports" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
@@ -1546,20 +1544,14 @@ function TripDetail() {
                 une fois tout le monde fixé.
               </p>
             </div>
-            {Boolean(data.isOwner || (trip && ((trip as any).co_organizer_id === data.userId || (trip as any).coOrganizerId === data.userId))) ? (
-              <Button
-                variant="outline"
-                disabled={logisticsMutation.isPending}
-                onClick={() => logisticsMutation.mutate()}
-              >
-                {logisticsMutation.isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Plane />
-                )}
-                {(trip as any).group_logistics?.transports?.length ? "Actualiser les trajets" : "Générer les options"}
-              </Button>
-            ) : null}
+            <Button
+              variant="outline"
+              disabled={!destinationSelected || logisticsMutation.isPending}
+              onClick={() => logisticsMutation.mutate()}
+            >
+              {logisticsMutation.isPending ? <Loader2 className="animate-spin" /> : <Plane />}
+              {logisticsMutation.isPending ? "Recherche en cours…" : "Générer des propositions"}
+            </Button>
           </div>
 
 
@@ -1600,7 +1592,7 @@ function TripDetail() {
 
           {!(trip as any).group_logistics?.transports?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              Les options de trajet apparaîtront après la recherche logistique (orga).
+              Génère des propositions de transport pour le groupe.
             </p>
           ) : (
             <div className="space-y-6">
@@ -1736,8 +1728,7 @@ function TripDetail() {
               })()}
             </div>
           )}
-        </section>
-      ) : null}
+      </section>
 
       {destinationSelected ? (
         <section id="hub-activities-plan" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
