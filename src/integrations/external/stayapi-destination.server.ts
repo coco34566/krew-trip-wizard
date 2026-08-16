@@ -29,11 +29,10 @@ export async function lookupStayApiDestination(query: string, language = "fr") {
 
   // StayAPI's destination lookup can return the resolved Booking.com
   // destination directly at the top level. Prefer that canonical result.
-  const topLevelId = body?.dest_id ?? body?.destination_id ?? body?.id;
-  if (topLevelId !== undefined && topLevelId !== null && String(topLevelId) !== "") {
+  if (body?.dest_id !== undefined && body?.dest_id !== null && String(body.dest_id) !== "") {
     return {
-      id: String(topLevelId),
-      type: String(body?.dest_type ?? body?.type ?? "CITY").toUpperCase(),
+      id: String(body.dest_id),
+      type: body.dest_type ?? "CITY",
     };
   }
 
