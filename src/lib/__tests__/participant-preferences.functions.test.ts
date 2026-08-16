@@ -169,7 +169,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
         ],
       });
       const result = await getParticipantsProgressHelper(supabase, "trip-123");
@@ -182,7 +182,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
         ],
         preferences: [{ user_id: "orga-uid" }],
         availabilities: [{ user_id: "orga-uid" }],
@@ -197,7 +197,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
         ],
         starPrefs: {
           user_id: "orga-uid", // Rempli par l'organisateur (user_id est l'id de l'orga en base)
@@ -215,7 +215,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
         ],
         preferences: [{ user_id: "orga-uid" }],
         availabilities: [{ user_id: "orga-uid" }],
@@ -235,7 +235,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
           { id: "p3", user_id: "p3-uid", email: "p3@krew.travel", display_name: "Participant 3", status: "accepte" },
           { id: "p4", user_id: "p4-uid", email: "p4@krew.travel", display_name: "Participant 4", status: "accepte" },
         ],
@@ -257,7 +257,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
           { id: "p3", user_id: "p3-uid", email: "p3@krew.travel", display_name: "Participant 3", status: "accepte" },
           { id: "p4", user_id: "p4-uid", email: "p4@krew.travel", display_name: "Participant 4", status: "accepte" },
           { id: "p5", user_id: "p5-uid", email: "p5@krew.travel", display_name: "Participant 5", status: "accepte" },
@@ -293,7 +293,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
         ],
         starPrefs: {
           user_id: "orga-uid",
@@ -309,7 +309,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
         ],
         starPrefs: {
           user_id: "orga-uid",
@@ -325,7 +325,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
         ],
         starPrefs: {
           user_id: "orga-uid",
@@ -342,7 +342,7 @@ describe('getParticipantsProgress', () => {
       const supabase = createSupabaseMock({
         participants: [
           { id: "p1", user_id: "orga-uid", email: "orga@krew.travel", display_name: "Organisateur", status: "accepte" },
-          { id: "p2", user_id: "star-uid", email: "star@krew.travel", display_name: "Léa", status: "accepte" },
+          { id: "p2", user_id: "star-uid", email: null, display_name: "Léa", status: "accepte" },
         ],
         preferences: [{ user_id: "orga-uid" }],
         availabilities: [{ user_id: "orga-uid" }],

@@ -182,7 +182,7 @@ function InvitePage() {
       id: "star-virtual-id",
       trip_id: tripId,
       user_id: starUid,
-      email: "star@krew.travel",
+      email: null,
       display_name: celebratedPerson || "La Star",
       status: "accepte",
       role: "membre",

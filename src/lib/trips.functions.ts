@@ -209,6 +209,36 @@ export const getTripDetail = createServerFn({ method: "GET" })
     };
   });
 
+export const tripParticipantsCountInputSchema = z.object({
+  tripId: z.string().uuid(),
+  participantsCount: z.number().int().min(2).max(25),
+});
+
+export async function updateTripParticipantsCountForUser(supabase: any, userId: string, data: z.infer<typeof tripParticipantsCountInputSchema>) {
+  const trip = await supabase.from("trips").select("id, owner_id").eq("id", data.tripId).maybeSingle();
+  if (trip.error) throw trip.error;
+  if (!trip.data) throw new Error("Voyage introuvable");
+  if (trip.data.owner_id !== userId) throw new Error("Seul le propriétaire principal peut modifier le groupe");
+  const updated = await supabase
+    .from("trips")
+    .update({ participants_count: data.participantsCount, updated_at: new Date().toISOString() })
+    .eq("id", data.tripId)
+    .eq("owner_id", userId)
+    .select("participants_count")
+    .single();
+  if (updated.error) throw updated.error;
+  return { participantsCount: updated.data.participants_count };
+}
+
+export const updateTripParticipantsCount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { tripId: string; participantsCount: number }) =>
+    tripParticipantsCountInputSchema.parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    return updateTripParticipantsCountForUser(context.supabase, context.userId, data);
+  });
+
 export async function createTripHelper(
   supabase: any,
   userId: string,

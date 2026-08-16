@@ -1,129 +1,240 @@
-import { useState, useMemo } from "react";
-import { ClipboardCheck, CheckSquare, Square, ShieldAlert } from "lucide-react";
-import { buildPackingList, type PackingItem } from "@/lib/krew/packing-list";
+import { useEffect, useMemo, useState } from "react";
+import { CheckSquare, ExternalLink, Plus, Square } from "lucide-react";
+import {
+  buildTripPreparation,
+  type PackingItem,
+  type PackingListInput,
+} from "@/lib/krew/packing-list";
+import { resolveShoppingLink, type ShoppingLink } from "@/lib/krew/shopping";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-type PackingListCardProps = {
-  avgTemp?: number | null;
-  activities?: string[];
-  durationDays?: number;
-  eventType?: string | null;
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  documents: "📄 Documents",
-  vetements: "👕 Vêtements",
-  sante: "🏥 Santé",
-  divers: "🎒 Divers & Équipement",
+type Props = PackingListInput & {
+  tripId?: string;
+  participants?: { id: string; display_name?: string | null; email?: string | null }[];
+  shoppingLinks?: Record<string, ShoppingLink | undefined>;
 };
 
 export function PackingListCard({
-  avgTemp,
-  activities = [],
-  durationDays = 2,
-  eventType,
-}: PackingListCardProps) {
-  const packingItems = useMemo(() => {
-    const input: Parameters<typeof buildPackingList>[0] = {};
-    if (avgTemp !== undefined) input.avgTemp = avgTemp;
-    if (activities !== undefined) input.activities = activities;
-    if (durationDays !== undefined) input.durationDays = durationDays;
-    if (eventType !== undefined) input.eventType = eventType;
-    return buildPackingList(input);
-  }, [avgTemp, activities, durationDays, eventType]);
-
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-
-  const toggleItem = (label: string) => {
-    setChecked((prev) => ({
-      ...prev,
-      [label]: !prev[label],
-    }));
-  };
-
-  const grouped = useMemo(() => {
-    const groups: Record<string, PackingItem[]> = {
-      documents: [],
-      vetements: [],
-      sante: [],
-      divers: [],
-    };
-    for (const item of packingItems) {
-      const cat = item.category;
-      const grp = groups[cat];
-      if (grp) {
-        grp.push(item);
-      } else {
-        groups["divers"]!.push(item);
-      }
+  tripId = "preview",
+  participants = [],
+  shoppingLinks = {},
+  ...input
+}: Props) {
+  const storageKey = `krew:packing:${tripId}`;
+  const [state, setState] = useState<{
+    checked: Record<string, boolean>;
+    manual: PackingItem[];
+    assigned: Record<string, string>;
+    owned: Record<string, boolean>;
+  }>({ checked: {}, manual: [], assigned: {}, owned: {} });
+  const [manualLabel, setManualLabel] = useState("");
+  const [manualMode, setManualMode] = useState<"personal" | "group">("personal");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) setState(JSON.parse(saved));
+    } catch {
+      /* stockage indisponible */
     }
-    return groups;
-  }, [packingItems]);
-
-  const totalItems = packingItems.length;
-  const checkedCount = Object.values(checked).filter(Boolean).length;
-
-  return (
-    <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <ClipboardCheck className="size-5 text-primary" />
-          <h2 className="font-display text-xl font-semibold tracking-tight">Liste de voyage</h2>
-        </div>
-        <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-medium">
-          {checkedCount} / {totalItems} complété
-        </span>
-      </div>
-      <p className="text-xs text-muted-foreground leading-snug">
-        Générée automatiquement selon la durée ({durationDays} jours) et les activités prévues. Cochez les cases au fur et à mesure.
-      </p>
-
-      <div className="grid gap-6 md:grid-cols-2 mt-4">
-        {Object.entries(grouped).map(([catKey, list]) => {
-          if (list.length === 0) return null;
-          return (
-            <div key={catKey} className="space-y-2.5">
-              <h3 className="text-xs uppercase font-semibold tracking-wider text-muted-foreground">
-                {CATEGORY_LABELS[catKey] || catKey}
-              </h3>
-              <ul className="space-y-1.5">
-                {list.map((item) => {
-                  const isChecked = Boolean(checked[item.label]);
-                  return (
-                    <li
-                      key={item.label}
-                      onClick={() => toggleItem(item.label)}
-                      className="flex items-start gap-2.5 cursor-pointer select-none group py-1 rounded-md hover:bg-surface/30 px-1.5 transition"
-                    >
-                      <button
-                        type="button"
-                        className="mt-0.5 text-muted-foreground group-hover:text-primary transition shrink-0"
-                      >
-                        {isChecked ? (
-                          <CheckSquare className="size-4.5 text-primary fill-primary/10" />
-                        ) : (
-                          <Square className="size-4.5" />
-                        )}
-                      </button>
-                      <span
-                        className={`text-sm leading-tight transition ${
-                          isChecked ? "line-through text-muted-foreground" : "text-foreground"
-                        }`}
-                      >
-                        {item.label}
-                        {item.essential && !isChecked && (
-                          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] bg-red-500/10 text-red-500 dark:text-red-400 px-1.5 py-0 rounded-full font-medium">
-                            Requis
-                          </span>
-                        )}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+  }, [storageKey]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    } catch {
+      /* stockage indisponible */
+    }
+  }, [state, storageKey]);
+  const result = useMemo(
+    () => buildTripPreparation({ ...input, manualItems: state.manual }),
+    [
+      input.avgTemp,
+      input.rainProb,
+      input.isNautical,
+      input.isCold,
+      input.durationDays,
+      input.eventType,
+      input.accommodation,
+      JSON.stringify(input.activities),
+      JSON.stringify(input.accommodationAmenities),
+      JSON.stringify(state.manual),
+    ],
+  );
+  const toggle = (id: string) =>
+    setState((s) => ({ ...s, checked: { ...s.checked, [id]: !s.checked[id] } }));
+  const addManual = () => {
+    const label = manualLabel.trim();
+    if (!label) return;
+    const id = `manual_${Date.now()}`;
+    const item: PackingItem = {
+      id,
+      label,
+      category: "divers",
+      essential: false,
+      mode: manualMode,
+      quantity: { type: manualMode === "personal" ? "per_person" : "one_for_group" },
+      sources: ["manual"],
+      reasons: ["Ajout manuel"],
+      manual: true,
+    };
+    setState((s) => ({ ...s, manual: [...s.manual, item] }));
+    setManualLabel("");
+  };
+  const renderItems = (items: PackingItem[], group = false) => (
+    <ul className="space-y-2">
+      {items.map((item) => {
+        const link =
+          item.purchasable && !state.owned[item.id]
+            ? resolveShoppingLink(item.id, shoppingLinks)
+            : null;
+        const participant = participants.find((p) => p.id === state.assigned[item.id]);
+        return (
+          <li key={item.id} className="rounded-xl border border-border/70 p-3 text-sm">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                aria-label={`Cocher ${item.label}`}
+                onClick={() => toggle(item.id)}
+              >
+                {state.checked[item.id] ? (
+                  <CheckSquare className="size-4 text-primary" />
+                ) : (
+                  <Square className="size-4" />
+                )}
+              </button>
+              <div className="min-w-0 flex-1">
+                <span
+                  className={
+                    state.checked[item.id] ? "line-through text-muted-foreground" : "font-medium"
+                  }
+                >
+                  {item.label}
+                </span>
+                <p className="text-xs italic text-muted-foreground">{item.reasons.join(" · ")}</p>
+              </div>
             </div>
-          );
-        })}
+            {group ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 pl-6">
+                <select
+                  aria-label={`Assigner ${item.label}`}
+                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                  value={state.assigned[item.id] || ""}
+                  onChange={(e) =>
+                    setState((s) => ({
+                      ...s,
+                      assigned: { ...s.assigned, [item.id]: e.target.value },
+                    }))
+                  }
+                >
+                  <option value="">Qui s'en charge ?</option>
+                  {participants.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.display_name || p.email?.split("@")[0] || "Participant"}
+                    </option>
+                  ))}
+                </select>
+                {item.purchasable ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setState((s) => ({
+                        ...s,
+                        owned: { ...s.owned, [item.id]: !s.owned[item.id] },
+                      }))
+                    }
+                  >
+                    {state.owned[item.id]
+                      ? `${participant?.display_name || "Quelqu'un"} l'apporte`
+                      : "Je l’ai / Je l’apporte"}
+                  </Button>
+                ) : null}
+                {link ? (
+                  <Button asChild size="sm" variant="ghost">
+                    <a
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      data-item={item.id}
+                      data-merchant={link.merchant}
+                    >
+                      Voir des options <ExternalLink className="size-3" />
+                    </a>
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+  return (
+    <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-5 shadow-sm">
+      <div>
+        <h2 className="font-display text-xl font-semibold">Liste de voyage contextuelle</h2>
+        <p className="text-xs text-muted-foreground">
+          Synchronisée avec le planning. Les ajouts manuels sont toujours conservés.
+        </p>
       </div>
-    </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div>
+          <h3 className="mb-3 font-semibold">Mes affaires</h3>
+          {renderItems(result.personal)}
+        </div>
+        <div>
+          <h3 className="mb-3 font-semibold">Pour le groupe</h3>
+          {renderItems(result.group, true)}
+        </div>
+        <div>
+          <h3 className="mb-3 font-semibold">Courses</h3>
+          <ul className="space-y-2 text-sm">
+            {result.groceries.map((g) => (
+              <li key={g.id} className="rounded-xl border p-3">
+                <span>
+                  {g.label}
+                  {g.optional ? " (facultatif)" : ""}
+                </span>
+                <p className="text-xs italic text-muted-foreground">{g.reasons.join(" · ")}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h3 className="mb-3 font-semibold">À faire</h3>
+          <ul className="space-y-2 text-sm">
+            {result.tasks.map((t) => (
+              <li key={t.id} className="rounded-xl border p-3">
+                <span>{t.label}</span>
+                <p className="text-xs italic text-muted-foreground">
+                  {t.reasons.join(" · ")} · Assigner dans les tâches
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 border-t pt-4">
+        <Input
+          value={manualLabel}
+          onChange={(e) => setManualLabel(e.target.value)}
+          placeholder="Ajouter un élément"
+          className="max-w-xs"
+        />
+        <select
+          aria-label="Type de l'élément"
+          value={manualMode}
+          onChange={(e) => setManualMode(e.target.value as "personal" | "group")}
+          className="rounded-md border bg-background px-2 text-sm"
+        >
+          <option value="personal">Mes affaires</option>
+          <option value="group">Pour le groupe</option>
+        </select>
+        <Button type="button" variant="outline" onClick={addManual}>
+          <Plus className="size-4" /> Ajouter
+        </Button>
+      </div>
+    </section>
   );
 }
