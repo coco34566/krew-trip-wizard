@@ -105,21 +105,7 @@ type InteractionResponse = {
 
 function getGeminiConfig(): GeminiConfig | null {
   const apiKey = process.env["GEMINI_API_KEY"];
-  if (!apiKey) {
-    console.info("[Gemini env diagnostic]", {
-      processEnvPresent: false,
-      geminiEnvNames: Object.keys(process.env).filter((key) => key.startsWith("GEMINI")),
-      vercelEnv: process.env["VERCEL_ENV"] ?? null,
-      vercelGitCommitRef: process.env["VERCEL_GIT_COMMIT_REF"] ?? null,
-    });
-    return null;
-  }
-  console.info("[Gemini env diagnostic]", {
-    processEnvPresent: true,
-    geminiEnvNames: Object.keys(process.env).filter((key) => key.startsWith("GEMINI")),
-    vercelEnv: process.env["VERCEL_ENV"] ?? null,
-    vercelGitCommitRef: process.env["VERCEL_GIT_COMMIT_REF"] ?? null,
-  });
+  if (!apiKey) return null;
   return {
     apiKey,
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/interactions",
@@ -158,7 +144,7 @@ function fingerprint(input: AiDiscoveryInput): string {
 
 const cache = new Map<string, { at: number; candidates: AiCandidate[]; provider: string }>();
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
-const REQUEST_TIMEOUT_MS = 12_000;
+export const REQUEST_TIMEOUT_MS = 30_000;
 
 export function clearDestinationAiCacheForTests() {
   cache.clear();

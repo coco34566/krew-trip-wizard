@@ -28,7 +28,6 @@ import {
 } from "./candidate-merge";
 import { distanceFromParisKm, fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery } from "./stay-profiles";
-import { discoverProperties, propertyToAccommodationRow, resolvePropertyDestination } from "./property-discovery.server";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
@@ -760,30 +759,6 @@ export async function resolveDesiredDestination(
   return aggregated.desiredDestination;
 }
 
-/** Enrichit le catalogue via les APIs pour une liste de destinations (max 5). */
-async function enrichCatalogWithExternalApis(
-  supabase: SupabaseClient,
-  tripId: string,
-  destinationNames: string[],
-): Promise<string[]> {
-  if (!destinationNames.length) return [];
-
-  const { refreshExternalCatalogForTrip } = await import("@/lib/external/search-hotels.functions");
-  const providerErrors: string[] = [];
-
-  for (const destName of [...new Set(destinationNames)].slice(0, 12)) {
-    try {
-      const externalRes = await refreshExternalCatalogForTrip(supabase, tripId, destName);
-      if (externalRes.providerErrors?.length) {
-        providerErrors.push(...externalRes.providerErrors.map((e) => `${destName}: ${e}`));
-      }
-    } catch (e) {
-      providerErrors.push(`${destName}: ${String(e).slice(0, 200)}`);
-    }
-  }
-
-  return providerErrors;
-}
 
 export type GenerationReadiness = {
   canGenerate: boolean;
@@ -1404,48 +1379,8 @@ export async function generateRecommendationsForTrip(
     }
   }
 
-  // Property-led exploration is additive: failures never interrupt normal destination discovery.
-  if (routeDiscovery(readiness.profile.selectedConcepts).propertyDiscovery) {
-    try {
-      const properties = await discoverProperties({
-        concepts: readiness.profile.selectedConcepts,
-        participants: ctx.participants,
-        territories: mergedCandidates.flatMap((candidate) => [candidate.name, ...(candidate.anchorPlaces ?? [])]).slice(0, 6),
-        amenities: aggregated.requiredAmenities ?? [],
-        activities: ctx.activityCategories,
-        environment: aggregated.wantedEnvTypes ?? [],
-        localMobility: aggregated.groupLocalMobility ?? null,
-        accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
-      });
-      for (const property of properties) {
-        const resolvedPropertyLocation = resolvePropertyDestination(property);
-        if (!resolvedPropertyLocation) continue;
-        const geo = await geocodeDestination([resolvedPropertyLocation.name, resolvedPropertyLocation.country].filter(Boolean).join(", "));
-        if (!geo) continue;
-        const destinationName = resolvedPropertyLocation.name;
-        const slug = `property-${normCity(destinationName).replace(/[^a-z0-9]+/g, "-")}`;
-        const destination = await supabaseAdmin.from("destinations").upsert({
-          slug,
-          name: destinationName,
-          country: property.country || geo.country || "France",
-          destination_type: "region_territory",
-          anchor_places: [property.locality || destinationName],
-          latitude: geo.latitude,
-          longitude: geo.longitude,
-          distance_from_paris_km: distanceFromParisKm(geo.latitude, geo.longitude),
-          source: "property_discovery",
-          external_id: `property-location:${slug}`,
-        } as any, { onConflict: "source,external_id" }).select("id").single();
-        if (!destination.data?.id) continue;
-        if (!shortlistNames.some((name) => normCity(name) === normCity(destinationName))) shortlistNames.push(destinationName);
-        const accommodation = propertyToAccommodationRow(property, destination.data.id, ctx.participants, ctx.nights);
-        if (!accommodation) continue;
-        await supabaseAdmin.from("accommodations").upsert(accommodation as any, { onConflict: "source,external_id" });
-      }
-    } catch (error) {
-      reportServerError(error, { provider: "property_discovery", kind: "property_pipeline", tripId });
-    }
-  }
+  // Property-led concepts influence destination discovery above, but real property searches
+  // belong exclusively to the later Hotels stage.
 
   // 1c) Villes proposées par l'IA absentes du catalogue → ligne `ai_estimate`
   //     (estimations LLM + saison réelle via Open-Meteo quand disponible).
@@ -1491,7 +1426,7 @@ export async function generateRecommendationsForTrip(
     }
   }
 
-  // 2) Enrichissement API (hôtels / activités réels) UNIQUEMENT sur la shortlist scorée
+  // 2) Journalise la source de discovery sans lancer d’enrichissement externe.
   if (discoverySource === "merged") {
     // trace légère pour debug orga
     console.info("[discovery] shortlist fusionnée (IA + règles):", shortlistNames.join(", "));
@@ -1499,19 +1434,9 @@ export async function generateRecommendationsForTrip(
     console.info("[discovery] shortlist locale scorée:", shortlistNames.join(", "));
   }
 
-  const enrichmentPlaces = [...new Set([
-    ...mergedCandidates.flatMap((candidate) =>
-      candidate.destinationType === "city" ? [candidate.name] : (candidate.anchorPlaces ?? [candidate.name]),
-    ),
-    ...shortlistNames,
-  ])];
-  // Activity discovery is useful without dates; the provider boundary itself
-  // skips date-dependent hotel availability when dates are unknown.
-  const providerErrors = await enrichCatalogWithExternalApis(
-    supabase,
-    tripId,
-    [...new Set(enrichmentPlaces.length ? enrichmentPlaces : shortlistNames)].slice(0, 12),
-  );
+  // Destination discovery must never contact hotel or activity providers. Provider
+  // enrichment is deferred until the dedicated Hotels and Activities stages.
+  const providerErrors: string[] = [];
 
   // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
   //    (sans ce filtre, loadTravelCatalog recharge tout le seed SQL)
