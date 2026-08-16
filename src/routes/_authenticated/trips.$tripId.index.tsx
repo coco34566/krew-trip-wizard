@@ -89,6 +89,7 @@ import {
 import { getStarPreferences } from "@/lib/star-preferences.functions";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
+import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { isTripAdmin } from "@/lib/krew/engine";
 
@@ -1014,7 +1015,7 @@ function TripDetail() {
       id: "star-virtual-id",
       trip_id: tripId,
       user_id: starUid,
-      email: "star@krew.travel",
+      email: null,
       display_name: celebratedPerson || "La Star",
       status: "accepte",
       role: "membre",
@@ -1052,9 +1053,13 @@ function TripDetail() {
     toast.success("Calendrier .ics téléchargé !");
   };
 
-  const activitiesValidated = Boolean(
-    ((trip as any).selected_activity_ids?.length ?? 0) > 0 || (activityVotes ?? []).length > 0,
-  );
+  const selectedActivityIdsList = ((trip as any).selected_activity_ids ?? []) as string[];
+  const activitiesValidated = selectedActivityIdsList.length > 0;
+  const finalRestitutionReady = isFinalTripPreparationReady({
+    destinationSelected,
+    hasItinerary,
+    selectedActivityIds: selectedActivityIdsList,
+  });
   const tripEndDatePassed = Boolean(
     trip.end_date && new Date(trip.end_date + "T23:59:59") < new Date(),
   );
@@ -1068,7 +1073,7 @@ function TripDetail() {
           ...trip,
           participants: participants,
         }}
-        isOwner={data.isOwner}
+        isOwner={data.isCreator}
         participantsCount={progress?.total || participants.length}
         progressAnswered={progress?.answered ?? 0}
         progressTotal={progress?.total || participants.length}
@@ -1097,8 +1102,8 @@ function TripDetail() {
         tripEndDatePassed={tripEndDatePassed}
       ></TripHubDashboard>
 
-      {/* Résumé live + partage WhatsApp */}
-      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+      {/* Restitution finale uniquement lorsque destination et planning sont réellement validés. */}
+      {finalRestitutionReady ? <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
@@ -1187,7 +1192,7 @@ function TripDetail() {
             ) : null}
           </ul>
         ) : null}
-      </section>
+      </section> : null}
 
       <section
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2329,7 +2334,9 @@ function TripDetail() {
             </div>
           </section>
 
-          <PackingListCard
+          {finalRestitutionReady ? <PackingListCard
+            tripId={tripId}
+            participants={participants}
             avgTemp={null}
             activities={
               hasItinerary && (trip as any).group_itinerary?.days
@@ -2344,7 +2351,13 @@ function TripDetail() {
             }
             durationDays={liveBudget.nights || 2}
             eventType={trip.event_type}
-          />
+            accommodation={String(
+              logistics.hotels?.find((hotel: any) => hotel.id === logistics.selectedHotelId)?.type ||
+                (selectedReco as any)?.accommodations?.type ||
+                logistics.accommodationType ||
+                "",
+            )}
+          /> : null}
         </div>
       ) : null}
 
@@ -2469,7 +2482,7 @@ function TripDetail() {
                         </Badge>
                       ) : null}
                     </div>
-                    {p.email && p.email !== "star@krew.travel" ? <p className="text-sm text-muted-foreground mt-0.5">{p.email}</p> : null}
+                    {p.email ? <p className="text-sm text-muted-foreground mt-0.5">{p.email}</p> : null}
                     {city || userPick ? (
                       <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
                         {city ? <span>📍 Départ : <strong className="text-foreground">{city}</strong></span> : null}

@@ -503,7 +503,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     partsList.push({
       id: "star-virtual-id",
       user_id: starUid,
-      email: "star@krew.travel",
+      email: null,
       display_name: celebratedPerson || "La Star",
       status: "accepte",
       isStar: true,
