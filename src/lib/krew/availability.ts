@@ -72,11 +72,7 @@ export function windowOkFor(entry: AvailabilityEntry, start: string, end: string
 /**
  * Explore les fenêtres candidates de `nights` nuits sur l'union des dates mentionnées.
  */
-export function rankDateWindows(
-  entries: AvailabilityEntry[],
-  nights = 2,
-  limit = 5,
-): DateWindow[] {
+export function rankDateWindows(entries: AvailabilityEntry[], nights = 2, limit = 5): DateWindow[] {
   if (!entries.length) return [];
 
   const allDates = new Set<string>();
@@ -161,6 +157,7 @@ export type TripStepId =
   | "availability"
   | "questionnaire"
   | "dates"
+  | "profile"
   | "destination"
   | "hotels"
   | "transport"
@@ -183,6 +180,8 @@ export function buildTripSteps(input: {
   availabilityAnswered: number;
   questionnaireAnswered: number;
   datesLocked: boolean;
+  profileReady?: boolean;
+  profileValidated?: boolean;
   hasRecommendations: boolean;
   destinationSelected: boolean;
   /** Au moins un vote hôtel (ou hôtel plébiscité) */
@@ -201,6 +200,9 @@ export function buildTripSteps(input: {
   let availDone = input.availabilityAnswered >= minAnswers;
   let questDone = input.questionnaireAnswered >= minAnswers;
   let datesDone = Boolean(input.datesLocked);
+  let profileDone = Boolean(
+    input.profileValidated || input.hasRecommendations || input.destinationSelected,
+  );
   let destDone = Boolean(input.destinationSelected);
   let hotelDone = Boolean(input.hotelVoted);
   let transportDone = Boolean(input.transportPicked);
@@ -226,6 +228,7 @@ export function buildTripSteps(input: {
   }
   if (hotelDone) destDone = true;
   if (destDone) {
+    profileDone = true;
     datesDone = true;
     questDone = true;
     availDone = true;
@@ -237,11 +240,7 @@ export function buildTripSteps(input: {
   if (questDone) availDone = true;
 
   const inviteDone =
-    input.participantsJoined >= 1 ||
-    availDone ||
-    questDone ||
-    datesDone ||
-    destDone;
+    input.participantsJoined >= 1 || availDone || questDone || datesDone || destDone;
 
   function statusFor(done: boolean, prereqDone: boolean): TripStep["status"] {
     if (done) return "done";
@@ -279,11 +278,18 @@ export function buildTripSteps(input: {
       status: statusFor(datesDone, questDone),
     },
     {
+      id: "profile",
+      label: "Profil du voyage",
+      description: "",
+      href: "",
+      status: statusFor(profileDone, questDone),
+    },
+    {
       id: "destination",
       label: "Destination",
       description: "",
       href: "",
-      status: statusFor(destDone, datesDone),
+      status: statusFor(destDone, profileDone),
     },
     {
       id: "hotels",

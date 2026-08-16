@@ -28,6 +28,7 @@ export function TripHubNav({
   function stepHref(step: TripStep): string | null {
     if (step.id === "invite") return `/trips/${tripId}/invite`;
     if (step.id === "dates") return "#hub-dates";
+    if (step.id === "profile") return "#hub-profile";
     if (step.id === "destination") return "#hub-destination";
     if (step.id === "hotels") return "#hub-logistics";
     if (step.id === "transport") return "#hub-transports";
@@ -52,12 +53,8 @@ export function TripHubNav({
             isActive &&
               !isDone &&
               "border-primary bg-primary text-primary-foreground ring-2 ring-primary/20",
-            !isDone &&
-              !isActive &&
-              !isSoon &&
-              "border-border bg-background text-muted-foreground",
-            isSoon &&
-              "border-dashed border-border bg-muted/40 text-muted-foreground opacity-70",
+            !isDone && !isActive && !isSoon && "border-border bg-background text-muted-foreground",
+            isSoon && "border-dashed border-border bg-muted/40 text-muted-foreground opacity-70",
           )}
         >
           {isDone ? (
@@ -175,15 +172,12 @@ export function TripHubNav({
                   className={cn(
                     "flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold",
                     isDone && "border-emerald-500 bg-emerald-500 text-white",
-                    isActive &&
-                      !isDone &&
-                      "border-primary bg-primary text-primary-foreground",
+                    isActive && !isDone && "border-primary bg-primary text-primary-foreground",
                     !isDone &&
                       !isActive &&
                       !isSoon &&
                       "border-border bg-background text-muted-foreground",
-                    isSoon &&
-                      "border-dashed border-border bg-muted/40 text-muted-foreground",
+                    isSoon && "border-dashed border-border bg-muted/40 text-muted-foreground",
                   )}
                 >
                   {isDone ? (

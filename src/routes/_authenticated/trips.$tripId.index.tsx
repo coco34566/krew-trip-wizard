@@ -3,7 +3,33 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, Heart, Loader2, MapPin, Sparkles, Star, Trash2, UserPlus, Users, Wallet, Copy, Link2, Check, ClipboardList, Lock, Unlock, CalendarDays, RefreshCw, Utensils, Wine, Camera, Plane, Hotel, Train, Clock } from "lucide-react";
+import {
+  CheckCircle2,
+  Heart,
+  Loader2,
+  MapPin,
+  Sparkles,
+  Star,
+  Trash2,
+  UserPlus,
+  Users,
+  Wallet,
+  Copy,
+  Link2,
+  Check,
+  ClipboardList,
+  Lock,
+  Unlock,
+  CalendarDays,
+  RefreshCw,
+  Utensils,
+  Wine,
+  Camera,
+  Plane,
+  Hotel,
+  Train,
+  Clock,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -35,11 +61,22 @@ import {
   updateTaskStatus,
   reassignTask,
   setCoOrganizer,
+  validateStayProfile,
 } from "@/lib/trips.functions";
-import { getParticipantsProgress, getMyParticipantPreferences, declareMyStatus } from "@/lib/participant-preferences.functions";
+import {
+  getParticipantsProgress,
+  getMyParticipantPreferences,
+  declareMyStatus,
+} from "@/lib/participant-preferences.functions";
 import { searchExternalForTrip } from "@/lib/external/search-hotels.functions";
-import { categoryLabel, eventTypeLabel, formatEuro, TRIP_STATUS_LABELS } from "@/lib/krew/constants";
+import {
+  categoryLabel,
+  eventTypeLabel,
+  formatEuro,
+  TRIP_STATUS_LABELS,
+} from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
+import type { StayConcept } from "@/lib/krew/stay-profiles";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
@@ -55,7 +92,6 @@ import { PackingListCard } from "@/components/krew/PackingListCard";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { isTripAdmin } from "@/lib/krew/engine";
 
-
 /** Photo destination : URL DB ou image Unsplash stable selon la ville. */
 function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
   if (imageUrl && /^https?:\/\//i.test(String(imageUrl))) return String(imageUrl);
@@ -65,38 +101,67 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
   const known: Record<string, string> = {
-    barcelone: "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=800&q=80",
-    barcelona: "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=800&q=80",
-    lisbonne: "https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=800&q=80",
-    lisbon: "https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=800&q=80",
-    porto: "https://images.unsplash.com/photo-1555881403-26d5c5c6e0e1?auto=format&fit=crop&w=800&q=80",
+    barcelone:
+      "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=800&q=80",
+    barcelona:
+      "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=800&q=80",
+    lisbonne:
+      "https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=800&q=80",
+    lisbon:
+      "https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=800&q=80",
+    porto:
+      "https://images.unsplash.com/photo-1555881403-26d5c5c6e0e1?auto=format&fit=crop&w=800&q=80",
     rome: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=800&q=80",
-    milan: "https://images.unsplash.com/photo-1513581166391-887a96ddeafd?auto=format&fit=crop&w=800&q=80",
-    amsterdam: "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?auto=format&fit=crop&w=800&q=80",
-    berlin: "https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=800&q=80",
-    prague: "https://images.unsplash.com/photo-1541849546-216549ae216d?auto=format&fit=crop&w=800&q=80",
-    budapest: "https://images.unsplash.com/photo-1541343672885-9be56236302a?auto=format&fit=crop&w=800&q=80",
-    vienne: "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=800&q=80",
-    vienna: "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=800&q=80",
-    londres: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80",
-    london: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80",
-    paris: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
+    milan:
+      "https://images.unsplash.com/photo-1513581166391-887a96ddeafd?auto=format&fit=crop&w=800&q=80",
+    amsterdam:
+      "https://images.unsplash.com/photo-1534351590666-13e3e96b5017?auto=format&fit=crop&w=800&q=80",
+    berlin:
+      "https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=800&q=80",
+    prague:
+      "https://images.unsplash.com/photo-1541849546-216549ae216d?auto=format&fit=crop&w=800&q=80",
+    budapest:
+      "https://images.unsplash.com/photo-1541343672885-9be56236302a?auto=format&fit=crop&w=800&q=80",
+    vienne:
+      "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=800&q=80",
+    vienna:
+      "https://images.unsplash.com/photo-1516550893923-42d28e5677af?auto=format&fit=crop&w=800&q=80",
+    londres:
+      "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80",
+    london:
+      "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80",
+    paris:
+      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
     nice: "https://images.unsplash.com/photo-1491160950325-4c0b0b0b0b0b?auto=format&fit=crop&w=800&q=80",
-    marseille: "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?auto=format&fit=crop&w=800&q=80",
-    bordeaux: "https://images.unsplash.com/photo-1569949381669-ecf31ae8e613?auto=format&fit=crop&w=800&q=80",
+    marseille:
+      "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?auto=format&fit=crop&w=800&q=80",
+    bordeaux:
+      "https://images.unsplash.com/photo-1569949381669-ecf31ae8e613?auto=format&fit=crop&w=800&q=80",
     lyon: "https://images.unsplash.com/photo-1524396309943-e03f5249f002?auto=format&fit=crop&w=800&q=80",
-    bruxelles: "https://images.unsplash.com/photo-1559113202-c916b8e44373?auto=format&fit=crop&w=800&q=80",
-    brussels: "https://images.unsplash.com/photo-1559113202-c916b8e44373?auto=format&fit=crop&w=800&q=80",
-    madrid: "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=800&q=80",
-    valence: "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=800&q=80",
-    valencia: "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=800&q=80",
-    seville: "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=800&q=80",
-    sevilla: "https://images.unsplash.com/photo-1515443961218-a595975c78b4?auto=format&fit=crop&w=800&q=80",
-    athens: "https://images.unsplash.com/photo-1555993539-1732b0258235?auto=format&fit=crop&w=800&q=80",
-    athenes: "https://images.unsplash.com/photo-1555993539-1732b0258235?auto=format&fit=crop&w=800&q=80",
-    dubrovnik: "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
-    split: "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
-    croatie: "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
+    bruxelles:
+      "https://images.unsplash.com/photo-1559113202-c916b8e44373?auto=format&fit=crop&w=800&q=80",
+    brussels:
+      "https://images.unsplash.com/photo-1559113202-c916b8e44373?auto=format&fit=crop&w=800&q=80",
+    madrid:
+      "https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=800&q=80",
+    valence:
+      "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=800&q=80",
+    valencia:
+      "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=800&q=80",
+    seville:
+      "https://images.unsplash.com/photo-1583422409516-2895a77efded?auto=format&fit=crop&w=800&q=80",
+    sevilla:
+      "https://images.unsplash.com/photo-1515443961218-a595975c78b4?auto=format&fit=crop&w=800&q=80",
+    athens:
+      "https://images.unsplash.com/photo-1555993539-1732b0258235?auto=format&fit=crop&w=800&q=80",
+    athenes:
+      "https://images.unsplash.com/photo-1555993539-1732b0258235?auto=format&fit=crop&w=800&q=80",
+    dubrovnik:
+      "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
+    split:
+      "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
+    croatie:
+      "https://images.unsplash.com/photo-1555990793-da11162e95d7?auto=format&fit=crop&w=800&q=80",
   };
   for (const [city, url] of Object.entries(known)) {
     if (key.includes(city)) return url;
@@ -118,9 +183,15 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
     meta: [
       { title: "Mon Voyage — Krew" },
-      { name: "description", content: "Propositions Krew, planning jour par jour, budget détaillé et votes du groupe." },
+      {
+        name: "description",
+        content: "Propositions Krew, planning jour par jour, budget détaillé et votes du groupe.",
+      },
       { property: "og:title", content: "Mon Voyage — Krew" },
-      { property: "og:description", content: "Compare les propositions et valide le voyage avec ton groupe." },
+      {
+        property: "og:description",
+        content: "Compare les propositions et valide le voyage avec ton groupe.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -137,8 +208,20 @@ type Recommendation = {
   itinerary: ItineraryDay[] | null;
   budget: BudgetBreakdown | null;
   activity_ids: string[] | null;
-  destinations: { name: string; country: string; description: string | null; image_url: string | null; rating: number } | null;
-  accommodations: { name: string; type: string; rating: number; price_per_night_per_person: number; distance_center_km: number } | null;
+  destinations: {
+    name: string;
+    country: string;
+    description: string | null;
+    image_url: string | null;
+    rating: number;
+  } | null;
+  accommodations: {
+    name: string;
+    type: string;
+    rating: number;
+    price_per_night_per_person: number;
+    distance_center_km: number;
+  } | null;
 };
 
 function TripDetail() {
@@ -155,6 +238,8 @@ function TripDetail() {
   const reassignTaskFn = useServerFn(reassignTask);
   const generateTasksForTripFn = useServerFn(generateTasksForTrip);
   const setCoOrg = useServerFn(setCoOrganizer);
+  const validateProfile = useServerFn(validateStayProfile);
+  const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
 
   const setCoOrgMutation = useMutation({
     mutationFn: ({ coOrganizerId }: { coOrganizerId: string | null }) =>
@@ -185,7 +270,8 @@ function TripDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trip_tasks" as any)
-        .select(`
+        .select(
+          `
           *,
           assigned_participant:assigned_participant_id (
             id,
@@ -193,7 +279,8 @@ function TripDetail() {
             email,
             user_id
           )
-        `)
+        `,
+        )
         .eq("trip_id", tripId)
         .order("day_date", { ascending: true })
         .order("start_time", { ascending: true });
@@ -204,7 +291,13 @@ function TripDetail() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ taskId, status }: { taskId: string; status: "todo" | "in_progress" | "done" }) => {
+    mutationFn: async ({
+      taskId,
+      status,
+    }: {
+      taskId: string;
+      status: "todo" | "in_progress" | "done";
+    }) => {
       return updateTaskStatusFn({ data: { taskId, status } });
     },
     onSuccess: () => {
@@ -217,7 +310,13 @@ function TripDetail() {
   });
 
   const reassignMutation = useMutation({
-    mutationFn: async ({ taskId, participantId }: { taskId: string; participantId: string | null }) => {
+    mutationFn: async ({
+      taskId,
+      participantId,
+    }: {
+      taskId: string;
+      participantId: string | null;
+    }) => {
       return reassignTaskFn({ data: { taskId, participantId } });
     },
     onSuccess: () => {
@@ -306,7 +405,32 @@ function TripDetail() {
   }, [tripId]);
 
   const queryKey = ["trip", tripId];
-  const { data, isLoading } = useQuery({ queryKey, queryFn: () => fetchDetail({ data: { tripId } }) });
+  const { data, isLoading } = useQuery({
+    queryKey,
+    queryFn: () => fetchDetail({ data: { tripId } }),
+  });
+  const profile = data?.profile as
+    | {
+        calculatedConcepts: StayConcept[];
+        selectedConcepts: StayConcept[];
+        validated: boolean;
+        legacyBypass: boolean;
+      }
+    | undefined;
+  useEffect(() => {
+    if (!profile || profile.validated) return;
+    setSelectedConceptIds(profile.calculatedConcepts.slice(0, 3).map((concept) => concept.id));
+  }, [profile?.validated, JSON.stringify(profile?.calculatedConcepts ?? [])]);
+
+  const validateProfileMutation = useMutation({
+    mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
+    onSuccess: () => {
+      toast.success("Profil du voyage validé !");
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
+    },
+    onError: (error: any) => toast.error(String(error?.message ?? "Validation impossible")),
+  });
   const progressQueryKey = ["trip-progress", tripId];
   const { data: progress } = useQuery({
     queryKey: progressQueryKey,
@@ -333,16 +457,15 @@ function TripDetail() {
   const activityVoteFn = useServerFn(toggleActivityVote);
   const finalizeActivitiesFn = useServerFn(finalizeSelectedActivities);
   const activityVoteMutation = useMutation({
-    mutationFn: (activityId: string) =>
-      activityVoteFn({ data: { tripId, activityId } }),
+    mutationFn: (activityId: string) => activityVoteFn({ data: { tripId, activityId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
-    onError: (e: any) => toast.error(String(e?.message ?? "Vote activité impossible").slice(0, 120)),
+    onError: (e: any) =>
+      toast.error(String(e?.message ?? "Vote activité impossible").slice(0, 120)),
   });
   const finalizeActivitiesMutation = useMutation({
-    mutationFn: (activityIds: string[]) =>
-      finalizeActivitiesFn({ data: { tripId, activityIds } }),
+    mutationFn: (activityIds: string[]) => finalizeActivitiesFn({ data: { tripId, activityIds } }),
     onSuccess: () => {
       toast.success("Activités validées pour le voyage");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
@@ -358,9 +481,7 @@ function TripDetail() {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       if (res?.ok) {
         toast.success(
-          res.usedLlm
-            ? "Planning activités généré (IA)"
-            : "Planning activités généré (mode local)",
+          res.usedLlm ? "Planning activités généré (IA)" : "Planning activités généré (mode local)",
         );
         document.getElementById("hub-activities-plan")?.scrollIntoView({ behavior: "smooth" });
       }
@@ -374,8 +495,7 @@ function TripDetail() {
       toast.success("Créneau mis à jour");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
-    onError: (e: any) =>
-      toast.error(String(e?.message ?? "Régénération impossible").slice(0, 140)),
+    onError: (e: any) => toast.error(String(e?.message ?? "Régénération impossible").slice(0, 140)),
   });
 
   const proposeLogisticsFn = useServerFn(proposeStayAndTransport);
@@ -428,7 +548,6 @@ function TripDetail() {
     onError: (e: any) => toast.error(String(e?.message ?? "Erreur filtres").slice(0, 120)),
   });
   const transportPickMutation = useMutation({
-
     mutationFn: (payload: {
       city: string;
       mode: string;
@@ -451,8 +570,11 @@ function TripDetail() {
   });
 
   const bookingStatusMutation = useMutation({
-    mutationFn: (vars: { type: "hotel" | "transport"; status: "estimé" | "sélectionné" | "réservé"; userId?: string }) =>
-      fetchBookingStatus({ data: { tripId, ...vars } }),
+    mutationFn: (vars: {
+      type: "hotel" | "transport";
+      status: "estimé" | "sélectionné" | "réservé";
+      userId?: string;
+    }) => fetchBookingStatus({ data: { tripId, ...vars } }),
     onSuccess: () => {
       toast.success("Statut de réservation mis à jour !");
       refresh();
@@ -461,7 +583,6 @@ function TripDetail() {
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Erreur de statut").slice(0, 120)),
   });
-
 
   const selectMutation = useMutation({
     mutationFn: (recommendationId: string) => select({ data: { tripId, recommendationId } }),
@@ -487,7 +608,9 @@ function TripDetail() {
   const declareStatusMutation = useMutation({
     mutationFn: (status: "accepte" | "absent") => declareStatusFn({ data: { tripId, status } }),
     onSuccess: (res) => {
-      toast.success(res.status === "absent" ? "Tu as déclaré ton absence" : "Tu participes de nouveau !");
+      toast.success(
+        res.status === "absent" ? "Tu as déclaré ton absence" : "Tu participes de nouveau !",
+      );
       refresh();
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Erreur de mise à jour").slice(0, 120)),
@@ -545,10 +668,11 @@ function TripDetail() {
     },
     onError: (err: any) => {
       console.error("Recherche externe échouée", err);
-      toast.error("Impossible de récupérer les informations de voyage en temps réel pour le moment. Réessaie dans un instant.");
+      toast.error(
+        "Impossible de récupérer les informations de voyage en temps réel pour le moment. Réessaie dans un instant.",
+      );
     },
   });
-
 
   const chooseDatesMutation = useMutation({
     mutationFn: (payload: { start: string; end: string }) =>
@@ -559,7 +683,8 @@ function TripDetail() {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
-    onError: (e: any) => toast.error(String(e?.message ?? "Impossible de valider les dates").slice(0, 140)),
+    onError: (e: any) =>
+      toast.error(String(e?.message ?? "Impossible de valider les dates").slice(0, 140)),
   });
 
   const unlockDatesMutation = useMutation({
@@ -572,7 +697,6 @@ function TripDetail() {
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 120)),
   });
-
 
   const tripPreview = data?.trip as any;
   const recommendationsPreview = (data?.recommendations ?? []) as any[];
@@ -633,10 +757,7 @@ function TripDetail() {
     }
 
     const total =
-      Math.round(transport) +
-      Math.round(accommodation) +
-      Math.round(activities) +
-      Math.round(food);
+      Math.round(transport) + Math.round(accommodation) + Math.round(activities) + Math.round(food);
 
     return {
       transport: Math.round(transport),
@@ -648,7 +769,7 @@ function TripDetail() {
       destinationName: selectedReco?.destinations?.name ?? null,
       country: selectedReco?.destinations?.country ?? null,
       topHotelName: topHotelId
-        ? hotels.find((x: any) => x.id === topHotelId)?.name ?? null
+        ? (hotels.find((x: any) => x.id === topHotelId)?.name ?? null)
         : null,
       transportPicksCount: picks.length,
       nights,
@@ -714,11 +835,15 @@ function TripDetail() {
       });
       lines.push(`Dates prévues : ${a} → ${b}`);
     } else if (trip.start_date) {
-      lines.push(`Date prévue : ${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")}`);
+      lines.push(
+        `Date prévue : ${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")}`,
+      );
     }
     lines.push("");
     if (typeof window !== "undefined" && trip.id) {
-      lines.push(`Rejoins-nous et donne tes dispos en 2 min : 👉 ${window.location.origin}/join/${trip.id}`);
+      lines.push(
+        `Rejoins-nous et donne tes dispos en 2 min : 👉 ${window.location.origin}/join/${trip.id}`,
+      );
     }
     return lines.join("\n");
   }
@@ -737,10 +862,13 @@ function TripDetail() {
     const availCount = availData?.answered ?? 0;
     lines.push(`📅 Disponibilités renseignées : ${availCount}/${total}`);
 
-    const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+    const missingParticipants =
+      progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
     if (missingParticipants.length > 0) {
       if (missingParticipants.length <= 5) {
-        const names = missingParticipants.map(p => p.display_name || p.email?.split("@")[0] || "Ami").join(", ");
+        const names = missingParticipants
+          .map((p) => p.display_name || p.email?.split("@")[0] || "Ami")
+          .join(", ");
         lines.push(`⏳ En attente des réponses de : ${names}`);
       } else {
         lines.push(`⏳ En attente des réponses de ${missingParticipants.length} participant·es`);
@@ -748,7 +876,9 @@ function TripDetail() {
     }
 
     if (liveBudget.destinationName) {
-      lines.push(`📍 Destination : ${liveBudget.destinationName}${liveBudget.country ? ` (${liveBudget.country})` : ""}`);
+      lines.push(
+        `📍 Destination : ${liveBudget.destinationName}${liveBudget.country ? ` (${liveBudget.country})` : ""}`,
+      );
     } else {
       const recCount = recommendations?.length ?? 0;
       lines.push(`📍 Destination : En attente de vote (${recCount} proposition·s à départager)`);
@@ -762,14 +892,17 @@ function TripDetail() {
 
     lines.push("");
     if (typeof window !== "undefined" && trip.id) {
-      lines.push(`Retrouve tous les détails et complète tes infos : 👉 ${window.location.origin}/trips/${trip.id}`);
+      lines.push(
+        `Retrouve tous les détails et complète tes infos : 👉 ${window.location.origin}/trips/${trip.id}`,
+      );
     }
     return lines.join("\n");
   }
 
   function buildWhatsAppRemindMessage() {
     const trip = tripPreview || {};
-    const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+    const missingParticipants =
+      progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
     const lines: string[] = [
       `🔔 Petit rappel pour le voyage « ${trip.name || "notre voyage"} » !`,
       "",
@@ -786,7 +919,9 @@ function TripDetail() {
 
     lines.push("");
     if (typeof window !== "undefined" && trip.id) {
-      lines.push(`Prenez 2 petites minutes pour compléter vos infos : 👉 ${window.location.origin}/trips/${trip.id}`);
+      lines.push(
+        `Prenez 2 petites minutes pour compléter vos infos : 👉 ${window.location.origin}/trips/${trip.id}`,
+      );
     }
     return lines.join("\n");
   }
@@ -805,7 +940,6 @@ function TripDetail() {
     return starMode === "secret";
   }, [tripPreview, isStar]);
 
-
   if (isLoading || !data) {
     return (
       <main className="mx-auto max-w-5xl space-y-4 px-4 py-10">
@@ -821,12 +955,16 @@ function TripDetail() {
         <span className="inline-flex size-20 items-center justify-center rounded-full bg-primary/10 text-primary animate-pulse text-4xl">
           🤫
         </span>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-primary">Chut... C&apos;est un secret !</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-primary">
+          Chut... C&apos;est un secret !
+        </h1>
         <p className="text-muted-foreground leading-relaxed">
-          Tes ami·e·s te préparent une surprise incroyable pour ton événement (<strong>{tripPreview.name}</strong>).
+          Tes ami·e·s te préparent une surprise incroyable pour ton événement (
+          <strong>{tripPreview.name}</strong>).
         </p>
         <p className="text-muted-foreground leading-relaxed">
-          Toutes les informations sur la destination, les hébergements et le planning sont gardées secrètes pour te laisser la surprise le jour J.
+          Toutes les informations sur la destination, les hébergements et le planning sont gardées
+          secrètes pour te laisser la surprise le jour J.
         </p>
         <p className="text-primary font-medium">
           Laisse-toi porter et prépare-toi à vivre un moment inoubliable ! 🎂✨
@@ -859,7 +997,8 @@ function TripDetail() {
   const combinedParticipants = (() => {
     if (!hasStar) return rawParticipants;
 
-    const starExists = (rawParts: any[]) => rawParts.some((p: any) => Boolean(p.user_id && starUid && p.user_id === starUid));
+    const starExists = (rawParts: any[]) =>
+      rawParts.some((p: any) => Boolean(p.user_id && starUid && p.user_id === starUid));
 
     if (starExists(rawParticipants)) {
       return rawParticipants.map((p) => {
@@ -897,7 +1036,9 @@ function TripDetail() {
   const handleDownloadIcs = () => {
     const icsContent = buildTripIcs(trip, trip.group_itinerary);
     if (!icsContent) {
-      toast.error("Impossible d'exporter le calendrier : vérifiez que les dates sont verrouillées.");
+      toast.error(
+        "Impossible d'exporter le calendrier : vérifiez que les dates sont verrouillées.",
+      );
       return;
     }
     const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
@@ -911,9 +1052,12 @@ function TripDetail() {
     toast.success("Calendrier .ics téléchargé !");
   };
 
-
-  const activitiesValidated = Boolean(((trip as any).selected_activity_ids?.length ?? 0) > 0 || (activityVotes ?? []).length > 0);
-  const tripEndDatePassed = Boolean(trip.end_date && new Date(trip.end_date + "T23:59:59") < new Date());
+  const activitiesValidated = Boolean(
+    ((trip as any).selected_activity_ids?.length ?? 0) > 0 || (activityVotes ?? []).length > 0,
+  );
+  const tripEndDatePassed = Boolean(
+    trip.end_date && new Date(trip.end_date + "T23:59:59") < new Date(),
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
@@ -922,7 +1066,7 @@ function TripDetail() {
         tripId={tripId}
         trip={{
           ...trip,
-          participants: participants
+          participants: participants,
         }}
         isOwner={data.isOwner}
         participantsCount={progress?.total || participants.length}
@@ -930,16 +1074,18 @@ function TripDetail() {
         progressTotal={progress?.total || participants.length}
         availabilityAnswered={availData?.answered ?? 0}
         availabilityExpected={progress?.total || participants.length}
-        provisionalStart={trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date}
+        provisionalStart={
+          trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date
+        }
         provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
         myAvailabilityDone={Boolean(availData?.mine)}
         myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
         starDone={Boolean(starData?.preferences)}
         hasRecommendations={recommendations.length > 0}
+        profileReady={Boolean(readiness?.profile.questionnairesReady)}
+        profileValidated={Boolean(profile?.validated)}
         destinationSelected={recommendations.some((r) => r.is_selected)}
-        destinationName={
-          recommendations.find((r) => r.is_selected)?.destinations?.name ?? null
-        }
+        destinationName={recommendations.find((r) => r.is_selected)?.destinations?.name ?? null}
         liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
         totalReserved={costSplitData?.totalReserved ?? null}
         totalEstimated={costSplitData?.totalEstimated ?? null}
@@ -949,8 +1095,7 @@ function TripDetail() {
         }))}
         activitiesValidated={activitiesValidated}
         tripEndDatePassed={tripEndDatePassed}
-      >
-      </TripHubDashboard>
+      ></TripHubDashboard>
 
       {/* Résumé live + partage WhatsApp */}
       <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
@@ -1044,9 +1189,10 @@ function TripDetail() {
         ) : null}
       </section>
 
-
-
-      <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24" id="hub-dates">
+      <section
+        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        id="hub-dates"
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
             <CalendarDays className="size-5 text-primary" />
@@ -1106,8 +1252,9 @@ function TripDetail() {
         ) : (
           <>
             <p className="text-sm text-muted-foreground">
-              {(availData?.answered ?? 0)}/{availData?.expected ?? trip.participants_count ?? 1}{" "}
-              dispos reçues. L&apos;organisateur·rice valide une fenêtre pour lancer les destinations.
+              {availData?.answered ?? 0}/{availData?.expected ?? trip.participants_count ?? 1}{" "}
+              dispos reçues. L&apos;organisateur·rice valide une fenêtre pour lancer les
+              destinations.
             </p>
             <ul className="space-y-2">
               {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
@@ -1140,9 +1287,7 @@ function TripDetail() {
                       size="sm"
                       variant={i === 0 ? "default" : "outline"}
                       disabled={chooseDatesMutation.isPending}
-                      onClick={() =>
-                        chooseDatesMutation.mutate({ start: w.start, end: w.end })
-                      }
+                      onClick={() => chooseDatesMutation.mutate({ start: w.start, end: w.end })}
                     >
                       {chooseDatesMutation.isPending ? (
                         <Loader2 className="size-3.5 animate-spin" />
@@ -1164,16 +1309,86 @@ function TripDetail() {
         )}
       </section>
 
+      <section
+        id="hub-profile"
+        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+      >
+        <div>
+          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+            <Sparkles className="size-5 text-primary" />
+            Profil du voyage
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Krew synthétise les préférences du groupe. L’organisateur choisit les concepts qui
+            guideront les destinations.
+          </p>
+        </div>
+        {!readiness?.profile.questionnairesReady && !profile?.legacyBypass ? (
+          <p className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+            Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            {(profile?.calculatedConcepts ?? readiness?.profile.calculatedConcepts ?? [])
+              .slice(0, 3)
+              .map((concept: StayConcept) => {
+                const selected = profile?.validated
+                  ? profile.selectedConcepts.some((item) => item.id === concept.id)
+                  : selectedConceptIds.includes(concept.id);
+                return (
+                  <button
+                    key={concept.id}
+                    type="button"
+                    disabled={!data.isOwner || profile?.validated}
+                    aria-pressed={selected}
+                    onClick={() =>
+                      setSelectedConceptIds((ids) =>
+                        ids.includes(concept.id)
+                          ? ids.filter((id) => id !== concept.id)
+                          : [...ids, concept.id],
+                      )
+                    }
+                    className={cn(
+                      "rounded-2xl border p-4 text-left transition",
+                      selected ? "border-primary bg-primary/5" : "border-border opacity-65",
+                      (!data.isOwner || profile?.validated) && "cursor-default",
+                    )}
+                  >
+                    <p className="font-semibold">
+                      {selected ? "✓ " : ""}
+                      {concept.title}
+                    </p>
+                    <p className="mt-2 text-xs text-muted-foreground">{concept.rationale}</p>
+                  </button>
+                );
+              })}
+          </div>
+        )}
+        {profile?.validated ? (
+          <p className="text-sm font-medium text-emerald-700">
+            Profil validé — les destinations sont disponibles.
+          </p>
+        ) : data.isOwner && readiness?.profile.questionnairesReady ? (
+          <Button
+            variant="hero"
+            disabled={validateProfileMutation.isPending}
+            onClick={() => validateProfileMutation.mutate()}
+          >
+            {validateProfileMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}
+            Valider notre profil de voyage
+          </Button>
+        ) : null}
+      </section>
 
-      
-
-
-      <section id="hub-destination" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+      <section
+        id="hub-destination"
+        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+      >
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
               <MapPin className="size-5 text-primary" />
-              2. Destinations proposées
+              3. Destinations proposées
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Score, budget moyen et activités — vote, l&apos;orga valide.
@@ -1188,15 +1403,11 @@ function TripDetail() {
               }
               title={
                 readiness && !readiness.canGenerate
-                  ? readiness.message ?? "Questionnaires incomplets"
+                  ? (readiness.message ?? "Questionnaires incomplets")
                   : undefined
               }
             >
-              {regenerateMutation.isPending ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Sparkles />
-              )}
+              {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
               {recommendations.length ? "Régénérer" : "Générer les propositions"}
             </Button>
           ) : null}
@@ -1417,9 +1628,7 @@ function TripDetail() {
                   hotelId: string;
                 }[];
                 const n = votes.filter((v) => v.hotelId === h.id).length;
-                const iVoted = votes.some(
-                  (v) => v.hotelId === h.id && v.userId === data.userId,
-                );
+                const iVoted = votes.some((v) => v.hotelId === h.id && v.userId === data.userId);
                 const isTop = (trip as any).group_logistics.selectedHotelId === h.id && n > 0;
                 const isReserved = (trip as any).group_logistics?.hotelBookingStatus === "réservé";
                 return (
@@ -1451,7 +1660,8 @@ function TripDetail() {
                       ) : null}
                     </div>
                     <p className="mt-2 text-sm">
-                      {formatEuro(h.pricePerNight)} / nuit / pers.{h.priceEstimated ? " (estimé)" : ""}
+                      {formatEuro(h.pricePerNight)} / nuit / pers.
+                      {h.priceEstimated ? " (estimé)" : ""}
                       <span className="text-muted-foreground">
                         {" "}
                         · {formatEuro(h.totalEstimate)} séjour groupe
@@ -1493,15 +1703,23 @@ function TripDetail() {
                         </p>
                         <div className="space-y-2">
                           {h.configs.map((c: any) => (
-                            <div key={c.id} className="text-xs bg-muted/40 rounded-xl p-2.5 border border-border/40">
+                            <div
+                              key={c.id}
+                              className="text-xs bg-muted/40 rounded-xl p-2.5 border border-border/40"
+                            >
                               <div className="flex items-center justify-between font-medium">
                                 <span>{c.name}</span>
-                                <span className="text-primary">{formatEuro(c.pricePerPerson)} / pers.</span>
+                                <span className="text-primary">
+                                  {formatEuro(c.pricePerPerson)} / pers.
+                                </span>
                               </div>
                               <p className="text-[11px] text-muted-foreground mt-0.5">
-                                🛌 {c.bedrooms} ch. · 🛌 {c.beds} lits · 🚿 {c.bathrooms} SDB · Total : {formatEuro(c.totalCost)} (frais inclus)
+                                🛌 {c.bedrooms} ch. · 🛌 {c.beds} lits · 🚿 {c.bathrooms} SDB ·
+                                Total : {formatEuro(c.totalCost)} (frais inclus)
                               </p>
-                              <p className="text-[11px] text-muted-foreground mt-1 italic leading-snug">{c.explanation}</p>
+                              <p className="text-[11px] text-muted-foreground mt-1 italic leading-snug">
+                                {c.explanation}
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -1737,7 +1955,10 @@ function TripDetail() {
       </section>
 
       {destinationSelected ? (
-        <section id="hub-activities-plan" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+        <section
+          id="hub-activities-plan"
+          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
@@ -1745,7 +1966,8 @@ function TripDetail() {
                 5. Planning du séjour
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Resto, activités et bars pour chaque jour — basé sur les dates, la destination et les préférences.
+                Resto, activités et bars pour chaque jour — basé sur les dates, la destination et
+                les préférences.
               </p>
             </div>
             {data.isOwner ? (
@@ -1754,11 +1976,7 @@ function TripDetail() {
                 disabled={itineraryMutation.isPending}
                 onClick={() => itineraryMutation.mutate()}
               >
-                {itineraryMutation.isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Sparkles />
-                )}
+                {itineraryMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
                 {(trip as any).group_itinerary?.days?.length
                   ? "Régénérer tout le planning"
                   : "Générer le planning"}
@@ -1849,9 +2067,7 @@ function TripDetail() {
                               size="sm"
                               variant="outline"
                               disabled={slotMutation.isPending}
-                              onClick={() =>
-                                slotMutation.mutate({ day: day.day, slotIndex })
-                              }
+                              onClick={() => slotMutation.mutate({ day: day.day, slotIndex })}
                               title="Proposer une autre option pour ce créneau seulement"
                             >
                               {slotMutation.isPending ? (
@@ -1874,7 +2090,10 @@ function TripDetail() {
       ) : null}
 
       {destinationSelected ? (
-        <section id="hub-tasks-org" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+        <section
+          id="hub-tasks-org"
+          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
@@ -1905,7 +2124,8 @@ function TripDetail() {
 
           {!hasItinerary ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              Génère d'abord un planning à l'étape 5 pour pouvoir générer et répartir les tâches d'organisation.
+              Génère d'abord un planning à l'étape 5 pour pouvoir générer et répartir les tâches
+              d'organisation.
             </p>
           ) : !tasksData || tasksData.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -1947,7 +2167,10 @@ function TripDetail() {
                         })
                       : "—";
                     return (
-                      <tr key={task.id} className="border-b border-border/50 hover:bg-surface/10 transition-colors">
+                      <tr
+                        key={task.id}
+                        className="border-b border-border/50 hover:bg-surface/10 transition-colors"
+                      >
                         <td className="py-3.5 pr-3 text-xs font-semibold tabular-nums text-muted-foreground">
                           {taskDate} {task.start_time ? `· ${task.start_time}` : ""}
                         </td>
@@ -1982,7 +2205,8 @@ function TripDetail() {
                           ) : (
                             <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border/60">
                               {task.assigned_participant
-                                ? (task.assigned_participant.display_name || task.assigned_participant.email?.split("@")[0])
+                                ? task.assigned_participant.display_name ||
+                                  task.assigned_participant.email?.split("@")[0]
                                 : "Non assigné"}
                             </span>
                           )}
@@ -1998,9 +2222,12 @@ function TripDetail() {
                             }}
                             className={cn(
                               "border rounded-xl px-2 py-1 text-xs focus:outline-none font-semibold",
-                              task.status === "done" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
-                              task.status === "in_progress" && "bg-amber-500/10 text-amber-600 border-amber-500/30",
-                              task.status === "todo" && "bg-muted text-muted-foreground border-border"
+                              task.status === "done" &&
+                                "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+                              task.status === "in_progress" &&
+                                "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                              task.status === "todo" &&
+                                "bg-muted text-muted-foreground border-border",
                             )}
                           >
                             <option value="todo">À faire</option>
@@ -2010,7 +2237,12 @@ function TripDetail() {
                         </td>
                         <td className="py-3.5 text-right">
                           {task.booking_url ? (
-                            <Button asChild variant="outline" size="sm" className="h-7 px-2 gap-1 text-[11px]">
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 gap-1 text-[11px]"
+                            >
                               <a href={task.booking_url} target="_blank" rel="noopener noreferrer">
                                 Réserver
                               </a>
@@ -2030,7 +2262,10 @@ function TripDetail() {
       ) : null}
 
       {destinationSelected && costSplitData?.split ? (
-        <section id="hub-cost-split" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+        <section
+          id="hub-cost-split"
+          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
@@ -2051,7 +2286,9 @@ function TripDetail() {
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
             <div className="flex items-center gap-2">
               <CalendarDays className="size-5 text-primary" />
-              <h2 className="font-display text-xl font-semibold tracking-tight">Exporter mon calendrier</h2>
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Exporter mon calendrier
+              </h2>
             </div>
             <p className="text-xs text-muted-foreground leading-snug">
               {hasItinerary
@@ -2059,7 +2296,13 @@ function TripDetail() {
                 : "Ajoute les dates de ton séjour à ton calendrier."}
             </p>
             <div className="flex flex-wrap gap-2.5">
-              <Button onClick={handleDownloadIcs} variant="hero" size="sm" className="gap-1.5" title="Recommandé pour iPhone, iOS, Apple Calendar et Mac">
+              <Button
+                onClick={handleDownloadIcs}
+                variant="hero"
+                size="sm"
+                className="gap-1.5"
+                title="Recommandé pour iPhone, iOS, Apple Calendar et Mac"
+              >
                 <CalendarDays className="size-4" /> Télécharger .ics (Apple / Universel)
               </Button>
               {googleCalendarUrl && (
@@ -2090,9 +2333,13 @@ function TripDetail() {
             avgTemp={null}
             activities={
               hasItinerary && (trip as any).group_itinerary?.days
-                ? ((trip as any).group_itinerary.days as any[]).flatMap((day) =>
-                    (day.slots ?? []).map((slot: any) => `${slot.label || ""} ${slot.detail || ""}`.trim())
-                  ).filter(Boolean)
+                ? ((trip as any).group_itinerary.days as any[])
+                    .flatMap((day) =>
+                      (day.slots ?? []).map((slot: any) =>
+                        `${slot.label || ""} ${slot.detail || ""}`.trim(),
+                      ),
+                    )
+                    .filter(Boolean)
                 : activities.map((a) => a.name)
             }
             durationDays={liveBudget.nights || 2}
@@ -2160,7 +2407,10 @@ function TripDetail() {
         </section>
       )}
 
-      <section id="invite-section" className="mt-8 space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+      <section
+        id="invite-section"
+        className="mt-8 space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+      >
         {/* 1. Le groupe */}
         <div>
           <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
@@ -2294,7 +2544,8 @@ function TripDetail() {
           </h2>
           <div className="mt-4 rounded-2xl border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">
-              Envoie ce lien (WhatsApp, SMS, Instagram…) — tes ami·e·s rejoignent le voyage et répondent au questionnaire.
+              Envoie ce lien (WhatsApp, SMS, Instagram…) — tes ami·e·s rejoignent le voyage et
+              répondent au questionnaire.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Input readOnly value={shareUrl} className="max-w-md font-mono text-xs" />
@@ -2400,7 +2651,6 @@ function TripDetail() {
           </div>
         </section>
       ) : null}
-
     </main>
   );
 }

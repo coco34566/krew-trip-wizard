@@ -4,7 +4,7 @@
  * Objectif Chantier 1 : ne plus limiter les propositions aux ~40 villes
  * codées en dur. Les deux sources sont TOUJOURS appelées puis fusionnées ici.
  */
-import type { CandidateDestination } from "./destination-discovery.server";
+import type { CandidateDestination, DestinationType } from "./destination-discovery.server";
 
 /** Estimation compacte renvoyée par le LLM pour une ville hors catalogue. */
 export type AiEstimate = {
@@ -18,6 +18,9 @@ export type AiEstimate = {
   distanceKm?: number | undefined;
   /** 2-3 mois idéaux (1-12). */
   bestMonths?: number[] | undefined;
+  region?: string | undefined;
+  destinationType?: DestinationType | undefined;
+  anchorPlaces?: string[] | undefined;
 };
 
 export type MergedCandidate = {
@@ -30,6 +33,10 @@ export type MergedCandidate = {
   dailyCost?: number | undefined;
   distanceKm?: number | undefined;
   bestMonths?: number[] | undefined;
+  region?: string | undefined;
+  destinationType?: DestinationType;
+  anchorPlaces?: string[];
+  verificationState?: "verified" | "estimated" | "unknown";
 };
 
 /** Normalisation de nom de ville (identique à `norm()` de la découverte locale). */
@@ -62,6 +69,10 @@ export function mergeCandidates(
       reason: c.reason,
       source: "catalog",
       distanceKm: c.distanceKm,
+      region: c.region,
+      destinationType: c.destinationType ?? "city",
+      anchorPlaces: c.anchorPlaces ?? [c.name],
+      verificationState: "verified",
     });
   }
 
@@ -76,6 +87,10 @@ export function mergeCandidates(
         reason: existing.reason,
         bestMonths: existing.bestMonths ?? c.bestMonths,
         dailyCost: existing.dailyCost ?? c.dailyCost,
+        region: existing.region ?? c.region,
+        anchorPlaces: existing.anchorPlaces?.length
+          ? existing.anchorPlaces
+          : (c.anchorPlaces ?? []),
       });
       continue;
     }
@@ -88,40 +103,33 @@ export function mergeCandidates(
       dailyCost: c.dailyCost,
       distanceKm: c.distanceKm,
       bestMonths: c.bestMonths,
+      region: c.region,
+      destinationType: c.destinationType ?? "city",
+      anchorPlaces: c.anchorPlaces?.length ? c.anchorPlaces : [c.name],
+      verificationState: "estimated",
     });
   }
 
   return [...byKey.values()].sort((a, b) => b.affinity - a.affinity);
 }
 
-/** Valeurs par défaut raisonnables pour une ville estimée par le LLM. */
-export const AI_ESTIMATE_DEFAULTS = {
-  rating: 3.8,
-  popularity: 0.5,
-  ambianceScore: 0.5,
-  dailyCost: 90,
-  distanceKm: 1200,
-} as const;
-
 /** Ligne `destinations` prête à l'upsert, dérivée d'une estimation IA. */
 export type AiDestinationRow = {
   slug: string;
   name: string;
   country: string;
-  avg_daily_cost: number;
-  distance_from_paris_km: number;
+  avg_daily_cost: number | null;
+  distance_from_paris_km: number | null;
   best_months: number[];
-  popularity: number;
-  rating: number;
-  score_fete: number;
-  score_aventure: number;
-  score_detente: number;
-  score_luxe: number;
-  score_insolite: number;
-  score_sportif: number;
-  score_culturel: number;
+  popularity: null; rating: null;
+  score_fete: null; score_aventure: null; score_detente: null; score_luxe: null;
+  score_insolite: null; score_sportif: null; score_culturel: null;
   source: "ai_estimate";
   external_id: string;
+  destination_type: DestinationType;
+  region_name: string | null;
+  anchor_places: string[];
+  verification_state: "estimated" | "unknown";
 };
 
 /**
@@ -133,38 +141,29 @@ export type AiDestinationRow = {
  */
 export function aiCandidateToDestinationRow(
   candidate: MergedCandidate,
-  ambianceHints: string[] = [],
+  _ambianceHints: string[] = [],
   overrides: { bestMonths?: number[] | undefined } = {},
 ): AiDestinationRow {
-  const slug = normCity(candidate.name).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  const wanted = new Set(ambianceHints.map((a) => a.trim().toLowerCase()).filter(Boolean));
-  const score = (key: string) =>
-    wanted.has(key) ? 0.75 : AI_ESTIMATE_DEFAULTS.ambianceScore;
+  const slug = normCity(candidate.name)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
   const months = (overrides.bestMonths?.length ? overrides.bestMonths : candidate.bestMonths) ?? [];
 
   return {
     slug: slug || `ville-${Date.now()}`,
     name: candidate.name,
     country: candidate.country?.trim() || "Europe",
-    avg_daily_cost:
-      Number.isFinite(candidate.dailyCost) && Number(candidate.dailyCost) > 0
-        ? Math.round(Number(candidate.dailyCost))
-        : AI_ESTIMATE_DEFAULTS.dailyCost,
-    distance_from_paris_km:
-      Number.isFinite(candidate.distanceKm) && Number(candidate.distanceKm) > 0
-        ? Math.round(Number(candidate.distanceKm))
-        : AI_ESTIMATE_DEFAULTS.distanceKm,
+    avg_daily_cost: null,
+    distance_from_paris_km: null,
     best_months: months.filter((m) => Number.isInteger(m) && m >= 1 && m <= 12),
-    popularity: AI_ESTIMATE_DEFAULTS.popularity,
-    rating: AI_ESTIMATE_DEFAULTS.rating,
-    score_fete: score("fete"),
-    score_aventure: score("aventure"),
-    score_detente: score("detente"),
-    score_luxe: score("luxe"),
-    score_insolite: score("insolite"),
-    score_sportif: score("sportif"),
-    score_culturel: score("culturel"),
+    popularity: null, rating: null,
+    score_fete: null, score_aventure: null, score_detente: null, score_luxe: null,
+    score_insolite: null, score_sportif: null, score_culturel: null,
     source: "ai_estimate",
     external_id: `ai:${slug}`,
+    destination_type: candidate.destinationType ?? "city",
+    region_name: candidate.region ?? null,
+    anchor_places: candidate.anchorPlaces ?? [candidate.name],
+    verification_state: candidate.verificationState === "estimated" ? "estimated" : "unknown",
   };
 }

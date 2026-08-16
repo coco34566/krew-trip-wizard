@@ -20,9 +20,27 @@ describe("Participant Identity & Star Resolution Tests", () => {
     };
 
     const participantsData = [
-      { id: "p-owner", user_id: "user-owner", email: "owner@example.com", display_name: "Alex", status: "accepte" },
-      { id: "p-julie-a", user_id: "user-julie-a", email: "julie.a@example.com", display_name: "Julie", status: "accepte" },
-      { id: "p-julie-b", user_id: "user-julie-b", email: "julie.b@example.com", display_name: "Julie", status: "accepte" },
+      {
+        id: "p-owner",
+        user_id: "user-owner",
+        email: "owner@example.com",
+        display_name: "Alex",
+        status: "accepte",
+      },
+      {
+        id: "p-julie-a",
+        user_id: "user-julie-a",
+        email: "julie.a@example.com",
+        display_name: "Julie",
+        status: "accepte",
+      },
+      {
+        id: "p-julie-b",
+        user_id: "user-julie-b",
+        email: "julie.b@example.com",
+        display_name: "Julie",
+        status: "accepte",
+      },
     ];
 
     const prefsData = [
@@ -30,9 +48,7 @@ describe("Participant Identity & Star Resolution Tests", () => {
       { user_id: "user-julie-b", submitted_at: "2026-08-02" },
     ];
 
-    const availData = [
-      { user_id: "user-julie-b" },
-    ];
+    const availData = [{ user_id: "user-julie-b" }];
 
     const starPrefsData = {
       user_id: starUserId,
@@ -93,14 +109,30 @@ describe("Participant Identity & Star Resolution Tests", () => {
     };
 
     const participantsData = [
-      { id: "p1", user_id: "user-owner", email: "orga@example.com", display_name: "Paul", status: "accepte" },
-      { id: "p2", user_id: "user-julie-martin-1", email: "julie.m1@example.com", display_name: "Julie Martin", status: "accepte" },
-      { id: "p3", user_id: "user-julie-martin-2", email: "julie.m2@example.com", display_name: "Julie Martin", status: "accepte" },
+      {
+        id: "p1",
+        user_id: "user-owner",
+        email: "orga@example.com",
+        display_name: "Paul",
+        status: "accepte",
+      },
+      {
+        id: "p2",
+        user_id: "user-julie-martin-1",
+        email: "julie.m1@example.com",
+        display_name: "Julie Martin",
+        status: "accepte",
+      },
+      {
+        id: "p3",
+        user_id: "user-julie-martin-2",
+        email: "julie.m2@example.com",
+        display_name: "Julie Martin",
+        status: "accepte",
+      },
     ];
 
-    const prefsData = [
-      { user_id: "user-julie-martin-2", ambiances: ["fete"], budget_max: 300 },
-    ];
+    const prefsData = [{ user_id: "user-julie-martin-2", ambiances: ["fete"], budget_max: 300 }];
 
     const starPrefsData = {
       user_id: starUserId,
@@ -147,6 +179,7 @@ describe("Participant Identity & Star Resolution Tests", () => {
     const tripsData = {
       id: tripId,
       participants_count: 3,
+      stay_profile_validated_at: "2026-08-01T00:00:00Z",
       celebrated_person: "Julie",
       has_star: true,
       star_user_id: actualStarUserId,
@@ -156,9 +189,27 @@ describe("Participant Identity & Star Resolution Tests", () => {
 
     // User "user-impostor" has display_name "Julie", but actual star_user_id is "user-real-star" (display_name "Sarah")
     const participantsData = [
-      { id: "p-owner", user_id: "user-owner", email: "owner@example.com", display_name: "Marc", status: "accepte" },
-      { id: "p-impostor", user_id: "user-impostor", email: "julie@example.com", display_name: "Julie", status: "accepte" },
-      { id: "p-real-star", user_id: "user-real-star", email: "sarah@example.com", display_name: "Sarah", status: "accepte" },
+      {
+        id: "p-owner",
+        user_id: "user-owner",
+        email: "owner@example.com",
+        display_name: "Marc",
+        status: "accepte",
+      },
+      {
+        id: "p-impostor",
+        user_id: "user-impostor",
+        email: "julie@example.com",
+        display_name: "Julie",
+        status: "accepte",
+      },
+      {
+        id: "p-real-star",
+        user_id: "user-real-star",
+        email: "sarah@example.com",
+        display_name: "Sarah",
+        status: "accepte",
+      },
     ];
 
     const prefsData = [
@@ -203,7 +254,9 @@ describe("Participant Identity & Star Resolution Tests", () => {
 
     // 2. Check aggregateParticipantPreferences
     const aggregated = await aggregateParticipantPreferences(mockSupabase as any, tripId);
-    const impostorPref = aggregated.individualPreferences.find((p) => p.isStar && p.wantedEnvType !== undefined);
+    const impostorPref = aggregated.individualPreferences.find(
+      (p) => p.isStar && p.wantedEnvType !== undefined,
+    );
     const realStarPref = aggregated.individualPreferences.find((p) => p.isStar);
 
     // Only one individual preference is flagged as Star, and it corresponds to user-real-star
@@ -233,15 +286,48 @@ describe("Participant Identity & Star Resolution Tests", () => {
     };
 
     const participantsData = [
-      { id: "p-orga", user_id: "user-organizer", email: "orga@example.com", display_name: "Juliet", status: "accepte" },
-      { id: "p-camille", user_id: starUserId, email: "camille@example.com", display_name: null, status: "accepte" },
-      { id: "p-participant", user_id: "user-normal", email: "sarah@example.com", display_name: "Sarah", status: "accepte" },
+      {
+        id: "p-orga",
+        user_id: "user-organizer",
+        email: "orga@example.com",
+        display_name: "Juliet",
+        status: "accepte",
+      },
+      {
+        id: "p-camille",
+        user_id: starUserId,
+        email: "camille@example.com",
+        display_name: null,
+        status: "accepte",
+      },
+      {
+        id: "p-participant",
+        user_id: "user-normal",
+        email: "sarah@example.com",
+        display_name: "Sarah",
+        status: "accepte",
+      },
     ];
 
     const availData = [
-      { user_id: "user-organizer", available_dates: ["2026-08-01", "2026-08-02"], flex_days: 0, duration_nights: 1 },
-      { user_id: starUserId, available_dates: ["2026-08-01", "2026-08-02"], flex_days: 0, duration_nights: 1 },
-      { user_id: "user-normal", available_dates: ["2026-08-01", "2026-08-02"], flex_days: 0, duration_nights: 1 },
+      {
+        user_id: "user-organizer",
+        available_dates: ["2026-08-01", "2026-08-02"],
+        flex_days: 0,
+        duration_nights: 1,
+      },
+      {
+        user_id: starUserId,
+        available_dates: ["2026-08-01", "2026-08-02"],
+        flex_days: 0,
+        duration_nights: 1,
+      },
+      {
+        user_id: "user-normal",
+        available_dates: ["2026-08-01", "2026-08-02"],
+        flex_days: 0,
+        duration_nights: 1,
+      },
     ];
 
     const mockSupabase = {

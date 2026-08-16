@@ -40,29 +40,29 @@ describe("mergeCandidates", () => {
 });
 
 describe("aiCandidateToDestinationRow", () => {
-  it("applique les valeurs par défaut quand l'estimation manque", () => {
+  it("ne fabrique aucune valeur de scoring quand l'estimation manque", () => {
     const row = aiCandidateToDestinationRow({
       name: "Tbilissi",
       affinity: 70,
       reason: "IA",
       source: "ai_estimate",
     });
-    expect(row.rating).toBe(3.8);
-    expect(row.popularity).toBe(0.5);
-    expect(row.avg_daily_cost).toBe(90);
-    expect(row.distance_from_paris_km).toBe(1200);
+    expect(row.rating).toBeNull();
+    expect(row.popularity).toBeNull();
+    expect(row.avg_daily_cost).toBeNull();
+    expect(row.distance_from_paris_km).toBeNull();
     expect(row.slug).toBe("tbilissi");
     expect(row.source).toBe("ai_estimate");
   });
 
-  it("valorise les ambiances demandées et filtre les mois invalides", () => {
+  it("ne transforme pas les ambiances demandées en scores factuels", () => {
     const row = aiCandidateToDestinationRow(
       { name: "Tbilissi", affinity: 70, reason: "IA", source: "ai_estimate", bestMonths: [5, 13, 0, 9] },
       ["fete", "insolite"],
     );
-    expect(row.score_fete).toBe(0.75);
-    expect(row.score_insolite).toBe(0.75);
-    expect(row.score_luxe).toBe(0.5);
+    expect(row.score_fete).toBeNull();
+    expect(row.score_insolite).toBeNull();
+    expect(row.score_luxe).toBeNull();
     expect(row.best_months).toEqual([5, 9]);
   });
 

@@ -1,7 +1,9 @@
 import { reportServerError } from "@/lib/server-error-reporting.server";
+import type { DestinationType } from "./destination-discovery.server";
+import type { ProfileAffinity, StayConcept } from "./stay-profiles";
 
 /**
- * IA de découverte : AIMLAPI en priorité, OpenAI en fallback.
+ * IA de découverte : Gemini en priorité, AIMLAPI puis OpenAI en fallback.
  * L'IA explore largement les possibilités ; le moteur KREW reste responsable
  * des contraintes dures, du scoring final et de la diversification.
  */
@@ -24,6 +26,12 @@ export type AiDiscoveryInput = {
   starWantedEnvType?: string | null;
   groupAgeRange?: string | null;
   freeNotes?: string[];
+  stayProfiles?: ProfileAffinity[];
+  selectedConcepts?: StayConcept[];
+  discoveryBranches?: Array<"urban" | "regional" | "outdoor" | "property_led">;
+  localMobility?: string | null;
+  accommodationRole?: string | null;
+  relevantIndividualPreferences?: Array<Record<string, unknown>>;
   scoringSignals?: {
     desiredDestination?: string | null;
     letKrewDecide?: boolean;
@@ -43,6 +51,9 @@ export type AiCandidate = {
   dailyCost?: number;
   distanceKm?: number;
   bestMonths?: number[];
+  region?: string;
+  destinationType: DestinationType;
+  anchorPlaces: string[];
 };
 
 const SYSTEM = `Tu es le moteur d'exploration de destinations de KREW.
@@ -53,11 +64,12 @@ Tu es un moteur de découverte, pas le décideur final.
 Le moteur déterministe KREW applique ensuite les contraintes dures, le scoring individuel et collectif, le poids de la Star et la diversification. Ne remplace jamais ce calcul par ton propre classement.
 
 Réponds UNIQUEMENT en JSON valide :
-{"cities":[{"name":"Ville","country":"Pays","why":"motif court","cost":70,"km":1200,"months":[5,6,9]}]}
+{"destinations":[{"name":"Luberon","country":"France","region":"Provence","destinationType":"region_territory","anchorPlaces":["Gordes","Lourmarin"],"why":"motif court","cost":70,"km":700,"months":[5,6,9]}]}
 
 Règles de découverte :
 - Génère idéalement 30 à 50 destinations candidates différentes lorsque le profil le permet.
-- Explore des profils variés : grandes villes, villes secondaires, littoral, nature, montagne, villages, destinations culturelles, festives, premium, abordables et options originales.
+- Respecte les branches demandées : urban produit des city ; regional produit réellement town_village ou region_territory ; outdoor produit des outdoor_area liées aux activités, pas une ville simplement étiquetée nature.
+- Pour une région ou zone outdoor, fournis 2 à 5 anchorPlaces réels utilisables pour rechercher logements et activités.
 - Ne te limite jamais au catalogue historique de KREW et ne favorise pas artificiellement les capitales.
 - Utilise toutes les préférences individuelles fournies pour rechercher des destinations susceptibles de satisfaire différents membres du groupe.
 - Tiens compte des pondérations et du profil de la Star pour orienter la recherche, sans transformer une préférence souple en veto.
@@ -74,10 +86,19 @@ Règles de découverte :
 
 Qualité attendue : la liste doit être réellement influencée par le profil du groupe. Deux groupes avec des préférences très différentes doivent obtenir des listes sensiblement différentes.`;
 
-type LlmConfig = { apiKey: string; baseUrl: string; model: string; provider: "aimlapi" | "openai" };
+type LlmConfig = { apiKey: string; baseUrl: string; model: string; provider: "gemini" | "aimlapi" | "openai" };
 
 function getLlmConfigs(): LlmConfig[] {
   const configs: LlmConfig[] = [];
+  const geminiKey = process.env["GEMINI_API_KEY"];
+  if (geminiKey) {
+    configs.push({
+      apiKey: geminiKey,
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+      model: process.env["GEMINI_MODEL"] || "gemini-2.5-flash",
+      provider: "gemini",
+    });
+  }
   const aimlapiKey = process.env["AIMLAPI_API_KEY"];
   if (aimlapiKey) {
     configs.push({
@@ -91,7 +112,10 @@ function getLlmConfigs(): LlmConfig[] {
   if (openaiKey) {
     configs.push({
       apiKey: openaiKey,
-      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(/\/$/, ""),
+      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(
+        /\/$/,
+        "",
+      ),
       model: process.env["LLM_DISCOVERY_MODEL"] || "gpt-4o-mini",
       provider: "openai",
     });
@@ -118,11 +142,22 @@ function fingerprint(input: AiDiscoveryInput): string {
     starEnv: input.starWantedEnvType ?? null,
     age: input.groupAgeRange ?? null,
     scoring: input.scoringSignals ?? null,
+    profiles: input.stayProfiles ?? [],
+    concepts: input.selectedConcepts ?? [],
+    branches: input.discoveryBranches ?? ["urban"],
+    mobility: input.localMobility ?? null,
+    accommodation: input.accommodationRole ?? null,
+    individual: input.relevantIndividualPreferences ?? [],
   });
 }
 
-const cache = new Map<string, { at: number; cities: AiCandidate[] }>();
+const cache = new Map<string, { at: number; candidates: AiCandidate[]; provider: string }>();
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
+const REQUEST_TIMEOUT_MS = 12_000;
+
+export function clearDestinationAiCacheForTests() {
+  cache.clear();
+}
 
 function compactUser(input: AiDiscoveryInput): string {
   const o: Record<string, unknown> = {
@@ -144,10 +179,16 @@ function compactUser(input: AiDiscoveryInput): string {
     starWantedEnvType: input.starWantedEnvType ?? null,
     groupAgeRange: input.groupAgeRange ?? null,
     freeNotes: input.freeNotes || [],
+    stayProfiles: input.stayProfiles || [],
+    selectedConcepts: input.selectedConcepts || [],
+    discoveryBranches: input.discoveryBranches || ["urban"],
+    localMobility: input.localMobility ?? null,
+    accommodationRole: input.accommodationRole ?? null,
+    individualPreferences: input.relevantIndividualPreferences || [],
   };
 
   if (input.scoringSignals) {
-    o.scoringProfile = {
+    o["scoringProfile"] = {
       desiredDestination: input.scoringSignals.desiredDestination ?? null,
       letKrewDecide: input.scoringSignals.letKrewDecide ?? true,
       starWeight: input.scoringSignals.starWeight ?? null,
@@ -161,43 +202,119 @@ function compactUser(input: AiDiscoveryInput): string {
   return JSON.stringify(o);
 }
 
-function parseCities(raw: string): AiCandidate[] {
+export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) return [];
   try {
     const data = JSON.parse(raw.slice(start, end + 1)) as {
-      cities?: Array<{ name?: string; country?: string; why?: string; cost?: number; km?: number; months?: number[] }>;
+      destinations?: Array<{
+        name?: string;
+        title?: string;
+        country?: string;
+        region?: string;
+        destinationType?: string;
+        anchorPlaces?: string[];
+        why?: string;
+        reason?: string;
+        cost?: number;
+        km?: number;
+        months?: number[];
+      }>;
+      cities?: Array<{
+        name?: string;
+        country?: string;
+        why?: string;
+        cost?: number;
+        km?: number;
+        months?: number[];
+      }>;
     };
-    return (Array.isArray(data.cities) ? data.cities : []).map((c, i) => {
-      const out: AiCandidate = {
-        name: String(c.name || "").trim(),
-        affinity: Math.max(10, 100 - i * 1.5),
-        reason: String(c.why || "suggéré par Krew IA").slice(0, 120),
-      };
-      if (c.country) out.country = String(c.country).trim();
-      if (Number.isFinite(Number(c.cost)) && Number(c.cost) > 0) out.dailyCost = Number(c.cost);
-      if (Number.isFinite(Number(c.km)) && Number(c.km) > 0) out.distanceKm = Number(c.km);
-      if (Array.isArray(c.months)) out.bestMonths = c.months.map(Number).filter((m) => Number.isInteger(m) && m >= 1 && m <= 12);
-      return out;
-    }).filter((c) => c.name.length >= 2).slice(0, 50);
+    const values = (
+      Array.isArray(data.destinations) ? data.destinations : (data.cities ?? [])
+    ) as Array<{
+      name?: string;
+      title?: string;
+      country?: string;
+      region?: string;
+      destinationType?: string;
+      anchorPlaces?: string[];
+      why?: string;
+      reason?: string;
+      cost?: number;
+      km?: number;
+      months?: number[];
+    }>;
+    return values
+      .map((c, i) => {
+        const rawType = String(c.destinationType ?? "city");
+        const destinationType: DestinationType = [
+          "city",
+          "town_village",
+          "region_territory",
+          "outdoor_area",
+        ].includes(rawType)
+          ? (rawType as DestinationType)
+          : "city";
+        const name = String(c.name || c.title || "").trim();
+        const out: AiCandidate = {
+          name,
+          affinity: Math.max(10, 100 - i * 1.5),
+          reason: String(c.why || c.reason || "suggéré par Krew IA").slice(0, 120),
+          destinationType,
+          anchorPlaces:
+            destinationType === "city"
+              ? [name]
+              : (c.anchorPlaces ?? [])
+                  .map(String)
+                  .map((v) => v.trim())
+                  .filter(Boolean)
+                  .slice(0, 5),
+        };
+        if (c.country) out.country = String(c.country).trim();
+        if (c.region) out.region = String(c.region).trim();
+        if (Number.isFinite(Number(c.cost)) && Number(c.cost) > 0) out.dailyCost = Number(c.cost);
+        if (Number.isFinite(Number(c.km)) && Number(c.km) > 0) out.distanceKm = Number(c.km);
+        if (Array.isArray(c.months))
+          out.bestMonths = c.months
+            .map(Number)
+            .filter((m) => Number.isInteger(m) && m >= 1 && m <= 12);
+        return out;
+      })
+      .filter((c) => c.name.length >= 2)
+      .slice(0, 50);
   } catch {
     return [];
   }
 }
 
-export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promise<{ cities: AiCandidate[]; usedLlm: boolean; provider?: string; error?: string; cached?: boolean }> {
+export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promise<{
+  candidates: AiCandidate[];
+  usedLlm: boolean;
+  provider?: string;
+  error?: string;
+  cached?: boolean;
+}> {
   const configs = getLlmConfigs();
-  if (!configs.length) return { cities: [], usedLlm: false, error: "no_llm_key" };
+  if (!configs.length) return { candidates: [], usedLlm: false, error: "no_llm_key" };
   const fp = fingerprint(input);
   const hit = cache.get(fp);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return { cities: hit.cities, usedLlm: true, provider: configs[0].provider, cached: true };
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS)
+    return {
+      candidates: hit.candidates,
+      usedLlm: true,
+      provider: hit.provider,
+      cached: true,
+    };
 
   let lastError = "";
   for (const cfg of configs) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
       const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
         method: "POST",
+        signal: controller.signal,
         headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           model: cfg.model,
@@ -209,25 +326,44 @@ export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promi
           ],
         }),
       });
+      clearTimeout(timeout);
       if (!res.ok) {
         const errText = await res.text().catch(() => "");
         lastError = `llm_http_${res.status}:${errText.slice(0, 160)}`;
-        reportServerError(new Error(lastError), { provider: cfg.provider, kind: "destination-ai", departureCity: input.departureCity });
+        reportServerError(new Error(lastError), {
+          provider: cfg.provider,
+          kind: "destination-ai",
+          departureCity: input.departureCity,
+        });
         continue;
       }
-      const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-      const cities = parseCities(json.choices?.[0]?.message?.content ?? "");
-      if (!cities.length) {
+      const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const candidates = parseDiscoveryCandidates(json.choices?.[0]?.message?.content ?? "");
+      if (!candidates.length) {
         lastError = "llm_empty_parse";
-        reportServerError(new Error(lastError), { provider: cfg.provider, kind: "destination-ai", departureCity: input.departureCity });
+        reportServerError(new Error(lastError), {
+          provider: cfg.provider,
+          kind: "destination-ai",
+          departureCity: input.departureCity,
+        });
         continue;
       }
-      cache.set(fp, { at: Date.now(), cities });
-      return { cities, usedLlm: true, provider: cfg.provider };
+      cache.set(fp, { at: Date.now(), candidates, provider: cfg.provider });
+      return { candidates, usedLlm: true, provider: cfg.provider };
     } catch (e) {
+      clearTimeout(timeout);
       lastError = String(e).slice(0, 160);
-      reportServerError(e, { provider: cfg.provider, kind: "destination-ai", departureCity: input.departureCity });
+      reportServerError(e, {
+        provider: cfg.provider,
+        kind: "destination-ai",
+        departureCity: input.departureCity,
+      });
     }
   }
-  return { cities: [], usedLlm: false, provider: configs[0].provider, error: lastError || "llm_failed" };
+  return {
+    candidates: [],
+    usedLlm: false,
+    provider: configs[0]!.provider,
+    error: lastError || "llm_failed",
+  };
 }

@@ -35,6 +35,8 @@ type Props = {
   provisionalStart?: string | null;
   provisionalCoverage?: number | null;
   hasRecommendations: boolean;
+  profileReady?: boolean;
+  profileValidated?: boolean;
   destinationSelected: boolean;
   viewerUserId?: string | null;
   /** Nom de la destination validée */
@@ -55,7 +57,6 @@ type Props = {
   children?: React.ReactNode;
 };
 
-
 /** Photos voyage (Unsplash) selon le type d'événement. */
 /** Photos lifestyle premium (Unsplash) — voyage & ambiance, pas de clichés ballons/kitsch. */
 function heroImageForEvent(eventType?: string | null) {
@@ -72,7 +73,8 @@ function heroImageForEvent(eventType?: string | null) {
     autre: `https://images.unsplash.com/photo-1488085061387-422e29b40080?${q}`,
   };
 
-  let key = String(eventType || "").toLowerCase()
+  let key = String(eventType || "")
+    .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
@@ -83,7 +85,6 @@ function heroImageForEvent(eventType?: string | null) {
 
   return map[key] || map["autre"];
 }
-
 
 type NextActionsPanelProps = {
   tripId: string;
@@ -377,9 +378,7 @@ function NextActionsPanel({
               <span
                 className={cn(
                   "flex size-10 shrink-0 items-center justify-center rounded-xl",
-                  a.primary
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-primary",
+                  a.primary ? "bg-primary text-primary-foreground" : "bg-muted text-primary",
                 )}
               >
                 <a.icon className="size-5" />
@@ -407,8 +406,6 @@ function NextActionsPanel({
   );
 }
 
-
-
 export function TripHubDashboard({
   tripId,
   trip,
@@ -421,6 +418,8 @@ export function TripHubDashboard({
   provisionalStart,
   provisionalCoverage,
   hasRecommendations,
+  profileReady = false,
+  profileValidated = false,
   destinationSelected,
   viewerUserId = null,
   destinationName = null,
@@ -435,34 +434,29 @@ export function TripHubDashboard({
   tripEndDatePassed: inputTripEndDatePassed = false,
   children,
 }: Props) {
-
-  const datesLocked = Boolean(
-    (trip as any).dates_locked || (trip as any).datesLocked,
-  );
-  const hasItinerary = Boolean(
-    (trip as any).group_itinerary?.days?.length,
-  );
+  const datesLocked = Boolean((trip as any).dates_locked || (trip as any).datesLocked);
+  const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const logistics = ((trip as any).group_logistics || {}) as any;
-  const hotelBookingStatus = logistics.hotelBookingStatus || 'estimé';
-  const hotelVoted = hotelBookingStatus === 'sélectionné' || hotelBookingStatus === 'réservé';
+  const hotelBookingStatus = logistics.hotelBookingStatus || "estimé";
+  const hotelVoted = hotelBookingStatus === "sélectionné" || hotelBookingStatus === "réservé";
 
   const activeParticipants = Array.isArray(trip.participants)
-    ? trip.participants.filter((p: any) => p.status !== 'absent')
+    ? trip.participants.filter((p: any) => p.status !== "absent")
     : [];
 
   const transportPicked =
     activeParticipants.length > 0 &&
     activeParticipants.every((p: any) => {
-      const userPick = p.user_id ? (logistics.transportPicks ?? []).find((pk: any) => pk.userId === p.user_id) : null;
-      return userPick && (userPick.status === 'sélectionné' || userPick.status === 'réservé');
+      const userPick = p.user_id
+        ? (logistics.transportPicks ?? []).find((pk: any) => pk.userId === p.user_id)
+        : null;
+      return userPick && (userPick.status === "sélectionné" || userPick.status === "réservé");
     });
   const myHotelVoted = Boolean(
-    viewerUserId &&
-      (logistics.hotelVotes ?? []).some((v: any) => v.userId === viewerUserId),
+    viewerUserId && (logistics.hotelVotes ?? []).some((v: any) => v.userId === viewerUserId),
   );
   const myTransportPicked = Boolean(
-    viewerUserId &&
-      (logistics.transportPicks ?? []).some((v: any) => v.userId === viewerUserId),
+    viewerUserId && (logistics.transportPicks ?? []).some((v: any) => v.userId === viewerUserId),
   );
   const hotelOffersReady = Boolean(logistics.hotels?.length);
   const transportOffersReady = Boolean(logistics.transports?.length);
@@ -478,6 +472,8 @@ export function TripHubDashboard({
     availabilityAnswered,
     questionnaireAnswered: progressAnswered,
     datesLocked,
+    profileReady,
+    profileValidated,
     hasRecommendations,
     destinationSelected,
     hotelVoted,
@@ -489,7 +485,6 @@ export function TripHubDashboard({
 
   const theme = eventTypeLabel(trip.event_type);
 
-  
   return (
     <div className="space-y-8">
       {/* Hero image + titre */}
@@ -516,9 +511,14 @@ export function TripHubDashboard({
                 {trip.celebrated_person}
               </p>
             ) : null}
-            {trip.participants && Array.isArray(trip.participants) && trip.participants.length > 0 ? (
+            {trip.participants &&
+            Array.isArray(trip.participants) &&
+            trip.participants.length > 0 ? (
               <p className="mt-1 text-xs text-white/70">
-                Avec {trip.participants.map((p: any) => p.display_name || p.email?.split("@")[0] || "Ami").join(", ")}
+                Avec{" "}
+                {trip.participants
+                  .map((p: any) => p.display_name || p.email?.split("@")[0] || "Ami")
+                  .join(", ")}
               </p>
             ) : null}
           </div>
@@ -530,16 +530,17 @@ export function TripHubDashboard({
           {totalReserved != null && totalEstimated != null ? (
             <>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:text-emerald-300">
-                <Wallet className="size-3.5 text-emerald-600" /> Réellement Réservé : {formatEuro(totalReserved)}
+                <Wallet className="size-3.5 text-emerald-600" /> Réellement Réservé :{" "}
+                {formatEuro(totalReserved)}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-sm text-amber-800 dark:text-amber-300">
-                <Wallet className="size-3.5 text-amber-600" /> Reste Estimé : {formatEuro(totalEstimated)}
+                <Wallet className="size-3.5 text-amber-600" /> Reste Estimé :{" "}
+                {formatEuro(totalEstimated)}
               </span>
             </>
           ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
-              <Wallet className="size-3.5 text-primary" />{" "}
-              ~{formatEuro(liveBudgetTotal)} / pers.
+              <Wallet className="size-3.5 text-primary" /> ~{formatEuro(liveBudgetTotal)} / pers.
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm text-muted-foreground">
@@ -607,7 +608,8 @@ export function TripHubDashboard({
               <strong>{progressAnswered}</strong>/{progressTotal || trip.participants_count}
               {(progressTotal || trip.participants_count) - progressAnswered > 0 ? (
                 <span className="ml-2 text-xs text-muted-foreground">
-                  · {(progressTotal || trip.participants_count) - progressAnswered} n&apos;ont pas répondu
+                  · {(progressTotal || trip.participants_count) - progressAnswered} n&apos;ont pas
+                  répondu
                 </span>
               ) : (
                 <span className="ml-2 text-xs text-lagoon">· tout le monde a répondu</span>
@@ -677,7 +679,6 @@ export function TripHubDashboard({
       ) : null}
 
       {children}
-
     </div>
   );
 }

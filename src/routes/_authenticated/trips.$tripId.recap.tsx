@@ -331,13 +331,15 @@ function TripRecapPage() {
 
                         {/* Fraîcheur des prix */}
                         <div className="mt-2 flex justify-end gap-1 flex-wrap">
-                          {budget.priceSource?.transport === "api" ? (
+                          {budget.priceSource?.transport === "provider" ? (
                             <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Transport réel</Badge>
                           ) : (
                             <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Transport estimé</Badge>
                           )}
-                          {budget.priceSource?.accommodation === "api" ? (
+                          {budget.priceSource?.accommodation === "provider" ? (
                             <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Logement réel</Badge>
+                          ) : budget.priceSource?.accommodation === "web" ? (
+                            <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Source web vérifiée</Badge>
                           ) : (
                             <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Logement estimé</Badge>
                           )}

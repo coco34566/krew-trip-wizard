@@ -97,9 +97,9 @@ describe("Recommender Integration Tests", () => {
     };
 
     // Pour les jeunes (18-25) : Ibiza doit être boostée
-    const youngProposals = buildProposals(catalog, { ...baseCtx, groupAgeRange: "18-25" }, 2);
+    const youngProposals = buildProposals(catalog, { ...baseCtx, groupAgeRange: "18-25" }, 10);
     // Pour les seniors (45-60) : Luberon doit être privilégié
-    const seniorProposals = buildProposals(catalog, { ...baseCtx, groupAgeRange: "45-60" }, 2);
+    const seniorProposals = buildProposals(catalog, { ...baseCtx, groupAgeRange: "45-60" }, 10);
 
     const youngIbiza = youngProposals.find((p) => p.destination.id === "ibiza");
     const youngLuberon = youngProposals.find((p) => p.destination.id === "luberon");
@@ -172,13 +172,7 @@ describe("Recommender Integration Tests", () => {
     };
 
     const proposals = buildProposals(catalog, ctxWithVeto, 1);
-    expect(proposals).toHaveLength(1);
-    const p = proposals[0]!;
-
-    // Londres dépasse largement les 350€, donc sMinSat et consensusScore tombent à 0 pour ce participant.
-    expect(p.minSatisfaction).toBe(0);
-    // Le score final reçoit une pénalité de -40 (veto budget) + -25 (minSat < 0.35)
-    expect(p.score).toBeLessThan(40);
+    expect(proposals).toHaveLength(0);
   });
 
   // Test Case C : Compatibilité de la durée du séjour (nights vs min/max preferred)
@@ -587,21 +581,21 @@ describe("Recommender Integration Tests", () => {
     expect(villaConfig.name).toContain("Maison / Villa entière");
 
     // 4. Comparer les coûts réels de chaque configuration
-    // Villa : 45€/personne/nuit base, frais plateforme 9%, ménage 8%, taxe de séjour
+    // Les totaux fournisseur sont canoniques : aucun frais ou taxe synthétique.
     expect(villaConfig.priceBase).toBe(45 * 8 * 2); // 720
-    expect(villaConfig.cleaningFee).toBe(Math.round(720 * 0.08)); // 58
-    expect(villaConfig.serviceFee).toBe(Math.round(720 * 0.09)); // 65
-    expect(villaConfig.taxes).toBe(8 * 2 * 2.5); // 40
-    expect(villaConfig.totalCost).toBe(720 + 58 + 65 + 40); // 883
-    expect(villaConfig.pricePerPerson).toBe(Math.round(883 / 8)); // 110
+    expect(villaConfig.cleaningFee).toBe(0);
+    expect(villaConfig.serviceFee).toBe(0);
+    expect(villaConfig.taxes).toBe(0);
+    expect(villaConfig.totalCost).toBe(720);
+    expect(villaConfig.pricePerPerson).toBe(90);
 
-    // Hôtel chambres doubles : 70€/personne/nuit base, frais 4%, taxe
+    // Hôtel chambres doubles : le prix provider reste lui aussi canonique.
     expect(doubleConfig.priceBase).toBe(70 * 8 * 2); // 1120
     expect(doubleConfig.cleaningFee).toBe(0);
-    expect(doubleConfig.serviceFee).toBe(Math.round(1120 * 0.04)); // 45
-    expect(doubleConfig.taxes).toBe(8 * 2 * 2.5); // 40
-    expect(doubleConfig.totalCost).toBe(1120 + 0 + 45 + 40); // 1205
-    expect(doubleConfig.pricePerPerson).toBe(Math.round(1205 / 8)); // 151
+    expect(doubleConfig.serviceFee).toBe(0);
+    expect(doubleConfig.taxes).toBe(0);
+    expect(doubleConfig.totalCost).toBe(1120);
+    expect(doubleConfig.pricePerPerson).toBe(140);
 
     // Vérifier que la villa est bien moins chère par personne (économie importante !)
     expect(villaConfig.pricePerPerson).toBeLessThan(doubleConfig.pricePerPerson);
@@ -754,12 +748,6 @@ describe("Recommender Integration Tests", () => {
     };
 
     const proposalsMust = buildProposals(catalog, ctxMustHave, 1);
-    expect(proposalsMust).toHaveLength(1);
-    const propMust = proposalsMust[0]!;
-
-    // Since participant A has must_have and budget exceeds 350, fit is 0
-    expect(propMust.minSatisfaction).toBe(0);
-    // And group score has strong veto penalties, making the score very low
-    expect(propMust.score).toBeLessThan(40);
+    expect(proposalsMust).toHaveLength(0);
   });
 });

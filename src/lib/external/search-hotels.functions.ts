@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveDesiredDestination } from "@/lib/krew/trip-service";
+import { normalizeActivityCategory } from "@/lib/krew/discovery-enrichment";
 
 export async function refreshExternalCatalogForTrip(
   supabase: any,
@@ -21,13 +22,13 @@ export async function refreshExternalCatalogForTrip(
   const [place, aggregated] = await Promise.all([geocodeDestination(destinationQuery), aggregateParticipantPreferences(supabaseAdmin, tripId)]);
   if (!place) return { ok: false as const, message: `Destination "${destinationQuery}" introuvable.`, destinationsCount: 0, accommodationsCount: 0, activitiesCount: 0, providerErrors: [] as string[] };
   const nights: number = prefs?.duration_nights ?? Math.max(1, trip.duration_nights ?? 2);
-  const checkin = (trip.start_date as string) || new Date(Date.now() + 21 * 86400000).toISOString().slice(0, 10);
-  const checkout = (trip.end_date as string) || new Date(new Date(checkin).getTime() + nights * 86400000).toISOString().slice(0, 10);
+  const checkin = (trip.start_date as string | null) ?? null;
+  const checkout = (trip.end_date as string | null) ?? null;
   const partsRes = await supabaseAdmin.from("trip_participants").select("id, user_id, email, display_name, status").eq("trip_id", tripId);
   const participantsList = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
   const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
   const participants = Math.max(1, getEffectiveParticipantsCount(trip, participantsList));
-  const climate = await fetchClimate(place.latitude, place.longitude, { startDate: checkin, endDate: checkout });
+  const climate = await fetchClimate(place.latitude, place.longitude, checkin && checkout ? { startDate: checkin, endDate: checkout } : {});
   const normalizedQuery = destinationQuery.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const slugQuery = normalizedQuery.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   const existingDest = await supabaseAdmin.from("destinations").select("id, slug, source, external_id, name, country").or(`slug.eq.${slugQuery},name.ilike.${destinationQuery}`).maybeSingle();
@@ -39,17 +40,19 @@ export async function refreshExternalCatalogForTrip(
     return p.acceptsSharedRoom === false || /solo|single|individuelle/.test(room);
   }).length;
   const rooms = Math.max(1, Math.ceil((participants + soloRoomRequests) / 2));
-  const searchParams = { destination: existingDest.data?.name ?? place.name, latitude: place.latitude, longitude: place.longitude, checkin, checkout, adults: participants, rooms, requiredAmenities: aggregated.requiredAmenities ?? [], roomTypePreferences: aggregated.roomTypePreferences ?? [] };
+  const searchParams = checkin && checkout ? { destination: existingDest.data?.name ?? place.name, latitude: place.latitude, longitude: place.longitude, checkin, checkout, adults: participants, rooms, requiredAmenities: aggregated.requiredAmenities ?? [], roomTypePreferences: aggregated.roomTypePreferences ?? [] } : null;
   const providerErrors: string[] = [];
   let hotels: Awaited<ReturnType<typeof searchHotelsStayApi>> = [];
 
   const stayApiKey = process.env["STAYAPI_API_KEY"] ?? "";
-  if (!stayApiKey) {
+  if (!checkin || !checkout) {
+    providerErrors.push("Dates réelles absentes : disponibilité et prix non vérifiés");
+  } else if (!stayApiKey) {
     providerErrors.push("STAYAPI_API_KEY is not configured");
   } else {
     console.info("[Krew API] Recherche hébergements en cours via StayAPI...");
     try {
-      hotels = await searchHotelsStayApi(searchParams);
+      hotels = await searchHotelsStayApi(searchParams!);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       providerErrors.push(message.slice(0, 500));
@@ -87,9 +90,56 @@ export async function refreshExternalCatalogForTrip(
   const destUpsert = await supabaseAdmin.from("destinations").upsert(destinationRow as never, { onConflict: "slug" }).select("id").single();
   if (destUpsert.error) throw destUpsert.error;
   const destinationId = (destUpsert.data as { id: string }).id;
+  let activitiesCount = 0;
+  const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? process.env["RAPIDAPI_KEY"] ?? "";
+  if (rapidApiKey) {
+    try {
+      const { searchActivitiesAllProviders } = await import("@/integrations/external/travel-providers.server");
+      const activityResult = await searchActivitiesAllProviders({ rapidApiKey }, {
+        destination: existingDest.data?.name ?? place.name,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        checkin,
+        checkout,
+        adults: participants,
+      });
+      providerErrors.push(...activityResult.errors);
+      const activityRows = activityResult.activities.map((activity) => ({
+        destination_id: destinationId,
+        name: activity.name,
+        category: normalizeActivityCategory(activity.name, activity.category),
+        description: activity.description,
+        price_per_person: activity.pricePerPerson,
+        duration_hours: activity.durationHours,
+        rating: activity.rating,
+        image_url: activity.imageUrl,
+        booking_url: activity.bookingUrl,
+        source: activity.provider,
+        external_id: activity.externalId,
+      }));
+      if (activityRows.length) {
+        const existingActivities = await supabaseAdmin
+          .from("activities")
+          .select("id, source, external_id")
+          .in("external_id", activityRows.map((row) => row.external_id));
+        const activityIds = new Map(
+          (existingActivities.data ?? []).map((row: any) => [`${row.source}:${row.external_id}`, row.id]),
+        );
+        const rowsWithIds = activityRows.map((row) => ({
+          ...row,
+          id: activityIds.get(`${row.source}:${row.external_id}`) ?? crypto.randomUUID(),
+        }));
+        const activityUpsert = await supabaseAdmin.from("activities").upsert(rowsWithIds as never, { onConflict: "id" }).select("id");
+        if (activityUpsert.error) providerErrors.push(`upsert activités: ${activityUpsert.error.message}`);
+        else activitiesCount = activityUpsert.data?.length ?? activityRows.length;
+      }
+    } catch (error) {
+      providerErrors.push(`activités: ${String(error).slice(0, 300)}`);
+    }
+  }
   let accommodationsCount = 0;
   if (hotels.length) {
-    const rows = hotels.map((h) => { const best = h.offers.find((offer) => Boolean(offer.url)) ?? h.offers[0]; return { destination_id: destinationId, name: h.name, type: h.type || "other", description: h.description, price_per_night_per_person: Math.max(1, Math.round(best?.perPersonPerNight ?? 0)), capacity: h.capacity ?? 0, rating: h.rating > 5 ? Math.round((h.rating / 2) * 10) / 10 : h.rating, distance_center_km: h.distanceCenterKm, image_url: h.imageUrl, price_offers: h.offers, best_provider: best?.provider ?? null, booking_url: best?.url ?? null, source: best?.provider ?? "stayapi", external_id: h.externalId }; });
+    const rows = hotels.map((h) => { const best = h.offers.find((offer) => Boolean(offer.url)) ?? h.offers[0]; return { destination_id: destinationId, name: h.name, type: h.type || "other", description: h.description, price_per_night_per_person: Math.max(1, Math.round(best?.perPersonPerNight ?? 0)), capacity: h.capacity ?? 0, rating: h.rating > 5 ? Math.round((h.rating / 2) * 10) / 10 : h.rating, distance_center_km: h.distanceCenterKm, image_url: h.imageUrl, price_offers: h.offers, best_provider: best?.provider ?? null, booking_url: best?.url ?? null, source: best?.provider ?? "stayapi", external_id: h.externalId, price_verified: true, availability_verified: true, verification_state: "confirmed" }; });
     // Do not rely on a composite ON CONFLICT target here: some deployed KREW
     // databases only have a partial unique index for (source, external_id),
     // which PostgREST cannot infer. Resolve existing rows first, then let the
@@ -133,11 +183,11 @@ export async function refreshExternalCatalogForTrip(
       comparedProviders: [] as string[],
       destinationsCount: 1,
       accommodationsCount: 0,
-      activitiesCount: 0,
+      activitiesCount,
       providerErrors,
     };
   }
-  return { ok: true as const, destination: place.name, country: place.country, nights, weatherSummary: climate.summary, bestMonths: climate.bestMonths, medianNightly, comparedProviders: [...new Set(hotels.flatMap((h) => h.offers.map((o) => o.provider)))], destinationsCount: 1, accommodationsCount, activitiesCount: 0, providerErrors };
+  return { ok: true as const, destination: place.name, country: place.country, nights, weatherSummary: climate.summary, bestMonths: climate.bestMonths, medianNightly, comparedProviders: [...new Set(hotels.flatMap((h) => h.offers.map((o) => o.provider)))], destinationsCount: 1, accommodationsCount, activitiesCount, providerErrors };
 }
 
 export const searchExternalForTrip = createServerFn({ method: "POST" })

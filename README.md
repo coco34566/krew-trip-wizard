@@ -1,5 +1,12 @@
 # Krew: Your Group Trip Planner
 
+## Destination discovery AI
+
+Destination discovery uses server-only OpenAI-compatible providers in this order:
+Gemini, AIMLAPI, then OpenAI. Configure `GEMINI_API_KEY` and optionally
+`GEMINI_MODEL` (default: `gemini-2.5-flash`). Gemini only explores candidates;
+KREW's deterministic enrichment, hard constraints, and scoring remain authoritative.
+
 Crée une application web complète appelée Krew, une plateforme intelligente d’organisation de voyages de groupe (principalement EVG/EVJF mais extensible à tous types de voyages entre amis).
 
 Vision du projet
