@@ -437,6 +437,9 @@ function TripDetail() {
       time?: string;
       arrivalTime?: string;
       departureTime?: string;
+      durationHours?: number;
+      outboundDepartureTime?: string;
+      returnArrivalTime?: string;
       pricePerPerson?: number;
       url?: string | null;
     }) => pickTransportFn({ data: { tripId, ...payload } }),
@@ -1698,6 +1701,9 @@ function TripDetail() {
                                       url: tr.url,
                                       arrivalTime: pickArrival || undefined,
                                       departureTime: pickDeparture || undefined,
+                                      durationHours: tr.durationHours,
+                                      outboundDepartureTime: tr.providerOffer?.outboundTime || undefined,
+                                      returnArrivalTime: tr.providerOffer?.returnTime || undefined,
                                       time: pickArrival || undefined,
                                     } as any)
                                   }
