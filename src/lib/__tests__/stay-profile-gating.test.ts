@@ -18,10 +18,10 @@ describe("trip stay profile gating", () => {
     });
   });
 
-  it("opens profile validation, but not generation, at the existing 40% threshold", () => {
+  it("opens profile validation with available answers without waiting for the whole group", () => {
     const gate = evaluateStayProfileGate({
-      answered: 2,
-      expected: 5,
+      answered: 1,
+      expected: 8,
       validated: false,
       hasExistingRecommendations: false,
     });

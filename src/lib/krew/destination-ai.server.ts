@@ -143,11 +143,13 @@ function fingerprint(input: AiDiscoveryInput): string {
 }
 
 const cache = new Map<string, { at: number; candidates: AiCandidate[]; provider: string }>();
+const inFlight = new Map<string, Promise<Awaited<ReturnType<typeof requestGeminiCandidates>>>>();
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 export const REQUEST_TIMEOUT_MS = 30_000;
 
 export function clearDestinationAiCacheForTests() {
   cache.clear();
+  inFlight.clear();
 }
 
 function compactUser(input: AiDiscoveryInput): string {
@@ -293,13 +295,15 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
   }
 }
 
-export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promise<{
+type AiDiscoveryResult = {
   candidates: AiCandidate[];
   usedLlm: boolean;
   provider?: string;
   error?: string;
   cached?: boolean;
-}> {
+};
+
+async function requestGeminiCandidates(input: AiDiscoveryInput): Promise<AiDiscoveryResult> {
   const cfg = getGeminiConfig();
   if (!cfg) return { candidates: [], usedLlm: false, error: "no_gemini_key" };
 
@@ -373,4 +377,16 @@ export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promi
       error: String(error).slice(0, 160) || "gemini_failed",
     };
   }
+}
+
+export function discoverDestinationsWithAi(input: AiDiscoveryInput): Promise<AiDiscoveryResult> {
+  if (process.env["GEMINI_ENABLED"] === "false") {
+    return Promise.resolve({ candidates: [], usedLlm: false, error: "gemini_disabled" });
+  }
+  const fp = fingerprint(input);
+  const pending = inFlight.get(fp);
+  if (pending) return pending;
+  const request = requestGeminiCandidates(input).finally(() => inFlight.delete(fp));
+  inFlight.set(fp, request);
+  return request;
 }

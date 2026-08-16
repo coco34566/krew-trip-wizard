@@ -1,5 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { attachParticipantToTrip } from '../participant-preferences.functions';
+import { assertQuestionnaireCanBeSubmitted, attachParticipantToTrip } from '../participant-preferences.functions';
+
+describe("submitted participant questionnaires", () => {
+  it("freezes preferences after the first submission", () => {
+    expect(() => assertQuestionnaireCanBeSubmitted({ submitted_at: "2026-08-16T10:00:00Z" })).toThrow(/déjà été envoyé/);
+  });
+
+  it("allows the initial submission", () => {
+    expect(() => assertQuestionnaireCanBeSubmitted(null)).not.toThrow();
+  });
+});
 
 describe('attachParticipantToTrip', () => {
   it('attaches only the matching unclaimed invite when there are 3 unclaimed invites', async () => {

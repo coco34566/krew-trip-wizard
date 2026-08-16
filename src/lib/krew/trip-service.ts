@@ -51,6 +51,7 @@ export const tripInputSchema = z.object({
     "autre",
   ]),
   celebratedPerson: z.string().max(120).optional(),
+  starPaysShare: z.boolean().default(true),
   /** Prénom de l'organisateur (pour identifier qui est qui dans le groupe). */
   organizerFirstName: z.string().min(1).max(80).optional(),
   startDate: z.string().optional(),
@@ -796,7 +797,6 @@ export type GenerationReadiness = {
 };
 
 const MIN_ANSWERS = 1;
-const MIN_ANSWER_RATIO = 0.4;
 
 export function evaluateStayProfileGate(input: {
   answered: number;
@@ -804,9 +804,8 @@ export function evaluateStayProfileGate(input: {
   validated: boolean;
   hasExistingRecommendations: boolean;
 }) {
-  const questionnairesReady =
-    input.answered >= MIN_ANSWERS &&
-    input.answered / Math.max(input.expected, 1) >= MIN_ANSWER_RATIO;
+  // One usable answer is enough: missing participants must not indefinitely block the group.
+  const questionnairesReady = input.answered >= MIN_ANSWERS;
   const legacyBypass = input.hasExistingRecommendations;
   return {
     questionnairesReady,
@@ -954,7 +953,7 @@ export async function assessGenerationReadiness(
   }
 
   let message: string | undefined;
-  if (!prefsOk) message = "Les questionnaires n’ont pas encore atteint le seuil requis.";
+  if (!prefsOk) message = "Au moins un questionnaire est nécessaire pour calculer les profils.";
   else if (!validated) message = "Validez d’abord le profil du voyage.";
 
   return {

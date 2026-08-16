@@ -85,6 +85,30 @@ describe("Gemini destination discovery provider order", () => {
     expect(REQUEST_TIMEOUT_MS).toBe(30_000);
   });
 
+  it("deduplicates simultaneous identical Gemini generations", async () => {
+    process.env["GEMINI_API_KEY"] = "gemini";
+    let resolveFetch!: (value: ReturnType<typeof response>) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<ReturnType<typeof response>>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = discoverDestinationsWithAi(input);
+    const second = discoverDestinationsWithAi(input);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    resolveFetch(
+      response(
+        '{"destinations":[{"name":"Luberon","destinationType":"region_territory","anchorPlaces":["Gordes"]}]}',
+      ),
+    );
+
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves region and outdoor candidate types", async () => {
     process.env["GEMINI_API_KEY"] = "gemini";
     vi.stubGlobal(

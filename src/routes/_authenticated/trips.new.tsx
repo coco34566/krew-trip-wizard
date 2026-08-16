@@ -43,6 +43,7 @@ function NewTripPage() {
   const [participantsInput, setParticipantsInput] = useState(String(PARTICIPANTS_DEFAULT));
   const participants = clampParticipants(participantsInput);
   const [celebratedPerson, setCelebratedPerson] = useState("");
+  const [starPaysShare, setStarPaysShare] = useState(true);
   const [organizerFirstName, setOrganizerFirstName] = useState("");
   const [durationDaysInput, setDurationDaysInput] = useState("3");
   const [submitting, setSubmitting] = useState(false);
@@ -74,6 +75,7 @@ function NewTripPage() {
           participants,
           organizerFirstName: organizerFirstName.trim(),
           celebratedPerson: celebratedPerson.trim() || undefined,
+          starPaysShare,
           budgetPerPerson: 400,
           departureCity: "Paris",
           ambiances: [],
@@ -113,7 +115,7 @@ function NewTripPage() {
           <div><Label htmlFor="name">Nom du voyage</Label><Input id="name" className="mt-1.5" placeholder="Ex. Week-end d'été / EVG de Jules" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></div>
           <div><Label htmlFor="orga">Ton prénom (organisateur)</Label><Input id="orga" className="mt-1.5" placeholder="Ex. Camille" value={organizerFirstName} onChange={(e) => setOrganizerFirstName(e.target.value)} /><p className="mt-1 text-xs text-muted-foreground">Pour que le groupe sache qui organise, et pour te reconnaître dans les réponses.</p></div>
           <div><Label className="mb-2 block">Type d'événement</Label><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{EVENT_TYPES.map((t) => (<button key={t.value} type="button" onClick={() => setEventType(t.value)} className={cn("rounded-2xl border px-3 py-3 text-left text-sm transition-colors", eventType === t.value ? "border-primary bg-primary/15 shadow-glow" : "border-border bg-surface/50 hover:border-primary/40")}><span className="text-base">{t.emoji}</span><span className="mt-1 block font-medium leading-tight">{t.label}</span></button>))}</div></div>
-          {needsStar ? <div><Label htmlFor="star">Personne principale (Star)</Label><Input id="star" className="mt-1.5" placeholder="Prénom" value={celebratedPerson} onChange={(e) => setCelebratedPerson(e.target.value)} /><p className="mt-1 text-xs text-muted-foreground">Ses préférences compteront davantage dans les recommandations.</p></div> : null}
+          {needsStar ? <div className="space-y-4"><div><Label htmlFor="star">Personne principale (Star)</Label><Input id="star" className="mt-1.5" placeholder="Prénom" value={celebratedPerson} onChange={(e) => setCelebratedPerson(e.target.value)} /><p className="mt-1 text-xs text-muted-foreground">Ses préférences compteront davantage dans les recommandations.</p></div><fieldset><legend className="text-sm font-medium">La star participe-t-elle aux frais du voyage ?</legend><div className="mt-2 grid gap-2 sm:grid-cols-2"><button type="button" aria-pressed={starPaysShare} onClick={() => setStarPaysShare(true)} className={cn("rounded-2xl border p-3 text-left text-sm", starPaysShare ? "border-primary bg-primary/10" : "border-border")}>Oui — elle paie sa part</button><button type="button" aria-pressed={!starPaysShare} onClick={() => setStarPaysShare(false)} className={cn("rounded-2xl border p-3 text-left text-sm", !starPaysShare ? "border-primary bg-primary/10" : "border-border")}>Non — le groupe lui offre le voyage</button></div></fieldset></div> : null}
           <div><Label htmlFor="n">Nombre estimé de participants</Label><Input id="n" type="number" min={PARTICIPANTS_MIN} max={PARTICIPANTS_MAX} className="mt-1.5" value={participantsInput} onChange={(e) => setParticipantsInput(e.target.value.replace(/[^\d]/g, ""))} onBlur={() => setParticipantsInput(String(clampParticipants(participantsInput)))} /><p className="mt-1 text-xs text-muted-foreground">{needsStar ? `Inclus bien la star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans ce nombre total de participant·e·s.` : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX} — tu pourras inviter ensuite.`}</p></div>
           <div><Label htmlFor="durationDays">Durée du voyage (en jours)</Label><Input id="durationDays" type="number" min={2} max={31} className="mt-1.5" value={durationDaysInput} onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))} onBlur={() => { const val = Math.max(2, Number(durationDaysInput) || 3); setDurationDaysInput(String(val)); }} /><p className="mt-1 text-xs text-muted-foreground">La durée du voyage commune à tout le groupe (ex : 3 jours correspond à 2 nuits).</p></div>
           <Button type="submit" size="lg" className="w-full" disabled={submitting}>{submitting ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}Créer et inviter le groupe</Button>

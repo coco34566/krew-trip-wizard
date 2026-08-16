@@ -329,7 +329,35 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
     return { ok: true, isUpdate: Boolean(existing.data) };
   });
 
-/** Owner / Co-org only : fige start_date / end_date et marque dates_locked = true (alimente les APIs). */
+export function buildDateDecisionPatch(input: {
+  start: string;
+  end: string;
+  previousStart?: string | null;
+  previousEnd?: string | null;
+  refreshRequired?: Record<string, boolean> | null;
+}) {
+  const changed =
+    Boolean(input.previousStart || input.previousEnd) &&
+    (input.previousStart !== input.start || input.previousEnd !== input.end);
+  return {
+    start_date: input.start,
+    end_date: input.end,
+    provisional_start_date: input.start,
+    provisional_end_date: input.end,
+    dates_locked: true,
+    date_confidence: "choisie",
+    refresh_required: changed
+      ? {
+          ...(input.refreshRequired ?? {}),
+          accommodations: true,
+          transports: true,
+          activities: true,
+        }
+      : (input.refreshRequired ?? {}),
+  };
+}
+
+/** Owner / Co-org only: vote or direct override converge on the same validated date state. */
 export const chooseTripDates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -345,7 +373,7 @@ export const chooseTripDates = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id, co_organizer_id")
+      .select("id, owner_id, co_organizer_id, start_date, end_date, refresh_required")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -358,15 +386,18 @@ export const chooseTripDates = createServerFn({ method: "POST" })
     const end = data.endDate.slice(0, 10);
     if (start > end) throw new Error("La date de fin doit être après la date de début");
 
+    const tripData = trip.data as any;
+    const patch = buildDateDecisionPatch({
+      start,
+      end,
+      previousStart: tripData.start_date,
+      previousEnd: tripData.end_date,
+      refreshRequired: tripData.refresh_required,
+    });
     const { error } = await supabase
       .from("trips")
       .update({
-        start_date: start,
-        end_date: end,
-        provisional_start_date: start,
-        provisional_end_date: end,
-        dates_locked: true,
-        date_confidence: "choisie",
+        ...patch,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", data.tripId);
