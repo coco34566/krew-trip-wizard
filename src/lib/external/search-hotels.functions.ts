@@ -15,7 +15,7 @@ export async function refreshExternalCatalogForTrip(
   const prefsRes = await supabase.from("trip_preferences").select("duration_nights").eq("trip_id", tripId).maybeSingle();
   const prefs = (prefsRes.data ?? null) as any;
   const { geocodeDestination, fetchClimate, distanceFromParisKm } = await import("@/integrations/external/geo-weather.server");
-  const { searchHotelsAllProviders } = await import("@/integrations/external/travel-providers.server");
+  const { searchHotelsStayApi } = await import("@/integrations/external/stayapi-hotels.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
   const [place, aggregated] = await Promise.all([geocodeDestination(destinationQuery), aggregateParticipantPreferences(supabaseAdmin, tripId)]);
@@ -41,16 +41,22 @@ export async function refreshExternalCatalogForTrip(
   const rooms = Math.max(1, Math.ceil((participants + soloRoomRequests) / 2));
   const searchParams = { destination: existingDest.data?.name ?? place.name, latitude: place.latitude, longitude: place.longitude, checkin, checkout, adults: participants, rooms, requiredAmenities: aggregated.requiredAmenities ?? [], roomTypePreferences: aggregated.roomTypePreferences ?? [] };
   const providerErrors: string[] = [];
-  let hotels: Awaited<ReturnType<typeof searchHotelsAllProviders>>["hotels"] = [];
-  const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? "";
-  if (rapidApiKey) {
-    console.info("[Krew API] Clé HOTELS_RAPIDAPI_KEY détectée. Recherche hébergements uniquement.");
-    const hotelRes = await searchHotelsAllProviders({ rapidApiKey, hotelsHost: process.env["HOTELS_RAPIDAPI_HOST"] ?? process.env["HOTELS_COM_RAPIDAPI_HOST"], hotelsComHost: process.env["HOTELS_COM_RAPIDAPI_HOST"] ?? process.env["HOTELS_RAPIDAPI_HOST"], bookingHost: process.env["BOOKING_RAPIDAPI_HOST"], expediaHost: process.env["EXPEDIA_RAPIDAPI_HOST"] }, searchParams);
-    hotels = hotelRes.hotels;
-    providerErrors.push(...hotelRes.errors);
+  let hotels: Awaited<ReturnType<typeof searchHotelsStayApi>> = [];
+
+  const stayApiKey = process.env["STAYAPI_API_KEY"] ?? "";
+  if (!stayApiKey) {
+    providerErrors.push("STAYAPI_API_KEY is not configured");
   } else {
-    providerErrors.push("Aucune clé RapidAPI configurée pour la recherche d'hébergements.");
+    console.info("[Krew API] Recherche hébergements en cours via StayAPI...");
+    try {
+      hotels = await searchHotelsStayApi(searchParams);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      providerErrors.push(message.slice(0, 500));
+      console.error("[Krew API] StayAPI accommodation search failed:", message);
+    }
   }
+
   const minRating = Number(aggregated.minAccommodationRating ?? 0);
   if (minRating > 0) hotels = hotels.filter((h) => !h.rating || h.rating >= minRating);
   hotels = hotels.filter((h) => h.offers.some((offer) => Boolean(offer.url)));
