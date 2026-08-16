@@ -158,9 +158,10 @@ function normalizeHotel(raw: any, provider: string): HotelOffer | null {
 }
 
 async function resolveStayApiDestination(destination: string) {
-  const payload = await stayApi("/v1/booking/destinations", { query: destination });
+  const payload = await stayApi("/v1/booking/destinations/lookup", { query: destination, language: "fr" });
   const candidates = pickArray(payload);
-  const exact = candidates.find((d: any) => String(d?.name ?? d?.label ?? d?.city_name ?? "").toLowerCase() === destination.toLowerCase());
+  const norm = destination.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const exact = candidates.find((d: any) => String(d?.name ?? d?.label ?? d?.city_name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim() === norm);
   const city = candidates.find((d: any) => String(d?.type ?? d?.dest_type ?? "").toLowerCase() === "city");
   const d = exact ?? city ?? candidates[0];
   const id = d?.dest_id ?? d?.destination_id ?? d?.id;
