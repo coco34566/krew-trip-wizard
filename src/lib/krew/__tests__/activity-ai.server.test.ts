@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDiscoveryQueries,
+  normalizeSearchCandidates,
   isSafeActivityUrl,
   type ActivityCandidate,
 } from "../activity-discovery.server";
 import {
   buildLocalItinerary,
+  aggregateMajorityTimePreference,
   calculatePlanningWindow,
+  haversineDistanceKm,
   validateItinerary,
   type ActivityAiInput,
 } from "../activity-ai.server";
@@ -51,11 +54,34 @@ const candidate: ActivityCandidate = {
   profileFit: 95,
   eventFit: 60,
   seasonality: null,
+  verified: true,
   verifiedAt: "2026-08-16T00:00:00.000Z",
   groundingSources: [],
 };
 
 describe("contraintes déterministes du planning", () => {
+  it("agrège les préférences aller et retour selon la majorité", () => {
+    expect(
+      aggregateMajorityTimePreference([...Array(6).fill("13:00"), ...Array(2).fill("18:00")]),
+    ).toBe("13:00");
+    expect(
+      aggregateMajorityTimePreference([...Array(6).fill("20:00"), ...Array(2).fill("16:00")]),
+    ).toBe("20:00");
+  });
+
+  it("donne la priorité à l'arrivée du transport réellement sélectionné", () => {
+    expect(
+      calculatePlanningWindow(
+        input({
+          earliestOutboundDeparture: "13:00",
+          transportDurationHours: 2,
+          transferMarginMinutes: 60,
+          transportPicksSummary: [{ city: "Paris", mode: "train", arrival: "18:00" }],
+        }),
+      ).arrivalReady,
+    ).toBe("19:00");
+  });
+
   it("calcule l'arrivée depuis un départ à 13:00 et la durée, puis applique la marge", () => {
     expect(
       calculatePlanningWindow(
@@ -164,6 +190,119 @@ describe("contraintes déterministes du planning", () => {
     );
     expect(days[0]?.slots).toHaveLength(1);
     expect(days[0]?.slots[0]?.verified).toBe(true);
+  });
+
+  it("rejette un lieu fermé à l'heure proposée", () => {
+    const closed = { ...candidate, id: "closed", openingHours: ["Samedi: 18:00-23:00"] };
+    const days = validateItinerary(
+      [
+        {
+          day: 2,
+          slots: [
+            {
+              moment: "Midi",
+              time: "13:00",
+              type: "resto",
+              label: closed.name,
+              candidateId: closed.id,
+            },
+          ],
+        },
+      ],
+      input(),
+      [closed],
+    );
+    expect(days[0]?.slots).toHaveLength(0);
+  });
+
+  it("rejette un saut absurde en city trip mais l'autorise pour un profil outdoor justifié", () => {
+    const far = {
+      ...candidate,
+      id: "far",
+      name: "Base outdoor distante",
+      latitude: 46.25,
+      longitude: 6.1,
+      category: "randonnée",
+      environment: "outdoor" as const,
+    };
+    expect(haversineDistanceKm(candidate, far)).toBeGreaterThan(35);
+    const plan = [
+      {
+        day: 2,
+        slots: [
+          {
+            moment: "Matin",
+            time: "09:00",
+            durationMinutes: 60,
+            type: "activite" as const,
+            label: candidate.name,
+            candidateId: candidate.id,
+          },
+          {
+            moment: "Après-midi",
+            time: "12:00",
+            durationMinutes: 60,
+            type: "activite" as const,
+            label: far.name,
+            candidateId: far.id,
+          },
+        ],
+      },
+    ];
+    expect(
+      validateItinerary(plan, input({ tripProfile: "City trip", ambiances: ["urbain"] }), [
+        candidate,
+        far,
+      ])[0]?.slots,
+    ).toHaveLength(1);
+    expect(validateItinerary(plan, input(), [candidate, far])[0]?.slots).toHaveLength(2);
+  });
+});
+
+describe("vérification grounding", () => {
+  const payload = (
+    sourceUrl: string,
+    groundingUrl: string,
+    groundingTitle = "Club Nautique Annecy",
+  ) => ({
+    candidates: [
+      {
+        content: {
+          parts: [
+            {
+              text: JSON.stringify({
+                candidates: [{ name: "Club Nautique Annecy", category: "kayak", sourceUrl }],
+              }),
+            },
+          ],
+        },
+        groundingMetadata: {
+          groundingChunks: [{ web: { title: groundingTitle, uri: groundingUrl } }],
+        },
+      },
+    ],
+  });
+
+  it("ne vérifie pas une URL HTTPS absente du grounding", () => {
+    expect(
+      normalizeSearchCandidates(
+        payload(
+          "https://unrelated.example/activity",
+          "https://tourism.example/other",
+          "Agenda touristique régional",
+        ),
+        input(),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("vérifie une source réellement liée au candidat", () => {
+    const candidates = normalizeSearchCandidates(
+      payload("https://nautique.example/annecy", "https://nautique.example/annecy"),
+      input(),
+    );
+    expect(candidates[0]?.verified).toBe(true);
+    expect(candidates[0]?.groundingSources).toHaveLength(1);
   });
 });
 

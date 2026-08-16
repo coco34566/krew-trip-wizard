@@ -35,6 +35,7 @@ export type ActivitySlot = {
   source?: string | null | undefined;
   latitude?: number | null | undefined;
   longitude?: number | null | undefined;
+  openingHoursVerified?: boolean | undefined;
 };
 export type ItineraryDayPlan = { day: number; date?: string | null; slots: ActivitySlot[] };
 export type GroupItinerary = {
@@ -114,6 +115,100 @@ const fromMinutes = (minutes: number) =>
 const mapsUrl = (query: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 
+export function aggregateMajorityTimePreference(
+  values: (string | null | undefined)[],
+): string | null {
+  const minutes = values
+    .map((value) => toMinutes(value))
+    .filter((value): value is number => value != null)
+    .sort((a, b) => a - b);
+  if (!minutes.length) return null;
+  // Lower median on an even group: a minority with a later/earlier preference
+  // cannot turn an ordinary preference into a unanimous hard constraint.
+  return fromMinutes(minutes[Math.floor((minutes.length - 1) / 2)]!);
+}
+
+export function haversineDistanceKm(
+  a: { latitude?: number | null | undefined; longitude?: number | null | undefined },
+  b: { latitude?: number | null | undefined; longitude?: number | null | undefined },
+): number | null {
+  if (a.latitude == null || a.longitude == null || b.latitude == null || b.longitude == null)
+    return null;
+  const rad = (degrees: number) => (degrees * Math.PI) / 180;
+  const dLat = rad(b.latitude - a.latitude);
+  const dLon = rad(b.longitude - a.longitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLon / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function geographyPolicy(input: ActivityAiInput) {
+  const profile = norm(
+    [input.tripProfile, ...input.ambiances, ...(input.wantedEnvTypes ?? [])].join(" "),
+  );
+  if (/nature|sport|outdoor|aventure|montagne|lac/.test(profile))
+    return { maxKm: 65, profile: "outdoor" as const };
+  if (/maison|villa|chill|cocoon|logement/.test(profile))
+    return { maxKm: 8, profile: "home" as const };
+  return { maxKm: 25, profile: "city" as const };
+}
+
+function transferMinutes(distanceKm: number | null): number {
+  if (distanceKm == null) return 20;
+  if (distanceKm <= 2) return 15;
+  if (distanceKm <= 8) return 30;
+  if (distanceKm <= 20) return 45;
+  return 75;
+}
+
+const weekdays: Record<string, number> = {
+  dimanche: 0,
+  sunday: 0,
+  lundi: 1,
+  monday: 1,
+  mardi: 2,
+  tuesday: 2,
+  mercredi: 3,
+  wednesday: 3,
+  jeudi: 4,
+  thursday: 4,
+  vendredi: 5,
+  friday: 5,
+  samedi: 6,
+  saturday: 6,
+};
+export function openingStatus(
+  candidate: ActivityCandidate,
+  date: string | null | undefined,
+  time: string | null | undefined,
+  durationMinutes = 90,
+): "open" | "closed" | "unknown" {
+  if (!candidate.openingHours.length || !date || toMinutes(time) == null) return "unknown";
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
+  const line = candidate.openingHours.find((entry) =>
+    Object.entries(weekdays).some(([name, day]) => day === weekday && norm(entry).includes(name)),
+  );
+  if (!line) return "unknown";
+  if (/ferme|closed/.test(norm(line))) return "closed";
+  const ranges = [
+    ...line.matchAll(
+      /([01]?\d|2[0-3])[:h]([0-5]\d)\s*(?:-|–|—|a|to)\s*([01]?\d|2[0-3])[:h]([0-5]\d)/gi,
+    ),
+  ];
+  if (!ranges.length) return "unknown";
+  const start = toMinutes(time)!;
+  const end = start + durationMinutes;
+  return ranges.some((range) => {
+    const open = Number(range[1]) * 60 + Number(range[2]);
+    let close = Number(range[3]) * 60 + Number(range[4]);
+    if (close <= open) close += 1440;
+    return start >= open && end <= close;
+  })
+    ? "open"
+    : "closed";
+}
+
 export function calculatePlanningWindow(input: ActivityAiInput): {
   arrivalReady: string | null;
   latestDestinationDeparture: string | null;
@@ -184,7 +279,7 @@ function normalizeSlot(
     ["transport", "libre", "moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(
       String(raw.category),
     );
-  if (!candidate && !internal) return null;
+  if ((!candidate || candidate.verified !== true) && !internal) return null;
   const time =
     typeof raw.time === "string" && HHMM.test(raw.time.slice(0, 5)) ? raw.time.slice(0, 5) : null;
   const durationMinutes = Number.isFinite(Number(raw.durationMinutes))
@@ -203,7 +298,7 @@ function normalizeSlot(
     durationMinutes,
     url: candidate ? candidate.sourceUrl : null,
     candidateId: candidate?.id ?? null,
-    verified: Boolean(candidate),
+    verified: candidate?.verified === true,
     source: candidate?.source ?? (internal ? "krew" : null),
     latitude: candidate?.latitude ?? null,
     longitude: candidate?.longitude ?? null,
@@ -219,10 +314,13 @@ export function validateItinerary(
   const window = calculatePlanningWindow(input);
   const arrival = toMinutes(window.arrivalReady);
   const departure = toMinutes(window.latestDestinationDeparture);
-  return days
+  let rejectedOpeningHours = 0;
+  let rejectedGeography = 0;
+  const result = days
     .filter((day) => day.day >= 1 && day.day <= expectedDays)
     .map((day) => {
       let previousEnd = -1;
+      let previousExternal: ActivitySlot | null = null;
       const slots = day.slots
         .map((raw) => normalizeSlot(raw, input, candidates))
         .filter((slot): slot is ActivitySlot => Boolean(slot))
@@ -239,8 +337,41 @@ export function validateItinerary(
           // Même prudence au retour : matinée courte uniquement tant que le trajet
           // retenu ne fournit pas une heure de départ calculable.
           if (day.day === expectedDays && departure == null && end > 12 * 60) return false;
-          if (start < previousEnd + (previousEnd >= 0 ? 20 : 0)) return false;
+          const candidate = slot.candidateId
+            ? candidates.find((item) => item.id === slot.candidateId)
+            : undefined;
+          if (candidate) {
+            const status = openingStatus(
+              candidate,
+              input.startDate ? addDays(input.startDate, day.day - 1) : day.date,
+              slot.time,
+              slot.durationMinutes ?? 90,
+            );
+            slot.openingHoursVerified = status === "open";
+            if (status === "closed") {
+              rejectedOpeningHours++;
+              return false;
+            }
+            if (status === "unknown")
+              slot.detail = [slot.detail, "Horaires d’ouverture non confirmés pour ce créneau."]
+                .filter(Boolean)
+                .join(" ");
+          }
+          const distance = previousExternal ? haversineDistanceKm(previousExternal, slot) : null;
+          const policy = geographyPolicy(input);
+          const outdoorJustified =
+            policy.profile === "outdoor" &&
+            (slot.category === "sport_outdoor" || previousExternal?.category === "sport_outdoor");
+          if (distance != null && distance > policy.maxKm && !outdoorJustified) {
+            rejectedGeography++;
+            return false;
+          }
+          if (start < previousEnd + (previousEnd >= 0 ? transferMinutes(distance) : 0)) {
+            if (distance != null) rejectedGeography++;
+            return false;
+          }
           previousEnd = end;
+          if (candidate) previousExternal = slot;
           return !slot.url || isSafeActivityUrl(slot.url);
         });
       return {
@@ -249,6 +380,13 @@ export function validateItinerary(
         slots,
       };
     });
+  console.info("activity-validation", {
+    rejectedOpeningHours,
+    rejectedGeography,
+    dayCount: result.length,
+    profile: geographyPolicy(input).profile,
+  });
+  return result;
 }
 
 function isHomeProfile(input: ActivityAiInput) {
@@ -382,7 +520,7 @@ export function buildLocalItinerary(
             ...(candidate.priceHint != null ? { priceHint: candidate.priceHint } : {}),
             url: candidate.sourceUrl,
             candidateId: candidate.id,
-            verified: true,
+            verified: candidate.verified === true,
             source: candidate.source,
             latitude: candidate.latitude,
             longitude: candidate.longitude,
@@ -517,6 +655,12 @@ export async function generateItineraryWithAi(
     forceRefresh: input.forceDiscoveryRefresh,
   });
   const candidates = discovery.candidates;
+  console.info("activity-composition", {
+    candidateCount: candidates.length,
+    shortlistedCount: candidates.length,
+    destination: input.destination,
+    fallback: false,
+  });
   let parsed: any = null;
   let provider: "gemini" | "aimlapi" | null = null;
   const errors: string[] = [];
@@ -569,6 +713,13 @@ export async function generateItineraryWithAi(
         generatedAt: new Date().toISOString(),
       }
     : buildLocalItinerary(input, candidates);
+  if (!valid)
+    console.info("activity-composition", {
+      candidateCount: candidates.length,
+      shortlistedCount: candidates.length,
+      destination: input.destination,
+      fallback: "local",
+    });
   itinerary.discovery = {
     candidateCount: candidates.length,
     shortlistedCount: candidates.length,

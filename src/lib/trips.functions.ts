@@ -1788,7 +1788,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const matchReasons = Array.isArray(recoRow.match_reasons)
       ? recoRow.match_reasons.map(String)
       : [];
-    const { generateItineraryWithAi } = await import("@/lib/krew/activity-ai.server");
+    const { generateItineraryWithAi, aggregateMajorityTimePreference } =
+      await import("@/lib/krew/activity-ai.server");
     const logistics = (trip.group_logistics || {}) as any;
     const picks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
     // Les horaires de transport retenus priment. À défaut, le calcul part des
@@ -1812,17 +1813,15 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
     const effCount = getEffectiveParticipantsCount(trip, participants);
 
-    const groupEarliestDeparture =
-      (timePrefsRes.data ?? [])
-        .map((row: any) => row.earliest_departure_time)
-        .filter(Boolean)
-        .sort()
-        .at(-1) ?? null;
-    const groupLatestReturnHome =
-      (timePrefsRes.data ?? [])
-        .map((row: any) => row.latest_return_time)
-        .filter(Boolean)
-        .sort()[0] ?? null;
+    // Ordinary answers are collective preferences: KREW uses the group
+    // median/majority, not a value compatible with every respondent. Actual
+    // selected transport times remain authoritative in calculatePlanningWindow.
+    const groupEarliestDeparture = aggregateMajorityTimePreference(
+      (timePrefsRes.data ?? []).map((row: any) => row.earliest_departure_time),
+    );
+    const groupLatestReturnHome = aggregateMajorityTimePreference(
+      (timePrefsRes.data ?? []).map((row: any) => row.latest_return_time),
+    );
     const retainedDurations = picks
       .map((pick: any) => Number(pick.durationHours))
       .filter((duration: number) => Number.isFinite(duration) && duration > 0);

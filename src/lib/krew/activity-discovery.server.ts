@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Gemini payloads are normalized before entering KREW */
 import { reportServerError } from "@/lib/server-error-reporting.server";
 
+export type GroundingSource = { title: string; url: string; kind?: "search" | "maps" };
 export type ActivityCandidate = {
   id: string;
   name: string;
@@ -25,8 +26,9 @@ export type ActivityCandidate = {
   profileFit: number;
   eventFit: number;
   seasonality: string | null;
+  verified: boolean;
   verifiedAt: string;
-  groundingSources: { title: string; url: string }[];
+  groundingSources: GroundingSource[];
 };
 
 export type ActivityDiscoveryInput = {
@@ -49,6 +51,7 @@ type CacheEntry = { expiresAt: number; candidates: ActivityCandidate[] };
 const discoveryCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MODEL = "gemini-2.5-flash";
+const MAPS_ENRICHMENT_LIMIT = 8;
 
 const norm = (value: unknown) =>
   String(value ?? "")
@@ -71,30 +74,27 @@ function profileTerms(input: ActivityDiscoveryInput): string[] {
   const signal = norm(
     [input.tripProfile, ...input.ambiances, ...input.activityCategories].join(" "),
   );
-  if (/nature|sport|aventure|outdoor|montagne|lac|mer/.test(signal)) {
+  if (/nature|sport|aventure|outdoor|montagne|lac|mer/.test(signal))
     return [
       "activité outdoor locale",
       "sport de plein air",
       "activité nautique ou randonnée",
       "prestataire aventure groupe",
     ];
-  }
-  if (/maison|villa|chill|cocoon|detente|détente/.test(signal)) {
+  if (/maison|villa|chill|cocoon|detente/.test(signal))
     return [
       "brunch de groupe",
       "traiteur barbecue",
       "spa ou bien-être",
       "activité douce proche du logement",
     ];
-  }
-  if (/culture|urbain|ville|decouverte|découverte/.test(signal)) {
+  if (/culture|urbain|ville|decouverte/.test(signal))
     return [
       "visite culturelle originale",
       "expérience locale",
       "restaurant de groupe",
       "bar local",
     ];
-  }
   return [
     "expérience locale groupe",
     "activité caractéristique",
@@ -129,13 +129,18 @@ export function buildDiscoveryQueries(input: ActivityDiscoveryInput): string[] {
 }
 
 function cacheKey(input: ActivityDiscoveryInput, queries: string[]) {
-  const season = input.startDate?.slice(0, 7) ?? "any";
   return norm(
-    [input.destination, season, input.tripProfile, input.eventType, ...queries].join("|"),
+    [
+      input.destination,
+      input.startDate?.slice(0, 7) ?? "any",
+      input.tripProfile,
+      input.eventType,
+      ...queries,
+    ].join("|"),
   );
 }
 
-async function callGemini(apiKey: string, prompt: string): Promise<any> {
+async function callGemini(apiKey: string, prompt: string, tool: "search" | "maps"): Promise<any> {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
@@ -143,14 +148,16 @@ async function callGemini(apiKey: string, prompt: string): Promise<any> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        tools: [{ google_search: {} }, { google_maps: {} }],
-        generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
+        // REST uses the protobuf JSON field names. Grounded calls deliberately do not
+        // request responseMimeType: structured output is reserved for composition.
+        tools: [tool === "search" ? { googleSearch: {} } : { googleMaps: {} }],
+        generationConfig: { temperature: 0.2 },
       }),
     },
   );
   const text = await response.text();
   if (!response.ok)
-    throw new Error(`gemini_discovery_http_${response.status}:${text.slice(0, 180)}`);
+    throw new Error(`gemini_discovery_${tool}_http_${response.status}:${text.slice(0, 180)}`);
   return JSON.parse(text);
 }
 
@@ -160,21 +167,70 @@ function responseText(payload: any): string {
     .join("");
 }
 
-function groundingSources(payload: any): { title: string; url: string }[] {
+function parseJson(raw: string): any {
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    return JSON.parse(raw.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+export function extractGroundingSources(
+  payload: any,
+  kind: "search" | "maps" = "search",
+): GroundingSource[] {
   const chunks = payload?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
   const sources = chunks
     .map((chunk: any) => ({
-      title: String(chunk?.web?.title ?? chunk?.maps?.title ?? "Source"),
+      title: String(
+        chunk?.web?.title ??
+          chunk?.maps?.title ??
+          chunk?.maps?.placeAnswerSources?.[0]?.reviewSnippets?.[0]?.title ??
+          "Source",
+      ),
       url: String(chunk?.web?.uri ?? chunk?.maps?.uri ?? ""),
+      kind,
     }))
-    .filter((source: any) => isSafeActivityUrl(source.url));
-  return [...new Map(sources.map((source: any) => [source.url, source])).values()] as {
-    title: string;
-    url: string;
-  }[];
+    .filter((source: GroundingSource) => isSafeActivityUrl(source.url));
+  return [
+    ...new Map(sources.map((source: GroundingSource) => [source.url, source])).values(),
+  ] as GroundingSource[];
 }
 
-function score(raw: any, input: ActivityDiscoveryInput): { profileFit: number; eventFit: number } {
+function relatedSources(raw: any, sources: GroundingSource[]): GroundingSource[] {
+  const name = norm(raw?.name);
+  const rawUrls = [raw?.sourceUrl, raw?.mapsUrl].filter(isSafeActivityUrl) as string[];
+  return sources
+    .filter((source) => {
+      if (rawUrls.includes(source.url)) return true;
+      const title = norm(source.title);
+      let sourceHost = "";
+      try {
+        sourceHost = new URL(source.url).hostname.replace(/^www\./, "");
+      } catch {
+        return false;
+      }
+      const rawHostMatch = rawUrls.some((url) => {
+        try {
+          return new URL(url).hostname.replace(/^www\./, "") === sourceHost;
+        } catch {
+          return false;
+        }
+      });
+      const words = name.split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
+      return (
+        rawHostMatch ||
+        (words.length > 0 &&
+          words.filter((word) => title.includes(word)).length >= Math.min(2, words.length))
+      );
+    })
+    .slice(0, 5);
+}
+
+function score(raw: any, input: ActivityDiscoveryInput) {
   const blob = norm([raw.name, raw.category, raw.description, ...(raw.tags ?? [])].join(" "));
   const profile = norm(
     [input.tripProfile, ...input.ambiances, ...input.activityCategories].join(" "),
@@ -185,7 +241,7 @@ function score(raw: any, input: ActivityDiscoveryInput): { profileFit: number; e
   ).length;
   const outdoorBoost =
     /nature|sport|aventure/.test(profile) &&
-    /outdoor|kayak|paddle|randon|velo|vélo|rafting|canyon|escalade|voile|ski/.test(blob)
+    /outdoor|kayak|paddle|randon|velo|rafting|canyon|escalade|voile|ski/.test(blob)
       ? 35
       : 0;
   const event = norm(input.eventType);
@@ -194,7 +250,7 @@ function score(raw: any, input: ActivityDiscoveryInput): { profileFit: number; e
       ? 85
       : 45
     : event === "anniversaire"
-      ? /anniversaire|special|spécial|festif/.test(blob)
+      ? /anniversaire|special|festif/.test(blob)
         ? 85
         : 50
       : 55;
@@ -204,23 +260,23 @@ function score(raw: any, input: ActivityDiscoveryInput): { profileFit: number; e
   };
 }
 
-function normalizeCandidates(payload: any, input: ActivityDiscoveryInput): ActivityCandidate[] {
-  let parsed: any;
-  try {
-    parsed = JSON.parse(responseText(payload));
-  } catch {
-    return [];
-  }
+export function normalizeSearchCandidates(
+  payload: any,
+  input: ActivityDiscoveryInput,
+): ActivityCandidate[] {
+  const parsed = parseJson(responseText(payload));
   const rawCandidates = Array.isArray(parsed?.candidates) ? parsed.candidates : [];
-  const grounded = groundingSources(payload);
+  const grounded = extractGroundingSources(payload, "search");
   const now = new Date().toISOString();
   const result: ActivityCandidate[] = [];
   for (const raw of rawCandidates) {
     const name = String(raw?.name ?? "").trim();
-    const sourceUrl = isSafeActivityUrl(raw?.sourceUrl) ? raw.sourceUrl : null;
-    if (!name || !sourceUrl) continue; // Un lieu externe n'est « vérifié » que s'il a une source HTTPS.
+    const linked = relatedSources(raw, grounded);
+    const sourceUrl = linked.some((source) => source.url === raw?.sourceUrl)
+      ? raw.sourceUrl
+      : linked[0]?.url;
+    if (!name || !sourceUrl || !linked.length) continue;
     const fit = score(raw, input);
-    const mapsUrl = isSafeActivityUrl(raw?.mapsUrl) ? raw.mapsUrl : null;
     result.push({
       id: `${norm(name).replace(/[^a-z0-9]+/g, "-")}:${result.length}`,
       name: name.slice(0, 120),
@@ -228,46 +284,65 @@ function normalizeCandidates(payload: any, input: ActivityDiscoveryInput): Activ
       category: String(raw.category ?? "activite").slice(0, 60),
       description: raw.description ? String(raw.description).slice(0, 260) : null,
       destination: input.destination,
-      address: raw.address ? String(raw.address).slice(0, 180) : null,
-      latitude: Number.isFinite(Number(raw.latitude)) ? Number(raw.latitude) : null,
-      longitude: Number.isFinite(Number(raw.longitude)) ? Number(raw.longitude) : null,
+      address: null,
+      latitude: null,
+      longitude: null,
       sourceUrl,
-      mapsUrl,
+      mapsUrl: null,
       source: String(raw.source ?? new URL(sourceUrl).hostname).slice(0, 80),
-      priceHint: Number.isFinite(Number(raw.priceHint)) ? Math.max(0, Number(raw.priceHint)) : null,
-      priceRange: raw.priceRange ? String(raw.priceRange).slice(0, 80) : null,
+      // Search prose is not a reliable structured price/opening-hours source.
+      priceHint: null,
+      priceRange: null,
       durationMinutes: Number.isFinite(Number(raw.durationMinutes))
         ? Math.max(15, Number(raw.durationMinutes))
         : null,
-      openingHours: Array.isArray(raw.openingHours)
-        ? raw.openingHours.map(String).slice(0, 14)
-        : [],
-      rating: Number.isFinite(Number(raw.rating)) ? Number(raw.rating) : null,
-      reviewCount: Number.isFinite(Number(raw.reviewCount)) ? Number(raw.reviewCount) : null,
+      openingHours: [],
+      rating: null,
+      reviewCount: null,
       environment: ["indoor", "outdoor", "mixed"].includes(raw.environment)
         ? raw.environment
         : null,
       tags: Array.isArray(raw.tags) ? raw.tags.map(String).slice(0, 12) : [],
       ...fit,
       seasonality: raw.seasonality ? String(raw.seasonality).slice(0, 120) : null,
+      verified: true,
       verifiedAt: now,
-      groundingSources: grounded
-        .filter((source) => source.url === sourceUrl || source.url === mapsUrl)
-        .slice(0, 5),
+      groundingSources: linked,
     });
   }
-  const deduped = [
-    ...new Map(result.map((candidate) => [norm(candidate.name), candidate])).values(),
-  ];
-  return deduped
-    .sort(
-      (a, b) =>
-        b.profileFit +
-        b.eventFit +
-        (b.rating ?? 0) * 4 -
-        (a.profileFit + a.eventFit + (a.rating ?? 0) * 4),
-    )
+  return [...new Map(result.map((candidate) => [norm(candidate.name), candidate])).values()]
+    .sort((a, b) => b.profileFit + b.eventFit - (a.profileFit + a.eventFit))
     .slice(0, 24);
+}
+
+function applyMapsPayload(candidate: ActivityCandidate, payload: any): ActivityCandidate {
+  const parsed = parseJson(responseText(payload));
+  const raw = parsed?.place ?? parsed;
+  const sources = relatedSources(
+    { name: candidate.name, mapsUrl: raw?.mapsUrl, sourceUrl: raw?.sourceUrl },
+    extractGroundingSources(payload, "maps"),
+  );
+  if (!raw || !sources.length) return candidate;
+  const mapsUrl = isSafeActivityUrl(raw.mapsUrl) ? raw.mapsUrl : (sources[0]?.url ?? null);
+  return {
+    ...candidate,
+    address: raw.address ? String(raw.address).slice(0, 180) : candidate.address,
+    latitude: Number.isFinite(Number(raw.latitude)) ? Number(raw.latitude) : candidate.latitude,
+    longitude: Number.isFinite(Number(raw.longitude)) ? Number(raw.longitude) : candidate.longitude,
+    mapsUrl,
+    openingHours: Array.isArray(raw.openingHours) ? raw.openingHours.map(String).slice(0, 14) : [],
+    rating: Number.isFinite(Number(raw.rating)) ? Number(raw.rating) : null,
+    reviewCount: Number.isFinite(Number(raw.reviewCount)) ? Number(raw.reviewCount) : null,
+    // Prices remain unknown unless discovery supplied an explicitly grounded price (not requested here).
+    priceHint: null,
+    priceRange: null,
+    verified: true,
+    groundingSources: [
+      ...new Map(
+        [...candidate.groundingSources, ...sources].map((source) => [source.url, source]),
+      ).values(),
+    ].slice(0, 6),
+  };
 }
 
 export async function discoverActivities(
@@ -280,20 +355,61 @@ export async function discoverActivities(
     return { candidates: cached.candidates, cached: true };
   const apiKey = process.env["GEMINI_API_KEY"];
   if (!apiKey) return { candidates: [], cached: false, error: "no_gemini_key" };
-  const prompt = `Tu fais la discovery factuelle KREW. Recherche des lieux et prestataires ACTUELS répondant à ces requêtes: ${JSON.stringify(queries)}. Profil: ${input.tripProfile ?? input.ambiances.join(", ")}; événement: ${input.eventType ?? "weekend"}; budget total/pers: ${input.budgetPerPerson} EUR. Utilise Google Search et Google Maps. Ne retourne que des établissements réellement identifiés et vérifiables. N'invente jamais prix ni horaires: null/[] si inconnus. JSON strict {"candidates":[{"name":"","category":"","description":"","address":null,"latitude":null,"longitude":null,"sourceUrl":"https://source officielle ou résultat fiable","mapsUrl":null,"source":"","priceHint":null,"priceRange":null,"durationMinutes":null,"openingHours":[],"rating":null,"reviewCount":null,"environment":"indoor|outdoor|mixed|null","tags":[],"seasonality":null}]}.`;
+  const searchPrompt = `Discovery factuelle KREW via Google Search uniquement. Requêtes=${JSON.stringify(queries)}. Identifie des établissements actuels à ${input.destination}. Retourne un objet JSON dans le texte (sans exiger de MIME structuré): {"candidates":[{"name":"","category":"","description":"","sourceUrl":"URL réellement trouvée","source":"","durationMinutes":null,"environment":"indoor|outdoor|mixed|null","tags":[],"seasonality":null}]}. N'invente aucun lieu, prix ou horaire.`;
   try {
-    const payload = await callGemini(apiKey, prompt);
-    const candidates = normalizeCandidates(payload, input);
+    const searchPayload = await callGemini(apiKey, searchPrompt, "search");
+    let candidates = normalizeSearchCandidates(searchPayload, input);
+    console.info("activity-discovery-search", {
+      candidateCount: candidates.length,
+      destination: input.destination,
+      fallback: false,
+    });
+    let mapsConfirmed = 0;
+    const enriched = await Promise.all(
+      candidates.slice(0, MAPS_ENRICHMENT_LIMIT).map(async (candidate) => {
+        try {
+          const payload = await callGemini(
+            apiKey,
+            `Avec Google Maps uniquement, confirme ce lieu: ${candidate.name}, ${input.destination}. Retourne dans le texte {"place":{"name":"","address":null,"latitude":null,"longitude":null,"mapsUrl":null,"openingHours":[],"rating":null,"reviewCount":null}}. null/[] si Maps ne fournit pas la donnée.`,
+            "maps",
+          );
+          const next = applyMapsPayload(candidate, payload);
+          if (next.groundingSources.some((source) => source.kind === "maps")) mapsConfirmed++;
+          return next;
+        } catch (error) {
+          reportServerError(error, {
+            provider: "gemini",
+            model: MODEL,
+            kind: "activity-discovery-maps",
+            destination: input.destination,
+          });
+          return candidate;
+        }
+      }),
+    );
+    candidates = [...enriched, ...candidates.slice(MAPS_ENRICHMENT_LIMIT)]
+      .filter((candidate) => candidate.verified)
+      .slice(0, 24);
+    console.info("activity-discovery-maps", {
+      enrichedCount: enriched.length,
+      confirmedCount: mapsConfirmed,
+      shortlistedCount: candidates.length,
+      destination: input.destination,
+    });
     discoveryCache.set(key, { candidates, expiresAt: Date.now() + CACHE_TTL_MS });
     return { candidates, cached: false };
   } catch (error) {
     reportServerError(error, {
       provider: "gemini",
       model: MODEL,
-      kind: "activity-discovery",
-      search: true,
-      maps: true,
+      kind: "activity-discovery-search",
       destination: input.destination,
+      fallback: true,
+    });
+    console.info("activity-discovery-search", {
+      candidateCount: 0,
+      destination: input.destination,
+      fallback: true,
     });
     return { candidates: [], cached: false, error: String(error).slice(0, 180) };
   }
