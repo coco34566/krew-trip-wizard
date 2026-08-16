@@ -1994,7 +1994,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       .select("*")
       .eq("destination_id", destId)
       .eq("source", "stayapi/booking")
-      .limit(50);
+      .limit(100);
     const hotelsRes = await hotelsQuery;
     if (hotelsRes.error) throw hotelsRes.error;
 
@@ -2022,6 +2022,9 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         description: string;
       };
       categoryLabel?: string;
+      accommodationClass?: "HOTEL" | "ENTIRE_HOME" | "HOSTEL" | "OTHER";
+      priceEstimated?: boolean;
+      budgetStatus?: "WITHIN_TARGET" | "PREMIUM";
     };
 
     const minRating = Number(aggregated.minAccommodationRating) || 0;
@@ -2031,15 +2034,18 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const sharedOk = (aggregated as any).acceptsSharedRoom !== false;
 
     const scoreHotel = (h: any): HotelCard => {
-      const price = Number(h.price_per_night_per_person ?? h.price_per_night ?? 0) || 65;
+      const offersList = Array.isArray(h.price_offers) ? h.price_offers : [];
+      const canonical = offersList[0] ?? {};
+      const price = Number(canonical.perPersonPerNight ?? h.price_per_night_per_person ?? 0);
+      const perPersonStay = Number(canonical.perPersonStay ?? price * nights);
       const rating = Number(h.rating ?? 0);
       const dist = h.distance_center_km != null ? Number(h.distance_center_km) : null;
       const reasons: string[] = [];
       let score = 0.4;
-      if (price <= lodgingBudget) {
+      if (perPersonStay <= lodgingBudget) {
         score += 0.25;
         reasons.push("dans le budget");
-      } else if (price <= lodgingBudget * 1.3) {
+      } else if (perPersonStay <= lodgingBudget * 1.25) {
         score += 0.1;
         reasons.push("proche budget");
       } else score -= 0.12;
@@ -2059,7 +2065,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         reasons.push("proche centre");
       }
       // Prioritize supplier offer URLs / direct links over generic searches
-      const offersList = Array.isArray(h.price_offers) ? h.price_offers : [];
       const offerWithUrl = offersList.find((o: any) => Boolean(o.url || o.booking_url));
       const priceOfferUrl = offerWithUrl?.url || offerWithUrl?.booking_url;
       const directUrl = h.booking_url || h.url || priceOfferUrl;
@@ -2084,23 +2089,32 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         type: h.type ?? "hébergement",
         rating,
         pricePerNight: Math.round(price),
-        totalEstimate: Math.round(price * nights),
+        totalEstimate: Math.round(canonical.groupStayTotal ?? perPersonStay * effCount),
         distanceCenterKm: dist,
         score: Math.round(Math.max(0, Math.min(1, score)) * 100) / 100,
         reasons: reasons.slice(0, 4),
         bookingUrl: primary,
         links,
         source: h.source ?? null,
+        accommodationClass: h.type === "entire_home" ? "ENTIRE_HOME" : /hostel|auberge/.test(typeBlob) ? "HOSTEL" : /hotel|hôtel/.test(typeBlob) ? "HOTEL" : "OTHER",
+        priceEstimated: Boolean(canonical.estimated),
+        budgetStatus: perPersonStay <= lodgingBudget ? "WITHIN_TARGET" : "PREMIUM",
       };
     };
 
-    let hotels: HotelCard[] = matchedHotels.map(scoreHotel);
+    const hardStayCap = ((aggregated as any).hasBudgetVeto
+      ? Number((aggregated as any).vetoBudgetMax ?? 0)
+      : Number((aggregated as any).minGroupBudget ?? 0)) * 0.35;
+    let hotels: HotelCard[] = matchedHotels.map(scoreHotel).filter((hotel) => {
+      const perPersonStay = hotel.pricePerNight * nights;
+      return hardStayCap > 0 ? perPersonStay <= hardStayCap : perPersonStay <= lodgingBudget * 1.25;
+    });
     hotels.sort((a, b) => b.score - a.score || b.rating - a.rating);
 
     if (!hotels.length) throw new Error(`Aucun hôtel StayAPI exploitable pour ${destName}`);
 
     // Compute bedding configurations based on participant preferences
-    const totalGroupParticipants = Math.max(1, participants.length);
+    const totalGroupParticipants = Math.max(1, effCount);
     const roomTypePref = (aggregated as any).roomTypePreference || "Peu importe";
     const acceptsShared = (aggregated as any).acceptsSharedRoom !== false;
 
@@ -2118,15 +2132,16 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     // Embed bedding config and full configurations comparison into each hotel card
     const scoredHotelsWithBedding = hotels.map(h => {
-      const isEntireLodging = /maison|villa|appartement|chalet|gite|gîte|apartment|house/i.test(h.type + h.name);
+      const isEntireLodging = h.accommodationClass === "ENTIRE_HOME";
+      const persistedCapacity = Number(matchedHotels.find((x: any) => String(x.id) === h.id)?.capacity ?? 0);
       const beddingInfo = {
         estimatedRoomsNeeded,
         roomTypePreference: roomTypePref,
         acceptsSharedRoom: acceptsShared,
         isEntireLodging,
         description: isEntireLodging
-          ? `Logement entier pour le groupe (${totalGroupParticipants} pers.) — environ ${estimatedRoomsNeeded} chambres requises.`
-          : `Configuration chambres d'hôtel — environ ${estimatedRoomsNeeded} chambres de type ${roomTypePref} nécessaires.`,
+          ? `Logement entier, capacité fournisseur ${persistedCapacity > 0 ? `${persistedCapacity} personnes` : "non précisée"}.`
+          : `Recherche effectuée pour ${estimatedRoomsNeeded} unité(s) ; capacité unitaire ${persistedCapacity > 0 ? persistedCapacity : "non précisée"}.`,
       };
 
       let dbRow = matchedHotels.find((x: any) => String(x.id) === h.id);
@@ -2138,7 +2153,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           name: h.name,
           type: h.type,
           price_per_night_per_person: h.pricePerNight,
-          capacity: h.id.includes("villa") || h.id.includes("airbnb") || h.id.includes("maison") ? totalGroupParticipants : 2,
+          capacity: 0,
           rating: h.rating,
           distance_center_km: h.distanceCenterKm ?? 2.0,
           description: h.name,
@@ -2183,7 +2198,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     scoredHotelsWithBedding.sort((a, b) => b.score - a.score);
 
-    // Categorize top lodgings into 5-6 explicit categories
+    // Diversify five genuinely different strategies from real candidate traits.
     const categorizedHotels: HotelCard[] = [];
     const usedIds = new Set<string>();
 
@@ -2202,54 +2217,33 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       categorizedHotels.push({ ...bestChoice, categoryLabel: "Meilleur choix groupe" });
     }
 
-    // 2. Meilleure maison
+    // 2. Option budget: affordable, but still acceptable in quality/location.
+    const budgetPool = [...scoredHotelsWithBedding]
+      .filter(h => !usedIds.has(h.id) && h.budgetStatus === "WITHIN_TARGET" && (h.rating === 0 || h.rating >= Math.max(3.5, minRating)) && (h.distanceCenterKm == null || h.distanceCenterKm <= 8))
+      .sort((a, b) => b.score - a.score || a.pricePerNight - b.pricePerNight);
+    const budgetOption = budgetPool[0] ?? null;
+    if (budgetOption) { usedIds.add(budgetOption.id); categorizedHotels.push({ ...budgetOption, categoryLabel: "Option budget" }); }
+
+    // 3. Best value combines the existing group score with price and rating.
+    const valueOption = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id))
+      .sort((a, b) => (b.score + b.rating * 0.03 - b.pricePerNight / Math.max(1, lodgingBudget) * 0.12) - (a.score + a.rating * 0.03 - a.pricePerNight / Math.max(1, lodgingBudget) * 0.12))[0] ?? null;
+    if (valueOption) { usedIds.add(valueOption.id); categorizedHotels.push({ ...valueOption, categoryLabel: "Meilleur rapport qualité-prix" }); }
+
+    // 4. Meilleur hôtel
+    const bestHotel = getFirstUnused((h) => h.accommodationClass === "HOTEL");
+    if (bestHotel) categorizedHotels.push({ ...bestHotel, categoryLabel: "Meilleur hôtel" });
+
+    // 5. Entire home only when StayAPI explicitly classified it as such.
     const bestHouse = getFirstUnused((h) =>
-      /maison|villa|appartement|chalet|gite|gîte|apartment|house/i.test(h.type + h.name)
+      h.accommodationClass === "ENTIRE_HOME"
     );
     if (bestHouse) {
-      categorizedHotels.push({ ...bestHouse, categoryLabel: "Meilleure maison" });
-    }
-
-    // 3. Meilleur hôtel
-    const bestHotel = getFirstUnused((h) =>
-      /hotel|hôtel|chambre|hostel|auberge/i.test(h.type + h.name)
-    );
-    if (bestHotel) {
-      categorizedHotels.push({ ...bestHotel, categoryLabel: "Meilleur hôtel" });
-    }
-
-    // 4. Option budget
-    const sortedByPrice = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => a.pricePerNight - b.pricePerNight);
-    const budgetOption = sortedByPrice[0] || null;
-    if (budgetOption) {
-      usedIds.add(budgetOption.id);
-      categorizedHotels.push({ ...budgetOption, categoryLabel: "Option budget" });
-    }
-
-    // 5. Option luxe
-    const sortedByLuxury = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => b.rating - a.rating || b.pricePerNight - a.pricePerNight);
-    const luxuryOption = sortedByLuxury[0] || null;
-    if (luxuryOption) {
-      usedIds.add(luxuryOption.id);
-      categorizedHotels.push({ ...luxuryOption, categoryLabel: "Option luxe" });
-    }
-
-    // 6. Meilleur rapport qualité-prix
-    const sortedByValue = [...scoredHotelsWithBedding].filter(h => !usedIds.has(h.id)).sort((a, b) => {
-      const aUnder = a.pricePerNight <= lodgingBudget ? 1 : 0;
-      const bUnder = b.pricePerNight <= lodgingBudget ? 1 : 0;
-      if (aUnder !== bUnder) return bUnder - aUnder;
-      return b.rating - a.rating;
-    });
-    const valueOption = sortedByValue[0] || null;
-    if (valueOption) {
-      usedIds.add(valueOption.id);
-      categorizedHotels.push({ ...valueOption, categoryLabel: "Meilleur rapport qualité-prix" });
+      categorizedHotels.push({ ...bestHouse, categoryLabel: "Meilleur logement entier" });
     }
 
     // Fallback/Paddings
     for (const h of scoredHotelsWithBedding) {
-      if (categorizedHotels.length >= 6) break;
+      if (categorizedHotels.length >= 5) break;
       if (!usedIds.has(h.id)) {
         categorizedHotels.push({ ...h, categoryLabel: "Autre option intéressante" });
         usedIds.add(h.id);

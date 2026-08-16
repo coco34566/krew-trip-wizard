@@ -1116,20 +1116,11 @@ export function generateAccommodationConfigurations(
 
       const priceBase = acc.price_per_night_per_person * participants * nights;
 
-      let cleaningFee = 0;
-      let serviceFee = 0;
-      if (type === "villa") {
-        cleaningFee = Math.round(priceBase * 0.08);
-        serviceFee = Math.round(priceBase * 0.09);
-      } else if (type === "appartement") {
-        cleaningFee = Math.round(priceBase * 0.05 * item.unitsCount);
-        serviceFee = Math.round(priceBase * 0.07);
-      } else {
-        cleaningFee = 0;
-        serviceFee = Math.round(priceBase * 0.04);
-      }
-
-      const taxes = Math.round(participants * nights * 2.5);
+      // Provider totals are canonical. Never synthesize fees or taxes that the
+      // provider did not return.
+      const cleaningFee = 0;
+      const serviceFee = 0;
+      const taxes = 0;
       const totalCost = priceBase + cleaningFee + serviceFee + taxes;
       const pricePerPerson = Math.round(totalCost / participants);
       const pricePerPersonPerNight = Math.round(pricePerPerson / nights);
