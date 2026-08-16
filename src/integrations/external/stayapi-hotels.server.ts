@@ -1,7 +1,7 @@
 import type { HotelOffer, SearchParams } from "./travel-providers.server";
+import { lookupStayApiDestination } from "./stayapi-destination.server";
 
 const STAYAPI_SEARCH_ENDPOINT = "https://api.stayapi.com/v1/booking/search";
-const STAYAPI_LOOKUP_ENDPOINT = "https://api.stayapi.com/v1/booking/destinations/lookup";
 
 function num(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -27,36 +27,7 @@ function pickArray(payload: any): any[] {
 }
 
 export async function resolveStayApiDestination(destination: string): Promise<{ id: string; type: string }> {
-  const key = process.env.STAYAPI_API_KEY;
-  if (!key) throw new Error("STAYAPI_API_KEY is not configured");
-
-  const query = new URLSearchParams({ query: destination, language: "fr" });
-  const response = await fetch(`${STAYAPI_LOOKUP_ENDPOINT}?${query.toString()}`, {
-    method: "GET",
-    headers: { "x-api-key": key, Accept: "application/json" },
-  });
-
-  const text = await response.text();
-  let body: any;
-  try { body = JSON.parse(text); } catch { body = { raw: text }; }
-  if (!response.ok || body?.success === false) {
-    throw new Error(`StayAPI /v1/booking/destinations/lookup → ${response.status}: ${JSON.stringify(body).slice(0, 500)}`);
-  }
-
-  const candidates = pickArray(body);
-  if (!candidates.length) throw new Error(`StayAPI: aucun dest_id trouvé pour la destination "${destination}"`);
-
-  const normDest = destination.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  const exact = candidates.find((d: any) => {
-    const label = String(d?.name ?? d?.label ?? d?.city_name ?? d?.dest_name ?? d?.title ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    return label === normDest;
-  });
-  const city = candidates.find((d: any) => String(d?.dest_type ?? d?.type ?? d?.search_type ?? "").trim().toUpperCase() === "CITY");
-  const selected = exact ?? city ?? candidates[0];
-  const id = selected?.dest_id ?? selected?.destination_id ?? selected?.id;
-  if (!id) throw new Error(`StayAPI: dest_id introuvable pour "${destination}" dans la réponse lookup`);
-  const type = String(selected?.dest_type ?? selected?.type ?? "CITY").trim().toUpperCase() || "CITY";
-  return { id: String(id), type };
+  return lookupStayApiDestination(destination, "fr");
 }
 
 function normalizeHotel(raw: any): HotelOffer | null {
@@ -97,7 +68,7 @@ export async function searchHotelsStayApi(params: SearchParams & { destId?: stri
   let destId = params.destId;
   let destType = params.destType;
   if (!destId) {
-    const resolved = await resolveStayApiDestination(params.destination);
+    const resolved = await lookupStayApiDestination(params.destination, "fr");
     destId = resolved.id;
     destType = resolved.type;
   }
