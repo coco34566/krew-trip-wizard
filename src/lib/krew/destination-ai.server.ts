@@ -3,9 +3,9 @@ import type { DestinationType } from "./destination-discovery.server";
 import type { ProfileAffinity, StayConcept } from "./stay-profiles";
 
 /**
- * IA de découverte : Gemini en priorité, AIMLAPI puis OpenAI en fallback.
- * L'IA explore largement les possibilités ; le moteur KREW reste responsable
- * des contraintes dures, du scoring final et de la diversification.
+ * IA de découverte : Gemini uniquement.
+ * Si Gemini est indisponible, le moteur appelant retombe immédiatement sur
+ * la discovery locale KREW sans tenter d'autres fournisseurs LLM.
  */
 export type AiDiscoveryInput = {
   eventType?: string | null;
@@ -86,41 +86,22 @@ Règles de découverte :
 
 Qualité attendue : la liste doit être réellement influencée par le profil du groupe. Deux groupes avec des préférences très différentes doivent obtenir des listes sensiblement différentes.`;
 
-type LlmConfig = { apiKey: string; baseUrl: string; model: string; provider: "gemini" | "aimlapi" | "openai" };
+type GeminiConfig = {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+  provider: "gemini";
+};
 
-function getLlmConfigs(): LlmConfig[] {
-  const configs: LlmConfig[] = [];
-  const geminiKey = process.env["GEMINI_API_KEY"];
-  if (geminiKey) {
-    configs.push({
-      apiKey: geminiKey,
-      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-      model: process.env["GEMINI_MODEL"] || "gemini-2.5-flash",
-      provider: "gemini",
-    });
-  }
-  const aimlapiKey = process.env["AIMLAPI_API_KEY"];
-  if (aimlapiKey) {
-    configs.push({
-      apiKey: aimlapiKey,
-      baseUrl: (process.env["AIMLAPI_BASE_URL"] || "https://api.aimlapi.com/v1").replace(/\/$/, ""),
-      model: process.env["AIMLAPI_MODEL"] || "google/gemini-2.5-flash",
-      provider: "aimlapi",
-    });
-  }
-  const openaiKey = process.env["OPENAI_API_KEY"] || process.env["LLM_API_KEY"];
-  if (openaiKey) {
-    configs.push({
-      apiKey: openaiKey,
-      baseUrl: (process.env["LLM_RATIONALE_BASE_URL"] || "https://api.openai.com/v1").replace(
-        /\/$/,
-        "",
-      ),
-      model: process.env["LLM_DISCOVERY_MODEL"] || "gpt-4o-mini",
-      provider: "openai",
-    });
-  }
-  return configs;
+function getGeminiConfig(): GeminiConfig | null {
+  const apiKey = process.env["GEMINI_API_KEY"];
+  if (!apiKey) return null;
+  return {
+    apiKey,
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    model: process.env["GEMINI_MODEL"] || "gemini-3.6-flash",
+    provider: "gemini",
+  };
 }
 
 function fingerprint(input: AiDiscoveryInput): string {
@@ -206,6 +187,7 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start < 0 || end <= start) return [];
+
   try {
     const data = JSON.parse(raw.slice(start, end + 1)) as {
       destinations?: Array<{
@@ -230,6 +212,7 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
         months?: number[];
       }>;
     };
+
     const values = (
       Array.isArray(data.destinations) ? data.destinations : (data.cities ?? [])
     ) as Array<{
@@ -245,6 +228,7 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
       km?: number;
       months?: number[];
     }>;
+
     return values
       .map((c, i) => {
         const rawType = String(c.destinationType ?? "city");
@@ -275,10 +259,11 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
         if (c.region) out.region = String(c.region).trim();
         if (Number.isFinite(Number(c.cost)) && Number(c.cost) > 0) out.dailyCost = Number(c.cost);
         if (Number.isFinite(Number(c.km)) && Number(c.km) > 0) out.distanceKm = Number(c.km);
-        if (Array.isArray(c.months))
+        if (Array.isArray(c.months)) {
           out.bestMonths = c.months
             .map(Number)
             .filter((m) => Number.isInteger(m) && m >= 1 && m <= 12);
+        }
         return out;
       })
       .filter((c) => c.name.length >= 2)
@@ -295,75 +280,79 @@ export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promi
   error?: string;
   cached?: boolean;
 }> {
-  const configs = getLlmConfigs();
-  if (!configs.length) return { candidates: [], usedLlm: false, error: "no_llm_key" };
+  const cfg = getGeminiConfig();
+  if (!cfg) return { candidates: [], usedLlm: false, error: "no_gemini_key" };
+
   const fp = fingerprint(input);
   const hit = cache.get(fp);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS)
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return {
       candidates: hit.candidates,
       usedLlm: true,
       provider: hit.provider,
       cached: true,
     };
+  }
 
-  let lastError = "";
-  for (const cfg of configs) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    try {
-      const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
-        method: "POST",
-        signal: controller.signal,
-        headers: { Authorization: `Bearer ${cfg.apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: cfg.model,
-          temperature: 0.55,
-          max_tokens: 5000,
-          messages: [
-            { role: "system", content: SYSTEM },
-            { role: "user", content: compactUser(input) },
-          ],
-        }),
-      });
-      clearTimeout(timeout);
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        lastError = `llm_http_${res.status}:${errText.slice(0, 160)}`;
-        reportServerError(new Error(lastError), {
-          provider: cfg.provider,
-          kind: "destination-ai",
-          departureCity: input.departureCity,
-        });
-        continue;
-      }
-      const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const candidates = parseDiscoveryCandidates(json.choices?.[0]?.message?.content ?? "");
-      if (!candidates.length) {
-        lastError = "llm_empty_parse";
-        reportServerError(new Error(lastError), {
-          provider: cfg.provider,
-          kind: "destination-ai",
-          departureCity: input.departureCity,
-        });
-        continue;
-      }
-      cache.set(fp, { at: Date.now(), candidates, provider: cfg.provider });
-      return { candidates, usedLlm: true, provider: cfg.provider };
-    } catch (e) {
-      clearTimeout(timeout);
-      lastError = String(e).slice(0, 160);
-      reportServerError(e, {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        max_tokens: 5000,
+        messages: [
+          { role: "system", content: SYSTEM },
+          { role: "user", content: compactUser(input) },
+        ],
+      }),
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      const error = `gemini_http_${res.status}:${errText.slice(0, 160)}`;
+      reportServerError(new Error(error), {
         provider: cfg.provider,
         kind: "destination-ai",
         departureCity: input.departureCity,
       });
+      return { candidates: [], usedLlm: false, provider: cfg.provider, error };
     }
+
+    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const candidates = parseDiscoveryCandidates(json.choices?.[0]?.message?.content ?? "");
+    if (!candidates.length) {
+      const error = "gemini_empty_parse";
+      reportServerError(new Error(error), {
+        provider: cfg.provider,
+        kind: "destination-ai",
+        departureCity: input.departureCity,
+      });
+      return { candidates: [], usedLlm: false, provider: cfg.provider, error };
+    }
+
+    cache.set(fp, { at: Date.now(), candidates, provider: cfg.provider });
+    return { candidates, usedLlm: true, provider: cfg.provider };
+  } catch (error) {
+    clearTimeout(timeout);
+    reportServerError(error, {
+      provider: cfg.provider,
+      kind: "destination-ai",
+      departureCity: input.departureCity,
+    });
+    return {
+      candidates: [],
+      usedLlm: false,
+      provider: cfg.provider,
+      error: String(error).slice(0, 160) || "gemini_failed",
+    };
   }
-  return {
-    candidates: [],
-    usedLlm: false,
-    provider: configs[0]!.provider,
-    error: lastError || "llm_failed",
-  };
 }
