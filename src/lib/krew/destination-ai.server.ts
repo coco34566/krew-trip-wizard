@@ -93,12 +93,22 @@ type GeminiConfig = {
   provider: "gemini";
 };
 
+type InteractionResponse = {
+  steps?: Array<{
+    type?: string;
+    content?: Array<{
+      type?: string;
+      text?: string;
+    }>;
+  }>;
+};
+
 function getGeminiConfig(): GeminiConfig | null {
   const apiKey = process.env["GEMINI_API_KEY"];
   if (!apiKey) return null;
   return {
     apiKey,
-    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/interactions",
     model: process.env["GEMINI_MODEL"] || "gemini-3.6-flash",
     provider: "gemini",
   };
@@ -181,6 +191,16 @@ function compactUser(input: AiDiscoveryInput): string {
   }
 
   return JSON.stringify(o);
+}
+
+function extractInteractionText(json: InteractionResponse): string {
+  const modelOutputs = (json.steps ?? []).filter((step) => step.type === "model_output");
+  const lastOutput = modelOutputs.at(-1);
+  if (!lastOutput?.content?.length) return "";
+  return lastOutput.content
+    .filter((block) => block.type === "text" && typeof block.text === "string")
+    .map((block) => block.text ?? "")
+    .join("");
 }
 
 export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
@@ -298,27 +318,24 @@ export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promi
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+    const res = await fetch(cfg.baseUrl, {
       method: "POST",
       signal: controller.signal,
       headers: {
-        Authorization: `Bearer ${cfg.apiKey}`,
+        "x-goog-api-key": cfg.apiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
         model: cfg.model,
-        max_tokens: 5000,
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: compactUser(input) },
-        ],
+        system_instruction: SYSTEM,
+        input: compactUser(input),
       }),
     });
     clearTimeout(timeout);
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      const error = `gemini_http_${res.status}:${errText.slice(0, 160)}`;
+      const error = `gemini_http_${res.status}:${errText.slice(0, 240)}`;
       reportServerError(new Error(error), {
         provider: cfg.provider,
         kind: "destination-ai",
@@ -327,10 +344,11 @@ export async function discoverDestinationsWithAi(input: AiDiscoveryInput): Promi
       return { candidates: [], usedLlm: false, provider: cfg.provider, error };
     }
 
-    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const candidates = parseDiscoveryCandidates(json.choices?.[0]?.message?.content ?? "");
+    const json = (await res.json()) as InteractionResponse;
+    const raw = extractInteractionText(json);
+    const candidates = parseDiscoveryCandidates(raw);
     if (!candidates.length) {
-      const error = "gemini_empty_parse";
+      const error = raw ? "gemini_empty_parse" : "gemini_empty_output";
       reportServerError(new Error(error), {
         provider: cfg.provider,
         kind: "destination-ai",
