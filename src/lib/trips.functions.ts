@@ -160,7 +160,7 @@ export const getTripDetail = createServerFn({ method: "GET" })
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
 
-    const [preferences, participants, recommendations, votes, activityVotes] = await Promise.all([
+    const [preferences, participants, recommendations, votes, activityVotes, profileVotes] = await Promise.all([
       supabase.from("trip_preferences").select("*").eq("trip_id", data.tripId).maybeSingle(),
       supabase.from("trip_participants").select("*").eq("trip_id", data.tripId).order("created_at"),
       supabase
@@ -170,6 +170,7 @@ export const getTripDetail = createServerFn({ method: "GET" })
         .order("score", { ascending: false }),
       supabase.from("recommendation_votes").select("*").eq("trip_id", data.tripId),
       supabase.from("activity_votes").select("*").eq("trip_id", data.tripId),
+      (supabase as any).from("stay_profile_votes").select("*").eq("trip_id", data.tripId),
     ]);
 
     // Ne pas faire planter le hub si une table optionnelle manque
@@ -207,6 +208,7 @@ export const getTripDetail = createServerFn({ method: "GET" })
       activities: activityRows,
       votes: voteRows,
       activityVotes: activityVoteRows,
+      stayProfileVotes: profileVotes.error ? [] : (profileVotes.data ?? []),
     };
   });
 
@@ -263,6 +265,7 @@ export async function createTripHelper(
     departure_city: data.departureCity || "Paris",
     status: "en_preparation",
     has_star: wantsStar,
+    star_pays_share: data.starPaysShare,
     duration_nights: data.durationNights ?? 2,
   };
   const midPayload: Record<string, unknown> = {
@@ -465,7 +468,7 @@ export const validateStayProfile = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("owner_id, co_organizer_id")
+      .select("owner_id, co_organizer_id, refresh_required")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -477,16 +480,75 @@ export const validateStayProfile = createServerFn({ method: "POST" })
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
     const calculated = (aggregated.stayConcepts ?? []).slice(0, 3) as StayConcept[];
     const selected = selectValidatedStayConcepts(calculated, data.selectedConceptIds);
+    const selectedDestination = await supabase
+      .from("recommendations")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .eq("is_selected", true)
+      .maybeSingle();
+    if (selectedDestination.error) throw selectedDestination.error;
+    if (selectedDestination.data) {
+      throw new Error("Les profils restent consultables après le choix définitif de la destination.");
+    }
+    const existingRecommendations = await supabase
+      .from("recommendations")
+      .select("id")
+      .eq("trip_id", data.tripId);
+    if (existingRecommendations.error) throw existingRecommendations.error;
+    const refreshRequired = {
+      ...((trip.data as any).refresh_required ?? {}),
+      destinations: Boolean(existingRecommendations.data?.length),
+    };
     const { error } = await supabase
       .from("trips")
       .update({
         stay_concepts_calculated: calculated,
         stay_concepts_selected: selected,
         stay_profile_validated_at: new Date().toISOString(),
+        refresh_required: refreshRequired,
       } as any)
       .eq("id", data.tripId);
     if (error) throw error;
     return { calculatedConcepts: calculated, selectedConcepts: selected, validated: true };
+  });
+
+export const toggleStayProfileVote = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), conceptId: z.string().min(1).max(120) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("stay_concepts_calculated")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    const allowed = ((trip.data as any)?.stay_concepts_calculated ?? []).some(
+      (concept: StayConcept) => concept.id === data.conceptId,
+    );
+    if (!allowed) throw new Error("Concept de voyage invalide");
+    const existing = await (supabase as any)
+      .from("stay_profile_votes")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .eq("concept_id", data.conceptId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existing.error) throw existing.error;
+    if (existing.data) {
+      const removed = await (supabase as any).from("stay_profile_votes").delete().eq("id", existing.data.id);
+      if (removed.error) throw removed.error;
+      return { voted: false };
+    }
+    const inserted = await (supabase as any).from("stay_profile_votes").insert({
+      trip_id: data.tripId,
+      concept_id: data.conceptId,
+      user_id: userId,
+    });
+    if (inserted.error) throw inserted.error;
+    return { voted: true };
   });
 
 export const generateRecommendations = createServerFn({ method: "POST" })
@@ -683,6 +745,28 @@ export const finalizeInvitationStep = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateStarFinancialParticipation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid(), starPaysShare: z.boolean() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const trip = await context.supabase
+      .from("trips")
+      .select("owner_id, co_organizer_id, has_star")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data || !isTripAdmin(trip.data, context.userId)) throw new Error("403 Forbidden");
+    if (!trip.data.has_star) throw new Error("Ce voyage n’a pas de Star");
+    const updated = await context.supabase
+      .from("trips")
+      .update({ star_pays_share: data.starPaysShare, updated_at: new Date().toISOString() } as any)
+      .eq("id", data.tripId);
+    if (updated.error) throw updated.error;
+    return { ok: true, starPaysShare: data.starPaysShare };
+  });
+
 export async function setCoOrganizerHelper(
   supabase: any,
   userId: string,
@@ -836,7 +920,26 @@ export const selectRecommendation = createServerFn({ method: "POST" })
     z.object({ tripId: z.string().uuid(), recommendationId: z.string().uuid() }).parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("owner_id, co_organizer_id, refresh_required")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data || !isTripAdmin(trip.data, userId)) {
+      throw new Error("403 Forbidden: choix réservé aux organisateurs");
+    }
+    const priorSelection = await supabase
+      .from("recommendations")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .eq("is_selected", true)
+      .maybeSingle();
+    if (priorSelection.error) throw priorSelection.error;
+    const destinationChanged = Boolean(
+      priorSelection.data && priorSelection.data.id !== data.recommendationId,
+    );
 
     // Désélectionne les autres propositions
     await supabase
@@ -866,7 +969,21 @@ export const selectRecommendation = createServerFn({ method: "POST" })
       );
     }
 
-    await supabase.from("trips").update({ status: "valide" }).eq("id", data.tripId);
+    await supabase
+      .from("trips")
+      .update({
+        status: "valide",
+        refresh_required: destinationChanged
+          ? {
+              ...((trip.data as any).refresh_required ?? {}),
+              accommodations: true,
+              transports: true,
+              activities: true,
+              planning: true,
+            }
+          : ((trip.data as any).refresh_required ?? {}),
+      } as any)
+      .eq("id", data.tripId);
 
     // Auto-apprentissage : une destination estimée par l'IA et réellement
     // choisie par un groupe entre définitivement au catalogue.
@@ -1575,6 +1692,7 @@ export const getCostSplit = createServerFn({ method: "GET" })
         isReserved: isTransportReserved,
         userId: p.user_id || null,
         transportStatus: userPick?.status || "estimé",
+        paysSharedCosts: !isStar || (trip.data as any).star_pays_share !== false,
       });
     }
 
@@ -2104,6 +2222,17 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
 
     return { ok: true, usedLlm: result.usedLlm, slot: result.slot, itinerary };
   });
+
+export function buildLogisticsRefreshRequired(
+  previous: Record<string, boolean> | null | undefined,
+  refreshed: { hotels: boolean; transports: boolean },
+) {
+  return {
+    ...(previous ?? {}),
+    ...(refreshed.hotels ? { accommodations: false } : {}),
+    ...(refreshed.transports ? { transports: false } : {}),
+  };
+}
 
 /** Reco hôtels + A/R multi-modes (avion, train, bus, voiture) avec liens de réservation. */
 export const proposeStayAndTransport = createServerFn({ method: "POST" })
@@ -2914,7 +3043,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     await supabase
       .from("trips")
-      .update({ group_logistics: logisticsWithVotes, updated_at: new Date().toISOString() } as any)
+      .update({
+        group_logistics: logisticsWithVotes,
+        refresh_required: buildLogisticsRefreshRequired((trip as any).refresh_required, {
+          hotels: generateHotels,
+          transports: generateTransport,
+        }),
+        updated_at: new Date().toISOString(),
+      } as any)
       .eq("id", data.tripId);
 
     // Update selected recommendation accommodation_id if a top hotel was selected or top scored

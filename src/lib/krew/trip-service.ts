@@ -6,9 +6,12 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
-  buildProposals,
+  buildDestinationProposals,
+  evaluateDestinationHardConstraints,
+  filterDestinationsByHardConstraints,
   dominantAmbiance,
   getNormalizedBudgetPriority,
+  type DestinationRecord,
   type Proposal,
   type ScoringContext,
 } from "./engine";
@@ -22,13 +25,12 @@ import {
 import { discoverDestinationsWithAi } from "./destination-ai.server";
 import {
   aiCandidateToDestinationRow,
+  buildDestinationDiscoveryPool,
   mergeCandidates,
   normCity,
   type MergedCandidate,
 } from "./candidate-merge";
-import { distanceFromParisKm, fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery } from "./stay-profiles";
-import { discoverProperties, propertyToAccommodationRow, resolvePropertyDestination } from "./property-discovery.server";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
@@ -52,6 +54,7 @@ export const tripInputSchema = z.object({
     "autre",
   ]),
   celebratedPerson: z.string().max(120).optional(),
+  starPaysShare: z.boolean().default(true),
   /** Prénom de l'organisateur (pour identifier qui est qui dans le groupe). */
   organizerFirstName: z.string().min(1).max(80).optional(),
   startDate: z.string().optional(),
@@ -161,6 +164,7 @@ export function resolveRecommendationDates(trip: { start_date?: string | null; e
 }
 
 export function serializeProposal(tripId: string, proposal: Proposal) {
+  assertFinalDestinationId(proposal.destination.id, proposal.destination.name);
   return {
     trip_id: tripId,
     destination_id: proposal.destination.id,
@@ -183,12 +187,75 @@ export function serializeProposal(tripId: string, proposal: Proposal) {
   };
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function assertFinalDestinationId(id: string, name: string): void {
+  if (!UUID_PATTERN.test(id)) {
+    throw new Error(`final_destination_not_persisted:${name}`);
+  }
+}
+
+export async function materializeFinalDestinations(
+  supabase: SupabaseClient,
+  proposals: Proposal[],
+): Promise<Proposal[]> {
+  return Promise.all(proposals.map(async (proposal) => {
+    const destination = proposal.destination;
+    if (UUID_PATTERN.test(destination.id)) return proposal;
+
+    const externalId = (destination as DestinationRecord & { external_id?: string | null }).external_id;
+    let existing: { id: string } | null = null;
+    if (destination.source && externalId) {
+      const result = await supabase.from("destinations").select("id").eq("source", destination.source).eq("external_id", externalId).maybeSingle();
+      if (result.error) throw result.error;
+      existing = result.data;
+    }
+    if (!existing && destination.slug) {
+      const result = await supabase.from("destinations").select("id").eq("slug", destination.slug).maybeSingle();
+      if (result.error) throw result.error;
+      existing = result.data;
+    }
+    if (!existing) {
+      const result = await supabase.from("destinations").select("id").ilike("name", destination.name).maybeSingle();
+      if (result.error) throw result.error;
+      existing = result.data;
+    }
+
+    let id = existing?.id;
+    if (!id) {
+      const stableExternalId = externalId ?? `discovery:${destination.slug}`;
+      const payload = {
+        slug: destination.slug,
+        name: destination.name,
+        country: destination.country,
+        avg_daily_cost: destination.avg_daily_cost,
+        distance_from_paris_km: destination.distance_from_paris_km,
+        best_months: destination.best_months,
+        source: destination.source ?? "krew_discovery",
+        external_id: stableExternalId,
+        destination_type: destination.destination_type ?? "city",
+        region_name: destination.region_name ?? null,
+        anchor_places: destination.anchor_places ?? [destination.name],
+        verification_state: destination.verification_state ?? "estimated",
+      };
+      const inserted = await supabase.from("destinations").upsert(payload as any, {
+        onConflict: "slug",
+      }).select("id").single();
+      if (inserted.error) throw inserted.error;
+      id = inserted.data?.id;
+    }
+    assertFinalDestinationId(String(id ?? ""), destination.name);
+    return { ...proposal, destination: { ...destination, id: String(id) } };
+  }));
+}
+
 export async function replaceRecommendationsSafely(
   supabase: SupabaseClient,
   tripId: string,
   rows: ReturnType<typeof serializeProposal>[],
 ) {
   if (!rows.length) return { replaced: false, count: 0 };
+  for (const row of rows) assertFinalDestinationId(row.destination_id, "recommendation");
   const existing = await supabase.from("recommendations").select("id").eq("trip_id", tripId);
   if (existing.error) throw existing.error;
   const inserted = await supabase.from("recommendations").insert(rows).select("id");
@@ -760,30 +827,6 @@ export async function resolveDesiredDestination(
   return aggregated.desiredDestination;
 }
 
-/** Enrichit le catalogue via les APIs pour une liste de destinations (max 5). */
-async function enrichCatalogWithExternalApis(
-  supabase: SupabaseClient,
-  tripId: string,
-  destinationNames: string[],
-): Promise<string[]> {
-  if (!destinationNames.length) return [];
-
-  const { refreshExternalCatalogForTrip } = await import("@/lib/external/search-hotels.functions");
-  const providerErrors: string[] = [];
-
-  for (const destName of [...new Set(destinationNames)].slice(0, 12)) {
-    try {
-      const externalRes = await refreshExternalCatalogForTrip(supabase, tripId, destName);
-      if (externalRes.providerErrors?.length) {
-        providerErrors.push(...externalRes.providerErrors.map((e) => `${destName}: ${e}`));
-      }
-    } catch (e) {
-      providerErrors.push(`${destName}: ${String(e).slice(0, 200)}`);
-    }
-  }
-
-  return providerErrors;
-}
 
 export type GenerationReadiness = {
   canGenerate: boolean;
@@ -821,7 +864,6 @@ export type GenerationReadiness = {
 };
 
 const MIN_ANSWERS = 1;
-const MIN_ANSWER_RATIO = 0.4;
 
 export function evaluateStayProfileGate(input: {
   answered: number;
@@ -829,9 +871,8 @@ export function evaluateStayProfileGate(input: {
   validated: boolean;
   hasExistingRecommendations: boolean;
 }) {
-  const questionnairesReady =
-    input.answered >= MIN_ANSWERS &&
-    input.answered / Math.max(input.expected, 1) >= MIN_ANSWER_RATIO;
+  // One usable answer is enough: missing participants must not indefinitely block the group.
+  const questionnairesReady = input.answered >= MIN_ANSWERS;
   const legacyBypass = input.hasExistingRecommendations;
   return {
     questionnairesReady,
@@ -979,7 +1020,7 @@ export async function assessGenerationReadiness(
   }
 
   let message: string | undefined;
-  if (!prefsOk) message = "Les questionnaires n’ont pas encore atteint le seuil requis.";
+  if (!prefsOk) message = "Au moins un questionnaire est nécessaire pour calculer les profils.";
   else if (!validated) message = "Validez d’abord le profil du voyage.";
 
   return {
@@ -1186,6 +1227,17 @@ export async function generateRecommendationsForTrip(
 
   // ——— Phase 1 : budget + transport individuels → contrainte de destination ———
   ctx.departureOrigins = aggregated.departureOrigins ?? [];
+  // Gemini receives the same KREW weights that deterministic scoring will use.
+  try {
+    const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
+    const { data: wRow } = await supabase.from("scoring_weights").select("*").eq("event_type", eventKey).maybeSingle();
+    if (wRow) ctx.scoringWeights = {
+      ambiance: Number(wRow.ambiance_weight), activities: Number(wRow.activities_weight), budget: Number(wRow.budget_weight),
+      distance: Number(wRow.distance_weight), season: Number(wRow.season_weight), quality: Number(wRow.quality_weight),
+      consensus: Number(wRow.consensus_weight ?? 18), minSatisfaction: Number(wRow.min_satisfaction_weight ?? 15),
+    };
+    ctx.eventType = eventKey;
+  } catch { /* optional table: engine defaults remain authoritative */ }
   ctx.planeRefused = Boolean(aggregated.planeRefused);
   ctx.transportModes = aggregated.transportModes ?? [];
   // Si le groupe refuse l'avion, on resserre fortement la distance (train/covoit)
@@ -1224,7 +1276,7 @@ export async function generateRecommendationsForTrip(
     const primaryDeparture =
       (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
       (trip.data.departure_city as string) ||
-      "Paris";
+      "Origine non renseignée";
 
     const discoveryInput = {
       ambiances: ctx.ambiances,
@@ -1235,6 +1287,9 @@ export async function generateRecommendationsForTrip(
       startMonth: ctx.startMonth,
       excludedCountries: ctx.excludedCountries,
       departureCity: primaryDeparture,
+      departureOrigins: aggregated.departureOrigins,
+      startDate: recommendationDates.startDate,
+      endDate: recommendationDates.endDate,
       participants: ctx.participants,
       ...(trip.data.event_type ? { eventType: trip.data.event_type as string } : {}),
       planeRefused: Boolean((aggregated as any).planeRefused),
@@ -1250,13 +1305,58 @@ export async function generateRecommendationsForTrip(
       discoveryBranches: routeDiscovery(readiness.profile.selectedConcepts).branches,
       localMobility: aggregated.groupLocalMobility ?? null,
       accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
+      transportModes: ctx.transportModes,
+      refusedTransportModes: ctx.planeRefused ? ["flight"] : [],
+      budgetMedian: aggregated.aggregatedBudget,
+      budgetMinimum: aggregated.minGroupBudget,
+      budgetVeto: aggregated.vetoBudgetMax,
+      rhythm: { pace: ctx.travelPace, dateFlexDays: ctx.dateFlexDays, preferredTimeSlots: ctx.preferredTimeSlots },
+      accommodationSignals: {
+        type: ctx.mostDemandedLodgingType, roomTypes: ctx.roomTypePreferences, acceptsSharedRoom: ctx.acceptsSharedRoom,
+        role: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole,
+        requiredAmenities: ctx.requiredAmenities, minimumRating: ctx.minAccommodationRating,
+        cityCenter: ctx.needsCityCenter, localMobility: ctx.groupLocalMobility,
+      },
+      historySignals: ctx.pastDestinations,
       relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
+        ambiances: p.ambiances,
         activities: p.activityCategories,
         environment: p.wantedEnvType,
         mobility: p.localMobility,
         accommodationRole: p.accommodationRole,
+        budget: p.budgetMax,
+        budgetPriority: p.budgetPriority,
+        transportModes: p.transportModes,
+        maxTravelHours: p.maxTravelHours,
+        desiredDestination: p.desiredDestination,
+        dealBreakerAmbiances: p.dealBreakerAmbiances,
+        dealBreakerDestinations: p.dealBreakerDestinations,
         isStar: p.isStar,
       })),
+      scoringSignals: {
+        desiredDestination: ctx.desiredDestination ?? null,
+        letKrewDecide: ctx.letKrewDecide ?? true,
+        starWeight: ctx.starWeight ?? null,
+        scoringWeights: ctx.scoringWeights ?? null,
+        hardConstraints: {
+          excludedDestinations: ctx.excludedCountries,
+          maxDistanceKm: ctx.maxDistanceKm,
+          budgetVeto: ctx.hasBudgetVeto ? ctx.vetoBudgetMax : undefined,
+          planeRefused: ctx.planeRefused,
+          maxTravelHours: ctx.maxTravelDurationHours,
+          dealBreakerAmbiances: ctx.dealBreakerAmbiances,
+          dealBreakerDestinations: ctx.dealBreakerDestinations,
+          accessibilityRequired: ctx.needsAccessibility,
+          requiredAmenities: ctx.requiredAmenities,
+        },
+        softPreferences: {
+          travelPace: ctx.travelPace,
+          weather: ctx.groupWeatherPreference,
+          ageRange: ctx.groupAgeRange,
+          lodgingType: ctx.mostDemandedLodgingType,
+          roomTypes: ctx.roomTypePreferences,
+        },
+      },
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
@@ -1266,7 +1366,7 @@ export async function generateRecommendationsForTrip(
     ]);
     if (ai.error) {
       // non bloquant — visible côté logs / providerErrors
-      console.warn("[discovery] AI unavailable:", ai.error);
+      console.warn(`[discovery] fallback: local KREW (${ai.error})`);
     }
     const aiCities = (ai.candidates ?? []).map((c) => ({
       name: c.name,
@@ -1279,8 +1379,20 @@ export async function generateRecommendationsForTrip(
       region: c.region,
       destinationType: c.destinationType,
       anchorPlaces: c.anchorPlaces,
+      candidateClass: c.candidateClass,
+      matchedSignals: c.matchedSignals,
+      compromiseFor: c.compromiseFor,
+      strongMatches: c.strongMatches,
+      groupsSatisfied: c.groupsSatisfied,
+      starMatches: c.starMatches,
+      potentialWeaknesses: c.potentialWeaknesses,
+      hardConstraintAssessment: c.hardConstraintAssessment,
+      confidence: c.confidence,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities);
+    console.info(`[discovery] Gemini candidates: ${aiCities.length}`);
+    console.info(`[discovery] Local candidates: ${ruleBased.length}`);
+    console.info(`[discovery] Merged candidates: ${mergedCandidates.length}`);
 
     if (resolvedDestination && letKrewDecide) {
       const normResolved = normCity(resolvedDestination);
@@ -1293,6 +1405,7 @@ export async function generateRecommendationsForTrip(
           affinity: 98,
           reason: "destination rêvée d'un participant (boostée)",
           source: profile ? "catalog" : "ai_estimate",
+          provenance: profile ? ["local"] : ["gemini"],
           dailyCost: profile?.dailyCost,
           distanceKm: profile?.distanceKm,
           bestMonths: profile?.bestMonths,
@@ -1314,7 +1427,6 @@ export async function generateRecommendationsForTrip(
       }
     }
 
-    mergedCandidates = mergedCandidates.slice(0, 12);
     discoverySource = aiCities.length ? "merged" : "local";
     discoveryMeta = mergedCandidates.map((c) => ({
       name: c.name,
@@ -1404,48 +1516,8 @@ export async function generateRecommendationsForTrip(
     }
   }
 
-  // Property-led exploration is additive: failures never interrupt normal destination discovery.
-  if (routeDiscovery(readiness.profile.selectedConcepts).propertyDiscovery) {
-    try {
-      const properties = await discoverProperties({
-        concepts: readiness.profile.selectedConcepts,
-        participants: ctx.participants,
-        territories: mergedCandidates.flatMap((candidate) => [candidate.name, ...(candidate.anchorPlaces ?? [])]).slice(0, 6),
-        amenities: aggregated.requiredAmenities ?? [],
-        activities: ctx.activityCategories,
-        environment: aggregated.wantedEnvTypes ?? [],
-        localMobility: aggregated.groupLocalMobility ?? null,
-        accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
-      });
-      for (const property of properties) {
-        const resolvedPropertyLocation = resolvePropertyDestination(property);
-        if (!resolvedPropertyLocation) continue;
-        const geo = await geocodeDestination([resolvedPropertyLocation.name, resolvedPropertyLocation.country].filter(Boolean).join(", "));
-        if (!geo) continue;
-        const destinationName = resolvedPropertyLocation.name;
-        const slug = `property-${normCity(destinationName).replace(/[^a-z0-9]+/g, "-")}`;
-        const destination = await supabaseAdmin.from("destinations").upsert({
-          slug,
-          name: destinationName,
-          country: property.country || geo.country || "France",
-          destination_type: "region_territory",
-          anchor_places: [property.locality || destinationName],
-          latitude: geo.latitude,
-          longitude: geo.longitude,
-          distance_from_paris_km: distanceFromParisKm(geo.latitude, geo.longitude),
-          source: "property_discovery",
-          external_id: `property-location:${slug}`,
-        } as any, { onConflict: "source,external_id" }).select("id").single();
-        if (!destination.data?.id) continue;
-        if (!shortlistNames.some((name) => normCity(name) === normCity(destinationName))) shortlistNames.push(destinationName);
-        const accommodation = propertyToAccommodationRow(property, destination.data.id, ctx.participants, ctx.nights);
-        if (!accommodation) continue;
-        await supabaseAdmin.from("accommodations").upsert(accommodation as any, { onConflict: "source,external_id" });
-      }
-    } catch (error) {
-      reportServerError(error, { provider: "property_discovery", kind: "property_pipeline", tripId });
-    }
-  }
+  // Property-led concepts influence destination discovery above, but real property searches
+  // belong exclusively to the later Hotels stage.
 
   // 1c) Villes proposées par l'IA absentes du catalogue → ligne `ai_estimate`
   //     (estimations LLM + saison réelle via Open-Meteo quand disponible).
@@ -1461,27 +1533,11 @@ export async function generateRecommendationsForTrip(
         .maybeSingle();
       if (known.data?.id) continue;
 
-      // Saison réelle : géocodage + normales climatiques, fallback estimation LLM
-      let bestMonths: number[] | undefined = candidate.bestMonths;
-      let latitude: number | null = null;
-      let longitude: number | null = null;
-      try {
-        const place = await geocodeDestination(
-          candidate.country ? `${candidate.name}, ${candidate.country}` : candidate.name,
-        );
-        if (place) {
-          latitude = place.latitude;
-          longitude = place.longitude;
-          const climate = await fetchClimate(place.latitude, place.longitude);
-          if (climate.bestMonths.length) bestMonths = climate.bestMonths;
-        }
-      } catch {
-        /* météo indisponible → on garde l'estimation LLM */
-      }
-
-      // A geocoded AI suggestion is still exploratory: geocoding does not verify its cost or fit.
-      void aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
-      void latitude; void longitude;
+      // Materialize estimates without any hotel/activity lookup. Verification state remains explicit.
+      const row = aiCandidateToDestinationRow(candidate, ctx.ambiances);
+      await supabaseAdmin.from("destinations").upsert(row as any, {
+        onConflict: "source,external_id",
+      });
     } catch (e) {
       reportServerError(e, {
         provider: "destination-ai",
@@ -1491,7 +1547,7 @@ export async function generateRecommendationsForTrip(
     }
   }
 
-  // 2) Enrichissement API (hôtels / activités réels) UNIQUEMENT sur la shortlist scorée
+  // 2) Journalise la source de discovery sans lancer d’enrichissement externe.
   if (discoverySource === "merged") {
     // trace légère pour debug orga
     console.info("[discovery] shortlist fusionnée (IA + règles):", shortlistNames.join(", "));
@@ -1499,19 +1555,9 @@ export async function generateRecommendationsForTrip(
     console.info("[discovery] shortlist locale scorée:", shortlistNames.join(", "));
   }
 
-  const enrichmentPlaces = [...new Set([
-    ...mergedCandidates.flatMap((candidate) =>
-      candidate.destinationType === "city" ? [candidate.name] : (candidate.anchorPlaces ?? [candidate.name]),
-    ),
-    ...shortlistNames,
-  ])];
-  // Activity discovery is useful without dates; the provider boundary itself
-  // skips date-dependent hotel availability when dates are unknown.
-  const providerErrors = await enrichCatalogWithExternalApis(
-    supabase,
-    tripId,
-    [...new Set(enrichmentPlaces.length ? enrichmentPlaces : shortlistNames)].slice(0, 12),
-  );
+  // Destination discovery must never contact hotel or activity providers. Provider
+  // enrichment is deferred until the dedicated Hotels and Activities stages.
+  const providerErrors: string[] = [];
 
   // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
   //    (sans ce filtre, loadTravelCatalog recharge tout le seed SQL)
@@ -1532,7 +1578,6 @@ export async function generateRecommendationsForTrip(
   const shortlistSet = new Set(shortlistNames.map(normName).filter(Boolean));
 
   const destinationsInShortlist = catalog.destinations.filter((d) => {
-    if ((d as any).source === "ai_estimate") return false;
     const n = normName(d.name);
     const c = normName(d.country);
     return (
@@ -1614,6 +1659,26 @@ export async function generateRecommendationsForTrip(
     }
   }
 
+  // Supabase is persistence, not an eligibility gate: every merged discovery
+  // candidate gets an in-memory DestinationRecord before hard constraints.
+  const discoveryPool = mergedCandidates.length
+    ? buildDestinationDiscoveryPool(mergedCandidates, catalogFinal.destinations)
+    : {
+        destinations: catalogFinal.destinations,
+        provenanceByName: new Map(
+          catalogFinal.destinations.map((destination) => [normCity(destination.name), ["local"] as Array<"local" | "gemini">]),
+        ),
+      };
+  catalogFinal = {
+    destinations: discoveryPool.destinations,
+    activities: catalogFinal.activities.filter((activity) =>
+      discoveryPool.destinations.some((destination) => destination.id === activity.destination_id),
+    ),
+    accommodations: catalogFinal.accommodations.filter((accommodation) =>
+      discoveryPool.destinations.some((destination) => destination.id === accommodation.destination_id),
+    ),
+  };
+
   // 4) Transport multi-origines : chaque ville de départ des participants
   //    → cotation A/R, moyenne pondérée / pers + total groupe
   const transportByDestinationId: Record<string, number> = {};
@@ -1624,7 +1689,7 @@ export async function generateRecommendationsForTrip(
   > = {};
 
   // Origines : questionnaires individuels, sinon ville du voyage
-  const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
+  const tripOrigin = ((trip.data.departure_city as string) || "Origine non renseignée").trim() || "Origine non renseignée";
   const departureOrigins =
     aggregated.departureOrigins && aggregated.departureOrigins.length > 0
       ? aggregated.departureOrigins
@@ -1747,35 +1812,55 @@ export async function generateRecommendationsForTrip(
 
   // 5) Scoring final → 4 destinations. The Top 3 product rule applies to
   // stay concepts, while the established destination UI displays four options.
-  // Poids depuis DB si dispo
-  try {
-    const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
-    const { data: wRow } = await supabase
-      .from("scoring_weights")
-      .select("*")
-      .eq("event_type", eventKey)
-      .maybeSingle();
-    if (wRow) {
-      ctxWithTransport.scoringWeights = {
-        ambiance: Number(wRow.ambiance_weight),
-        activities: Number(wRow.activities_weight),
-        budget: Number(wRow.budget_weight),
-        distance: Number(wRow.distance_weight),
-        season: Number(wRow.season_weight),
-        quality: Number(wRow.quality_weight),
-        consensus: Number(wRow.consensus_weight ?? 18),
-        minSatisfaction: Number(wRow.min_satisfaction_weight ?? 15),
-      };
-    }
-    ctxWithTransport.eventType = eventKey;
-  } catch {
-    /* table absente → défauts engine */
-  }
-
-  let proposals = selectTopDestinationProposals(
-    buildProposals(catalogFinal, ctxWithTransport, 20),
-    4,
+  const afterHardConstraints = filterDestinationsByHardConstraints(
+    catalogFinal.destinations,
+    ctxWithTransport,
   );
+  const evaluations = catalogFinal.destinations.map((destination) => ({ destination, result: evaluateDestinationHardConstraints(destination, ctxWithTransport) }));
+  const rejected = evaluations.filter(({ result }) => !result.accepted);
+  const reasonCounts = new Map<string, number>();
+  for (const { destination, result } of rejected) {
+    for (const reason of result.reasons) reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
+    console.info(`[discovery] hard-rejected: ${destination.name}=${result.reasons.join("+")}`);
+  }
+  console.info(`[discovery] Hard-evaluated: ${evaluations.length}`);
+  console.info(`[discovery] Hard-compatible: ${afterHardConstraints.length}`);
+  console.info(`[discovery] Hard-rejected: ${rejected.length}`);
+  console.info(`[discovery] Rejection reasons: ${[...reasonCounts].map(([reason, count]) => `${reason}=${count}`).join(", ") || "none"}`);
+  const geminiNames = new Set(mergedCandidates.filter((candidate) => candidate.provenance.includes("gemini")).map((candidate) => normCity(candidate.name)));
+  const evaluatedGemini = evaluations.filter(({ destination }) => geminiNames.has(normCity(destination.name)));
+  const rejectedGemini = evaluatedGemini.filter(({ result }) => !result.accepted);
+  if (evaluatedGemini.length >= 5 && rejectedGemini.length / evaluatedGemini.length >= 0.6) {
+    console.warn(`[discovery] warning: ${rejectedGemini.length}/${evaluatedGemini.length} Gemini candidates were rejected by KREW hard constraints; check brief alignment.`);
+  }
+  const scoredPool = buildDestinationProposals(catalogFinal, ctxWithTransport, 20);
+  console.info(`[discovery] Destination-scored: ${scoredPool.length}`);
+  let proposals = selectTopDestinationProposals(scoredPool, 4);
+  console.info(`[discovery] Final shortlist: ${proposals.length}`);
+  proposals = await materializeFinalDestinations(supabaseAdmin, proposals);
+  const provenanceByName = discoveryPool.provenanceByName;
+  const finalSources = proposals.map((proposal) => {
+    const provenance = provenanceByName.get(normCity(proposal.destination.name));
+    return `${proposal.destination.name}=${provenance?.join("+") ?? "local"}`;
+  });
+  const finalSourceMap = Object.fromEntries(
+    proposals.map((proposal) => [
+      proposal.destination.name,
+      provenanceByName.get(normCity(proposal.destination.name)) ?? ["local"],
+    ]),
+  );
+  console.info(`[discovery] final sources: ${finalSources.join(", ")}`);
+  const geminiCount = mergedCandidates.filter((candidate) =>
+    candidate.provenance.includes("gemini"),
+  ).length;
+  const geminiSurvivors = proposals.filter((proposal) =>
+    provenanceByName.get(normCity(proposal.destination.name))?.includes("gemini"),
+  ).length;
+  if (geminiCount > 0 && geminiSurvivors === 0) {
+    console.warn(
+      `[discovery] warning: Gemini returned ${geminiCount} valid candidates but none survived KREW scoring.`,
+    );
+  }
 
   // Rationales LLM (1 call groupé, tokens min) — fallback = texte moteur
   let llmRationales = false;
@@ -1793,6 +1878,9 @@ export async function generateRecommendationsForTrip(
   }
 
   // Enregistre les sous-scores de toutes les propositions proposées (pour feedback ultérieur)
+  for (const proposal of proposals) {
+    assertFinalDestinationId(proposal.destination.id, proposal.destination.name);
+  }
   try {
     const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
     for (let i = 0; i < proposals.length; i++) {
@@ -1828,6 +1916,7 @@ export async function generateRecommendationsForTrip(
       apiAccommodations: apiAccIds.size,
       llmRationales,
       readiness,
+      discoverySources: finalSourceMap,
     };
   }
   await replaceRecommendationsSafely(supabase, tripId, rows);
@@ -1852,5 +1941,6 @@ export async function generateRecommendationsForTrip(
     departureOrigins: originsForQuote,
     readiness,
     llmRationales,
+    discoverySources: finalSourceMap,
   };
 }

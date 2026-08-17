@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -62,6 +63,8 @@ import {
   reassignTask,
   setCoOrganizer,
   validateStayProfile,
+  toggleStayProfileVote,
+  updateStarFinancialParticipation,
 } from "@/lib/trips.functions";
 import {
   getParticipantsProgress,
@@ -240,6 +243,8 @@ function TripDetail() {
   const generateTasksForTripFn = useServerFn(generateTasksForTrip);
   const setCoOrg = useServerFn(setCoOrganizer);
   const validateProfile = useServerFn(validateStayProfile);
+  const voteStayProfile = useServerFn(toggleStayProfileVote);
+  const updateStarFinancial = useServerFn(updateStarFinancialParticipation);
   const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
 
   const setCoOrgMutation = useMutation({
@@ -399,6 +404,8 @@ function TripDetail() {
   const [departAfterFilter, setDepartAfterFilter] = useState("");
   const [pickArrival, setPickArrival] = useState("12:00");
   const [pickDeparture, setPickDeparture] = useState("18:00");
+  const [directStartDate, setDirectStartDate] = useState("");
+  const [directEndDate, setDirectEndDate] = useState("");
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -419,9 +426,24 @@ function TripDetail() {
       }
     | undefined;
   useEffect(() => {
-    if (!profile || profile.validated) return;
-    setSelectedConceptIds(profile.calculatedConcepts.slice(0, 3).map((concept) => concept.id));
+    if (!profile) return;
+    setSelectedConceptIds(profile.selectedConcepts.map((concept) => concept.id));
   }, [profile?.validated, JSON.stringify(profile?.calculatedConcepts ?? [])]);
+
+  const stayProfileVoteMutation = useMutation({
+    mutationFn: (conceptId: string) => voteStayProfile({ data: { tripId, conceptId } }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onError: (error: any) => toast.error(String(error?.message ?? "Vote impossible")),
+  });
+  const starFinancialMutation = useMutation({
+    mutationFn: (starPaysShare: boolean) => updateStarFinancial({ data: { tripId, starPaysShare } }),
+    onSuccess: () => {
+      toast.success("Participation financière de la Star mise à jour");
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["cost-split", tripId] });
+    },
+    onError: (error: any) => toast.error(String(error?.message ?? "Mise à jour impossible")),
+  });
 
   const validateProfileMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
@@ -1211,6 +1233,20 @@ function TripDetail() {
           </a>
         </div>
 
+        {data.isOwner ? (
+          <details className="rounded-2xl border border-border/70 p-4">
+            <summary className="cursor-pointer text-sm font-medium">Définir les dates directement</summary>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Pour une décision déjà prise hors de KREW. Les décisions existantes sont conservées ; seules les recherches dépendantes des anciennes dates seront à actualiser.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+              <div><Label htmlFor="direct-start">Date de début</Label><Input id="direct-start" type="date" value={directStartDate} onChange={(event) => setDirectStartDate(event.target.value)} /></div>
+              <div><Label htmlFor="direct-end">Date de fin</Label><Input id="direct-end" type="date" value={directEndDate} onChange={(event) => setDirectEndDate(event.target.value)} /></div>
+              <Button type="button" disabled={!directStartDate || !directEndDate || chooseDatesMutation.isPending} onClick={() => chooseDatesMutation.mutate({ start: directStartDate, end: directEndDate })}>Confirmer</Button>
+            </div>
+          </details>
+        ) : null}
+
         {(availData as any)?.schemaMissing ? (
           <p className="text-sm text-destructive">
             Table dispos absente — exécute le SQL dans l'éditeur Supabase.
@@ -1328,6 +1364,15 @@ function TripDetail() {
             guideront les destinations.
           </p>
         </div>
+        {data.isOwner && data.trip.has_star ? (
+          <div className="rounded-2xl border border-border/70 p-4">
+            <p className="text-sm font-medium">La Star participe-t-elle aux frais du voyage ?</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant={data.trip.star_pays_share !== false ? "default" : "outline"} disabled={starFinancialMutation.isPending} onClick={() => starFinancialMutation.mutate(true)}>Oui — elle paie sa part</Button>
+              <Button type="button" size="sm" variant={data.trip.star_pays_share === false ? "default" : "outline"} disabled={starFinancialMutation.isPending} onClick={() => starFinancialMutation.mutate(false)}>Non — le groupe lui offre le voyage</Button>
+            </div>
+          </div>
+        ) : null}
         {!readiness?.profile.questionnairesReady && !profile?.legacyBypass ? (
           <p className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
             Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
@@ -1337,26 +1382,18 @@ function TripDetail() {
             {(profile?.calculatedConcepts ?? readiness?.profile.calculatedConcepts ?? [])
               .slice(0, 3)
               .map((concept: StayConcept) => {
-                const selected = profile?.validated
-                  ? profile.selectedConcepts.some((item) => item.id === concept.id)
-                  : selectedConceptIds.includes(concept.id);
+                const selected = selectedConceptIds.includes(concept.id);
+                const conceptVotes = (data.stayProfileVotes ?? []).filter(
+                  (vote: any) => vote.concept_id === concept.id,
+                );
+                const hasVoted = conceptVotes.some((vote: any) => vote.user_id === data.userId);
+                const destinationChosen = data.recommendations.some((reco: any) => reco.is_selected);
                 return (
-                  <button
+                  <div
                     key={concept.id}
-                    type="button"
-                    disabled={!data.isOwner || profile?.validated}
-                    aria-pressed={selected}
-                    onClick={() =>
-                      setSelectedConceptIds((ids) =>
-                        ids.includes(concept.id)
-                          ? ids.filter((id) => id !== concept.id)
-                          : [...ids, concept.id],
-                      )
-                    }
                     className={cn(
                       "rounded-2xl border p-4 text-left transition",
                       selected ? "border-primary bg-primary/5" : "border-border opacity-65",
-                      (!data.isOwner || profile?.validated) && "cursor-default",
                     )}
                   >
                     <p className="font-semibold">
@@ -1364,7 +1401,11 @@ function TripDetail() {
                       {concept.title}
                     </p>
                     <p className="mt-2 text-xs text-muted-foreground">{concept.rationale}</p>
-                  </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button type="button" size="sm" variant={hasVoted ? "default" : "outline"} disabled={stayProfileVoteMutation.isPending} onClick={() => stayProfileVoteMutation.mutate(concept.id)}>{hasVoted ? "Vote enregistré" : "Voter"} · {conceptVotes.length}</Button>
+                      {data.isOwner && !destinationChosen ? <Button type="button" size="sm" variant={selected ? "default" : "outline"} onClick={() => setSelectedConceptIds((ids) => ids.includes(concept.id) ? ids.filter((id) => id !== concept.id) : [...ids, concept.id])}>{selected ? "Retenir ✓" : "Retenir"}</Button> : null}
+                    </div>
+                  </div>
                 );
               })}
           </div>
@@ -1373,14 +1414,15 @@ function TripDetail() {
           <p className="text-sm font-medium text-emerald-700">
             Profil validé — les destinations sont disponibles.
           </p>
-        ) : data.isOwner && readiness?.profile.questionnairesReady ? (
+        ) : null}
+        {data.isOwner && readiness?.profile.questionnairesReady && !data.recommendations.some((reco: any) => reco.is_selected) ? (
           <Button
             variant="hero"
-            disabled={validateProfileMutation.isPending}
+            disabled={validateProfileMutation.isPending || selectedConceptIds.length === 0}
             onClick={() => validateProfileMutation.mutate()}
           >
             {validateProfileMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}
-            Valider notre profil de voyage
+            {profile?.validated ? "Revalider les profils" : "Valider les profils"}
           </Button>
         ) : null}
       </section>
@@ -1590,6 +1632,7 @@ function TripDetail() {
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
                 <Hotel className="size-5 text-primary" />
                 3. Hôtels — vote du groupe
+                {(trip as any).refresh_required?.accommodations ? <Badge variant="outline">À actualiser</Badge> : null}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Chacun vote pour un hébergement. L&apos;orga réserve celui qui a le plus de voix.
@@ -1758,12 +1801,14 @@ function TripDetail() {
         </section>
       ) : null}
 
-      <section id="hub-transports" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+      {destinationSelected ? (
+        <section id="hub-transports" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
                 <Plane className="size-5 text-primary" />
                 4. Transports A/R
+                {(trip as any).refresh_required?.transports ? <Badge variant="outline">À actualiser</Badge> : null}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Choisis ton trajet + horaires d&apos;arrivée / départ. Ils orientent le planning
@@ -1957,7 +2002,8 @@ function TripDetail() {
               })()}
             </div>
           )}
-      </section>
+        </section>
+      ) : null}
 
       {destinationSelected ? (
         <section
@@ -1969,6 +2015,7 @@ function TripDetail() {
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
                 <CalendarDays className="size-5 text-primary" />
                 5. Planning du séjour
+                {(trip as any).refresh_required?.planning ? <Badge variant="outline">Conflits à vérifier</Badge> : null}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Resto, activités et bars pour chaque jour — basé sur les dates, la destination et

@@ -4,12 +4,18 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveDesiredDestination } from "@/lib/krew/trip-service";
 import { normalizeActivityCategory } from "@/lib/krew/discovery-enrichment";
+import { assertNotRateLimited } from "@/lib/krew/rate-limit.server";
 
-export async function refreshExternalCatalogForTrip(
+const externalSearchesInFlight = new Map<string, Promise<any>>();
+
+async function runExternalCatalogRefresh(
   supabase: any,
   tripId: string,
   destinationQuery: string,
 ) {
+  if (process.env["TRAVEL_PROVIDERS_ENABLED"] === "false") {
+    return { ok: false as const, message: "Les fournisseurs de voyage sont temporairement désactivés.", destinationsCount: 0, accommodationsCount: 0, activitiesCount: 0, providerErrors: ["providers_disabled"] };
+  }
   const tripRes = await supabase.from("trips").select("*").eq("id", tripId).single();
   if (tripRes.error || !tripRes.data) throw tripRes.error ?? new Error("Voyage introuvable");
   const trip = tripRes.data as any;
@@ -47,6 +53,8 @@ export async function refreshExternalCatalogForTrip(
   const stayApiKey = process.env["STAYAPI_API_KEY"] ?? "";
   if (!checkin || !checkout) {
     providerErrors.push("Dates réelles absentes : disponibilité et prix non vérifiés");
+  } else if (process.env["STAYAPI_ENABLED"] === "false") {
+    providerErrors.push("StayAPI temporairement désactivée");
   } else if (!stayApiKey) {
     providerErrors.push("STAYAPI_API_KEY is not configured");
   } else {
@@ -92,7 +100,7 @@ export async function refreshExternalCatalogForTrip(
   const destinationId = (destUpsert.data as { id: string }).id;
   let activitiesCount = 0;
   const rapidApiKey = process.env["HOTELS_RAPIDAPI_KEY"] ?? process.env["RAPIDAPI_KEY"] ?? "";
-  if (rapidApiKey) {
+  if (rapidApiKey && process.env["ACTIVITY_PROVIDERS_ENABLED"] !== "false") {
     try {
       const { searchActivitiesAllProviders } = await import("@/integrations/external/travel-providers.server");
       const activityResult = await searchActivitiesAllProviders({ rapidApiKey }, {
@@ -190,11 +198,34 @@ export async function refreshExternalCatalogForTrip(
   return { ok: true as const, destination: place.name, country: place.country, nights, weatherSummary: climate.summary, bestMonths: climate.bestMonths, medianNightly, comparedProviders: [...new Set(hotels.flatMap((h) => h.offers.map((o) => o.provider)))], destinationsCount: 1, accommodationsCount, activitiesCount, providerErrors };
 }
 
+/** Shares identical in-flight provider work within a server instance. */
+export function refreshExternalCatalogForTrip(
+  supabase: any,
+  tripId: string,
+  destinationQuery: string,
+) {
+  const key = `${tripId}:${destinationQuery.trim().toLowerCase()}`;
+  const pending = externalSearchesInFlight.get(key);
+  if (pending) return pending;
+  const request = runExternalCatalogRefresh(supabase, tripId, destinationQuery).finally(() => {
+    externalSearchesInFlight.delete(key);
+  });
+  externalSearchesInFlight.set(key, request);
+  return request;
+}
+
 export const searchExternalForTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ tripId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await assertNotRateLimited(supabase, {
+      tripId: data.tripId,
+      userId,
+      kind: "logistics",
+      windowSeconds: Number(process.env["RATE_LIMIT_LOGISTICS_WINDOW_SEC"]) || 120,
+      maxCalls: Number(process.env["RATE_LIMIT_LOGISTICS_MAX"]) || 1,
+    });
     const destinationQuery = await resolveDesiredDestination(supabase, data.tripId);
     if (!destinationQuery) return { ok: false as const, message: "Choisissez une destination souhaitée pour lancer la recherche externe.", destinationsCount: 0, accommodationsCount: 0, activitiesCount: 0, providerErrors: [] as string[] };
     return refreshExternalCatalogForTrip(supabase, data.tripId, destinationQuery);

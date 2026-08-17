@@ -7,6 +7,7 @@ export type OriginTransport = {
   city: string;
   count: number;
   pricePerPerson: number;
+  paysSharedCosts?: boolean;
 };
 
 export type CostSplitLine = {
@@ -52,14 +53,21 @@ export function buildCostSplit(params: {
     ];
   }
 
+  const travelers = origins.reduce((sum, origin) => sum + origin.count, 0);
+  const payers = origins.reduce(
+    (sum, origin) => sum + (origin.paysSharedCosts === false ? 0 : origin.count),
+    0,
+  );
+  const sharedPerPayer = payers > 0 ? Math.round((shared * travelers) / payers) : 0;
   const lines: CostSplitLine[] = origins.map((o) => {
     const transport = Math.round(o.pricePerPerson);
-    const totalPerPerson = transport + shared;
+    const allocatedShared = o.paysSharedCosts === false ? 0 : sharedPerPayer;
+    const totalPerPerson = (o.paysSharedCosts === false ? 0 : transport) + allocatedShared;
     return {
       city: o.city,
       count: o.count,
       transport,
-      shared,
+      shared: allocatedShared,
       totalPerPerson,
       subtotalCity: totalPerPerson * o.count,
     };
@@ -70,7 +78,7 @@ export function buildCostSplit(params: {
   return {
     destinationName: params.destinationName,
     lines,
-    sharedPerPerson: shared,
+    sharedPerPerson: sharedPerPayer,
     totalGroup,
     accommodation: Math.round(params.accommodation || 0),
     activities: Math.round(params.activities || 0),

@@ -62,6 +62,12 @@ export function questionnaireCompletionResult(input: {
 
 export type ParticipantPreferencesInput = z.infer<typeof participantPreferencesSchema>;
 
+export function assertQuestionnaireCanBeSubmitted(existing: { submitted_at?: string | null } | null) {
+  if (existing?.submitted_at) {
+    throw new Error("Ce questionnaire a déjà été envoyé et ne peut plus être modifié.");
+  }
+}
+
 function normalizeEmail(email: string | undefined | null) {
   return typeof email === "string" ? email.trim().toLowerCase() : undefined;
 }
@@ -292,6 +298,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     if (existingPref.error) throw existingPref.error;
+    assertQuestionnaireCanBeSubmitted(existingPref.data);
 
     const now = new Date().toISOString();
 
@@ -333,15 +340,8 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       accommodation_role: data.accommodationRole ?? null,
     };
 
-    if (existingPref.data) {
-      // existing row -> mark updated_at
-      payload.submitted_at = existingPref.data.submitted_at ?? now;
-      payload.updated_at = now;
-    } else {
-      // new submission
-      payload.submitted_at = now;
-      payload.updated_at = null;
-    }
+    payload.submitted_at = now;
+    payload.updated_at = null;
 
     // Sécurité : la ligne est toujours celle de l'utilisateur authentifié (jamais un autre user_id)
     payload.user_id = userId;

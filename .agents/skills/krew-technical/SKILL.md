@@ -24,6 +24,8 @@ Keep provider-specific logic behind appropriate integration boundaries. Normaliz
 
 KREW should remain as provider-independent as practical. RapidAPI is an integration gateway where appropriate, not a business-rule authority.
 
+Any pull request that adds or changes an external API or LLM call must explicitly verify its trigger, cache and in-flight deduplication strategy, bounded retries, server-side rate limiting, and the absence of unbounded loops. Expensive calls must be user-triggered or operationally necessary; a component mount, repeated invalidation, double click or frontend bug must not be able to exhaust provider quotas.
+
 ## Authentication and secrets
 
 Treat Supabase Auth, sessions, JWTs, middleware, cookies and authenticated server functions as sensitive areas.

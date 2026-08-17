@@ -5,6 +5,7 @@
  * codées en dur. Les deux sources sont TOUJOURS appelées puis fusionnées ici.
  */
 import type { CandidateDestination, DestinationType } from "./destination-discovery.server";
+import type { DestinationRecord } from "./engine";
 
 /** Estimation compacte renvoyée par le LLM pour une ville hors catalogue. */
 export type AiEstimate = {
@@ -21,6 +22,15 @@ export type AiEstimate = {
   region?: string | undefined;
   destinationType?: DestinationType | undefined;
   anchorPlaces?: string[] | undefined;
+  candidateClass?: "strong_match" | "smart_compromise" | "gem" | undefined;
+  matchedSignals?: string[] | undefined;
+  compromiseFor?: string[] | undefined;
+  confidence?: number | undefined;
+  strongMatches?: string[] | undefined;
+  groupsSatisfied?: string[] | undefined;
+  starMatches?: string[] | undefined;
+  potentialWeaknesses?: string[] | undefined;
+  hardConstraintAssessment?: Record<string, string> | undefined;
 };
 
 export type MergedCandidate = {
@@ -37,6 +47,16 @@ export type MergedCandidate = {
   destinationType?: DestinationType;
   anchorPlaces?: string[];
   verificationState?: "verified" | "estimated" | "unknown";
+  provenance: Array<"local" | "gemini">;
+  candidateClass?: "strong_match" | "smart_compromise" | "gem" | undefined;
+  matchedSignals?: string[] | undefined;
+  compromiseFor?: string[] | undefined;
+  confidence?: number | undefined;
+  strongMatches?: string[] | undefined;
+  groupsSatisfied?: string[] | undefined;
+  starMatches?: string[] | undefined;
+  potentialWeaknesses?: string[] | undefined;
+  hardConstraintAssessment?: Record<string, string> | undefined;
 };
 
 /** Normalisation de nom de ville (identique à `norm()` de la découverte locale). */
@@ -73,6 +93,7 @@ export function mergeCandidates(
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces ?? [c.name],
       verificationState: "verified",
+      provenance: ["local"],
     });
   }
 
@@ -91,6 +112,16 @@ export function mergeCandidates(
         anchorPlaces: existing.anchorPlaces?.length
           ? existing.anchorPlaces
           : (c.anchorPlaces ?? []),
+        provenance: ["local", "gemini"],
+        candidateClass: c.candidateClass,
+        matchedSignals: c.matchedSignals,
+        compromiseFor: c.compromiseFor,
+        confidence: c.confidence,
+        strongMatches: c.strongMatches,
+        groupsSatisfied: c.groupsSatisfied,
+        starMatches: c.starMatches,
+        potentialWeaknesses: c.potentialWeaknesses,
+        hardConstraintAssessment: c.hardConstraintAssessment,
       });
       continue;
     }
@@ -107,6 +138,16 @@ export function mergeCandidates(
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces?.length ? c.anchorPlaces : [c.name],
       verificationState: "estimated",
+      provenance: ["gemini"],
+      candidateClass: c.candidateClass,
+      matchedSignals: c.matchedSignals,
+      compromiseFor: c.compromiseFor,
+      confidence: c.confidence,
+      strongMatches: c.strongMatches,
+      groupsSatisfied: c.groupsSatisfied,
+      starMatches: c.starMatches,
+      potentialWeaknesses: c.potentialWeaknesses,
+      hardConstraintAssessment: c.hardConstraintAssessment,
     });
   }
 
@@ -121,9 +162,15 @@ export type AiDestinationRow = {
   avg_daily_cost: number | null;
   distance_from_paris_km: number | null;
   best_months: number[];
-  popularity: null; rating: null;
-  score_fete: null; score_aventure: null; score_detente: null; score_luxe: null;
-  score_insolite: null; score_sportif: null; score_culturel: null;
+  popularity: null;
+  rating: null;
+  score_fete: null;
+  score_aventure: null;
+  score_detente: null;
+  score_luxe: null;
+  score_insolite: null;
+  score_sportif: null;
+  score_culturel: null;
   source: "ai_estimate";
   external_id: string;
   destination_type: DestinationType;
@@ -153,12 +200,18 @@ export function aiCandidateToDestinationRow(
     slug: slug || `ville-${Date.now()}`,
     name: candidate.name,
     country: candidate.country?.trim() || "Europe",
-    avg_daily_cost: null,
-    distance_from_paris_km: null,
+    avg_daily_cost: candidate.dailyCost ?? null,
+    distance_from_paris_km: candidate.distanceKm ?? null,
     best_months: months.filter((m) => Number.isInteger(m) && m >= 1 && m <= 12),
-    popularity: null, rating: null,
-    score_fete: null, score_aventure: null, score_detente: null, score_luxe: null,
-    score_insolite: null, score_sportif: null, score_culturel: null,
+    popularity: null,
+    rating: null,
+    score_fete: null,
+    score_aventure: null,
+    score_detente: null,
+    score_luxe: null,
+    score_insolite: null,
+    score_sportif: null,
+    score_culturel: null,
     source: "ai_estimate",
     external_id: `ai:${slug}`,
     destination_type: candidate.destinationType ?? "city",
@@ -166,4 +219,72 @@ export function aiCandidateToDestinationRow(
     anchor_places: candidate.anchorPlaces ?? [candidate.name],
     verification_state: candidate.verificationState === "estimated" ? "estimated" : "unknown",
   };
+}
+
+export type DestinationDiscoveryPool = {
+  destinations: DestinationRecord[];
+  provenanceByName: Map<string, Array<"local" | "gemini">>;
+};
+
+/**
+ * Builds the in-memory scoring pool without making Supabase persistence a
+ * prerequisite. Verified catalogue values win; discovery estimates only fill
+ * missing values. Neutral scores are deliberately unrelated to group wishes.
+ */
+export function buildDestinationDiscoveryPool(
+  candidates: MergedCandidate[],
+  catalogueDestinations: DestinationRecord[],
+): DestinationDiscoveryPool {
+  const catalogueByName = new Map(
+    catalogueDestinations.map((destination) => [normCity(destination.name), destination]),
+  );
+  const provenanceByName = new Map<string, Array<"local" | "gemini">>();
+  const destinations = candidates.map((candidate): DestinationRecord => {
+    const key = normCity(candidate.name);
+    provenanceByName.set(key, candidate.provenance);
+    const catalogue = catalogueByName.get(key);
+    if (catalogue) {
+      return {
+        ...catalogue,
+        avg_daily_cost: catalogue.avg_daily_cost ?? candidate.dailyCost ?? 80,
+        distance_from_paris_km: catalogue.distance_from_paris_km ?? candidate.distanceKm ?? 0,
+        best_months: catalogue.best_months?.length
+          ? catalogue.best_months
+          : (candidate.bestMonths ?? []),
+        destination_type: catalogue.destination_type ?? candidate.destinationType ?? "city",
+        region_name: catalogue.region_name ?? candidate.region ?? null,
+        anchor_places: catalogue.anchor_places?.length
+          ? catalogue.anchor_places
+          : (candidate.anchorPlaces ?? [candidate.name]),
+      };
+    }
+
+    const row = aiCandidateToDestinationRow(candidate);
+    return {
+      id: `discovery:${row.slug}`,
+      slug: row.slug,
+      name: row.name,
+      country: row.country,
+      description: null,
+      image_url: null,
+      avg_daily_cost: row.avg_daily_cost ?? 80,
+      distance_from_paris_km: row.distance_from_paris_km ?? 0,
+      popularity: 0.5,
+      rating: 3.8,
+      best_months: row.best_months,
+      score_fete: 0.5,
+      score_aventure: 0.5,
+      score_detente: 0.5,
+      score_luxe: 0.5,
+      score_insolite: 0.5,
+      score_sportif: 0.5,
+      score_culturel: 0.5,
+      destination_type: row.destination_type,
+      region_name: row.region_name,
+      anchor_places: row.anchor_places,
+      source: candidate.provenance.includes("gemini") ? "ai_estimate" : "krew_discovery",
+      verification_state: row.verification_state,
+    };
+  });
+  return { destinations, provenanceByName };
 }
