@@ -35,44 +35,40 @@ test.describe("KREW golden customer journey", () => {
     await assertDiagnostics();
   });
 
-  test("existing prepared trip survives the critical recommendation path", async ({ page }, testInfo) => {
-    test.skip(!qa.existingTripId, "Set KREW_E2E_EXISTING_TRIP_ID to a disposable trip prepared through questionnaires/dates.");
+  test("prepared trip exercises accommodation, transport and planning through the real UI", async ({ page }, testInfo) => {
+    test.skip(!qa.existingTripId, "Set KREW_E2E_EXISTING_TRIP_ID to a disposable trip with locked dates and a selected destination.");
     const assertDiagnostics = installDiagnostics(page, testInfo);
     await signIn(page);
     await openTrip(page, qa.existingTripId);
 
-    // The purpose of this scenario is intentionally user-visible: it exercises the
-    // same controls a customer uses and fails loudly when a workflow is not wired.
-    const destinationButton = page.getByRole("button", { name: /destination/i }).filter({ hasText: /génér|propos|recher|regén/i }).first();
-    if (await destinationButton.isVisible().catch(() => false)) {
-      await destinationButton.click();
-      await expect(page.getByText(/destination/i).first()).toBeVisible({ timeout: 120_000 });
-    }
+    const accommodation = page.locator("#hub-logistics");
+    await expect(accommodation, "Prepared trip must expose the accommodation section").toBeVisible();
+    const accommodationButton = accommodation.getByRole("button", { name: /Rechercher des hébergements|Actualiser les offres/ });
+    await expect(accommodationButton).toBeVisible();
+    await accommodationButton.click();
+    await expect(accommodation.getByText(/Voir le logement|prix vérifié|indicatif|à vérifier/i).first()).toBeVisible({ timeout: 120_000 });
 
-    const accommodationButton = page.getByRole("button", { name: /logement|hébergement|hôtel/i }).filter({ hasText: /génér|propos|recher|regén/i }).first();
-    if (await accommodationButton.isVisible().catch(() => false)) {
-      await accommodationButton.click();
-      await expect(page.getByText(/Voir le logement|prix vérifié|indicatif|à vérifier/i).first()).toBeVisible({ timeout: 120_000 });
-    }
+    const transports = page.locator("#hub-transports");
+    await expect(transports).toBeVisible();
+    const transportButton = transports.getByRole("button", { name: /Générer des propositions/ });
+    await expect(transportButton).toBeVisible();
+    await transportButton.click();
+    await expect(transports.getByText(/A\/R|aller|transport/i).first()).toBeVisible({ timeout: 120_000 });
 
-    const transportButton = page.getByRole("button", { name: /transport/i }).filter({ hasText: /génér|propos|recher|regén/i }).first();
-    if (await transportButton.isVisible().catch(() => false)) {
-      await transportButton.click();
-      await expect(page.getByText(/A\/R|aller|transport/i).first()).toBeVisible({ timeout: 120_000 });
-    }
+    const planning = page.locator("#hub-activities-plan");
+    await expect(planning).toBeVisible();
+    const planningButton = planning.getByRole("button", { name: /Générer le planning|Régénérer tout le planning/ });
+    await expect(planningButton).toBeVisible();
+    await planningButton.click();
+    await expect(planning.getByText(/jour 1|planning|programme/i).first()).toBeVisible({ timeout: 120_000 });
 
-    const planningButton = page.getByRole("button", { name: /planning|programme|itinéraire/i }).filter({ hasText: /génér|propos|recher|regén/i }).first();
-    if (await planningButton.isVisible().catch(() => false)) {
-      await planningButton.click();
-      await expect(page.getByText(/planning|programme|jour 1/i).first()).toBeVisible({ timeout: 120_000 });
-    }
-
-    // Persistence is part of the customer journey: a successful screen that loses
-    // state after refresh is considered an E2E failure.
+    // A successful screen that loses state after refresh is a customer-facing failure.
     const beforeReload = page.url();
     await page.reload();
     await expect(page).toHaveURL(beforeReload);
-    await expect(page.locator("main")).toBeVisible();
+    await expect(page.locator("#hub-logistics")).toBeVisible();
+    await expect(page.locator("#hub-transports")).toBeVisible();
+    await expect(page.locator("#hub-activities-plan")).toBeVisible();
     await assertDiagnostics();
   });
 });
