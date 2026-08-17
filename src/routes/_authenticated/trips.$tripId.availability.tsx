@@ -33,8 +33,8 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/trips/$tripId/availability")({
   head: () => ({
     meta: [
-      { title: "Disponibilités — Krew" },
-      { name: "description", content: "Indique tes dates et vois le résultat provisoire du groupe." },
+      { title: "Disponibilités — KREW" },
+      { name: "description", content: "Indique et enregistre tes disponibilités pour ce voyage." },
     ],
   }),
   component: AvailabilityPage,
@@ -245,7 +245,7 @@ function AvailabilityPage() {
     mutationFn: (payload: { start: string; end: string }) =>
       choose({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
     onSuccess: () => {
-      toast.success("Date verrouillée — les recherches API utiliseront cette fenêtre");
+      toast.success("Dates du voyage validées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
@@ -314,9 +314,9 @@ function AvailabilityPage() {
         <div>
           <h2 className="font-display text-lg font-semibold">Mes disponibilités</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux.
-            Tes réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut
-            les modifier.
+            Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes
+            réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les
+            modifier.
           </p>
         </div>
 
@@ -372,12 +372,7 @@ function AvailabilityPage() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           {months.map((m) => (
-            <MonthGrid
-              key={toISO(m)}
-              month={m}
-              selection={selection}
-              onToggle={toggleDay}
-            />
+            <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />
           ))}
         </div>
 
@@ -394,9 +389,7 @@ function AvailabilityPage() {
         {/* Chips résumé */}
         <div className="space-y-2">
           <div>
-            <p className="text-xs font-medium text-lagoon">
-              Dispo ({availableDates.length})
-            </p>
+            <p className="text-xs font-medium text-lagoon">Dispo ({availableDates.length})</p>
             {availableDates.length === 0 ? (
               <p className="text-xs text-muted-foreground">Aucune date sélectionnée</p>
             ) : (
@@ -458,7 +451,8 @@ function AvailabilityPage() {
         {datesLocked ? (
           <p className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3 text-sm text-foreground">
             <Lock className="mr-1.5 inline size-4 text-lagoon" />
-            Dates validées par l&apos;organisateur·rice — tes disponibilités sont figées et ne peuvent plus être modifiées.
+            Dates validées par l&apos;organisateur·rice — tes disponibilités sont figées et ne
+            peuvent plus être modifiées.
           </p>
         ) : null}
         <Button
@@ -510,85 +504,6 @@ function AvailabilityPage() {
           </div>
         </section>
       ) : null}
-
-      {/* Ranking groupe */}
-      <section className="mt-6 rounded-3xl border border-border bg-card p-5">
-        <div className="flex items-center gap-2">
-          <CalendarDays className="size-5 text-primary" />
-          <h2 className="font-semibold">Meilleures dates du groupe</h2>
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Calculé à partir des dispos de chacun (liées à son compte). Tu ne modifies que les
-          tiennes. Classement = dates avec le plus de personnes disponibles.
-        </p>
-        <ul className="mt-4 space-y-2">
-          {data.windows.map((w: any, i: number) => {
-            const isChosen =
-              datesLocked &&
-              data.trip.lockedStart === w.start &&
-              data.trip.lockedEnd === w.end;
-            return (
-              <li
-                key={`${w.start}-${w.end}`}
-                className={cn(
-                  "flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3",
-                  i === 0 ? "border-primary/30 bg-primary/5" : "border-border/70",
-                  isChosen && "border-lagoon/50 bg-lagoon/10",
-                )}
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">
-                    {i === 0 ? "🥇 " : ""}
-                    {formatRange(w.start, w.end)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {w.covered}/{w.total} peuvent · {Math.round((w.coverageRatio ?? 0) * 100)} %
-                  </p>
-                  {(w.availablePeople?.length ?? 0) > 0 ? (
-                    <p className="mt-1 text-xs text-lagoon">
-                      ✅{" "}
-                      {w.availablePeople.map((p: any) => p.name).join(", ")}
-                    </p>
-                  ) : null}
-                  {(w.unavailablePeople?.length ?? 0) > 0 ? (
-                    <p className="mt-0.5 text-xs text-destructive/90">
-                      ❌{" "}
-                      {w.unavailablePeople.map((p: any) => p.name).join(", ")}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  {isChosen ? (
-                    <Badge variant="success">
-                      <Check className="mr-1 size-3" /> Choisie
-                    </Badge>
-                  ) : null}
-                  {data.isOwner && !datesLocked ? (
-                    <Button
-                      size="sm"
-                      variant={i === 0 ? "default" : "outline"}
-                      disabled={chooseMutation.isPending}
-                      onClick={() => chooseMutation.mutate({ start: w.start, end: w.end })}
-                    >
-                      {chooseMutation.isPending ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Lock className="size-3.5" />
-                      )}
-                      Choisir cette date
-                    </Button>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-          {data.windows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              En attente des premières réponses pour calculer une date.
-            </p>
-          ) : null}
-        </ul>
-      </section>
     </main>
   );
 }

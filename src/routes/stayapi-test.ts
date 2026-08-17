@@ -5,7 +5,10 @@ export const Route = createFileRoute("/stayapi-test")({
   server: {
     handlers: {
       GET: async () => {
-        const apiKey = process.env.STAYAPI_API_KEY;
+        if (process.env["NODE_ENV"] === "production") {
+          return new Response("Not found", { status: 404 });
+        }
+        const apiKey = process.env["STAYAPI_API_KEY"];
         if (!apiKey) {
           return Response.json({ success: false, error: "STAYAPI_API_KEY is not configured" }, { status: 500 });
         }

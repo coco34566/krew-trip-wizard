@@ -58,7 +58,8 @@ export const tripInputSchema = z.object({
   endDate: z.string().optional(),
   participants: z.number().int().min(2).max(25),
   budgetPerPerson: z.number().min(50).max(20000).default(400),
-  departureCity: z.string().min(2).max(80).default("Paris"),
+  departureCity: z.string().min(2).max(80).optional(),
+  groupAgeRange: z.enum(["18-25", "25-35", "35-45", "45-60", "60+"]),
   averageAge: z.number().int().min(16).max(99).optional(),
   relation: z.string().max(120).optional(),
   ambiances: z.array(z.string()).default([]),
@@ -367,7 +368,7 @@ export async function aggregateParticipantPreferences(
   try {
     const tripQuery = supabase
       .from("trips")
-      .select("event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id")
+      .select("event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_age_range")
       .eq("id", tripId);
     const tripMeta =
       typeof tripQuery.maybeSingle === "function"
@@ -634,7 +635,7 @@ export async function aggregateParticipantPreferences(
 
   const ageRanges = rows.map((r) => r.group_age_range).filter(Boolean);
   const ageRangeFreq = frequencies(ageRanges as string[]);
-  const groupAgeRange = byFrequency(ageRangeFreq)[0] ?? null;
+  const groupAgeRange = resolvedTripMeta?.group_age_range ?? byFrequency(ageRangeFreq)[0] ?? null;
 
   const envTypes = rows.flatMap((r) =>
     String(r.wanted_env_type ?? "")

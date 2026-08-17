@@ -5,8 +5,8 @@ import { LegalPage, LegalSection } from "@/components/krew/LegalPage";
 export const Route = createFileRoute("/cgu")({
   head: () => ({
     meta: [
-      { title: "Conditions générales d'utilisation — Krew" },
-      { name: "description", content: "CGU du service Krew." },
+      { title: "Conditions générales d'utilisation — KREW" },
+      { name: "description", content: "CGU du service KREW." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -19,7 +19,7 @@ function CguPage() {
       <LegalSection title="1. Objet">
         <p>
           Les présentes conditions générales d&apos;utilisation (CGU) régissent l&apos;accès et
-          l&apos;utilisation du service <strong>Krew</strong>, plateforme d&apos;organisation de
+          l&apos;utilisation du service <strong>KREW</strong>, plateforme d&apos;organisation de
           voyages de groupe (création de voyage, invitations, questionnaires, suggestions).
         </p>
         <p>
@@ -37,7 +37,7 @@ function CguPage() {
       </LegalSection>
 
       <LegalSection title="3. Description du service">
-        <p>Krew permet notamment de :</p>
+        <p>KREW permet notamment de :</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>créer un voyage et inviter des participants (lien de partage, email) ;</li>
           <li>collecter les préférences du groupe via questionnaire ;</li>
@@ -51,10 +51,10 @@ function CguPage() {
         </p>
       </LegalSection>
 
-      <LegalSection title="4. Rôle de Krew — absence de qualité d'agence de voyages">
+      <LegalSection title="4. Rôle de KREW — absence de qualité d'agence de voyages">
         <p>
-          Krew n&apos;agit pas en qualité d&apos;agence de voyages ou de tour-opérateur. Aucun
-          contrat de voyage n&apos;est conclu via Krew avec l&apos;éditeur. Les réservations,
+          KREW n&apos;agit pas en qualité d&apos;agence de voyages ou de tour-opérateur. Aucun
+          contrat de voyage n&apos;est conclu via KREW avec l&apos;éditeur. Les réservations,
           paiements et conditions commerciales relèvent exclusivement des prestataires tiers
           (compagnies, hôteliers, plateformes de réservation).
         </p>

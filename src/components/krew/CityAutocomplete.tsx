@@ -93,7 +93,7 @@ export function CityAutocomplete({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<GeoCommune[]>([]);
-  const [airportHint, setAirportHint] = useState<string | null>(null);
+  const [, setAirportHint] = useState<string | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -213,15 +213,6 @@ export function CityAutocomplete({
         </ul>
       ) : null}
 
-      {airportHint ? (
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          Aéroport associé (auto) : <span className="font-medium text-foreground">{airportHint}</span>
-        </p>
-      ) : value.trim().length > 1 ? (
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          Ville enregistrée — aéroport non mappé (les API utiliseront le nom de ville).
-        </p>
-      ) : null}
     </div>
   );
 }

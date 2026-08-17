@@ -24,7 +24,7 @@ export function Logo({ className = "", withTagline = false, size = "md" }: LogoP
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <img
         src="/krew-logo.jpg"
-        alt="Krew"
+        alt="KREW"
         className={cn(s.img, "rounded-lg object-cover shadow-sm ring-1 ring-primary/30")}
       />
       <span className="flex flex-col leading-none">

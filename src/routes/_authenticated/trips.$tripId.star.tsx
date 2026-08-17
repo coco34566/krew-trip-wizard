@@ -11,11 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
-import {
-  AMBIANCES,
-  STAR_DEAL_BREAKERS,
-  STAR_WANTED_ACTIVITIES,
-} from "@/lib/krew/constants";
+import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
@@ -37,12 +33,12 @@ const STAR_WANTED_ACTIVITIES_EMOJIS: Record<string, string> = {
 };
 
 const STAR_DEAL_BREAKERS_EMOJIS: Record<string, string> = {
-  "déguisement": "🎭",
+  déguisement: "🎭",
   "strip-tease": "🔞",
   "activités extrêmes": "🪂",
-  "musée": "🏛️",
-  "camping": "⛺",
-  "foule": "👥",
+  musée: "🏛️",
+  camping: "⛺",
+  foule: "👥",
   "sport intense": "🏋️",
   "long trajet": "🚗",
 };
@@ -126,7 +122,7 @@ function MonthGrid({
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/star")({
   head: () => ({
-    meta: [{ title: "Préférences de la star — Krew" }],
+    meta: [{ title: "Préférences de la Star — KREW" }],
   }),
   component: StarQuestionnaire,
 });
@@ -172,6 +168,12 @@ function StarQuestionnaire() {
     queryFn: () => fetchStar({ data: { tripId } }),
   });
 
+  useEffect(() => {
+    if ((data as any)?.starMode === "participant") {
+      navigate({ to: "/trips/$tripId", params: { tripId }, replace: true });
+    }
+  }, [data, navigate, tripId]);
+
   const [wanted, setWanted] = useState<string[]>([]);
   const [breakers, setBreakers] = useState<string[]>([]);
   const [ambiances, setAmbiances] = useState<string[]>([]);
@@ -184,8 +186,12 @@ function StarQuestionnaire() {
   const [excludedDestinations, setExcludedDestinations] = useState("");
   const [wantedEnvTypes, setWantedEnvTypes] = useState<string[]>([]);
   const [weatherPreference, setWeatherPreference] = useState<number>(1);
-  const [localMobility, setLocalMobility] = useState<"walk_transit" | "car_if_worth_it" | "car_ok" | null>(null);
-  const [accommodationRole, setAccommodationRole] = useState<"base_only" | "part_of_stay" | "centerpiece" | null>(null);
+  const [localMobility, setLocalMobility] = useState<
+    "walk_transit" | "car_if_worth_it" | "car_ok" | null
+  >(null);
+  const [accommodationRole, setAccommodationRole] = useState<
+    "base_only" | "part_of_stay" | "centerpiece" | null
+  >(null);
 
   // Disponibilités de la star (iso → DayMode)
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
@@ -205,7 +211,11 @@ function StarQuestionnaire() {
         setDepartureAirportOrStation(data.preferences.departureAirportOrStation ?? "");
         setDesiredDestination(data.preferences.desiredDestination ?? "");
         setExcludedDestinations((data.preferences.excludedDestinations ?? []).join(", "));
-        setWantedEnvTypes((data.preferences as any).wantedEnvType ? (data.preferences as any).wantedEnvType.split(", ") : []);
+        setWantedEnvTypes(
+          (data.preferences as any).wantedEnvType
+            ? (data.preferences as any).wantedEnvType.split(", ")
+            : [],
+        );
         setWeatherPreference((data.preferences as any).weatherPreference ?? 1);
         setLocalMobility((data.preferences as any).localMobility ?? null);
         setAccommodationRole((data.preferences as any).accommodationRole ?? null);
@@ -305,7 +315,11 @@ function StarQuestionnaire() {
       });
     },
     onSuccess: (res) => {
-      toast.success(res.isUpdate ? "Préférences de la star mises à jour" : "Préférences de la star enregistrées");
+      toast.success(
+        res.isUpdate
+          ? "Préférences de la Star mises à jour"
+          : "Préférences de la Star enregistrées",
+      );
       queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
@@ -341,21 +355,49 @@ function StarQuestionnaire() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <a href={`/trips/${tripId}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"><ArrowLeft className="size-4" /> Retour à Mon Voyage</a>
+      <a
+        href={`/trips/${tripId}`}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+      >
+        <ArrowLeft className="size-4" /> Retour à Mon Voyage
+      </a>
 
       <h1 className="mt-4 font-display text-3xl font-bold tracking-tight">
         Préférences de {starName}
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Complément dédié à <strong>{starName}</strong> — ne remplace pas le questionnaire du groupe.
-        Ses réponses sont intégrées aux compteurs de participation et pèsent davantage dans les recommandations.
+        Complète les réponses au nom de <strong>{starName}</strong> pour ce voyage.
       </p>
       <section className="mt-8 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Votre façon de voyager</h2>
-        <Label>Sur place, vous préférez…</Label>
-        {[["walk_transit", "Tout faire à pied / transports"], ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"], ["car_ok", "Aucun problème pour se déplacer en voiture"]].map(([value, label]) => <Chip key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>{label}</Chip>)}
-        <Label>Le logement, pour vous, c’est plutôt…</Label>
-        {[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => <Chip key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</Chip>)}
+        <h2 className="font-semibold">Sa façon de voyager</h2>
+        <Label>Sur place, qu’est-ce que {starName} préférerait ?</Label>
+        {[
+          ["walk_transit", "Tout faire à pied / transports"],
+          ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"],
+          ["car_ok", "Aucun problème pour se déplacer en voiture"],
+        ].map(([value, label]) => (
+          <Chip
+            key={value}
+            active={localMobility === value}
+            onClick={() => setLocalMobility(value as typeof localMobility)}
+          >
+            {label}
+          </Chip>
+        ))}
+        <Label>Pour {starName}, le logement serait plutôt…</Label>
+        {[
+          ["base_only", "Un point de chute"],
+          ["part_of_stay", "Un lieu où on aime aussi passer du temps"],
+          ["centerpiece", "Une vraie partie du voyage"],
+        ].map(([value, label]) => (
+          <Chip
+            key={value}
+            active={accommodationRole === value}
+            onClick={() => setAccommodationRole(value as typeof accommodationRole)}
+          >
+            {label}
+          </Chip>
+        ))}
       </section>
 
       {/* Point de départ */}
@@ -365,7 +407,7 @@ function StarQuestionnaire() {
           Point de départ
         </h2>
         <div>
-          <Label htmlFor="departure">Ville de départ (ou code postal)</Label>
+          <Label htmlFor="departure">D’où partirait {starName} ? (ville ou code postal)</Label>
           <div className="mt-2">
             <CityAutocomplete
               id="departure"
@@ -387,9 +429,9 @@ function StarQuestionnaire() {
 
       {/* Destinations rêvées / banni */}
       <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Lieux rêvés / à bannir</h2>
+        <h2 className="font-semibold">Les lieux qui plairaient à {starName}</h2>
         <div>
-          <Label htmlFor="destination">Destination rêvée (optionnel)</Label>
+          <Label htmlFor="destination">Quelle serait sa destination rêvée ? (optionnel)</Label>
           <Input
             id="destination"
             value={desiredDestination}
@@ -399,7 +441,7 @@ function StarQuestionnaire() {
           />
         </div>
         <div className="mt-2">
-          <Label htmlFor="excluded">Destinations à éviter (optionnel)</Label>
+          <Label htmlFor="excluded">Quelles destinations {starName} voudrait éviter ? (optionnel)</Label>
           <Input
             id="excluded"
             value={excludedDestinations}
@@ -409,7 +451,9 @@ function StarQuestionnaire() {
           />
         </div>
         <div className="space-y-2 pt-2 border-t border-border/40">
-          <Label className="font-semibold block text-sm">Type de lieu / environnement recherché * (plusieurs choix possibles)</Label>
+          <Label className="font-semibold block text-sm">
+            Quel type de lieu plairait le plus à {starName} ?
+          </Label>
           <div className="flex flex-wrap gap-2">
             {[
               { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" },
@@ -418,7 +462,7 @@ function StarQuestionnaire() {
               { v: "Nature / pleine nature", label: "🌳 Nature / pleine nature" },
               { v: "Village de charme", label: "🏡 Village de charme" },
               { v: "Montagne", label: "🏔️ Montagne" },
-              { v: "Lac / rivière", label: "🚣 Lac / rivière" }
+              { v: "Lac / rivière", label: "🚣 Lac / rivière" },
             ].map((env) => (
               <Chip
                 key={env.v}
@@ -431,12 +475,18 @@ function StarQuestionnaire() {
           </div>
         </div>
         <div className="space-y-2 pt-2 border-t border-border/40">
-          <Label className="font-semibold block text-sm">Quelle importance accordes-tu à la météo pour ce voyage ?</Label>
+          <Label className="font-semibold block text-sm">
+            Quelle importance {starName} accorderait à la météo pour ce voyage ?
+          </Label>
           <div className="flex flex-col gap-2">
             {[
-              { v: 2, label: "☀️ Je veux privilégier une destination avec de bonnes chances de beau temps" },
+              {
+                v: 2,
+                label:
+                  "☀️ Je veux privilégier une destination avec de bonnes chances de beau temps",
+              },
               { v: 1, label: "🌤️ C’est un plus, mais ce n’est pas déterminant" },
-              { v: 0, label: "🌍 La météo n’est pas un critère pour moi" }
+              { v: 0, label: "🌍 La météo n’est pas un critère pour moi" },
             ].map((opt) => (
               <button
                 key={opt.v}
@@ -458,9 +508,9 @@ function StarQuestionnaire() {
 
       {/* Disponibilités Calendrier */}
       <section className="mt-4 space-y-4 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Ses disponibilités</h2>
+        <h2 className="font-semibold">Disponibilités de {starName}</h2>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Sélectionne les dates où la star est disponible ou indisponible.
+          Indique les dates où {starName} serait disponible ou indisponible.
         </p>
 
         {/* Mode peinture */}
@@ -515,38 +565,45 @@ function StarQuestionnaire() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           {months.map((m) => (
-            <MonthGrid
-              key={toISO(m)}
-              month={m}
-              selection={selection}
-              onToggle={toggleDay}
-            />
+            <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />
           ))}
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" className="text-xs" onClick={selectWeekendsInView}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={selectWeekendsInView}
+          >
             Tous les week-ends affichés
           </Button>
-          <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={clearSelection}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={clearSelection}
+          >
             Tout effacer
           </Button>
         </div>
       </section>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Activités souhaitées</h2>
+        <h2 className="font-semibold">Quelles activités plairaient à {starName} ?</h2>
         <div className="flex flex-wrap gap-2">
           {STAR_WANTED_ACTIVITIES.map((a) => (
             <Chip key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
-              {STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"} {a}
+              {STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"} {a.charAt(0).toUpperCase() + a.slice(1)}
             </Chip>
           ))}
         </div>
       </section>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Ce qu’elle / il refuse absolument</h2>
+        <h2 className="font-semibold">Que refuserait absolument {starName} ?</h2>
         <div className="flex flex-wrap gap-2">
           {STAR_DEAL_BREAKERS.map((a) => (
             <Chip
@@ -561,7 +618,7 @@ function StarQuestionnaire() {
       </section>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Ambiance recherchée</h2>
+        <h2 className="font-semibold">Quelle ambiance {starName} apprécierait ?</h2>
         <div className="flex flex-wrap gap-2">
           {AMBIANCES.map((a) => (
             <Chip
@@ -576,7 +633,7 @@ function StarQuestionnaire() {
       </section>
 
       <section className="mt-4 space-y-2 rounded-2xl border border-border bg-card p-5">
-        <Label>Notes</Label>
+        <Label>Autres précisions utiles sur les préférences de {starName}</Label>
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -590,7 +647,11 @@ function StarQuestionnaire() {
         disabled={mutation.isPending}
         onClick={() => mutation.mutate()}
       >
-        {mutation.isPending ? <Loader2 className="animate-spin mr-2" /> : <Sparkles className="size-4 mr-2" />}
+        {mutation.isPending ? (
+          <Loader2 className="animate-spin mr-2" />
+        ) : (
+          <Sparkles className="size-4 mr-2" />
+        )}
         {data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
       </Button>
     </main>

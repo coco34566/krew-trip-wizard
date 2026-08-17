@@ -11,7 +11,9 @@ export const getStarPreferences = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, name, event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics")
+      .select(
+        "id, name, event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics",
+      )
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -20,8 +22,25 @@ export const getStarPreferences = createServerFn({ method: "GET" })
     const starMode = (trip.data.group_logistics as any)?.star_mode ?? "secret";
     const isAdmin = isTripAdmin(trip.data, userId);
 
+    if (starMode === "participant") {
+      return {
+        trip: {
+          id: trip.data.id,
+          name: trip.data.name,
+          eventType: trip.data.event_type,
+          celebratedPerson: trip.data.celebrated_person,
+          hasStar: true,
+          isOwner: trip.data.owner_id === userId,
+        },
+        preferences: null,
+        starMode,
+      };
+    }
+
     if (!isAdmin && starMode === "secret") {
-      throw new Error("403 Forbidden: Seuls les organisateurs peuvent modifier les préférences de la Star en mode secret.");
+      throw new Error(
+        "403 Forbidden: Seuls les organisateurs peuvent modifier les préférences de la Star en mode secret.",
+      );
     }
 
     const eventType = String(trip.data.event_type ?? "").toLowerCase();
@@ -65,6 +84,7 @@ export const getStarPreferences = createServerFn({ method: "GET" })
             accommodationRole: (prefs.data as any).accommodation_role ?? null,
           }
         : null,
+      starMode,
     };
   });
 
@@ -87,7 +107,10 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
         wantedEnvType: z.string().optional().nullable(),
         weatherPreference: z.number().int().min(0).max(2).default(1),
         localMobility: z.enum(["walk_transit", "car_if_worth_it", "car_ok"]).optional().nullable(),
-        accommodationRole: z.enum(["base_only", "part_of_stay", "centerpiece"]).optional().nullable(),
+        accommodationRole: z
+          .enum(["base_only", "part_of_stay", "centerpiece"])
+          .optional()
+          .nullable(),
       })
       .parse(data),
   )
@@ -104,8 +127,14 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
     const starMode = (trip.data.group_logistics as any)?.star_mode ?? "secret";
     const isAdmin = isTripAdmin(trip.data, userId);
 
+    if (starMode !== "secret") {
+      throw new Error("Le questionnaire Star est réservé au mode secret");
+    }
+
     if (!isAdmin && starMode === "secret") {
-      throw new Error("403 Forbidden: Seuls les organisateurs peuvent modifier les préférences de la Star en mode secret.");
+      throw new Error(
+        "403 Forbidden: Seuls les organisateurs peuvent modifier les préférences de la Star en mode secret.",
+      );
     }
 
     if (!isAdmin) {
@@ -131,7 +160,7 @@ export const submitStarPreferences = createServerFn({ method: "POST" })
     const payload = {
       trip_id: data.tripId,
       filled_by: userId,
-      user_id: isActualStar ? userId : (starUserId || null),
+      user_id: isActualStar ? userId : starUserId || null,
       wanted_activities: data.wantedActivities,
       deal_breakers: data.dealBreakers,
       ambiances: data.ambiances,

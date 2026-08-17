@@ -64,7 +64,7 @@ function Consent() {
       <div className="glass-panel w-full max-w-md rounded-3xl p-8 shadow-elevated">
         <Logo size="lg" />
         <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight">
-          Connecter {clientName} à ton compte Krew
+          Connecter {clientName} à ton compte KREW
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {clientName} pourra consulter tes voyages, leurs participants et leurs propositions, et

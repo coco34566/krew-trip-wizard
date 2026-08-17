@@ -34,7 +34,7 @@ export function LegalPage({ title, children }: { title: string; children: ReactN
       <footer className="border-t border-border py-8">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4">
           <Logo size="sm" />
-          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Krew</p>
+          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} KREW</p>
         </div>
       </footer>
     </div>

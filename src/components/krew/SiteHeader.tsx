@@ -74,7 +74,7 @@ export function SiteHeader() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/dashboard">Tableau de bord</Link>
+                    <Link to="/dashboard">Mes voyages</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/account">Mon compte</Link>

@@ -2,7 +2,18 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, Copy, Link2, Loader2, UserPlus, Users, Crown, Shield, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  Link2,
+  Loader2,
+  UserPlus,
+  Users,
+  Crown,
+  Shield,
+  Star,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,15 +22,22 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { getTripDetail, inviteParticipant, removeParticipant, setCoOrganizer, finalizeInvitationStep } from "@/lib/trips.functions";
+import {
+  getTripDetail,
+  inviteParticipant,
+  removeParticipant,
+  setCoOrganizer,
+  finalizeInvitationStep,
+} from "@/lib/trips.functions";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { STAR_EVENT_TYPES, eventTypeLabel } from "@/lib/krew/constants";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, HelpCircle } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/invite")({
   head: () => ({
-    meta: [{ title: "Inviter le groupe — Krew" }],
+    meta: [{ title: "Inviter le groupe — KREW" }],
   }),
   component: InvitePage,
 });
@@ -35,26 +53,19 @@ function InvitePage() {
   const setCoOrg = useServerFn(setCoOrganizer);
   const finishInvite = useServerFn(finalizeInvitationStep);
 
-  const [refetchIntervalValue, setRefetchIntervalValue] = useState<number | false>(1000);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setRefetchIntervalValue(false);
-    }, 10000);
-    return () => clearTimeout(timer);
-  }, []);
-
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
-    refetchInterval: refetchIntervalValue,
     retry: 3,
     retryDelay: 1000,
   });
-  const { data: progress, isError: isProgressError, refetch: refetchProgress } = useQuery({
+  const {
+    data: progress,
+    isError: isProgressError,
+    refetch: refetchProgress,
+  } = useQuery({
     queryKey: ["trip-progress", tripId],
     queryFn: () => fetchProgress({ data: { tripId } }),
-    refetchInterval: refetchIntervalValue,
     retry: 3,
     retryDelay: 1000,
   });
@@ -62,13 +73,15 @@ function InvitePage() {
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
   const [starMode, setStarMode] = useState<"secret" | "participant">("secret");
+  const [starPaysShare, setStarPaysShare] = useState(true);
 
   const savedMode = (data?.trip?.group_logistics as any)?.star_mode;
   useEffect(() => {
     if (savedMode === "secret" || savedMode === "participant") {
       setStarMode(savedMode);
     }
-  }, [savedMode]);
+    setStarPaysShare((data?.trip?.group_logistics as any)?.star_pays_share !== false);
+  }, [savedMode, data?.trip?.group_logistics]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -117,6 +130,7 @@ function InvitePage() {
           tripId,
           starMode,
           inviteStepCompleted: true,
+          starPaysShare,
         },
       }),
     onSuccess: () => {
@@ -137,7 +151,12 @@ function InvitePage() {
         <p className="text-sm text-muted-foreground">
           Impossible de charger les détails du voyage pour le moment.
         </p>
-        <Button onClick={() => { refetch(); refetchProgress(); }}>
+        <Button
+          onClick={() => {
+            refetch();
+            refetchProgress();
+          }}
+        >
           Réessayer
         </Button>
       </main>
@@ -163,10 +182,11 @@ function InvitePage() {
   const starUid = trip?.star_user_id || "star-virtual-uid";
   const hasStar = Boolean(trip?.has_star || celebratedPerson);
 
-  const combinedParticipants = useMemo(() => {
+  const combinedParticipants = (() => {
     if (!hasStar) return rawParticipants;
 
-    const starExists = (rawParts: any[]) => rawParts.some((p: any) => Boolean(p.user_id && starUid && p.user_id === starUid));
+    const starExists = (rawParts: any[]) =>
+      rawParts.some((p: any) => Boolean(p.user_id && starUid && p.user_id === starUid));
 
     if (starExists(rawParticipants)) {
       return rawParticipants.map((p) => {
@@ -191,9 +211,19 @@ function InvitePage() {
     };
 
     return [...rawParticipants, starVirtual];
-  }, [rawParticipants, tripId, hasStar, starUid, celebratedPerson]);
+  })();
 
-  const participants = combinedParticipants;
+  const placeholders = Array.from(
+    { length: Math.max(0, Number(trip.participants_count || 0) - combinedParticipants.length) },
+    (_, index) => ({
+      id: `placeholder-${index}`,
+      display_name: `Participant ${combinedParticipants.length + index + 1}`,
+      email: null,
+      status: "à inviter",
+      placeholder: true,
+    }),
+  );
+  const participants = [...combinedParticipants, ...placeholders];
   const answered = progress?.answered ?? 0;
   const total = Math.max(progress?.total ?? participants.length, trip.participants_count || 1);
 
@@ -235,7 +265,7 @@ function InvitePage() {
                 toast.success("Lien copié");
                 setTimeout(() => setCopied(false), 2000);
               } catch {
-                toast.error("Copie impossible");
+                toast.error("Impossible de copier le lien.");
               }
             }}
           >
@@ -248,11 +278,12 @@ function InvitePage() {
       {data.isOwner ? (
         <section className="mt-6 rounded-3xl border border-border bg-card p-5 space-y-4">
           <h2 className="flex items-center gap-2 font-semibold text-foreground">
-            <UserPlus className="size-4 text-primary" /> Inviter de nouveaux participants ou relancer le groupe
+            <UserPlus className="size-4 text-primary" /> Inviter de nouveaux participants ou
+            relancer le groupe
           </h2>
 
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Ajouter par email</Label>
+            <Label className="text-xs text-muted-foreground">Ajouter une adresse e-mail</Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 type="email"
@@ -271,16 +302,16 @@ function InvitePage() {
           </div>
 
           <div className="border-t border-border/40 pt-4 space-y-2">
-            <Label className="text-xs text-muted-foreground">Partager ou relancer sur WhatsApp</Label>
+            <Label className="text-xs text-muted-foreground">
+              Partager ou relancer sur WhatsApp
+            </Label>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 type="button"
                 className="flex-1 bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
                 onClick={() => {
-                  const tripName = trip?.name ? ` « ${trip.name} »` : "";
-                  const text = `Salut ! On organise un voyage${tripName} avec KREW ✈️\nRejoins-nous et donne tes dispos en 2 min : 👉 ${shareUrl}`;
-                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                  window.open(url, "_blank", "noopener,noreferrer");
+                  const text = `Salut ! On organise « ${trip.name} » avec KREW ✈️\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n👉 ${shareUrl}`;
+                  shareOnWhatsApp(text);
                 }}
               >
                 Inviter sur WhatsApp
@@ -290,30 +321,31 @@ function InvitePage() {
                 variant="outline"
                 className="flex-1 border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10"
                 onClick={() => {
-                  const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
-                  const lines: string[] = [
-                    `🔔 Petit rappel pour le voyage « ${trip.name || "notre voyage"} » !`,
+                  const missingParticipants =
+                    progress?.participants?.filter(
+                      (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
+                    ) || [];
+                  const lines = [
+                    `Petit point KREW pour « ${trip.name} » ✈️`,
                     "",
-                    "Certain·es d'entre nous n'ont pas encore eu le temps de remplir leurs infos :",
+                    "Il reste quelques petites choses à faire :",
                   ];
-
                   for (const p of missingParticipants) {
                     const name = p.display_name || p.email?.split("@")[0] || "Ami";
-                    const missing: string[] = [];
-                    if (!p.hasAnsweredAvailability) missing.push("disponibilités 📅");
-                    if (!p.hasAnswered) missing.push("préférences ⚙️");
-                    lines.push(`• *${name}* : il te manque tes ${missing.join(" et ")}`);
+                    const missing = [
+                      !p.hasAnsweredAvailability ? "disponibilités" : null,
+                      !p.hasAnswered ? "préférences" : null,
+                    ].filter(Boolean);
+                    lines.push(`• ${name} : ${missing.join(" + ")}`);
                   }
-
-                  lines.push("");
-                  lines.push(`Prenez 2 petites minutes pour compléter vos infos : 👉 ${window.location.origin}/trips/${trip.id}`);
-                  const text = lines.join("\n");
-                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                  window.open(url, "_blank", "noopener,noreferrer");
+                  lines.push("", `👉 ${window.location.origin}/trips/${trip.id}`);
+                  shareOnWhatsApp(lines.join("\n"));
                 }}
-                disabled={!progress?.participants?.some(p => !p.hasAnswered || !p.hasAnsweredAvailability)}
+                disabled={
+                  !progress?.participants?.some((p) => !p.hasAnswered || !p.hasAnsweredAvailability)
+                }
               >
-                Relancer les retardataires
+                Relancer le groupe
               </Button>
             </div>
           </div>
@@ -331,7 +363,7 @@ function InvitePage() {
         </div>
         <ul className="mt-4 space-y-2">
           {participants.length === 0 ? (
-            <li className="text-sm text-muted-foreground">Personne n&apos;a encore rejoint.</li>
+            <li className="text-sm text-muted-foreground">Personne n’a encore rejoint le groupe.</li>
           ) : (
             participants.map((p) => (
               <li
@@ -351,7 +383,10 @@ function InvitePage() {
                       </Badge>
                     ) : null}
                     {p.isStar ? (
-                      <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20">
+                      <Badge
+                        variant="sun"
+                        className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                      >
                         <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
                       </Badge>
                     ) : null}
@@ -359,7 +394,7 @@ function InvitePage() {
                   <p className="text-xs text-muted-foreground">{p.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={p.status === "accepte" ? "success" : "muted"}>{p.status}</Badge>
+                  <Badge variant={p.status === "accepte" ? "success" : "muted"}>{p.status === "accepte" ? "Participe" : p.status}</Badge>
                   {data.isCreator && p.user_id && p.user_id !== trip.owner_id ? (
                     p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
                       <Button
@@ -377,18 +412,16 @@ function InvitePage() {
                         size="sm"
                         className="text-xs text-primary hover:bg-primary/5"
                         disabled={setCoOrgMutation.isPending}
-                        onClick={() => setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })}
+                        onClick={() =>
+                          setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
+                        }
                       >
                         Nommer co-org
                       </Button>
                     )
                   ) : null}
-                  {data.isOwner ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeMutation.mutate(p.id)}
-                    >
+                  {data.isOwner && !p.placeholder ? (
+                    <Button variant="ghost" size="sm" onClick={() => removeMutation.mutate(p.id)}>
                       Retirer
                     </Button>
                   ) : null}
@@ -400,13 +433,15 @@ function InvitePage() {
       </section>
 
       {/* Rôle & Comportement de la Star (EVG, EVJF, Anniversaire, Retraite) */}
-      {(trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type)) ? (
+      {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
         <section className="mt-6 rounded-3xl border border-border bg-card p-5">
           <h2 className="flex items-center gap-2 font-semibold text-foreground">
-            <HelpCircle className="size-4 text-primary" /> Rôle de la Star ({trip.celebrated_person || "Star"})
+            <Star className="size-4 text-primary" /> Rôle de la Star (
+            {trip.celebrated_person || "Star"})
           </h2>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Définis si l&apos;organisation de l&apos;événement doit rester un secret pour la Star ou non.
+            Définis si l&apos;organisation de l&apos;événement doit rester un secret pour la Star ou
+            non.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <button
@@ -417,12 +452,13 @@ function InvitePage() {
                 "rounded-2xl border p-4 text-left text-sm transition transition-all",
                 starMode === "secret"
                   ? "border-primary bg-primary/10 shadow-glow text-foreground font-semibold"
-                  : "border-border bg-surface/30 text-muted-foreground hover:border-primary/45"
+                  : "border-border bg-surface/30 text-muted-foreground hover:border-primary/45",
               )}
             >
               <span className="block text-base">🤫 Mode Secret</span>
               <span className="mt-1 block text-xs text-muted-foreground font-normal leading-relaxed">
-                La Star ne remplit pas elle-même son questionnaire (c&apos;est toi qui t&apos;en charges) et n&apos;aura pas accès au tableau de bord pour préserver la surprise !
+                La Star ne remplit pas elle-même son questionnaire (c&apos;est toi qui t&apos;en
+                charges) et n&apos;aura pas accès au tableau de bord pour préserver la surprise !
               </span>
             </button>
             <button
@@ -433,14 +469,34 @@ function InvitePage() {
                 "rounded-2xl border p-4 text-left text-sm transition transition-all",
                 starMode === "participant"
                   ? "border-primary bg-primary/10 shadow-glow text-foreground font-semibold"
-                  : "border-border bg-surface/30 text-muted-foreground hover:border-primary/45"
+                  : "border-border bg-surface/30 text-muted-foreground hover:border-primary/45",
               )}
             >
               <span className="block text-base">🎂 Mode Participant</span>
               <span className="mt-1 block text-xs text-muted-foreground font-normal leading-relaxed">
-                La Star est invitée, voit l&apos;organisation, peut répondre au questionnaire comme les autres, tout en restant identifiée comme la Star.
+                La Star est invitée, voit l&apos;organisation, peut répondre au questionnaire comme
+                les autres, tout en restant identifiée comme la Star.
               </span>
             </button>
+          </div>
+          <div className="mt-5 border-t border-border pt-4">
+            <Label>La Star participe aux frais</Label>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant={starPaysShare ? "default" : "outline"}
+                onClick={() => setStarPaysShare(true)}
+              >
+                Oui
+              </Button>
+              <Button
+                type="button"
+                variant={!starPaysShare ? "default" : "outline"}
+                onClick={() => setStarPaysShare(false)}
+              >
+                Non, sa part est répartie entre les autres
+              </Button>
+            </div>
           </div>
         </section>
       ) : null}
@@ -448,9 +504,12 @@ function InvitePage() {
       {data.isOwner ? (
         <section className="mt-8 rounded-3xl border border-primary/20 bg-primary/5 p-6 text-center space-y-4">
           <div className="space-y-1">
-            <h3 className="font-display text-lg font-bold text-primary">Finaliser l&apos;invitation</h3>
+            <h3 className="font-display text-lg font-bold text-primary">
+              Finaliser l&apos;invitation
+            </h3>
             <p className="text-xs text-muted-foreground">
-              Une fois que tu as partagé le lien et configuré le rôle de la Star, accède au tableau de bord.
+              Une fois que tu as partagé le lien et configuré le rôle de la Star, accède au tableau
+              de bord.
             </p>
           </div>
           <Button

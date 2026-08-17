@@ -25,7 +25,9 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   const { data: myPrefs, isLoading: isMyPrefsLoading } = useQuery({
     queryKey: ["my-transport-time-prefs", tripId],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return null;
       const { data: part } = await supabase
         .from("trip_participants")
@@ -92,19 +94,22 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   });
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
+    <div className="space-y-3 py-2">
       <div className="flex items-center gap-2">
         <Clock className="size-5 text-primary" />
-        <h2 className="font-display text-xl font-semibold tracking-tight">Mes contraintes horaires de transport</h2>
+        <h2 className="font-display text-base font-semibold tracking-tight">
+          Contraintes horaires
+        </h2>
       </div>
       <p className="text-xs text-muted-foreground leading-snug">
-        Indique l'heure à partir de laquelle tu peux partir à l'aller, et l'heure limite de retour chez toi. Ces préférences orientent le choix des billets du groupe.
+        Indique l'heure à partir de laquelle tu peux partir à l'aller, et l'heure limite de retour
+        chez toi. Ces préférences orientent le choix des billets du groupe.
       </p>
 
-      <div className="grid gap-4 sm:grid-cols-2 mt-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
-            Je peux partir à partir de (Aller)
+            Je peux partir à partir de
           </label>
           <Input
             type="time"
@@ -115,7 +120,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
         </div>
         <div>
           <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
-            Je dois être rentré avant (Retour)
+            Je dois être rentré avant
           </label>
           <Input
             type="time"
@@ -133,7 +138,9 @@ export function TransportTimePrefsCard({ tripId }: Props) {
           {groupWindow.earliestDeparture || groupWindow.latestReturn ? (
             <span>
               Contrainte collective :
-              {groupWindow.earliestDeparture ? ` départ au plus tôt à ${groupWindow.earliestDeparture}` : ""}
+              {groupWindow.earliestDeparture
+                ? ` départ au plus tôt à ${groupWindow.earliestDeparture}`
+                : ""}
               {groupWindow.earliestDeparture && groupWindow.latestReturn ? " et " : ""}
               {groupWindow.latestReturn ? ` retour au plus tard à ${groupWindow.latestReturn}` : ""}
             </span>
@@ -154,7 +161,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
           ) : (
             <Save className="size-4" />
           )}
-          Sauvegarder mes horaires
+          Sauvegarder
         </Button>
       </div>
     </div>

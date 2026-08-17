@@ -109,6 +109,11 @@ async function aggregate(rows: any[], tripData: any, starData: any) {
 }
 
 describe("single-source Star identity and weighting", () => {
+  it("uses trips.group_age_range without a participant age answer", async () => {
+    const row = { ...participantRow("owner-user"), group_age_range: null };
+    const result = await aggregate([row], trip({ group_age_range: "25-35" }), null);
+    expect(result.groupAgeRange).toBe("25-35");
+  });
   it("recognizes and weights a Star with an account", async () => {
     const result = await aggregate(
       [participantRow("owner-user", ["fete"]), participantRow("star-user")],

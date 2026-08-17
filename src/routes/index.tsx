@@ -19,17 +19,17 @@ import { EVENT_TYPES } from "@/lib/krew/constants";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Krew — Organise le voyage parfait avec tes ami·e·s" },
+      { title: "KREW — Organise simplement tes voyages de groupe" },
       {
         name: "description",
         content:
-          "EVG, EVJF, week-end entre ami·e·s : Krew analyse ton groupe et propose destination, hébergement, activités, budget et planning jour par jour.",
+          "EVG, EVJF, week-end entre amis : KREW réunit les disponibilités et les préférences du groupe pour t’aider à organiser le voyage.",
       },
-      { property: "og:title", content: "Krew — Le voyage de groupe, organisé pour toi" },
+      { property: "og:title", content: "KREW — Organise simplement tes voyages de groupe" },
       {
         property: "og:description",
         content:
-          "Répondez à un questionnaire, Krew construit le voyage complet. Sans passer des heures à chercher.",
+          "Disponibilités, envies, budget : KREW rassemble les réponses du groupe et t’aide à organiser le séjour, étape par étape.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -41,18 +41,18 @@ export const Route = createFileRoute("/")({
 const STEPS = [
   {
     icon: Users,
-    title: "Créez le voyage",
-    text: "Type d'événement, effectif, et lien d'invitation pour la bande.",
+    title: "Crée ton voyage",
+    text: "Renseigne l’essentiel et invite le groupe.",
   },
   {
     icon: CalendarCheck,
     title: "Chacun répond",
-    text: "Dispos + préférences. Krew agrège le groupe automatiquement.",
+    text: "Disponibilités et préférences : chacun complète ses informations.",
   },
   {
     icon: Sparkles,
-    title: "Krew propose",
-    text: "Destinations scorées, planning, hôtels et trajets A/R.",
+    title: "KREW propose",
+    text: "Dates, destinations, hébergements et trajets adaptés au groupe.",
   },
 ];
 
@@ -81,15 +81,15 @@ function Landing() {
 
           <div className="relative z-10 mx-auto flex max-w-6xl flex-col justify-end px-4 pb-16 pt-28 sm:pb-20 sm:pt-36">
             <Badge variant="lagoon" className="mb-5 w-fit backdrop-blur-sm">
-              Assistant intelligent de voyages de groupe
+              L’organisation des voyages de groupe, simplement
             </Badge>
             <h1 className="max-w-3xl font-display text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
               Le voyage de groupe,{" "}
               <span className="text-brand-gradient">organisé pour toi.</span>
             </h1>
             <p className="mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Dispos, envies, budget : Krew assemble destination, hébergement, activités et
-              trajets — pour que la bande vote et parte, sans tableau Excel.
+              Disponibilités, envies, budget : KREW rassemble les réponses du groupe et t’aide à
+              organiser le séjour, étape par étape.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -173,7 +173,7 @@ function Landing() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary font-display">Aperçu interactif</p>
               <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">Un voyage complet, assemblé en direct</h2>
               <p className="mt-4 text-sm text-muted-foreground">
-                Découvre ce que produit Krew dès que ton groupe a complété ses réponses. Pas de fausses cartes, de vraies recommandations prêtes à être partagées !
+                Découvre à quoi peut ressembler un voyage organisé avec KREW.
               </p>
             </div>
 
@@ -184,26 +184,25 @@ function Landing() {
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-primary/20 backdrop-blur-sm px-2 py-0.5 rounded-full">Exemple de projet final</span>
                     <h3 className="font-display text-2xl sm:text-3xl font-bold mt-1">Week-end Retrouvailles à Lisbonne</h3>
-                    <p className="text-xs text-white/80 mt-1">Organisé par Thomas · 8 participant·e·s</p>
+                    <p className="text-xs text-white/80 mt-1">Organisé par Thomas · 8 personnes</p>
                   </div>
-                  <Badge variant="lagoon" className="text-sm py-1 px-3">Score 89%</Badge>
                 </div>
               </div>
 
               <div className="p-6 grid gap-6 md:grid-cols-3 text-sm border-b border-border bg-surface/30">
                 <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">Dates verrouillées</p>
+                  <p className="text-xs font-bold uppercase text-muted-foreground">Dates</p>
                   <p className="font-medium text-foreground">Vendredi 11 Sept. → Dimanche 13 Sept.</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-bold uppercase text-muted-foreground">Budget moyen / personne</p>
-                  <p className="font-medium text-foreground">~360 € tout compris</p>
+                  <p className="text-xs font-bold uppercase text-muted-foreground">Budget estimé par personne</p>
+                  <p className="font-medium text-foreground">~360 €</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs font-bold uppercase text-muted-foreground font-display">État des réponses</p>
                   <div className="flex gap-4">
-                    <p className="text-xs">📅 Dispos : <span className="font-semibold text-emerald-600 dark:text-emerald-400">8/8</span></p>
-                    <p className="text-xs">⚙️ Prefs : <span className="font-semibold text-emerald-600 dark:text-emerald-400">8/8</span></p>
+                    <p className="text-xs">📅 Disponibilités : <span className="font-semibold text-emerald-600 dark:text-emerald-400">8/8</span></p>
+                    <p className="text-xs">⚙️ Préférences : <span className="font-semibold text-emerald-600 dark:text-emerald-400">8/8</span></p>
                   </div>
                 </div>
               </div>
@@ -220,9 +219,9 @@ function Landing() {
                         <p className="font-semibold">Lisbon Sky Apartments</p>
                         <p className="text-xs text-muted-foreground">Appartement entier · ★ 4.7 · Proche centre (0.8 km)</p>
                       </div>
-                      <Badge variant="success">Top votes (5/8)</Badge>
+                      <Badge variant="success">5 votes sur 8</Badge>
                     </div>
-                    <p className="mt-3 text-xs text-muted-foreground font-medium">42 € / pers. par nuit · 84 € / pers. séjour</p>
+                    <p className="mt-3 text-xs text-muted-foreground font-medium">42 € / personne par nuit · 84 € / personne pour le séjour</p>
                   </div>
 
                   <h4 className="font-bold text-base flex items-center gap-2">
@@ -231,11 +230,11 @@ function Landing() {
                   </h4>
                   <ul className="space-y-2">
                     <li className="flex justify-between border-b border-border/40 pb-1.5 text-xs text-muted-foreground">
-                      <span>Paris (5 pers.) · Vol EasyJet A/R</span>
+                      <span>Paris (5 personnes) · Vol EasyJet aller-retour</span>
                       <span className="font-semibold text-foreground">115 €</span>
                     </li>
                     <li className="flex justify-between border-b border-border/40 pb-1.5 text-xs text-muted-foreground">
-                      <span>Lyon (3 pers.) · Vol Transavia A/R</span>
+                      <span>Lyon (3 personnes) · Vol Transavia aller-retour</span>
                       <span className="font-semibold text-foreground">125 €</span>
                     </li>
                   </ul>
@@ -277,14 +276,14 @@ function Landing() {
           <div className="mx-auto grid max-w-6xl gap-5 px-4 py-16 lg:grid-cols-12">
             <div className="lg:col-span-12">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary text-center">
-                Ce que Krew fait pour toi
+                Ce que KREW fait pour toi
               </p>
               <h2 className="mt-2 font-display text-3xl font-bold text-center mb-12">Moins de débats, plus de départ</h2>
               <div className="grid gap-4 sm:grid-cols-4">
                 <FeatureCard
                   icon={MapPinned}
-                  title="Destinations scorées"
-                  text="Ambiance, saison, distance et budget : chaque ville est justifiée."
+                  title="Destinations adaptées"
+                  text="Des propositions qui tiennent compte des envies, du budget et des contraintes du groupe."
                 />
                 <FeatureCard
                   icon={Wallet}
@@ -294,12 +293,12 @@ function Landing() {
                 <FeatureCard
                   icon={Vote}
                   title="Décision collective"
-                  text="Invite, réponses de chacun·e, validation par l'organisateur·rice."
+                  text="Chacun partage ses préférences, puis le groupe avance ensemble."
                 />
                 <FeatureCard
                   icon={CalendarCheck}
                   title="Planning jour par jour"
-                  text="Restos, activités, bars — et liens pour réserver hôtels & trajets."
+                  text="Restaurants, activités et temps forts réunis dans un programme clair."
                 />
               </div>
             </div>
@@ -314,7 +313,7 @@ function Landing() {
               Ta prochaine légende commence ici
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
-              Crée le voyage, partage le lien WhatsApp, laisse Krew assembler le reste.
+              Crée le voyage, invite le groupe et avancez ensemble, étape par étape.
             </p>
             <Button asChild variant="hero" size="xl" className="mt-8">
               <Link to="/trips/new">Créer mon voyage</Link>
@@ -339,7 +338,7 @@ function Landing() {
             </Link>
           </nav>
           <p className="max-w-xs text-center text-xs text-muted-foreground sm:text-right">
-            © {new Date().getFullYear()} Krew — l&apos;organisation de voyages de groupe, enfin
+            © {new Date().getFullYear()} KREW — l&apos;organisation de voyages de groupe, enfin
             simple.
           </p>
         </div>

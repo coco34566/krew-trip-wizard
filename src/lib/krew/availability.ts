@@ -20,6 +20,7 @@ export type DateWindow = {
   total: number;
   coverageRatio: number;
   score: number;
+  isWeekend: boolean;
   /** userIds qui PEUVENT participer sur cette fenêtre */
   availableUserIds: string[];
   /** userIds qui NE PEUVENT PAS (dispos incompatibles / bloquées) */
@@ -119,10 +120,10 @@ export function rankDateWindows(entries: AvailabilityEntry[], nights = 2, limit 
     const covered = availableUserIds.length;
     const total = entries.length;
     const coverageRatio = total ? covered / total : 0;
-    // Score : couverture + bonus week-end (ven/sam départ)
+    // La couverture prime toujours ; le week-end est uniquement un départage.
     const dow = new Date(start + "T12:00:00Z").getUTCDay();
-    const weekendBonus = dow === 5 || dow === 6 ? 0.05 : 0;
-    const score = coverageRatio * 100 + weekendBonus * 100;
+    const isWeekend = dow === 5 || dow === 6;
+    const score = coverageRatio * 100;
     if (covered > 0) {
       candidates.push({
         start,
@@ -132,6 +133,7 @@ export function rankDateWindows(entries: AvailabilityEntry[], nights = 2, limit 
         total,
         coverageRatio,
         score: Math.round(score * 10) / 10,
+        isWeekend,
         availableUserIds,
         unavailableUserIds,
       });
@@ -139,7 +141,12 @@ export function rankDateWindows(entries: AvailabilityEntry[], nights = 2, limit 
     cursor = addDaysIso(cursor, 1);
   }
 
-  candidates.sort((a, b) => b.score - a.score || a.start.localeCompare(b.start));
+  candidates.sort(
+    (a, b) =>
+      b.coverageRatio - a.coverageRatio ||
+      Number(b.isWeekend) - Number(a.isWeekend) ||
+      a.start.localeCompare(b.start),
+  );
   // Dédupliquer fenêtres qui se chevauchent trop (garder la meilleure)
   const picked: DateWindow[] = [];
   for (const c of candidates) {
@@ -156,6 +163,7 @@ export type TripStepId =
   | "invite"
   | "availability"
   | "questionnaire"
+  | "star"
   | "dates"
   | "profile"
   | "destination"
@@ -194,6 +202,9 @@ export function buildTripSteps(input: {
   activitiesValidated?: boolean;
   /** Date de fin passée */
   tripEndDatePassed?: boolean;
+  showStarStep?: boolean;
+  starName?: string | null;
+  starDone?: boolean;
 }): TripStep[] {
   const minAnswers = 1;
 
@@ -248,7 +259,7 @@ export function buildTripSteps(input: {
     return "active";
   }
 
-  return [
+  const steps: TripStep[] = [
     {
       id: "invite",
       label: "Inviter",
@@ -293,7 +304,7 @@ export function buildTripSteps(input: {
     },
     {
       id: "hotels",
-      label: "Hôtels",
+      label: "Hébergement",
       description: "",
       href: "",
       status: statusFor(hotelDone, destDone),
@@ -326,6 +337,16 @@ export function buildTripSteps(input: {
       status: statusFor(memoriesDone, realizedDone),
     },
   ];
+  if (input.showStarStep) {
+    steps.splice(3, 0, {
+      id: "star",
+      label: `Préférences de ${input.starName || "la Star"}`,
+      description: "",
+      href: "/star",
+      status: statusFor(Boolean(input.starDone), questDone),
+    });
+  }
+  return steps;
 }
 
 /** Modules post-destination (architecture extensible). */

@@ -118,7 +118,6 @@ export function PackingListCard({
                 >
                   {item.label}
                 </span>
-                <p className="text-xs italic text-muted-foreground">{item.reasons.join(" · ")}</p>
               </div>
             </div>
             {group ? (
@@ -155,7 +154,7 @@ export function PackingListCard({
                   >
                     {state.owned[item.id]
                       ? `${participant?.display_name || "Quelqu'un"} l'apporte`
-                      : "Je l’ai / Je l’apporte"}
+                      : "Je m’en charge"}
                   </Button>
                 ) : null}
                 {link ? (
@@ -181,9 +180,9 @@ export function PackingListCard({
   return (
     <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-5 shadow-sm">
       <div>
-        <h2 className="font-display text-xl font-semibold">Liste de voyage contextuelle</h2>
+        <h2 className="font-display text-xl font-semibold">Préparer le voyage</h2>
         <p className="text-xs text-muted-foreground">
-          Synchronisée avec le planning. Les ajouts manuels sont toujours conservés.
+          Retrouve ici ce qu’il faut prévoir pour le voyage.
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-2">
@@ -204,7 +203,6 @@ export function PackingListCard({
                   {g.label}
                   {g.optional ? " (facultatif)" : ""}
                 </span>
-                <p className="text-xs italic text-muted-foreground">{g.reasons.join(" · ")}</p>
               </li>
             ))}
           </ul>
@@ -216,7 +214,7 @@ export function PackingListCard({
               <li key={t.id} className="rounded-xl border p-3">
                 <span>{t.label}</span>
                 <p className="text-xs italic text-muted-foreground">
-                  {t.reasons.join(" · ")} · Assigner dans les tâches
+                  À attribuer
                 </p>
               </li>
             ))}

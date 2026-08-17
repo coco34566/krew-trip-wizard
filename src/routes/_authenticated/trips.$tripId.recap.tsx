@@ -29,14 +29,13 @@ import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
-import { ProposalScoreRadar } from "@/components/krew/ProposalScoreRadar";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/recap")({
   head: () => ({
     meta: [
-      { title: "Récap du groupe — Krew" },
+      { title: "Récap du groupe — KREW" },
       {
         name: "description",
         content: "Propositions shortlistées et liens pour vérifier les prix en temps réel.",
@@ -139,7 +138,7 @@ function TripRecapPage() {
     const endDateObj = new Date(tripObj.endDate);
     endDateObj.setDate(endDateObj.getDate() + 1);
     const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
-    const title = encodeURIComponent(tripObj.name || "Mon Voyage Krew");
+    const title = encodeURIComponent(tripObj.name || "Mon Voyage KREW");
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
   }, [data?.trip?.startDate, data?.trip?.endDate, data?.trip?.name]);
 
@@ -236,7 +235,7 @@ function TripRecapPage() {
         <Info className="mt-0.5 size-4 shrink-0 text-primary" />
         <p>
           Ces liens ouvrent les comparateurs avec tes critères pré-remplis — les prix affichés dans
-          Krew sont des estimations, clique pour voir le prix réel du jour.
+          KREW sont des estimations, clique pour voir le prix réel du jour.
         </p>
       </div>
 
@@ -275,7 +274,6 @@ function TripRecapPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <Badge variant="muted">#{index + 1}</Badge>
-                        <Badge variant="lagoon">Score {Math.round(reco.score)}</Badge>
 
                         {/* Réactions */}
                         <div className="flex items-center gap-1 ml-2">
@@ -339,7 +337,7 @@ function TripRecapPage() {
                           {budget.priceSource?.accommodation === "provider" ? (
                             <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Logement réel</Badge>
                           ) : budget.priceSource?.accommodation === "web" ? (
-                            <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Source web vérifiée</Badge>
+                            <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Hébergement vérifié</Badge>
                           ) : (
                             <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Logement estimé</Badge>
                           )}
@@ -350,13 +348,6 @@ function TripRecapPage() {
                 </div>
 
                 <div className="space-y-5 px-5 py-5 sm:px-6">
-                  <ProposalScoreRadar
-                    subScores={((budget as any)?.subScores ?? {}) as any}
-                    consensusScore={(budget as any)?.consensusScore ?? null}
-                    minSatisfaction={(budget as any)?.minSatisfaction ?? null}
-                    satisfiedCount={(budget as any)?.satisfiedCount ?? null}
-                    participantsEvaluated={(budget as any)?.participantsEvaluated ?? null}
-                  />
                   <div>
                     <h4 className="text-sm font-semibold">Vérifier les prix en temps réel</h4>
                     <p className="mt-1 text-xs text-muted-foreground">
@@ -390,7 +381,7 @@ function TripRecapPage() {
                         <div className="mt-3 flex flex-wrap gap-2">
                           {transportOfferUrl ? (
                             <ExternalLinkButton href={transportOfferUrl} variant="hero">
-                              <Plane className="size-3.5" /> Voir l&apos;offre {matchedTransport?.label || matchedTransport?.provider || "réelle"}
+                              <Plane className="size-3.5" /> Voir l&apos;offre {matchedTransport?.label || "disponible"}
                             </ExternalLinkButton>
                           ) : null}
                           <ExternalLinkButton href={origin.googleFlights} variant={transportOfferUrl ? "outline" : "hero"}>

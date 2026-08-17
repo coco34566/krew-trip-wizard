@@ -110,11 +110,10 @@ export function CookieConsent() {
             <Shield className="size-5" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold">Ta vie privée compte</h3>
+            <h3 className="text-sm font-semibold">Tes choix de cookies</h3>
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-              Krew utilise des traceurs nécessaires au fonctionnement du service et, avec ton accord,
-              des traceurs pour mesurer et améliorer ton expérience, personnaliser certains contenus,
-              mesurer nos campagnes et nos partenariats.
+              KREW utilise des cookies nécessaires au fonctionnement du service et, avec ton accord,
+              des cookies pour mesurer et améliorer ton expérience.
             </p>
           </div>
         </header>
@@ -122,13 +121,13 @@ export function CookieConsent() {
         {showCustomize ? (
           <div className="space-y-3 border-y border-border/60 py-3">
             <CategoryRow
-              title="Traceurs nécessaires"
+              title="Cookies nécessaires"
               description="Authentification, sécurité, fonctionnement du service et mémorisation de tes choix."
               alwaysOn
             />
             <CategoryRow
               title="Mesure & amélioration"
-              description="Mesure d’audience et performance pour comprendre l'utilisation de Krew et améliorer le service."
+              description="Mesure d’audience et performance pour comprendre l'utilisation de KREW et améliorer le service."
               checked={consent.analytics}
               onChange={(value) => updateCategory("analytics", value)}
             />
@@ -151,8 +150,7 @@ export function CookieConsent() {
               onChange={(value) => updateCategory("affiliate", value)}
             />
             <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
-              Les traceurs de retargeting et de réseaux sociaux sont inclus dans « Personnalisation & publicité »
-              et suivent le même choix. Tu peux modifier tes préférences à tout moment.
+              Les cookies liés à la personnalisation publicitaire et aux réseaux sociaux suivent le même choix.
             </p>
           </div>
         ) : null}
@@ -200,8 +198,7 @@ export function CookieConsent() {
             </>
           )}
           <p className="text-center text-[10px] leading-relaxed text-muted-foreground">
-            Les traceurs non essentiels ne sont pas activés avant ton choix. « Tout refuser » est aussi simple que
-            « Tout accepter ».
+            Les cookies non essentiels ne sont pas activés avant ton choix.
           </p>
         </footer>
       </div>
