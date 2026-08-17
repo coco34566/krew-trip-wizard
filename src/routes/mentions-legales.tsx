@@ -5,8 +5,8 @@ import { LegalPage, LegalSection } from "@/components/krew/LegalPage";
 export const Route = createFileRoute("/mentions-legales")({
   head: () => ({
     meta: [
-      { title: "Mentions légales — Krew" },
-      { name: "description", content: "Mentions légales du service Krew." },
+      { title: "Mentions légales — KREW" },
+      { name: "description", content: "Mentions légales du service KREW." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -18,7 +18,7 @@ function MentionsLegalesPage() {
     <LegalPage title="Mentions légales">
       <LegalSection title="1. Éditeur du site">
         <p>
-          Le site et l&apos;application <strong>Krew</strong> (ci-après « le Service ») sont édités par :
+          Le site et l&apos;application <strong>KREW</strong> (ci-après « le Service ») sont édités par :
         </p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
@@ -71,7 +71,7 @@ function MentionsLegalesPage() {
           représentation ou exploitation non autorisée est interdite.
         </p>
         <p>
-          La marque et le logo <strong>Krew</strong> appartiennent à l&apos;éditeur. Les marques
+          La marque et le logo <strong>KREW</strong> appartiennent à l&apos;éditeur. Les marques
           tierces éventuellement citées (compagnies aériennes, plateformes hôtelières, etc.)
           restent la propriété de leurs titulaires respectifs.
         </p>
@@ -79,8 +79,8 @@ function MentionsLegalesPage() {
 
       <LegalSection title="4. Nature du service">
         <p>
-          Krew est un outil d&apos;aide à l&apos;organisation de voyages de groupe (questionnaires,
-          suggestions de destinations, estimation de budgets). Krew n&apos;est pas une agence de
+          KREW est un outil d&apos;aide à l&apos;organisation de voyages de groupe (questionnaires,
+          suggestions de destinations, estimation de budgets). KREW n&apos;est pas une agence de
           voyages au sens du Code du tourisme : le Service ne vend pas de billets ni d&apos;hébergements
           pour son propre compte. Les offres affichées sont fournies à titre indicatif via des
           sources et API tierces ; la réservation et le paiement s&apos;effectuent le cas échéant

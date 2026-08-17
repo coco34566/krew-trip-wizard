@@ -64,7 +64,7 @@ function AccountPage() {
     const { error: deleteError } = await supabase.rpc("delete_my_account");
 
     if (deleteError) {
-      setError("Impossible de supprimer votre compte pour le moment. Veuillez réessayer plus tard.");
+      setError("Impossible de supprimer ton compte pour le moment. Réessaie plus tard.");
       setDeleting(false);
       return;
     }
@@ -86,7 +86,7 @@ function AccountPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Mon compte</h1>
         <p className="mt-2 text-muted-foreground">
-          Gérez les informations associées à votre compte KREW.
+          Gère les informations associées à ton compte KREW.
         </p>
       </div>
 
@@ -94,7 +94,7 @@ function AccountPage() {
         <Card>
           <CardHeader>
             <CardTitle>Mes informations</CardTitle>
-            <CardDescription>Les informations utilisées pour votre compte KREW.</CardDescription>
+            <CardDescription>Les informations associées à ton compte KREW.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {firstName ? (
@@ -118,7 +118,7 @@ function AccountPage() {
           <CardHeader>
             <CardTitle>Supprimer mon compte</CardTitle>
             <CardDescription>
-              Supprimez votre compte et les données personnelles qui n'ont plus de raison légale d'être conservées.
+              Supprime ton compte et les données personnelles qui n'ont plus de raison légale d'être conservées.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -153,9 +153,9 @@ function AccountPage() {
       <Dialog open={open} onOpenChange={(nextOpen) => !deleting && setOpen(nextOpen)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Supprimer votre compte ?</DialogTitle>
+            <DialogTitle>Supprimer ton compte ?</DialogTitle>
             <DialogDescription>
-              Cette action supprimera votre compte et les données personnelles qui n'ont plus de raison légale d'être conservées. Certaines données peuvent être conservées lorsque la loi l'exige.
+              Cette action supprimera ton compte et les données personnelles qui n'ont plus de raison légale d'être conservées. Certaines données peuvent être conservées lorsque la loi l'exige.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

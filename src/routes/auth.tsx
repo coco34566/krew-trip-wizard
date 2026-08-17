@@ -15,10 +15,10 @@ export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): Record<string, any> => search,
   head: () => ({
     meta: [
-      { title: "Connexion — Krew, l'organisateur de voyages de groupe" },
-      { name: "description", content: "Connecte-toi à Krew pour créer, organiser et voter en groupe sur ton prochain EVG, EVJF ou week-end entre ami·e·s." },
-      { property: "og:title", content: "Connexion — Krew" },
-      { property: "og:description", content: "Accède à tes voyages de groupe organisés par Krew." },
+      { title: "Connexion — KREW, l'organisateur de voyages de groupe" },
+      { name: "description", content: "Connecte-toi à KREW pour créer, organiser et voter en groupe sur ton prochain EVG, EVJF ou week-end entre ami·e·s." },
+      { property: "og:title", content: "Connexion — KREW" },
+      { property: "og:description", content: "Accède à tes voyages de groupe organisés par KREW." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

@@ -7,38 +7,20 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/faq")({
   head: () => ({
     meta: [
-      { title: "FAQ — Krew" },
-      { name: "description", content: "Une question sur Krew ? Retrouve toutes les réponses à tes questions ici." },
+      { title: "FAQ — KREW" },
+      { name: "description", content: "Une question sur KREW ? Retrouve toutes les réponses à tes questions ici." },
     ],
   }),
   component: FaqPage,
 });
 
 const FAQS = [
-  {
-    q: "Comment fonctionne l'organisation d'un voyage sur Krew ?",
-    a: "C'est super simple ! Tu crées le voyage, tu indiques tes critères de base, et tu partages le lien d'invitation générique avec ton groupe. Chacun·e se connecte, remplit ses disponibilités sur un calendrier visuel et répond au questionnaire de préférences (budget, envies, transports...). Krew compile tout et génère les meilleures recommandations de destinations, avec plannings et offres réels !",
-  },
-  {
-    q: "Mes ami·e·s doivent-ils/elles créer un compte pour répondre ?",
-    a: "Oui, pour garantir la sécurité et s'assurer que chacun·e gère de façon autonome ses propres réponses et disponibilités, chaque participant·e crée un compte gratuit en quelques secondes avec son e-mail. Ainsi, personne ne peut modifier les réponses d'un·e autre !",
-  },
-  {
-    q: "Qu'est-ce que « la star » du voyage ?",
-    a: "Si tu organises un EVG, un EVJF ou un anniversaire, il y a souvent une personne mise à l'honneur. Tu peux la désigner comme « la star ». Ses préférences d'activités, ses contre-indications et ses envies auront un poids démultiplié (multiplié par 2,5 à 3,2) dans le calcul final pour que le voyage lui plaise à 100 % !",
-  },
-  {
-    q: "Comment sont calculées les suggestions de destinations ?",
-    a: "Krew utilise un moteur de scoring intelligent basé sur des critères objectifs : la météo réelle à tes dates, le budget maximum de chacun·e, le temps de transport depuis les villes de départ, les ambiances demandées, et la satisfaction globale de chaque participant·e pour éviter les déçus.",
-  },
-  {
-    q: "Les propositions d'hôtels et d'activités sont-elles réelles ?",
-    a: "Absolument ! Krew se connecte à de vraies plateformes de réservation partenaires (comme Booking.com ou TripAdvisor) pour te proposer de vrais hébergements disponibles et de véritables activités sur place avec des liens directs pour réserver.",
-  },
-  {
-    q: "Puis-je gérer les dépenses du voyage sur l'app ?",
-    a: "Oui ! Une brique de répartition des coûts interactive est incluse dans ton Dashboard. Une fois les réservations faites, elle te permet d'indiquer qui a payé quoi et de calculer automatiquement la part de chacun·e pour des remboursements sans prise de tête.",
-  },
+  { q: "Comment fonctionne l’organisation d’un voyage sur KREW ?", a: "Tu crées le voyage, tu invites le groupe, puis chacun indique ses disponibilités et ses préférences. KREW rassemble les réponses pour proposer les dates et les options qui correspondent le mieux au groupe." },
+  { q: "Faut-il créer un compte pour participer ?", a: "Oui. Chaque personne utilise son propre compte pour renseigner et modifier ses disponibilités et ses préférences en toute autonomie." },
+  { q: "Qu’est-ce que la Star du voyage ?", a: "Pour certains voyages comme un EVG, un EVJF ou un anniversaire, tu peux désigner la personne mise à l’honneur comme Star. En mode secret, l’organisation peut compléter ses préférences sans lui dévoiler la surprise. En mode participant, elle rejoint le groupe et répond comme les autres." },
+  { q: "Comment sont proposées les destinations ?", a: "KREW tient compte des réponses du groupe : budget, envies, disponibilités, départs, transports acceptés et autres contraintes du voyage. Les propositions servent à aider le groupe à choisir." },
+  { q: "Les prix et disponibilités sont-ils garantis ?", a: "Non. Les prix et disponibilités peuvent évoluer. Lorsqu’un lien de réservation est proposé, vérifie toujours le tarif et les conditions au moment de réserver." },
+  { q: "Puis-je gérer les dépenses du voyage ?", a: "Oui. KREW peut estimer et répartir les coûts du voyage pour indiquer la part de chacun. Les paiements et remboursements restent effectués directement entre les participants." },
 ];
 
 function FaqPage() {
@@ -51,10 +33,10 @@ function FaqPage() {
             Des questions ?
           </p>
           <h1 className="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-            La Foire Aux <span className="text-brand-gradient">Questions</span>
+            La foire aux questions
           </h1>
           <p className="mt-4 text-base text-muted-foreground">
-            Tout ce que tu as toujours voulu savoir sur Krew, sans oser le demander.
+            Les réponses aux questions les plus fréquentes sur KREW.
           </p>
         </header>
 
@@ -78,8 +60,8 @@ function FaqPage() {
         </section>
 
         <div className="mt-16 text-center p-6 bg-card/50 rounded-3xl border border-border">
-          <h3 className="font-display text-lg font-semibold">Tu as une autre question ?</h3>
-          <p className="text-xs text-muted-foreground mt-1">N&apos;hésite pas à nous écrire, on se fera un plaisir de t&apos;aider !</p>
+          <h3 className="font-display text-lg font-semibold">Prêt à organiser ton prochain voyage ?</h3>
+          <p className="text-xs text-muted-foreground mt-1">Crée ton voyage et invite le groupe.</p>
           <Button asChild className="mt-4" variant="hero">
             <Link to="/trips/new">Créer mon voyage</Link>
           </Button>
@@ -89,7 +71,7 @@ function FaqPage() {
       <footer className="border-t border-border bg-card/30 py-8">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 text-xs text-muted-foreground">
           <Logo size="sm" />
-          <p>© {new Date().getFullYear()} Krew — voyages de groupe simples</p>
+          <p>© {new Date().getFullYear()} KREW — voyages de groupe simples</p>
         </div>
       </footer>
     </div>

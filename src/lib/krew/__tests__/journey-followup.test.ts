@@ -81,19 +81,21 @@ describe("compléments du parcours E2E", () => {
       "utf8",
     );
     const titles = [
-      "1. Envies & ambiance",
-      "2. Destination & cadre",
-      "3. Transport",
-      "4. Budget",
-      "5. Hébergement",
-      "6. Contraintes & précisions",
+      'title="Envies & ambiance"',
+      'title="Destination & cadre"',
+      'title="Budget"',
+      'title="Hébergement"',
+      'title="Transport"',
+      'title="Contraintes & précisions"',
     ];
     expect(titles.map((title) => questionnaire.indexOf(title))).toEqual(
       [...titles.map((title) => questionnaire.indexOf(title))].sort((a, b) => a - b),
     );
-    expect(questionnaire.indexOf("localMobility")).toBeLessThan(
-      questionnaire.indexOf('title="4. Budget"'),
+    const transportSection = questionnaire.slice(
+      questionnaire.indexOf('title="Transport"'),
+      questionnaire.indexOf('title="Contraintes & précisions"'),
     );
+    expect(transportSection).toContain("localMobility");
     const hub = readFileSync("src/routes/_authenticated/trips.$tripId.index.tsx", "utf8");
     for (const option of [
       "Apple / calendrier mobile (.ics)",

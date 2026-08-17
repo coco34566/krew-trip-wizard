@@ -26,7 +26,7 @@ import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/questionnaire")({
   head: () => ({
-    meta: [{ title: "Mon questionnaire — Krew" }],
+    meta: [{ title: "Mon questionnaire — KREW" }],
   }),
   component: ParticipantQuestionnaire,
 });
@@ -363,7 +363,7 @@ function ParticipantQuestionnaire() {
 
       <div className="mt-8 space-y-5">
         <Section
-          title="1. Envies & ambiance"
+          title="Envies & ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
         >
           <div>
@@ -451,7 +451,7 @@ function ParticipantQuestionnaire() {
         </Section>
 
         <Section
-          title="2. Destination & cadre"
+          title="Destination & cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
         >
           <div>
@@ -464,7 +464,7 @@ function ParticipantQuestionnaire() {
               className="mt-2"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Si plusieurs personnes indiquent la même ville, Krew la priorise.
+              Si plusieurs personnes indiquent la même ville, KREW la priorise.
             </p>
           </div>
           <div>
@@ -533,7 +533,107 @@ function ParticipantQuestionnaire() {
           </div>
         </Section>
 
-        <Section title="3. Transport" hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation.">
+        <Section
+          title="Budget"
+          hint="Indique le budget qui te convient pour ce voyage."
+        >
+          <div>
+            <Label className="mb-2 block">
+              Budget max par personne : {formatEuro(budgetMax)} *
+            </Label>
+            <Slider
+              min={150}
+              max={1500}
+              step={25}
+              value={[budgetMax]}
+              onValueChange={([v]) => setBudgetMax(v ?? budgetMax)}
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[250, 400, 600, 900].map((n) => (
+                <Chip key={n} active={budgetMax === n} onClick={() => setBudgetMax(n)}>
+                  {n} €
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Ce budget, c&apos;est plutôt…</Label>
+            <div className="flex flex-col gap-2">
+              {BUDGET_PRIORITIES.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => setBudgetPriority(p.value)}
+                  className={cn(
+                    "rounded-xl border px-4 py-2.5 text-left text-sm transition-colors",
+                    budgetPriority === p.value
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          title="Hébergement"
+          hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
+        >
+          <div>
+            <Label className="mb-2 block">Type de logement</Label>
+            <div className="flex flex-wrap gap-2">
+              {LODGING_TYPES.map((a) => (
+                <Chip
+                  key={a.value}
+                  active={lodgingTypes.includes(a.value)}
+                  onClick={() => {
+                    if (a.value === "peu_importe") {
+                      setLodgingTypes(["peu_importe"]);
+                      return;
+                    }
+                    setLodgingTypes((prev) => {
+                      const without = prev.filter((x) => x !== "peu_importe");
+                      if (without.includes(a.value)) {
+                        const next = without.filter((x) => x !== a.value);
+                        return next.length ? next : ["peu_importe"];
+                      }
+                      return [...without, a.value];
+                    });
+                  }}
+                >
+                  {a.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Le logement, pour toi, c’est plutôt…</Label>
+            <div className="flex flex-col gap-2">
+              {[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => (
+                <Chip key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Chambre</Label>
+            <div className="flex flex-wrap gap-2">
+              {ROOM_TYPES.map((a) => (
+                <Chip
+                  key={a.value}
+                  active={roomType === a.value}
+                  onClick={() => setRoomType(a.value)}
+                >
+                  {a.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Transport" hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation.">
           <div>
             <Label htmlFor="departure">Ville de départ * (ou code postal)</Label>
             <div className="mt-2">
@@ -601,107 +701,7 @@ function ParticipantQuestionnaire() {
           </div>
         </Section>
 
-        <Section
-          title="4. Budget"
-          hint="Indique le budget qui te convient pour ce voyage."
-        >
-          <div>
-            <Label className="mb-2 block">
-              Budget max par personne : {formatEuro(budgetMax)} *
-            </Label>
-            <Slider
-              min={150}
-              max={1500}
-              step={25}
-              value={[budgetMax]}
-              onValueChange={([v]) => setBudgetMax(v ?? budgetMax)}
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {[250, 400, 600, 900].map((n) => (
-                <Chip key={n} active={budgetMax === n} onClick={() => setBudgetMax(n)}>
-                  {n} €
-                </Chip>
-              ))}
-            </div>
-          </div>
-          <div>
-            <Label className="mb-2 block">Ce budget, c&apos;est plutôt…</Label>
-            <div className="flex flex-col gap-2">
-              {BUDGET_PRIORITIES.map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => setBudgetPriority(p.value)}
-                  className={cn(
-                    "rounded-xl border px-4 py-2.5 text-left text-sm transition-colors",
-                    budgetPriority === p.value
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </Section>
-
-        <Section
-          title="5. Hébergement"
-          hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
-        >
-          <div>
-            <Label className="mb-2 block">Type de logement</Label>
-            <div className="flex flex-wrap gap-2">
-              {LODGING_TYPES.map((a) => (
-                <Chip
-                  key={a.value}
-                  active={lodgingTypes.includes(a.value)}
-                  onClick={() => {
-                    if (a.value === "peu_importe") {
-                      setLodgingTypes(["peu_importe"]);
-                      return;
-                    }
-                    setLodgingTypes((prev) => {
-                      const without = prev.filter((x) => x !== "peu_importe");
-                      if (without.includes(a.value)) {
-                        const next = without.filter((x) => x !== a.value);
-                        return next.length ? next : ["peu_importe"];
-                      }
-                      return [...without, a.value];
-                    });
-                  }}
-                >
-                  {a.label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-          <div>
-            <Label className="mb-2 block">Le logement, pour toi, c’est plutôt…</Label>
-            <div className="flex flex-col gap-2">
-              {[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => (
-                <Chip key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</Chip>
-              ))}
-            </div>
-          </div>
-          <div>
-            <Label className="mb-2 block">Chambre</Label>
-            <div className="flex flex-wrap gap-2">
-              {ROOM_TYPES.map((a) => (
-                <Chip
-                  key={a.value}
-                  active={roomType === a.value}
-                  onClick={() => setRoomType(a.value)}
-                >
-                  {a.label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-        </Section>
-
-        <Section title="6. Contraintes & précisions">
+        <Section title="Contraintes & précisions">
           <div>
             <Label className="mb-2 block">Alimentation</Label>
             <div className="flex flex-wrap gap-2">

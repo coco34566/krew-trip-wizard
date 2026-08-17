@@ -176,8 +176,8 @@ function NextActionsPanel({
       key: "star",
       title: trip.celebrated_person
         ? `Préférences de ${trip.celebrated_person}`
-        : "Préférences de la star",
-      desc: "Réponses pondérées plus fort dans le scoring.",
+        : "Préférences de la Star",
+      desc: "Complète ses préférences pour le voyage.",
       href: `/trips/${tripId}/star`,
       icon: Star,
     });
@@ -221,7 +221,7 @@ function NextActionsPanel({
         push({
           key: "gen",
           title: "Générer des destinations",
-          desc: "Propositions Krew basées sur les prefs du groupe.",
+          desc: "Des propositions adaptées aux préférences du groupe.",
           href: `#hub-destination`,
           icon: Sparkles,
         });
@@ -434,7 +434,6 @@ export function TripHubDashboard({
   myAvailabilityDone = false,
   myPreferencesDone = false,
   starDone = false,
-  topScores = [],
   activitiesValidated: inputActivitiesValidated = false,
   tripEndDatePassed: inputTripEndDatePassed = false,
   children,
@@ -487,8 +486,6 @@ export function TripHubDashboard({
 
   // Même seuil que `assessGenerationReadiness` côté serveur (MIN_ANSWERS / MIN_ANSWER_RATIO) :
   // Règle retirée pour toujours afficher les propositions sans seuil minimum de préférences
-  const prefsOkForProposals = true;
-
   const steps = buildTripSteps({
     tripId,
     participantsJoined: participantsCount,
@@ -616,7 +613,7 @@ export function TripHubDashboard({
                 {formatEuro(totalReserved)}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-sm text-amber-800 dark:text-amber-300">
-                <Wallet className="size-3.5 text-amber-600" /> Reste Estimé :{" "}
+                <Wallet className="size-3.5 text-amber-600" /> Reste estimé :{" "}
                 {formatEuro(totalEstimated)}
               </span>
             </>
@@ -722,43 +719,6 @@ export function TripHubDashboard({
         transportOffersReady={transportOffersReady}
         hasItinerary={hasItinerary}
       />
-
-      {/* Scores live */}
-      {topScores.length > 0 && prefsOkForProposals ? (
-        <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-primary" />
-            <h2 className="font-semibold">Propositions en cours</h2>
-            <span className="text-xs text-muted-foreground">évoluent avec les réponses</span>
-          </div>
-          <ul className="mt-4 -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 sm:mx-0 sm:block sm:space-y-2 sm:overflow-visible sm:px-0 sm:pb-0">
-            {topScores.map((s, i) => (
-              <li
-                key={s.name}
-                className={cn(
-                  "flex min-w-[72%] shrink-0 snap-center items-center justify-between rounded-2xl border px-4 py-3 sm:min-w-0 sm:shrink",
-                  i === 0 ? "border-primary/30 bg-primary/5" : "border-border/70 bg-surface/30",
-                )}
-              >
-                <span className="font-medium">
-                  {i === 0 ? "🥇 " : i === 1 ? "🥈 " : i === 2 ? "🥉 " : ""}
-                  {s.name}
-                </span>
-                <span className="text-lg font-bold tabular-nums text-primary">
-                  {Math.round(s.score)} %
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4">
-            <Button asChild variant="outline" size="sm">
-              <Link to="/trips/$tripId" params={{ tripId }} hash="hub-destination">
-                <MapPin className="size-3.5" /> Voir le détail
-              </Link>
-            </Button>
-          </div>
-        </section>
-      ) : null}
 
       {children}
     </div>

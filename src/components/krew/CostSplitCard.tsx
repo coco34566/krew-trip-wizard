@@ -40,7 +40,7 @@ export function CostSplitCard({ split, tripName }: Props) {
       ctx.fillStyle = "#1a1f1a";
       ctx.font = "bold 20px system-ui, sans-serif";
       let y = 32;
-      ctx.fillText(tripName ? `Krew — ${tripName}` : "Krew — répartition", 24, y);
+      ctx.fillText(tripName ? `KREW — ${tripName}` : "KREW — répartition", 24, y);
       y += 28;
       ctx.font = "16px system-ui, sans-serif";
       ctx.fillText(`📍 ${split.destinationName}`, 24, y);

@@ -37,7 +37,7 @@ import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/invite")({
   head: () => ({
-    meta: [{ title: "Inviter le groupe — Krew" }],
+    meta: [{ title: "Inviter le groupe — KREW" }],
   }),
   component: InvitePage,
 });
@@ -265,7 +265,7 @@ function InvitePage() {
                 toast.success("Lien copié");
                 setTimeout(() => setCopied(false), 2000);
               } catch {
-                toast.error("Copie impossible");
+                toast.error("Impossible de copier le lien.");
               }
             }}
           >
@@ -283,7 +283,7 @@ function InvitePage() {
           </h2>
 
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Ajouter par email</Label>
+            <Label className="text-xs text-muted-foreground">Ajouter une adresse e-mail</Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 type="email"
@@ -345,7 +345,7 @@ function InvitePage() {
                   !progress?.participants?.some((p) => !p.hasAnswered || !p.hasAnsweredAvailability)
                 }
               >
-                Relancer les retardataires
+                Relancer le groupe
               </Button>
             </div>
           </div>
@@ -363,7 +363,7 @@ function InvitePage() {
         </div>
         <ul className="mt-4 space-y-2">
           {participants.length === 0 ? (
-            <li className="text-sm text-muted-foreground">Personne n&apos;a encore rejoint.</li>
+            <li className="text-sm text-muted-foreground">Personne n’a encore rejoint le groupe.</li>
           ) : (
             participants.map((p) => (
               <li
@@ -394,7 +394,7 @@ function InvitePage() {
                   <p className="text-xs text-muted-foreground">{p.email}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={p.status === "accepte" ? "success" : "muted"}>{p.status}</Badge>
+                  <Badge variant={p.status === "accepte" ? "success" : "muted"}>{p.status === "accepte" ? "Participe" : p.status}</Badge>
                   {data.isCreator && p.user_id && p.user_id !== trip.owner_id ? (
                     p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
                       <Button

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Loader2, Users, MapPin, Calendar, Sparkles } from "lucide-react";
+import { Loader2, Users, Calendar, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,10 @@ import { eventTypeLabel } from "@/lib/krew/constants";
 export const Route = createFileRoute("/join/$tripId")({
   head: () => ({
     meta: [
-      { title: "Rejoindre le voyage — Krew" },
+      { title: "Rejoindre le voyage — KREW" },
       {
         name: "description",
-        content: "Tu as été invité·e à organiser un voyage avec Krew.",
+        content: "Tu as été invité·e à organiser un voyage avec KREW.",
       },
     ],
   }),
@@ -184,7 +184,7 @@ function JoinTripPage() {
             <div className="space-y-6">
               <div className="text-center">
                 <p className="text-xs font-medium uppercase tracking-wider text-primary">
-                  Invitation Krew
+                  Invitation KREW
                 </p>
                 <h1 className="mt-2 font-display text-2xl font-bold">{preview.name}</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -193,12 +193,6 @@ function JoinTripPage() {
               </div>
 
               <ul className="space-y-2 rounded-2xl border border-border bg-surface/50 px-4 py-3 text-sm">
-                {preview.departureCity ? (
-                  <li className="flex items-center gap-2">
-                    <MapPin className="size-4 shrink-0 text-primary" />
-                    Départ : {preview.departureCity}
-                  </li>
-                ) : null}
                 <li className="flex items-center gap-2">
                   <Users className="size-4 shrink-0 text-primary" />
                   Groupe prévu : ~{preview.participantsCount || "?"} personnes
@@ -212,7 +206,7 @@ function JoinTripPage() {
               </ul>
 
               <p className="text-center text-sm text-muted-foreground">
-                Rejoins le groupe : prénom, puis disponibilités et préférences. Krew proposera
+                Rejoins le groupe : prénom, puis disponibilités et préférences. KREW proposera
                 ensuite des destinations adaptées à tout le monde.
               </p>
 

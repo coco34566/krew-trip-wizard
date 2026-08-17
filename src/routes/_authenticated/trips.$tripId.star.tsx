@@ -122,7 +122,7 @@ function MonthGrid({
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/star")({
   head: () => ({
-    meta: [{ title: "Préférences de la star — Krew" }],
+    meta: [{ title: "Préférences de la Star — KREW" }],
   }),
   component: StarQuestionnaire,
 });
@@ -317,8 +317,8 @@ function StarQuestionnaire() {
     onSuccess: (res) => {
       toast.success(
         res.isUpdate
-          ? "Préférences de la star mises à jour"
-          : "Préférences de la star enregistrées",
+          ? "Préférences de la Star mises à jour"
+          : "Préférences de la Star enregistrées",
       );
       queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });

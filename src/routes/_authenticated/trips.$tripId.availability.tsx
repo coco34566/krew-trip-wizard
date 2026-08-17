@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/trips/$tripId/availability")({
   head: () => ({
     meta: [
-      { title: "Disponibilités — Krew" },
+      { title: "Disponibilités — KREW" },
       { name: "description", content: "Indique et enregistre tes disponibilités pour ce voyage." },
     ],
   }),

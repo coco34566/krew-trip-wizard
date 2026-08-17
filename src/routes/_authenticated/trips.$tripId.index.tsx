@@ -187,12 +187,12 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
     meta: [
-      { title: "Mon Voyage — Krew" },
+      { title: "Mon Voyage — KREW" },
       {
         name: "description",
-        content: "Propositions Krew, planning jour par jour, budget détaillé et votes du groupe.",
+        content: "Propositions KREW, planning jour par jour, budget détaillé et votes du groupe.",
       },
-      { property: "og:title", content: "Mon Voyage — Krew" },
+      { property: "og:title", content: "Mon Voyage — KREW" },
       {
         property: "og:description",
         content: "Compare les propositions et valide le voyage avec ton groupe.",
@@ -641,11 +641,7 @@ function TripDetail() {
       if (res?.skipped) {
         toast.error(res?.readiness?.message ?? "Pas assez de réponses pour générer");
       } else if ((res?.count ?? 0) === 0) {
-        toast.warning(
-          res?.providerErrors?.length
-            ? `Aucune proposition (${res.providerErrors[0]})`
-            : "Aucune proposition générée — réessaie ou élargis les critères",
-        );
+        toast.warning("Aucune proposition générée — réessaie ou élargis les critères");
       } else {
         toast.success(`${res.count} proposition(s) générée(s)`);
         document.getElementById("hub-destination")?.scrollIntoView({ behavior: "smooth" });
@@ -791,7 +787,7 @@ function TripDetail() {
     const endDateObj = new Date(tEndDate);
     endDateObj.setDate(endDateObj.getDate() + 1);
     const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
-    const title = encodeURIComponent(tName || "Mon Voyage Krew");
+    const title = encodeURIComponent(tName || "Mon Voyage KREW");
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
   }, [tripPreview?.start_date, tripPreview?.end_date, tripPreview?.name]);
 
@@ -807,7 +803,7 @@ function TripDetail() {
     const tStartDate = tripPreview?.start_date;
     const tName = tripPreview?.name;
     if (!tStartDate || !exclusiveEndStr) return "";
-    const title = encodeURIComponent(tName || "Mon Voyage Krew");
+    const title = encodeURIComponent(tName || "Mon Voyage KREW");
     return `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${title}&startdt=${tStartDate}&enddt=${exclusiveEndStr}&allday=true`;
   }, [tripPreview?.start_date, exclusiveEndStr, tripPreview?.name]);
 
@@ -815,7 +811,7 @@ function TripDetail() {
     const tStartDate = tripPreview?.start_date;
     const tName = tripPreview?.name;
     if (!tStartDate || !exclusiveEndStr) return "";
-    const title = encodeURIComponent(tName || "Mon Voyage Krew");
+    const title = encodeURIComponent(tName || "Mon Voyage KREW");
     return `https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${title}&startdt=${tStartDate}&enddt=${exclusiveEndStr}&allday=true`;
   }, [tripPreview?.start_date, exclusiveEndStr, tripPreview?.name]);
 
@@ -823,7 +819,7 @@ function TripDetail() {
     const trip = tripPreview || {};
     const eventTypeStr = trip.event_type ? String(trip.event_type).replace(/_/g, " ") : "";
     const lines: string[] = [
-      `Salut ! Viens rejoindre l'aventure pour organiser notre voyage « ${trip.name || "Krew"} » ! ✈️🥳`,
+      `Salut ! Viens rejoindre l'aventure pour organiser notre voyage « ${trip.name || "KREW"} » ! ✈️🥳`,
       "",
     ];
     if (eventTypeStr) {
@@ -1099,7 +1095,7 @@ function TripDetail() {
                 Résumé du voyage
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Se met à jour avec les votes hôtel, trajets choisis et le planning.
+                Retrouve ici les éléments principaux du voyage.
               </p>
             </div>
             <Button
@@ -1135,20 +1131,20 @@ function TripDetail() {
             </div>
             <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
               <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Budget Groupe
+                Budget estimé par personne
               </dt>
               <dd className="mt-0.5 font-semibold text-primary text-sm">
                 {(costSplitData?.totalReserved != null && costSplitData.totalReserved > 0) ||
                 (costSplitData?.totalEstimated != null && costSplitData.totalEstimated > 0) ? (
                   <div className="text-xs space-y-0.5 font-normal">
                     <div className="flex justify-between gap-1">
-                      <span>Réel Réservé :</span>{" "}
+                      <span>Déjà réservé :</span>{" "}
                       <span className="font-bold text-emerald-600">
                         {formatEuro(costSplitData.totalReserved ?? 0)}
                       </span>
                     </div>
                     <div className="flex justify-between gap-1">
-                      <span>Reste Estimé :</span>{" "}
+                      <span>Reste estimé :</span>{" "}
                       <span className="font-bold text-amber-600">
                         {formatEuro(costSplitData.totalEstimated ?? 0)}
                       </span>
@@ -1176,7 +1172,7 @@ function TripDetail() {
                 Transport ~{formatEuro(liveBudget.transport)}
               </li>
               <li className="rounded-full border border-border px-2.5 py-1">
-                Héberg. ~{formatEuro(liveBudget.accommodation)}
+                Hébergement ~{formatEuro(liveBudget.accommodation)}
               </li>
               <li className="rounded-full border border-border px-2.5 py-1">
                 Activités ~{formatEuro(liveBudget.activities)}
@@ -1213,7 +1209,7 @@ function TripDetail() {
 
         {(availData as any)?.schemaMissing ? (
           <p className="text-sm text-destructive">
-            Table dispos absente — exécute le SQL dans l'éditeur Supabase.
+            Les disponibilités sont momentanément indisponibles.
           </p>
         ) : (trip as any).dates_locked || availData?.trip?.datesLocked ? (
           <div className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3">
@@ -1306,7 +1302,7 @@ function TripDetail() {
               ))}
               {(availData?.windows ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Pas encore de fenêtre commune — attends plus de réponses dispos.
+                  Aucune date commune pour le moment. Il manque peut-être encore des disponibilités.
                 </p>
               ) : null}
             </ul>
@@ -1337,8 +1333,7 @@ function TripDetail() {
             Profil du voyage
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Krew synthétise les préférences du groupe. L’organisateur choisit les concepts qui
-            guideront les destinations.
+            KREW rassemble les préférences du groupe pour préparer les prochaines propositions.
           </p>
         </div>
         {!readiness?.profile.questionnairesReady && !profile?.legacyBypass ? (
@@ -1436,8 +1431,8 @@ function TripDetail() {
               ? readiness && !readiness.canGenerate
                 ? (readiness.message ??
                   "Les questionnaires doivent être complétés avant de générer les propositions.")
-                : "Clique sur « Générer les propositions » pour lancer la recherche de destinations Krew."
-              : "L'organisateur·rice générera bientôt les propositions de destinations."}
+                : "Génère les premières propositions pour le groupe."
+              : "Les propositions de destinations arriveront bientôt."}
           </p>
         ) : (
           <>
@@ -1500,7 +1495,6 @@ function TripDetail() {
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
                               {reco.is_selected ? <Badge variant="success">Choisie</Badge> : null}
-                              <Badge variant="lagoon">{Math.round(reco.score)} %</Badge>
                             </div>
                           </div>
 
@@ -1511,12 +1505,6 @@ function TripDetail() {
                                 {budgetEstimated ? "Budget estimé ~" : ""}{formatEuro(budgetTotal)}
                               </span>
                               <span className="text-muted-foreground"> / pers.</span>
-                              {(reco.budget as any)?.budgetFitTotal ? (
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  · budget OK pour {(reco.budget as any).budgetFitCount}/
-                                  {(reco.budget as any).budgetFitTotal}
-                                </span>
-                              ) : null}
                             </p>
                           ) : null}
 
@@ -1622,7 +1610,7 @@ function TripDetail() {
                 )}
                 {(trip as any).group_logistics?.hotels?.length
                   ? "Actualiser les offres"
-                  : "Chercher des hôtels"}
+                  : "Rechercher des hébergements"}
               </Button>
             ) : null}
           </div>
@@ -1778,7 +1766,7 @@ function TripDetail() {
                     ) : (
                       <Check className="size-3" />
                     )}
-                    C&apos;est réservé
+                    Marquer comme réservé
                   </Button>
                 )}
               </div>
@@ -1817,41 +1805,17 @@ function TripDetail() {
           <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-xs space-y-2">
             <div className="flex items-center gap-2 font-medium text-primary">
               <Clock className="size-4" />
-              <span>Disponibilité réelle du groupe (Master Calendar)</span>
+              <span>Horaires du groupe</span>
             </div>
             <p className="text-muted-foreground">
-              Le groupe arrive majoritairement vers{" "}
+              La majorité du groupe arrive vers{" "}
               <strong className="text-foreground">{groupTimeWindow.majorityArrival || "—"}</strong>{" "}
-              et repart majoritairement vers{" "}
+              et repart vers{" "}
               <strong className="text-foreground">
                 {groupTimeWindow.majorityDeparture || "—"}
               </strong>
               .
             </p>
-            {((groupTimeWindow.earlyBirds && groupTimeWindow.earlyBirds.length > 0) ||
-              (groupTimeWindow.lateComers && groupTimeWindow.lateComers.length > 0) ||
-              (groupTimeWindow.earlyLeavers && groupTimeWindow.earlyLeavers.length > 0)) && (
-              <div className="mt-2 space-y-1 pt-2 border-t border-primary/10">
-                {groupTimeWindow.earlyBirds && groupTimeWindow.earlyBirds.length > 0 && (
-                  <div>
-                    🌅 <span className="font-semibold text-foreground">En avance :</span>{" "}
-                    {groupTimeWindow.earlyBirds.join(", ")}
-                  </div>
-                )}
-                {groupTimeWindow.lateComers && groupTimeWindow.lateComers.length > 0 && (
-                  <div>
-                    🐢 <span className="font-semibold text-foreground">En retard :</span>{" "}
-                    {groupTimeWindow.lateComers.join(", ")}
-                  </div>
-                )}
-                {groupTimeWindow.earlyLeavers && groupTimeWindow.earlyLeavers.length > 0 && (
-                  <div>
-                    🏃 <span className="font-semibold text-foreground">Départ anticipé :</span>{" "}
-                    {groupTimeWindow.earlyLeavers.join(", ")}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         ) : null}
 
@@ -1921,7 +1885,7 @@ function TripDetail() {
                                   }
                                 >
                                   <Check className="size-3 mr-0.5" />
-                                  C&apos;est réservé
+                                  Marquer comme réservé
                                 </Button>
                               )}
                             </li>
@@ -1930,7 +1894,7 @@ function TripDetail() {
                       </ul>
                     ) : (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Personne de {city} n&apos;a encore choisi de trajet.
+                        Personne au départ de {city} n&apos;a encore choisi son trajet.
                       </p>
                     )}
                     <ul className="mt-3 space-y-2">
@@ -1982,7 +1946,7 @@ function TripDetail() {
                                   } as any)
                                 }
                               >
-                                {isMine ? "Mon trajet" : "J'ai choisi ce trajet"}
+                                {isMine ? "Mon trajet" : "Choisir ce trajet"}
                               </Button>
                               {(tr.links ?? []).slice(0, 1).map((l: any) => (
                                 <a
@@ -2040,8 +2004,8 @@ function TripDetail() {
           {!(trip as any).group_itinerary?.days?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {data.isOwner
-                ? "Génère un planning complet (arrivée → départ) avec restos, activités et bars."
-                : "L'organisateur·rice générera bientôt le planning du séjour."}
+                ? "Génère le programme du séjour, de l’arrivée au départ."
+                : "Le planning du séjour sera bientôt disponible."}
             </p>
           ) : (
             <div className="space-y-4">
@@ -2103,7 +2067,7 @@ function TripDetail() {
                                   rel="noreferrer"
                                   className="mt-0.5 inline-block text-xs font-medium text-primary hover:underline"
                                 >
-                                  Voir / réserver →
+                                  Voir ou réserver →
                                 </a>
                               ) : null}
                             </div>
@@ -2163,19 +2127,18 @@ function TripDetail() {
                 ) : (
                   <Sparkles className="size-4" />
                 )}
-                Organiser le groupe
+                Préparer les tâches
               </Button>
             ) : null}
           </div>
 
           {!hasItinerary ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              Génère d'abord un planning à l'étape 5 pour pouvoir générer et répartir les tâches
-              d'organisation.
+              Le planning doit être prêt avant de répartir les tâches du voyage.
             </p>
           ) : !tasksData || tasksData.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              <p>Aucune tâche d'organisation n'a encore été générée.</p>
+              <p>Aucune tâche pour le moment.</p>
               <Button
                 variant="hero"
                 size="sm"
@@ -2188,7 +2151,7 @@ function TripDetail() {
                 ) : (
                   <Sparkles className="size-4" />
                 )}
-                Générer les tâches automatiquement
+                Préparer les tâches
               </Button>
             </div>
           ) : (
@@ -2196,8 +2159,7 @@ function TripDetail() {
               <table className="w-full min-w-[600px] text-left text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="py-2.5 pr-3">Date & Heure</th>
-                    <th className="py-2.5 pr-3">Activité</th>
+                    <th className="py-2.5 pr-3">Date et heure</th>
                     <th className="py-2.5 pr-3">Action</th>
                     <th className="py-2.5 pr-3">Responsable</th>
                     <th className="py-2.5 pr-3">Statut</th>
@@ -2220,9 +2182,6 @@ function TripDetail() {
                         <td className="py-3.5 pr-3 text-xs font-semibold tabular-nums text-muted-foreground">
                           {taskDate} {task.start_time ? `· ${task.start_time}` : ""}
                         </td>
-                        <td className="py-3.5 pr-3 font-medium max-w-[150px] truncate">
-                          {task.title.split(" : ")[1] || task.title}
-                        </td>
                         <td className="py-3.5 pr-3">
                           <span className="text-sm font-semibold text-foreground">
                             {task.title}
@@ -2241,7 +2200,7 @@ function TripDetail() {
                               }}
                               className="bg-background border border-border rounded-xl px-2 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                             >
-                              <option value="">Non assigné</option>
+                              <option value="">Non attribué</option>
                               {(participants ?? [])
                                 .filter((p: any) => p.status !== "absent")
                                 .map((p: any) => (
@@ -2255,7 +2214,7 @@ function TripDetail() {
                               {task.assigned_participant
                                 ? task.assigned_participant.display_name ||
                                   task.assigned_participant.email?.split("@")[0]
-                                : "Non assigné"}
+                                : "Non attribué"}
                             </span>
                           )}
                         </td>
@@ -2390,7 +2349,7 @@ function TripDetail() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
               <Star className="size-5 text-amber-500 fill-amber-500" />
-              Préférences de la star
+              Préférences de la Star
             </h2>
             <a
               href={`/trips/${tripId}/star`}
@@ -2423,7 +2382,7 @@ function TripDetail() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Pas encore rempli — à faire avant de générer les destinations pour bien pondérer.
+              Les préférences de la Star n’ont pas encore été complétées.
             </p>
           )}
         </section>
@@ -2455,14 +2414,14 @@ function TripDetail() {
                 className="max-w-xs"
               />
               <Button type="submit" variant="hero" disabled={inviteMutation.isPending}>
-                <UserPlus /> Ajouter un email
+                <UserPlus /> Ajouter une adresse e-mail
               </Button>
             </form>
           ) : null}
 
           <ul className="mt-4 space-y-2">
             {participants.length === 0 ? (
-              <li className="text-sm text-muted-foreground">Personne n'est encore invité·e.</li>
+              <li className="text-sm text-muted-foreground">Personne n’a encore rejoint le groupe.</li>
             ) : (
               participants.map((p) => {
                 const picks = (logistics.transportPicks ?? []) as any[];
@@ -2537,7 +2496,7 @@ function TripDetail() {
                               : "muted"
                         }
                       >
-                        {p.status}
+                        {p.status === "accepte" ? "Participe" : p.status}
                       </Badge>
                       {p.user_id === data.userId ? (
                         <Button
@@ -2551,8 +2510,8 @@ function TripDetail() {
                           }}
                         >
                           {(p.status as string) === "absent"
-                            ? "Rétablir participation"
-                            : "Se déclarer absent·e"}
+                            ? "Participer à nouveau"
+                            : "Indiquer mon absence"}
                         </Button>
                       ) : null}
                       {data.isCreator && p.user_id && p.user_id !== trip.owner_id && !p.isStar ? (
@@ -2609,8 +2568,7 @@ function TripDetail() {
           </h2>
           <div className="mt-4 rounded-2xl border border-border bg-card p-4">
             <p className="text-sm text-muted-foreground">
-              Envoie ce lien (WhatsApp, SMS, Instagram…) — tes ami·e·s rejoignent le voyage et
-              répondent au questionnaire.
+              Partage ce lien pour permettre au groupe de rejoindre le voyage.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Input readOnly value={shareUrl} className="max-w-md font-mono text-xs" />
@@ -2621,10 +2579,10 @@ function TripDetail() {
                   try {
                     await navigator.clipboard.writeText(shareUrl);
                     setShareCopied(true);
-                    toast.success("Lien copié !");
+                    toast.success("Lien copié");
                     setTimeout(() => setShareCopied(false), 2000);
                   } catch {
-                    toast.error("Impossible de copier — sélectionne le lien manuellement");
+                    toast.error("Impossible de copier le lien.");
                   }
                 }}
               >
@@ -2665,7 +2623,7 @@ function TripDetail() {
                         🔔{" "}
                         {missingParticipants.length === 0
                           ? "Tout le monde a répondu"
-                          : "Relancer les retardataires"}
+                          : "Relancer le groupe"}
                       </Button>
                     );
                   })()
@@ -2678,7 +2636,7 @@ function TripDetail() {
                   onClick={() =>
                     (navigator as any).share({
                       title: data.trip.name,
-                      text: `Rejoins mon voyage « ${data.trip.name} » sur Krew — ${shareUrl}`,
+                      text: `Rejoins mon voyage « ${data.trip.name} » sur KREW — ${shareUrl}`,
                       url: shareUrl,
                     })
                   }
@@ -2692,7 +2650,7 @@ function TripDetail() {
       </section>
       {data.isOwner && (trip.status as string) !== "annule" ? (
         <section className="mt-10 space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
-          <p className="mb-3 text-sm text-muted-foreground">Zone organisateur·rice</p>
+          <p className="mb-3 text-sm text-muted-foreground">Gestion du voyage</p>
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -2713,7 +2671,7 @@ function TripDetail() {
               onClick={() => {
                 if (
                   window.confirm(
-                    "Supprimer DÉFINITIVEMENT ce voyage et toutes ses données ? Irréversible.",
+                    "Supprimer définitivement ce voyage et toutes ses données ? Cette action est irréversible.",
                   )
                 ) {
                   cancelMutation.mutate(true);

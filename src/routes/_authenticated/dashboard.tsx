@@ -25,13 +25,13 @@ import {
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "Mes voyages — Krew" },
+      { title: "Mes voyages — KREW" },
       {
         name: "description",
         content: "Retrouve tes voyages de groupe, tes brouillons et tes invitations reçues.",
       },
-      { property: "og:title", content: "Mes voyages — Krew" },
-      { property: "og:description", content: "Tableau de bord de tes voyages de groupe Krew." },
+      { property: "og:title", content: "Mes voyages — KREW" },
+      { property: "og:description", content: "Tableau de bord de tes voyages de groupe KREW." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -232,7 +232,7 @@ function Dashboard() {
         <div className="mt-10 rounded-3xl border border-dashed border-border bg-surface/40 p-12 text-center">
           <h2 className="font-display text-xl font-semibold">Aucun voyage pour l'instant</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Lance le questionnaire Krew : en quelques minutes tu obtiens destination, hébergement,
+            Lance le questionnaire KREW : en quelques minutes tu obtiens destination, hébergement,
             activités et budget détaillé.
           </p>
           <Button asChild variant="hero" size="lg" className="mt-6">

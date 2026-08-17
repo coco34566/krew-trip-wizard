@@ -27,7 +27,7 @@ function clampParticipants(raw: string): number {
 export const Route = createFileRoute("/_authenticated/trips/new")({
   head: () => ({
     meta: [
-      { title: "Créer un voyage — Krew" },
+      { title: "Créer un voyage — KREW" },
       {
         name: "description",
         content: "Crée ton voyage de groupe : nom, type d'événement, participants.",

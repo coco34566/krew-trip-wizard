@@ -88,7 +88,7 @@ export function TripHubNav({
           </p>
           <p className="mt-0.5 text-sm text-foreground/80">
             {doneCount === total
-              ? "Tout est prêt — place à l'organisation !"
+              ? "Tout est prêt pour la suite !"
               : `${doneCount} / ${total} étapes complétées`}
           </p>
         </div>

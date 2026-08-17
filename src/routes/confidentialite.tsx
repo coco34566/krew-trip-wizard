@@ -5,8 +5,8 @@ import { LegalPage, LegalSection } from "@/components/krew/LegalPage";
 export const Route = createFileRoute("/confidentialite")({
   head: () => ({
     meta: [
-      { title: "Politique de confidentialité — Krew" },
-      { name: "description", content: "Politique de confidentialité et protection des données Krew (RGPD)." },
+      { title: "Politique de confidentialité — KREW" },
+      { name: "description", content: "Politique de confidentialité et protection des données KREW (RGPD)." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -18,7 +18,7 @@ function ConfidentialitePage() {
     <LegalPage title="Politique de confidentialité">
       <LegalSection title="1. Responsable du traitement">
         <p>
-          Le responsable du traitement des données personnelles collectées via Krew est l&apos;éditeur
+          Le responsable du traitement des données personnelles collectées via KREW est l&apos;éditeur
           du Service, identifié dans les{" "}
           <a href="/mentions-legales" className="text-primary underline">
             mentions légales
@@ -39,7 +39,7 @@ function ConfidentialitePage() {
         <p>Selon votre usage, nous pouvons traiter notamment :</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <strong>Compte</strong> : email, identifiant technique, prénom et, si Krew le collecte,
+            <strong>Compte</strong> : email, identifiant technique, prénom et, si KREW le collecte,
             nom ou nom d&apos;affichage, ainsi que les informations liées à la création et à la gestion du compte ;
           </li>
           <li>
@@ -66,7 +66,7 @@ function ConfidentialitePage() {
         <p>
           Certaines réponses libres ou informations relatives à l&apos;alimentation, à la mobilité ou à
           l&apos;accessibilité peuvent, selon leur contenu, révéler des informations particulièrement
-          sensibles. Krew demande de ne renseigner que les informations nécessaires au voyage et met en
+          sensibles. KREW demande de ne renseigner que les informations nécessaires au voyage et met en
           œuvre des mesures de protection adaptées. Les données ne sont pas réutilisées pour une finalité
           différente de celle annoncée sans fondement juridique approprié.
         </p>
@@ -91,11 +91,11 @@ function ConfidentialitePage() {
           </li>
           <li>
             <strong>Amélioration du Service</strong> : analyse technique et fonctionnelle nécessaire à
-            l&apos;amélioration de Krew, dans le respect de la base légale applicable et du principe de
+            l&apos;amélioration de KREW, dans le respect de la base légale applicable et du principe de
             minimisation.
           </li>
           <li>
-            <strong>Profilage et recommandations</strong> : Krew analyse les préférences renseignées par
+            <strong>Profilage et recommandations</strong> : KREW analyse les préférences renseignées par
             les membres d&apos;un voyage afin d&apos;identifier les besoins et préférences du groupe et de
             générer des recommandations personnalisées, notamment pour les destinations, activités,
             hébergements et organisation du voyage. Les recommandations constituent des suggestions et ne
@@ -111,7 +111,7 @@ function ConfidentialitePage() {
           <li>
             <strong>Cas particulier de « la Star »</strong> : lorsqu&apos;un organisateur renseigne les
             préférences et disponibilités d&apos;une personne tierce sans compte, il doit s&apos;assurer de
-            disposer d&apos;un fondement juridique approprié pour transmettre ces informations à Krew et
+            disposer d&apos;un fondement juridique approprié pour transmettre ces informations à KREW et
             informer la personne concernée conformément au RGPD. Ces données sont utilisées pour
             l&apos;organisation et la personnalisation du voyage concerné.
           </li>
@@ -129,7 +129,7 @@ function ConfidentialitePage() {
           règles d&apos;accès applicables au voyage.
         </p>
         <p>
-          Krew peut utiliser des prestataires techniques, notamment pour l&apos;hébergement, la base de
+          KREW peut utiliser des prestataires techniques, notamment pour l&apos;hébergement, la base de
           données, l&apos;authentification, les services applicatifs et la recherche d&apos;offres de voyage.
           Lorsque des API tierces sont utilisées pour rechercher des vols, hébergements ou activités,
           seuls les paramètres nécessaires à la recherche sont transmis lorsque cela est possible
@@ -137,7 +137,7 @@ function ConfidentialitePage() {
           les données selon leurs propres engagements et les instructions applicables.
         </p>
         <p>
-          À ce jour, Krew ne vend pas les données personnelles des utilisateurs à des tiers. Toute
+          À ce jour, KREW ne vend pas les données personnelles des utilisateurs à des tiers. Toute
           nouvelle finalité de partage, de publicité ciblée ou de monétisation des données devra être
           définie, documentée et mise en œuvre avec le fondement juridique, l&apos;information et, lorsque
           nécessaire, le consentement appropriés avant son activation.
@@ -147,17 +147,17 @@ function ConfidentialitePage() {
       <LegalSection title="5. Transferts hors Union européenne">
         <p>
           Certains prestataires techniques peuvent traiter des données en dehors de l&apos;Union européenne
-          ou de l&apos;Espace économique européen. Lorsque cela est le cas, Krew met en œuvre les garanties
+          ou de l&apos;Espace économique européen. Lorsque cela est le cas, KREW met en œuvre les garanties
           requises par le RGPD, telles qu&apos;une décision d&apos;adéquation ou des garanties contractuelles
           appropriées, selon la situation. Les informations relatives aux prestataires concernés seront
-          précisées et tenues à jour lorsque les fournisseurs utilisés par Krew seront définitivement
+          précisées et tenues à jour lorsque les fournisseurs utilisés par KREW seront définitivement
           sélectionnés.
         </p>
       </LegalSection>
 
       <LegalSection title="6. Durées de conservation et suppression du compte">
         <p>
-          Krew ne conserve pas les données personnelles indéfiniment. Chaque catégorie de données est
+          KREW ne conserve pas les données personnelles indéfiniment. Chaque catégorie de données est
           conservée pendant la durée nécessaire à la finalité pour laquelle elle a été collectée, sous
           réserve des durées imposées par la loi ou nécessaires à la constatation, à l&apos;exercice ou à la
           défense de droits en justice.
@@ -171,7 +171,7 @@ function ConfidentialitePage() {
           lorsque cela est nécessaire.
         </p>
         <p>
-          Pour les comptes ou données inactifs, Krew applique des règles de purge définies en fonction des
+          Pour les comptes ou données inactifs, KREW applique des règles de purge définies en fonction des
           finalités et obligations applicables. Les éventuelles durées précises seront documentées dans la
           politique interne de conservation et mises à jour dans la présente politique lorsqu&apos;elles seront
           définitivement arrêtées.
@@ -180,13 +180,13 @@ function ConfidentialitePage() {
 
       <LegalSection title="7. Utilisation des données par les systèmes d&apos;IA">
         <p>
-          Les données personnelles collectées pour le fonctionnement de Krew ne sont pas automatiquement
+          Les données personnelles collectées pour le fonctionnement de KREW ne sont pas automatiquement
           réutilisées pour entraîner des modèles d&apos;IA. Une utilisation ultérieure à des fins d&apos;entraînement,
           d&apos;amélioration de modèles ou de développement de nouveaux services constituerait une finalité
           distincte qui devra être définie, justifiée et documentée avant sa mise en œuvre.
         </p>
         <p>
-          Le cas échéant, Krew appliquera les principes de minimisation, de limitation des finalités et de
+          Le cas échéant, KREW appliquera les principes de minimisation, de limitation des finalités et de
           protection des données, et déterminera le fondement juridique approprié ainsi que les modalités
           d&apos;information et, lorsque nécessaire, de consentement ou d&apos;opposition des personnes concernées.
         </p>
@@ -220,12 +220,12 @@ function ConfidentialitePage() {
 
       <LegalSection title="9. Cookies et traceurs">
         <p>
-          Krew distingue les traceurs strictement nécessaires au fonctionnement du Service des traceurs
+          KREW distingue les traceurs strictement nécessaires au fonctionnement du Service des traceurs
           nécessitant un consentement. Les traceurs nécessaires peuvent notamment être utilisés pour
           l&apos;authentification, la sécurité, la gestion de session et les fonctionnalités essentielles.
         </p>
         <p>
-          Krew pourra à l&apos;avenir utiliser, après mise en place des mécanismes de consentement requis,
+          KREW pourra à l&apos;avenir utiliser, après mise en place des mécanismes de consentement requis,
           des traceurs destinés notamment à la mesure d&apos;audience, à la personnalisation, à la publicité
           ciblée, au retargeting et aux fonctionnalités de réseaux sociaux. Ces finalités seront présentées
           de manière distincte afin de permettre un choix libre et granulaire.
@@ -240,7 +240,7 @@ function ConfidentialitePage() {
 
       <LegalSection title="10. Sécurité">
         <p>
-          Krew met en œuvre des mesures techniques et organisationnelles adaptées aux risques, notamment
+          KREW met en œuvre des mesures techniques et organisationnelles adaptées aux risques, notamment
           des contrôles d&apos;accès, des politiques de sécurité de la base de données, du chiffrement en
           transit et des mécanismes de protection des comptes et des données. L&apos;accès aux données est
           limité selon les besoins du Service.
@@ -254,7 +254,7 @@ function ConfidentialitePage() {
 
       <LegalSection title="11. Modifications">
         <p>
-          La présente politique peut être mise à jour pour tenir compte de l&apos;évolution de Krew, de ses
+          La présente politique peut être mise à jour pour tenir compte de l&apos;évolution de KREW, de ses
           prestataires ou de la réglementation. La date de dernière mise à jour figure en tête de page.
           En cas de changement substantiel affectant les personnes concernées, une information appropriée
           pourra être affichée sur le Service.
