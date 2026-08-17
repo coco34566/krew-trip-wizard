@@ -24,6 +24,7 @@ import {
 import { discoverDestinationsWithAi } from "./destination-ai.server";
 import {
   aiCandidateToDestinationRow,
+  buildDestinationDiscoveryPool,
   mergeCandidates,
   normCity,
   type MergedCandidate,
@@ -1593,6 +1594,26 @@ export async function generateRecommendationsForTrip(
     }
   }
 
+  // Supabase is persistence, not an eligibility gate: every merged discovery
+  // candidate gets an in-memory DestinationRecord before hard constraints.
+  const discoveryPool = mergedCandidates.length
+    ? buildDestinationDiscoveryPool(mergedCandidates, catalogFinal.destinations)
+    : {
+        destinations: catalogFinal.destinations,
+        provenanceByName: new Map(
+          catalogFinal.destinations.map((destination) => [normCity(destination.name), ["local"] as Array<"local" | "gemini">]),
+        ),
+      };
+  catalogFinal = {
+    destinations: discoveryPool.destinations,
+    activities: catalogFinal.activities.filter((activity) =>
+      discoveryPool.destinations.some((destination) => destination.id === activity.destination_id),
+    ),
+    accommodations: catalogFinal.accommodations.filter((accommodation) =>
+      discoveryPool.destinations.some((destination) => destination.id === accommodation.destination_id),
+    ),
+  };
+
   // 4) Transport multi-origines : chaque ville de départ des participants
   //    → cotation A/R, moyenne pondérée / pers + total groupe
   const transportByDestinationId: Record<string, number> = {};
@@ -1737,6 +1758,7 @@ export async function generateRecommendationsForTrip(
     for (const reason of result.reasons) reasonCounts.set(reason, (reasonCounts.get(reason) ?? 0) + 1);
     console.info(`[discovery] hard-rejected: ${destination.name}=${result.reasons.join("+")}`);
   }
+  console.info(`[discovery] Hard-evaluated: ${evaluations.length}`);
   console.info(`[discovery] Hard-compatible: ${afterHardConstraints.length}`);
   console.info(`[discovery] Hard-rejected: ${rejected.length}`);
   console.info(`[discovery] Rejection reasons: ${[...reasonCounts].map(([reason, count]) => `${reason}=${count}`).join(", ") || "none"}`);
@@ -1750,9 +1772,7 @@ export async function generateRecommendationsForTrip(
   console.info(`[discovery] Destination-scored: ${scoredPool.length}`);
   let proposals = selectTopDestinationProposals(scoredPool, 4);
   console.info(`[discovery] Final shortlist: ${proposals.length}`);
-  const provenanceByName = new Map(
-    mergedCandidates.map((candidate) => [normCity(candidate.name), candidate.provenance]),
-  );
+  const provenanceByName = discoveryPool.provenanceByName;
   const finalSources = proposals.map((proposal) => {
     const provenance = provenanceByName.get(normCity(proposal.destination.name));
     return `${proposal.destination.name}=${provenance?.join("+") ?? "local"}`;

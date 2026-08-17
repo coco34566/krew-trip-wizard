@@ -287,7 +287,7 @@ function fingerprint(input: AiDiscoveryInput): string {
 const cache = new Map<string, { at: number; candidates: AiCandidate[]; provider: string }>();
 const inFlight = new Map<string, Promise<Awaited<ReturnType<typeof requestGeminiCandidates>>>>();
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
-export const REQUEST_TIMEOUT_MS = 30_000;
+export const REQUEST_TIMEOUT_MS = 60_000;
 
 export function clearDestinationAiCacheForTests() {
   cache.clear();
@@ -515,6 +515,9 @@ async function requestGeminiCandidates(input: AiDiscoveryInput): Promise<AiDisco
     return { candidates, usedLlm: true, provider: cfg.provider };
   } catch (error) {
     clearTimeout(timeout);
+    if (error instanceof Error && error.name === "AbortError") {
+      console.warn(`[discovery] Gemini timeout after ${REQUEST_TIMEOUT_MS}ms`);
+    }
     reportServerError(error, {
       provider: cfg.provider,
       kind: "destination-ai",

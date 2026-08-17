@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aiCandidateToDestinationRow,
+  buildDestinationDiscoveryPool,
   mergeCandidates,
   normCity,
   type AiEstimate,
@@ -218,5 +219,70 @@ describe("Gemini candidates at the KREW scoring boundary", () => {
       excludedCountries: ["France"],
     });
     expect(evaluation).toEqual({ accepted: false, reasons: ["excluded_country"] });
+  });
+
+  it("keeps all local fallback candidates when the catalogue is empty", () => {
+    const local = ["Luberon", "Côte basque", "Bourgogne"].map((name, index) => ({
+      name,
+      country: "France",
+      affinity: 90 - index,
+      reason: "fallback local",
+      distanceKm: 400 + index * 50,
+    }));
+    const merged = mergeCandidates(local, []);
+    const pool = buildDestinationDiscoveryPool(merged, []);
+    const evaluations = pool.destinations.map((item) =>
+      evaluateDestinationHardConstraints(item, {
+        ...baseContext,
+        departureOrigins: [{ city: "Lyon", count: 4 }],
+      }),
+    );
+    expect(merged).toHaveLength(3);
+    expect(pool.destinations).toHaveLength(3);
+    expect(evaluations).toHaveLength(3);
+    expect(
+      evaluations.filter((result) => result.accepted).length +
+        evaluations.filter((result) => !result.accepted).length,
+    ).toBe(3);
+  });
+
+  it.each([
+    { label: "local", provenance: ["local"] as Array<"local" | "gemini"> },
+    { label: "Gemini", provenance: ["gemini"] as Array<"local" | "gemini"> },
+  ])("scores a $label candidate absent from the catalogue", ({ provenance }) => {
+    const pool = buildDestinationDiscoveryPool(
+      [
+        {
+          name: "Val d'Aoste",
+          country: "Italie",
+          affinity: 80,
+          reason: "discovery",
+          source: provenance.includes("gemini") ? "ai_estimate" : "catalog",
+          provenance,
+          dailyCost: 75,
+          distanceKm: 300,
+          bestMonths: [6, 9],
+        },
+      ],
+      [],
+    );
+    const proposals = buildDestinationProposals(
+      { destinations: pool.destinations, accommodations: [], activities: [] },
+      { ...baseContext, departureOrigins: [{ city: "Lyon", count: 4 }] },
+      4,
+    );
+    expect(pool.destinations).toHaveLength(1);
+    expect(proposals[0]?.destination.name).toBe("Val d'Aoste");
+    expect(pool.provenanceByName.get("val d'aoste")).toEqual(provenance);
+  });
+
+  it("keeps verified catalogue data while filling missing discovery metadata", () => {
+    const merged = mergeCandidates(rule, ai);
+    const pool = buildDestinationDiscoveryPool(merged, [
+      { ...destination, name: "Lisbonne", country: "Portugal", avg_daily_cost: 120 },
+    ]);
+    const lisboa = pool.destinations.find((item) => normCity(item.name) === "lisbonne")!;
+    expect(lisboa.avg_daily_cost).toBe(120);
+    expect(pool.provenanceByName.get("lisbonne")).toEqual(["local", "gemini"]);
   });
 });

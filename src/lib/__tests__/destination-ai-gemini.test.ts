@@ -86,8 +86,8 @@ describe("Gemini destination discovery provider order", () => {
     expect(result.error).toContain("gemini_http_503");
   });
 
-  it("uses a 30 second request timeout", () => {
-    expect(REQUEST_TIMEOUT_MS).toBe(30_000);
+  it("uses a 60 second request timeout", () => {
+    expect(REQUEST_TIMEOUT_MS).toBe(60_000);
   });
 
   it("deduplicates simultaneous identical Gemini generations", async () => {
