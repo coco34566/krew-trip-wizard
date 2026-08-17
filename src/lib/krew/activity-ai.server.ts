@@ -582,60 +582,6 @@ async function geminiCompose(
     (payload?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? "").join(""),
   );
 }
-async function aimlCompose(input: ActivityAiInput, candidates: ActivityCandidate[]): Promise<any> {
-  const key = process.env["AIMLAPI_API_KEY"];
-  if (!key) throw new Error("no_aimlapi_key");
-  const response = await fetch(
-    `${(process.env["AIMLAPI_BASE_URL"] || "https://api.aimlapi.com/v1").replace(/\/$/, "")}/chat/completions`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: process.env["AIMLAPI_MODEL"] || "google/gemini-2.5-flash",
-        temperature: 0.3,
-        max_tokens: 2200,
-        messages: [
-          {
-            role: "system",
-            content:
-              "JSON uniquement. Compose un planning sans inventer de lieu externe; utilise exclusivement la shortlist.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              input,
-              window: calculatePlanningWindow(input),
-              shortlist: candidates,
-              schema: {
-                days: [
-                  {
-                    day: 1,
-                    slots: [
-                      {
-                        moment: "",
-                        time: "HH:mm",
-                        type: "activite",
-                        label: "",
-                        durationMinutes: 90,
-                        candidateId: "id ou null",
-                        internal: false,
-                      },
-                    ],
-                  },
-                ],
-              },
-            }),
-          },
-        ],
-      }),
-    },
-  );
-  const text = await response.text();
-  if (!response.ok) throw new Error(`aimlapi_http_${response.status}:${text.slice(0, 120)}`);
-  const payload = JSON.parse(text);
-  return parseJson(payload?.choices?.[0]?.message?.content ?? "");
-}
-
 export async function generateItineraryWithAi(
   input: ActivityAiInput,
   seedLabels: string[] = [],
@@ -661,65 +607,9 @@ export async function generateItineraryWithAi(
     destination: input.destination,
     fallback: false,
   });
-  let parsed: any = null;
-  let provider: "gemini" | "aimlapi" | null = null;
-  const errors: string[] = [];
-  try {
-    parsed = await geminiCompose(input, candidates);
-    provider = "gemini";
-  } catch (error) {
-    errors.push(String(error));
-    reportServerError(error, {
-      provider: "gemini",
-      model: GEMINI_MODEL,
-      kind: "activity-composition",
-      fallback: "aimlapi",
-      candidateCount: candidates.length,
-      destination: input.destination,
-    });
-  }
-  if (!parsed)
-    try {
-      parsed = await aimlCompose(input, candidates);
-      provider = "aimlapi";
-    } catch (error) {
-      errors.push(String(error));
-      if (!String(error).includes("no_aimlapi_key"))
-        reportServerError(error, {
-          provider: "aimlapi",
-          kind: "activity-composition",
-          fallback: "local",
-          candidateCount: candidates.length,
-          destination: input.destination,
-        });
-    }
-  const rawDays = Array.isArray(parsed?.days)
-    ? parsed.days.map((day: any, index: number) => ({
-        day: Number(day.day) || index + 1,
-        slots: (day.slots ?? [])
-          .map((slot: any) => normalizeSlot(slot, input, candidates))
-          .filter(Boolean),
-      }))
-    : [];
-  const days = validateItinerary(rawDays, input, candidates);
-  const valid = days.length === input.nights + 1 && days.some((day) => day.slots.length);
-  const itinerary = valid
-    ? {
-        destination: input.destination,
-        nights: input.nights,
-        days,
-        source: "ai" as const,
-        provider: provider!,
-        generatedAt: new Date().toISOString(),
-      }
-    : buildLocalItinerary(input, candidates);
-  if (!valid)
-    console.info("activity-composition", {
-      candidateCount: candidates.length,
-      shortlistedCount: candidates.length,
-      destination: input.destination,
-      fallback: "local",
-    });
+  // Discovery is the generation's single grounded Gemini call. Composition is
+  // deterministic and only references that verified shortlist.
+  const itinerary = buildLocalItinerary(input, candidates);
   itinerary.discovery = {
     candidateCount: candidates.length,
     shortlistedCount: candidates.length,
@@ -728,10 +618,8 @@ export async function generateItineraryWithAi(
   };
   return {
     itinerary,
-    usedLlm: valid,
-    ...(errors.length || discovery.error
-      ? { error: [...errors, discovery.error].filter(Boolean).join(" | ").slice(0, 300) }
-      : {}),
+    usedLlm: candidates.length > 0,
+    ...(discovery.error ? { error: discovery.error } : {}),
   };
 }
 

@@ -8,14 +8,22 @@ export function onsiteActivityCategories(
   const categories = new Set<string>();
   for (const activity of activities.filter((item) => item.state === "confirmed")) {
     const value = activity.value.toLowerCase();
-    if (/tennis|padel|salle de sport|fitness|petanque|pétanque|billard/.test(value)) categories.add("sport");
-    if (/velo|vélo|cycl|randon|trail|kayak|canoe|canoë|voile|surf|lac|riviere|rivière|nautique/.test(value)) categories.add("sport");
+    if (/tennis|padel|salle de sport|fitness|petanque|pétanque|billard/.test(value))
+      categories.add("sport");
+    if (
+      /velo|vélo|cycl|randon|trail|kayak|canoe|canoë|voile|surf|lac|riviere|rivière|nautique/.test(
+        value,
+      )
+    )
+      categories.add("sport");
     if (/spa|sauna|jacuzzi|bien.etre/.test(value)) categories.add("detente");
   }
   return [...categories];
 }
 
-export function resolvePropertyDestination(property: Pick<PropertyCandidate, "region" | "locality" | "country">) {
+export function resolvePropertyDestination(
+  property: Pick<PropertyCandidate, "region" | "locality" | "country">,
+) {
   const name = property.region?.trim() || property.locality?.trim() || null;
   return name ? { name, country: property.country?.trim() || null } : null;
 }
@@ -158,54 +166,11 @@ export function normalizePropertySearchResult(
 
 /** Recherche ciblée via l'API documentée de Serper. Aucun site n'est crawlé directement. */
 export async function discoverProperties(
-  input: PropertyDiscoveryInput,
+  _input: PropertyDiscoveryInput,
 ): Promise<PropertyCandidate[]> {
-  const key = process.env["SERPER_API_KEY"];
-  const queries = buildPropertyQueries(input);
-  if (!key || !queries.length) return [];
-  const fp = JSON.stringify(queries);
-  const hit = cache.get(fp);
-  if (hit && Date.now() - hit.at < 6 * 60 * 60 * 1000) return hit.value;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-    const responses = await Promise.all(
-      queries.map((q) =>
-        fetch("https://google.serper.dev/search", {
-          method: "POST",
-          signal: controller.signal,
-          headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-          body: JSON.stringify({ q, gl: "fr", hl: "fr", num: 6 }),
-        }),
-      ),
-    );
-    clearTimeout(timer);
-    const json = await Promise.all(
-      responses
-        .filter((r) => r.ok)
-        .map(
-          (r) =>
-            r.json() as Promise<{
-              organic?: Array<{ title?: string; link?: string; snippet?: string }>;
-            }>,
-        ),
-    );
-    const seen = new Set<string>();
-    const fetchedAt = new Date().toISOString();
-    const value = json
-      .flatMap((j) => j.organic ?? [])
-      .flatMap((r): PropertyCandidate[] => {
-        if (!r.link || !r.title || seen.has(r.link)) return [];
-        seen.add(r.link);
-        const normalized = normalizePropertySearchResult(r, fetchedAt);
-        return normalized ? [normalized] : [];
-      })
-      .slice(0, 8);
-    cache.set(fp, { at: Date.now(), value });
-    return value;
-  } catch {
-    return [];
-  }
+  // Property-led destination discovery now asks Gemini for plausible territories;
+  // it never searches or implies availability of an individual property.
+  return [];
 }
 
 export function propertyToAccommodationRow(
@@ -214,15 +179,24 @@ export function propertyToAccommodationRow(
   participants: number,
   nights: number,
 ) {
-  if (!property.capacity || property.capacity.value < participants || !property.price ||
-      !property.priceVerified || !property.availabilityVerified || property.price.state !== "confirmed") return null;
+  if (
+    !property.capacity ||
+    property.capacity.value < participants ||
+    !property.price ||
+    !property.priceVerified ||
+    !property.availabilityVerified ||
+    property.price.state !== "confirmed"
+  )
+    return null;
   if (!["nuit", "semaine", "week-end"].includes(property.price.priceType)) return null;
   const divisor =
     property.price.priceType === "semaine"
       ? 7
       : property.price.priceType === "nuit"
         ? 1
-        : property.price.priceType === "week-end" ? Math.max(1, nights) : 0;
+        : property.price.priceType === "week-end"
+          ? Math.max(1, nights)
+          : 0;
   if (!divisor) return null;
   const perNight = property.price.value / divisor;
   return {
@@ -236,9 +210,7 @@ export function propertyToAccommodationRow(
     distance_center_km: 0,
     image_url: property.imageUrl ?? null,
     booking_url: property.sourceUrl,
-    amenities: [
-      ...new Set(property.amenities.map((item) => item.value)),
-    ],
+    amenities: [...new Set(property.amenities.map((item) => item.value))],
     onsite_activity_categories: onsiteActivityCategories(property.onsiteActivities),
     source: `property_web:${property.source}`,
     external_id: property.sourceUrl,

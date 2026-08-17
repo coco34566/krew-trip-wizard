@@ -29,7 +29,11 @@ export type TransportQuote = {
   returnDepartureTime?: string | null;
   returnTime?: string | null;
   durationMinutes?: number | null;
+  outboundDurationMinutes?: number | null;
+  returnDurationMinutes?: number | null;
   stops?: number;
+  outboundStops?: number;
+  returnStops?: number;
   segments?: unknown[];
   adults?: number;
   bookingToken?: string | null;
@@ -45,14 +49,20 @@ async function rapid(host: string, key: string, path: string, params: Record<str
     },
   });
   if (!res.ok) {
-    throw new Error(`${host}${path} → ${res.status} ${(await res.text().catch(() => "")).slice(0, 250)}`);
+    throw new Error(
+      `${host}${path} → ${res.status} ${(await res.text().catch(() => "")).slice(0, 250)}`,
+    );
   }
   return res.json() as Promise<any>;
 }
 
 const num = (v: unknown): number => {
   if (typeof v === "number" && Number.isFinite(v)) return v;
-  const n = Number(String(v ?? "").replace(/[^\d.,-]/g, "").replace(",", "."));
+  const n = Number(
+    String(v ?? "")
+      .replace(/[^\d.,-]/g, "")
+      .replace(",", "."),
+  );
   return Number.isFinite(n) ? n : 0;
 };
 
@@ -70,7 +80,15 @@ function buildExactKayakSearchUrl(opts: {
 }
 
 /** Extrait les horaires aller/retour d'un résultat fournisseur. */
-function extractItemTimes(item: any, provider: string): { outboundTime: string | null; outboundArrivalTime: string | null; returnDepartureTime: string | null; returnTime: string | null } {
+function extractItemTimes(
+  item: any,
+  provider: string,
+): {
+  outboundTime: string | null;
+  outboundArrivalTime: string | null;
+  returnDepartureTime: string | null;
+  returnTime: string | null;
+} {
   let outboundTime: string | null = null;
   let outboundArrivalTime: string | null = null;
   let returnDepartureTime: string | null = null;
@@ -80,14 +98,26 @@ function extractItemTimes(item: any, provider: string): { outboundTime: string |
     const legs = item?.legs;
     if (Array.isArray(legs) && legs.length > 0) {
       const dep0 = legs[0]?.departure || legs[0]?.departureTime;
-      if (dep0) outboundTime = dep0.includes("T") ? dep0.split("T")[1]?.slice(0, 5) || null : dep0.slice(0, 5);
+      if (dep0)
+        outboundTime = dep0.includes("T")
+          ? dep0.split("T")[1]?.slice(0, 5) || null
+          : dep0.slice(0, 5);
       const arr0 = legs[0]?.arrival || legs[0]?.arrivalTime;
-      if (arr0) outboundArrivalTime = arr0.includes("T") ? arr0.split("T")[1]?.slice(0, 5) || null : arr0.slice(0, 5);
+      if (arr0)
+        outboundArrivalTime = arr0.includes("T")
+          ? arr0.split("T")[1]?.slice(0, 5) || null
+          : arr0.slice(0, 5);
       if (legs.length > 1) {
         const dep1 = legs[1]?.departure || legs[1]?.departureTime;
-        if (dep1) returnDepartureTime = dep1.includes("T") ? dep1.split("T")[1]?.slice(0, 5) || null : dep1.slice(0, 5);
+        if (dep1)
+          returnDepartureTime = dep1.includes("T")
+            ? dep1.split("T")[1]?.slice(0, 5) || null
+            : dep1.slice(0, 5);
         const arr1 = legs[1]?.arrival || legs[1]?.arrivalTime;
-        if (arr1) returnTime = arr1.includes("T") ? arr1.split("T")[1]?.slice(0, 5) || null : arr1.slice(0, 5);
+        if (arr1)
+          returnTime = arr1.includes("T")
+            ? arr1.split("T")[1]?.slice(0, 5) || null
+            : arr1.slice(0, 5);
       }
     } else {
       const dep = item?.departure_time || item?.departureTime;
@@ -95,15 +125,27 @@ function extractItemTimes(item: any, provider: string): { outboundTime: string |
     }
   } else if (provider === "kiwi") {
     const locDep = item?.local_departure;
-    if (locDep) outboundTime = locDep.includes("T") ? locDep.split("T")[1]?.slice(0, 5) || null : locDep.slice(0, 5);
+    if (locDep)
+      outboundTime = locDep.includes("T")
+        ? locDep.split("T")[1]?.slice(0, 5) || null
+        : locDep.slice(0, 5);
     const locArr = item?.local_arrival;
-    if (locArr) outboundArrivalTime = locArr.includes("T") ? locArr.split("T")[1]?.slice(0, 5) || null : locArr.slice(0, 5);
+    if (locArr)
+      outboundArrivalTime = locArr.includes("T")
+        ? locArr.split("T")[1]?.slice(0, 5) || null
+        : locArr.slice(0, 5);
     const route = item?.route;
     if (Array.isArray(route)) {
       const returnSeg = route.find((r: any) => r.return === 1 || r.return === true);
       if (returnSeg) {
-        if (returnSeg.local_departure) returnDepartureTime = returnSeg.local_departure.includes("T") ? returnSeg.local_departure.split("T")[1]?.slice(0, 5) || null : returnSeg.local_departure.slice(0, 5);
-        if (returnSeg.local_arrival) returnTime = returnSeg.local_arrival.includes("T") ? returnSeg.local_arrival.split("T")[1]?.slice(0, 5) || null : returnSeg.local_arrival.slice(0, 5);
+        if (returnSeg.local_departure)
+          returnDepartureTime = returnSeg.local_departure.includes("T")
+            ? returnSeg.local_departure.split("T")[1]?.slice(0, 5) || null
+            : returnSeg.local_departure.slice(0, 5);
+        if (returnSeg.local_arrival)
+          returnTime = returnSeg.local_arrival.includes("T")
+            ? returnSeg.local_arrival.split("T")[1]?.slice(0, 5) || null
+            : returnSeg.local_arrival.slice(0, 5);
       }
     }
   }
@@ -111,47 +153,123 @@ function extractItemTimes(item: any, provider: string): { outboundTime: string |
 }
 
 export function checkTransportTimeCompatibility(
-  times: { outboundTime?: string | null; outboundArrivalTime?: string | null; returnDepartureTime?: string | null; returnTime?: string | null },
-  constraints: { earliestDepartureTime?: string | null | undefined; latestArrivalTime?: string | null | undefined; earliestReturnDepartureTime?: string | null | undefined; latestReturnTime?: string | null | undefined },
+  times: {
+    outboundTime?: string | null;
+    outboundArrivalTime?: string | null;
+    returnDepartureTime?: string | null;
+    returnTime?: string | null;
+  },
+  constraints: {
+    earliestDepartureTime?: string | null | undefined;
+    latestArrivalTime?: string | null | undefined;
+    earliestReturnDepartureTime?: string | null | undefined;
+    latestReturnTime?: string | null | undefined;
+  },
   isImperative: boolean = true,
 ): { isCompatible: boolean; reason?: string } {
   if (constraints.earliestDepartureTime) {
     if (times.outboundTime) {
-      if (times.outboundTime < constraints.earliestDepartureTime) return { isCompatible: false, reason: `Départ aller (${times.outboundTime}) trop tôt (exigé >= ${constraints.earliestDepartureTime})` };
-    } else if (isImperative) return { isCompatible: false, reason: `Heure de départ aller inconnue alors que la contrainte de départ (${constraints.earliestDepartureTime}) est impérative` };
+      if (times.outboundTime < constraints.earliestDepartureTime)
+        return {
+          isCompatible: false,
+          reason: `Départ aller (${times.outboundTime}) trop tôt (exigé >= ${constraints.earliestDepartureTime})`,
+        };
+    } else if (isImperative)
+      return {
+        isCompatible: false,
+        reason: `Heure de départ aller inconnue alors que la contrainte de départ (${constraints.earliestDepartureTime}) est impérative`,
+      };
   }
   if (constraints.latestArrivalTime) {
     if (times.outboundArrivalTime) {
-      if (times.outboundArrivalTime > constraints.latestArrivalTime) return { isCompatible: false, reason: `Arrivée aller (${times.outboundArrivalTime}) trop tardive (exigée <= ${constraints.latestArrivalTime})` };
-    } else if (isImperative) return { isCompatible: false, reason: `Heure d'arrivée aller inconnue alors que la contrainte d'arrivée (${constraints.latestArrivalTime}) est impérative` };
+      if (times.outboundArrivalTime > constraints.latestArrivalTime)
+        return {
+          isCompatible: false,
+          reason: `Arrivée aller (${times.outboundArrivalTime}) trop tardive (exigée <= ${constraints.latestArrivalTime})`,
+        };
+    } else if (isImperative)
+      return {
+        isCompatible: false,
+        reason: `Heure d'arrivée aller inconnue alors que la contrainte d'arrivée (${constraints.latestArrivalTime}) est impérative`,
+      };
   }
   if (constraints.earliestReturnDepartureTime) {
     if (times.returnDepartureTime) {
-      if (times.returnDepartureTime < constraints.earliestReturnDepartureTime) return { isCompatible: false, reason: `Départ retour (${times.returnDepartureTime}) trop tôt (exigé >= ${constraints.earliestReturnDepartureTime})` };
-    } else if (isImperative) return { isCompatible: false, reason: `Heure de départ retour inconnue alors que la contrainte de départ retour (${constraints.earliestReturnDepartureTime}) est impérative` };
+      if (times.returnDepartureTime < constraints.earliestReturnDepartureTime)
+        return {
+          isCompatible: false,
+          reason: `Départ retour (${times.returnDepartureTime}) trop tôt (exigé >= ${constraints.earliestReturnDepartureTime})`,
+        };
+    } else if (isImperative)
+      return {
+        isCompatible: false,
+        reason: `Heure de départ retour inconnue alors que la contrainte de départ retour (${constraints.earliestReturnDepartureTime}) est impérative`,
+      };
   }
   if (constraints.latestReturnTime) {
     if (times.returnTime) {
-      if (times.returnTime > constraints.latestReturnTime) return { isCompatible: false, reason: `Arrivée retour (${times.returnTime}) trop tardive (exigée <= ${constraints.latestReturnTime})` };
-    } else if (isImperative) return { isCompatible: false, reason: `Heure d'arrivée retour inconnue alors que la contrainte d'arrivée retour (${constraints.latestReturnTime}) est impérative` };
+      if (times.returnTime > constraints.latestReturnTime)
+        return {
+          isCompatible: false,
+          reason: `Arrivée retour (${times.returnTime}) trop tardive (exigée <= ${constraints.latestReturnTime})`,
+        };
+    } else if (isImperative)
+      return {
+        isCompatible: false,
+        reason: `Heure d'arrivée retour inconnue alors que la contrainte d'arrivée retour (${constraints.latestReturnTime}) est impérative`,
+      };
   }
   return { isCompatible: true };
 }
 
-function pickCheapestPriceInWindow(items: any[], provider: string, earliestDepartureTime?: string | null, latestReturnTime?: string | null, latestArrivalTime?: string | null, earliestReturnDepartureTime?: string | null, isImperative: boolean = true): { best: any; outsideWindow: boolean } | null {
+function pickCheapestPriceInWindow(
+  items: any[],
+  provider: string,
+  earliestDepartureTime?: string | null,
+  latestReturnTime?: string | null,
+  latestArrivalTime?: string | null,
+  earliestReturnDepartureTime?: string | null,
+  isImperative: boolean = true,
+): { best: any; outsideWindow: boolean } | null {
   if (!items?.length) return null;
   let bestInWindow: any = null;
   let bestOverall: any = null;
-  const constraints = { earliestDepartureTime, latestArrivalTime, earliestReturnDepartureTime, latestReturnTime };
+  const constraints = {
+    earliestDepartureTime,
+    latestArrivalTime,
+    earliestReturnDepartureTime,
+    latestReturnTime,
+  };
   for (const item of items) {
-    const price = num(item?.price ?? item?.totalPrice ?? item?.displayPrice ?? item?.cheapestPrice ?? item?.priceAmount ?? item?.pricing?.total ?? item?.fare?.price ?? item?.conversion?.EUR);
+    const price = num(
+      item?.price ??
+        item?.totalPrice ??
+        item?.displayPrice ??
+        item?.cheapestPrice ??
+        item?.priceAmount ??
+        item?.pricing?.total ??
+        item?.fare?.price ??
+        item?.conversion?.EUR,
+    );
     if (price <= 0) continue;
     const times = extractItemTimes(item, provider);
     const { isCompatible } = checkTransportTimeCompatibility(times, constraints, isImperative);
     const priceObj = {
       price,
-      url: item?.url ?? item?.deepLink ?? item?.bookingUrl ?? item?.shareUrl ?? item?.deep_link ?? null,
-      label: item?.airline ?? item?.carrier ?? item?.legs?.[0]?.airline ?? item?.provider ?? item?.airlines?.[0] ?? (provider === "kayak" ? "Vol Kayak" : "Vol Kiwi"),
+      url:
+        item?.url ??
+        item?.deepLink ??
+        item?.bookingUrl ??
+        item?.shareUrl ??
+        item?.deep_link ??
+        null,
+      label:
+        item?.airline ??
+        item?.carrier ??
+        item?.legs?.[0]?.airline ??
+        item?.provider ??
+        item?.airlines?.[0] ??
+        (provider === "kayak" ? "Vol Kayak" : "Vol Kiwi"),
     };
     if (!bestOverall || price < bestOverall.price) bestOverall = priceObj;
     if (isCompatible && (!bestInWindow || price < bestInWindow.price)) bestInWindow = priceObj;
@@ -184,69 +302,26 @@ export async function searchTransportRoundTrip(opts: {
     const { searchGoogleFlightsRoundTrip } = await import("./searchapi-google-flights.server");
     return await searchGoogleFlightsRoundTrip(opts);
   } catch (searchApiError) {
-    if (process.env["SEARCHAPI_API"]) reportServerError(searchApiError, { provider: "searchapi/google_flights", kind: "transport", originCity: opts.originCity, destinationCity: opts.destinationCity });
+    if (process.env["SEARCHAPI_API"])
+      reportServerError(searchApiError, {
+        provider: "searchapi/google_flights",
+        kind: "transport",
+        originCity: opts.originCity,
+        destinationCity: opts.destinationCity,
+      });
   }
-  const key = process.env["HOTELS_RAPIDAPI_KEY"] ?? process.env["KAYAK_RAPIDAPI_KEY"] ?? "";
-  const kayakHost = process.env["KAYAK_SEARCH_RAPIDAPI_HOST"] ?? "kayak-search.p.rapidapi.com";
-  const kiwiHost = process.env["KIWI_RAPIDAPI_HOST"] ?? "kiwi-com-cheap-flights.p.rapidapi.com";
   const fallbackPrice = estimateTransportFromDistance(opts.distanceKm ?? 1000);
   const adults = Math.min(Math.max(1, opts.adults), 9);
   const exactSearchUrl = buildExactKayakSearchUrl({ ...opts, adults });
-
-  if (!key) {
-    return { pricePerPerson: fallbackPrice, currency: "EUR", provider: "estimate", mode: "estimate", dataKind: "krew_estimate", label: "Estimation KREW (aucune offre avion vérifiée)", url: null, searchUrl: exactSearchUrl, rawError: "missing_api_key" };
-  }
-
-  let kayakError: any = null;
-  try {
-    const searchPath = process.env["KAYAK_FLIGHTS_SEARCH_PATH"] ?? "/flights/search";
-    const payload = await rapid(kayakHost, key, searchPath, {
-      origin: opts.originCity,
-      destination: opts.destinationCity,
-      departure_date: opts.departDate,
-      return_date: opts.returnDate,
-      adults: String(adults),
-      currency: "EUR",
-      cabin: "economy",
-    });
-    const lists = [payload?.data?.flights, payload?.data?.results, payload?.data?.itineraries, payload?.results, payload?.flights, payload?.data, payload?.searchResults].filter(Array.isArray) as any[][];
-    const items = lists.find((a) => a.length > 0) ?? [];
-    const result = pickCheapestPriceInWindow(items, "kayak", opts.earliestDepartureTime, opts.latestReturnTime, opts.latestArrivalTime, opts.earliestReturnDepartureTime);
-    if (result) {
-      return { pricePerPerson: Math.round(result.best.price), currency: "EUR", provider: "kayak", mode: "flight", dataKind: "provider_offer", label: result.best.label, url: result.best.url, searchUrl: exactSearchUrl, rawError: null, outsideTimeWindow: result.outsideWindow };
-    }
-  } catch (err) { kayakError = err; }
-
-  let kiwiError: any = null;
-  try {
-    const ddmmyyyy = (iso: string) => iso.split("-").reverse().join("/");
-    let kiwiPayload: any = null;
-    for (const path of ["/v2/search", "/search", "/flights/search"]) {
-      try {
-        kiwiPayload = await rapid(kiwiHost, key, path, {
-          fly_from: opts.originCity,
-          fly_to: opts.destinationCity,
-          date_from: ddmmyyyy(opts.departDate),
-          date_to: ddmmyyyy(opts.departDate),
-          return_from: ddmmyyyy(opts.returnDate),
-          return_to: ddmmyyyy(opts.returnDate),
-          adults: String(adults),
-          curr: "EUR",
-          limit: "5",
-          sort: "price",
-        });
-        if (kiwiPayload) break;
-      } catch { /* next path */ }
-    }
-    const items = kiwiPayload?.data;
-    if (Array.isArray(items)) {
-      const result = pickCheapestPriceInWindow(items, "kiwi", opts.earliestDepartureTime, opts.latestReturnTime, opts.latestArrivalTime, opts.earliestReturnDepartureTime);
-      if (result) {
-        return { pricePerPerson: Math.round(result.best.price), currency: "EUR", provider: "kiwi", mode: "flight", dataKind: "provider_offer", label: result.best.label, url: result.best.url, searchUrl: exactSearchUrl, rawError: null, outsideTimeWindow: result.outsideWindow };
-      }
-    }
-  } catch (err) { kiwiError = err; }
-
-  reportServerError(new Error(`Toutes les cotations de transport ont échoué. Kayak error: ${kayakError?.message || kayakError}. Kiwi error: ${kiwiError?.message || kiwiError}`), { provider: "kayak/kiwi", kind: "transport", originCity: opts.originCity, destinationCity: opts.destinationCity });
-  return { pricePerPerson: fallbackPrice, currency: "EUR", provider: "estimate", mode: "estimate", dataKind: "krew_estimate", label: "Estimation KREW (offres avion indisponibles)", url: null, searchUrl: exactSearchUrl, rawError: "no_live_quote" };
+  return {
+    pricePerPerson: fallbackPrice,
+    currency: "EUR",
+    provider: "estimate",
+    mode: "estimate",
+    dataKind: "krew_estimate",
+    label: "Estimation KREW (offre avion indisponible)",
+    url: null,
+    searchUrl: exactSearchUrl,
+    rawError: "no_live_quote",
+  };
 }

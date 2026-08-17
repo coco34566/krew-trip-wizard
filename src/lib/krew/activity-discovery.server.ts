@@ -51,7 +51,6 @@ type CacheEntry = { expiresAt: number; candidates: ActivityCandidate[] };
 const discoveryCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const MODEL = "gemini-2.5-flash";
-const MAPS_ENRICHMENT_LIMIT = 8;
 
 const norm = (value: unknown) =>
   String(value ?? "")
@@ -358,43 +357,11 @@ export async function discoverActivities(
   const searchPrompt = `Discovery factuelle KREW via Google Search uniquement. Requêtes=${JSON.stringify(queries)}. Identifie des établissements actuels à ${input.destination}. Retourne un objet JSON dans le texte (sans exiger de MIME structuré): {"candidates":[{"name":"","category":"","description":"","sourceUrl":"URL réellement trouvée","source":"","durationMinutes":null,"environment":"indoor|outdoor|mixed|null","tags":[],"seasonality":null}]}. N'invente aucun lieu, prix ou horaire.`;
   try {
     const searchPayload = await callGemini(apiKey, searchPrompt, "search");
-    let candidates = normalizeSearchCandidates(searchPayload, input);
+    const candidates = normalizeSearchCandidates(searchPayload, input);
     console.info("activity-discovery-search", {
       candidateCount: candidates.length,
       destination: input.destination,
       fallback: false,
-    });
-    let mapsConfirmed = 0;
-    const enriched = await Promise.all(
-      candidates.slice(0, MAPS_ENRICHMENT_LIMIT).map(async (candidate) => {
-        try {
-          const payload = await callGemini(
-            apiKey,
-            `Avec Google Maps uniquement, confirme ce lieu: ${candidate.name}, ${input.destination}. Retourne dans le texte {"place":{"name":"","address":null,"latitude":null,"longitude":null,"mapsUrl":null,"openingHours":[],"rating":null,"reviewCount":null}}. null/[] si Maps ne fournit pas la donnée.`,
-            "maps",
-          );
-          const next = applyMapsPayload(candidate, payload);
-          if (next.groundingSources.some((source) => source.kind === "maps")) mapsConfirmed++;
-          return next;
-        } catch (error) {
-          reportServerError(error, {
-            provider: "gemini",
-            model: MODEL,
-            kind: "activity-discovery-maps",
-            destination: input.destination,
-          });
-          return candidate;
-        }
-      }),
-    );
-    candidates = [...enriched, ...candidates.slice(MAPS_ENRICHMENT_LIMIT)]
-      .filter((candidate) => candidate.verified)
-      .slice(0, 24);
-    console.info("activity-discovery-maps", {
-      enrichedCount: enriched.length,
-      confirmedCount: mapsConfirmed,
-      shortlistedCount: candidates.length,
-      destination: input.destination,
     });
     discoveryCache.set(key, { candidates, expiresAt: Date.now() + CACHE_TTL_MS });
     return { candidates, cached: false };

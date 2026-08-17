@@ -2722,16 +2722,12 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       if (mode === "covoiturage") {
         return [
           {
-            label: "BlaBlaCar",
+            label: "Voir l’aller",
             url: `https://www.blablacar.fr/search?fn=${f}&tn=${d}&db=${checkin}`,
           },
-        ];
-      }
-      if (mode === "bus") {
-        return [
           {
-            label: "Omio (bus)",
-            url: `https://www.omio.fr/search?departurePosition=${f}&arrivalPosition=${d}&departureDate=${checkin}&returnDate=${checkout}&adults=${gAdults}`,
+            label: "Voir le retour",
+            url: `https://www.blablacar.fr/search?fn=${d}&tn=${f}&db=${checkout}`,
           },
         ];
       }
@@ -2764,7 +2760,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       earliestReturnDepartureTime?: string | null;
       latestReturnTime?: string | null;
       respectedConstraints?: string[];
-      dataKind?: "provider_offer" | "external_search" | "krew_estimate";
+      dataKind?: "provider_offer" | "public_fare" | "external_search" | "krew_estimate";
       providerOffer?: import("@/integrations/external/transport.server").TransportQuote | null;
       score?: number;
       matchReasons?: string[];
@@ -2773,8 +2769,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const modeMeta: { mode: string; modeLabel: string; enabled: boolean }[] = [
       { mode: "flight", modeLabel: "Avion", enabled: !planeRefused && distanceKm >= 250 },
       // Providers futurs : ne pas matérialiser une estimation de distance comme une offre réelle.
-      { mode: "train", modeLabel: "Train", enabled: false },
-      { mode: "bus", modeLabel: "Bus", enabled: false },
+      { mode: "train", modeLabel: "Train", enabled: distanceKm <= 1200 },
       { mode: "car", modeLabel: "Voiture", enabled: distanceKm <= 1000 },
       { mode: "covoiturage", modeLabel: "Covoiturage", enabled: distanceKm <= 800 },
       { mode: "ferry", modeLabel: "Ferry", enabled: false },
@@ -2788,6 +2783,8 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       const hasModeFilter = acceptedModes.length > 0 && !acceptedModes.includes("peu importe");
 
       let flightApiQuote: import("@/integrations/external/transport.server").TransportQuote | null =
+        null;
+      let trainFare: import("@/integrations/external/sncf-fares.server").SncfRoundTripFares | null =
         null;
       const isFlightAllowed =
         !planeRefused &&
@@ -2821,6 +2818,18 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           providerErrors.push(`transport ${from}: ${String(e).slice(0, 80)}`);
         }
       }
+      if (
+        (!hasModeFilter || acceptedModes.some((m) => m.includes("train"))) &&
+        distanceKm <= 1200
+      ) {
+        try {
+          const { searchSncfRoundTripFares } =
+            await import("@/integrations/external/sncf-fares.server");
+          trainFare = await searchSncfRoundTripFares(from, destName);
+        } catch (e) {
+          providerErrors.push(`SNCF Open Data ${from}: ${String(e).slice(0, 80)}`);
+        }
+      }
 
       for (const m of modeMeta) {
         if (!m.enabled) continue;
@@ -2829,7 +2838,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           const matched = acceptedModes.some((am) => {
             if (m.mode === "flight") return am.includes("avion") || am.includes("flight");
             if (m.mode === "train") return am.includes("train");
-            if (m.mode === "bus") return am.includes("bus");
             if (m.mode === "car") return am.includes("voiture") || am.includes("car");
             if (m.mode === "covoiturage")
               return am.includes("covoit") || am.includes("share") || am.includes("car");
@@ -2839,7 +2847,10 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           if (!matched) continue;
         }
 
-        const duration = estimateDurationForMode(m.mode, distanceKm);
+        const duration =
+          m.mode === "flight" && flightApiQuote?.outboundDurationMinutes
+            ? Math.round((flightApiQuote.outboundDurationMinutes / 60) * 10) / 10
+            : estimateDurationForMode(m.mode, distanceKm);
 
         if (group.maxTravelDurationHours != null && group.maxTravelDurationHours > 0) {
           if (duration > group.maxTravelDurationHours) {
@@ -2859,6 +2870,12 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           exactSearchUrl = flightApiQuote.searchUrl ?? null;
           providerName = flightApiQuote.provider ?? "kayak";
           flightOutsideWindow = !!flightApiQuote.outsideTimeWindow;
+        }
+        if (m.mode === "train" && trainFare) {
+          price = Math.round(
+            (trainFare.roundTripFareRange.min + trainFare.roundTripFareRange.max) / 2,
+          );
+          providerName = "SNCF Open Data";
         }
 
         const modeLinks = linksForMode(m.mode, from, destName, group.participants.length);
@@ -2937,18 +2954,22 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           searchUrl: exactSearchUrl,
           provider: providerName,
           dataKind:
-            m.mode === "flight" && flightApiQuote
-              ? (flightApiQuote.dataKind ?? "provider_offer")
-              : "krew_estimate",
+            m.mode === "train" && trainFare
+              ? "public_fare"
+              : m.mode === "flight" && flightApiQuote
+                ? (flightApiQuote.dataKind ?? "provider_offer")
+                : "krew_estimate",
           providerOffer: m.mode === "flight" ? flightApiQuote : null,
           note:
-            m.mode === "flight" && flightApiQuote
-              ? flightApiQuote.dataKind === "krew_estimate"
-                ? "estimation KREW — aucun tarif fournisseur vérifié"
-                : providerName
-                  ? `prix ${providerName} réel`
-                  : "prix API réel"
-              : "prix indicatif basé sur la distance",
+            m.mode === "train" && trainFare
+              ? "tarif public indicatif A/R — horaires inconnus"
+              : m.mode === "flight" && flightApiQuote
+                ? flightApiQuote.dataKind === "krew_estimate"
+                  ? "estimation KREW — aucun tarif fournisseur vérifié"
+                  : providerName
+                    ? `prix ${providerName} réel`
+                    : "prix API réel"
+                : "prix indicatif basé sur la distance",
           links: links.slice(0, 4),
           durationHours: duration,
           subGroupKey: group.key,
