@@ -2012,6 +2012,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       days?: { day: number; date?: string | null; slots: any[] }[];
       source?: string;
       generatedAt?: string;
+      candidates?: import("@/lib/krew/activity-discovery.server").ActivityCandidate[];
     } | null;
     if (!itinerary?.days?.length) {
       throw new Error("Aucun planning à modifier — génère d'abord les activités");
@@ -2086,6 +2087,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       current,
       data.day,
       avoid,
+      itinerary.candidates ?? [],
     );
 
     // Try to enrich the regenerated slot with TripAdvisor/Klook url
@@ -2199,30 +2201,16 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
 
-    let providerErrors: string[] = [];
-    if (generateHotels && data.refreshExternal !== false) {
-      try {
-        const { refreshExternalCatalogForTrip } =
-          await import("@/lib/external/search-hotels.functions");
-        const ext = await refreshExternalCatalogForTrip(supabase, data.tripId, destName);
-        if (ext?.providerErrors?.length) providerErrors = ext.providerErrors;
-        if (!ext.ok || ext.accommodationsCount === 0) {
-          throw new Error(ext.message ?? "StayAPI n'a retourné aucun hôtel exploitable");
-        }
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        throw new Error(`Recherche StayAPI impossible : ${message.slice(0, 240)}`);
-      }
-    }
-
+    const providerErrors: string[] = [];
     const budget = Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400;
     const nights = (() => {
       if (trip.start_date && trip.end_date) {
-        const ms =
-          new Date(trip.end_date + "T12:00:00Z").getTime() -
-          new Date(trip.start_date + "T12:00:00Z").getTime();
-        const d = Math.round(ms / (24 * 3600 * 1000));
-        if (d >= 1) return d;
+        const days = Math.round(
+          (new Date(trip.end_date + "T12:00:00Z").getTime() -
+            new Date(trip.start_date + "T12:00:00Z").getTime()) /
+            86400000,
+        );
+        if (days >= 1) return days;
       }
       return Number(trip.duration_nights) || 2;
     })();
@@ -2232,322 +2220,94 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const checkout =
       (trip.end_date as string) ||
       new Date(new Date(checkin).getTime() + nights * 86400000).toISOString().slice(0, 10);
-
-    const lodgingBudget = Math.max(40, budget * 0.35);
     const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
     const effCount = getEffectiveParticipantsCount(trip, participants);
     const adults = Math.min(Math.max(1, effCount), 8);
-    const noRooms = Math.max(1, Math.ceil(effCount / 2));
-
     let topHotels: any[] = [];
+
     if (generateHotels) {
-      const bookingSearchUrl = (q: string) =>
-        `https://www.booking.com/searchresults.fr.html?ss=${encodeURIComponent(q)}&checkin=${checkin}&checkout=${checkout}&group_adults=${adults}&no_rooms=${noRooms}&selected_currency=EUR`;
-      const googleHotelsUrl = (q: string) =>
-        `https://www.google.com/travel/hotels?q=${encodeURIComponent(`hotels ${q} ${checkin} ${checkout}`)}`;
-      const hotelsComUrl = (q: string) =>
-        `https://fr.hotels.com/Hotel-Search?destination=${encodeURIComponent(q)}&startDate=${checkin}&endDate=${checkout}&rooms=1&adults=${adults}`;
-      if (!destId) throw new Error("Destination sélectionnée invalide");
-      const hotelsQuery = supabase
-        .from("accommodations")
-        .select("*")
-        .eq("destination_id", destId)
-        .eq("source", "stayapi/booking")
-        .limit(100);
-      const hotelsRes = await hotelsQuery;
-      if (hotelsRes.error) throw hotelsRes.error;
-
-      // Filter to ensure absolute geographical coherence
-      const matchedHotels = (hotelsRes.data ?? []).filter((h: any) => h.destination_id === destId);
-
-      type HotelCard = {
-        id: string;
-        name: string;
-        type: string;
-        rating: number;
-        pricePerNight: number;
-        totalEstimate: number;
-        distanceCenterKm: number | null;
-        score: number;
-        reasons: string[];
-        bookingUrl: string | null;
-        links: { label: string; url: string }[];
-        source?: string | null;
-        beddingInfo?: {
-          estimatedRoomsNeeded: number;
-          roomTypePreference: string;
-          acceptsSharedRoom: boolean;
-          isEntireLodging: boolean;
-          description: string;
-        };
-        categoryLabel?: string;
-        accommodationClass?: "HOTEL" | "ENTIRE_HOME" | "HOSTEL" | "OTHER";
-        priceEstimated?: boolean;
-        budgetStatus?: "WITHIN_TARGET" | "PREMIUM";
-      };
-
-      const minRating = Number(aggregated.minAccommodationRating) || 0;
-      const roomPrefs = ((aggregated as any).roomTypePreferences ?? []).map((x: string) =>
-        String(x).toLowerCase(),
-      );
-      const sharedOk = (aggregated as any).acceptsSharedRoom !== false;
-
-      const scoreHotel = (h: any): HotelCard => {
-        const offersList = Array.isArray(h.price_offers) ? h.price_offers : [];
-        const canonical = offersList[0] ?? {};
-        const price = Number(canonical.perPersonPerNight ?? h.price_per_night_per_person ?? 0);
-        const perPersonStay = Number(canonical.perPersonStay ?? price * nights);
-        const rating = Number(h.rating ?? 0);
-        const dist = h.distance_center_km != null ? Number(h.distance_center_km) : null;
-        const reasons: string[] = [];
-        let score = 0.4;
-        if (perPersonStay <= lodgingBudget) {
-          score += 0.25;
-          reasons.push("dans le budget");
-        } else if (perPersonStay <= lodgingBudget * 1.25) {
-          score += 0.1;
-          reasons.push("proche budget");
-        } else score -= 0.12;
-        if (rating >= 4) {
-          score += 0.12;
-          reasons.push("bien noté");
-        }
-        if (minRating > 0 && rating >= minRating) score += 0.1;
-        const typeBlob = `${h.type ?? ""} ${h.name ?? ""}`.toLowerCase();
-        if (!sharedOk && /dortoir|hostel|auberge/.test(typeBlob)) score -= 0.2;
-        if (roomPrefs.length && roomPrefs.some((p: string) => typeBlob.includes(p))) {
-          score += 0.1;
-          reasons.push("type adapté");
-        }
-        if (dist != null && dist <= 2) {
-          score += 0.1;
-          reasons.push("proche centre");
-        }
-        // Prioritize supplier offer URLs / direct links over generic searches
-        const offerWithUrl = offersList.find((o: any) => Boolean(o.url || o.booking_url));
-        const priceOfferUrl = offerWithUrl?.url || offerWithUrl?.booking_url;
-        const directUrl = h.booking_url || h.url || priceOfferUrl;
-        const providerName = h.best_provider || offerWithUrl?.provider || h.source || null;
-
-        const exactDeepLink = bookingSearchUrl(`${h.name} ${destName}`);
-        const genericFallback = bookingSearchUrl(destName);
-        const primary = directUrl || exactDeepLink || genericFallback;
-
-        const links: { label: string; url: string }[] = [];
-        if (directUrl) {
-          const label = providerName ? `Réserver sur ${providerName}` : "Réserver";
-          links.push({ label, url: String(directUrl) });
-        } else {
-          links.push({ label: "Recherche Booking", url: exactDeepLink });
-        }
-        links.push({ label: "Google Hotels", url: googleHotelsUrl(`${h.name} ${destName}`) });
-        links.push({ label: "Hotels.com", url: hotelsComUrl(destName) });
-        return {
-          id: String(h.id),
-          name: h.name,
-          type: h.type ?? "hébergement",
-          rating,
-          pricePerNight: Math.round(price),
-          totalEstimate: Math.round(canonical.groupStayTotal ?? perPersonStay * effCount),
-          distanceCenterKm: dist,
-          score: Math.round(Math.max(0, Math.min(1, score)) * 100) / 100,
-          reasons: reasons.slice(0, 4),
-          bookingUrl: primary,
-          links,
-          source: h.source ?? null,
-          accommodationClass:
-            h.type === "entire_home"
-              ? "ENTIRE_HOME"
-              : /hostel|auberge/.test(typeBlob)
-                ? "HOSTEL"
-                : /hotel|hôtel/.test(typeBlob)
-                  ? "HOTEL"
-                  : "OTHER",
-          priceEstimated: Boolean(canonical.estimated),
-          budgetStatus: perPersonStay <= lodgingBudget ? "WITHIN_TARGET" : "PREMIUM",
-        };
-      };
-
-      const hardStayCap =
-        ((aggregated as any).hasBudgetVeto
-          ? Number((aggregated as any).vetoBudgetMax ?? 0)
-          : Number((aggregated as any).minGroupBudget ?? 0)) * 0.35;
-      let hotels: HotelCard[] = matchedHotels.map(scoreHotel).filter((hotel) => {
-        const perPersonStay = hotel.pricePerNight * nights;
-        return hardStayCap > 0
-          ? perPersonStay <= hardStayCap
-          : perPersonStay <= lodgingBudget * 1.25;
+      const concepts = await import("@/lib/krew/accommodation-concepts");
+      const singleRooms = aggregated.individualPreferences.filter((preference: any) => {
+        const room = String(preference.roomTypePreference ?? "").toLowerCase();
+        return (
+          preference.acceptsSharedRoom === false ||
+          room.includes("individuelle") ||
+          room.includes("single")
+        );
+      }).length;
+      const roomConfiguration = concepts.calculateRoomConfiguration(effCount, singleRooms);
+      const conceptScores = concepts.scoreAccommodationConcepts({
+        affinities: aggregated.stayProfileAffinities ?? [],
+        ageRange: aggregated.groupAgeRange,
+        groupSize: effCount,
+        needsCityCenter: (aggregated as any).needsCityCenter,
       });
-      hotels.sort((a, b) => b.score - a.score || b.rating - a.rating);
-
-      if (!hotels.length) throw new Error(`Aucun hôtel StayAPI exploitable pour ${destName}`);
-
-      // Compute bedding configurations based on participant preferences
-      const totalGroupParticipants = Math.max(1, effCount);
-      const roomTypePref = (aggregated as any).roomTypePreference || "Peu importe";
-      const acceptsShared = (aggregated as any).acceptsSharedRoom !== false;
-
-      // Calculate estimated rooms needed
-      let estimatedRoomsNeeded = 1;
-      if (
-        roomTypePref.toLowerCase().includes("individuelle") ||
-        roomTypePref.toLowerCase().includes("single")
-      ) {
-        estimatedRoomsNeeded = totalGroupParticipants;
-      } else if (
-        roomTypePref.toLowerCase().includes("double") ||
-        roomTypePref.toLowerCase().includes("couple")
-      ) {
-        estimatedRoomsNeeded = Math.ceil(totalGroupParticipants / 2);
-      } else {
-        estimatedRoomsNeeded = acceptsShared
-          ? Math.ceil(totalGroupParticipants / 4)
-          : Math.ceil(totalGroupParticipants / 2);
-      }
-
-      const { generateAccommodationConfigurations } = await import("@/lib/krew/engine");
-
-      // Embed bedding config and full configurations comparison into each hotel card
-      const scoredHotelsWithBedding = hotels.map((h) => {
-        const isEntireLodging = h.accommodationClass === "ENTIRE_HOME";
-        const persistedCapacity = Number(
-          matchedHotels.find((x: any) => String(x.id) === h.id)?.capacity ?? 0,
-        );
-        const beddingInfo = {
-          estimatedRoomsNeeded,
-          roomTypePreference: roomTypePref,
-          acceptsSharedRoom: acceptsShared,
-          isEntireLodging,
-          description: isEntireLodging
-            ? `Logement entier, capacité fournisseur ${persistedCapacity > 0 ? `${persistedCapacity} personnes` : "non précisée"}.`
-            : `Recherche effectuée pour ${estimatedRoomsNeeded} unité(s) ; capacité unitaire ${persistedCapacity > 0 ? persistedCapacity : "non précisée"}.`,
-        };
-
-        let dbRow = matchedHotels.find((x: any) => String(x.id) === h.id);
-        if (!dbRow) {
-          // Mock dbRow for generic portal seeds to allow configuration comparison
-          dbRow = {
-            id: h.id,
-            destination_id: destId,
-            name: h.name,
-            type: h.type,
-            price_per_night_per_person: h.pricePerNight,
-            capacity: 0,
-            rating: h.rating,
-            distance_center_km: h.distanceCenterKm ?? 2.0,
-            description: h.name,
-            image_url: null,
-          } as any;
-        }
-
-        const configs = generateAccommodationConfigurations(
-          [dbRow!],
-          totalGroupParticipants,
-          nights,
-          dest,
-          aggregated.groupAgeRange,
-          aggregated.individualPreferences,
-        );
-
-        return {
-          ...h,
-          beddingInfo,
-          configs: configs.map((c) => ({
-            id: c.id,
-            name: c.name,
-            type: c.type,
-            unitsCount: c.unitsCount,
-            capacityPerUnit: c.capacityPerUnit,
-            totalCapacity: c.totalCapacity,
-            bedrooms: c.bedrooms,
-            beds: c.beds,
-            bathrooms: c.bathrooms,
-            priceBase: c.priceBase,
-            cleaningFee: c.cleaningFee,
-            serviceFee: c.serviceFee,
-            taxes: c.taxes,
-            totalCost: c.totalCost,
-            pricePerPerson: c.pricePerPerson,
-            pricePerPersonPerNight: c.pricePerPersonPerNight,
-            explanation: c.explanation,
-            category: c.category,
+      const selectedStrategies = concepts.selectAccommodationStrategies(conceptScores);
+      const allocation = concepts.resultsAllocation(selectedStrategies.length);
+      const topProfiles = [...(aggregated.stayProfileAffinities ?? [])]
+        .sort((a: any, b: any) => b.score - a.score)
+        .map((profile: any) => profile.id);
+      const locationMode = concepts.resolveAccommodationLocationIntent({
+        topProfiles,
+        localMobility: aggregated.groupLocalMobility ?? null,
+        accommodationRole:
+          aggregated.individualPreferences.find((preference: any) => preference.accommodationRole)
+            ?.accommodationRole ?? null,
+        needsCityCenter: (aggregated as any).needsCityCenter,
+      });
+      const requiredAmenities = aggregated.requiredAmenities ?? [];
+      const hardBase = aggregated.hasBudgetVeto
+        ? aggregated.vetoBudgetMax
+        : aggregated.minGroupBudget;
+      const specification: import("@/lib/krew/accommodation-ai.server").AccommodationSearchSpecification =
+        {
+          destination: { name: destName, country: destCountry },
+          dates: { checkIn: checkin, checkOut: checkout, nights },
+          group: {
+            size: effCount,
+            targetBedrooms: roomConfiguration.targetBedrooms,
+            singleRooms: roomConfiguration.singleRooms,
+            sharedRoomsOrEquivalent: roomConfiguration.doubleRooms,
+          },
+          budget: {
+            targetPerPersonStay: budget * 0.35,
+            hardMaxPerPersonStay: hardBase != null ? Number(hardBase) * 0.35 : null,
+          },
+          searchStrategies: selectedStrategies.map((strategy, index) => ({
+            concept: strategy.concept,
+            score: strategy.score,
+            priority: index + 1,
+            resultsWanted: allocation[index] ?? 1,
+            propertyTypes: concepts.ACCOMMODATION_PROPERTY_TYPES[strategy.concept],
+            mustHave: requiredAmenities,
+            preferred: [],
           })),
+          locationIntent: {
+            mode: locationMode,
+            priority: (aggregated as any).needsCityCenter === true ? "required" : "preferred",
+            carAccepted: ["car_ok", "car_if_worth_it"].includes(
+              aggregated.groupLocalMobility ?? "",
+            ),
+          },
+          minimumRating: Number(aggregated.minAccommodationRating) || null,
+          requiredAmenities,
+          accessibilityRequired: aggregated.individualPreferences.some(
+            (preference: any) => preference.accessibilityRequired === true,
+          ),
         };
+      try {
+        const { searchAccommodationsWithGemini } =
+          await import("@/lib/krew/accommodation-ai.server");
+        topHotels = await searchAccommodationsWithGemini(specification);
+      } catch (error) {
+        providerErrors.push(String(error).slice(0, 180));
+      }
+      console.info("[Accommodation generation]", {
+        Gemini: process.env["GEMINI_API_KEY"] ? 1 : 0,
+        StayAPI: 0,
+        RapidAPI: 0,
+        candidates: topHotels.length,
       });
-
-      scoredHotelsWithBedding.sort((a, b) => b.score - a.score);
-
-      // Diversify five genuinely different strategies from real candidate traits.
-      const categorizedHotels: HotelCard[] = [];
-      const usedIds = new Set<string>();
-
-      const getFirstUnused = (filterFn: (h: HotelCard) => boolean) => {
-        const match = scoredHotelsWithBedding.find((h) => !usedIds.has(h.id) && filterFn(h));
-        if (match) {
-          usedIds.add(match.id);
-          return match;
-        }
-        return null;
-      };
-
-      // 1. Meilleur choix groupe
-      const bestChoice = getFirstUnused((h) => true); // overall highest score
-      if (bestChoice) {
-        categorizedHotels.push({ ...bestChoice, categoryLabel: "Meilleur choix groupe" });
-      }
-
-      // 2. Option budget: affordable, but still acceptable in quality/location.
-      const budgetPool = [...scoredHotelsWithBedding]
-        .filter(
-          (h) =>
-            !usedIds.has(h.id) &&
-            h.budgetStatus === "WITHIN_TARGET" &&
-            (h.rating === 0 || h.rating >= Math.max(3.5, minRating)) &&
-            (h.distanceCenterKm == null || h.distanceCenterKm <= 8),
-        )
-        .sort((a, b) => b.score - a.score || a.pricePerNight - b.pricePerNight);
-      const budgetOption = budgetPool[0] ?? null;
-      if (budgetOption) {
-        usedIds.add(budgetOption.id);
-        categorizedHotels.push({ ...budgetOption, categoryLabel: "Option budget" });
-      }
-
-      // 3. Best value combines the existing group score with price and rating.
-      const valueOption =
-        [...scoredHotelsWithBedding]
-          .filter((h) => !usedIds.has(h.id))
-          .sort(
-            (a, b) =>
-              b.score +
-              b.rating * 0.03 -
-              (b.pricePerNight / Math.max(1, lodgingBudget)) * 0.12 -
-              (a.score + a.rating * 0.03 - (a.pricePerNight / Math.max(1, lodgingBudget)) * 0.12),
-          )[0] ?? null;
-      if (valueOption) {
-        usedIds.add(valueOption.id);
-        categorizedHotels.push({ ...valueOption, categoryLabel: "Meilleur rapport qualité-prix" });
-      }
-
-      // 4. Meilleur hôtel
-      const bestHotel = getFirstUnused((h) => h.accommodationClass === "HOTEL");
-      if (bestHotel) categorizedHotels.push({ ...bestHotel, categoryLabel: "Meilleur hôtel" });
-
-      // 5. Entire home only when StayAPI explicitly classified it as such.
-      const bestHouse = getFirstUnused((h) => h.accommodationClass === "ENTIRE_HOME");
-      if (bestHouse) {
-        categorizedHotels.push({ ...bestHouse, categoryLabel: "Meilleur logement entier" });
-      }
-
-      // Fallback/Paddings
-      for (const h of scoredHotelsWithBedding) {
-        if (categorizedHotels.length >= 5) break;
-        if (!usedIds.has(h.id)) {
-          categorizedHotels.push({ ...h, categoryLabel: "Autre option intéressante" });
-          usedIds.add(h.id);
-        }
-      }
-
-      topHotels = categorizedHotels;
     }
 
     // ——— A/R multi-modes ———
@@ -2993,11 +2753,11 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const common = { destination: destName, country: destCountry, nights, checkin, checkout };
     const logisticsWithVotes = generateHotels
       ? {
-          ...prev,
-          ...common,
-          hotels: topHotels,
-          hotelProviderErrors: providerErrors,
-          hotelsGeneratedAt: new Date().toISOString(),
+          ...(await import("@/lib/krew/accommodation-ai.server")).mergeAccommodationLogistics(
+            { ...prev, ...common },
+            topHotels,
+            providerErrors,
+          ),
         }
       : {
           ...prev,
@@ -3011,16 +2771,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       .from("trips")
       .update({ group_logistics: logisticsWithVotes, updated_at: new Date().toISOString() } as any)
       .eq("id", data.tripId);
-
-    // Update selected recommendation accommodation_id if a top hotel was selected or top scored
-    const bestHotelId = topHotels[0]?.id;
-    if (generateHotels && bestHotelId && !bestHotelId.startsWith("portal-")) {
-      await supabase
-        .from("recommendations")
-        .update({ accommodation_id: bestHotelId })
-        .eq("trip_id", data.tripId)
-        .eq("is_selected", true);
-    }
 
     return { ok: true, logistics: logisticsWithVotes };
   });

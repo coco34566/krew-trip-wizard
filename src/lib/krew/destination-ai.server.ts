@@ -124,6 +124,7 @@ Règles de découverte :
 - transportEstimate contient des ordres de grandeur A/R pour CHAQUE origine, jamais une offre live.
 - lodgingEstimate est uniquement un ordre de grandeur par personne et par nuit, sans nom de propriété ni disponibilité.
 - activityFit qualifie chaque catégorie importante; ses exemples illustrent le territoire et ne sont pas un planning.
+- Pour property_led, house_together, exceptional_experience ou un logement centerpiece, propose des territoires où l'expérience logement est plausible, jamais une propriété précise.
 
 Qualité attendue : la liste doit être réellement influencée par le profil du groupe. Deux groupes avec des préférences très différentes doivent obtenir des listes sensiblement différentes.`;
 

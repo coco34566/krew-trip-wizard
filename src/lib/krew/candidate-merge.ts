@@ -5,6 +5,12 @@
  * codées en dur. Les deux sources sont TOUJOURS appelées puis fusionnées ici.
  */
 import type { CandidateDestination, DestinationType } from "./destination-discovery.server";
+import type {
+  AiActivityFit,
+  AiLocalCostEstimate,
+  AiLodgingEstimate,
+  AiTransportEstimate,
+} from "./destination-ai.server";
 
 /** Estimation compacte renvoyée par le LLM pour une ville hors catalogue. */
 export type AiEstimate = {
@@ -21,6 +27,10 @@ export type AiEstimate = {
   region?: string | undefined;
   destinationType?: DestinationType | undefined;
   anchorPlaces?: string[] | undefined;
+  transportEstimate?: AiTransportEstimate | undefined;
+  lodgingEstimate?: AiLodgingEstimate | undefined;
+  localCostEstimate?: AiLocalCostEstimate | undefined;
+  activityFit?: AiActivityFit[] | undefined;
 };
 
 export type MergedCandidate = {
@@ -37,6 +47,10 @@ export type MergedCandidate = {
   destinationType?: DestinationType;
   anchorPlaces?: string[];
   verificationState?: "verified" | "estimated" | "unknown";
+  transportEstimate?: AiTransportEstimate | undefined;
+  lodgingEstimate?: AiLodgingEstimate | undefined;
+  localCostEstimate?: AiLocalCostEstimate | undefined;
+  activityFit?: AiActivityFit[] | undefined;
 };
 
 /** Normalisation de nom de ville (identique à `norm()` de la découverte locale). */
@@ -91,6 +105,10 @@ export function mergeCandidates(
         anchorPlaces: existing.anchorPlaces?.length
           ? existing.anchorPlaces
           : (c.anchorPlaces ?? []),
+        transportEstimate: c.transportEstimate,
+        lodgingEstimate: c.lodgingEstimate,
+        localCostEstimate: c.localCostEstimate,
+        activityFit: c.activityFit,
       });
       continue;
     }
@@ -107,6 +125,10 @@ export function mergeCandidates(
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces?.length ? c.anchorPlaces : [c.name],
       verificationState: "estimated",
+      transportEstimate: c.transportEstimate,
+      lodgingEstimate: c.lodgingEstimate,
+      localCostEstimate: c.localCostEstimate,
+      activityFit: c.activityFit,
     });
   }
 
@@ -121,9 +143,15 @@ export type AiDestinationRow = {
   avg_daily_cost: number | null;
   distance_from_paris_km: number | null;
   best_months: number[];
-  popularity: null; rating: null;
-  score_fete: null; score_aventure: null; score_detente: null; score_luxe: null;
-  score_insolite: null; score_sportif: null; score_culturel: null;
+  popularity: null;
+  rating: null;
+  score_fete: null;
+  score_aventure: null;
+  score_detente: null;
+  score_luxe: null;
+  score_insolite: null;
+  score_sportif: null;
+  score_culturel: null;
   source: "ai_estimate";
   external_id: string;
   destination_type: DestinationType;
@@ -156,9 +184,15 @@ export function aiCandidateToDestinationRow(
     avg_daily_cost: null,
     distance_from_paris_km: null,
     best_months: months.filter((m) => Number.isInteger(m) && m >= 1 && m <= 12),
-    popularity: null, rating: null,
-    score_fete: null, score_aventure: null, score_detente: null, score_luxe: null,
-    score_insolite: null, score_sportif: null, score_culturel: null,
+    popularity: null,
+    rating: null,
+    score_fete: null,
+    score_aventure: null,
+    score_detente: null,
+    score_luxe: null,
+    score_insolite: null,
+    score_sportif: null,
+    score_culturel: null,
     source: "ai_estimate",
     external_id: `ai:${slug}`,
     destination_type: candidate.destinationType ?? "city",

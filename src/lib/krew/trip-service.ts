@@ -32,11 +32,6 @@ import {
   geocodeDestination,
 } from "@/integrations/external/geo-weather.server";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery } from "./stay-profiles";
-import {
-  discoverProperties,
-  propertyToAccommodationRow,
-  resolvePropertyDestination,
-} from "./property-discovery.server";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
@@ -1227,6 +1222,17 @@ export async function generateRecommendationsForTrip(
       startMonth: ctx.startMonth,
       excludedCountries: ctx.excludedCountries,
       departureCity: primaryDeparture,
+      departureOrigins: (aggregated.departureOrigins ?? []).map((origin) => ({
+        origin: origin.city,
+        participants: origin.count,
+      })),
+      acceptedTransportModes: [
+        ...new Set(
+          aggregated.individualPreferences.flatMap(
+            (preference: any) => preference.transportModeAccepted ?? [],
+          ),
+        ),
+      ].filter((mode): mode is string => typeof mode === "string" && mode !== "bus"),
       participants: ctx.participants,
       ...(trip.data.event_type ? { eventType: trip.data.event_type as string } : {}),
       planeRefused: Boolean((aggregated as any).planeRefused),
@@ -1251,6 +1257,24 @@ export async function generateRecommendationsForTrip(
         accommodationRole: p.accommodationRole,
         isStar: p.isStar,
       })),
+      scoringSignals: {
+        desiredDestination: resolvedDestination,
+        letKrewDecide,
+        starWeight: ctx.starWeight ?? null,
+        scoringWeights: ctx.scoringWeights ?? null,
+        hardConstraints: {
+          hasBudgetVeto: ctx.hasBudgetVeto,
+          vetoBudgetMax: ctx.vetoBudgetMax,
+          minGroupBudget: ctx.minGroupBudget,
+          excludedCountries: ctx.excludedCountries,
+          maxDistanceKm: ctx.maxDistanceKm,
+          maxTravelHours: ctx.maxTravelDurationHours,
+        },
+        softPreferences: {
+          travelPace: ctx.travelPace,
+          preferredTimeSlots: ctx.preferredTimeSlots,
+        },
+      },
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
@@ -1273,6 +1297,10 @@ export async function generateRecommendationsForTrip(
       region: c.region,
       destinationType: c.destinationType,
       anchorPlaces: c.anchorPlaces,
+      transportEstimate: c.transportEstimate,
+      lodgingEstimate: c.lodgingEstimate,
+      localCostEstimate: c.localCostEstimate,
+      activityFit: c.activityFit,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities);
 
@@ -1406,91 +1434,19 @@ export async function generateRecommendationsForTrip(
       anchor_places: area.anchorPlaces ?? [area.name],
     };
     try {
-      await supabaseAdmin
-        .from("destinations")
-        .upsert(
-          {
-            ...row,
-            source: "krew_discovery",
-            external_id: `discovery:${area.name.toLowerCase()}`,
-          } as any,
-          { onConflict: "source,external_id" },
-        );
+      await supabaseAdmin.from("destinations").upsert(
+        {
+          ...row,
+          source: "krew_discovery",
+          external_id: `discovery:${area.name.toLowerCase()}`,
+        } as any,
+        { onConflict: "source,external_id" },
+      );
     } catch (e) {
       reportServerError(e, {
         provider: "krew_discovery",
         kind: "catalog_upsert_area",
         destination: area.name,
-      });
-    }
-  }
-
-  // Property-led exploration is additive: failures never interrupt normal destination discovery.
-  if (routeDiscovery(readiness.profile.selectedConcepts).propertyDiscovery) {
-    try {
-      const properties = await discoverProperties({
-        concepts: readiness.profile.selectedConcepts,
-        participants: ctx.participants,
-        territories: mergedCandidates
-          .flatMap((candidate) => [candidate.name, ...(candidate.anchorPlaces ?? [])])
-          .slice(0, 6),
-        amenities: aggregated.requiredAmenities ?? [],
-        activities: ctx.activityCategories,
-        environment: aggregated.wantedEnvTypes ?? [],
-        localMobility: aggregated.groupLocalMobility ?? null,
-        accommodationRole:
-          aggregated.individualPreferences.find((p: any) => p.accommodationRole)
-            ?.accommodationRole ?? null,
-      });
-      for (const property of properties) {
-        const resolvedPropertyLocation = resolvePropertyDestination(property);
-        if (!resolvedPropertyLocation) continue;
-        const geo = await geocodeDestination(
-          [resolvedPropertyLocation.name, resolvedPropertyLocation.country]
-            .filter(Boolean)
-            .join(", "),
-        );
-        if (!geo) continue;
-        const destinationName = resolvedPropertyLocation.name;
-        const slug = `property-${normCity(destinationName).replace(/[^a-z0-9]+/g, "-")}`;
-        const destination = await supabaseAdmin
-          .from("destinations")
-          .upsert(
-            {
-              slug,
-              name: destinationName,
-              country: property.country || geo.country || "France",
-              destination_type: "region_territory",
-              anchor_places: [property.locality || destinationName],
-              latitude: geo.latitude,
-              longitude: geo.longitude,
-              distance_from_paris_km: distanceFromParisKm(geo.latitude, geo.longitude),
-              source: "property_discovery",
-              external_id: `property-location:${slug}`,
-            } as any,
-            { onConflict: "source,external_id" },
-          )
-          .select("id")
-          .single();
-        if (!destination.data?.id) continue;
-        if (!shortlistNames.some((name) => normCity(name) === normCity(destinationName)))
-          shortlistNames.push(destinationName);
-        const accommodation = propertyToAccommodationRow(
-          property,
-          destination.data.id,
-          ctx.participants,
-          ctx.nights,
-        );
-        if (!accommodation) continue;
-        await supabaseAdmin
-          .from("accommodations")
-          .upsert(accommodation as any, { onConflict: "source,external_id" });
-      }
-    } catch (error) {
-      reportServerError(error, {
-        provider: "property_discovery",
-        kind: "property_pipeline",
-        tripId,
       });
     }
   }
@@ -1668,128 +1624,72 @@ export async function generateRecommendationsForTrip(
     }
   }
 
-  // 4) Transport multi-origines : chaque ville de départ des participants
-  //    → cotation A/R, moyenne pondérée / pers + total groupe
+  // 4) Estimations Destination : aucune cotation live. Gemini fournit des ordres de
+  // grandeur, complétés donnée par donnée par le fallback déterministe KREW.
   const transportByDestinationId: Record<string, number> = {};
   const transportGroupByDestinationId: Record<string, number> = {};
   const transportOriginsByDestinationId: Record<
     string,
     { city: string; count: number; pricePerPerson: number }[]
   > = {};
-
-  // Origines : questionnaires individuels, sinon ville du voyage
+  const lodgingPerPersonPerNightByDestinationId: Record<string, number> = {};
+  const foodPerPersonPerDayByDestinationId: Record<string, number> = {};
+  const activitiesPerPersonPerDayByDestinationId: Record<string, number> = {};
+  const activityFitByDestinationId: Record<string, string[]> = {};
   const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
-  const departureOrigins =
-    aggregated.departureOrigins && aggregated.departureOrigins.length > 0
-      ? aggregated.departureOrigins
-      : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];
-
-  // Si des gens n'ont pas renseigné de ville, rattacher le reste à l'origine du voyage
-  const countedInOrigins = departureOrigins.reduce((s, o) => s + o.count, 0);
-  const remaining = Math.max(0, ctx.participants - countedInOrigins);
+  const departureOrigins = aggregated.departureOrigins?.length
+    ? aggregated.departureOrigins
+    : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];
+  const countedInOrigins = departureOrigins.reduce((sum, origin) => sum + origin.count, 0);
   const originsForQuote =
-    remaining > 0
-      ? (() => {
-          const copy = departureOrigins.map((o) => ({ ...o }));
-          const primary = copy.find((o) => o.city.toLowerCase() === tripOrigin.toLowerCase());
-          if (primary) primary.count += remaining;
-          else copy.push({ city: tripOrigin, count: remaining });
-          return copy;
-        })()
+    countedInOrigins < ctx.participants
+      ? [...departureOrigins, { city: tripOrigin, count: ctx.participants - countedInOrigins }]
       : departureOrigins;
+  const fallbackTransport = (distanceKm: number) =>
+    distanceKm <= 350
+      ? 45
+      : distanceKm <= 900
+        ? 90
+        : distanceKm <= 1600
+          ? 130
+          : Math.round(130 + (distanceKm - 1600) * 0.05);
 
-  try {
-    const { searchTransportRoundTrip } = await import("@/integrations/external/transport.server");
-
-    let earliestDepartureTime: string | null = null;
-    let latestReturnTime: string | null = null;
-    try {
-      const { data: timeRows } = await supabase
-        .from("trip_transport_time_prefs")
-        .select("earliest_departure_time, latest_return_time")
-        .eq("trip_id", tripId);
-      if (timeRows && timeRows.length > 0) {
-        const { computeGroupTimeWindow } = await import("@/lib/krew/engine");
-        const window = computeGroupTimeWindow(timeRows);
-        earliestDepartureTime = window.earliestDeparture;
-        latestReturnTime = window.latestReturn;
-      }
-    } catch (e) {
-      console.warn("Erreur filtres horaires", e);
+  for (const destination of catalogFinal.destinations) {
+    const candidate = mergedCandidates.find(
+      (item) => normCity(item.name) === normCity(destination.name),
+    );
+    if (!candidate) continue;
+    const byOrigin = originsForQuote.map((origin) => {
+      const estimate = candidate.transportEstimate?.byOrigin.find(
+        (item) => normCity(item.origin) === normCity(origin.city),
+      );
+      const pricePerPerson =
+        estimate?.roundTripCentral != null && estimate.roundTripCentral > 0
+          ? estimate.roundTripCentral
+          : fallbackTransport(destination.distance_from_paris_km);
+      return { city: origin.city, count: origin.count, pricePerPerson };
+    });
+    const groupTotal = byOrigin.reduce(
+      (sum, origin) => sum + origin.pricePerPerson * origin.count,
+      0,
+    );
+    const people = byOrigin.reduce((sum, origin) => sum + origin.count, 0);
+    if (people > 0) {
+      transportByDestinationId[destination.id] = groupTotal / people;
+      transportGroupByDestinationId[destination.id] = groupTotal;
+      transportOriginsByDestinationId[destination.id] = byOrigin;
     }
-
-    const checkin = recommendationDates.startDate;
-    const checkout = recommendationDates.endDate;
-    if (!checkin || !checkout)
-      providerErrors.push("Transport non vérifié : dates réelles absentes");
-
-    // Limiter le fan-out API : max 5 destinations × max 4 origines distinctes
-    const originsLimited = originsForQuote.slice(0, 4);
-
-    for (const dest of checkin && checkout ? catalogFinal.destinations.slice(0, 5) : []) {
-      const originQuotes: {
-        city: string;
-        count: number;
-        pricePerPerson: number;
-        provider?: string;
-        mode?: string;
-        label?: string;
-        url?: string | null;
-        searchUrl?: string | null;
-      }[] = [];
-      let groupTransport = 0;
-      let peopleQuoted = 0;
-
-      for (const origin of originsLimited) {
-        try {
-          const quote = await searchTransportRoundTrip({
-            originCity: origin.city,
-            destinationCity: dest.name,
-            departDate: checkin!,
-            returnDate: checkout!,
-            adults: Math.min(Math.max(1, origin.count), 9),
-            distanceKm: dest.distance_from_paris_km,
-            earliestDepartureTime,
-            latestReturnTime,
-          });
-          const price = quote.pricePerPerson;
-          if (quote.dataKind !== "provider_offer") {
-            providerErrors.push(`transport ${origin.city}→${dest.name}: cotation estimée ignorée`);
-            continue;
-          }
-          originQuotes.push({
-            city: origin.city,
-            count: origin.count,
-            pricePerPerson: price,
-            provider: quote.provider,
-            mode: quote.mode,
-            label: quote.label,
-            url: quote.url ?? null,
-            searchUrl: quote.searchUrl ?? null,
-          });
-          groupTransport += price * origin.count;
-          peopleQuoted += origin.count;
-          if (quote.rawError) {
-            providerErrors.push(`transport ${origin.city}→${dest.name}: ${quote.rawError}`);
-          }
-        } catch (e) {
-          providerErrors.push(`transport ${origin.city}→${dest.name}: ${String(e).slice(0, 120)}`);
-        }
-      }
-
-      if (peopleQuoted > 0) {
-        transportByDestinationId[dest.id] = groupTransport / peopleQuoted;
-        transportGroupByDestinationId[dest.id] = groupTransport;
-        // Si on n'a coté qu'une partie du groupe, extrapoler le total
-        if (peopleQuoted < ctx.participants) {
-          transportGroupByDestinationId[dest.id] =
-            (groupTransport / peopleQuoted) * ctx.participants;
-        }
-        transportOriginsByDestinationId[dest.id] = originQuotes;
-      }
-    }
-  } catch (e) {
-    providerErrors.push(`transport module: ${String(e).slice(0, 150)}`);
+    const lodging = candidate.lodgingEstimate?.perPersonPerNightCentral;
+    if (lodging != null && lodging > 0)
+      lodgingPerPersonPerNightByDestinationId[destination.id] = lodging;
+    const food = candidate.localCostEstimate?.foodPerPersonPerDay;
+    if (food != null && food > 0) foodPerPersonPerDayByDestinationId[destination.id] = food;
+    const activities = candidate.localCostEstimate?.activitiesPerPersonPerDay;
+    if (activities != null && activities > 0)
+      activitiesPerPersonPerDayByDestinationId[destination.id] = activities;
+    activityFitByDestinationId[destination.id] = (candidate.activityFit ?? [])
+      .filter((fit) => fit.availability === "strong" || fit.availability === "medium")
+      .map((fit) => fit.category);
   }
 
   const ctxWithTransport: ScoringContext = {
@@ -1798,6 +1698,10 @@ export async function generateRecommendationsForTrip(
     transportGroupByDestinationId,
     transportOriginsByDestinationId,
     departureOrigins: originsForQuote,
+    lodgingPerPersonPerNightByDestinationId,
+    foodPerPersonPerDayByDestinationId,
+    activitiesPerPersonPerDayByDestinationId,
+    activityFitByDestinationId,
   };
 
   // 5) Scoring final → 4 destinations. The Top 3 product rule applies to
@@ -1832,20 +1736,9 @@ export async function generateRecommendationsForTrip(
     4,
   );
 
-  // Rationales LLM (1 call groupé, tokens min) — fallback = texte moteur
-  let llmRationales = false;
-  try {
-    const { enrichProposalsWithLlmRationales } = await import("./rationale-llm.server");
-    const llmRes = await enrichProposalsWithLlmRationales(proposals, {
-      eventType: (trip.data.event_type as string | null) || ctxWithTransport.eventType || null,
-      participants: ctx.participants,
-    });
-    proposals = llmRes.proposals;
-    llmRationales = llmRes.usedLlm;
-    if (llmRes.error) providerErrors.push(`llm-rationale: ${llmRes.error}`);
-  } catch (e) {
-    providerErrors.push(`llm-rationale: ${String(e).slice(0, 120)}`);
-  }
+  // Les rationales utilisent les match reasons déterministes et la raison déjà
+  // fournie par l'unique appel Gemini de discovery.
+  const llmRationales = false;
 
   // Enregistre les sous-scores de toutes les propositions proposées (pour feedback ultérieur)
   try {

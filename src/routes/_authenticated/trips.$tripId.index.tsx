@@ -194,6 +194,17 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
   return fallbacks[h]!;
 }
 
+const ACCOMMODATION_CONCEPT_LABELS: Record<string, string> = {
+  central_hotel: "Au cœur de l'action",
+  comfort_hotel: "Confort sans compromis",
+  aparthotel: "Autonomes, mais bien installés",
+  entire_city_home: "Notre chez-nous en ville",
+  group_house: "Tous ensemble",
+  nature_stay: "Au vert",
+  exceptional_property: "Le logement fait le voyage",
+  wellness_property: "Parenthèse bien-être",
+};
+
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
     meta: [
@@ -1753,13 +1764,30 @@ function TripDetail() {
                         : "border-border",
                     )}
                   >
+                    {h.imageUrl && /^https:\/\//i.test(h.imageUrl) ? (
+                      <img
+                        src={h.imageUrl}
+                        alt=""
+                        className="mb-3 h-40 w-full rounded-xl object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                        <Hotel className="size-8" />
+                      </div>
+                    )}
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-medium">{h.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {h.type}
+                          {ACCOMMODATION_CONCEPT_LABELS[h.krewConcept] ?? "Sélection KREW"}
                           {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
                         </p>
+                        {h.location?.area || h.location?.city ? (
+                          <p className="text-xs text-muted-foreground">
+                            {[h.location.area, h.location.city].filter(Boolean).join(" · ")}
+                          </p>
+                        ) : null}
                       </div>
                       {isTop ? (
                         isReserved ? (
@@ -1770,13 +1798,29 @@ function TripDetail() {
                       ) : null}
                     </div>
                     <p className="mt-2 text-sm">
-                      {formatEuro(h.pricePerNight)} / nuit / pers.
-                      {h.priceEstimated ? " (estimé)" : ""}
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {formatEuro(h.totalEstimate)} séjour groupe
-                      </span>
+                      {h.pricePerPerson != null
+                        ? `${formatEuro(h.pricePerPerson)} / pers. pour le séjour`
+                        : "Prix à vérifier"}
+                      {h.pricePerPerson != null ? (
+                        <span className="text-muted-foreground">
+                          {h.priceStatus === "verified" ? " · Prix vérifié" : " · Prix indicatif"}
+                        </span>
+                      ) : null}
                     </p>
+                    {h.capacity != null || h.bedrooms != null ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {h.capacity != null ? `${h.capacity} personnes` : ""}
+                        {h.capacity != null && h.bedrooms != null ? " · " : ""}
+                        {h.bedrooms != null ? `${h.bedrooms} chambres` : ""}
+                      </p>
+                    ) : null}
+                    {h.matchReasons?.length ? (
+                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {h.matchReasons.slice(0, 3).map((reason: string) => (
+                          <li key={reason}>• {reason}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
@@ -1787,12 +1831,7 @@ function TripDetail() {
                         <Heart className={cn("size-3.5", iVoted && "fill-current")} />
                         {iVoted ? "Mon vote" : "Voter"} · {n}
                       </Button>
-                      {(h.links?.length
-                        ? h.links
-                        : h.bookingUrl
-                          ? [{ label: "Réserver", url: h.bookingUrl }]
-                          : []
-                      )
+                      {(h.url ? [{ label: "Voir le logement", url: h.url }] : [])
                         .slice(0, 1)
                         .map((l: any) => (
                           <a

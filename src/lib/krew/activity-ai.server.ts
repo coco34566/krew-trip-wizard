@@ -51,6 +51,7 @@ export type GroupItinerary = {
     cached: boolean;
     verifiedAt: string | null;
   };
+  candidates?: ActivityCandidate[];
 };
 export type TransportPickSummary = {
   city: string;
@@ -94,7 +95,7 @@ export type ActivityAiInput = {
   forceDiscoveryRefresh?: boolean;
 };
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = process.env["GEMINI_MODEL"] || "gemini-3.6-flash";
 const HHMM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 const norm = (v: unknown) =>
   String(v ?? "")
@@ -599,6 +600,19 @@ export async function generateItineraryWithAi(
     budgetPerPerson: input.budgetPerPerson,
     travelPace: input.travelPace,
     forceRefresh: input.forceDiscoveryRefresh,
+    endDate: input.endDate,
+    nights: input.nights,
+    participants: input.participants,
+    groupAgeRange: input.groupAgeRange,
+    dietaryConstraints: input.dietaryConstraints,
+    preferredTimeSlots: input.preferredTimeSlots,
+    wantedEnvTypes: input.wantedEnvTypes,
+    starWantedEnvType: input.starWantedEnvType,
+    matchReasons: input.matchReasons,
+    arrivalReady: calculatePlanningWindow(input).arrivalReady,
+    latestDestinationDeparture: calculatePlanningWindow(input).latestDestinationDeparture,
+    latestReturnHome: input.latestReturnHome,
+    transportPicksSummary: input.transportPicksSummary,
   });
   const candidates = discovery.candidates;
   console.info("activity-composition", {
@@ -607,9 +621,27 @@ export async function generateItineraryWithAi(
     destination: input.destination,
     fallback: false,
   });
-  // Discovery is the generation's single grounded Gemini call. Composition is
-  // deterministic and only references that verified shortlist.
-  const itinerary = buildLocalItinerary(input, candidates);
+  const rawDays = discovery.days.map((day: any, index: number) => ({
+    day: Number(day.day) || index + 1,
+    date: day.date ?? null,
+    slots: (day.slots ?? [])
+      .map((slot: any) => normalizeSlot(slot, input, candidates))
+      .filter(Boolean),
+  }));
+  const validatedDays = validateItinerary(rawDays, input, candidates);
+  const valid =
+    validatedDays.length === input.nights + 1 && validatedDays.some((day) => day.slots.length);
+  const itinerary: GroupItinerary = valid
+    ? {
+        destination: input.destination,
+        nights: input.nights,
+        days: validatedDays,
+        source: "ai",
+        provider: "gemini",
+        generatedAt: new Date().toISOString(),
+        candidates,
+      }
+    : { ...buildLocalItinerary(input, candidates), candidates };
   itinerary.discovery = {
     candidateCount: candidates.length,
     shortlistedCount: candidates.length,
@@ -618,7 +650,7 @@ export async function generateItineraryWithAi(
   };
   return {
     itinerary,
-    usedLlm: candidates.length > 0,
+    usedLlm: valid,
     ...(discovery.error ? { error: discovery.error } : {}),
   };
 }
@@ -628,26 +660,15 @@ export async function regenerateSlotWithAi(
   existing: ActivitySlot,
   day: number,
   avoid: string[] = [],
+  candidates: ActivityCandidate[] = [],
 ): Promise<{ slot: ActivitySlot; usedLlm: boolean; error?: string }> {
-  const discovery = await discoverActivities({
-    destination: input.destination,
-    country: input.country,
-    startDate: input.startDate,
-    eventType: input.eventType,
-    tripProfile: input.tripProfile,
-    ambiances: input.ambiances,
-    activityCategories: input.activityCategories,
-    starWanted: input.starWanted,
-    individualPreferences: input.individualPreferences,
-    budgetPerPerson: input.budgetPerPerson,
-    travelPace: input.travelPace,
-  });
+  if (!candidates.length)
+    return { slot: existing, usedLlm: false, error: "no_persisted_candidates" };
   try {
-    const parsed = await geminiCompose(input, discovery.candidates, { slot: existing, day, avoid });
-    const slot = normalizeSlot(parsed?.slot, input, discovery.candidates);
+    const parsed = await geminiCompose(input, candidates, { slot: existing, day, avoid });
+    const slot = normalizeSlot(parsed?.slot, input, candidates);
     if (slot) {
-      const valid = validateItinerary([{ day, slots: [slot] }], input, discovery.candidates)[0]
-        ?.slots[0];
+      const valid = validateItinerary([{ day, slots: [slot] }], input, candidates)[0]?.slots[0];
       if (valid) return { slot: valid, usedLlm: true };
     }
   } catch (error) {
@@ -656,11 +677,11 @@ export async function regenerateSlotWithAi(
       model: GEMINI_MODEL,
       kind: "activity-slot",
       fallback: "local",
-      candidateCount: discovery.candidates.length,
+      candidateCount: candidates.length,
       destination: input.destination,
     });
   }
-  const alternative = discovery.candidates.find(
+  const alternative = candidates.find(
     (candidate) => !avoid.some((label) => norm(label) === norm(candidate.name)),
   );
   if (alternative)
@@ -673,7 +694,7 @@ export async function regenerateSlotWithAi(
           category: alternative.category,
         },
         input,
-        discovery.candidates,
+        candidates,
       )!,
       usedLlm: false,
       error: "gemini_slot_fallback",

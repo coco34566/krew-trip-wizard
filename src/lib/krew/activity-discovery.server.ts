@@ -44,13 +44,26 @@ export type ActivityDiscoveryInput = {
     { activityCategories?: string[]; isStar?: boolean; weight?: number }[] | undefined;
   budgetPerPerson: number;
   travelPace?: string | null | undefined;
+  endDate?: string | null;
+  nights?: number;
+  participants?: number;
+  groupAgeRange?: string | null;
+  dietaryConstraints?: string[];
+  preferredTimeSlots?: string[];
+  wantedEnvTypes?: string[];
+  starWantedEnvType?: string | null;
+  matchReasons?: string[];
+  arrivalReady?: string | null;
+  latestReturnHome?: string | null;
+  latestDestinationDeparture?: string | null;
+  transportPicksSummary?: unknown[];
   forceRefresh?: boolean | undefined;
 };
 
-type CacheEntry = { expiresAt: number; candidates: ActivityCandidate[] };
+type CacheEntry = { expiresAt: number; candidates: ActivityCandidate[]; days: any[] };
 const discoveryCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const MODEL = "gemini-2.5-flash";
+const MODEL = process.env["GEMINI_MODEL"] || "gemini-3.6-flash";
 
 const norm = (value: unknown) =>
   String(value ?? "")
@@ -128,18 +141,10 @@ export function buildDiscoveryQueries(input: ActivityDiscoveryInput): string[] {
 }
 
 function cacheKey(input: ActivityDiscoveryInput, queries: string[]) {
-  return norm(
-    [
-      input.destination,
-      input.startDate?.slice(0, 7) ?? "any",
-      input.tripProfile,
-      input.eventType,
-      ...queries,
-    ].join("|"),
-  );
+  return norm(JSON.stringify({ ...input, forceRefresh: false, queries }));
 }
 
-async function callGemini(apiKey: string, prompt: string, tool: "search" | "maps"): Promise<any> {
+async function callGemini(apiKey: string, prompt: string): Promise<any> {
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
@@ -149,14 +154,14 @@ async function callGemini(apiKey: string, prompt: string, tool: "search" | "maps
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         // REST uses the protobuf JSON field names. Grounded calls deliberately do not
         // request responseMimeType: structured output is reserved for composition.
-        tools: [tool === "search" ? { googleSearch: {} } : { googleMaps: {} }],
+        tools: [{ googleSearch: {} }],
         generationConfig: { temperature: 0.2 },
       }),
     },
   );
   const text = await response.text();
   if (!response.ok)
-    throw new Error(`gemini_discovery_${tool}_http_${response.status}:${text.slice(0, 180)}`);
+    throw new Error(`gemini_discovery_search_http_${response.status}:${text.slice(0, 180)}`);
   return JSON.parse(text);
 }
 
@@ -277,7 +282,7 @@ export function normalizeSearchCandidates(
     if (!name || !sourceUrl || !linked.length) continue;
     const fit = score(raw, input);
     result.push({
-      id: `${norm(name).replace(/[^a-z0-9]+/g, "-")}:${result.length}`,
+      id: String(raw?.id || `${norm(name).replace(/[^a-z0-9]+/g, "-")}:${result.length}`),
       name: name.slice(0, 120),
       type: "external",
       category: String(raw.category ?? "activite").slice(0, 60),
@@ -346,25 +351,27 @@ function applyMapsPayload(candidate: ActivityCandidate, payload: any): ActivityC
 
 export async function discoverActivities(
   input: ActivityDiscoveryInput,
-): Promise<{ candidates: ActivityCandidate[]; cached: boolean; error?: string }> {
+): Promise<{ candidates: ActivityCandidate[]; days: any[]; cached: boolean; error?: string }> {
   const queries = buildDiscoveryQueries(input);
   const key = cacheKey(input, queries);
   const cached = discoveryCache.get(key);
   if (!input.forceRefresh && cached && cached.expiresAt > Date.now())
-    return { candidates: cached.candidates, cached: true };
+    return { candidates: cached.candidates, days: cached.days, cached: true };
   const apiKey = process.env["GEMINI_API_KEY"];
-  if (!apiKey) return { candidates: [], cached: false, error: "no_gemini_key" };
-  const searchPrompt = `Discovery factuelle KREW via Google Search uniquement. Requêtes=${JSON.stringify(queries)}. Identifie des établissements actuels à ${input.destination}. Retourne un objet JSON dans le texte (sans exiger de MIME structuré): {"candidates":[{"name":"","category":"","description":"","sourceUrl":"URL réellement trouvée","source":"","durationMinutes":null,"environment":"indoor|outdoor|mixed|null","tags":[],"seasonality":null}]}. N'invente aucun lieu, prix ou horaire.`;
+  if (!apiKey) return { candidates: [], days: [], cached: false, error: "no_gemini_key" };
+  const searchPrompt = `Discovery ET composition grounded KREW en un seul résultat. Spécification=${JSON.stringify({ ...input, queries, expectedDays: (input.nights ?? 0) + 1 })}. Retourne {"candidates":[{"id":"stable","name":"","category":"","description":"","sourceUrl":"URL réellement trouvée","source":"","durationMinutes":null,"environment":"indoor|outdoor|mixed|null","tags":[],"seasonality":null}],"days":[{"day":1,"date":null,"slots":[{"time":"HH:mm","endTime":"HH:mm","type":"activite","category":"culture","label":"","durationMinutes":90,"candidateId":"id candidat ou null","internal":false}]}]}. Tout slot externe référence exclusivement un candidateId de candidates. Moments internes: internal=true et category moment_maison|jeu_groupe|evenement|temps_libre|transport. Respecte arrivalReady et latestDestinationDeparture. N'invente aucun fait; null/[] si inconnu.`;
   try {
-    const searchPayload = await callGemini(apiKey, searchPrompt, "search");
+    const searchPayload = await callGemini(apiKey, searchPrompt);
     const candidates = normalizeSearchCandidates(searchPayload, input);
+    const parsed = parseJson(responseText(searchPayload));
+    const days = Array.isArray(parsed?.days) ? parsed.days : [];
     console.info("activity-discovery-search", {
       candidateCount: candidates.length,
       destination: input.destination,
       fallback: false,
     });
-    discoveryCache.set(key, { candidates, expiresAt: Date.now() + CACHE_TTL_MS });
-    return { candidates, cached: false };
+    discoveryCache.set(key, { candidates, days, expiresAt: Date.now() + CACHE_TTL_MS });
+    return { candidates, days, cached: false };
   } catch (error) {
     reportServerError(error, {
       provider: "gemini",
@@ -378,6 +385,6 @@ export async function discoverActivities(
       destination: input.destination,
       fallback: true,
     });
-    return { candidates: [], cached: false, error: String(error).slice(0, 180) };
+    return { candidates: [], days: [], cached: false, error: String(error).slice(0, 180) };
   }
 }
