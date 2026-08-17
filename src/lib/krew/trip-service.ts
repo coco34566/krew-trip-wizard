@@ -11,6 +11,7 @@ import {
   filterDestinationsByHardConstraints,
   dominantAmbiance,
   getNormalizedBudgetPriority,
+  type DestinationRecord,
   type Proposal,
   type ScoringContext,
 } from "./engine";
@@ -163,6 +164,7 @@ export function resolveRecommendationDates(trip: { start_date?: string | null; e
 }
 
 export function serializeProposal(tripId: string, proposal: Proposal) {
+  assertFinalDestinationId(proposal.destination.id, proposal.destination.name);
   return {
     trip_id: tripId,
     destination_id: proposal.destination.id,
@@ -185,12 +187,75 @@ export function serializeProposal(tripId: string, proposal: Proposal) {
   };
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function assertFinalDestinationId(id: string, name: string): void {
+  if (!UUID_PATTERN.test(id)) {
+    throw new Error(`final_destination_not_persisted:${name}`);
+  }
+}
+
+export async function materializeFinalDestinations(
+  supabase: SupabaseClient,
+  proposals: Proposal[],
+): Promise<Proposal[]> {
+  return Promise.all(proposals.map(async (proposal) => {
+    const destination = proposal.destination;
+    if (UUID_PATTERN.test(destination.id)) return proposal;
+
+    const externalId = (destination as DestinationRecord & { external_id?: string | null }).external_id;
+    let existing: { id: string } | null = null;
+    if (destination.source && externalId) {
+      const result = await supabase.from("destinations").select("id").eq("source", destination.source).eq("external_id", externalId).maybeSingle();
+      if (result.error) throw result.error;
+      existing = result.data;
+    }
+    if (!existing && destination.slug) {
+      const result = await supabase.from("destinations").select("id").eq("slug", destination.slug).maybeSingle();
+      if (result.error) throw result.error;
+      existing = result.data;
+    }
+    if (!existing) {
+      const result = await supabase.from("destinations").select("id").ilike("name", destination.name).maybeSingle();
+      if (result.error) throw result.error;
+      existing = result.data;
+    }
+
+    let id = existing?.id;
+    if (!id) {
+      const stableExternalId = externalId ?? `discovery:${destination.slug}`;
+      const payload = {
+        slug: destination.slug,
+        name: destination.name,
+        country: destination.country,
+        avg_daily_cost: destination.avg_daily_cost,
+        distance_from_paris_km: destination.distance_from_paris_km,
+        best_months: destination.best_months,
+        source: destination.source ?? "krew_discovery",
+        external_id: stableExternalId,
+        destination_type: destination.destination_type ?? "city",
+        region_name: destination.region_name ?? null,
+        anchor_places: destination.anchor_places ?? [destination.name],
+        verification_state: destination.verification_state ?? "estimated",
+      };
+      const inserted = await supabase.from("destinations").upsert(payload as any, {
+        onConflict: "source,external_id",
+      }).select("id").single();
+      if (inserted.error) throw inserted.error;
+      id = inserted.data?.id;
+    }
+    assertFinalDestinationId(String(id ?? ""), destination.name);
+    return { ...proposal, destination: { ...destination, id: String(id) } };
+  }));
+}
+
 export async function replaceRecommendationsSafely(
   supabase: SupabaseClient,
   tripId: string,
   rows: ReturnType<typeof serializeProposal>[],
 ) {
   if (!rows.length) return { replaced: false, count: 0 };
+  for (const row of rows) assertFinalDestinationId(row.destination_id, "recommendation");
   const existing = await supabase.from("recommendations").select("id").eq("trip_id", tripId);
   if (existing.error) throw existing.error;
   const inserted = await supabase.from("recommendations").insert(rows).select("id");
@@ -1772,6 +1837,7 @@ export async function generateRecommendationsForTrip(
   console.info(`[discovery] Destination-scored: ${scoredPool.length}`);
   let proposals = selectTopDestinationProposals(scoredPool, 4);
   console.info(`[discovery] Final shortlist: ${proposals.length}`);
+  proposals = await materializeFinalDestinations(supabaseAdmin, proposals);
   const provenanceByName = discoveryPool.provenanceByName;
   const finalSources = proposals.map((proposal) => {
     const provenance = provenanceByName.get(normCity(proposal.destination.name));
@@ -1812,6 +1878,9 @@ export async function generateRecommendationsForTrip(
   }
 
   // Enregistre les sous-scores de toutes les propositions proposées (pour feedback ultérieur)
+  for (const proposal of proposals) {
+    assertFinalDestinationId(proposal.destination.id, proposal.destination.name);
+  }
   try {
     const eventKey = ((trip.data.event_type as string) || "default").toLowerCase();
     for (let i = 0; i < proposals.length; i++) {
