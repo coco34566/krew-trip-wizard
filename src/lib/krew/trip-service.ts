@@ -239,7 +239,7 @@ export async function materializeFinalDestinations(
         verification_state: destination.verification_state ?? "estimated",
       };
       const inserted = await supabase.from("destinations").upsert(payload as any, {
-        onConflict: "source,external_id",
+        onConflict: "slug",
       }).select("id").single();
       if (inserted.error) throw inserted.error;
       id = inserted.data?.id;

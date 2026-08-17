@@ -80,14 +80,27 @@ describe("pipeline finalization", () => {
   });
 
   it("upserts a missing discovery finalist and replaces its temporary ID", async () => {
-    const upsert = vi.fn(() => ({ select: () => ({ single: async () => ({ data: { id: uuid }, error: null }) }) }));
+    const upsert = vi.fn((_payload: unknown, _options: unknown) => ({ select: () => ({ single: async () => ({ data: { id: uuid }, error: null }) }) }));
     const builder = { select: () => builder, eq: () => builder, ilike: () => builder, maybeSingle: async () => ({ data: null, error: null }), upsert };
     const input = proposal("discovery:test-destination", 90);
     input.destination.slug = "test-destination";
     input.destination.source = "krew_discovery";
     const result = await materializeFinalDestinations({ from: () => builder } as any, [input]);
     expect(upsert).toHaveBeenCalledTimes(1);
+    expect(upsert.mock.calls[0]?.[1]).toEqual({ onConflict: "slug" });
     expect(result[0]?.destination.id).toBe(uuid);
+  });
+
+  it("reuses a destination found by source and external_id", async () => {
+    const upsert = vi.fn();
+    const builder = { select: () => builder, eq: () => builder, ilike: () => builder, maybeSingle: async () => ({ data: { id: uuid }, error: null }), upsert };
+    const input = proposal("discovery:test-source", 90);
+    input.destination.slug = "test-source";
+    input.destination.source = "ai_estimate";
+    (input.destination as any).external_id = "ai:test-source";
+    const result = await materializeFinalDestinations({ from: () => builder } as any, [input]);
+    expect(result[0]?.destination.id).toBe(uuid);
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   it("reuses an already materialized discovery destination without duplication", async () => {
