@@ -351,7 +351,6 @@ export function buildDateDecisionPatch(input: {
           ...(input.refreshRequired ?? {}),
           accommodations: true,
           transports: true,
-          activities: true,
         }
       : (input.refreshRequired ?? {}),
   };

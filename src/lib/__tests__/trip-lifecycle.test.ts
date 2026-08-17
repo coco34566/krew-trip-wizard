@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildDateDecisionPatch } from "../availability.functions";
 import { buildCostSplit } from "../krew/cost-split";
-import { selectValidatedStayConcepts } from "../trips.functions";
+import { buildLogisticsRefreshRequired, selectValidatedStayConcepts } from "../trips.functions";
 
 describe("targeted trip lifecycle updates", () => {
   it("makes direct and voted dates converge on the same business state", () => {
@@ -19,17 +19,47 @@ describe("targeted trip lifecycle updates", () => {
       end: "2026-10-13",
       previousStart: "2026-09-10",
       previousEnd: "2026-09-13",
-      refreshRequired: { destinations: false },
+      refreshRequired: { destinations: false, activities: false, planning: false },
     });
     expect(patch.refresh_required).toEqual({
       destinations: false,
       accommodations: true,
       transports: true,
-      activities: true,
+      activities: false,
+      planning: false,
     });
     expect(patch).not.toHaveProperty("group_itinerary");
     expect(patch).not.toHaveProperty("status");
   });
+
+  it.each([
+    {
+      refreshed: { hotels: true, transports: false },
+      expected: { accommodations: false, transports: true },
+    },
+    {
+      refreshed: { hotels: false, transports: true },
+      expected: { accommodations: true, transports: false },
+    },
+    {
+      refreshed: { hotels: true, transports: true },
+      expected: { accommodations: false, transports: false },
+    },
+    {
+      refreshed: { hotels: false, transports: false },
+      expected: { accommodations: true, transports: true },
+    },
+  ])(
+    "clears only logistics resources actually refreshed: $refreshed",
+    ({ refreshed, expected }) => {
+      expect(
+        buildLogisticsRefreshRequired(
+          { accommodations: true, transports: true, activities: true },
+          refreshed,
+        ),
+      ).toEqual({ ...expected, activities: true });
+    },
+  );
 
   it("never auto-selects every stay profile and rejects an empty organizer decision", () => {
     const concepts = [

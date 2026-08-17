@@ -2223,6 +2223,17 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     return { ok: true, usedLlm: result.usedLlm, slot: result.slot, itinerary };
   });
 
+export function buildLogisticsRefreshRequired(
+  previous: Record<string, boolean> | null | undefined,
+  refreshed: { hotels: boolean; transports: boolean },
+) {
+  return {
+    ...(previous ?? {}),
+    ...(refreshed.hotels ? { accommodations: false } : {}),
+    ...(refreshed.transports ? { transports: false } : {}),
+  };
+}
+
 /** Reco hôtels + A/R multi-modes (avion, train, bus, voiture) avec liens de réservation. */
 export const proposeStayAndTransport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -3034,10 +3045,10 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       .from("trips")
       .update({
         group_logistics: logisticsWithVotes,
-        refresh_required: {
-          ...((trip as any).refresh_required ?? {}),
-          ...(generateHotels ? { accommodations: false } : { transports: false }),
-        },
+        refresh_required: buildLogisticsRefreshRequired((trip as any).refresh_required, {
+          hotels: generateHotels,
+          transports: generateTransport,
+        }),
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", data.tripId);
