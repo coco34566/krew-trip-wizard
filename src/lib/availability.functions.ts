@@ -329,7 +329,15 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
     return { ok: true, isUpdate: Boolean(existing.data) };
   });
 
-/** Owner / Co-org only : fige start_date / end_date et marque dates_locked = true (alimente les APIs). */
+export function calculateTripDateRange(startDate: string, durationNights: number) {
+  const start = startDate.slice(0, 10);
+  const startMs = Date.parse(`${start}T12:00:00Z`);
+  if (!Number.isFinite(startMs) || durationNights < 1) throw new Error("Dates du voyage invalides");
+  const endDate = new Date(startMs + durationNights * 86_400_000).toISOString().slice(0, 10);
+  return { startDate: start, endDate };
+}
+
+/** Owner / Co-org only : fige start_date / end_date et marque dates_locked = true. */
 export const chooseTripDates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -345,7 +353,7 @@ export const chooseTripDates = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id, co_organizer_id")
+      .select("id, owner_id, co_organizer_id, duration_nights")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -357,6 +365,10 @@ export const chooseTripDates = createServerFn({ method: "POST" })
     const start = data.startDate.slice(0, 10);
     const end = data.endDate.slice(0, 10);
     if (start > end) throw new Error("La date de fin doit être après la date de début");
+    const expected = calculateTripDateRange(start, Number(trip.data.duration_nights || 1));
+    if (end !== expected.endDate) {
+      throw new Error(`La période doit respecter les ${trip.data.duration_nights || 1} nuits du voyage`);
+    }
 
     const { error } = await supabase
       .from("trips")

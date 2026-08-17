@@ -84,15 +84,18 @@ import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
 import {
   getTripAvailability,
   chooseTripDates,
+  calculateTripDateRange,
   unlockTripDates,
 } from "@/lib/availability.functions";
 import { getStarPreferences } from "@/lib/star-preferences.functions";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
-import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
+import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { isTripAdmin } from "@/lib/krew/engine";
+import { destinationBudgetTotal, isDestinationBudgetEstimated } from "@/lib/krew/destination-budget";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 /** Photo destination : URL DB ou image Unsplash stable selon la ville. */
 function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
@@ -400,6 +403,7 @@ function TripDetail() {
   const [departAfterFilter, setDepartAfterFilter] = useState("");
   const [pickArrival, setPickArrival] = useState("12:00");
   const [pickDeparture, setPickDeparture] = useState("18:00");
+  const [manualStartDate, setManualStartDate] = useState("");
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -852,53 +856,32 @@ function TripDetail() {
 
   function buildWhatsAppStatusMessage() {
     const trip = tripPreview || {};
-    const lines: string[] = [
-      `📢 Des nouvelles de l'organisation du voyage « ${trip.name || "notre voyage"} » !`,
-      "",
-    ];
-
-    const total = progress?.total ?? 1;
-    const prefCount = progress?.answered ?? 0;
-    lines.push(`✅ Préférences récoltées : ${prefCount}/${total}`);
-
-    const availCount = availData?.answered ?? 0;
-    lines.push(`📅 Disponibilités renseignées : ${availCount}/${total}`);
-
-    const missingParticipants =
-      progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
-    if (missingParticipants.length > 0) {
-      if (missingParticipants.length <= 5) {
-        const names = missingParticipants
-          .map((p) => p.display_name || p.email?.split("@")[0] || "Ami")
-          .join(", ");
-        lines.push(`⏳ En attente des réponses de : ${names}`);
-      } else {
-        lines.push(`⏳ En attente des réponses de ${missingParticipants.length} participant·es`);
-      }
+    const statusLines: string[] = [];
+    const actions: { name: string; action: string }[] = [];
+    const nameOf = (participant: any) => participant.display_name || participant.email?.split("@")[0] || "Ami";
+    if (trip.start_date && trip.end_date) {
+      const start = new Date(`${trip.start_date}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+      const end = new Date(`${trip.end_date}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+      statusLines.push(`📅 Dates : ${start} → ${end}`);
     }
-
-    if (liveBudget.destinationName) {
-      lines.push(
-        `📍 Destination : ${liveBudget.destinationName}${liveBudget.country ? ` (${liveBudget.country})` : ""}`,
-      );
-    } else {
-      const recCount = recommendations?.length ?? 0;
-      lines.push(`📍 Destination : En attente de vote (${recCount} proposition·s à départager)`);
+    if (liveBudget.destinationName) statusLines.push(`📍 Destination : ${liveBudget.destinationName}`);
+    if (logisticsPreview.hotels?.length) statusLines.push(`🏠 Hébergement : ${logisticsPreview.hotelBookingStatus || "vote en cours"}`);
+    if (logisticsPreview.transports?.length) statusLines.push(`🚆 Transport : ${liveBudget.transportPicksCount || 0} choix enregistré(s)`);
+    if (liveBudget.total > 0) statusLines.push(`💰 Budget estimé : ~${liveBudget.total} € / pers.`);
+    for (const participant of progress?.participants ?? []) {
+      if (!participant.hasAnsweredAvailability) actions.push({ name: nameOf(participant), action: "disponibilités" });
+      if (!participant.hasAnswered) actions.push({ name: nameOf(participant), action: "préférences" });
     }
-
-    if (liveBudget.total > 0) {
-      lines.push(`💰 Budget estimé : ~${liveBudget.total} € / pers.`);
-    } else if (liveBudget.baseBudget > 0) {
-      lines.push(`💰 Budget cible : ${liveBudget.baseBudget} € / pers.`);
+    if (logisticsPreview.star_mode === "secret" && trip.celebrated_person && !starData?.preferences) actions.push({ name: "organisateur", action: `Préférences de ${trip.celebrated_person}` });
+    if (logisticsPreview.hotels?.length) {
+      const voters = new Set((logisticsPreview.hotelVotes ?? []).map((vote: any) => vote.userId));
+      for (const participant of participants.filter((item: any) => item.user_id && item.status !== "absent")) if (!voters.has(participant.user_id)) actions.push({ name: nameOf(participant), action: "voter pour l’hébergement" });
     }
-
-    lines.push("");
-    if (typeof window !== "undefined" && trip.id) {
-      lines.push(
-        `Retrouve tous les détails et complète tes infos : 👉 ${window.location.origin}/trips/${trip.id}`,
-      );
+    if (logisticsPreview.transports?.length) {
+      const pickers = new Set((logisticsPreview.transportPicks ?? []).map((pick: any) => pick.userId));
+      for (const participant of participants.filter((item: any) => item.user_id && item.status !== "absent")) if (!pickers.has(participant.user_id)) actions.push({ name: nameOf(participant), action: "choisir son transport" });
     }
-    return lines.join("\n");
+    return buildTripStatusWhatsApp({ tripName: trip.name || "notre voyage", tripUrl: typeof window === "undefined" ? `/trips/${trip.id}` : `${window.location.origin}/trips/${trip.id}`, statusLines, actions });
   }
 
   function buildWhatsAppRemindMessage() {
@@ -976,6 +959,7 @@ function TripDetail() {
   }
 
   const trip = data.trip;
+  const manualRange = manualStartDate ? calculateTripDateRange(manualStartDate, Number((trip as any).duration_nights || 1)) : null;
   const datesLocked = Boolean(trip.dates_locked);
   const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const recommendations = (data.recommendations ?? []) as unknown as Recommendation[];
@@ -1074,7 +1058,7 @@ function TripDetail() {
           ...trip,
           participants: participants,
         }}
-        isOwner={data.isCreator}
+        isOwner={data.isOwner}
         participantsCount={progress?.total || participants.length}
         progressAnswered={progress?.answered ?? 0}
         progressTotal={progress?.total || participants.length}
@@ -1102,6 +1086,8 @@ function TripDetail() {
         activitiesValidated={activitiesValidated}
         tripEndDatePassed={tripEndDatePassed}
       ></TripHubDashboard>
+
+      {data.isOwner ? <div className="mt-4 flex justify-end"><Button type="button" variant="outline" onClick={() => shareOnWhatsApp(buildWhatsAppStatusMessage())}>Partager l’état du voyage</Button></div> : null}
 
       {/* Restitution finale uniquement lorsque destination et planning sont réellement validés. */}
       {finalRestitutionReady ? (
@@ -1324,6 +1310,19 @@ function TripDetail() {
                 </p>
               ) : null}
             </ul>
+            {data.isOwner ? (
+              <Dialog>
+                <DialogTrigger asChild><Button type="button" variant="outline">Choisir d’autres dates</Button></DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Choisir d’autres dates</DialogTitle><DialogDescription>La date de fin est calculée selon la durée définie pour le voyage.</DialogDescription></DialogHeader>
+                  <div className="space-y-4">
+                    <div><label htmlFor="manual-start-date" className="text-sm font-medium">Date de départ</label><Input id="manual-start-date" type="date" className="mt-1.5" value={manualStartDate} onChange={(event) => setManualStartDate(event.target.value)} /></div>
+                    {manualRange ? <p className="rounded-2xl bg-surface/60 px-4 py-3 text-sm font-medium">{new Date(`${manualRange.startDate}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric" })} → {new Date(`${manualRange.endDate}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · {(trip as any).duration_nights} nuits</p> : null}
+                    <Button disabled={!manualRange || chooseDatesMutation.isPending} onClick={() => manualRange && chooseDatesMutation.mutate({ start: manualRange.startDate, end: manualRange.endDate })}>{chooseDatesMutation.isPending ? <Loader2 className="animate-spin" /> : null} Valider ces dates</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ) : null}
           </>
         )}
       </section>
@@ -1459,13 +1458,8 @@ function TripDetail() {
                   const recoActivities = activities
                     .filter((a) => (reco.activity_ids ?? []).includes(a.id))
                     .slice(0, 3);
-                  const budgetTotal =
-                    reco.budget != null
-                      ? Number(reco.budget.transport || 0) +
-                        Number(reco.budget.accommodation || 0) +
-                        Number(reco.budget.activities || 0) +
-                        Number(reco.budget.food || 0)
-                      : null;
+                  const budgetTotal = reco.budget != null ? destinationBudgetTotal(reco.budget) : null;
+                  const budgetEstimated = reco.budget != null && isDestinationBudgetEstimated(reco.budget);
                   const reasons = (reco.match_reasons ?? []).slice(0, 4);
                   return (
                     <article
@@ -1514,9 +1508,9 @@ function TripDetail() {
                           {budgetTotal != null && budgetTotal > 0 ? (
                             <p className="mt-2 text-sm">
                               <span className="font-semibold text-foreground">
-                                ~{formatEuro(budgetTotal)}
+                                {budgetEstimated ? "Budget estimé ~" : ""}{formatEuro(budgetTotal)}
                               </span>
-                              <span className="text-muted-foreground"> / pers. tout compris</span>
+                              <span className="text-muted-foreground"> / pers.</span>
                               {(reco.budget as any)?.budgetFitTotal ? (
                                 <span className="ml-2 text-xs text-muted-foreground">
                                   · budget OK pour {(reco.budget as any).budgetFitCount}/
@@ -1612,7 +1606,7 @@ function TripDetail() {
                 Hébergement
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Chacun vote pour un hébergement. L&apos;orga réserve celui qui a le plus de voix.
+                Des options d’hébergement adaptées au groupe et au séjour.
               </p>
             </div>
             {data.isOwner ? (
@@ -1800,11 +1794,10 @@ function TripDetail() {
           <div>
             <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
               <Plane className="size-5 text-primary" />
-              4. Transports A/R
+              Transport
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Choisis ton trajet + horaires d&apos;arrivée / départ. Ils orientent le planning une
-              fois tout le monde fixé.
+              Des trajets adaptés au point de départ et aux contraintes de chacun.
             </p>
           </div>
           <Button
@@ -2024,11 +2017,10 @@ function TripDetail() {
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
                 <CalendarDays className="size-5 text-primary" />
-                5. Planning du séjour
+                Planning
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Resto, activités et bars pour chaque jour — basé sur les dates, la destination et
-                les préférences.
+                Le programme du séjour, jour par jour.
               </p>
             </div>
             {data.isOwner ? (
@@ -2339,50 +2331,19 @@ function TripDetail() {
 
       {datesLocked ? (
         <div className="space-y-8 mt-8">
-          <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="size-5 text-primary" />
-              <h2 className="font-display text-xl font-semibold tracking-tight">
-                Exporter mon calendrier
-              </h2>
-            </div>
-            <p className="text-xs text-muted-foreground leading-snug">
-              {hasItinerary
-                ? "Télécharge le fichier de l'itinéraire ou ajoute le séjour complet à ton agenda."
-                : "Ajoute les dates de ton séjour à ton calendrier."}
-            </p>
-            <div className="flex flex-wrap gap-2.5">
-              <Button
-                onClick={handleDownloadIcs}
-                variant="hero"
-                size="sm"
-                className="gap-1.5"
-                title="Recommandé pour iPhone, iOS, Apple Calendar et Mac"
-              >
-                <CalendarDays className="size-4" /> Télécharger .ics (Apple / Universel)
-              </Button>
-              {googleCalendarUrl && (
-                <Button asChild variant="outline" size="sm" className="gap-1.5">
-                  <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
-                    Google Calendar
-                  </a>
-                </Button>
-              )}
-              {outlookCalendarUrl && (
-                <Button asChild variant="outline" size="sm" className="gap-1.5">
-                  <a href={outlookCalendarUrl} target="_blank" rel="noopener noreferrer">
-                    Outlook / Live
-                  </a>
-                </Button>
-              )}
-              {office365CalendarUrl && (
-                <Button asChild variant="outline" size="sm" className="gap-1.5">
-                  <a href={office365CalendarUrl} target="_blank" rel="noopener noreferrer">
-                    Microsoft 365
-                  </a>
-                </Button>
-              )}
-            </div>
+          <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
+            <Dialog>
+              <DialogTrigger asChild><Button variant="hero"><CalendarDays className="size-4" /> Ajouter au calendrier</Button></DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Ajouter au calendrier</DialogTitle><DialogDescription>Choisis le calendrier que tu utilises.</DialogDescription></DialogHeader>
+                <div className="grid gap-2">
+                  <Button onClick={handleDownloadIcs} variant="outline">Apple / calendrier mobile (.ics)</Button>
+                  {googleCalendarUrl ? <Button asChild variant="outline"><a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">Google Calendar</a></Button> : null}
+                  {outlookCalendarUrl ? <Button asChild variant="outline"><a href={outlookCalendarUrl} target="_blank" rel="noopener noreferrer">Outlook</a></Button> : null}
+                  {office365CalendarUrl ? <Button asChild variant="outline"><a href={office365CalendarUrl} target="_blank" rel="noopener noreferrer">Microsoft 365</a></Button> : null}
+                </div>
+              </DialogContent>
+            </Dialog>
           </section>
 
           {finalRestitutionReady ? (

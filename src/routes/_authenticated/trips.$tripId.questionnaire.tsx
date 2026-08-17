@@ -363,47 +363,6 @@ function ParticipantQuestionnaire() {
 
       <div className="mt-8 space-y-5">
         <Section
-          title="Votre façon de voyager"
-          hint="Deux réponses rapides pour chercher la bonne forme de séjour."
-        >
-          <div>
-            <Label className="mb-2 block">Sur place, vous préférez…</Label>
-            <div className="flex flex-col gap-2">
-              {[
-                ["walk_transit", "Tout faire à pied / transports"],
-                ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"],
-                ["car_ok", "Aucun problème pour se déplacer en voiture"],
-              ].map(([value, label]) => (
-                <Chip
-                  key={value}
-                  active={localMobility === value}
-                  onClick={() => setLocalMobility(value as typeof localMobility)}
-                >
-                  {label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-          <div>
-            <Label className="mb-2 block">Le logement, pour vous, c’est plutôt…</Label>
-            <div className="flex flex-col gap-2">
-              {[
-                ["base_only", "Un point de chute"],
-                ["part_of_stay", "Un lieu où on aime aussi passer du temps"],
-                ["centerpiece", "Une vraie partie du voyage"],
-              ].map(([value, label]) => (
-                <Chip
-                  key={value}
-                  active={accommodationRole === value}
-                  onClick={() => setAccommodationRole(value as typeof accommodationRole)}
-                >
-                  {label}
-                </Chip>
-              ))}
-            </div>
-          </div>
-        </Section>
-        <Section
           title="1. Envies & ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
         >
@@ -492,66 +451,9 @@ function ParticipantQuestionnaire() {
         </Section>
 
         <Section
-          title="4. Budget"
-          hint="Le budget agrégé du groupe filtre les destinations et les offres hôtels."
-        >
-          <div>
-            <Label className="mb-2 block">
-              Budget max par personne : {formatEuro(budgetMax)} *
-            </Label>
-            <Slider
-              min={150}
-              max={1500}
-              step={25}
-              value={[budgetMax]}
-              onValueChange={([v]) => setBudgetMax(v ?? budgetMax)}
-            />
-            <div className="mt-2 flex flex-wrap gap-2">
-              {[250, 400, 600, 900].map((n) => (
-                <Chip key={n} active={budgetMax === n} onClick={() => setBudgetMax(n)}>
-                  {n} €
-                </Chip>
-              ))}
-            </div>
-          </div>
-          <div>
-            <Label className="mb-2 block">Ce budget, c&apos;est plutôt…</Label>
-            <div className="flex flex-col gap-2">
-              {BUDGET_PRIORITIES.map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => setBudgetPriority(p.value)}
-                  className={cn(
-                    "rounded-xl border px-4 py-2.5 text-left text-sm transition-colors",
-                    budgetPriority === p.value
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
-                  )}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </Section>
-
-        <Section
           title="2. Destination & cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
         >
-          <div>
-            <Label htmlFor="departure">Ville de départ * (ou code postal)</Label>
-            <div className="mt-2">
-              <CityAutocomplete
-                id="departure"
-                value={departureCity}
-                onChange={setDepartureCity}
-                onSelect={(sel) => setDepartureCity(sel.city)}
-                placeholder={defaultDeparture || "Ex. Lyon, 69001, Paris…"}
-              />
-            </div>
-          </div>
           <div>
             <Label htmlFor="destination">Destination rêvée (optionnel)</Label>
             <Input
@@ -631,51 +533,119 @@ function ParticipantQuestionnaire() {
           </div>
         </Section>
 
-        <div>
-          <Label className="mb-2 block">Modes de transport acceptés</Label>
-          <div className="flex flex-wrap gap-2">
-            {["avion", "train", "voiture", "peu importe"].map((m) => (
-              <Chip
-                key={m}
-                active={transportModeAccepted.includes(m)}
-                onClick={() => {
-                  setTransportModeAccepted((prev) => {
-                    if (m === "peu importe") return ["peu importe"];
-                    const without = prev.filter((x) => x !== "peu importe" && x !== m);
-                    const next = prev.includes(m) ? without : [...without, m];
-                    return next.length ? next : ["peu importe"];
-                  });
-                }}
-              >
-                {m.charAt(0).toUpperCase() + m.slice(1)}
-              </Chip>
-            ))}
+        <Section title="3. Transport" hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation.">
+          <div>
+            <Label htmlFor="departure">Ville de départ * (ou code postal)</Label>
+            <div className="mt-2">
+              <CityAutocomplete
+                id="departure"
+                value={departureCity}
+                onChange={setDepartureCity}
+                onSelect={(sel) => setDepartureCity(sel.city)}
+                placeholder={defaultDeparture || "Ex. Lyon, 69001, Paris…"}
+              />
+            </div>
           </div>
-        </div>
-        <div>
-          <Label className="mb-2 block">Durée de trajet max : {maxTravelDurationHours} h</Label>
-          <Slider
-            min={2}
-            max={12}
-            step={1}
-            value={[maxTravelDurationHours]}
-            onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setAccessibilityNeeds(!accessibilityNeeds)}
-            className={cn(
-              "rounded-xl border px-4 py-2 text-sm",
-              accessibilityNeeds
-                ? "border-primary bg-primary/15"
-                : "border-border bg-surface/60 text-muted-foreground",
-            )}
-          >
-            {accessibilityNeeds ? "Besoin d'accessibilité PMR" : "Pas de besoin PMR particulier"}
-          </button>
-        </div>
+          <div>
+            <Label className="mb-2 block">Modes de transport acceptés</Label>
+            <div className="flex flex-wrap gap-2">
+              {["avion", "train", "voiture", "peu importe"].map((m) => (
+                <Chip
+                  key={m}
+                  active={transportModeAccepted.includes(m)}
+                  onClick={() => {
+                    setTransportModeAccepted((prev) => {
+                      if (m === "peu importe") return ["peu importe"];
+                      const without = prev.filter((x) => x !== "peu importe" && x !== m);
+                      const next = prev.includes(m) ? without : [...without, m];
+                      return next.length ? next : ["peu importe"];
+                    });
+                  }}
+                >
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Durée de trajet max : {maxTravelDurationHours} h</Label>
+            <Slider
+              min={2}
+              max={12}
+              step={1}
+              value={[maxTravelDurationHours]}
+              onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setAccessibilityNeeds(!accessibilityNeeds)}
+              className={cn(
+                "rounded-xl border px-4 py-2 text-sm",
+                accessibilityNeeds
+                  ? "border-primary bg-primary/15"
+                  : "border-border bg-surface/60 text-muted-foreground",
+              )}
+            >
+              {accessibilityNeeds ? "Besoin d'accessibilité PMR" : "Pas de besoin PMR particulier"}
+            </button>
+          </div>
+          <div>
+            <Label className="mb-2 block">Sur place, tu préfères…</Label>
+            <div className="flex flex-col gap-2">
+              {[["walk_transit", "Tout faire à pied / transports"], ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"], ["car_ok", "Aucun problème pour se déplacer en voiture"]].map(([value, label]) => (
+                <Chip key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>{label}</Chip>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          title="4. Budget"
+          hint="Indique le budget qui te convient pour ce voyage."
+        >
+          <div>
+            <Label className="mb-2 block">
+              Budget max par personne : {formatEuro(budgetMax)} *
+            </Label>
+            <Slider
+              min={150}
+              max={1500}
+              step={25}
+              value={[budgetMax]}
+              onValueChange={([v]) => setBudgetMax(v ?? budgetMax)}
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[250, 400, 600, 900].map((n) => (
+                <Chip key={n} active={budgetMax === n} onClick={() => setBudgetMax(n)}>
+                  {n} €
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Ce budget, c&apos;est plutôt…</Label>
+            <div className="flex flex-col gap-2">
+              {BUDGET_PRIORITIES.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => setBudgetPriority(p.value)}
+                  className={cn(
+                    "rounded-xl border px-4 py-2.5 text-left text-sm transition-colors",
+                    budgetPriority === p.value
+                      ? "border-primary bg-primary/15 text-foreground"
+                      : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Section>
+
         <Section
           title="5. Hébergement"
           hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
@@ -704,6 +674,14 @@ function ParticipantQuestionnaire() {
                 >
                   {a.label}
                 </Chip>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Le logement, pour toi, c’est plutôt…</Label>
+            <div className="flex flex-col gap-2">
+              {[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => (
+                <Chip key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</Chip>
               ))}
             </div>
           </div>

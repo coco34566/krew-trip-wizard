@@ -505,6 +505,12 @@ export function TripHubDashboard({
     hasItinerary,
     activitiesValidated: inputActivitiesValidated,
     tripEndDatePassed: inputTripEndDatePassed,
+    showStarStep:
+      isOwner &&
+      Boolean(trip.has_star || trip.celebrated_person) &&
+      logistics.star_mode === "secret",
+    starName: trip.celebrated_person,
+    starDone,
   });
 
   const theme = eventTypeLabel(trip.event_type);

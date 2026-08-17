@@ -368,7 +368,7 @@ export async function aggregateParticipantPreferences(
   try {
     const tripQuery = supabase
       .from("trips")
-      .select("event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id")
+      .select("event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_age_range")
       .eq("id", tripId);
     const tripMeta =
       typeof tripQuery.maybeSingle === "function"
@@ -635,7 +635,7 @@ export async function aggregateParticipantPreferences(
 
   const ageRanges = rows.map((r) => r.group_age_range).filter(Boolean);
   const ageRangeFreq = frequencies(ageRanges as string[]);
-  const groupAgeRange = byFrequency(ageRangeFreq)[0] ?? null;
+  const groupAgeRange = resolvedTripMeta?.group_age_range ?? byFrequency(ageRangeFreq)[0] ?? null;
 
   const envTypes = rows.flatMap((r) =>
     String(r.wanted_env_type ?? "")

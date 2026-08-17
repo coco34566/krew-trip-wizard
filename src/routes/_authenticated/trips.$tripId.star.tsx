@@ -366,13 +366,11 @@ function StarQuestionnaire() {
         Préférences de {starName}
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Complément dédié à <strong>{starName}</strong> — ne remplace pas le questionnaire du groupe.
-        Ses réponses sont intégrées aux compteurs de participation et pèsent davantage dans les
-        recommandations.
+        Complète les réponses au nom de <strong>{starName}</strong> pour ce voyage.
       </p>
       <section className="mt-8 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Votre façon de voyager</h2>
-        <Label>Sur place, vous préférez…</Label>
+        <h2 className="font-semibold">Sa façon de voyager</h2>
+        <Label>Sur place, qu’est-ce que {starName} préférerait ?</Label>
         {[
           ["walk_transit", "Tout faire à pied / transports"],
           ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"],
@@ -386,7 +384,7 @@ function StarQuestionnaire() {
             {label}
           </Chip>
         ))}
-        <Label>Le logement, pour vous, c’est plutôt…</Label>
+        <Label>Pour {starName}, le logement serait plutôt…</Label>
         {[
           ["base_only", "Un point de chute"],
           ["part_of_stay", "Un lieu où on aime aussi passer du temps"],
@@ -409,7 +407,7 @@ function StarQuestionnaire() {
           Point de départ
         </h2>
         <div>
-          <Label htmlFor="departure">Ville de départ (ou code postal)</Label>
+          <Label htmlFor="departure">D’où partirait {starName} ? (ville ou code postal)</Label>
           <div className="mt-2">
             <CityAutocomplete
               id="departure"
@@ -431,9 +429,9 @@ function StarQuestionnaire() {
 
       {/* Destinations rêvées / banni */}
       <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Lieux rêvés / à bannir</h2>
+        <h2 className="font-semibold">Les lieux qui plairaient à {starName}</h2>
         <div>
-          <Label htmlFor="destination">Destination rêvée (optionnel)</Label>
+          <Label htmlFor="destination">Quelle serait sa destination rêvée ? (optionnel)</Label>
           <Input
             id="destination"
             value={desiredDestination}
@@ -443,7 +441,7 @@ function StarQuestionnaire() {
           />
         </div>
         <div className="mt-2">
-          <Label htmlFor="excluded">Destinations à éviter (optionnel)</Label>
+          <Label htmlFor="excluded">Quelles destinations {starName} voudrait éviter ? (optionnel)</Label>
           <Input
             id="excluded"
             value={excludedDestinations}
@@ -454,7 +452,7 @@ function StarQuestionnaire() {
         </div>
         <div className="space-y-2 pt-2 border-t border-border/40">
           <Label className="font-semibold block text-sm">
-            Type de lieu / environnement recherché * (plusieurs choix possibles)
+            Quel type de lieu plairait le plus à {starName} ?
           </Label>
           <div className="flex flex-wrap gap-2">
             {[
@@ -478,7 +476,7 @@ function StarQuestionnaire() {
         </div>
         <div className="space-y-2 pt-2 border-t border-border/40">
           <Label className="font-semibold block text-sm">
-            Quelle importance accordes-tu à la météo pour ce voyage ?
+            Quelle importance {starName} accorderait à la météo pour ce voyage ?
           </Label>
           <div className="flex flex-col gap-2">
             {[
@@ -510,9 +508,9 @@ function StarQuestionnaire() {
 
       {/* Disponibilités Calendrier */}
       <section className="mt-4 space-y-4 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Ses disponibilités</h2>
+        <h2 className="font-semibold">Disponibilités de {starName}</h2>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Sélectionne les dates où la star est disponible ou indisponible.
+          Indique les dates où {starName} serait disponible ou indisponible.
         </p>
 
         {/* Mode peinture */}
@@ -594,18 +592,18 @@ function StarQuestionnaire() {
       </section>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Activités souhaitées</h2>
+        <h2 className="font-semibold">Quelles activités plairaient à {starName} ?</h2>
         <div className="flex flex-wrap gap-2">
           {STAR_WANTED_ACTIVITIES.map((a) => (
             <Chip key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
-              {STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"} {a}
+              {STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"} {a.charAt(0).toUpperCase() + a.slice(1)}
             </Chip>
           ))}
         </div>
       </section>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Ce qu’elle / il refuse absolument</h2>
+        <h2 className="font-semibold">Que refuserait absolument {starName} ?</h2>
         <div className="flex flex-wrap gap-2">
           {STAR_DEAL_BREAKERS.map((a) => (
             <Chip
@@ -620,7 +618,7 @@ function StarQuestionnaire() {
       </section>
 
       <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Ambiance recherchée</h2>
+        <h2 className="font-semibold">Quelle ambiance {starName} apprécierait ?</h2>
         <div className="flex flex-wrap gap-2">
           {AMBIANCES.map((a) => (
             <Chip
@@ -635,7 +633,7 @@ function StarQuestionnaire() {
       </section>
 
       <section className="mt-4 space-y-2 rounded-2xl border border-border bg-card p-5">
-        <Label>Notes</Label>
+        <Label>Autres précisions utiles sur les préférences de {starName}</Label>
         <Textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}

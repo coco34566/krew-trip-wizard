@@ -163,6 +163,7 @@ export type TripStepId =
   | "invite"
   | "availability"
   | "questionnaire"
+  | "star"
   | "dates"
   | "profile"
   | "destination"
@@ -201,6 +202,9 @@ export function buildTripSteps(input: {
   activitiesValidated?: boolean;
   /** Date de fin passée */
   tripEndDatePassed?: boolean;
+  showStarStep?: boolean;
+  starName?: string | null;
+  starDone?: boolean;
 }): TripStep[] {
   const minAnswers = 1;
 
@@ -255,7 +259,7 @@ export function buildTripSteps(input: {
     return "active";
   }
 
-  return [
+  const steps: TripStep[] = [
     {
       id: "invite",
       label: "Inviter",
@@ -333,6 +337,16 @@ export function buildTripSteps(input: {
       status: statusFor(memoriesDone, realizedDone),
     },
   ];
+  if (input.showStarStep) {
+    steps.splice(3, 0, {
+      id: "star",
+      label: `Préférences de ${input.starName || "la Star"}`,
+      description: "",
+      href: "/star",
+      status: statusFor(Boolean(input.starDone), questDone),
+    });
+  }
+  return steps;
 }
 
 /** Modules post-destination (architecture extensible). */
