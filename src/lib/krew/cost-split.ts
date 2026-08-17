@@ -7,6 +7,7 @@ export type OriginTransport = {
   city: string;
   count: number;
   pricePerPerson: number;
+  isStar?: boolean;
 };
 
 export type CostSplitLine = {
@@ -16,6 +17,7 @@ export type CostSplitLine = {
   shared: number; // hébergement + activités + repas
   totalPerPerson: number;
   subtotalCity: number;
+  isStar?: boolean;
 };
 
 export type CostSplitResult = {
@@ -37,6 +39,7 @@ export function buildCostSplit(params: {
   origins: OriginTransport[];
   fallbackTransportPerPerson?: number;
   participants?: number;
+  starPaysShare?: boolean;
 }): CostSplitResult {
   const shared = Math.round(
     (params.accommodation || 0) + (params.activities || 0) + (params.food || 0),
@@ -52,7 +55,7 @@ export function buildCostSplit(params: {
     ];
   }
 
-  const lines: CostSplitLine[] = origins.map((o) => {
+  let lines: CostSplitLine[] = origins.map((o) => {
     const transport = Math.round(o.pricePerPerson);
     const totalPerPerson = transport + shared;
     return {
@@ -62,10 +65,31 @@ export function buildCostSplit(params: {
       shared,
       totalPerPerson,
       subtotalCity: totalPerPerson * o.count,
+      isStar: o.isStar,
     };
   });
 
   const totalGroup = lines.reduce((s, l) => s + l.subtotalCity, 0);
+  if (params.starPaysShare === false) {
+    const starCost = lines
+      .filter((line) => line.isStar)
+      .reduce((sum, line) => sum + line.subtotalCity, 0);
+    const payerCount = lines
+      .filter((line) => !line.isStar)
+      .reduce((sum, line) => sum + line.count, 0);
+    lines = lines.map((line) => {
+      if (line.isStar)
+        return { ...line, transport: 0, shared: 0, totalPerPerson: 0, subtotalCity: 0 };
+      const extra = payerCount ? starCost / payerCount : 0;
+      const totalPerPerson = line.totalPerPerson + extra;
+      return {
+        ...line,
+        shared: line.shared + extra,
+        totalPerPerson,
+        subtotalCity: totalPerPerson * line.count,
+      };
+    });
+  }
 
   return {
     destinationName: params.destinationName,
@@ -79,10 +103,7 @@ export function buildCostSplit(params: {
 }
 
 /** Texte WhatsApp / presse-papiers. */
-export function formatCostSplitText(
-  split: CostSplitResult,
-  tripName?: string,
-): string {
+export function formatCostSplitText(split: CostSplitResult, tripName?: string): string {
   const lines = [
     tripName ? `*${tripName}*` : null,
     `📍 ${split.destinationName}`,

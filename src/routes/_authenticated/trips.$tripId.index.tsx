@@ -88,6 +88,7 @@ import {
 } from "@/lib/availability.functions";
 import { getStarPreferences } from "@/lib/star-preferences.functions";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
+import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
@@ -1103,96 +1104,109 @@ function TripDetail() {
       ></TripHubDashboard>
 
       {/* Restitution finale uniquement lorsque destination et planning sont réellement validés. */}
-      {finalRestitutionReady ? <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-              <Wallet className="size-5 text-primary" />
-              Résumé du voyage
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Se met à jour avec les votes hôtel, trajets choisis et le planning.
-            </p>
+      {finalRestitutionReady ? (
+        <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+                <Wallet className="size-5 text-primary" />
+                Résumé du voyage
+              </h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Se met à jour avec les votes hôtel, trajets choisis et le planning.
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+              onClick={() => {
+                const text = buildWhatsAppStatusMessage();
+                shareOnWhatsApp(text);
+              }}
+            >
+              Partager sur WhatsApp
+            </Button>
           </div>
-          <Button
-            type="button"
-            className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
-            onClick={() => {
-              const text = buildWhatsAppStatusMessage();
-              window.open(
-                `https://wa.me/?text=${encodeURIComponent(text)}`,
-                "_blank",
-                "noopener,noreferrer",
-              );
-            }}
-          >
-            Partager sur WhatsApp
-          </Button>
-        </div>
 
-        <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
-          <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Dates</dt>
-            <dd className="mt-0.5 font-medium">
-              {trip.start_date && trip.end_date
-                ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
-                : trip.start_date
-                  ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")
-                  : "À définir"}
-            </dd>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Lieu</dt>
-            <dd className="mt-0.5 font-medium">
-              {liveBudget.destinationName
-                ? `${liveBudget.destinationName}${liveBudget.country ? ` · ${liveBudget.country}` : ""}`
-                : "Destination à choisir"}
-            </dd>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Budget Groupe</dt>
-            <dd className="mt-0.5 font-semibold text-primary text-sm">
-              {(costSplitData?.totalReserved != null && costSplitData.totalReserved > 0) || (costSplitData?.totalEstimated != null && costSplitData.totalEstimated > 0) ? (
-                <div className="text-xs space-y-0.5 font-normal">
-                  <div className="flex justify-between gap-1"><span>Réel Réservé :</span> <span className="font-bold text-emerald-600">{formatEuro(costSplitData.totalReserved ?? 0)}</span></div>
-                  <div className="flex justify-between gap-1"><span>Reste Estimé :</span> <span className="font-bold text-amber-600">{formatEuro(costSplitData.totalEstimated ?? 0)}</span></div>
-                </div>
-              ) : liveBudget.total > 0
-                ? `~${formatEuro(liveBudget.total)} / pers.`
-                : "À définir"}
-            </dd>
-          </div>
-          <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-            <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Groupe</dt>
-            <dd className="mt-0.5 font-medium">
-              {trip.participants_count || participants?.length || "?"} pers.
-              {liveBudget.topHotelName ? ` · hôtel : ${liveBudget.topHotelName}` : ""}
-            </dd>
-          </div>
-        </dl>
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
+              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Dates</dt>
+              <dd className="mt-0.5 font-medium">
+                {trip.start_date && trip.end_date
+                  ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
+                  : trip.start_date
+                    ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")
+                    : "À définir"}
+              </dd>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
+              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Lieu</dt>
+              <dd className="mt-0.5 font-medium">
+                {liveBudget.destinationName
+                  ? `${liveBudget.destinationName}${liveBudget.country ? ` · ${liveBudget.country}` : ""}`
+                  : "Destination à choisir"}
+              </dd>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
+              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                Budget Groupe
+              </dt>
+              <dd className="mt-0.5 font-semibold text-primary text-sm">
+                {(costSplitData?.totalReserved != null && costSplitData.totalReserved > 0) ||
+                (costSplitData?.totalEstimated != null && costSplitData.totalEstimated > 0) ? (
+                  <div className="text-xs space-y-0.5 font-normal">
+                    <div className="flex justify-between gap-1">
+                      <span>Réel Réservé :</span>{" "}
+                      <span className="font-bold text-emerald-600">
+                        {formatEuro(costSplitData.totalReserved ?? 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-1">
+                      <span>Reste Estimé :</span>{" "}
+                      <span className="font-bold text-amber-600">
+                        {formatEuro(costSplitData.totalEstimated ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+                ) : liveBudget.total > 0 ? (
+                  `~${formatEuro(liveBudget.total)} / pers.`
+                ) : (
+                  "À définir"
+                )}
+              </dd>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
+              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Groupe</dt>
+              <dd className="mt-0.5 font-medium">
+                {trip.participants_count || participants?.length || "?"} pers.
+                {liveBudget.topHotelName ? ` · hôtel : ${liveBudget.topHotelName}` : ""}
+              </dd>
+            </div>
+          </dl>
 
-        {liveBudget.total > 0 ? (
-          <ul className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <li className="rounded-full border border-border px-2.5 py-1">
-              Transport ~{formatEuro(liveBudget.transport)}
-            </li>
-            <li className="rounded-full border border-border px-2.5 py-1">
-              Héberg. ~{formatEuro(liveBudget.accommodation)}
-            </li>
-            <li className="rounded-full border border-border px-2.5 py-1">
-              Activités ~{formatEuro(liveBudget.activities)}
-            </li>
-            <li className="rounded-full border border-border px-2.5 py-1">
-              Repas ~{formatEuro(liveBudget.food)}
-            </li>
-            {liveBudget.transportPicksCount > 0 ? (
-              <li className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-primary">
-                {liveBudget.transportPicksCount} trajet(s) choisi(s)
+          {liveBudget.total > 0 ? (
+            <ul className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <li className="rounded-full border border-border px-2.5 py-1">
+                Transport ~{formatEuro(liveBudget.transport)}
               </li>
-            ) : null}
-          </ul>
-        ) : null}
-      </section> : null}
+              <li className="rounded-full border border-border px-2.5 py-1">
+                Héberg. ~{formatEuro(liveBudget.accommodation)}
+              </li>
+              <li className="rounded-full border border-border px-2.5 py-1">
+                Activités ~{formatEuro(liveBudget.activities)}
+              </li>
+              <li className="rounded-full border border-border px-2.5 py-1">
+                Repas ~{formatEuro(liveBudget.food)}
+              </li>
+              {liveBudget.transportPicksCount > 0 ? (
+                <li className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-primary">
+                  {liveBudget.transportPicksCount} trajet(s) choisi(s)
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       <section
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -1201,7 +1215,7 @@ function TripDetail() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
             <CalendarDays className="size-5 text-primary" />
-            1. Dates du groupe
+            Dates du groupe
           </h2>
           <a
             href={`/trips/${tripId}/availability`}
@@ -1231,7 +1245,7 @@ function TripDetail() {
               ).toLocaleDateString("fr-FR")}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Ces dates alimentent les recherches API (vols, hébergements, activités).
+              Les dates du voyage sont validées pour la suite de l’organisation.
             </p>
             {data.isOwner ? (
               <Button
@@ -1393,10 +1407,10 @@ function TripDetail() {
           <div>
             <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
               <MapPin className="size-5 text-primary" />
-              3. Destinations proposées
+              Destinations proposées
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Score, budget moyen et activités — vote, l&apos;orga valide.
+              Des destinations sélectionnées pour correspondre aux envies du groupe.
             </p>
           </div>
           {data.isOwner ? (
@@ -1428,168 +1442,174 @@ function TripDetail() {
           </p>
         ) : (
           <>
-          {destinationSelected ? (
-            <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
-              Destination validée — {Math.max(0, recommendations.length - 1)} autre
-              {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
-              {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
-              {data.isOwner ? " (change possible)." : "."}
-            </p>
-          ) : null}
-          <div className="grid gap-4 lg:grid-cols-1">
-          {[...recommendations]
-            .sort((a, b) => Number(b.is_selected) - Number(a.is_selected) || b.score - a.score)
-            .map((reco, index) => {
-            const recoVotes = votes.filter((v) => v.recommendation_id === reco.id);
-            const hasVoted = recoVotes.some((v) => v.user_id === data.userId);
-            const recoActivities = activities
-              .filter((a) => (reco.activity_ids ?? []).includes(a.id))
-              .slice(0, 3);
-            const budgetTotal =
-              reco.budget != null
-                ? Number(reco.budget.transport || 0) +
-                  Number(reco.budget.accommodation || 0) +
-                  Number(reco.budget.activities || 0) +
-                  Number(reco.budget.food || 0)
-                : null;
-            const reasons = (reco.match_reasons ?? []).slice(0, 4);
-            return (
-              <article
-                key={reco.id}
-                className={cn(
-                  "rounded-2xl border bg-card p-4 shadow-sm transition sm:p-5",
-                  reco.is_selected
-                    ? "border-emerald-500 ring-2 ring-emerald-500/20"
-                    : "border-border",
-                )}
-              >
-                <div className="flex gap-3 sm:gap-4">
-                  <img
-                    src={destinationPhotoUrl(
-                      reco.destinations?.name,
-                      reco.destinations?.image_url,
-                    )}
-                    alt={reco.destinations?.name ? `Vue de ${reco.destinations.name}` : "Destination"}
-                    loading="lazy"
-                    className="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-28 sm:w-28"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                          #{index + 1}
-                          {reco.destinations?.country ? ` · ${reco.destinations.country}` : ""}
-                        </p>
-                        <h3 className="font-display text-xl font-semibold leading-tight">
-                          {reco.destinations?.name}
-                        </h3>
+            {destinationSelected ? (
+              <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
+                Destination validée — {Math.max(0, recommendations.length - 1)} autre
+                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
+                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
+                {data.isOwner ? " (change possible)." : "."}
+              </p>
+            ) : null}
+            <div className="grid gap-4 lg:grid-cols-1">
+              {[...recommendations]
+                .sort((a, b) => Number(b.is_selected) - Number(a.is_selected) || b.score - a.score)
+                .map((reco, index) => {
+                  const recoVotes = votes.filter((v) => v.recommendation_id === reco.id);
+                  const hasVoted = recoVotes.some((v) => v.user_id === data.userId);
+                  const recoActivities = activities
+                    .filter((a) => (reco.activity_ids ?? []).includes(a.id))
+                    .slice(0, 3);
+                  const budgetTotal =
+                    reco.budget != null
+                      ? Number(reco.budget.transport || 0) +
+                        Number(reco.budget.accommodation || 0) +
+                        Number(reco.budget.activities || 0) +
+                        Number(reco.budget.food || 0)
+                      : null;
+                  const reasons = (reco.match_reasons ?? []).slice(0, 4);
+                  return (
+                    <article
+                      key={reco.id}
+                      className={cn(
+                        "rounded-2xl border bg-card p-4 shadow-sm transition sm:p-5",
+                        reco.is_selected
+                          ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                          : "border-border",
+                      )}
+                    >
+                      <div className="flex gap-3 sm:gap-4">
+                        <img
+                          src={destinationPhotoUrl(
+                            reco.destinations?.name,
+                            reco.destinations?.image_url,
+                          )}
+                          alt={
+                            reco.destinations?.name
+                              ? `Vue de ${reco.destinations.name}`
+                              : "Destination"
+                          }
+                          loading="lazy"
+                          className="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-28 sm:w-28"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                #{index + 1}
+                                {reco.destinations?.country
+                                  ? ` · ${reco.destinations.country}`
+                                  : ""}
+                              </p>
+                              <h3 className="font-display text-xl font-semibold leading-tight">
+                                {reco.destinations?.name}
+                              </h3>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              {reco.is_selected ? <Badge variant="success">Choisie</Badge> : null}
+                              <Badge variant="lagoon">{Math.round(reco.score)} %</Badge>
+                            </div>
+                          </div>
+
+                          {/* Budget moyen */}
+                          {budgetTotal != null && budgetTotal > 0 ? (
+                            <p className="mt-2 text-sm">
+                              <span className="font-semibold text-foreground">
+                                ~{formatEuro(budgetTotal)}
+                              </span>
+                              <span className="text-muted-foreground"> / pers. tout compris</span>
+                              {(reco.budget as any)?.budgetFitTotal ? (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  · budget OK pour {(reco.budget as any).budgetFitCount}/
+                                  {(reco.budget as any).budgetFitTotal}
+                                </span>
+                              ) : null}
+                            </p>
+                          ) : null}
+
+                          {/* Pourquoi ça match le groupe */}
+                          {reasons.length ? (
+                            <ul className="mt-2 flex flex-wrap gap-1.5">
+                              {reasons.map((reason: string) => (
+                                <li
+                                  key={reason}
+                                  className="rounded-full bg-primary/8 px-2.5 py-0.5 text-[11px] text-foreground/80"
+                                >
+                                  {reason}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : reco.rationale ? (
+                            <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                              {reco.rationale}
+                            </p>
+                          ) : null}
+
+                          {/* 2–3 activités */}
+                          {recoActivities.length ? (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground/80">À faire · </span>
+                              {recoActivities
+                                .map(
+                                  (a: any) =>
+                                    `${a.name}${a.price_per_person ? ` (${formatEuro(Number(a.price_per_person))})` : ""}`,
+                                )
+                                .join(" · ")}
+                            </p>
+                          ) : null}
+
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant={hasVoted ? "lagoon" : "outline"}
+                              disabled={voteMutation.isPending}
+                              onClick={() => voteMutation.mutate(reco.id)}
+                            >
+                              <Heart className={cn("size-3.5", hasVoted && "fill-current")} />
+                              {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
+                            </Button>
+                            {data.isOwner && reco.is_selected ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled
+                                className="border-emerald-500 text-emerald-700"
+                              >
+                                <CheckCircle2 className="size-3.5" /> Destination choisie
+                              </Button>
+                            ) : data.isOwner ? (
+                              <Button
+                                size="sm"
+                                variant={destinationSelected ? "outline" : "hero"}
+                                onClick={() => selectMutation.mutate(reco.id)}
+                                disabled={selectMutation.isPending}
+                              >
+                                <CheckCircle2 className="size-3.5" />
+                                {destinationSelected
+                                  ? "Changer pour celle-ci"
+                                  : "Choisir cette destination"}
+                              </Button>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex shrink-0 items-center gap-1.5">
-                        {reco.is_selected ? (
-                          <Badge variant="success">Choisie</Badge>
-                        ) : null}
-                        <Badge variant="lagoon">{Math.round(reco.score)} %</Badge>
-                      </div>
-                    </div>
-
-                    {/* Budget moyen */}
-                    {budgetTotal != null && budgetTotal > 0 ? (
-                      <p className="mt-2 text-sm">
-                        <span className="font-semibold text-foreground">
-                          ~{formatEuro(budgetTotal)}
-                        </span>
-                        <span className="text-muted-foreground"> / pers. tout compris</span>
-                        {(reco.budget as any)?.budgetFitTotal ? (
-                          <span className="ml-2 text-xs text-muted-foreground">
-                            · budget OK pour {(reco.budget as any).budgetFitCount}/
-                            {(reco.budget as any).budgetFitTotal}
-                          </span>
-                        ) : null}
-                      </p>
-                    ) : null}
-
-                    {/* Pourquoi ça match le groupe */}
-                    {reasons.length ? (
-                      <ul className="mt-2 flex flex-wrap gap-1.5">
-                        {reasons.map((reason: string) => (
-                          <li
-                            key={reason}
-                            className="rounded-full bg-primary/8 px-2.5 py-0.5 text-[11px] text-foreground/80"
-                          >
-                            {reason}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : reco.rationale ? (
-                      <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
-                        {reco.rationale}
-                      </p>
-                    ) : null}
-
-                    {/* 2–3 activités */}
-                    {recoActivities.length ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground/80">À faire · </span>
-                        {recoActivities
-                          .map(
-                            (a: any) =>
-                              `${a.name}${a.price_per_person ? ` (${formatEuro(Number(a.price_per_person))})` : ""}`,
-                          )
-                          .join(" · ")}
-                      </p>
-                    ) : null}
-
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant={hasVoted ? "lagoon" : "outline"}
-                        disabled={voteMutation.isPending}
-                        onClick={() => voteMutation.mutate(reco.id)}
-                      >
-                        <Heart className={cn("size-3.5", hasVoted && "fill-current")} />
-                        {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
-                      </Button>
-                      {data.isOwner && reco.is_selected ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled
-                          className="border-emerald-500 text-emerald-700"
-                        >
-                          <CheckCircle2 className="size-3.5" /> Destination choisie
-                        </Button>
-                      ) : data.isOwner ? (
-                        <Button
-                          size="sm"
-                          variant={destinationSelected ? "outline" : "hero"}
-                          onClick={() => selectMutation.mutate(reco.id)}
-                          disabled={selectMutation.isPending}
-                        >
-                          <CheckCircle2 className="size-3.5" />
-                          {destinationSelected
-                            ? "Changer pour celle-ci"
-                            : "Choisir cette destination"}
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-          </div>
+                    </article>
+                  );
+                })}
+            </div>
           </>
         )}
-
       </section>
 
       {destinationSelected ? (
-        <section id="hub-logistics" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+        <section
+          id="hub-logistics"
+          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
                 <Hotel className="size-5 text-primary" />
-                3. Hôtels — vote du groupe
+                Hébergement
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Chacun vote pour un hébergement. L&apos;orga réserve celui qui a le plus de voix.
@@ -1736,227 +1756,263 @@ function TripDetail() {
             </div>
           )}
 
-          {Boolean(data.isOwner || (trip && ((trip as any).co_organizer_id === data.userId || (trip as any).coOrganizerId === data.userId))) && (trip as any).group_logistics?.hotels?.length > 0 && (
-            <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-muted/20 p-3 sm:px-4">
-              <div className="text-xs">
-                <span className="font-semibold text-foreground">Statut de l&apos;hôtel : </span>
-                <span className="capitalize font-medium text-primary">{(trip as any).group_logistics?.hotelBookingStatus || "estimé"}</span>
+          {Boolean(
+            data.isOwner ||
+            (trip &&
+              ((trip as any).co_organizer_id === data.userId ||
+                (trip as any).coOrganizerId === data.userId)),
+          ) &&
+            (trip as any).group_logistics?.hotels?.length > 0 && (
+              <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-muted/20 p-3 sm:px-4">
+                <div className="text-xs">
+                  <span className="font-semibold text-foreground">Statut de l&apos;hôtel : </span>
+                  <span className="capitalize font-medium text-primary">
+                    {(trip as any).group_logistics?.hotelBookingStatus || "estimé"}
+                  </span>
+                </div>
+                {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                    disabled={bookingStatusMutation.isPending}
+                    onClick={() =>
+                      bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })
+                    }
+                  >
+                    {bookingStatusMutation.isPending ? (
+                      <Loader2 className="animate-spin size-3" />
+                    ) : (
+                      <Check className="size-3" />
+                    )}
+                    C&apos;est réservé
+                  </Button>
+                )}
               </div>
-              {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
-                <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
-                  disabled={bookingStatusMutation.isPending}
-                  onClick={() => bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })}
-                >
-                  {bookingStatusMutation.isPending ? <Loader2 className="animate-spin size-3" /> : <Check className="size-3" />}
-                  C&apos;est réservé
-                </Button>
-              )}
-            </div>
-          )}
+            )}
         </section>
       ) : null}
 
-      <section id="hub-transports" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <Plane className="size-5 text-primary" />
-                4. Transports A/R
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Choisis ton trajet + horaires d&apos;arrivée / départ. Ils orientent le planning
-                une fois tout le monde fixé.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              disabled={!destinationSelected || logisticsMutation.isPending}
-              onClick={() => logisticsMutation.mutate()}
-            >
-              {logisticsMutation.isPending ? <Loader2 className="animate-spin" /> : <Plane />}
-              {logisticsMutation.isPending ? "Recherche en cours…" : "Générer des propositions"}
-            </Button>
-          </div>
-
-
-          <TransportTimePrefsCard tripId={tripId} />
-
-          {groupTimeWindow && (groupTimeWindow.majorityArrival || groupTimeWindow.majorityDeparture) ? (
-            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-xs space-y-2">
-              <div className="flex items-center gap-2 font-medium text-primary">
-                <Clock className="size-4" />
-                <span>Disponibilité réelle du groupe (Master Calendar)</span>
-              </div>
-              <p className="text-muted-foreground">
-                Le groupe arrive majoritairement vers <strong className="text-foreground">{groupTimeWindow.majorityArrival || "—"}</strong> et repart majoritairement vers <strong className="text-foreground">{groupTimeWindow.majorityDeparture || "—"}</strong>.
-              </p>
-              {((groupTimeWindow.earlyBirds && groupTimeWindow.earlyBirds.length > 0) ||
-                (groupTimeWindow.lateComers && groupTimeWindow.lateComers.length > 0) ||
-                (groupTimeWindow.earlyLeavers && groupTimeWindow.earlyLeavers.length > 0)) && (
-                <div className="mt-2 space-y-1 pt-2 border-t border-primary/10">
-                  {groupTimeWindow.earlyBirds && groupTimeWindow.earlyBirds.length > 0 && (
-                    <div>
-                      🌅 <span className="font-semibold text-foreground">En avance :</span> {groupTimeWindow.earlyBirds.join(", ")}
-                    </div>
-                  )}
-                  {groupTimeWindow.lateComers && groupTimeWindow.lateComers.length > 0 && (
-                    <div>
-                      🐢 <span className="font-semibold text-foreground">En retard :</span> {groupTimeWindow.lateComers.join(", ")}
-                    </div>
-                  )}
-                  {groupTimeWindow.earlyLeavers && groupTimeWindow.earlyLeavers.length > 0 && (
-                    <div>
-                      🏃 <span className="font-semibold text-foreground">Départ anticipé :</span> {groupTimeWindow.earlyLeavers.join(", ")}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          {!(trip as any).group_logistics?.transports?.length ? (
-            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              Génère des propositions de transport pour le groupe.
+      <section
+        id="hub-transports"
+        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+      >
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+              <Plane className="size-5 text-primary" />
+              4. Transports A/R
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Choisis ton trajet + horaires d&apos;arrivée / départ. Ils orientent le planning une
+              fois tout le monde fixé.
             </p>
-          ) : (
-            <div className="space-y-6">
-              {(() => {
-                const transports = ((trip as any).group_logistics.transports ?? []) as any[];
-                const picks = ((trip as any).group_logistics.transportPicks ?? []) as any[];
-                const cities = [...new Set(transports.map((tr) => tr.city as string))];
-                return cities.map((city) => {
-                  const options = transports.filter((tr) => tr.city === city);
-                  const cityPicks = picks.filter(
-                    (p) => String(p.city).toLowerCase() === String(city).toLowerCase(),
-                  );
-                  const myPick = picks.find((p) => p.userId === data.userId);
-                  return (
-                    <div
-                      key={city}
-                      className="rounded-3xl border border-border bg-card p-4 sm:p-5"
-                    >
-                      <h3 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                        <Plane className="size-4 text-primary" />
-                        Depuis {city}
-                      </h3>
-                      {cityPicks.length ? (
-                        <ul className="mt-2 space-y-1 rounded-xl bg-surface/50 px-3 py-2 text-xs text-muted-foreground">
-                          {cityPicks.map((p) => {
-                            const isReserved = p.status === "réservé";
-                            const isOrg = Boolean(data.isOwner || (trip && ((trip as any).co_organizer_id === data.userId || (trip as any).coOrganizerId === data.userId)));
-                            return (
-                              <li key={p.userId} className="flex items-center justify-between gap-2 py-0.5">
-                                <div>
-                                  <span className="font-medium text-foreground">
-                                    {p.displayName}
-                                  </span>
-                                  {" · "}
-                                  {p.modeLabel || p.mode}
-                                  {p.arrivalTime || p.time
-                                    ? ` · arrivée ${p.arrivalTime || p.time}`
-                                    : ""}
-                                  {p.departureTime ? ` · retour ${p.departureTime}` : ""}
-                                  {p.label ? ` · ${p.label}` : ""}
-                                  {" · "}
-                                  <span className="italic text-[10px] text-muted-foreground font-semibold">({p.status || "estimé"})</span>
-                                </div>
-                                {isOrg && !isReserved && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 px-1.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                    disabled={bookingStatusMutation.isPending}
-                                    onClick={() => bookingStatusMutation.mutate({ type: "transport", status: "réservé", userId: p.userId })}
-                                  >
-                                    <Check className="size-3 mr-0.5" />
-                                    C&apos;est réservé
-                                  </Button>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      ) : (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Personne de {city} n&apos;a encore choisi de trajet.
-                        </p>
-                      )}
-                      <ul className="mt-3 space-y-2">
-                        {options.map((tr: any, i: number) => {
-                          const isMine =
-                            myPick &&
-                            myPick.city === tr.city &&
-                            myPick.mode === tr.mode &&
-                            myPick.label === tr.label;
+          </div>
+          <Button
+            variant="outline"
+            disabled={!destinationSelected || logisticsMutation.isPending}
+            onClick={() => logisticsMutation.mutate()}
+          >
+            {logisticsMutation.isPending ? <Loader2 className="animate-spin" /> : <Plane />}
+            {logisticsMutation.isPending ? "Recherche en cours…" : "Générer des propositions"}
+          </Button>
+        </div>
+
+        <TransportTimePrefsCard tripId={tripId} />
+
+        {groupTimeWindow &&
+        (groupTimeWindow.majorityArrival || groupTimeWindow.majorityDeparture) ? (
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-xs space-y-2">
+            <div className="flex items-center gap-2 font-medium text-primary">
+              <Clock className="size-4" />
+              <span>Disponibilité réelle du groupe (Master Calendar)</span>
+            </div>
+            <p className="text-muted-foreground">
+              Le groupe arrive majoritairement vers{" "}
+              <strong className="text-foreground">{groupTimeWindow.majorityArrival || "—"}</strong>{" "}
+              et repart majoritairement vers{" "}
+              <strong className="text-foreground">
+                {groupTimeWindow.majorityDeparture || "—"}
+              </strong>
+              .
+            </p>
+            {((groupTimeWindow.earlyBirds && groupTimeWindow.earlyBirds.length > 0) ||
+              (groupTimeWindow.lateComers && groupTimeWindow.lateComers.length > 0) ||
+              (groupTimeWindow.earlyLeavers && groupTimeWindow.earlyLeavers.length > 0)) && (
+              <div className="mt-2 space-y-1 pt-2 border-t border-primary/10">
+                {groupTimeWindow.earlyBirds && groupTimeWindow.earlyBirds.length > 0 && (
+                  <div>
+                    🌅 <span className="font-semibold text-foreground">En avance :</span>{" "}
+                    {groupTimeWindow.earlyBirds.join(", ")}
+                  </div>
+                )}
+                {groupTimeWindow.lateComers && groupTimeWindow.lateComers.length > 0 && (
+                  <div>
+                    🐢 <span className="font-semibold text-foreground">En retard :</span>{" "}
+                    {groupTimeWindow.lateComers.join(", ")}
+                  </div>
+                )}
+                {groupTimeWindow.earlyLeavers && groupTimeWindow.earlyLeavers.length > 0 && (
+                  <div>
+                    🏃 <span className="font-semibold text-foreground">Départ anticipé :</span>{" "}
+                    {groupTimeWindow.earlyLeavers.join(", ")}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {!(trip as any).group_logistics?.transports?.length ? (
+          <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            Génère des propositions de transport pour le groupe.
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {(() => {
+              const transports = ((trip as any).group_logistics.transports ?? []) as any[];
+              const picks = ((trip as any).group_logistics.transportPicks ?? []) as any[];
+              const cities = [...new Set(transports.map((tr) => tr.city as string))];
+              return cities.map((city) => {
+                const options = transports.filter((tr) => tr.city === city);
+                const cityPicks = picks.filter(
+                  (p) => String(p.city).toLowerCase() === String(city).toLowerCase(),
+                );
+                const myPick = picks.find((p) => p.userId === data.userId);
+                return (
+                  <div key={city} className="rounded-3xl border border-border bg-card p-4 sm:p-5">
+                    <h3 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+                      <Plane className="size-4 text-primary" />
+                      Depuis {city}
+                    </h3>
+                    {cityPicks.length ? (
+                      <ul className="mt-2 space-y-1 rounded-xl bg-surface/50 px-3 py-2 text-xs text-muted-foreground">
+                        {cityPicks.map((p) => {
+                          const isReserved = p.status === "réservé";
+                          const isOrg = Boolean(
+                            data.isOwner ||
+                            (trip &&
+                              ((trip as any).co_organizer_id === data.userId ||
+                                (trip as any).coOrganizerId === data.userId)),
+                          );
                           return (
                             <li
-                              key={`${tr.city}-${tr.mode}-${i}`}
-                              className={cn(
-                                "flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3",
-                                isMine
-                                  ? "border-primary bg-primary/5"
-                                  : "border-border bg-background/40",
-                              )}
+                              key={p.userId}
+                              className="flex items-center justify-between gap-2 py-0.5"
                             >
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium">
-                                  {tr.modeLabel || tr.mode} · {tr.label}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  ~{formatEuro(tr.pricePerPerson)} / pers. A/R
-                                  {tr.note ? ` · ${tr.note}` : ""}
-                                </p>
+                              <div>
+                                <span className="font-medium text-foreground">{p.displayName}</span>
+                                {" · "}
+                                {p.modeLabel || p.mode}
+                                {p.arrivalTime || p.time
+                                  ? ` · arrivée ${p.arrivalTime || p.time}`
+                                  : ""}
+                                {p.departureTime ? ` · retour ${p.departureTime}` : ""}
+                                {p.label ? ` · ${p.label}` : ""}
+                                {" · "}
+                                <span className="italic text-[10px] text-muted-foreground font-semibold">
+                                  ({p.status || "estimé"})
+                                </span>
                               </div>
-                              <div className="flex flex-wrap items-center gap-2">
+                              {isOrg && !isReserved && (
                                 <Button
                                   size="sm"
-                                  variant={isMine ? "hero" : "outline"}
-                                  disabled={transportPickMutation.isPending}
+                                  variant="ghost"
+                                  className="h-6 px-1.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  disabled={bookingStatusMutation.isPending}
                                   onClick={() =>
-                                    transportPickMutation.mutate({
-                                      city: tr.city,
-                                      mode: tr.mode,
-                                      modeLabel: tr.modeLabel,
-                                      label: tr.label,
-                                      pricePerPerson: tr.pricePerPerson,
-                                      url: tr.url,
-                                      arrivalTime: pickArrival || undefined,
-                                      departureTime: pickDeparture || undefined,
-                                      durationHours: tr.durationHours,
-                                      outboundDepartureTime: tr.providerOffer?.outboundTime || undefined,
-                                      returnArrivalTime: tr.providerOffer?.returnTime || undefined,
-                                      time: pickArrival || undefined,
-                                    } as any)
+                                    bookingStatusMutation.mutate({
+                                      type: "transport",
+                                      status: "réservé",
+                                      userId: p.userId,
+                                    })
                                   }
                                 >
-                                  {isMine ? "Mon trajet" : "J'ai choisi ce trajet"}
+                                  <Check className="size-3 mr-0.5" />
+                                  C&apos;est réservé
                                 </Button>
-                                {(tr.links ?? [])
-                                  .slice(0, 1)
-                                  .map((l: any) => (
-                                    <a
-                                      key={l.label}
-                                      href={l.url}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="text-xs text-primary hover:underline"
-                                    >
-                                      {l.label} →
-                                    </a>
-                                  ))}
-                              </div>
+                              )}
                             </li>
                           );
                         })}
                       </ul>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          )}
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Personne de {city} n&apos;a encore choisi de trajet.
+                      </p>
+                    )}
+                    <ul className="mt-3 space-y-2">
+                      {options.map((tr: any, i: number) => {
+                        const isMine =
+                          myPick &&
+                          myPick.city === tr.city &&
+                          myPick.mode === tr.mode &&
+                          myPick.label === tr.label;
+                        return (
+                          <li
+                            key={`${tr.city}-${tr.mode}-${i}`}
+                            className={cn(
+                              "flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3",
+                              isMine
+                                ? "border-primary bg-primary/5"
+                                : "border-border bg-background/40",
+                            )}
+                          >
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">
+                                {tr.modeLabel || tr.mode} · {tr.label}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                ~{formatEuro(tr.pricePerPerson)} / pers. A/R
+                                {tr.note ? ` · ${tr.note}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant={isMine ? "hero" : "outline"}
+                                disabled={transportPickMutation.isPending}
+                                onClick={() =>
+                                  transportPickMutation.mutate({
+                                    city: tr.city,
+                                    mode: tr.mode,
+                                    modeLabel: tr.modeLabel,
+                                    label: tr.label,
+                                    pricePerPerson: tr.pricePerPerson,
+                                    url: tr.url,
+                                    arrivalTime: pickArrival || undefined,
+                                    departureTime: pickDeparture || undefined,
+                                    durationHours: tr.durationHours,
+                                    outboundDepartureTime:
+                                      tr.providerOffer?.outboundTime || undefined,
+                                    returnArrivalTime: tr.providerOffer?.returnTime || undefined,
+                                    time: pickArrival || undefined,
+                                  } as any)
+                                }
+                              >
+                                {isMine ? "Mon trajet" : "J'ai choisi ce trajet"}
+                              </Button>
+                              {(tr.links ?? []).slice(0, 1).map((l: any) => (
+                                <a
+                                  key={l.label}
+                                  href={l.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs text-primary hover:underline"
+                                >
+                                  {l.label} →
+                                </a>
+                              ))}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
       </section>
 
       {destinationSelected ? (
@@ -1997,13 +2053,6 @@ function TripDetail() {
             </p>
           ) : (
             <div className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Source :{" "}
-                {(trip as any).group_itinerary?.source === "ai" ? "IA Krew" : "modèle local"}
-                {(trip as any).group_itinerary?.destination
-                  ? ` · ${(trip as any).group_itinerary.destination}`
-                  : ""}
-              </p>
               {((trip as any).group_itinerary.days as any[]).map((day: any) => (
                 <article
                   key={day.day}
@@ -2201,11 +2250,13 @@ function TripDetail() {
                               className="bg-background border border-border rounded-xl px-2 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                             >
                               <option value="">Non assigné</option>
-                              {(participants ?? []).filter((p: any) => p.status !== "absent").map((p: any) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.display_name || p.email?.split("@")[0] || "Ami"}
-                                </option>
-                              ))}
+                              {(participants ?? [])
+                                .filter((p: any) => p.status !== "absent")
+                                .map((p: any) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.display_name || p.email?.split("@")[0] || "Ami"}
+                                  </option>
+                                ))}
                             </select>
                           ) : (
                             <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border/60">
@@ -2275,10 +2326,10 @@ function TripDetail() {
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
                 <Wallet className="size-5 text-primary" />
-                6. Répartition des coûts
+                Répartition des coûts
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Part de chacun et remboursements calculés automatiquement.
+                Une estimation de la part de chacun pour le voyage.
               </p>
             </div>
           </div>
@@ -2334,47 +2385,43 @@ function TripDetail() {
             </div>
           </section>
 
-          {finalRestitutionReady ? <PackingListCard
-            tripId={tripId}
-            participants={participants}
-            avgTemp={null}
-            activities={
-              hasItinerary && (trip as any).group_itinerary?.days
-                ? ((trip as any).group_itinerary.days as any[])
-                    .flatMap((day) =>
-                      (day.slots ?? []).map((slot: any) =>
-                        `${slot.label || ""} ${slot.detail || ""}`.trim(),
-                      ),
-                    )
-                    .filter(Boolean)
-                : activities.map((a) => a.name)
-            }
-            durationDays={liveBudget.nights || 2}
-            eventType={trip.event_type}
-            accommodation={String(
-              logistics.hotels?.find((hotel: any) => hotel.id === logistics.selectedHotelId)?.type ||
-                (selectedReco as any)?.accommodations?.type ||
-                logistics.accommodationType ||
-                "",
-            )}
-          /> : null}
+          {finalRestitutionReady ? (
+            <PackingListCard
+              tripId={tripId}
+              participants={participants}
+              avgTemp={null}
+              activities={
+                hasItinerary && (trip as any).group_itinerary?.days
+                  ? ((trip as any).group_itinerary.days as any[])
+                      .flatMap((day) =>
+                        (day.slots ?? []).map((slot: any) =>
+                          `${slot.label || ""} ${slot.detail || ""}`.trim(),
+                        ),
+                      )
+                      .filter(Boolean)
+                  : activities.map((a) => a.name)
+              }
+              durationDays={liveBudget.nights || 2}
+              eventType={trip.event_type}
+              accommodation={String(
+                logistics.hotels?.find((hotel: any) => hotel.id === logistics.selectedHotelId)
+                  ?.type ||
+                  (selectedReco as any)?.accommodations?.type ||
+                  logistics.accommodationType ||
+                  "",
+              )}
+            />
+          ) : null}
         </div>
       ) : null}
 
-
       {/* Résumé + validation des dates */}
 
-
-
       {/* 3. Planning jour par jour */}
-      
 
       {/* 4. Hôtels (vote groupe) */}
-      
 
       {/* 5. Transports — choix perso par ville */}
-      
-
 
       {(trip.celebrated_person ||
         ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
@@ -2392,7 +2439,8 @@ function TripDetail() {
             </a>
           </div>
           <p className="text-xs text-muted-foreground">
-            Ces réponses pèsent ~×2,5 à ×3,2 dans le scoring par rapport aux autres participant·e·s.
+            Les préférences de {trip.celebrated_person || "la Star"} sont prises en compte avec
+            celles du groupe.
           </p>
           {starData?.preferences ? (
             <div className="space-y-1 text-sm text-muted-foreground">
@@ -2457,93 +2505,136 @@ function TripDetail() {
             ) : (
               participants.map((p) => {
                 const picks = (logistics.transportPicks ?? []) as any[];
-                const userPick = p.user_id ? picks.find((pk: any) => pk.userId === p.user_id) : null;
-                const city = (progress?.participants?.find((pr: any) => pr.user_id === p.user_id)?.departure_city) || p.departure_city || (userPick?.city) || null;
+                const userPick = p.user_id
+                  ? picks.find((pk: any) => pk.userId === p.user_id)
+                  : null;
+                const city =
+                  progress?.participants?.find((pr: any) => pr.user_id === p.user_id)
+                    ?.departure_city ||
+                  p.departure_city ||
+                  userPick?.city ||
+                  null;
                 return (
-                <li
-                  key={p.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-border bg-card p-4 gap-3"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium">{p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}</p>
-                      {p.user_id === trip.owner_id ? (
-                        <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20">
-                          Organisateur·rice
-                        </Badge>
-                      ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                        <Badge variant="lagoon" className="gap-1 px-1.5 py-0 text-[10px]">
-                          Co-organisateur·rice
-                        </Badge>
+                  <li
+                    key={p.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-border bg-card p-4 gap-3"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">
+                          {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
+                        </p>
+                        {p.user_id === trip.owner_id ? (
+                          <Badge
+                            variant="sun"
+                            className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                          >
+                            Organisateur·rice
+                          </Badge>
+                        ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                          <Badge variant="lagoon" className="gap-1 px-1.5 py-0 text-[10px]">
+                            Co-organisateur·rice
+                          </Badge>
+                        ) : null}
+                        {p.isStar ? (
+                          <Badge
+                            variant="sun"
+                            className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                          >
+                            <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {p.email ? (
+                        <p className="text-sm text-muted-foreground mt-0.5">{p.email}</p>
                       ) : null}
-                      {p.isStar ? (
-                        <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20">
-                          <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
-                        </Badge>
+                      {city || userPick ? (
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          {city ? (
+                            <span>
+                              📍 Départ : <strong className="text-foreground">{city}</strong>
+                            </span>
+                          ) : null}
+                          {userPick ? (
+                            <span>
+                              🚆 Trajet :{" "}
+                              <strong className="text-foreground">
+                                {userPick.modeLabel || userPick.mode} ({userPick.label})
+                              </strong>
+                            </span>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
-                    {p.email ? <p className="text-sm text-muted-foreground mt-0.5">{p.email}</p> : null}
-                    {city || userPick ? (
-                      <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                        {city ? <span>📍 Départ : <strong className="text-foreground">{city}</strong></span> : null}
-                        {userPick ? <span>🚆 Trajet : <strong className="text-foreground">{userPick.modeLabel || userPick.mode} ({userPick.label})</strong></span> : null}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
-                    <Badge variant={p.status === "accepte" ? "success" : p.status === "absent" ? "destructive" : "muted"}>{p.status}</Badge>
-                    {p.user_id === data.userId ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7 px-2"
-                        onClick={() => {
-                          const nextStatus = (p.status as string) === "absent" ? "accepte" : "absent";
-                          declareStatusMutation.mutate(nextStatus);
-                        }}
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
+                      <Badge
+                        variant={
+                          p.status === "accepte"
+                            ? "success"
+                            : p.status === "absent"
+                              ? "destructive"
+                              : "muted"
+                        }
                       >
-                        {(p.status as string) === "absent" ? "Rétablir participation" : "Se déclarer absent·e"}
-                      </Button>
-                    ) : null}
-                    {data.isCreator && p.user_id && p.user_id !== trip.owner_id && !p.isStar ? (
-                      p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                        {p.status}
+                      </Badge>
+                      {p.user_id === data.userId ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7 px-2"
+                          onClick={() => {
+                            const nextStatus =
+                              (p.status as string) === "absent" ? "accepte" : "absent";
+                            declareStatusMutation.mutate(nextStatus);
+                          }}
+                        >
+                          {(p.status as string) === "absent"
+                            ? "Rétablir participation"
+                            : "Se déclarer absent·e"}
+                        </Button>
+                      ) : null}
+                      {data.isCreator && p.user_id && p.user_id !== trip.owner_id && !p.isStar ? (
+                        p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-destructive hover:bg-destructive/5 h-7 px-2"
+                            disabled={setCoOrgMutation.isPending}
+                            onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
+                          >
+                            Retirer co-org
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-primary hover:bg-primary/5 h-7 px-2"
+                            disabled={setCoOrgMutation.isPending}
+                            onClick={() =>
+                              setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
+                            }
+                          >
+                            Nommer co-org
+                          </Button>
+                        )
+                      ) : null}
+                      {data.isOwner ? (
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className="text-xs text-destructive hover:bg-destructive/5 h-7 px-2"
-                          disabled={setCoOrgMutation.isPending}
-                          onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
+                          size="icon"
+                          aria-label={`Retirer ${p.email}`}
+                          className="size-8"
+                          onClick={() => removeMutation.mutate(p.id)}
                         >
-                          Retirer co-org
+                          <Trash2 className="size-4" />
                         </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs text-primary hover:bg-primary/5 h-7 px-2"
-                          disabled={setCoOrgMutation.isPending}
-                          onClick={() => setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })}
-                        >
-                          Nommer co-org
-                        </Button>
-                      )
-                    ) : null}
-                    {data.isOwner ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Retirer ${p.email}`}
-                        className="size-8"
-                        onClick={() => removeMutation.mutate(p.id)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })
-          )}
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })
+            )}
           </ul>
         </div>
 
@@ -2584,33 +2675,42 @@ function TripDetail() {
                 className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
                 onClick={() => {
                   const text = buildWhatsAppInviteMessage();
-                  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                  window.open(url, "_blank", "noopener,noreferrer");
+                  shareOnWhatsApp(text);
                 }}
               >
                 WhatsApp
               </Button>
-              {data.isOwner ? (
-                (() => {
-                  const missingParticipants = progress?.participants?.filter(p => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
-                  return (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={missingParticipants.length === 0}
-                      className={missingParticipants.length === 0 ? "" : "bg-amber-500 text-white hover:bg-amber-600 border-transparent"}
-                      onClick={() => {
-                        const text = buildWhatsAppRemindMessage();
-                        const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-                        window.open(url, "_blank", "noopener,noreferrer");
-                      }}
-                    >
-                      🔔 {missingParticipants.length === 0 ? "Tout le monde a répondu" : "Relancer les retardataires"}
-                    </Button>
-                  );
-                })()
-              ) : null}
-              {typeof navigator !== "undefined" && typeof (navigator as any).share === "function" ? (
+              {data.isOwner
+                ? (() => {
+                    const missingParticipants =
+                      progress?.participants?.filter(
+                        (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
+                      ) || [];
+                    return (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={missingParticipants.length === 0}
+                        className={
+                          missingParticipants.length === 0
+                            ? ""
+                            : "bg-amber-500 text-white hover:bg-amber-600 border-transparent"
+                        }
+                        onClick={() => {
+                          const text = buildWhatsAppRemindMessage();
+                          shareOnWhatsApp(text);
+                        }}
+                      >
+                        🔔{" "}
+                        {missingParticipants.length === 0
+                          ? "Tout le monde a répondu"
+                          : "Relancer les retardataires"}
+                      </Button>
+                    );
+                  })()
+                : null}
+              {typeof navigator !== "undefined" &&
+              typeof (navigator as any).share === "function" ? (
                 <Button
                   type="button"
                   variant="outline"

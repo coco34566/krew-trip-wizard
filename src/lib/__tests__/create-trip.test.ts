@@ -49,6 +49,7 @@ describe("createTripHelper", () => {
       durationNights: 2,
       needsCityCenter: true,
       dietaryConstraints: [],
+      groupAgeRange: "25-35" as const,
     };
 
     const result = await createTripHelper(supabaseMock, "user-organizer-uuid", "juliet@example.com", data);
@@ -59,6 +60,7 @@ describe("createTripHelper", () => {
     expect(inserts[0].has_star).toBe(true);
     expect(inserts[0].celebrated_person).toBe("Camille");
     expect(inserts[0].start_date).toBeNull();
+    expect(inserts[0].group_age_range).toBe("25-35");
     // starMidPayload fallback tried second and succeeded, keeping Star fields
     expect(inserts[1].has_star).toBe(true);
     expect(inserts[1].celebrated_person).toBe("Camille");
@@ -103,6 +105,7 @@ describe("createTripHelper", () => {
       durationNights: 2,
       needsCityCenter: true,
       dietaryConstraints: [],
+      groupAgeRange: "25-35" as const,
     };
 
     // Call and check that it throws the database error without falling back to non-star minimal payload

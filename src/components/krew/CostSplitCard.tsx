@@ -4,10 +4,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { formatEuro } from "@/lib/krew/constants";
-import {
-  formatCostSplitText,
-  type CostSplitResult,
-} from "@/lib/krew/cost-split";
+import { formatCostSplitText, type CostSplitResult } from "@/lib/krew/cost-split";
+import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 
 type Props = {
   split: CostSplitResult;
@@ -18,10 +16,9 @@ type Props = {
 export function CostSplitCard({ split, tripName }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
-  const shareOnWhatsApp = () => {
+  const handleWhatsApp = () => {
     const text = formatCostSplitText(split, tripName);
-    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    shareOnWhatsApp(text);
   };
 
   async function exportImage() {
@@ -88,9 +85,7 @@ export function CostSplitCard({ split, tripName }: Props) {
           <p className="text-xs font-medium uppercase tracking-wider text-primary">
             Répartition des coûts
           </p>
-          <h3 className="mt-1 font-display text-lg font-semibold">
-            {split.destinationName}
-          </h3>
+          <h3 className="mt-1 font-display text-lg font-semibold">{split.destinationName}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Chacun paie son transport depuis sa ville + une part égale du reste.
           </p>
@@ -100,7 +95,7 @@ export function CostSplitCard({ split, tripName }: Props) {
             type="button"
             className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
             size="sm"
-            onClick={shareOnWhatsApp}
+            onClick={handleWhatsApp}
           >
             Partager sur WhatsApp
           </Button>
