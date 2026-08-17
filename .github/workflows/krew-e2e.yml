@@ -1,0 +1,53 @@
+name: KREW Golden Path E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_ref:
+        description: "Branch/ref containing the Playwright harness"
+        required: true
+        default: "qa/playwright-golden-trip-flow"
+        type: string
+      base_url:
+        description: "Vercel Preview URL to test"
+        required: true
+        type: string
+      existing_trip_id:
+        description: "Disposable prepared trip id for Destination → Planning checks"
+        required: false
+        type: string
+
+jobs:
+  golden-path:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      KREW_E2E_BASE_URL: ${{ inputs.base_url }}
+      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
+      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_EXISTING_TRIP_ID: ${{ inputs.existing_trip_id }}
+    steps:
+      - name: Checkout test harness branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.test_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright runner without changing the lockfile
+        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Run customer journey
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: krew-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
