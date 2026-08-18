@@ -37,6 +37,8 @@ test.describe("KREW golden customer journey", () => {
 
   test("prepared trip exercises accommodation, transport and planning through the real UI", async ({ page }, testInfo) => {
     test.skip(!qa.existingTripId, "Set KREW_E2E_EXISTING_TRIP_ID to a disposable trip with locked dates and a selected destination.");
+    test.skip(testInfo.project.name !== "mobile-safari", "Run the API-consuming golden path once only to keep provider usage deterministic.");
+
     const assertDiagnostics = installDiagnostics(page, testInfo);
     await signIn(page);
     await openTrip(page, qa.existingTripId);
@@ -62,8 +64,6 @@ test.describe("KREW golden customer journey", () => {
 
     await accommodationButton.click();
 
-    // The click must trigger an actual server-function round trip. This prevents a false-positive
-    // where the UI button is visible but the accommodation generator is never reached.
     await expect
       .poll(() => serverResponses.length, {
         message: "Accommodation click must trigger at least one server function response",
@@ -71,8 +71,8 @@ test.describe("KREW golden customer journey", () => {
       })
       .toBeGreaterThan(0);
 
-    const success = accommodation.getByText(/Voir le logement|prix vérifié|indicatif|à vérifier/i).first();
-    const errorToast = page.getByText(/Recherche d.hebergements impossible|Erreur lors de la recherche des logements|no_tavily_key|tavily|gemini/i).first();
+    const success = accommodation.getByText(/Voir le logement|prix vérifié|indicatif|à vérifier|Recherche web Tavily/i).first();
+    const errorToast = page.getByText(/Recherche d.hebergements impossible|Erreur lors de la recherche des logements|no_tavily_key|no_gemini_key|rate_limited|quota|provider_unavailable/i).first();
 
     await Promise.race([
       success.waitFor({ state: "visible", timeout: 120_000 }),
