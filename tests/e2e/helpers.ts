@@ -38,7 +38,7 @@ export async function signIn(page: Page) {
 }
 
 function isExpectedAbortedNavigation(url: string, errorText: string) {
-  if (!/ERR_ABORTED/i.test(errorText)) return false;
+  if (!/(?:ERR_ABORTED|Load request cancelled)/i.test(errorText)) return false;
   if (/\/\.well-known\/vercel\/jwe(?:\?|$)/i.test(url)) return true;
   if (/\/auth(?:\?|$)|\/dashboard(?:\?|$)|\/trips\//i.test(url)) return true;
   if (/\/assets\//i.test(url)) return true;
