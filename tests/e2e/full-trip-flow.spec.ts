@@ -1,7 +1,26 @@
 import { expect, test } from "@playwright/test";
 import { installDiagnostics, signIn } from "./helpers";
 
-test("single full KREW journey from zero to planning", async ({ page }, testInfo) => {
+async function fillPreferences(page: any) {
+  await page.getByRole("button", { name: "🧖 Détente", exact: true }).click();
+  await page.getByRole("button", { name: "🏛️ Musées & culture", exact: true }).click();
+  await page.getByRole("button", { name: "🏢 Centre-ville / urbain", exact: true }).click();
+  await page.locator("#departure").fill("Paris");
+  const cityChoice = page.getByRole("button", { name: /Paris France/ }).first();
+  if (await cityChoice.isVisible().catch(() => false)) await cityChoice.click();
+  await page.getByRole("button", { name: /Envoyer mes réponses/ }).click();
+}
+
+async function fillAvailability(page: any, tripId: string) {
+  await page.goto(`/trips/${tripId}/availability`);
+  await page.getByRole("button", { name: /Tous les week-ends affichés/ }).click();
+  const saveAvailability = page.getByRole("button", { name: /Enregistrer mes disponibilités/ });
+  await expect(saveAvailability).toBeEnabled();
+  await saveAvailability.click();
+  await page.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
+}
+
+test("single full KREW journey from zero to planning", async ({ page, browser }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-safari", "Full provider-consuming journey runs once only.");
   const assertDiagnostics = installDiagnostics(page, testInfo);
   const serverResponses: Array<{ stage: string; url: string; status: number; body: string }> = [];
@@ -30,24 +49,72 @@ test("single full KREW journey from zero to planning", async ({ page }, testInfo
   const tripId = page.url().match(/\/trips\/([^/]+)\/invite/)?.[1];
   expect(tripId).toBeTruthy();
 
-  stage = "availability";
-  await page.goto(`/trips/${tripId}/availability`);
-  await page.getByRole("button", { name: /Tous les week-ends affichés/ }).click();
-  const saveAvailability = page.getByRole("button", { name: /Enregistrer mes disponibilités/ });
-  await expect(saveAvailability).toBeEnabled();
-  await saveAvailability.click();
+  stage = "organizer-availability";
+  await fillAvailability(page, tripId!);
+
+  stage = "organizer-preferences";
+  await page.goto(`/trips/${tripId}/questionnaire`);
+  await fillPreferences(page);
   await page.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
 
-  stage = "preferences";
-  await page.goto(`/trips/${tripId}/questionnaire`);
-  await page.getByRole("button", { name: "🧖 Détente", exact: true }).click();
-  await page.getByRole("button", { name: "🏛️ Musées & culture", exact: true }).click();
-  await page.getByRole("button", { name: "🏢 Centre-ville / urbain", exact: true }).click();
-  await page.locator("#departure").fill("Paris");
-  const cityChoice = page.getByRole("button", { name: /Paris France/ }).first();
-  if (await cityChoice.isVisible().catch(() => false)) await cityChoice.click();
-  await page.getByRole("button", { name: /Envoyer mes réponses/ }).click();
-  await page.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
+  // Complete the real group path with a second authenticated QA participant.
+  // First try to sign in to a fixed reusable QA account. If it does not exist yet,
+  // create it through KREW's normal signup UI using the same Actions-only test password.
+  stage = "second-participant-auth";
+  const password = process.env.KREW_E2E_PASSWORD;
+  if (!password) throw new Error("KREW_E2E_PASSWORD is required for the second QA participant");
+  const participantEmail = "krew.qa.participant@gmail.com";
+  const participantContext = await browser.newContext({
+    ...testInfo.project.use,
+    baseURL: process.env.KREW_E2E_BASE_URL,
+  } as any);
+  const participantPage = await participantContext.newPage();
+
+  await participantPage.goto(`/auth?next=${encodeURIComponent(`/join/${tripId}`)}`);
+  await participantPage.locator("#email").fill(participantEmail);
+  await participantPage.locator("#password").fill(password);
+  await participantPage.getByRole("button", { name: "Se connecter", exact: true }).click();
+
+  const reachedJoin = await participantPage
+    .waitForURL(new RegExp(`/join/${tripId}`), { timeout: 8_000 })
+    .then(() => true)
+    .catch(() => false);
+
+  if (!reachedJoin) {
+    await participantPage.goto(`/auth?next=${encodeURIComponent(`/join/${tripId}`)}`);
+    await participantPage.getByRole("tab", { name: "Créer un compte", exact: true }).click();
+    await participantPage.locator("#name").fill("QA Participant");
+    await participantPage.locator("#email2").fill(participantEmail);
+    await participantPage.locator("#password2").fill(password);
+    await participantPage.getByRole("button", { name: "Créer mon compte", exact: true }).click();
+    const confirmationRequired = await participantPage
+      .getByText("Vérifie ta boîte mail pour confirmer ton adresse e-mail.", { exact: true })
+      .isVisible()
+      .catch(() => false);
+    if (confirmationRequired) {
+      throw new Error(
+        "SECOND_QA_EMAIL_CONFIRMATION_REQUIRED: pre-create/confirm krew.qa.participant@gmail.com once, then rerun. No provider API was reached.",
+      );
+    }
+    await participantPage.waitForURL(new RegExp(`/join/${tripId}`), { timeout: 30_000 });
+  }
+
+  stage = "second-participant-join";
+  await participantPage.locator("#join-firstname").fill("QA2");
+  await participantPage.getByRole("button", { name: "Rejoindre et indiquer mes dispos", exact: true }).click();
+  await participantPage.waitForURL(new RegExp(`/trips/${tripId}/availability`), { timeout: 30_000 });
+
+  stage = "second-participant-availability";
+  await fillAvailability(participantPage, tripId!);
+
+  stage = "second-participant-preferences";
+  await participantPage.goto(`/trips/${tripId}/questionnaire`);
+  await fillPreferences(participantPage);
+  await participantPage.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
+  await participantContext.close();
+
+  // Refresh organizer state now that both participants have answered.
+  await page.goto(`/trips/${tripId}`);
 
   stage = "lock-dates";
   const dates = page.locator("#hub-dates");
@@ -56,8 +123,6 @@ test("single full KREW journey from zero to planning", async ({ page }, testInfo
   if (await proposedDateButton.isVisible().catch(() => false)) {
     await proposedDateButton.click();
   } else {
-    // With only the QA organizer answering for a 2-person trip, there may be no shared window.
-    // Exercise the real organizer override instead of fabricating another participant response.
     await dates.getByRole("button", { name: "Choisir d’autres dates", exact: true }).click();
     const manualStart = page.locator("#manual-start-date");
     await expect(manualStart).toBeVisible();
@@ -78,10 +143,9 @@ test("single full KREW journey from zero to planning", async ({ page }, testInfo
   const profile = page.locator("#hub-profile");
   await expect(profile).toBeVisible();
   const validateProfile = profile.getByRole("button", { name: "Valider notre profil de voyage", exact: true });
-  if (await validateProfile.isVisible().catch(() => false)) {
-    await expect(validateProfile).toBeEnabled({ timeout: 20_000 });
-    await validateProfile.click();
-  }
+  await expect(validateProfile).toBeVisible({ timeout: 30_000 });
+  await expect(validateProfile).toBeEnabled();
+  await validateProfile.click();
   await expect(profile.getByText(/Profil validé/).first()).toBeVisible({ timeout: 30_000 });
 
   stage = "destinations";
