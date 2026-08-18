@@ -26,9 +26,12 @@ import {
   normCity,
   type MergedCandidate,
 } from "./candidate-merge";
-import { distanceFromParisKm, fetchClimate, geocodeDestination } from "@/integrations/external/geo-weather.server";
+import {
+  distanceFromParisKm,
+  fetchClimate,
+  geocodeDestination,
+} from "@/integrations/external/geo-weather.server";
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery } from "./stay-profiles";
-import { discoverProperties, propertyToAccommodationRow, resolvePropertyDestination } from "./property-discovery.server";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
@@ -155,7 +158,10 @@ export function buildScoringContext(
   };
 }
 
-export function resolveRecommendationDates(trip: { start_date?: string | null; end_date?: string | null }) {
+export function resolveRecommendationDates(trip: {
+  start_date?: string | null;
+  end_date?: string | null;
+}) {
   const startDate = trip.start_date ?? null;
   const endDate = trip.end_date ?? null;
   return { startDate, endDate, verifiedForDates: Boolean(startDate && endDate) };
@@ -281,7 +287,10 @@ function getStarWeight(eventType: string, hasStar: boolean): number {
 }
 
 export function aggregateLocalMobility(
-  preferences: Array<{ localMobility?: "walk_transit" | "car_if_worth_it" | "car_ok" | null; weight?: number }>,
+  preferences: Array<{
+    localMobility?: "walk_transit" | "car_if_worth_it" | "car_ok" | null;
+    weight?: number;
+  }>,
 ) {
   const scores = { walk_transit: 0, car_if_worth_it: 0, car_ok: 0 };
   let total = 0;
@@ -293,7 +302,7 @@ export function aggregateLocalMobility(
   }
   if (!total) return { value: null, consensus: 0, scores };
   const order = ["walk_transit", "car_if_worth_it", "car_ok"] as const;
-  const value = order.reduce((best, current) => scores[current] > scores[best] ? current : best);
+  const value = order.reduce((best, current) => (scores[current] > scores[best] ? current : best));
   return { value, consensus: scores[value] / total, scores };
 }
 
@@ -368,7 +377,9 @@ export async function aggregateParticipantPreferences(
   try {
     const tripQuery = supabase
       .from("trips")
-      .select("event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_age_range")
+      .select(
+        "event_type, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_age_range",
+      )
       .eq("id", tripId);
     const tripMeta =
       typeof tripQuery.maybeSingle === "function"
@@ -761,31 +772,6 @@ export async function resolveDesiredDestination(
   return aggregated.desiredDestination;
 }
 
-/** Enrichit le catalogue via les APIs pour une liste de destinations (max 5). */
-async function enrichCatalogWithExternalApis(
-  supabase: SupabaseClient,
-  tripId: string,
-  destinationNames: string[],
-): Promise<string[]> {
-  if (!destinationNames.length) return [];
-
-  const { refreshExternalCatalogForTrip } = await import("@/lib/external/search-hotels.functions");
-  const providerErrors: string[] = [];
-
-  for (const destName of [...new Set(destinationNames)].slice(0, 12)) {
-    try {
-      const externalRes = await refreshExternalCatalogForTrip(supabase, tripId, destName);
-      if (externalRes.providerErrors?.length) {
-        providerErrors.push(...externalRes.providerErrors.map((e) => `${destName}: ${e}`));
-      }
-    } catch (e) {
-      providerErrors.push(`${destName}: ${String(e).slice(0, 200)}`);
-    }
-  }
-
-  return providerErrors;
-}
-
 export type GenerationReadiness = {
   canGenerate: boolean;
   answered: number;
@@ -890,23 +876,23 @@ export async function assessGenerationReadiness(
   // Find the star in the participants list strictly via star_user_id
   const starUserId = (trip.data as any)?.star_user_id || null;
   const starParticipant = starUserId
-    ? activeParticipants.find(p => p.user_id === starUserId) || null
+    ? activeParticipants.find((p) => p.user_id === starUserId) || null
     : null;
 
   // Resolve starUid safely (never use the form-filler's user ID, e.g. organizer, unless it's the actual star)
   const starUid = starParticipant?.user_id || starUserId || "star-virtual-uid";
 
-  const starHasPrefs = starPrefsRes.data && (
-    (starPrefsRes.data.wanted_activities && starPrefsRes.data.wanted_activities.length > 0) ||
-    (starPrefsRes.data.ambiances && starPrefsRes.data.ambiances.length > 0) ||
-    starPrefsRes.data.wanted_env_type ||
-    starPrefsRes.data.desired_destination ||
-    starPrefsRes.data.submitted_at
-  );
-  const starHasAvail = starPrefsRes.data && (
-    (starPrefsRes.data.available_dates && starPrefsRes.data.available_dates.length > 0) ||
-    (starPrefsRes.data.blocked_dates && starPrefsRes.data.blocked_dates.length > 0)
-  );
+  const starHasPrefs =
+    starPrefsRes.data &&
+    ((starPrefsRes.data.wanted_activities && starPrefsRes.data.wanted_activities.length > 0) ||
+      (starPrefsRes.data.ambiances && starPrefsRes.data.ambiances.length > 0) ||
+      starPrefsRes.data.wanted_env_type ||
+      starPrefsRes.data.desired_destination ||
+      starPrefsRes.data.submitted_at);
+  const starHasAvail =
+    starPrefsRes.data &&
+    ((starPrefsRes.data.available_dates && starPrefsRes.data.available_dates.length > 0) ||
+      (starPrefsRes.data.blocked_dates && starPrefsRes.data.blocked_dates.length > 0));
 
   const partsList: any[] = [];
   for (const p of activeParticipants) {
@@ -1234,8 +1220,21 @@ export async function generateRecommendationsForTrip(
       maxDistanceKm: ctx.maxDistanceKm,
       nights: ctx.nights,
       startMonth: ctx.startMonth,
+      startDate: ctx.startDate ?? null,
+      endDate: ctx.endDate ?? null,
       excludedCountries: ctx.excludedCountries,
       departureCity: primaryDeparture,
+      departureOrigins: (aggregated.departureOrigins ?? []).map((origin) => ({
+        origin: origin.city,
+        participants: origin.count,
+      })),
+      acceptedTransportModes: [
+        ...new Set(
+          aggregated.individualPreferences.flatMap(
+            (preference: any) => preference.transportModeAccepted ?? [],
+          ),
+        ),
+      ].filter((mode): mode is string => typeof mode === "string" && mode !== "bus"),
       participants: ctx.participants,
       ...(trip.data.event_type ? { eventType: trip.data.event_type as string } : {}),
       planeRefused: Boolean((aggregated as any).planeRefused),
@@ -1250,7 +1249,9 @@ export async function generateRecommendationsForTrip(
       selectedConcepts: readiness.profile.selectedConcepts,
       discoveryBranches: routeDiscovery(readiness.profile.selectedConcepts).branches,
       localMobility: aggregated.groupLocalMobility ?? null,
-      accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
+      accommodationRole:
+        aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ??
+        null,
       relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
         activities: p.activityCategories,
         environment: p.wantedEnvType,
@@ -1258,6 +1259,24 @@ export async function generateRecommendationsForTrip(
         accommodationRole: p.accommodationRole,
         isStar: p.isStar,
       })),
+      scoringSignals: {
+        desiredDestination: resolvedDestination,
+        letKrewDecide,
+        starWeight: ctx.starWeight ?? null,
+        scoringWeights: ctx.scoringWeights ?? null,
+        hardConstraints: {
+          hasBudgetVeto: ctx.hasBudgetVeto,
+          vetoBudgetMax: ctx.vetoBudgetMax,
+          minGroupBudget: ctx.minGroupBudget,
+          excludedCountries: ctx.excludedCountries,
+          maxDistanceKm: ctx.maxDistanceKm,
+          maxTravelHours: ctx.maxTravelDurationHours,
+        },
+        softPreferences: {
+          travelPace: ctx.travelPace,
+          preferredTimeSlots: ctx.preferredTimeSlots,
+        },
+      },
     };
 
     // Les deux sources sont TOUJOURS interrogées puis fusionnées (Chantier 1)
@@ -1280,6 +1299,10 @@ export async function generateRecommendationsForTrip(
       region: c.region,
       destinationType: c.destinationType,
       anchorPlaces: c.anchorPlaces,
+      transportEstimate: c.transportEstimate,
+      lodgingEstimate: c.lodgingEstimate,
+      localCostEstimate: c.localCostEstimate,
+      activityFit: c.activityFit,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities);
 
@@ -1390,61 +1413,43 @@ export async function generateRecommendationsForTrip(
 
   for (const area of areaProfiles) {
     const ambiance = (area as any).ambiances ?? {};
-    const row = { slug: normCity(area.name).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""), name: area.name,
-      country: area.country, avg_daily_cost: (area as any).dailyCost, distance_from_paris_km: area.distanceKm,
-      best_months: (area as any).bestMonths ?? [], popularity: 0.5, rating: 3.8,
-      score_fete: ambiance.fete ?? 0.5, score_aventure: ambiance.aventure ?? 0.5,
-      score_detente: ambiance.detente ?? 0.5, score_luxe: ambiance.luxe ?? 0.5,
-      score_insolite: ambiance.insolite ?? 0.5, score_sportif: ambiance.sportif ?? 0.5,
-      score_culturel: ambiance.culturel ?? 0.5, destination_type: area.destinationType ?? "region_territory",
-      region_name: area.region ?? null, anchor_places: area.anchorPlaces ?? [area.name] };
+    const row = {
+      slug: normCity(area.name)
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, ""),
+      name: area.name,
+      country: area.country,
+      avg_daily_cost: (area as any).dailyCost,
+      distance_from_paris_km: area.distanceKm,
+      best_months: (area as any).bestMonths ?? [],
+      popularity: 0.5,
+      rating: 3.8,
+      score_fete: ambiance.fete ?? 0.5,
+      score_aventure: ambiance.aventure ?? 0.5,
+      score_detente: ambiance.detente ?? 0.5,
+      score_luxe: ambiance.luxe ?? 0.5,
+      score_insolite: ambiance.insolite ?? 0.5,
+      score_sportif: ambiance.sportif ?? 0.5,
+      score_culturel: ambiance.culturel ?? 0.5,
+      destination_type: area.destinationType ?? "region_territory",
+      region_name: area.region ?? null,
+      anchor_places: area.anchorPlaces ?? [area.name],
+    };
     try {
-      await supabaseAdmin.from("destinations").upsert({ ...row, source: "krew_discovery", external_id: `discovery:${area.name.toLowerCase()}` } as any, { onConflict: "source,external_id" });
+      await supabaseAdmin.from("destinations").upsert(
+        {
+          ...row,
+          source: "krew_discovery",
+          external_id: `discovery:${area.name.toLowerCase()}`,
+        } as any,
+        { onConflict: "source,external_id" },
+      );
     } catch (e) {
-      reportServerError(e, { provider: "krew_discovery", kind: "catalog_upsert_area", destination: area.name });
-    }
-  }
-
-  // Property-led exploration is additive: failures never interrupt normal destination discovery.
-  if (routeDiscovery(readiness.profile.selectedConcepts).propertyDiscovery) {
-    try {
-      const properties = await discoverProperties({
-        concepts: readiness.profile.selectedConcepts,
-        participants: ctx.participants,
-        territories: mergedCandidates.flatMap((candidate) => [candidate.name, ...(candidate.anchorPlaces ?? [])]).slice(0, 6),
-        amenities: aggregated.requiredAmenities ?? [],
-        activities: ctx.activityCategories,
-        environment: aggregated.wantedEnvTypes ?? [],
-        localMobility: aggregated.groupLocalMobility ?? null,
-        accommodationRole: aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ?? null,
+      reportServerError(e, {
+        provider: "krew_discovery",
+        kind: "catalog_upsert_area",
+        destination: area.name,
       });
-      for (const property of properties) {
-        const resolvedPropertyLocation = resolvePropertyDestination(property);
-        if (!resolvedPropertyLocation) continue;
-        const geo = await geocodeDestination([resolvedPropertyLocation.name, resolvedPropertyLocation.country].filter(Boolean).join(", "));
-        if (!geo) continue;
-        const destinationName = resolvedPropertyLocation.name;
-        const slug = `property-${normCity(destinationName).replace(/[^a-z0-9]+/g, "-")}`;
-        const destination = await supabaseAdmin.from("destinations").upsert({
-          slug,
-          name: destinationName,
-          country: property.country || geo.country || "France",
-          destination_type: "region_territory",
-          anchor_places: [property.locality || destinationName],
-          latitude: geo.latitude,
-          longitude: geo.longitude,
-          distance_from_paris_km: distanceFromParisKm(geo.latitude, geo.longitude),
-          source: "property_discovery",
-          external_id: `property-location:${slug}`,
-        } as any, { onConflict: "source,external_id" }).select("id").single();
-        if (!destination.data?.id) continue;
-        if (!shortlistNames.some((name) => normCity(name) === normCity(destinationName))) shortlistNames.push(destinationName);
-        const accommodation = propertyToAccommodationRow(property, destination.data.id, ctx.participants, ctx.nights);
-        if (!accommodation) continue;
-        await supabaseAdmin.from("accommodations").upsert(accommodation as any, { onConflict: "source,external_id" });
-      }
-    } catch (error) {
-      reportServerError(error, { provider: "property_discovery", kind: "property_pipeline", tripId });
     }
   }
 
@@ -1482,7 +1487,8 @@ export async function generateRecommendationsForTrip(
 
       // A geocoded AI suggestion is still exploratory: geocoding does not verify its cost or fit.
       void aiCandidateToDestinationRow(candidate, ctx.ambiances, { bestMonths });
-      void latitude; void longitude;
+      void latitude;
+      void longitude;
     } catch (e) {
       reportServerError(e, {
         provider: "destination-ai",
@@ -1500,28 +1506,19 @@ export async function generateRecommendationsForTrip(
     console.info("[discovery] shortlist locale scorée:", shortlistNames.join(", "));
   }
 
-  const enrichmentPlaces = [...new Set([
-    ...mergedCandidates.flatMap((candidate) =>
-      candidate.destinationType === "city" ? [candidate.name] : (candidate.anchorPlaces ?? [candidate.name]),
-    ),
-    ...shortlistNames,
-  ])];
-  // Activity discovery is useful without dates; the provider boundary itself
-  // skips date-dependent hotel availability when dates are unknown.
-  const providerErrors = await enrichCatalogWithExternalApis(
-    supabase,
-    tripId,
-    [...new Set(enrichmentPlaces.length ? enrichmentPlaces : shortlistNames)].slice(0, 12),
-  );
+  // Destination discovery deliberately does not search live flights, properties or
+  // activities. Those providers belong to their explicit downstream workflows.
+  const providerErrors: string[] = [];
 
   // 3) Catalogue enrichi — TOUJOURS restreint à la shortlist dynamique
   //    (sans ce filtre, loadTravelCatalog recharge tout le seed SQL)
   const loadedCatalog = await loadTravelCatalog(supabase, catalogQuery);
   const catalog = attachAnchorEnrichments(
     loadedCatalog,
-    loadedCatalog.destinations.filter((destination) =>
-      shortlistNames.some((name) => normCity(name) === normCity(destination.name)) &&
-      (destination.anchor_places?.length ?? 0) > 0,
+    loadedCatalog.destinations.filter(
+      (destination) =>
+        shortlistNames.some((name) => normCity(name) === normCity(destination.name)) &&
+        (destination.anchor_places?.length ?? 0) > 0,
     ),
   );
   const normName = (s: string) =>
@@ -1559,13 +1556,27 @@ export async function generateRecommendationsForTrip(
     ),
   };
 
-  catalogFinal.accommodations = catalogFinal.accommodations.filter((a: any) =>
-    !String(a.source ?? "").startsWith("property_web:") ||
-    (a.price_verified === true && a.availability_verified === true && a.verification_state === "confirmed"));
-  const propertyIds = new Set(catalogFinal.destinations.filter((d: any) => d.source === "property_discovery").map((d) => d.id));
+  catalogFinal.accommodations = catalogFinal.accommodations.filter(
+    (a: any) =>
+      !String(a.source ?? "").startsWith("property_web:") ||
+      (a.price_verified === true &&
+        a.availability_verified === true &&
+        a.verification_state === "confirmed"),
+  );
+  const propertyIds = new Set(
+    catalogFinal.destinations
+      .filter((d: any) => d.source === "property_discovery")
+      .map((d) => d.id),
+  );
   if (propertyIds.size) {
-    const verifiedIds = new Set(catalogFinal.accommodations.filter((a) => propertyIds.has(a.destination_id)).map((a) => a.destination_id));
-    catalogFinal.destinations = catalogFinal.destinations.filter((d) => !propertyIds.has(d.id) || verifiedIds.has(d.id));
+    const verifiedIds = new Set(
+      catalogFinal.accommodations
+        .filter((a) => propertyIds.has(a.destination_id))
+        .map((a) => a.destination_id),
+    );
+    catalogFinal.destinations = catalogFinal.destinations.filter(
+      (d) => !propertyIds.has(d.id) || verifiedIds.has(d.id),
+    );
   }
 
   if (apiAccIds.size > 0) {
@@ -1615,127 +1626,100 @@ export async function generateRecommendationsForTrip(
     }
   }
 
-  // 4) Transport multi-origines : chaque ville de départ des participants
-  //    → cotation A/R, moyenne pondérée / pers + total groupe
+  // 4) Estimations Destination : aucune cotation live. Gemini fournit des ordres de
+  // grandeur, complétés donnée par donnée par le fallback déterministe KREW.
   const transportByDestinationId: Record<string, number> = {};
   const transportGroupByDestinationId: Record<string, number> = {};
   const transportOriginsByDestinationId: Record<
     string,
     { city: string; count: number; pricePerPerson: number }[]
   > = {};
-
-  // Origines : questionnaires individuels, sinon ville du voyage
+  const lodgingPerPersonPerNightByDestinationId: Record<string, number> = {};
+  const foodPerPersonPerDayByDestinationId: Record<string, number> = {};
+  const activitiesPerPersonPerDayByDestinationId: Record<string, number> = {};
+  const activityFitByDestinationId: Record<string, string[]> = {};
   const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
-  const departureOrigins =
-    aggregated.departureOrigins && aggregated.departureOrigins.length > 0
-      ? aggregated.departureOrigins
-      : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];
-
-  // Si des gens n'ont pas renseigné de ville, rattacher le reste à l'origine du voyage
-  const countedInOrigins = departureOrigins.reduce((s, o) => s + o.count, 0);
-  const remaining = Math.max(0, ctx.participants - countedInOrigins);
+  const departureOrigins = aggregated.departureOrigins?.length
+    ? aggregated.departureOrigins
+    : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];
+  const countedInOrigins = departureOrigins.reduce((sum, origin) => sum + origin.count, 0);
   const originsForQuote =
-    remaining > 0
-      ? (() => {
-          const copy = departureOrigins.map((o) => ({ ...o }));
-          const primary = copy.find((o) => o.city.toLowerCase() === tripOrigin.toLowerCase());
-          if (primary) primary.count += remaining;
-          else copy.push({ city: tripOrigin, count: remaining });
-          return copy;
-        })()
+    countedInOrigins < ctx.participants
+      ? [...departureOrigins, { city: tripOrigin, count: ctx.participants - countedInOrigins }]
       : departureOrigins;
+  const fallbackTransport = (distanceKm: number) =>
+    distanceKm <= 350
+      ? 45
+      : distanceKm <= 900
+        ? 90
+        : distanceKm <= 1600
+          ? 130
+          : Math.round(130 + (distanceKm - 1600) * 0.05);
 
-  try {
-    const { searchTransportRoundTrip } = await import("@/integrations/external/transport.server");
+  const acceptedModesSet = new Set(
+    (ctx.transportModes ?? []).map((m) => m.toLowerCase().trim()),
+  );
+  const hasModeConstraints = acceptedModesSet.size > 0 && !acceptedModesSet.has("peu importe");
 
-    let earliestDepartureTime: string | null = null;
-    let latestReturnTime: string | null = null;
-    try {
-      const { data: timeRows } = await supabase
-        .from("trip_transport_time_prefs")
-        .select("earliest_departure_time, latest_return_time")
-        .eq("trip_id", tripId);
-      if (timeRows && timeRows.length > 0) {
-        const { computeGroupTimeWindow } = await import("@/lib/krew/engine");
-        const window = computeGroupTimeWindow(timeRows);
-        earliestDepartureTime = window.earliestDeparture;
-        latestReturnTime = window.latestReturn;
-      }
-    } catch (e) {
-      console.warn("Erreur filtres horaires", e);
+  for (const destination of catalogFinal.destinations) {
+    const candidate = mergedCandidates.find(
+      (item) => normCity(item.name) === normCity(destination.name),
+    );
+    if (!candidate) continue;
+    const byOrigin = originsForQuote.map((origin) => {
+      const estimate = candidate.transportEstimate?.byOrigin.find(
+        (item) => normCity(item.origin) === normCity(origin.city),
+      );
+      const modes = estimate?.realisticModes ?? [];
+      const hasCompatibleMode =
+        !hasModeConstraints ||
+        modes.some((m) => {
+          const normM = m.toLowerCase().trim();
+          return (
+            acceptedModesSet.has(normM) ||
+            (normM === "flight" && acceptedModesSet.has("avion")) ||
+            (normM === "train" && acceptedModesSet.has("train")) ||
+            (normM === "car" && (acceptedModesSet.has("voiture") || acceptedModesSet.has("covoiturage")))
+          );
+        });
+
+      const maxHours = ctx.maxTravelDurationHours;
+      const durationHours = estimate?.approximateDurationHours ?? null;
+      const durationCompatible = maxHours == null || durationHours == null || durationHours <= maxHours;
+
+      const isValidEstimate =
+        estimate?.roundTripCentral != null &&
+        estimate.roundTripCentral > 0 &&
+        hasCompatibleMode &&
+        durationCompatible;
+
+      const pricePerPerson = isValidEstimate
+        ? (estimate.roundTripCentral as number)
+        : fallbackTransport(destination.distance_from_paris_km);
+
+      return { city: origin.city, count: origin.count, pricePerPerson };
+    });
+    const groupTotal = byOrigin.reduce(
+      (sum, origin) => sum + origin.pricePerPerson * origin.count,
+      0,
+    );
+    const people = byOrigin.reduce((sum, origin) => sum + origin.count, 0);
+    if (people > 0) {
+      transportByDestinationId[destination.id] = groupTotal / people;
+      transportGroupByDestinationId[destination.id] = groupTotal;
+      transportOriginsByDestinationId[destination.id] = byOrigin;
     }
-
-    const checkin = recommendationDates.startDate;
-    const checkout = recommendationDates.endDate;
-    if (!checkin || !checkout) providerErrors.push("Transport non vérifié : dates réelles absentes");
-
-    // Limiter le fan-out API : max 5 destinations × max 4 origines distinctes
-    const originsLimited = originsForQuote.slice(0, 4);
-
-    for (const dest of checkin && checkout ? catalogFinal.destinations.slice(0, 5) : []) {
-      const originQuotes: {
-        city: string;
-        count: number;
-        pricePerPerson: number;
-        provider?: string;
-        mode?: string;
-        label?: string;
-        url?: string | null;
-        searchUrl?: string | null;
-      }[] = [];
-      let groupTransport = 0;
-      let peopleQuoted = 0;
-
-      for (const origin of originsLimited) {
-        try {
-          const quote = await searchTransportRoundTrip({
-            originCity: origin.city,
-            destinationCity: dest.name,
-            departDate: checkin!,
-            returnDate: checkout!,
-            adults: Math.min(Math.max(1, origin.count), 9),
-            distanceKm: dest.distance_from_paris_km,
-            earliestDepartureTime,
-            latestReturnTime,
-          });
-          const price = quote.pricePerPerson;
-          if (quote.dataKind !== "provider_offer") {
-            providerErrors.push(`transport ${origin.city}→${dest.name}: cotation estimée ignorée`);
-            continue;
-          }
-          originQuotes.push({
-            city: origin.city,
-            count: origin.count,
-            pricePerPerson: price,
-            provider: quote.provider,
-            mode: quote.mode,
-            label: quote.label,
-            url: quote.url ?? null,
-            searchUrl: quote.searchUrl ?? null,
-          });
-          groupTransport += price * origin.count;
-          peopleQuoted += origin.count;
-          if (quote.rawError) {
-            providerErrors.push(`transport ${origin.city}→${dest.name}: ${quote.rawError}`);
-          }
-        } catch (e) {
-          providerErrors.push(`transport ${origin.city}→${dest.name}: ${String(e).slice(0, 120)}`);
-        }
-      }
-
-      if (peopleQuoted > 0) {
-        transportByDestinationId[dest.id] = groupTransport / peopleQuoted;
-        transportGroupByDestinationId[dest.id] = groupTransport;
-        // Si on n'a coté qu'une partie du groupe, extrapoler le total
-        if (peopleQuoted < ctx.participants) {
-          transportGroupByDestinationId[dest.id] =
-            (groupTransport / peopleQuoted) * ctx.participants;
-        }
-        transportOriginsByDestinationId[dest.id] = originQuotes;
-      }
-    }
-  } catch (e) {
-    providerErrors.push(`transport module: ${String(e).slice(0, 150)}`);
+    const lodging = candidate.lodgingEstimate?.perPersonPerNightCentral;
+    if (lodging != null && Number.isFinite(lodging) && lodging > 0)
+      lodgingPerPersonPerNightByDestinationId[destination.id] = lodging;
+    const food = candidate.localCostEstimate?.foodPerPersonPerDay;
+    if (food != null && Number.isFinite(food) && food > 0) foodPerPersonPerDayByDestinationId[destination.id] = food;
+    const activities = candidate.localCostEstimate?.activitiesPerPersonPerDay;
+    if (activities != null && Number.isFinite(activities) && activities > 0)
+      activitiesPerPersonPerDayByDestinationId[destination.id] = activities;
+    activityFitByDestinationId[destination.id] = (candidate.activityFit ?? [])
+      .filter((fit) => fit.availability === "strong" || fit.availability === "medium")
+      .map((fit) => fit.category);
   }
 
   const ctxWithTransport: ScoringContext = {
@@ -1744,6 +1728,10 @@ export async function generateRecommendationsForTrip(
     transportGroupByDestinationId,
     transportOriginsByDestinationId,
     departureOrigins: originsForQuote,
+    lodgingPerPersonPerNightByDestinationId,
+    foodPerPersonPerDayByDestinationId,
+    activitiesPerPersonPerDayByDestinationId,
+    activityFitByDestinationId,
   };
 
   // 5) Scoring final → 4 destinations. The Top 3 product rule applies to
@@ -1778,20 +1766,9 @@ export async function generateRecommendationsForTrip(
     4,
   );
 
-  // Rationales LLM (1 call groupé, tokens min) — fallback = texte moteur
-  let llmRationales = false;
-  try {
-    const { enrichProposalsWithLlmRationales } = await import("./rationale-llm.server");
-    const llmRes = await enrichProposalsWithLlmRationales(proposals, {
-      eventType: (trip.data.event_type as string | null) || ctxWithTransport.eventType || null,
-      participants: ctx.participants,
-    });
-    proposals = llmRes.proposals;
-    llmRationales = llmRes.usedLlm;
-    if (llmRes.error) providerErrors.push(`llm-rationale: ${llmRes.error}`);
-  } catch (e) {
-    providerErrors.push(`llm-rationale: ${String(e).slice(0, 120)}`);
-  }
+  // Les rationales utilisent les match reasons déterministes et la raison déjà
+  // fournie par l'unique appel Gemini de discovery.
+  const llmRationales = false;
 
   // Enregistre les sous-scores de toutes les propositions proposées (pour feedback ultérieur)
   try {

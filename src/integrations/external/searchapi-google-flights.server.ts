@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { checkTransportTimeCompatibility, type TransportQuote } from "./transport.server";
+import { CITY_IATA, normalizeCityKey } from "@/lib/krew/deep-links";
 
 const SEARCH_ENDPOINT = "https://www.searchapi.io/api/v1/search";
 
@@ -80,6 +81,27 @@ export async function resolveGoogleFlightsLocations(query: string): Promise<Flig
   return [...unique.values()];
 }
 
+const unknownLocationCache = new Map<string, Promise<FlightLocation[]>>();
+
+function flightLocations(city: string): Promise<FlightLocation[]> {
+  const key = normalizeCityKey(city);
+  const iata = CITY_IATA[key];
+  if (iata) return Promise.resolve([{ id: iata, name: city.trim(), type: "city" }]);
+  let pending = unknownLocationCache.get(key);
+  if (!pending) {
+    pending = resolveGoogleFlightsLocations(city).catch((error) => {
+      unknownLocationCache.delete(key);
+      throw error;
+    });
+    unknownLocationCache.set(key, pending);
+  }
+  return pending;
+}
+
+export function clearGoogleFlightsLocationCacheForTests() {
+  unknownLocationCache.clear();
+}
+
 const timePart = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const match = value.match(/(?:T|\s)(\d{2}:\d{2})/) ?? value.match(/^(\d{2}:\d{2})/);
@@ -135,10 +157,17 @@ export function normalizeGoogleFlightOffer(item: any, adults: number): Transport
     ),
     returnTime: timePart(lastReturn?.arrival_airport?.time ?? lastReturn?.arrival_time),
     durationMinutes:
-      Number(item?.total_duration) ||
-      segments.reduce((sum: number, segment: any) => sum + (Number(segment?.duration) || 0), 0) ||
+      outbound.reduce((sum: number, segment: any) => sum + (Number(segment?.duration) || 0), 0) ||
       null,
-    stops: Math.max(0, outbound.length - 1) + Math.max(0, inbound.length - 1),
+    outboundDurationMinutes:
+      outbound.reduce((sum: number, segment: any) => sum + (Number(segment?.duration) || 0), 0) ||
+      null,
+    returnDurationMinutes:
+      inbound.reduce((sum: number, segment: any) => sum + (Number(segment?.duration) || 0), 0) ||
+      null,
+    stops: Math.max(0, outbound.length - 1),
+    outboundStops: Math.max(0, outbound.length - 1),
+    returnStops: Math.max(0, inbound.length - 1),
     segments,
     adults,
     bookingToken,
@@ -149,8 +178,8 @@ export async function searchGoogleFlightsRoundTrip(
   opts: FlightSearchOptions,
 ): Promise<TransportQuote> {
   const [origins, destinations] = await Promise.all([
-    resolveGoogleFlightsLocations(opts.originCity),
-    resolveGoogleFlightsLocations(opts.destinationCity),
+    flightLocations(opts.originCity),
+    flightLocations(opts.destinationCity),
   ]);
   const payload = await searchApi({
     engine: "google_flights",

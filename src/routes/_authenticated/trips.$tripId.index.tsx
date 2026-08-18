@@ -94,8 +94,18 @@ import { PackingListCard } from "@/components/krew/PackingListCard";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { isTripAdmin } from "@/lib/krew/engine";
-import { destinationBudgetTotal, isDestinationBudgetEstimated } from "@/lib/krew/destination-budget";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  destinationBudgetTotal,
+  isDestinationBudgetEstimated,
+} from "@/lib/krew/destination-budget";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 /** Photo destination : URL DB ou image Unsplash stable selon la ville. */
 function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
@@ -183,6 +193,17 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
   for (let i = 0; i < key.length; i++) h = (h + key.charCodeAt(i) * (i + 1)) % fallbacks.length;
   return fallbacks[h]!;
 }
+
+const ACCOMMODATION_CONCEPT_LABELS: Record<string, string> = {
+  central_hotel: "Au cœur de l'action",
+  comfort_hotel: "Confort sans compromis",
+  aparthotel: "Autonomes, mais bien installés",
+  entire_city_home: "Notre chez-nous en ville",
+  group_house: "Tous ensemble",
+  nature_stay: "Au vert",
+  exceptional_property: "Le logement fait le voyage",
+  wellness_property: "Parenthèse bien-être",
+};
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
@@ -854,30 +875,64 @@ function TripDetail() {
     const trip = tripPreview || {};
     const statusLines: string[] = [];
     const actions: { name: string; action: string }[] = [];
-    const nameOf = (participant: any) => participant.display_name || participant.email?.split("@")[0] || "Ami";
+    const nameOf = (participant: any) =>
+      participant.display_name || participant.email?.split("@")[0] || "Ami";
     if (trip.start_date && trip.end_date) {
-      const start = new Date(`${trip.start_date}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-      const end = new Date(`${trip.end_date}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
+      const start = new Date(`${trip.start_date}T12:00:00`).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+      });
+      const end = new Date(`${trip.end_date}T12:00:00`).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
       statusLines.push(`📅 Dates : ${start} → ${end}`);
     }
-    if (liveBudget.destinationName) statusLines.push(`📍 Destination : ${liveBudget.destinationName}`);
-    if (logisticsPreview.hotels?.length) statusLines.push(`🏠 Hébergement : ${logisticsPreview.hotelBookingStatus || "vote en cours"}`);
-    if (logisticsPreview.transports?.length) statusLines.push(`🚆 Transport : ${liveBudget.transportPicksCount || 0} choix enregistré(s)`);
+    if (liveBudget.destinationName)
+      statusLines.push(`📍 Destination : ${liveBudget.destinationName}`);
+    if (logisticsPreview.hotels?.length)
+      statusLines.push(
+        `🏠 Hébergement : ${logisticsPreview.hotelBookingStatus || "vote en cours"}`,
+      );
+    if (logisticsPreview.transports?.length)
+      statusLines.push(`🚆 Transport : ${liveBudget.transportPicksCount || 0} choix enregistré(s)`);
     if (liveBudget.total > 0) statusLines.push(`💰 Budget estimé : ~${liveBudget.total} € / pers.`);
     for (const participant of progress?.participants ?? []) {
-      if (!participant.hasAnsweredAvailability) actions.push({ name: nameOf(participant), action: "disponibilités" });
-      if (!participant.hasAnswered) actions.push({ name: nameOf(participant), action: "préférences" });
+      if (!participant.hasAnsweredAvailability)
+        actions.push({ name: nameOf(participant), action: "disponibilités" });
+      if (!participant.hasAnswered)
+        actions.push({ name: nameOf(participant), action: "préférences" });
     }
-    if (logisticsPreview.star_mode === "secret" && trip.celebrated_person && !starData?.preferences) actions.push({ name: "organisateur", action: `Préférences de ${trip.celebrated_person}` });
+    if (logisticsPreview.star_mode === "secret" && trip.celebrated_person && !starData?.preferences)
+      actions.push({ name: "organisateur", action: `Préférences de ${trip.celebrated_person}` });
     if (logisticsPreview.hotels?.length) {
       const voters = new Set((logisticsPreview.hotelVotes ?? []).map((vote: any) => vote.userId));
-      for (const participant of participants.filter((item: any) => item.user_id && item.status !== "absent")) if (!voters.has(participant.user_id)) actions.push({ name: nameOf(participant), action: "voter pour l’hébergement" });
+      for (const participant of participants.filter(
+        (item: any) => item.user_id && item.status !== "absent",
+      ))
+        if (!voters.has(participant.user_id))
+          actions.push({ name: nameOf(participant), action: "voter pour l’hébergement" });
     }
     if (logisticsPreview.transports?.length) {
-      const pickers = new Set((logisticsPreview.transportPicks ?? []).map((pick: any) => pick.userId));
-      for (const participant of participants.filter((item: any) => item.user_id && item.status !== "absent")) if (!pickers.has(participant.user_id)) actions.push({ name: nameOf(participant), action: "choisir son transport" });
+      const pickers = new Set(
+        (logisticsPreview.transportPicks ?? []).map((pick: any) => pick.userId),
+      );
+      for (const participant of participants.filter(
+        (item: any) => item.user_id && item.status !== "absent",
+      ))
+        if (!pickers.has(participant.user_id))
+          actions.push({ name: nameOf(participant), action: "choisir son transport" });
     }
-    return buildTripStatusWhatsApp({ tripName: trip.name || "notre voyage", tripUrl: typeof window === "undefined" ? `/trips/${trip.id}` : `${window.location.origin}/trips/${trip.id}`, statusLines, actions });
+    return buildTripStatusWhatsApp({
+      tripName: trip.name || "notre voyage",
+      tripUrl:
+        typeof window === "undefined"
+          ? `/trips/${trip.id}`
+          : `${window.location.origin}/trips/${trip.id}`,
+      statusLines,
+      actions,
+    });
   }
 
   function buildWhatsAppRemindMessage() {
@@ -955,7 +1010,9 @@ function TripDetail() {
   }
 
   const trip = data.trip;
-  const manualRange = manualStartDate ? calculateTripDateRange(manualStartDate, Number((trip as any).duration_nights || 1)) : null;
+  const manualRange = manualStartDate
+    ? calculateTripDateRange(manualStartDate, Number((trip as any).duration_nights || 1))
+    : null;
   const datesLocked = Boolean(trip.dates_locked);
   const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const recommendations = (data.recommendations ?? []) as unknown as Recommendation[];
@@ -1083,7 +1140,17 @@ function TripDetail() {
         tripEndDatePassed={tripEndDatePassed}
       ></TripHubDashboard>
 
-      {data.isOwner ? <div className="mt-4 flex justify-end"><Button type="button" variant="outline" onClick={() => shareOnWhatsApp(buildWhatsAppStatusMessage())}>Partager l’état du voyage</Button></div> : null}
+      {data.isOwner ? (
+        <div className="mt-4 flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => shareOnWhatsApp(buildWhatsAppStatusMessage())}
+          >
+            Partager l’état du voyage
+          </Button>
+        </div>
+      ) : null}
 
       {/* Restitution finale uniquement lorsque destination et planning sont réellement validés. */}
       {finalRestitutionReady ? (
@@ -1308,13 +1375,57 @@ function TripDetail() {
             </ul>
             {data.isOwner ? (
               <Dialog>
-                <DialogTrigger asChild><Button type="button" variant="outline">Choisir d’autres dates</Button></DialogTrigger>
+                <DialogTrigger asChild>
+                  <Button type="button" variant="outline">
+                    Choisir d’autres dates
+                  </Button>
+                </DialogTrigger>
                 <DialogContent>
-                  <DialogHeader><DialogTitle>Choisir d’autres dates</DialogTitle><DialogDescription>La date de fin est calculée selon la durée définie pour le voyage.</DialogDescription></DialogHeader>
+                  <DialogHeader>
+                    <DialogTitle>Choisir d’autres dates</DialogTitle>
+                    <DialogDescription>
+                      La date de fin est calculée selon la durée définie pour le voyage.
+                    </DialogDescription>
+                  </DialogHeader>
                   <div className="space-y-4">
-                    <div><label htmlFor="manual-start-date" className="text-sm font-medium">Date de départ</label><Input id="manual-start-date" type="date" className="mt-1.5" value={manualStartDate} onChange={(event) => setManualStartDate(event.target.value)} /></div>
-                    {manualRange ? <p className="rounded-2xl bg-surface/60 px-4 py-3 text-sm font-medium">{new Date(`${manualRange.startDate}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric" })} → {new Date(`${manualRange.endDate}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} · {(trip as any).duration_nights} nuits</p> : null}
-                    <Button disabled={!manualRange || chooseDatesMutation.isPending} onClick={() => manualRange && chooseDatesMutation.mutate({ start: manualRange.startDate, end: manualRange.endDate })}>{chooseDatesMutation.isPending ? <Loader2 className="animate-spin" /> : null} Valider ces dates</Button>
+                    <div>
+                      <label htmlFor="manual-start-date" className="text-sm font-medium">
+                        Date de départ
+                      </label>
+                      <Input
+                        id="manual-start-date"
+                        type="date"
+                        className="mt-1.5"
+                        value={manualStartDate}
+                        onChange={(event) => setManualStartDate(event.target.value)}
+                      />
+                    </div>
+                    {manualRange ? (
+                      <p className="rounded-2xl bg-surface/60 px-4 py-3 text-sm font-medium">
+                        {new Date(`${manualRange.startDate}T12:00:00`).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                        })}{" "}
+                        →{" "}
+                        {new Date(`${manualRange.endDate}T12:00:00`).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "long",
+                        })}{" "}
+                        · {(trip as any).duration_nights} nuits
+                      </p>
+                    ) : null}
+                    <Button
+                      disabled={!manualRange || chooseDatesMutation.isPending}
+                      onClick={() =>
+                        manualRange &&
+                        chooseDatesMutation.mutate({
+                          start: manualRange.startDate,
+                          end: manualRange.endDate,
+                        })
+                      }
+                    >
+                      {chooseDatesMutation.isPending ? <Loader2 className="animate-spin" /> : null}{" "}
+                      Valider ces dates
+                    </Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -1453,8 +1564,10 @@ function TripDetail() {
                   const recoActivities = activities
                     .filter((a) => (reco.activity_ids ?? []).includes(a.id))
                     .slice(0, 3);
-                  const budgetTotal = reco.budget != null ? destinationBudgetTotal(reco.budget) : null;
-                  const budgetEstimated = reco.budget != null && isDestinationBudgetEstimated(reco.budget);
+                  const budgetTotal =
+                    reco.budget != null ? destinationBudgetTotal(reco.budget) : null;
+                  const budgetEstimated =
+                    reco.budget != null && isDestinationBudgetEstimated(reco.budget);
                   const reasons = (reco.match_reasons ?? []).slice(0, 4);
                   return (
                     <article
@@ -1502,7 +1615,8 @@ function TripDetail() {
                           {budgetTotal != null && budgetTotal > 0 ? (
                             <p className="mt-2 text-sm">
                               <span className="font-semibold text-foreground">
-                                {budgetEstimated ? "Budget estimé ~" : ""}{formatEuro(budgetTotal)}
+                                {budgetEstimated ? "Budget estimé ~" : ""}
+                                {formatEuro(budgetTotal)}
                               </span>
                               <span className="text-muted-foreground"> / pers.</span>
                             </p>
@@ -1621,9 +1735,21 @@ function TripDetail() {
             </p>
           ) : null}
 
+          {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited" ? (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+              <p className="font-semibold">
+                {(trip as any).group_logistics.accommodationGeneration.userMessage ||
+                  "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."}
+              </p>
+            </div>
+          ) : null}
+
           {!(trip as any).group_logistics?.hotels?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              {data.isOwner
+              {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited"
+                ? (trip as any).group_logistics.accommodationGeneration.userMessage ||
+                  "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."
+                : data.isOwner
                 ? "Lance la recherche pour proposer des hébergements."
                 : "L'organisateur·rice proposera bientôt des hôtels à voter."}
             </p>
@@ -1650,13 +1776,30 @@ function TripDetail() {
                         : "border-border",
                     )}
                   >
+                    {h.imageUrl && /^https:\/\//i.test(h.imageUrl) ? (
+                      <img
+                        src={h.imageUrl}
+                        alt=""
+                        className="mb-3 h-40 w-full rounded-xl object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                        <Hotel className="size-8" />
+                      </div>
+                    )}
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-medium">{h.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {h.type}
+                          {ACCOMMODATION_CONCEPT_LABELS[h.krewConcept] ?? "Sélection KREW"}
                           {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
                         </p>
+                        {h.location?.area || h.location?.city ? (
+                          <p className="text-xs text-muted-foreground">
+                            {[h.location.area, h.location.city].filter(Boolean).join(" · ")}
+                          </p>
+                        ) : null}
                       </div>
                       {isTop ? (
                         isReserved ? (
@@ -1667,13 +1810,29 @@ function TripDetail() {
                       ) : null}
                     </div>
                     <p className="mt-2 text-sm">
-                      {formatEuro(h.pricePerNight)} / nuit / pers.
-                      {h.priceEstimated ? " (estimé)" : ""}
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {formatEuro(h.totalEstimate)} séjour groupe
-                      </span>
+                      {h.pricePerPerson != null
+                        ? `${formatEuro(h.pricePerPerson)} / pers. pour le séjour`
+                        : "Prix à vérifier"}
+                      {h.pricePerPerson != null ? (
+                        <span className="text-muted-foreground">
+                          {h.priceStatus === "verified" ? " · Prix vérifié" : " · Prix indicatif"}
+                        </span>
+                      ) : null}
                     </p>
+                    {h.capacity != null || h.bedrooms != null ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {h.capacity != null ? `${h.capacity} personnes` : ""}
+                        {h.capacity != null && h.bedrooms != null ? " · " : ""}
+                        {h.bedrooms != null ? `${h.bedrooms} chambres` : ""}
+                      </p>
+                    ) : null}
+                    {h.matchReasons?.length ? (
+                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {h.matchReasons.slice(0, 3).map((reason: string) => (
+                          <li key={reason}>• {reason}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
@@ -1684,12 +1843,7 @@ function TripDetail() {
                         <Heart className={cn("size-3.5", iVoted && "fill-current")} />
                         {iVoted ? "Mon vote" : "Voter"} · {n}
                       </Button>
-                      {(h.links?.length
-                        ? h.links
-                        : h.bookingUrl
-                          ? [{ label: "Réserver", url: h.bookingUrl }]
-                          : []
-                      )
+                      {(h.url ? [{ label: "Voir le logement", url: h.url }] : [])
                         .slice(0, 1)
                         .map((l: any) => (
                           <a
@@ -1920,7 +2074,6 @@ function TripDetail() {
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 ~{formatEuro(tr.pricePerPerson)} / pers. A/R
-                                {tr.note ? ` · ${tr.note}` : ""}
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -2292,14 +2445,41 @@ function TripDetail() {
         <div className="space-y-8 mt-8">
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
             <Dialog>
-              <DialogTrigger asChild><Button variant="hero"><CalendarDays className="size-4" /> Ajouter au calendrier</Button></DialogTrigger>
+              <DialogTrigger asChild>
+                <Button variant="hero">
+                  <CalendarDays className="size-4" /> Ajouter au calendrier
+                </Button>
+              </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Ajouter au calendrier</DialogTitle><DialogDescription>Choisis le calendrier que tu utilises.</DialogDescription></DialogHeader>
+                <DialogHeader>
+                  <DialogTitle>Ajouter au calendrier</DialogTitle>
+                  <DialogDescription>Choisis le calendrier que tu utilises.</DialogDescription>
+                </DialogHeader>
                 <div className="grid gap-2">
-                  <Button onClick={handleDownloadIcs} variant="outline">Apple / calendrier mobile (.ics)</Button>
-                  {googleCalendarUrl ? <Button asChild variant="outline"><a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">Google Calendar</a></Button> : null}
-                  {outlookCalendarUrl ? <Button asChild variant="outline"><a href={outlookCalendarUrl} target="_blank" rel="noopener noreferrer">Outlook</a></Button> : null}
-                  {office365CalendarUrl ? <Button asChild variant="outline"><a href={office365CalendarUrl} target="_blank" rel="noopener noreferrer">Microsoft 365</a></Button> : null}
+                  <Button onClick={handleDownloadIcs} variant="outline">
+                    Apple / calendrier mobile (.ics)
+                  </Button>
+                  {googleCalendarUrl ? (
+                    <Button asChild variant="outline">
+                      <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
+                        Google Calendar
+                      </a>
+                    </Button>
+                  ) : null}
+                  {outlookCalendarUrl ? (
+                    <Button asChild variant="outline">
+                      <a href={outlookCalendarUrl} target="_blank" rel="noopener noreferrer">
+                        Outlook
+                      </a>
+                    </Button>
+                  ) : null}
+                  {office365CalendarUrl ? (
+                    <Button asChild variant="outline">
+                      <a href={office365CalendarUrl} target="_blank" rel="noopener noreferrer">
+                        Microsoft 365
+                      </a>
+                    </Button>
+                  ) : null}
                 </div>
               </DialogContent>
             </Dialog>
@@ -2421,7 +2601,9 @@ function TripDetail() {
 
           <ul className="mt-4 space-y-2">
             {participants.length === 0 ? (
-              <li className="text-sm text-muted-foreground">Personne n’a encore rejoint le groupe.</li>
+              <li className="text-sm text-muted-foreground">
+                Personne n’a encore rejoint le groupe.
+              </li>
             ) : (
               participants.map((p) => {
                 const picks = (logistics.transportPicks ?? []) as any[];

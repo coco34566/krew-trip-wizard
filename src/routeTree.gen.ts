@@ -18,9 +18,11 @@ import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
+import { Route as StayapiTestRouteImport } from './routes/stayapi-test'
 import { Route as TarifsRouteImport } from './routes/tarifs'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
+import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as ApiRecalibrateRouteImport } from './routes/api.recalibrate'
 import { Route as JoinTripIdRouteImport } from './routes/join.$tripId'
@@ -80,6 +82,11 @@ const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
   path: '/mentions-legales',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StayapiTestRoute = StayapiTestRouteImport.update({
+  id: '/stayapi-test',
+  path: '/stayapi-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TarifsRoute = TarifsRouteImport.update({
   id: '/tarifs',
   path: '/tarifs',
@@ -97,6 +104,11 @@ const Char91DotwellKnownChar93OauthProtectedResourceRoute =
     path: '/.well-known/oauth-protected-resource',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -186,9 +198,11 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/stayapi-test': typeof StayapiTestRoute
   '/tarifs': typeof TarifsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/account': typeof AuthenticatedAccountRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/join/$tripId': typeof JoinTripIdRoute
@@ -213,9 +227,11 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/stayapi-test': typeof StayapiTestRoute
   '/tarifs': typeof TarifsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/account': typeof AuthenticatedAccountRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/join/$tripId': typeof JoinTripIdRoute
@@ -241,9 +257,11 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
+  '/stayapi-test': typeof StayapiTestRoute
   '/tarifs': typeof TarifsRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/api/recalibrate': typeof ApiRecalibrateRoute
   '/join/$tripId': typeof JoinTripIdRoute
@@ -270,9 +288,11 @@ export interface FileRouteTypes {
     | '/faq'
     | '/mcp'
     | '/mentions-legales'
+    | '/stayapi-test'
     | '/tarifs'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/account'
     | '/dashboard'
     | '/api/recalibrate'
     | '/join/$tripId'
@@ -297,9 +317,11 @@ export interface FileRouteTypes {
     | '/faq'
     | '/mcp'
     | '/mentions-legales'
+    | '/stayapi-test'
     | '/tarifs'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/account'
     | '/dashboard'
     | '/api/recalibrate'
     | '/join/$tripId'
@@ -324,9 +346,11 @@ export interface FileRouteTypes {
     | '/faq'
     | '/mcp'
     | '/mentions-legales'
+    | '/stayapi-test'
     | '/tarifs'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/account'
     | '/_authenticated/dashboard'
     | '/api/recalibrate'
     | '/join/$tripId'
@@ -353,6 +377,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   McpRoute: typeof McpRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
+  StayapiTestRoute: typeof StayapiTestRoute
   TarifsRoute: typeof TarifsRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
@@ -427,6 +452,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MentionsLegalesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stayapi-test': {
+      id: '/stayapi-test'
+      path: '/stayapi-test'
+      fullPath: '/stayapi-test'
+      preLoaderRoute: typeof StayapiTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tarifs': {
       id: '/tarifs'
       path: '/tarifs'
@@ -447,6 +479,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/.well-known/oauth-protected-resource'
       preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/account': {
+      id: '/_authenticated/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthenticatedAccountRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
@@ -579,12 +618,14 @@ const AuthenticatedTripsTripIdRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedTripsTripIdRoute: typeof AuthenticatedTripsTripIdRouteWithChildren
   AuthenticatedTripsNewRoute: typeof AuthenticatedTripsNewRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAccountRoute: AuthenticatedAccountRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedTripsTripIdRoute: AuthenticatedTripsTripIdRouteWithChildren,
   AuthenticatedTripsNewRoute: AuthenticatedTripsNewRoute,
@@ -603,6 +644,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   McpRoute: McpRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,
+  StayapiTestRoute: StayapiTestRoute,
   TarifsRoute: TarifsRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:

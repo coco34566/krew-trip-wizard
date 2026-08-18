@@ -77,21 +77,15 @@ describe("SearchAPI / Google Flights", () => {
     });
   });
 
-  it("exclut un horaire incompatible et envoie les IDs multiples", async () => {
+  it("Paris Lisbonne utilise les IATA locaux et un seul appel flight", async () => {
     process.env["SEARCHAPI_API"] = "server-test-key";
-    const responses = [
-      { suggestions: [{ airports: [{ id: "CDG" }, { id: "ORY" }] }] },
-      { suggestions: [{ airports: [{ id: "LIS" }] }] },
-      {
-        best_flights: [offer(100, "CDG", "15:00"), offer(180, "ORY", "19:00")],
-      },
-    ];
-    const fetchMock = vi.fn().mockImplementation(async () => ({
-      ok: true,
-      json: async () => responses.shift(),
-    }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({ best_flights: [offer(180, "PAR", "19:00")] }),
+      });
     vi.stubGlobal("fetch", fetchMock);
-
     const quote = await searchGoogleFlightsRoundTrip({
       originCity: "Paris",
       destinationCity: "Lisbonne",
@@ -101,10 +95,11 @@ describe("SearchAPI / Google Flights", () => {
       earliestDepartureTime: "18:00",
     });
     expect(quote.pricePerPerson).toBe(180);
-    const flightUrl = new URL(fetchMock.mock.calls[2]![0]);
-    expect(flightUrl.searchParams.get("departure_id")).toBe("CDG,ORY");
-    expect(flightUrl.searchParams.get("flight_type")).toBe("round_trip");
-    expect(flightUrl.searchParams.get("currency")).toBe("EUR");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const flightUrl = new URL(fetchMock.mock.calls[0]![0]);
+    expect(flightUrl.searchParams.get("engine")).toBe("google_flights");
+    expect(flightUrl.searchParams.get("departure_id")).toBe("PAR");
+    expect(flightUrl.searchParams.get("arrival_id")).toBe("LIS");
   });
 });
 
