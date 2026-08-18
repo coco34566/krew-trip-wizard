@@ -1670,43 +1670,12 @@ export async function generateRecommendationsForTrip(
     );
     if (!candidate) continue;
     const byOrigin = originsForQuote.map((origin) => {
-      let candidateTransportInfo: { modes: string[]; approxHours: number } | undefined;
-      if (candidate.transport) {
-        const normOriginCity = normCity(origin.city);
-        for (const [key, val] of Object.entries(candidate.transport)) {
-          if (normCity(key) === normOriginCity) {
-            candidateTransportInfo = val;
-            break;
-          }
-        }
-      }
-
-      const modes = candidateTransportInfo?.modes ?? [];
-      const hasCompatibleMode =
-        !hasModeConstraints ||
-        modes.some((m) => {
-          const normM = m.toLowerCase().trim();
-          return (
-            acceptedModesSet.has(normM) ||
-            (normM === "flight" && acceptedModesSet.has("avion")) ||
-            (normM === "train" && acceptedModesSet.has("train")) ||
-            (normM === "car" && (acceptedModesSet.has("voiture") || acceptedModesSet.has("covoiturage")))
-          );
-        });
-
-      const maxHours = ctx.maxTravelDurationHours;
-      const durationHours = candidateTransportInfo?.approxHours ?? null;
-      const durationCompatible =
-        maxHours == null || durationHours == null || durationHours <= maxHours;
-
       const pricePerPerson = fallbackTransport(destination.distance_from_paris_km);
 
       return {
         city: origin.city,
         count: origin.count,
         pricePerPerson,
-        hasCompatibleMode,
-        durationCompatible,
       };
     });
 
@@ -1726,9 +1695,7 @@ export async function generateRecommendationsForTrip(
     }
 
     if (candidate.dailyCost != null && Number.isFinite(candidate.dailyCost) && candidate.dailyCost > 0) {
-      lodgingPerPersonPerNightByDestinationId[destination.id] = Math.round(candidate.dailyCost * 0.5);
-      foodPerPersonPerDayByDestinationId[destination.id] = Math.round(candidate.dailyCost * 0.35);
-      activitiesPerPersonPerDayByDestinationId[destination.id] = Math.round(candidate.dailyCost * 0.15);
+      // dailyCost est conservé uniquement si une vraie valeur explicite existe déjà
     }
 
     if (Array.isArray(candidate.activityFit)) {

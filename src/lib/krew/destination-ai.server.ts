@@ -358,8 +358,6 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
 
         if (Number.isFinite(Number(c.cost)) && Number(c.cost) > 0) {
           out.dailyCost = Number(c.cost);
-        } else if (out.budgetLevel) {
-          out.dailyCost = out.budgetLevel === "low" ? 50 : out.budgetLevel === "medium" ? 85 : 130;
         }
 
         if (Array.isArray(c.activityFit)) {

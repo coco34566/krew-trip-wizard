@@ -97,7 +97,26 @@ describe("Gemini destination discovery unique provider", () => {
     expect(merged.activityFit).toEqual(["sport", "nature"]);
     expect(merged.environmentFit).toEqual(["mountain", "outdoor"]);
     expect(merged.accommodationFit).toEqual(["house_together"]);
+    expect(result.candidates[0]?.dailyCost).toBeUndefined();
     expect(aiCandidateToDestinationRow(merged).avg_daily_cost).toBeNull();
+  });
+  it("un budgetLevel 'medium' ne génère aucun montant artificiel 85", async () => {
+    process.env["GEMINI_API_KEY"] = "gemini";
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          response(
+            '{"destinations":[{"name":"Luberon","country":"France","destinationType":"region_territory","anchorPlaces":["Gordes"],"why":"Provence","km":700,"months":[5,6,9],"budgetLevel":"medium"}]}',
+          ),
+        ),
+    );
+    const result = await discoverDestinationsWithAi(input);
+    const candidate = result.candidates[0]!;
+    expect(candidate.budgetLevel).toBe("medium");
+    expect(candidate.dailyCost).toBeUndefined();
+    expect(candidate.dailyCost).not.toBe(85);
   });
   it("sans Gemini retourne le fallback local sans appel externe", async () => {
     const fetchMock = vi.fn();
