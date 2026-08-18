@@ -92,10 +92,6 @@ function TripCard({
     members: [],
   };
 
-  const totalPossible = Math.max(team.total * 2, 1);
-  const totalDone = (team.availabilityAnswered ?? 0) + (team.preferencesAnswered ?? 0);
-  const pct = Math.min(100, Math.max(0, Math.round((totalDone / totalPossible) * 100)));
-
   return (
     <div className="relative rounded-2xl border border-border/80 bg-card p-5 sm:p-6 transition-colors hover:border-primary/40 flex flex-col justify-between">
       <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block space-y-4">
@@ -153,13 +149,6 @@ function TripCard({
             </div>
           </div>
 
-          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-secondary transition-all duration-300"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-
           {team.members.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs text-muted-foreground pr-8">
               {team.members.slice(0, 5).map((m) => (
@@ -170,12 +159,12 @@ function TripCard({
                   <span className="truncate max-w-[100px]">{m.name}</span>
                   <span className="flex items-center gap-1 shrink-0">
                     {m.availabilityDone ? (
-                      <span className="size-1.5 rounded-full bg-emerald-500" title="Disponibilités complétées" />
+                      <span className="size-1.5 rounded-full bg-emerald-500" />
                     ) : (
                       <span className="size-1.5 rounded-full bg-muted-foreground/30" />
                     )}
                     {m.preferencesDone ? (
-                      <Check className="size-3 text-secondary shrink-0" title="Préférences complétées" />
+                      <Check className="size-3 text-secondary shrink-0" />
                     ) : (
                       <span className="size-1.5 rounded-full bg-muted-foreground/30" />
                     )}
