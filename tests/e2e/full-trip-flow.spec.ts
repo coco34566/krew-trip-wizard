@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { installDiagnostics, signIn, userClick, handleNormalUi } from "./helpers";
+import { installDiagnostics, signIn, userClick, handleNormalUserUi } from "./helpers";
 
 async function fillPreferences(page: Page) {
   await userClick(page, page.getByRole("button", { name: "🧖 Détente", exact: true }), "choose Détente");
@@ -13,7 +13,7 @@ async function fillPreferences(page: Page) {
 
 async function fillAvailability(page: Page, tripId: string) {
   await page.goto(`/trips/${tripId}/availability`);
-  await handleNormalUi(page);
+  await handleNormalUserUi(page);
   await userClick(page, page.getByRole("button", { name: /Tous les week-ends affichés/ }), "select all displayed weekends");
   const saveAvailability = page.getByRole("button", { name: /Enregistrer mes disponibilités/ });
   await expect(saveAvailability).toBeEnabled();
@@ -37,7 +37,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
 
   stage = "create-trip";
   await page.goto("/trips/new");
-  await handleNormalUi(page);
+  await handleNormalUserUi(page);
   const tripName = `E2E-FULL-${Date.now()}`;
   await page.locator("#name").fill(tripName);
   await page.locator("#orga").fill("QA");
@@ -56,7 +56,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
 
   stage = "organizer-preferences";
   await page.goto(`/trips/${tripId}/questionnaire`);
-  await handleNormalUi(page);
+  await handleNormalUserUi(page);
   await fillPreferences(page);
   await page.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
 
@@ -67,7 +67,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   const participantContext = await browser.newContext({ ...testInfo.project.use, baseURL: process.env.KREW_E2E_BASE_URL } as any);
   const participantPage = await participantContext.newPage();
   await participantPage.goto(`/auth?next=${encodeURIComponent(`/join/${tripId}`)}`);
-  await handleNormalUi(participantPage);
+  await handleNormalUserUi(participantPage);
   await participantPage.locator("#email").fill(participantEmail);
   await participantPage.locator("#password").fill(password);
   await userClick(participantPage, participantPage.getByRole("button", { name: "Se connecter", exact: true }), "second participant sign in");
@@ -75,7 +75,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   const reachedJoin = await participantPage.waitForURL(new RegExp(`/join/${tripId}`), { timeout: 8_000 }).then(() => true).catch(() => false);
   if (!reachedJoin) {
     await participantPage.goto(`/auth?next=${encodeURIComponent(`/join/${tripId}`)}`);
-    await handleNormalUi(participantPage);
+    await handleNormalUserUi(participantPage);
     await userClick(participantPage, participantPage.getByRole("tab", { name: "Créer un compte", exact: true }), "open signup");
     await participantPage.locator("#name").fill("QA Participant");
     await participantPage.locator("#email2").fill(participantEmail);
@@ -88,7 +88,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   }
 
   stage = "second-participant-join";
-  await handleNormalUi(participantPage);
+  await handleNormalUserUi(participantPage);
   await participantPage.locator("#join-firstname").fill("QA2");
   await userClick(participantPage, participantPage.getByRole("button", { name: "Rejoindre et indiquer mes dispos", exact: true }), "join trip");
   await participantPage.waitForURL(new RegExp(`/trips/${tripId}/availability`), { timeout: 30_000 });
@@ -97,13 +97,13 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await fillAvailability(participantPage, tripId!);
   stage = "second-participant-preferences";
   await participantPage.goto(`/trips/${tripId}/questionnaire`);
-  await handleNormalUi(participantPage);
+  await handleNormalUserUi(participantPage);
   await fillPreferences(participantPage);
   await participantPage.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
   await participantContext.close();
 
   await page.goto(`/trips/${tripId}`);
-  await handleNormalUi(page);
+  await handleNormalUserUi(page);
 
   stage = "lock-dates";
   const dates = page.locator("#hub-dates");
@@ -165,7 +165,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
 
   stage = "persistence";
   await page.reload();
-  await handleNormalUi(page);
+  await handleNormalUserUi(page);
   await expect(page.locator("#hub-destination").getByText(/Destination validée/).first()).toBeVisible();
   await expect(page.locator("#hub-logistics").getByRole("button", { name: /^Mon vote ·/ }).first()).toBeVisible();
   await expect(page.locator("#hub-transports").getByRole("button", { name: "Mon trajet", exact: true }).first()).toBeVisible();
