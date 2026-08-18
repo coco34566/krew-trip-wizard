@@ -1664,6 +1664,7 @@ export async function generateRecommendationsForTrip(
     (ctx.transportModes ?? []).map((m) => m.toLowerCase().trim()),
   );
   const hasModeConstraints = acceptedModesSet.size > 0 && !acceptedModesSet.has("peu importe");
+  const incompatibleDestinationIds = new Set<string>();
 
   for (const destination of catalogFinal.destinations) {
     const candidate = mergedCandidates.find(
@@ -1728,6 +1729,7 @@ export async function generateRecommendationsForTrip(
     });
 
     if (candidateIncompatible) {
+      incompatibleDestinationIds.add(destination.id);
       continue;
     }
 
@@ -1756,6 +1758,26 @@ export async function generateRecommendationsForTrip(
     if (candidate.budgetLevel) {
       budgetLevelByDestinationId[destination.id] = candidate.budgetLevel;
     }
+  }
+
+  if (incompatibleDestinationIds.size > 0) {
+    const incompatibleNames = new Set(
+      catalogFinal.destinations
+        .filter((d) => incompatibleDestinationIds.has(d.id))
+        .map((d) => normName(d.name)),
+    );
+    catalogFinal = {
+      destinations: catalogFinal.destinations.filter(
+        (d) => !incompatibleDestinationIds.has(d.id),
+      ),
+      activities: catalogFinal.activities.filter(
+        (a) => !incompatibleDestinationIds.has(a.destination_id),
+      ),
+      accommodations: catalogFinal.accommodations.filter(
+        (a) => !incompatibleDestinationIds.has(a.destination_id),
+      ),
+    };
+    shortlistNames = shortlistNames.filter((name) => !incompatibleNames.has(normName(name)));
   }
 
   const ctxWithTransport: ScoringContext = {

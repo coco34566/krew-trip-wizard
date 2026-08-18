@@ -484,6 +484,211 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     expect(res.shortlist.length).toBe(40);
   });
 
+  it("exclut réellement les candidates incompatibles transport au niveau generateRecommendationsForTrip", async () => {
+    const tripId = "trip-transport-test";
+
+    // 3 candidates IA :
+    // 1. FlightOnly : avion uniquement, mais planeRefused est true
+    // 2. TooLong : train mais 12h, alors que maxTravelDurationHours = 4h
+    // 3. NormalFallback : pas de donnée Gemini transport -> utilise fallback KREW
+    const candidates = [
+      {
+        name: "FlightOnly",
+        country: "Espagne",
+        affinity: 95,
+        reason: "vol direct",
+        destinationType: "city" as const,
+        anchorPlaces: ["FlightOnly"],
+        transport: { Paris: { modes: ["flight"], approxHours: 2 } },
+      },
+      {
+        name: "TooLong",
+        country: "Italie",
+        affinity: 90,
+        reason: "train long",
+        destinationType: "city" as const,
+        anchorPlaces: ["TooLong"],
+        transport: { Paris: { modes: ["train"], approxHours: 12 } },
+      },
+      {
+        name: "NormalFallback",
+        country: "France",
+        affinity: 85,
+        reason: "fallback krew",
+        destinationType: "city" as const,
+        anchorPlaces: ["NormalFallback"],
+      },
+    ];
+
+    vi.spyOn(await import("../krew/destination-ai.server"), "discoverDestinationsWithAi").mockResolvedValue({
+      candidates,
+      usedLlm: true,
+      provider: "gemini",
+    });
+
+    vi.spyOn(await import("../krew/providers.server"), "loadTravelCatalog").mockImplementation(async () => {
+      return {
+        destinations: candidates.map((c, i) => ({
+          id: `dest-${i + 1}`,
+          name: c.name,
+          country: c.country,
+          distance_from_paris_km: 500,
+          avg_daily_cost: 80,
+          best_months: [6, 7, 8],
+          score_fete: 0.5,
+          score_detente: 0.5,
+          score_culturel: 0.5,
+          score_aventure: 0.5,
+          score_luxe: 0.5,
+          score_insolite: 0.5,
+          score_sportif: 0.5,
+          source: "krew_discovery",
+        })),
+        activities: [],
+        accommodations: [],
+      };
+    });
+
+    const supabaseMock = {
+      from: vi.fn((table: string) => {
+        if (table === "trips") {
+          const tripMockObj: any = {
+            single: () =>
+              Promise.resolve({
+                data: {
+                  id: tripId,
+                  owner_id: "user-1",
+                  participants_count: 2,
+                  dates_locked: true,
+                  start_date: "2026-08-01",
+                  end_date: "2026-08-03",
+                  stay_profile_validated_at: "2026-08-01T00:00:00Z",
+                  budget_per_person: 500,
+                  duration_nights: 2,
+                  departure_city: "Paris",
+                },
+                error: null,
+              }),
+            then: (resolve: any) => resolve({ data: [], error: null }),
+          };
+          tripMockObj.eq = () => tripMockObj;
+          tripMockObj.neq = () => tripMockObj;
+
+          return {
+            select: () => tripMockObj,
+            update: () => ({
+              eq: () => Promise.resolve({ error: null }),
+            }),
+          };
+        }
+        if (table === "trip_preferences") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: {
+                      let_krew_decide: true,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+        if (table === "trip_participants") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { id: "p1", user_id: "u1" },
+                    { id: "p2", user_id: "u2" },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "trip_participant_preferences") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    {
+                      user_id: "u1",
+                      ambiances: ["fete"],
+                      transport_mode_accepted: ["train"], // pas d'avion
+                      max_travel_duration_hours: 4, // 4h max
+                    },
+                    {
+                      user_id: "u2",
+                      ambiances: ["detente"],
+                      transport_mode_accepted: ["train"],
+                      max_travel_duration_hours: 4,
+                    },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "trip_availability") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [{ user_id: "u1" }, { user_id: "u2" }],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "destinations") {
+          return {
+            select: () => ({
+              ilike: () => ({
+                maybeSingle: () => Promise.resolve({ data: null, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === "recommendations") {
+          return {
+            select: () => ({
+              eq: () => Promise.resolve({ data: [], error: null }),
+            }),
+            insert: () => ({
+              select: () => Promise.resolve({ data: [{ id: "rec-1" }], error: null }),
+            }),
+            delete: () => ({
+              in: () => Promise.resolve({ error: null }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: null, error: null }),
+            }),
+            ilike: () => ({
+              maybeSingle: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        };
+      }),
+    } as any;
+
+    const res = await generateRecommendationsForTrip(supabaseMock, tripId, { force: true });
+
+    // FlightOnly et TooLong sont exclues avant le scoring final
+    expect(res.shortlist).not.toContain("FlightOnly");
+    expect(res.shortlist).not.toContain("TooLong");
+    // NormalFallback (sans donnée Gemini transport) est bien conservée via le fallback KREW
+    expect(res.shortlist).toContain("NormalFallback");
+  });
+
   it("autorise la génération dans le cas nominal (canGenerate = true)", async () => {
     const tripId = "trip-123";
     const supabaseMock = {
