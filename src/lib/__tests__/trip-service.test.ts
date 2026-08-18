@@ -319,6 +319,171 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     }
   });
 
+  it("conserve plus de 12 candidats (jusqu'à 50) dans la shortlist de generateRecommendationsForTrip", async () => {
+    const tripId = "trip-123";
+    const { discoverDestinationsWithAi } = await import("../krew/destination-ai.server");
+    const { loadTravelCatalog } = await import("../krew/providers.server");
+
+    const generatedCandidates = Array.from({ length: 30 }, (_, i) => ({
+      name: `Destination ${i + 1}`,
+      country: "France",
+      affinity: 90 - i,
+      reason: "test AI candidate",
+      destinationType: "city" as const,
+      anchorPlaces: [`Destination ${i + 1}`],
+    }));
+
+    vi.spyOn(await import("../krew/destination-ai.server"), "discoverDestinationsWithAi").mockResolvedValue({
+      candidates: generatedCandidates,
+      usedLlm: true,
+      provider: "gemini",
+    });
+
+    vi.spyOn(await import("../krew/providers.server"), "loadTravelCatalog").mockImplementation(async () => {
+      return {
+        destinations: generatedCandidates.map((c, i) => ({
+          id: `dest-${i + 1}`,
+          name: c.name,
+          country: c.country,
+          distance_from_paris_km: 500,
+          avg_daily_cost: 80,
+          best_months: [6, 7, 8],
+          score_fete: 0.5,
+          score_detente: 0.5,
+          score_culturel: 0.5,
+          score_aventure: 0.5,
+          score_luxe: 0.5,
+          score_insolite: 0.5,
+          score_sportif: 0.5,
+          source: "krew_discovery",
+        })),
+        activities: [],
+        accommodations: [],
+      };
+    });
+
+    const supabaseMock = {
+      from: vi.fn((table: string) => {
+        if (table === "trips") {
+          return {
+            select: () => ({
+              eq: () => ({
+                single: () =>
+                  Promise.resolve({
+                    data: {
+                      id: tripId,
+                      owner_id: "user-1",
+                      participants_count: 2,
+                      dates_locked: true,
+                      start_date: "2026-08-01",
+                      end_date: "2026-08-03",
+                      stay_profile_validated_at: "2026-08-01T00:00:00Z",
+                      budget_per_person: 500,
+                      duration_nights: 2,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+            update: () => ({
+              eq: () => Promise.resolve({ error: null }),
+            }),
+          };
+        }
+        if (table === "trip_preferences") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: {
+                      let_krew_decide: true,
+                    },
+                    error: null,
+                  }),
+              }),
+            }),
+          };
+        }
+        if (table === "trip_participants") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { id: "p1", user_id: "u1" },
+                    { id: "p2", user_id: "u2" },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "trip_participant_preferences") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [
+                    { user_id: "u1", ambiances: ["fete"] },
+                    { user_id: "u2", ambiances: ["detente"] },
+                  ],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "trip_availability") {
+          return {
+            select: () => ({
+              eq: () =>
+                Promise.resolve({
+                  data: [{ user_id: "u1" }, { user_id: "u2" }],
+                  error: null,
+                }),
+            }),
+          };
+        }
+        if (table === "destinations") {
+          return {
+            select: () => ({
+              ilike: () => ({
+                maybeSingle: () => Promise.resolve({ data: null, error: null }),
+              }),
+            }),
+          };
+        }
+        if (table === "recommendations") {
+          return {
+            select: () => ({
+              eq: () => Promise.resolve({ data: [], error: null }),
+            }),
+            insert: () => ({
+              select: () => Promise.resolve({ data: [{ id: "rec-1" }], error: null }),
+            }),
+            delete: () => ({
+              in: () => Promise.resolve({ error: null }),
+            }),
+          };
+        }
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: null, error: null }),
+            }),
+            ilike: () => ({
+              maybeSingle: () => Promise.resolve({ data: null, error: null }),
+            }),
+          }),
+        };
+      }),
+    } as any;
+
+    const res = await generateRecommendationsForTrip(supabaseMock, tripId, { force: true });
+    expect(res.shortlist.length).toBeGreaterThan(12);
+    expect(res.shortlist.length).toBe(40);
+  });
+
   it("autorise la génération dans le cas nominal (canGenerate = true)", async () => {
     const tripId = "trip-123";
     const supabaseMock = {

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearDestinationAiCacheForTests,
   discoverDestinationsWithAi,
+  REQUEST_TIMEOUT_MS,
   type AiDiscoveryInput,
 } from "../krew/destination-ai.server";
 import { aiCandidateToDestinationRow, mergeCandidates } from "../krew/candidate-merge";
@@ -101,5 +102,32 @@ describe("Gemini destination discovery unique provider", () => {
     const result = await discoverDestinationsWithAi(input);
     expect(result.usedLlm).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it("exporte REQUEST_TIMEOUT_MS égal à 60000ms", () => {
+    expect(REQUEST_TIMEOUT_MS).toBe(60_000);
+  });
+  it("conserve jusqu'à 50 candidats avant scoring dans mergeCandidates et parseur Gemini", async () => {
+    process.env["GEMINI_API_KEY"] = "gemini";
+    const destinations = Array.from({ length: 60 }, (_, i) => ({
+      name: `Ville ${i + 1}`,
+      country: "France",
+      why: "test",
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(response(JSON.stringify({ destinations }))),
+    );
+    const result = await discoverDestinationsWithAi(input);
+    expect(result.candidates.length).toBe(50);
+
+    const extraRuleBased = Array.from({ length: 20 }, (_, i) => ({
+      name: `Local ${i + 1}`,
+      affinity: 90 - i,
+      reason: "règle locale",
+      source: "catalog" as const,
+    }));
+    const merged = mergeCandidates(extraRuleBased, result.candidates);
+    expect(merged.length).toBeGreaterThan(12);
+    expect(merged.slice(0, 50).length).toBe(50);
   });
 });
