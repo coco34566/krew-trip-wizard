@@ -73,7 +73,7 @@ describe("Gemini destination discovery unique provider", () => {
     expect(result.usedLlm).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
-  it("préserve types et estimations structurées", async () => {
+  it("préserve types et estimations structurées compactes", async () => {
     process.env["GEMINI_API_KEY"] = "gemini";
     vi.stubGlobal(
       "fetch",
@@ -81,19 +81,22 @@ describe("Gemini destination discovery unique provider", () => {
         .fn()
         .mockResolvedValue(
           response(
-            '{"destinations":[{"name":"Vercors","destinationType":"outdoor_area","anchorPlaces":["Autrans"],"transportEstimate":{"byOrigin":[{"origin":"Paris","realisticModes":["train"],"roundTripLow":80,"roundTripCentral":120,"roundTripHigh":180,"approximateDurationHours":4,"confidence":"medium"}]},"lodgingEstimate":{"perPersonPerNightLow":40,"perPersonPerNightCentral":60,"perPersonPerNightHigh":90,"confidence":"medium"},"localCostEstimate":{"foodPerPersonPerDay":30,"activitiesPerPersonPerDay":20,"confidence":"medium"},"activityFit":[{"category":"sport","availability":"strong","examples":[],"seasonal":true,"weatherDependent":true,"confidence":"high"}]}]}',
+            '{"destinations":[{"name":"Vercors","country":"France","region":"Isère","destinationType":"outdoor_area","anchorPlaces":["Autrans"],"why":"Montagne et sport","km":600,"months":[5,6,9],"transport":{"Paris":{"modes":["train"],"approxHours":4}},"budgetLevel":"medium","activityFit":["sport","nature"],"environmentFit":["mountain","outdoor"],"accommodationFit":["house_together"],"seasonFit":"good"}]}',
           ),
         ),
     );
     const result = await discoverDestinationsWithAi(input);
     expect(result.candidates[0]).toMatchObject({
       destinationType: "outdoor_area",
-      lodgingEstimate: { perPersonPerNightCentral: 60 },
-      localCostEstimate: { foodPerPersonPerDay: 30 },
+      budgetLevel: "medium",
+      seasonFit: "good",
     });
     const merged = mergeCandidates([], result.candidates)[0]!;
-    expect(merged.transportEstimate?.byOrigin[0]?.roundTripCentral).toBe(120);
-    expect(merged.activityFit?.[0]?.availability).toBe("strong");
+    expect(merged.transport?.["Paris"]?.approxHours).toBe(4);
+    expect(merged.transport?.["Paris"]?.modes).toEqual(["train"]);
+    expect(merged.activityFit).toEqual(["sport", "nature"]);
+    expect(merged.environmentFit).toEqual(["mountain", "outdoor"]);
+    expect(merged.accommodationFit).toEqual(["house_together"]);
     expect(aiCandidateToDestinationRow(merged).avg_daily_cost).toBeNull();
   });
   it("sans Gemini retourne le fallback local sans appel externe", async () => {
@@ -122,9 +125,14 @@ describe("Gemini destination discovery unique provider", () => {
 
     const extraRuleBased = Array.from({ length: 20 }, (_, i) => ({
       name: `Local ${i + 1}`,
+      country: "France",
       affinity: 90 - i,
       reason: "règle locale",
-      source: "catalog" as const,
+      dailyCost: 70,
+      distanceKm: 500,
+      bestMonths: [5, 6],
+      destinationType: "city" as const,
+      anchorPlaces: [`Local ${i + 1}`],
     }));
     const merged = mergeCandidates(extraRuleBased, result.candidates);
     expect(merged.length).toBeGreaterThan(12);

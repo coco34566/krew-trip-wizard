@@ -1292,17 +1292,20 @@ export async function generateRecommendationsForTrip(
       name: c.name,
       country: c.country,
       affinity: c.affinity,
-      reason: c.reason + (ai.cached ? " · cache" : " · IA"),
+      reason: (c.why || c.reason) + (ai.cached ? " · cache" : " · IA"),
+      why: c.why || c.reason,
       dailyCost: c.dailyCost,
       distanceKm: c.distanceKm,
       bestMonths: c.bestMonths,
       region: c.region,
       destinationType: c.destinationType,
       anchorPlaces: c.anchorPlaces,
-      transportEstimate: c.transportEstimate,
-      lodgingEstimate: c.lodgingEstimate,
-      localCostEstimate: c.localCostEstimate,
+      transport: c.transport,
+      budgetLevel: c.budgetLevel,
       activityFit: c.activityFit,
+      environmentFit: c.environmentFit,
+      accommodationFit: c.accommodationFit,
+      seasonFit: c.seasonFit,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities);
 
@@ -1667,10 +1670,18 @@ export async function generateRecommendationsForTrip(
     );
     if (!candidate) continue;
     const byOrigin = originsForQuote.map((origin) => {
-      const estimate = candidate.transportEstimate?.byOrigin.find(
-        (item) => normCity(item.origin) === normCity(origin.city),
-      );
-      const modes = estimate?.realisticModes ?? [];
+      let candidateTransportInfo: { modes: string[]; approxHours: number } | undefined;
+      if (candidate.transport) {
+        const normOriginCity = normCity(origin.city);
+        for (const [key, val] of Object.entries(candidate.transport)) {
+          if (normCity(key) === normOriginCity) {
+            candidateTransportInfo = val;
+            break;
+          }
+        }
+      }
+
+      const modes = candidateTransportInfo?.modes ?? [];
       const hasCompatibleMode =
         !hasModeConstraints ||
         modes.some((m) => {
@@ -1684,21 +1695,21 @@ export async function generateRecommendationsForTrip(
         });
 
       const maxHours = ctx.maxTravelDurationHours;
-      const durationHours = estimate?.approximateDurationHours ?? null;
-      const durationCompatible = maxHours == null || durationHours == null || durationHours <= maxHours;
+      const durationHours = candidateTransportInfo?.approxHours ?? null;
+      const durationCompatible =
+        maxHours == null || durationHours == null || durationHours <= maxHours;
 
-      const isValidEstimate =
-        estimate?.roundTripCentral != null &&
-        estimate.roundTripCentral > 0 &&
-        hasCompatibleMode &&
-        durationCompatible;
+      const pricePerPerson = fallbackTransport(destination.distance_from_paris_km);
 
-      const pricePerPerson = isValidEstimate
-        ? (estimate.roundTripCentral as number)
-        : fallbackTransport(destination.distance_from_paris_km);
-
-      return { city: origin.city, count: origin.count, pricePerPerson };
+      return {
+        city: origin.city,
+        count: origin.count,
+        pricePerPerson,
+        hasCompatibleMode,
+        durationCompatible,
+      };
     });
+
     const groupTotal = byOrigin.reduce(
       (sum, origin) => sum + origin.pricePerPerson * origin.count,
       0,
@@ -1707,19 +1718,22 @@ export async function generateRecommendationsForTrip(
     if (people > 0) {
       transportByDestinationId[destination.id] = groupTotal / people;
       transportGroupByDestinationId[destination.id] = groupTotal;
-      transportOriginsByDestinationId[destination.id] = byOrigin;
+      transportOriginsByDestinationId[destination.id] = byOrigin.map((o) => ({
+        city: o.city,
+        count: o.count,
+        pricePerPerson: o.pricePerPerson,
+      }));
     }
-    const lodging = candidate.lodgingEstimate?.perPersonPerNightCentral;
-    if (lodging != null && Number.isFinite(lodging) && lodging > 0)
-      lodgingPerPersonPerNightByDestinationId[destination.id] = lodging;
-    const food = candidate.localCostEstimate?.foodPerPersonPerDay;
-    if (food != null && Number.isFinite(food) && food > 0) foodPerPersonPerDayByDestinationId[destination.id] = food;
-    const activities = candidate.localCostEstimate?.activitiesPerPersonPerDay;
-    if (activities != null && Number.isFinite(activities) && activities > 0)
-      activitiesPerPersonPerDayByDestinationId[destination.id] = activities;
-    activityFitByDestinationId[destination.id] = (candidate.activityFit ?? [])
-      .filter((fit) => fit.availability === "strong" || fit.availability === "medium")
-      .map((fit) => fit.category);
+
+    if (candidate.dailyCost != null && Number.isFinite(candidate.dailyCost) && candidate.dailyCost > 0) {
+      lodgingPerPersonPerNightByDestinationId[destination.id] = Math.round(candidate.dailyCost * 0.5);
+      foodPerPersonPerDayByDestinationId[destination.id] = Math.round(candidate.dailyCost * 0.35);
+      activitiesPerPersonPerDayByDestinationId[destination.id] = Math.round(candidate.dailyCost * 0.15);
+    }
+
+    if (Array.isArray(candidate.activityFit)) {
+      activityFitByDestinationId[destination.id] = candidate.activityFit;
+    }
   }
 
   const ctxWithTransport: ScoringContext = {
