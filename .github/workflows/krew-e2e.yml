@@ -3,13 +3,8 @@ name: KREW Golden Path E2E
 on:
   workflow_dispatch:
     inputs:
-      test_ref:
-        description: "Branch/ref containing the Playwright harness"
-        required: true
-        default: "qa/playwright-golden-trip-flow"
-        type: string
       base_url:
-        description: "Vercel Preview URL to test"
+        description: "Vercel URL to test"
         required: true
         type: string
       existing_trip_id:
@@ -29,10 +24,8 @@ jobs:
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
       KREW_E2E_EXISTING_TRIP_ID: ${{ inputs.existing_trip_id }}
     steps:
-      - name: Checkout test harness branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.test_ref }}
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false @playwright/test@1.55.0
