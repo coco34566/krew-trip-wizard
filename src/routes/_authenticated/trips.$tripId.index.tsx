@@ -184,6 +184,32 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
   return fallbacks[h]!;
 }
 
+function calculateHaversineDistance(
+  lat1: number | null | undefined,
+  lon1: number | null | undefined,
+  lat2: number | null | undefined,
+  lon2: number | null | undefined,
+): number | null {
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+  const numLat1 = Number(lat1);
+  const numLon1 = Number(lon1);
+  const numLat2 = Number(lat2);
+  const numLon2 = Number(lon2);
+  if (isNaN(numLat1) || isNaN(numLon1) || isNaN(numLat2) || isNaN(numLon2)) return null;
+
+  const R = 6371; // Rayon de la Terre en km
+  const dLat = ((numLat2 - numLat1) * Math.PI) / 180;
+  const dLon = ((numLon2 - numLon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((numLat1 * Math.PI) / 180) *
+      Math.cos((numLat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance en km
+}
+
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
   head: () => ({
     meta: [
@@ -965,6 +991,8 @@ function TripDetail() {
     category: string;
     price_per_person: number;
     rating: number;
+    latitude?: number;
+    longitude?: number;
   }[];
   const votes = (data.votes ?? []) as { recommendation_id: string; user_id: string }[];
   const activityVotes = ((data as any).activityVotes ?? []) as {
@@ -2034,6 +2062,30 @@ function TripDetail() {
                             : slot.type === "activite"
                               ? Camera
                               : CalendarDays;
+
+                      const hotelId = logistics?.selectedHotelId;
+                      const hotelsList = (logistics?.hotels ?? []) as any[];
+                      const hotel = hotelId
+                        ? hotelsList.find((h) => h.id === hotelId)
+                        : null;
+
+                      const matchedActivity = activities.find(
+                        (a) =>
+                          a.name.toLowerCase() === slot.label.toLowerCase() ||
+                          slot.label.toLowerCase().includes(a.name.toLowerCase()) ||
+                          a.name.toLowerCase().includes(slot.label.toLowerCase()),
+                      );
+
+                      const distance =
+                        hotel && matchedActivity
+                          ? calculateHaversineDistance(
+                              hotel.latitude,
+                              hotel.longitude,
+                              matchedActivity.latitude,
+                              matchedActivity.longitude,
+                            )
+                          : null;
+
                       return (
                         <li
                           key={`${day.day}-${slotIndex}`}
@@ -2054,6 +2106,12 @@ function TripDetail() {
                               <p className="font-medium text-sm">{slot.label}</p>
                               {slot.detail ? (
                                 <p className="text-xs text-muted-foreground">{slot.detail}</p>
+                              ) : null}
+                              {distance != null ? (
+                                <p className="text-xs text-primary/80 font-medium flex items-center gap-1 mt-0.5">
+                                  <MapPin className="size-3" />
+                                  À {distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`} de ton hébergement
+                                </p>
                               ) : null}
                               {slot.priceHint != null ? (
                                 <p className="text-xs text-muted-foreground">
