@@ -1670,7 +1670,54 @@ export async function generateRecommendationsForTrip(
       (item) => normCity(item.name) === normCity(destination.name),
     );
     if (!candidate) continue;
+
+    let candidateIncompatible = false;
+
     const byOrigin = originsForQuote.map((origin) => {
+      let candidateTransportInfo: { modes: string[]; approxHours: number } | undefined;
+      if (candidate.transport) {
+        const normOriginCity = normCity(origin.city);
+        for (const [key, val] of Object.entries(candidate.transport)) {
+          if (normCity(key) === normOriginCity) {
+            candidateTransportInfo = val;
+            break;
+          }
+        }
+      }
+
+      if (candidateTransportInfo) {
+        const modes = (candidateTransportInfo.modes ?? []).map((m) => m.toLowerCase().trim());
+
+        if (modes.length > 0) {
+          if (ctx.planeRefused && modes.every((m) => m === "flight" || m === "avion")) {
+            candidateIncompatible = true;
+          } else if (hasModeConstraints) {
+            const hasAcceptedMode = modes.some((m) => {
+              if (ctx.planeRefused && (m === "flight" || m === "avion")) return false;
+              return (
+                acceptedModesSet.has(m) ||
+                (m === "flight" && acceptedModesSet.has("avion")) ||
+                (m === "train" && acceptedModesSet.has("train")) ||
+                (m === "car" && (acceptedModesSet.has("voiture") || acceptedModesSet.has("covoiturage")))
+              );
+            });
+            if (!hasAcceptedMode) {
+              candidateIncompatible = true;
+            }
+          } else if (ctx.planeRefused && modes.some((m) => m === "flight" || m === "avion") && !modes.some((m) => m !== "flight" && m !== "avion")) {
+            candidateIncompatible = true;
+          }
+        }
+
+        const maxHours = ctx.maxTravelDurationHours;
+        const durationHours = candidateTransportInfo.approxHours;
+        if (maxHours != null && maxHours > 0 && durationHours != null && durationHours > 0) {
+          if (durationHours > maxHours) {
+            candidateIncompatible = true;
+          }
+        }
+      }
+
       const pricePerPerson = fallbackTransport(destination.distance_from_paris_km);
 
       return {
@@ -1679,6 +1726,10 @@ export async function generateRecommendationsForTrip(
         pricePerPerson,
       };
     });
+
+    if (candidateIncompatible) {
+      continue;
+    }
 
     const groupTotal = byOrigin.reduce(
       (sum, origin) => sum + origin.pricePerPerson * origin.count,

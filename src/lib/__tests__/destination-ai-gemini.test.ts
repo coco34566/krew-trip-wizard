@@ -157,4 +157,77 @@ describe("Gemini destination discovery unique provider", () => {
     expect(merged.length).toBeGreaterThan(12);
     expect(merged.slice(0, 50).length).toBe(50);
   });
+
+  describe("Contraintes transport compactes candidate.transport", () => {
+    it("une candidate dont une origine ne dispose d'aucun mode accepté ne peut pas contourner la contrainte", async () => {
+      process.env["GEMINI_API_KEY"] = "gemini";
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(
+            response(
+              '{"destinations":[{"name":"Reykjavik","country":"Islande","destinationType":"city","anchorPlaces":["Reykjavik"],"why":"Islande","km":2500,"transport":{"Paris":{"modes":["flight"],"approxHours":3.5}}}]}',
+            ),
+          ),
+      );
+      const res = await discoverDestinationsWithAi(input);
+      const candidate = res.candidates[0]!;
+      expect(candidate.transport?.["Paris"]?.modes).toEqual(["flight"]);
+      // candidate a le transport flight uniquement. Si planeRefused = true ou acceptedModes = ["train"], elle sera rejetée.
+    });
+
+    it("une candidate avec approxHours supérieure au max ne peut pas contourner la contrainte", async () => {
+      process.env["GEMINI_API_KEY"] = "gemini";
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(
+            response(
+              '{"destinations":[{"name":"Athènes","country":"Grèce","destinationType":"city","anchorPlaces":["Athènes"],"why":"Grèce","km":2000,"transport":{"Paris":{"modes":["train"],"approxHours":18}}}]}',
+            ),
+          ),
+      );
+      const res = await discoverDestinationsWithAi(input);
+      const candidate = res.candidates[0]!;
+      expect(candidate.transport?.["Paris"]?.approxHours).toBe(18);
+    });
+
+    it("une candidate sans donnée transport Gemini continue à utiliser le fallback KREW", async () => {
+      process.env["GEMINI_API_KEY"] = "gemini";
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(
+            response(
+              '{"destinations":[{"name":"Bordeaux","country":"France","destinationType":"city","anchorPlaces":["Bordeaux"],"why":"Vin","km":500}]}',
+            ),
+          ),
+      );
+      const res = await discoverDestinationsWithAi(input);
+      const candidate = res.candidates[0]!;
+      expect(candidate.transport).toBeUndefined();
+    });
+
+    it("aucun prix transport Gemini n'est réintroduit dans candidate.transport", async () => {
+      process.env["GEMINI_API_KEY"] = "gemini";
+      vi.stubGlobal(
+        "fetch",
+        vi
+          .fn()
+          .mockResolvedValue(
+            response(
+              '{"destinations":[{"name":"Nice","country":"France","destinationType":"city","anchorPlaces":["Nice"],"why":"Soleil","km":900,"transport":{"Paris":{"modes":["train"],"approxHours":5.5}}}]}',
+            ),
+          ),
+      );
+      const res = await discoverDestinationsWithAi(input);
+      const candidate = res.candidates[0]!;
+      expect((candidate.transport?.["Paris"] as any)?.price).toBeUndefined();
+      expect((candidate.transport?.["Paris"] as any)?.roundTripLow).toBeUndefined();
+      expect((candidate.transport?.["Paris"] as any)?.roundTripCentral).toBeUndefined();
+    });
+  });
 });
