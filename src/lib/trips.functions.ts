@@ -90,12 +90,16 @@ export const listMyTrips = createServerFn({ method: "GET" })
     const uniqueIds = [...new Set(allTripIds)];
 
     const stageByTrip: Record<string, { destinationSelected: boolean; hasItinerary: boolean }> = {};
+    type TeamMember = { id: string; name: string; hasAnswered: boolean; isStar: boolean };
+    type TeamSummary = { total: number; answered: number; pending: number; members: TeamMember[] };
+    const teamSummaryByTrip: Record<string, TeamSummary> = {};
+
     for (const id of uniqueIds) {
       stageByTrip[id] = { destinationSelected: false, hasItinerary: false };
     }
 
     if (uniqueIds.length) {
-      const [selRecos, tripExtras] = await Promise.all([
+      const [selRecos, tripExtras, allParticipants, allPrefs, allStarPrefs] = await Promise.all([
         supabase
           .from("recommendations")
           .select("trip_id")
@@ -103,20 +107,117 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .eq("is_selected", true),
         supabase
           .from("trips")
-          .select("id, dates_locked, group_itinerary, start_date")
+          .select("id, dates_locked, group_itinerary, start_date, participants_count, celebrated_person, has_star, star_user_id")
           .in("id", uniqueIds),
+        supabase
+          .from("trip_participants")
+          .select("id, trip_id, user_id, email, display_name, status")
+          .in("trip_id", uniqueIds),
+        supabase
+          .from("trip_participant_preferences")
+          .select("trip_id, user_id, submitted_at, updated_at")
+          .in("trip_id", uniqueIds),
+        supabase
+          .from("trip_star_preferences")
+          .select("trip_id, user_id, wanted_activities, ambiances, wanted_env_type, desired_destination, submitted_at, updated_at")
+          .in("trip_id", uniqueIds),
       ]);
+
       for (const r of selRecos.data ?? []) {
         const tid = (r as any).trip_id as string;
         if (stageByTrip[tid]) stageByTrip[tid].destinationSelected = true;
       }
+
+      const tripExtrasMap = new Map<string, any>();
       for (const row of tripExtras.data ?? []) {
         const tid = (row as any).id as string;
+        tripExtrasMap.set(tid, row);
         if (!stageByTrip[tid]) continue;
         stageByTrip[tid].hasItinerary = Boolean((row as any).group_itinerary?.days?.length);
-        // merge dates_locked onto trip rows below via stage map + raw fields
         (stageByTrip[tid] as any).datesLocked = Boolean((row as any).dates_locked);
         (stageByTrip[tid] as any).startDate = (row as any).start_date ?? null;
+      }
+
+      const rawParticipants = allParticipants.data ?? [];
+      const rawPrefs = allPrefs.data ?? [];
+      const rawStarPrefs = allStarPrefs.data ?? [];
+
+      for (const tid of uniqueIds) {
+        const tripData = tripExtrasMap.get(tid);
+        const celebratedPerson = tripData?.celebrated_person;
+        const hasStar = Boolean(tripData?.has_star || celebratedPerson);
+        const starUserId = tripData?.star_user_id || null;
+
+        const activeParticipants = rawParticipants.filter(
+          (p: any) => p.trip_id === tid && p.status !== "absent",
+        );
+
+        const prefRows = rawPrefs.filter((p: any) => p.trip_id === tid);
+        const prefSet = new Set(prefRows.map((p: any) => p.user_id).filter(Boolean));
+
+        const starPref = rawStarPrefs.find((sp: any) => sp.trip_id === tid);
+        const starHasPrefs = Boolean(
+          starPref &&
+            ((starPref.wanted_activities && starPref.wanted_activities.length > 0) ||
+              (starPref.ambiances && starPref.ambiances.length > 0) ||
+              starPref.wanted_env_type ||
+              starPref.desired_destination ||
+              starPref.submitted_at),
+        );
+
+        const starParticipant = starUserId
+          ? activeParticipants.find((p: any) => p.user_id === starUserId) || null
+          : null;
+
+        const membersList: TeamMember[] = [];
+
+        for (const p of activeParticipants) {
+          const isStar = p === starParticipant || Boolean(starUserId && p.user_id === starUserId);
+          let hasAnswered = p.user_id ? prefSet.has(p.user_id) : false;
+          if (isStar && starHasPrefs) {
+            hasAnswered = true;
+          }
+
+          membersList.push({
+            id: p.id,
+            name: isStar && celebratedPerson ? celebratedPerson : (p.display_name ?? p.email?.split("@")[0] ?? "Participant"),
+            hasAnswered,
+            isStar,
+          });
+        }
+
+        const starInList = membersList.some((m) => m.isStar);
+        if (hasStar && !starInList) {
+          membersList.push({
+            id: "star-virtual-id",
+            name: celebratedPerson || "La Star",
+            hasAnswered: starHasPrefs,
+            isStar: true,
+          });
+        }
+
+        const expected = Math.max(Number(tripData?.participants_count) || 0, membersList.length, 1);
+        const currentLen = membersList.length;
+        if (currentLen < expected) {
+          for (let i = currentLen + 1; i <= expected; i++) {
+            membersList.push({
+              id: `generic-virtual-${i}`,
+              name: `Participant ${i}`,
+              hasAnswered: false,
+              isStar: false,
+            });
+          }
+        }
+
+        const answeredCount = membersList.filter((m) => m.hasAnswered).length;
+        const pendingCount = Math.max(expected - answeredCount, 0);
+
+        teamSummaryByTrip[tid] = {
+          total: expected,
+          answered: answeredCount,
+          pending: pendingCount,
+          members: membersList,
+        };
       }
     }
 
@@ -130,6 +231,12 @@ export const listMyTrips = createServerFn({ method: "GET" })
       const datesLocked = Boolean((s as any).datesLocked ?? row.dates_locked);
       const destinationSelected = Boolean(s.destinationSelected);
       const hasItinerary = Boolean(s.hasItinerary);
+      const teamSummary = teamSummaryByTrip[row.id] ?? {
+        total: Math.max(Number(row.participants_count) || 1, 1),
+        answered: 0,
+        pending: Math.max(Number(row.participants_count) || 1, 1),
+        members: [],
+      };
       return {
         ...row,
         dates_locked: datesLocked,
@@ -142,6 +249,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
           hasItinerary,
           startDate: row.start_date ?? (s as any).startDate,
         }),
+        team_summary: teamSummary,
       };
     };
 

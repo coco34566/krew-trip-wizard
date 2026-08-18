@@ -2,13 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarDays, Plus, Trash2, Users } from "lucide-react";
+import { CalendarDays, Plus, Trash2, Users, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMyTrips, listMyPriceWatches, cancelTrip } from "@/lib/trips.functions";
-import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
+import { eventTypeLabel } from "@/lib/krew/constants";
 import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
@@ -39,6 +39,20 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+type TeamMember = {
+  id: string;
+  name: string;
+  hasAnswered: boolean;
+  isStar: boolean;
+};
+
+type TeamSummary = {
+  total: number;
+  answered: number;
+  pending: number;
+  members: TeamMember[];
+};
+
 type TripRow = {
   id: string;
   name: string;
@@ -53,6 +67,7 @@ type TripRow = {
   has_itinerary?: boolean;
   /** Stade métier du parcours (remplace le status enum en UI) */
   journey_stage?: string;
+  team_summary?: TeamSummary;
 };
 
 function TripCard({
@@ -64,51 +79,110 @@ function TripCard({
   invited?: boolean;
   onCancel?: (tripId: string) => void;
 }) {
+  const isCompleteStage = trip.has_itinerary || trip.destination_selected;
+  const isMiddleStage = trip.dates_locked;
+
+  const team = trip.team_summary ?? {
+    total: Math.max(trip.participants_count || 1, 1),
+    answered: 0,
+    pending: Math.max(trip.participants_count || 1, 1),
+    members: [],
+  };
+
+  const pct = Math.min(100, Math.max(0, Math.round((team.answered / Math.max(team.total, 1)) * 100)));
+
   return (
-    <div className="relative rounded-3xl border border-border bg-card shadow-elevated transition-colors hover:border-primary/60">
-      <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block p-5">
+    <div className="relative rounded-2xl border border-border/80 bg-card p-5 sm:p-6 transition-colors hover:border-primary/40 flex flex-col justify-between">
+      <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block space-y-4">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className="space-y-1">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
               {eventTypeLabel(trip.event_type)}
             </p>
-            <h3 className="mt-1 font-display text-lg font-semibold group-hover:text-primary">
+            <h3 className="font-display text-xl font-normal text-foreground group-hover:text-primary transition-colors">
               {trip.name}
             </h3>
           </div>
           <Badge
             variant={
-              trip.has_itinerary || trip.destination_selected
+              isCompleteStage
                 ? "success"
-                : trip.dates_locked
+                : isMiddleStage
                   ? "lagoon"
                   : "muted"
             }
+            className="shrink-0 font-normal"
           >
             {invited
               ? `Invitation · ${trip.journey_stage ?? "à rejoindre"}`
               : (trip.journey_stage ?? "En préparation")}
           </Badge>
         </div>
-        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Users className="size-4" /> {trip.participants_count} pers.
+
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 font-sans">
+            <Users className="size-4 shrink-0 text-muted-foreground/70" /> {trip.participants_count} pers.
           </span>
           {trip.start_date ? (
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="size-4" />{" "}
+            <span className="inline-flex items-center gap-1.5 font-sans">
+              <CalendarDays className="size-4 shrink-0 text-muted-foreground/70" />{" "}
               {new Date(trip.start_date).toLocaleDateString("fr-FR")}
             </span>
           ) : null}
         </div>
+
+        {/* Bloc Team / Progression */}
+        <div className="pt-2 border-t border-border/40 space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+            <span>
+              {team.answered} / {team.total} répondus
+            </span>
+            {team.pending > 0 && (
+              <span className="text-muted-foreground/80">
+                {team.pending} en attente
+              </span>
+            )}
+          </div>
+
+          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-secondary transition-all duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+
+          {team.members.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs text-muted-foreground pr-8">
+              {team.members.slice(0, 5).map((m) => (
+                <span
+                  key={m.id}
+                  className="inline-flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-[11px]"
+                >
+                  <span className="truncate max-w-[100px]">{m.name}</span>
+                  {m.hasAnswered ? (
+                    <Check className="size-3 text-secondary shrink-0" />
+                  ) : (
+                    <span className="size-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+                  )}
+                </span>
+              ))}
+              {team.members.length > 5 && (
+                <span className="text-[11px] text-muted-foreground/70 font-medium">
+                  +{team.members.length - 5}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </Link>
+
       {onCancel ? (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="absolute bottom-3 right-3 size-8 text-muted-foreground"
+              className="absolute bottom-4 right-4 size-8 text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10"
               aria-label="Archiver le voyage"
             >
               <Trash2 className="size-4" />
@@ -170,53 +244,55 @@ function Dashboard() {
   const archivedTrips = (data?.archivedTrips ?? []) as TripRow[];
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold sm:text-4xl">Mes voyages</h1>
-
-          {(watchData?.watches?.length ?? 0) > 0 ? (
-            <div className="price-watch-banner mt-6 space-y-2 rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm">
-              {(watchData?.watches ?? []).slice(0, 5).map((w: any) => {
-                const when = w.last_checked_at
-                  ? new Date(w.last_checked_at).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "—";
-                const tripName = (w.trips as any)?.name ?? "Voyage";
-                const dest = w.destination_name ?? "destination";
-                return (
-                  <p key={w.id}>
-                    💡 Pense à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
-                    bougent vite. Dernière vérif. : {when}.{" "}
-                    <Link
-                      to="/trips/$tripId/recap"
-                      params={{ tripId: w.trip_id }}
-                      className="font-medium text-primary underline-offset-2 hover:underline"
-                    >
-                      Ouvrir le récap
-                    </Link>
-                  </p>
-                );
-              })}
-            </div>
-          ) : null}
-          <p className="mt-1 text-muted-foreground">
+          <h1 className="font-display text-3xl font-normal tracking-tight text-foreground sm:text-4xl">
+            Mes voyages
+          </h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
             Tes projets en cours et tes invitations reçues.
           </p>
         </div>
         <Button asChild variant="hero">
           <Link to="/trips/new">
-            <Plus /> Nouveau voyage
+            <Plus className="size-4" /> Nouveau voyage
           </Link>
         </Button>
       </div>
 
+      {(watchData?.watches?.length ?? 0) > 0 ? (
+        <div className="price-watch-banner mt-8 space-y-2 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-sm text-foreground">
+          {(watchData?.watches ?? []).slice(0, 5).map((w: any) => {
+            const when = w.last_checked_at
+              ? new Date(w.last_checked_at).toLocaleDateString("fr-FR", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "—";
+            const tripName = (w.trips as any)?.name ?? "Voyage";
+            const dest = w.destination_name ?? "destination";
+            return (
+              <p key={w.id}>
+                💡 Pense à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
+                bougent vite. Dernière vérif. : {when}.{" "}
+                <Link
+                  to="/trips/$tripId/recap"
+                  params={{ tripId: w.trip_id }}
+                  className="font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Ouvrir le récap
+                </Link>
+              </p>
+            );
+          })}
+        </div>
+      ) : null}
+
       {tripsError ? (
-        <div className="mt-8 rounded-3xl border border-destructive/30 bg-destructive/5 p-6">
-          <h2 className="font-display text-lg font-semibold text-destructive">
+        <div className="mt-10 rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
+          <h2 className="font-display text-lg font-normal text-destructive">
             Impossible de charger tes voyages
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -224,13 +300,13 @@ function Dashboard() {
           </p>
         </div>
       ) : isLoading ? (
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <Skeleton className="h-36 rounded-3xl" />
-          <Skeleton className="h-36 rounded-3xl" />
+        <div className="mt-10 grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
         </div>
       ) : trips.length === 0 && invitations.length === 0 ? (
-        <div className="mt-10 rounded-3xl border border-dashed border-border bg-surface/40 p-12 text-center">
-          <h2 className="font-display text-xl font-semibold">Aucun voyage pour l'instant</h2>
+        <div className="mt-12 rounded-2xl border border-dashed border-border bg-muted/30 p-10 text-center sm:p-16">
+          <h2 className="font-display text-2xl font-normal text-foreground">Aucun voyage pour l'instant</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
             Lance le questionnaire KREW : en quelques minutes tu obtiens destination, hébergement,
             activités et budget détaillé.
@@ -240,9 +316,9 @@ function Dashboard() {
           </Button>
         </div>
       ) : (
-        <div className="mt-8 space-y-10">
+        <div className="mt-10 space-y-12">
           <section>
-            <h2 className="mb-4 font-display text-lg font-semibold">Mes voyages</h2>
+            <h2 className="mb-4 text-lg font-medium text-foreground">Mes voyages</h2>
             {trips.length ? (
               <div className="grid gap-4 md:grid-cols-2">
                 {trips.map((t) => (
@@ -256,7 +332,7 @@ function Dashboard() {
 
           {invitations.length ? (
             <section>
-              <h2 className="mb-4 font-display text-lg font-semibold">
+              <h2 className="mb-4 text-lg font-medium text-foreground">
                 Voyages auxquels je suis invité(e)
               </h2>
               <div className="grid gap-4 md:grid-cols-2">
@@ -268,9 +344,10 @@ function Dashboard() {
               </div>
             </section>
           ) : null}
+
           {archivedTrips.length ? (
             <section>
-              <h2 className="mb-4 font-display text-lg font-semibold">Voyages archivés</h2>
+              <h2 className="mb-4 text-lg font-medium text-foreground">Voyages archivés</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 {archivedTrips.map((t) => (
                   <TripCard key={t.id} trip={t} />
