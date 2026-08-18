@@ -1925,7 +1925,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       seedLabels,
     );
 
-    // Enrich with actual activities booking urls from TripAdvisor/Klook
+    // Enrich with actual activities booking urls from catalog database when available
     try {
       const destinationId = (selected.data as any).destination_id;
       if (destinationId && result.itinerary?.days) {
@@ -2090,7 +2090,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       itinerary.candidates ?? [],
     );
 
-    // Try to enrich the regenerated slot with TripAdvisor/Klook url
+    // Try to enrich the regenerated slot with catalog database booking_url if present
     try {
       const destinationId = (selected.data as any).destination_id;
       if (destinationId && result.slot?.label) {
@@ -2225,8 +2225,11 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const adults = Math.min(Math.max(1, effCount), 8);
     let topHotels: any[] = [];
 
+    let accommodationMeta: import("@/lib/krew/accommodation-ai.server").AccommodationGenerationMeta | undefined;
+
     if (generateHotels) {
       const concepts = await import("@/lib/krew/accommodation-concepts");
+      const accAi = await import("@/lib/krew/accommodation-ai.server");
       const singleRooms = aggregated.individualPreferences.filter((preference: any) => {
         const room = String(preference.roomTypePreference ?? "").toLowerCase();
         return (
@@ -2295,18 +2298,110 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             (preference: any) => preference.accessibilityRequired === true,
           ),
         };
-      try {
-        const { searchAccommodationsWithGemini } =
-          await import("@/lib/krew/accommodation-ai.server");
-        topHotels = await searchAccommodationsWithGemini(specification);
-      } catch (error) {
-        providerErrors.push(String(error).slice(0, 180));
+
+      const prevLogistics = (trip.group_logistics as any) || {};
+      const reqHash = accAi.computeAccommodationRequestHash(data.tripId, specification);
+      const prevMeta = prevLogistics.accommodationGeneration;
+      const existingHotels = Array.isArray(prevLogistics.hotels) ? prevLogistics.hotels : [];
+
+      const COOLDOWN_MS = 5 * 60 * 1000;
+      const isRecentSame429 =
+        prevMeta &&
+        prevMeta.requestHash === reqHash &&
+        prevMeta.status === "rate_limited" &&
+        Date.now() - new Date(prevMeta.attemptedAt).getTime() < COOLDOWN_MS;
+
+      const isRecentValidHash =
+        prevMeta &&
+        prevMeta.requestHash === reqHash &&
+        prevMeta.status === "success" &&
+        existingHotels.length > 0;
+
+      if (isRecentValidHash) {
+        topHotels = existingHotels;
+        accommodationMeta = {
+          ...prevMeta,
+          completedAt: new Date().toISOString(),
+        };
+      } else if (isRecentSame429) {
+        topHotels = existingHotels;
+        accommodationMeta = {
+          ...prevMeta,
+          userMessage: "Recherche de logements momentanément indisponible. Réessaie un peu plus tard.",
+        };
+        providerErrors.push("Gemini accommodation rate limit cooldown active");
+      } else {
+        const attemptedAt = new Date().toISOString();
+        try {
+          topHotels = await accAi.searchAccommodationsWithGemini(specification);
+          accommodationMeta = {
+            status: topHotels.length > 0 ? "success" : "empty",
+            requestHash: reqHash,
+            attemptedAt,
+            completedAt: new Date().toISOString(),
+            userMessage: topHotels.length === 0 ? "Aucun logement disponible pour ces critères." : null,
+          };
+
+          // Upsert valid candidates with HTTPS booking URL to the accommodations table
+          const validHotelsForDb = topHotels.filter(
+            (hotel) => hotel.url && typeof hotel.url === "string" && hotel.url.startsWith("https://"),
+          );
+          if (validHotelsForDb.length > 0) {
+            try {
+              const accsToUpsert = validHotelsForDb.map((hotel) => ({
+                external_id: `gemini:${destName.toLowerCase().replace(/\s+/g, "_")}:${hotel.id || hotel.name.toLowerCase().replace(/\s+/g, "_")}`,
+                name: hotel.name,
+                destination_id: destId,
+                type: hotel.propertyType || "hotel",
+                rating: hotel.rating,
+                review_count: hotel.reviewCount,
+                price_per_night: hotel.pricePerPerson,
+                booking_url: hotel.url,
+                image_url: hotel.imageUrl,
+                krew_concept: hotel.krewConcept,
+                source: hotel.source || "gemini_grounded",
+                updated_at: new Date().toISOString(),
+              }));
+              const { data: upsertedAccs } = await supabase
+                .from("accommodations")
+                .upsert(accsToUpsert, { onConflict: "external_id" })
+                .select("id, external_id, name");
+
+              if (upsertedAccs) {
+                const accMap = new Map(upsertedAccs.map((a: any) => [a.name.toLowerCase(), a.id]));
+                topHotels = topHotels.map((hotel) => ({
+                  ...hotel,
+                  accommodation_id: accMap.get(hotel.name.toLowerCase()) || hotel.id,
+                }));
+              }
+            } catch (accErr) {
+              console.warn("Accommodations database upsert skipped:", accErr);
+            }
+          }
+        } catch (error) {
+          const errStr = String(error);
+          const is429 = errStr.includes("rate_limited") || errStr.includes("429");
+          providerErrors.push(errStr.slice(0, 180));
+          accommodationMeta = {
+            status: is429 ? "rate_limited" : "error",
+            requestHash: reqHash,
+            attemptedAt,
+            completedAt: new Date().toISOString(),
+            userMessage: is429
+              ? "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."
+              : "Erreur lors de la recherche des logements.",
+          };
+        }
       }
+
       console.info("[Accommodation generation]", {
-        Gemini: process.env["GEMINI_API_KEY"] ? 1 : 0,
-        StayAPI: 0,
-        RapidAPI: 0,
-        candidates: topHotels.length,
+        workflow: "accommodation",
+        tripId: data.tripId,
+        requestHash: reqHash,
+        geminiCalls: isRecentValidHash || isRecentSame429 ? 0 : 1,
+        cacheHit: Boolean(isRecentValidHash),
+        status: accommodationMeta?.status,
+        resultCount: topHotels.length,
       });
     }
 
@@ -2757,6 +2852,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             { ...prev, ...common },
             topHotels,
             providerErrors,
+            accommodationMeta,
           ),
         }
       : {
