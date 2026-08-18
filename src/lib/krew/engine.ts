@@ -181,6 +181,7 @@ export type ScoringContext = {
   foodPerPersonPerDayByDestinationId?: Record<string, number>;
   activitiesPerPersonPerDayByDestinationId?: Record<string, number>;
   activityFitByDestinationId?: Record<string, string[]>;
+  budgetLevelByDestinationId?: Record<string, "low" | "medium" | "high">;
   /** Villes de départ du groupe (agrégées). */
   departureOrigins?: DepartureOrigin[];
   /** Modes de transport acceptés par le groupe. */
@@ -1696,6 +1697,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
           ? clamp(0.72 + (1 - ageBudgetRatio) * 0.5)
           : clamp(1 - (ageBudgetRatio - 1) * 2.1);
       const sBudget = clamp(baseBudgetScore * 0.65 + ageBudgetScore * 0.35);
+
       const maxHours = ctx.maxTravelDurationHours ?? null;
       const sTransport =
         maxHours && maxHours > 0

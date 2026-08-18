@@ -5,12 +5,7 @@
  * codées en dur. Les deux sources sont TOUJOURS appelées puis fusionnées ici.
  */
 import type { CandidateDestination, DestinationType } from "./destination-discovery.server";
-import type {
-  AiActivityFit,
-  AiLocalCostEstimate,
-  AiLodgingEstimate,
-  AiTransportEstimate,
-} from "./destination-ai.server";
+import type { AiTransportMap } from "./destination-ai.server";
 
 /** Estimation compacte renvoyée par le LLM pour une ville hors catalogue. */
 export type AiEstimate = {
@@ -18,7 +13,8 @@ export type AiEstimate = {
   country?: string | undefined;
   affinity: number;
   reason: string;
-  /** Coût journalier moyen €/pers estimé par le LLM. */
+  why?: string | undefined;
+  /** Coût journalier moyen €/pers estimé par le LLM ou dérivé de budgetLevel. */
   dailyCost?: number | undefined;
   /** Distance approximative km depuis la ville de départ. */
   distanceKm?: number | undefined;
@@ -27,10 +23,12 @@ export type AiEstimate = {
   region?: string | undefined;
   destinationType?: DestinationType | undefined;
   anchorPlaces?: string[] | undefined;
-  transportEstimate?: AiTransportEstimate | undefined;
-  lodgingEstimate?: AiLodgingEstimate | undefined;
-  localCostEstimate?: AiLocalCostEstimate | undefined;
-  activityFit?: AiActivityFit[] | undefined;
+  transport?: AiTransportMap | undefined;
+  budgetLevel?: "low" | "medium" | "high" | undefined;
+  activityFit?: string[] | undefined;
+  environmentFit?: string[] | undefined;
+  accommodationFit?: string[] | undefined;
+  seasonFit?: "good" | "acceptable" | "poor" | undefined;
 };
 
 export type MergedCandidate = {
@@ -38,6 +36,7 @@ export type MergedCandidate = {
   country?: string | undefined;
   affinity: number;
   reason: string;
+  why?: string | undefined;
   /** `catalog` = profil connu / table destinations, `ai_estimate` = ville estimée par le LLM. */
   source: "catalog" | "ai_estimate";
   dailyCost?: number | undefined;
@@ -47,10 +46,12 @@ export type MergedCandidate = {
   destinationType?: DestinationType;
   anchorPlaces?: string[];
   verificationState?: "verified" | "estimated" | "unknown";
-  transportEstimate?: AiTransportEstimate | undefined;
-  lodgingEstimate?: AiLodgingEstimate | undefined;
-  localCostEstimate?: AiLocalCostEstimate | undefined;
-  activityFit?: AiActivityFit[] | undefined;
+  transport?: AiTransportMap | undefined;
+  budgetLevel?: "low" | "medium" | "high" | undefined;
+  activityFit?: string[] | undefined;
+  environmentFit?: string[] | undefined;
+  accommodationFit?: string[] | undefined;
+  seasonFit?: "good" | "acceptable" | "poor" | undefined;
 };
 
 /** Normalisation de nom de ville (identique à `norm()` de la découverte locale). */
@@ -99,16 +100,19 @@ export function mergeCandidates(
         ...existing,
         affinity: Math.max(existing.affinity, c.affinity),
         reason: existing.reason,
+        why: existing.why ?? c.why,
         bestMonths: existing.bestMonths ?? c.bestMonths,
         dailyCost: existing.dailyCost ?? c.dailyCost,
         region: existing.region ?? c.region,
         anchorPlaces: existing.anchorPlaces?.length
           ? existing.anchorPlaces
           : (c.anchorPlaces ?? []),
-        transportEstimate: c.transportEstimate,
-        lodgingEstimate: c.lodgingEstimate,
-        localCostEstimate: c.localCostEstimate,
-        activityFit: c.activityFit,
+        transport: c.transport ?? existing.transport,
+        budgetLevel: c.budgetLevel ?? existing.budgetLevel,
+        activityFit: c.activityFit ?? existing.activityFit,
+        environmentFit: c.environmentFit ?? existing.environmentFit,
+        accommodationFit: c.accommodationFit ?? existing.accommodationFit,
+        seasonFit: c.seasonFit ?? existing.seasonFit,
       });
       continue;
     }
@@ -117,6 +121,7 @@ export function mergeCandidates(
       country: c.country,
       affinity: c.affinity,
       reason: c.reason,
+      why: c.why ?? c.reason,
       source: "ai_estimate",
       dailyCost: c.dailyCost,
       distanceKm: c.distanceKm,
@@ -125,10 +130,12 @@ export function mergeCandidates(
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces?.length ? c.anchorPlaces : [c.name],
       verificationState: "estimated",
-      transportEstimate: c.transportEstimate,
-      lodgingEstimate: c.lodgingEstimate,
-      localCostEstimate: c.localCostEstimate,
+      transport: c.transport,
+      budgetLevel: c.budgetLevel,
       activityFit: c.activityFit,
+      environmentFit: c.environmentFit,
+      accommodationFit: c.accommodationFit,
+      seasonFit: c.seasonFit,
     });
   }
 

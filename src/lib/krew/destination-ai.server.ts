@@ -47,53 +47,32 @@ export type AiDiscoveryInput = {
   };
 };
 
-export type AiConfidence = "high" | "medium" | "low";
-export type AiTransportEstimate = {
-  byOrigin: Array<{
-    origin: string;
-    realisticModes: string[];
-    roundTripLow: number | null;
-    roundTripCentral: number | null;
-    roundTripHigh: number | null;
-    approximateDurationHours: number | null;
-    confidence: AiConfidence;
-  }>;
-};
-export type AiLodgingEstimate = {
-  perPersonPerNightLow: number | null;
-  perPersonPerNightCentral: number | null;
-  perPersonPerNightHigh: number | null;
-  confidence: AiConfidence;
-};
-export type AiLocalCostEstimate = {
-  foodPerPersonPerDay: number | null;
-  activitiesPerPersonPerDay: number | null;
-  confidence: AiConfidence;
-};
-export type AiActivityFit = {
-  category: string;
-  availability: "strong" | "medium" | "weak" | "absent";
-  examples: string[];
-  seasonal: boolean | null;
-  weatherDependent: boolean | null;
-  confidence: AiConfidence;
-};
+export type AiTransportMap = Record<
+  string,
+  {
+    modes: string[];
+    approxHours: number;
+  }
+>;
 
 export type AiCandidate = {
   name: string;
   country?: string;
-  affinity: number;
-  reason: string;
-  dailyCost?: number;
-  distanceKm?: number;
-  bestMonths?: number[];
   region?: string;
   destinationType: DestinationType;
   anchorPlaces: string[];
-  transportEstimate?: AiTransportEstimate;
-  lodgingEstimate?: AiLodgingEstimate;
-  localCostEstimate?: AiLocalCostEstimate;
-  activityFit?: AiActivityFit[];
+  why?: string;
+  reason: string;
+  affinity: number;
+  dailyCost?: number;
+  distanceKm?: number;
+  bestMonths?: number[];
+  transport?: AiTransportMap;
+  budgetLevel?: "low" | "medium" | "high";
+  activityFit?: string[];
+  environmentFit?: string[];
+  accommodationFit?: string[];
+  seasonFit?: "good" | "acceptable" | "poor";
 };
 
 const SYSTEM = `Tu es le moteur d'exploration de destinations de KREW.
@@ -104,7 +83,7 @@ Tu es un moteur de découverte, pas le décideur final.
 Le moteur déterministe KREW applique ensuite les contraintes dures, le scoring individuel et collectif, le poids de la Star et la diversification. Ne remplace jamais ce calcul par ton propre classement.
 
 Réponds UNIQUEMENT en JSON valide :
-{"destinations":[{"name":"Luberon","country":"France","region":"Provence","destinationType":"region_territory","anchorPlaces":["Gordes","Lourmarin"],"why":"motif court","cost":70,"km":700,"months":[5,6,9],"transportEstimate":{"byOrigin":[{"origin":"Paris","realisticModes":["train","car"],"roundTripLow":80,"roundTripCentral":120,"roundTripHigh":180,"approximateDurationHours":4,"confidence":"medium"}]},"lodgingEstimate":{"perPersonPerNightLow":45,"perPersonPerNightCentral":65,"perPersonPerNightHigh":90,"confidence":"medium"},"localCostEstimate":{"foodPerPersonPerDay":35,"activitiesPerPersonPerDay":25,"confidence":"medium"},"activityFit":[{"category":"nature","availability":"strong","examples":["randonnée"],"seasonal":true,"weatherDependent":true,"confidence":"high"}]}]}
+{"destinations":[{"name":"Luberon","country":"France","region":"Provence","destinationType":"region_territory","anchorPlaces":["Gordes","Lourmarin"],"why":"Nature, villages et séjour collectif","km":700,"months":[5,6,9],"transport":{"Paris":{"modes":["train","car"],"approxHours":4}},"budgetLevel":"medium","activityFit":["nature","gastronomie"],"environmentFit":["village","nature"],"accommodationFit":["house_together"],"seasonFit":"good"}]}
 
 Règles de découverte :
 - Génère idéalement 30 à 50 destinations candidates différentes lorsque le profil le permet.
@@ -117,15 +96,16 @@ Règles de découverte :
 - Cherche aussi des compromis intelligents lorsque les préférences des participants sont différentes ou contradictoires.
 - Inclue plusieurs options moins évidentes lorsqu'elles sont plausiblement compatibles, afin que KREW puisse ensuite sélectionner une véritable "pépite".
 - Les contraintes explicitement identifiées comme dures doivent être respectées autant que possible pendant la génération, mais KREW reste l'autorité finale pour les vérifier.
-- Ne rejette pas une candidate uniquement à cause d'une estimation incertaine : une estimation IA de coût, distance ou saison n'est jamais une vérité et pourra être vérifiée ensuite.
-- cost = estimation du coût journalier moyen par personne en euros, hébergement + repas, hors transport longue distance.
+- Ne rejette pas une candidate uniquement à cause d'une estimation incertaine.
 - km = distance approximative depuis la ville de départ.
 - months = 2 à 4 mois idéaux (1 à 12).
 - why = justification courte en français, moins de 12 mots.
-- Ne fabrique pas de données de précision artificielle.
-- transportEstimate contient des ordres de grandeur A/R pour CHAQUE origine, jamais une offre live.
-- lodgingEstimate est uniquement un ordre de grandeur par personne et par nuit, sans nom de propriété ni disponibilité.
-- activityFit qualifie chaque catégorie importante; ses exemples illustrent le territoire et ne sont pas un planning.
+- transport = dictionnaire par origine (ex: "Paris") avec modes ("train", "car", "flight", etc.) et approxHours (durée approximative en heures).
+- budgetLevel = "low" (économique), "medium" (modéré), "high" (élevé).
+- activityFit = liste de catégories d'activités pertinentes présentes sur la destination.
+- environmentFit = liste d'environnements pertinents (ex: ["nature", "village"], ["urban", "nightlife"], ["sea", "outdoor"]).
+- accommodationFit = liste de concepts logement cohérents avec le territoire (ex: ["house_together"], ["hotel_central"], ["exceptional_experience"]).
+- seasonFit = "good" | "acceptable" | "poor".
 - Pour property_led, house_together, exceptional_experience ou un logement centerpiece, propose des territoires où l'expérience logement est plausible, jamais une propriété précise.
 
 Qualité attendue : la liste doit être réellement influencée par le profil du groupe. Deux groupes avec des préférences très différentes doivent obtenir des listes sensiblement différentes.`;
@@ -285,10 +265,12 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
         cost?: number;
         km?: number;
         months?: number[];
-        transportEstimate?: AiTransportEstimate;
-        lodgingEstimate?: AiLodgingEstimate;
-        localCostEstimate?: AiLocalCostEstimate;
-        activityFit?: AiActivityFit[];
+        transport?: Record<string, { modes?: string[]; approxHours?: number }>;
+        budgetLevel?: "low" | "medium" | "high";
+        activityFit?: string[] | Array<{ category?: string }>;
+        environmentFit?: string[];
+        accommodationFit?: string[];
+        seasonFit?: "good" | "acceptable" | "poor";
       }>;
       cities?: Array<{
         name?: string;
@@ -314,10 +296,12 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
       cost?: number;
       km?: number;
       months?: number[];
-      transportEstimate?: AiTransportEstimate;
-      lodgingEstimate?: AiLodgingEstimate;
-      localCostEstimate?: AiLocalCostEstimate;
-      activityFit?: AiActivityFit[];
+      transport?: Record<string, { modes?: string[]; approxHours?: number }>;
+      budgetLevel?: "low" | "medium" | "high";
+      activityFit?: string[] | Array<{ category?: string }>;
+      environmentFit?: string[];
+      accommodationFit?: string[];
+      seasonFit?: "good" | "acceptable" | "poor";
     }>;
 
     return values
@@ -332,10 +316,12 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
           ? (rawType as DestinationType)
           : "city";
         const name = String(c.name || c.title || "").trim();
+        const whyStr = String(c.why || c.reason || "suggéré par Krew IA").slice(0, 120);
         const out: AiCandidate = {
           name,
           affinity: Math.max(10, 100 - i * 1.5),
-          reason: String(c.why || c.reason || "suggéré par Krew IA").slice(0, 120),
+          why: whyStr,
+          reason: whyStr,
           destinationType,
           anchorPlaces:
             destinationType === "city"
@@ -348,11 +334,50 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
         };
         if (c.country) out.country = String(c.country).trim();
         if (c.region) out.region = String(c.region).trim();
-        if (c.transportEstimate?.byOrigin?.length) out.transportEstimate = c.transportEstimate;
-        if (c.lodgingEstimate) out.lodgingEstimate = c.lodgingEstimate;
-        if (c.localCostEstimate) out.localCostEstimate = c.localCostEstimate;
-        if (Array.isArray(c.activityFit)) out.activityFit = c.activityFit;
-        if (Number.isFinite(Number(c.cost)) && Number(c.cost) > 0) out.dailyCost = Number(c.cost);
+
+        if (c.transport && typeof c.transport === "object") {
+          const transportMap: AiTransportMap = {};
+          for (const [origin, info] of Object.entries(c.transport)) {
+            if (info && typeof info === "object") {
+              transportMap[origin] = {
+                modes: Array.isArray(info.modes) ? info.modes.map(String) : [],
+                approxHours: Number.isFinite(Number(info.approxHours))
+                  ? Number(info.approxHours)
+                  : 0,
+              };
+            }
+          }
+          if (Object.keys(transportMap).length > 0) {
+            out.transport = transportMap;
+          }
+        }
+
+        if (["low", "medium", "high"].includes(String(c.budgetLevel))) {
+          out.budgetLevel = c.budgetLevel as "low" | "medium" | "high";
+        }
+
+        if (Number.isFinite(Number(c.cost)) && Number(c.cost) > 0) {
+          out.dailyCost = Number(c.cost);
+        }
+
+        if (Array.isArray(c.activityFit)) {
+          out.activityFit = c.activityFit
+            .map((item) => (typeof item === "string" ? item : String(item?.category || "")))
+            .filter(Boolean);
+        }
+
+        if (Array.isArray(c.environmentFit)) {
+          out.environmentFit = c.environmentFit.map(String).filter(Boolean);
+        }
+
+        if (Array.isArray(c.accommodationFit)) {
+          out.accommodationFit = c.accommodationFit.map(String).filter(Boolean);
+        }
+
+        if (["good", "acceptable", "poor"].includes(String(c.seasonFit))) {
+          out.seasonFit = c.seasonFit as "good" | "acceptable" | "poor";
+        }
+
         if (Number.isFinite(Number(c.km)) && Number(c.km) > 0) out.distanceKm = Number(c.km);
         if (Array.isArray(c.months)) {
           out.bestMonths = c.months

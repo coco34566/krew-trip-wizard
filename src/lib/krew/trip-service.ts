@@ -1292,17 +1292,20 @@ export async function generateRecommendationsForTrip(
       name: c.name,
       country: c.country,
       affinity: c.affinity,
-      reason: c.reason + (ai.cached ? " · cache" : " · IA"),
+      reason: (c.why || c.reason) + (ai.cached ? " · cache" : " · IA"),
+      why: c.why || c.reason,
       dailyCost: c.dailyCost,
       distanceKm: c.distanceKm,
       bestMonths: c.bestMonths,
       region: c.region,
       destinationType: c.destinationType,
       anchorPlaces: c.anchorPlaces,
-      transportEstimate: c.transportEstimate,
-      lodgingEstimate: c.lodgingEstimate,
-      localCostEstimate: c.localCostEstimate,
+      transport: c.transport,
+      budgetLevel: c.budgetLevel,
       activityFit: c.activityFit,
+      environmentFit: c.environmentFit,
+      accommodationFit: c.accommodationFit,
+      seasonFit: c.seasonFit,
     }));
     mergedCandidates = mergeCandidates(ruleBased, aiCities);
 
@@ -1638,6 +1641,7 @@ export async function generateRecommendationsForTrip(
   const foodPerPersonPerDayByDestinationId: Record<string, number> = {};
   const activitiesPerPersonPerDayByDestinationId: Record<string, number> = {};
   const activityFitByDestinationId: Record<string, string[]> = {};
+  const budgetLevelByDestinationId: Record<string, "low" | "medium" | "high"> = {};
   const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
   const departureOrigins = aggregated.departureOrigins?.length
     ? aggregated.departureOrigins
@@ -1660,45 +1664,75 @@ export async function generateRecommendationsForTrip(
     (ctx.transportModes ?? []).map((m) => m.toLowerCase().trim()),
   );
   const hasModeConstraints = acceptedModesSet.size > 0 && !acceptedModesSet.has("peu importe");
+  const incompatibleDestinationIds = new Set<string>();
 
   for (const destination of catalogFinal.destinations) {
     const candidate = mergedCandidates.find(
       (item) => normCity(item.name) === normCity(destination.name),
     );
     if (!candidate) continue;
+
+    let candidateIncompatible = false;
+
     const byOrigin = originsForQuote.map((origin) => {
-      const estimate = candidate.transportEstimate?.byOrigin.find(
-        (item) => normCity(item.origin) === normCity(origin.city),
-      );
-      const modes = estimate?.realisticModes ?? [];
-      const hasCompatibleMode =
-        !hasModeConstraints ||
-        modes.some((m) => {
-          const normM = m.toLowerCase().trim();
-          return (
-            acceptedModesSet.has(normM) ||
-            (normM === "flight" && acceptedModesSet.has("avion")) ||
-            (normM === "train" && acceptedModesSet.has("train")) ||
-            (normM === "car" && (acceptedModesSet.has("voiture") || acceptedModesSet.has("covoiturage")))
-          );
-        });
+      let candidateTransportInfo: { modes: string[]; approxHours: number } | undefined;
+      if (candidate.transport) {
+        const normOriginCity = normCity(origin.city);
+        for (const [key, val] of Object.entries(candidate.transport)) {
+          if (normCity(key) === normOriginCity) {
+            candidateTransportInfo = val;
+            break;
+          }
+        }
+      }
 
-      const maxHours = ctx.maxTravelDurationHours;
-      const durationHours = estimate?.approximateDurationHours ?? null;
-      const durationCompatible = maxHours == null || durationHours == null || durationHours <= maxHours;
+      if (candidateTransportInfo) {
+        const modes = (candidateTransportInfo.modes ?? []).map((m) => m.toLowerCase().trim());
 
-      const isValidEstimate =
-        estimate?.roundTripCentral != null &&
-        estimate.roundTripCentral > 0 &&
-        hasCompatibleMode &&
-        durationCompatible;
+        if (modes.length > 0) {
+          if (ctx.planeRefused && modes.every((m) => m === "flight" || m === "avion")) {
+            candidateIncompatible = true;
+          } else if (hasModeConstraints) {
+            const hasAcceptedMode = modes.some((m) => {
+              if (ctx.planeRefused && (m === "flight" || m === "avion")) return false;
+              return (
+                acceptedModesSet.has(m) ||
+                (m === "flight" && acceptedModesSet.has("avion")) ||
+                (m === "train" && acceptedModesSet.has("train")) ||
+                (m === "car" && (acceptedModesSet.has("voiture") || acceptedModesSet.has("covoiturage")))
+              );
+            });
+            if (!hasAcceptedMode) {
+              candidateIncompatible = true;
+            }
+          } else if (ctx.planeRefused && modes.some((m) => m === "flight" || m === "avion") && !modes.some((m) => m !== "flight" && m !== "avion")) {
+            candidateIncompatible = true;
+          }
+        }
 
-      const pricePerPerson = isValidEstimate
-        ? (estimate.roundTripCentral as number)
-        : fallbackTransport(destination.distance_from_paris_km);
+        const maxHours = ctx.maxTravelDurationHours;
+        const durationHours = candidateTransportInfo.approxHours;
+        if (maxHours != null && maxHours > 0 && durationHours != null && durationHours > 0) {
+          if (durationHours > maxHours) {
+            candidateIncompatible = true;
+          }
+        }
+      }
 
-      return { city: origin.city, count: origin.count, pricePerPerson };
+      const pricePerPerson = fallbackTransport(destination.distance_from_paris_km);
+
+      return {
+        city: origin.city,
+        count: origin.count,
+        pricePerPerson,
+      };
     });
+
+    if (candidateIncompatible) {
+      incompatibleDestinationIds.add(destination.id);
+      continue;
+    }
+
     const groupTotal = byOrigin.reduce(
       (sum, origin) => sum + origin.pricePerPerson * origin.count,
       0,
@@ -1707,19 +1741,43 @@ export async function generateRecommendationsForTrip(
     if (people > 0) {
       transportByDestinationId[destination.id] = groupTotal / people;
       transportGroupByDestinationId[destination.id] = groupTotal;
-      transportOriginsByDestinationId[destination.id] = byOrigin;
+      transportOriginsByDestinationId[destination.id] = byOrigin.map((o) => ({
+        city: o.city,
+        count: o.count,
+        pricePerPerson: o.pricePerPerson,
+      }));
     }
-    const lodging = candidate.lodgingEstimate?.perPersonPerNightCentral;
-    if (lodging != null && Number.isFinite(lodging) && lodging > 0)
-      lodgingPerPersonPerNightByDestinationId[destination.id] = lodging;
-    const food = candidate.localCostEstimate?.foodPerPersonPerDay;
-    if (food != null && Number.isFinite(food) && food > 0) foodPerPersonPerDayByDestinationId[destination.id] = food;
-    const activities = candidate.localCostEstimate?.activitiesPerPersonPerDay;
-    if (activities != null && Number.isFinite(activities) && activities > 0)
-      activitiesPerPersonPerDayByDestinationId[destination.id] = activities;
-    activityFitByDestinationId[destination.id] = (candidate.activityFit ?? [])
-      .filter((fit) => fit.availability === "strong" || fit.availability === "medium")
-      .map((fit) => fit.category);
+
+    if (candidate.dailyCost != null && Number.isFinite(candidate.dailyCost) && candidate.dailyCost > 0) {
+      // dailyCost est conservé uniquement si une vraie valeur explicite existe déjà
+    }
+
+    if (Array.isArray(candidate.activityFit)) {
+      activityFitByDestinationId[destination.id] = candidate.activityFit;
+    }
+    if (candidate.budgetLevel) {
+      budgetLevelByDestinationId[destination.id] = candidate.budgetLevel;
+    }
+  }
+
+  if (incompatibleDestinationIds.size > 0) {
+    const incompatibleNames = new Set(
+      catalogFinal.destinations
+        .filter((d) => incompatibleDestinationIds.has(d.id))
+        .map((d) => normName(d.name)),
+    );
+    catalogFinal = {
+      destinations: catalogFinal.destinations.filter(
+        (d) => !incompatibleDestinationIds.has(d.id),
+      ),
+      activities: catalogFinal.activities.filter(
+        (a) => !incompatibleDestinationIds.has(a.destination_id),
+      ),
+      accommodations: catalogFinal.accommodations.filter(
+        (a) => !incompatibleDestinationIds.has(a.destination_id),
+      ),
+    };
+    shortlistNames = shortlistNames.filter((name) => !incompatibleNames.has(normName(name)));
   }
 
   const ctxWithTransport: ScoringContext = {
@@ -1732,6 +1790,7 @@ export async function generateRecommendationsForTrip(
     foodPerPersonPerDayByDestinationId,
     activitiesPerPersonPerDayByDestinationId,
     activityFitByDestinationId,
+    budgetLevelByDestinationId,
   };
 
   // 5) Scoring final → 4 destinations. The Top 3 product rule applies to

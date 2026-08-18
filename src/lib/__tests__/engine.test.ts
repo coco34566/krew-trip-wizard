@@ -427,6 +427,43 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
       expect(prop.budget.priceSource?.accommodation).toBe("provider");
     });
 
+    it("ne génère aucun montant artificiel dailyCost pour budgetLevel et conserve le signal disponible dans ScoringContext", () => {
+      const destLow = mockDestination({ id: "dest-low", name: "Ville Low", avg_daily_cost: 0 });
+      const destHigh = mockDestination({ id: "dest-high", name: "Ville High", avg_daily_cost: 0 });
+
+      const catalog: TravelCatalog = {
+        destinations: [destLow, destHigh],
+        activities: [],
+        accommodations: [],
+      };
+
+      const ctx: ScoringContext = {
+        participants: 4,
+        budgetPerPerson: 100,
+        nights: 2,
+        letKrewDecide: true,
+        needsCityCenter: false,
+        startMonth: 6,
+        ambiances: [],
+        activityCategories: [],
+        maxDistanceKm: 2000,
+        excludedCountries: [],
+        budgetLevelByDestinationId: {
+          "dest-low": "low",
+          "dest-high": "high",
+        },
+      };
+
+      const proposals = buildProposals(catalog, ctx, 2);
+      expect(proposals).toHaveLength(2);
+
+      // Le signal est transmis au contexte sans altérer le montant chiffré dailyCost (qui demeure indéfini/0)
+      expect((destLow as any).dailyCost).toBeUndefined();
+      expect((destHigh as any).dailyCost).toBeUndefined();
+      expect(ctx.budgetLevelByDestinationId?.["dest-low"]).toBe("low");
+      expect(ctx.budgetLevelByDestinationId?.["dest-high"]).toBe("high");
+    });
+
     it("gère correctement le score météo et les préférences météo du groupe", () => {
       const destWithClimate = {
         id: "dest-climate",
