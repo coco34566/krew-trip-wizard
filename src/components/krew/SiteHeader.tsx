@@ -31,13 +31,13 @@ export function SiteHeader() {
   const initials = (user?.email ?? "K").slice(0, 2).toUpperCase();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <div className="flex items-center gap-6">
-          <Link to="/" className="transition-opacity hover:opacity-80">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-8">
+          <Link to="/" className="transition-opacity hover:opacity-85">
             <Logo />
           </Link>
-          <nav className="hidden md:flex items-center gap-4 text-sm font-medium text-muted-foreground">
+          <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-muted-foreground">
             <Link to="/a-propos" className="hover:text-foreground transition-colors">
               À propos
             </Link>
@@ -49,22 +49,22 @@ export function SiteHeader() {
             </Link>
           </nav>
         </div>
-        <nav className="flex items-center gap-2">
+        <nav className="flex items-center gap-2.5">
           {loading ? null : user ? (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
                 <Link to="/dashboard">Mes voyages</Link>
               </Button>
-              <Button asChild variant="hero" size="sm">
+              <Button asChild size="sm" className="rounded-xl font-medium">
                 <Link to="/trips/new">
-                  <Plus /> Nouveau voyage
+                  <Plus className="size-4" /> Nouveau voyage
                 </Link>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="ml-1 cursor-pointer" aria-label="Menu du compte">
+                  <button className="ml-1 cursor-pointer outline-none" aria-label="Menu du compte">
                     <Avatar className="size-9 border border-border">
-                      <AvatarFallback className="bg-surface-strong text-xs">{initials}</AvatarFallback>
+                      <AvatarFallback className="bg-surface text-xs font-semibold text-foreground">{initials}</AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
@@ -87,10 +87,10 @@ export function SiteHeader() {
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                 <Link to="/auth" search={{}}>Connexion</Link>
               </Button>
-              <Button asChild variant="hero" size="sm">
+              <Button asChild size="sm" className="rounded-xl font-medium">
                 <Link to="/auth" search={{}}>Créer mon voyage</Link>
               </Button>
             </>
