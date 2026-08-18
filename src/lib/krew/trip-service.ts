@@ -1641,6 +1641,7 @@ export async function generateRecommendationsForTrip(
   const foodPerPersonPerDayByDestinationId: Record<string, number> = {};
   const activitiesPerPersonPerDayByDestinationId: Record<string, number> = {};
   const activityFitByDestinationId: Record<string, string[]> = {};
+  const budgetLevelByDestinationId: Record<string, "low" | "medium" | "high"> = {};
   const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
   const departureOrigins = aggregated.departureOrigins?.length
     ? aggregated.departureOrigins
@@ -1701,6 +1702,9 @@ export async function generateRecommendationsForTrip(
     if (Array.isArray(candidate.activityFit)) {
       activityFitByDestinationId[destination.id] = candidate.activityFit;
     }
+    if (candidate.budgetLevel) {
+      budgetLevelByDestinationId[destination.id] = candidate.budgetLevel;
+    }
   }
 
   const ctxWithTransport: ScoringContext = {
@@ -1713,6 +1717,7 @@ export async function generateRecommendationsForTrip(
     foodPerPersonPerDayByDestinationId,
     activitiesPerPersonPerDayByDestinationId,
     activityFitByDestinationId,
+    budgetLevelByDestinationId,
   };
 
   // 5) Scoring final → 4 destinations. The Top 3 product rule applies to

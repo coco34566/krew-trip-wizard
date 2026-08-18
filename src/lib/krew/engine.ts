@@ -181,6 +181,7 @@ export type ScoringContext = {
   foodPerPersonPerDayByDestinationId?: Record<string, number>;
   activitiesPerPersonPerDayByDestinationId?: Record<string, number>;
   activityFitByDestinationId?: Record<string, string[]>;
+  budgetLevelByDestinationId?: Record<string, "low" | "medium" | "high">;
   /** Villes de départ du groupe (agrégées). */
   departureOrigins?: DepartureOrigin[];
   /** Modes de transport acceptés par le groupe. */
@@ -1695,7 +1696,24 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         ageBudgetRatio <= 1
           ? clamp(0.72 + (1 - ageBudgetRatio) * 0.5)
           : clamp(1 - (ageBudgetRatio - 1) * 2.1);
-      const sBudget = clamp(baseBudgetScore * 0.65 + ageBudgetScore * 0.35);
+      let sBudget = clamp(baseBudgetScore * 0.65 + ageBudgetScore * 0.35);
+
+      const candidateBudgetLevel = ctx.budgetLevelByDestinationId?.[destination.id];
+      if (candidateBudgetLevel) {
+        const groupBudget = ctx.budgetPerPerson;
+        if (groupBudget < 150) {
+          if (candidateBudgetLevel === "low") sBudget = clamp(sBudget + 0.1);
+          else if (candidateBudgetLevel === "high") sBudget = clamp(sBudget - 0.15);
+        } else if (groupBudget > 600) {
+          if (candidateBudgetLevel === "high") sBudget = clamp(sBudget + 0.1);
+          else if (candidateBudgetLevel === "low") sBudget = clamp(sBudget - 0.05);
+        } else {
+          if (candidateBudgetLevel === "medium" || candidateBudgetLevel === "low")
+            sBudget = clamp(sBudget + 0.05);
+          else if (candidateBudgetLevel === "high") sBudget = clamp(sBudget - 0.08);
+        }
+      }
+
       const maxHours = ctx.maxTravelDurationHours ?? null;
       const sTransport =
         maxHours && maxHours > 0
