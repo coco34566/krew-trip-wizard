@@ -202,7 +202,7 @@ function fingerprint(input: AiDiscoveryInput): string {
 
 const cache = new Map<string, { at: number; candidates: AiCandidate[]; provider: string }>();
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
-const REQUEST_TIMEOUT_MS = 12_000;
+export const REQUEST_TIMEOUT_MS = 60_000;
 
 export function clearDestinationAiCacheForTests() {
   cache.clear();

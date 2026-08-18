@@ -1338,7 +1338,7 @@ export async function generateRecommendationsForTrip(
       }
     }
 
-    mergedCandidates = mergedCandidates.slice(0, 12);
+    mergedCandidates = mergedCandidates.slice(0, 50);
     discoverySource = aiCities.length ? "merged" : "local";
     discoveryMeta = mergedCandidates.map((c) => ({
       name: c.name,
