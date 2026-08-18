@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarDays, Plus, Trash2, Users } from "lucide-react";
+import { CalendarDays, Plus, Trash2, Users, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,20 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
+type TeamMember = {
+  id: string;
+  name: string;
+  hasAnswered: boolean;
+  isStar: boolean;
+};
+
+type TeamSummary = {
+  total: number;
+  answered: number;
+  pending: number;
+  members: TeamMember[];
+};
+
 type TripRow = {
   id: string;
   name: string;
@@ -53,6 +67,7 @@ type TripRow = {
   has_itinerary?: boolean;
   /** Stade métier du parcours (remplace le status enum en UI) */
   journey_stage?: string;
+  team_summary?: TeamSummary;
 };
 
 function TripCard({
@@ -67,8 +82,17 @@ function TripCard({
   const isCompleteStage = trip.has_itinerary || trip.destination_selected;
   const isMiddleStage = trip.dates_locked;
 
+  const team = trip.team_summary ?? {
+    total: Math.max(trip.participants_count || 1, 1),
+    answered: 0,
+    pending: Math.max(trip.participants_count || 1, 1),
+    members: [],
+  };
+
+  const pct = Math.min(100, Math.max(0, Math.round((team.answered / Math.max(team.total, 1)) * 100)));
+
   return (
-    <div className="relative rounded-2xl border border-border/80 bg-card p-5 sm:p-6 transition-colors hover:border-primary/40">
+    <div className="relative rounded-2xl border border-border/80 bg-card p-5 sm:p-6 transition-colors hover:border-primary/40 flex flex-col justify-between">
       <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -105,6 +129,50 @@ function TripCard({
               {new Date(trip.start_date).toLocaleDateString("fr-FR")}
             </span>
           ) : null}
+        </div>
+
+        {/* Bloc Team / Progression */}
+        <div className="pt-2 border-t border-border/40 space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+            <span>
+              {team.answered} / {team.total} répondus
+            </span>
+            {team.pending > 0 && (
+              <span className="text-muted-foreground/80">
+                {team.pending} en attente
+              </span>
+            )}
+          </div>
+
+          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-secondary transition-all duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+
+          {team.members.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs text-muted-foreground pr-8">
+              {team.members.slice(0, 5).map((m) => (
+                <span
+                  key={m.id}
+                  className="inline-flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-[11px]"
+                >
+                  <span className="truncate max-w-[100px]">{m.name}</span>
+                  {m.hasAnswered ? (
+                    <Check className="size-3 text-secondary shrink-0" />
+                  ) : (
+                    <span className="size-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
+                  )}
+                </span>
+              ))}
+              {team.members.length > 5 && (
+                <span className="text-[11px] text-muted-foreground/70 font-medium">
+                  +{team.members.length - 5}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </Link>
 
