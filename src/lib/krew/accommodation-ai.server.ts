@@ -288,7 +288,7 @@ export async function searchAccommodationsWithGemini(
 ): Promise<AccommodationCandidate[]> {
   const key = process.env["GEMINI_API_KEY"];
   if (!key) throw new Error("no_gemini_key");
-  const model = process.env["GEMINI_MODEL"] || "gemini-3.6-flash";
+  const model = process.env["GEMINI_GROUNDED_MODEL"] || "gemini-2.5-flash";
   const prompt = `Recherche grounded KREW. Spécification=${JSON.stringify(specification)}\nRetourne JSON {"properties":[{"id":"stable","name":"","propertyType":"","krewConcept":"","location":{"city":null,"area":null,"address":null},"capacity":null,"bedrooms":null,"roomConfiguration":null,"rating":null,"reviewCount":null,"amenities":[],"totalStayPrice":null,"pricePerPerson":null,"priceStatus":"verified|estimated|unknown","availabilityStatus":"verified|unverified|unknown","url":"https://source fiable","source":"","imageUrl":null,"imageSource":null,"matchReasons":[]}]}. Maximum 6. N'invente aucune donnée; null si inconnue. URL et source grounded obligatoires.`;
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,

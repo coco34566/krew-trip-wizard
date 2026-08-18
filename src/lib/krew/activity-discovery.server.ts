@@ -63,7 +63,7 @@ export type ActivityDiscoveryInput = {
 type CacheEntry = { expiresAt: number; candidates: ActivityCandidate[]; days: any[] };
 const discoveryCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const MODEL = process.env["GEMINI_MODEL"] || "gemini-3.6-flash";
+const getModel = () => process.env["GEMINI_GROUNDED_MODEL"] || "gemini-2.5-flash";
 
 const norm = (value: unknown) =>
   String(value ?? "")
@@ -145,8 +145,9 @@ function cacheKey(input: ActivityDiscoveryInput, queries: string[]) {
 }
 
 async function callGemini(apiKey: string, prompt: string): Promise<any> {
+  const model = getModel();
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -375,7 +376,7 @@ export async function discoverActivities(
   } catch (error) {
     reportServerError(error, {
       provider: "gemini",
-      model: MODEL,
+      model: getModel(),
       kind: "activity-discovery-search",
       destination: input.destination,
       fallback: true,
