@@ -1220,6 +1220,8 @@ export async function generateRecommendationsForTrip(
       maxDistanceKm: ctx.maxDistanceKm,
       nights: ctx.nights,
       startMonth: ctx.startMonth,
+      startDate: ctx.startDate ?? null,
+      endDate: ctx.endDate ?? null,
       excludedCountries: ctx.excludedCountries,
       departureCity: primaryDeparture,
       departureOrigins: (aggregated.departureOrigins ?? []).map((origin) => ({
@@ -1654,6 +1656,11 @@ export async function generateRecommendationsForTrip(
           ? 130
           : Math.round(130 + (distanceKm - 1600) * 0.05);
 
+  const acceptedModesSet = new Set(
+    (ctx.transportModes ?? []).map((m) => m.toLowerCase().trim()),
+  );
+  const hasModeConstraints = acceptedModesSet.size > 0 && !acceptedModesSet.has("peu importe");
+
   for (const destination of catalogFinal.destinations) {
     const candidate = mergedCandidates.find(
       (item) => normCity(item.name) === normCity(destination.name),
@@ -1663,10 +1670,33 @@ export async function generateRecommendationsForTrip(
       const estimate = candidate.transportEstimate?.byOrigin.find(
         (item) => normCity(item.origin) === normCity(origin.city),
       );
-      const pricePerPerson =
-        estimate?.roundTripCentral != null && estimate.roundTripCentral > 0
-          ? estimate.roundTripCentral
-          : fallbackTransport(destination.distance_from_paris_km);
+      const modes = estimate?.realisticModes ?? [];
+      const hasCompatibleMode =
+        !hasModeConstraints ||
+        modes.some((m) => {
+          const normM = m.toLowerCase().trim();
+          return (
+            acceptedModesSet.has(normM) ||
+            (normM === "flight" && acceptedModesSet.has("avion")) ||
+            (normM === "train" && acceptedModesSet.has("train")) ||
+            (normM === "car" && (acceptedModesSet.has("voiture") || acceptedModesSet.has("covoiturage")))
+          );
+        });
+
+      const maxHours = ctx.maxTravelDurationHours;
+      const durationHours = estimate?.approximateDurationHours ?? null;
+      const durationCompatible = maxHours == null || durationHours == null || durationHours <= maxHours;
+
+      const isValidEstimate =
+        estimate?.roundTripCentral != null &&
+        estimate.roundTripCentral > 0 &&
+        hasCompatibleMode &&
+        durationCompatible;
+
+      const pricePerPerson = isValidEstimate
+        ? (estimate.roundTripCentral as number)
+        : fallbackTransport(destination.distance_from_paris_km);
+
       return { city: origin.city, count: origin.count, pricePerPerson };
     });
     const groupTotal = byOrigin.reduce(
@@ -1680,12 +1710,12 @@ export async function generateRecommendationsForTrip(
       transportOriginsByDestinationId[destination.id] = byOrigin;
     }
     const lodging = candidate.lodgingEstimate?.perPersonPerNightCentral;
-    if (lodging != null && lodging > 0)
+    if (lodging != null && Number.isFinite(lodging) && lodging > 0)
       lodgingPerPersonPerNightByDestinationId[destination.id] = lodging;
     const food = candidate.localCostEstimate?.foodPerPersonPerDay;
-    if (food != null && food > 0) foodPerPersonPerDayByDestinationId[destination.id] = food;
+    if (food != null && Number.isFinite(food) && food > 0) foodPerPersonPerDayByDestinationId[destination.id] = food;
     const activities = candidate.localCostEstimate?.activitiesPerPersonPerDay;
-    if (activities != null && activities > 0)
+    if (activities != null && Number.isFinite(activities) && activities > 0)
       activitiesPerPersonPerDayByDestinationId[destination.id] = activities;
     activityFitByDestinationId[destination.id] = (candidate.activityFit ?? [])
       .filter((fit) => fit.availability === "strong" || fit.availability === "medium")

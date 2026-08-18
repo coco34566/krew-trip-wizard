@@ -52,22 +52,116 @@ export type AccommodationCandidate = {
   matchReasons: string[];
 };
 
+export type AccommodationGenerationStatus =
+  | "success"
+  | "empty"
+  | "rate_limited"
+  | "provider_unavailable"
+  | "error";
+
+export type AccommodationGenerationMeta = {
+  status: AccommodationGenerationStatus;
+  requestHash: string;
+  attemptedAt: string;
+  completedAt?: string | null;
+  userMessage?: string | null;
+};
+
+export function canonicalizeUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    // Strip common tracking and marketing query parameters
+    const paramsToKeep = new URLSearchParams();
+    parsed.searchParams.forEach((val, key) => {
+      const k = key.toLowerCase();
+      if (!k.startsWith("utm_") && !["gclid", "fbclid", "ref", "source", "mc_cid", "mc_eid"].includes(k)) {
+        paramsToKeep.append(key, val);
+      }
+    });
+    parsed.search = paramsToKeep.toString();
+    // Normalize path trailing slash
+    if (parsed.pathname.length > 1 && parsed.pathname.endsWith("/")) {
+      parsed.pathname = parsed.pathname.slice(0, -1);
+    }
+    return parsed.toString().toLowerCase();
+  } catch {
+    return rawUrl.trim().toLowerCase();
+  }
+}
+
+export function buildCanonicalAccommodationExternalId(
+  destinationName: string,
+  hotel: { name: string; url?: string | null; source?: string | null },
+): string {
+  const normDest = destinationName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const normName = hotel.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const normSource = (hotel.source || "gemini").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+
+  if (hotel.url && typeof hotel.url === "string" && hotel.url.startsWith("https://")) {
+    const canonUrl = canonicalizeUrl(hotel.url);
+    let urlHash = 0;
+    for (let i = 0; i < canonUrl.length; i++) {
+      urlHash = (urlHash << 5) - urlHash + canonUrl.charCodeAt(i);
+      urlHash |= 0;
+    }
+    return `acc_${normSource}_${Math.abs(urlHash).toString(36)}`;
+  }
+
+  return `acc_${normDest}_${normName}_${normSource}`;
+}
+
+export function computeAccommodationRequestHash(
+  tripId: string,
+  specification: AccommodationSearchSpecification,
+): string {
+  const payload = {
+    tripId,
+    destination: specification.destination,
+    dates: specification.dates,
+    group: specification.group,
+    budget: specification.budget,
+    searchStrategies: specification.searchStrategies.map((s) => ({
+      concept: s.concept,
+      propertyTypes: s.propertyTypes,
+    })),
+    locationIntent: specification.locationIntent,
+    minimumRating: specification.minimumRating,
+    requiredAmenities: specification.requiredAmenities.slice().sort(),
+    accessibilityRequired: specification.accessibilityRequired,
+  };
+  const str = JSON.stringify(payload);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return `acc_${Math.abs(hash).toString(36)}`;
+}
+
 export function mergeAccommodationLogistics(
   previous: Record<string, any>,
   hotels: AccommodationCandidate[],
   providerErrors: string[],
+  meta?: AccommodationGenerationMeta,
 ): Record<string, any> {
+  const isFailure = meta && (meta.status === "rate_limited" || meta.status === "error" || meta.status === "provider_unavailable");
+  const existingHotels = Array.isArray(previous.hotels) ? previous.hotels : [];
+
+  // If new generation failed or returned 0 hotels on rate limit / error, keep existing valid hotels
+  const finalHotels = isFailure && existingHotels.length > 0 ? existingHotels : hotels;
+
   return {
     ...previous,
-    hotels,
+    hotels: finalHotels,
     hotelVotes: Array.isArray(previous.hotelVotes)
-      ? previous.hotelVotes.filter((vote: any) => hotels.some((hotel) => hotel.id === vote.hotelId))
+      ? previous.hotelVotes.filter((vote: any) => finalHotels.some((hotel: any) => hotel.id === vote.hotelId))
       : [],
-    selectedHotelId: hotels.some((hotel) => hotel.id === previous.selectedHotelId)
+    selectedHotelId: finalHotels.some((hotel: any) => hotel.id === previous.selectedHotelId)
       ? previous.selectedHotelId
       : null,
     hotelProviderErrors: providerErrors,
-    hotelsGeneratedAt: new Date().toISOString(),
+    hotelsGeneratedAt: isFailure ? previous.hotelsGeneratedAt ?? new Date().toISOString() : new Date().toISOString(),
+    accommodationGeneration: meta ?? previous.accommodationGeneration ?? null,
   };
 }
 
@@ -209,7 +303,11 @@ export async function searchAccommodationsWithGemini(
     },
   );
   const body = await response.text();
-  if (!response.ok)
+  if (!response.ok) {
+    if (response.status === 429 || /RESOURCE_EXHAUSTED|quota|rate limit/i.test(body)) {
+      throw new Error("gemini_accommodation_429:rate_limited");
+    }
     throw new Error(`gemini_accommodation_http_${response.status}:${body.slice(0, 160)}`);
+  }
   return normalizeAccommodationCandidates(JSON.parse(body), specification);
 }

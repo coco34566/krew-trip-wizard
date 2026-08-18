@@ -66,7 +66,7 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-function buildExactKayakSearchUrl(opts: {
+function buildExactFlightSearchUrl(opts: {
   originCity: string;
   destinationCity: string;
   departDate: string;
@@ -76,7 +76,7 @@ function buildExactKayakSearchUrl(opts: {
   const origin = opts.originCity.trim();
   const destination = opts.destinationCity.trim();
   const adults = Math.max(1, Math.min(9, Number(opts.adults) || 1));
-  return `https://www.kayak.fr/flights/${encodeURIComponent(origin)}-${encodeURIComponent(destination)}/${opts.departDate}/${opts.returnDate}?adults=${adults}&sort=price_a`;
+  return `https://www.google.com/travel/flights?q=Flights%20to%20${encodeURIComponent(destination)}%20from%20${encodeURIComponent(origin)}%20on%20${opts.departDate}%20through%20${opts.returnDate}`;
 }
 
 /** Extrait les horaires aller/retour d'un résultat fournisseur. */
@@ -312,7 +312,7 @@ export async function searchTransportRoundTrip(opts: {
   }
   const fallbackPrice = estimateTransportFromDistance(opts.distanceKm ?? 1000);
   const adults = Math.min(Math.max(1, opts.adults), 9);
-  const exactSearchUrl = buildExactKayakSearchUrl({ ...opts, adults });
+  const exactSearchUrl = buildExactFlightSearchUrl({ ...opts, adults });
   return {
     pricePerPerson: fallbackPrice,
     currency: "EUR",

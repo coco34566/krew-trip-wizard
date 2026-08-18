@@ -15,6 +15,8 @@ export type AiDiscoveryInput = {
   maxDistanceKm: number;
   nights: number;
   startMonth: number;
+  startDate?: string | null;
+  endDate?: string | null;
   departureCity: string;
   departureOrigins?: Array<{ origin: string; participants: number }>;
   acceptedTransportModes?: string[];
@@ -211,6 +213,7 @@ function compactUser(input: AiDiscoveryInput): string {
     event: input.eventType || "groupe",
     participants: input.participants,
     nights: input.nights,
+    dates: input.startDate && input.endDate ? { startDate: input.startDate, endDate: input.endDate } : null,
     budgetPerPerson: input.budgetPerPerson,
     departureCity: input.departureCity || null,
     departureOrigins: input.departureOrigins ?? [

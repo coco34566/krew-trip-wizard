@@ -17,10 +17,20 @@ const normalize = (value: unknown) =>
     .trim();
 const escapeQuery = (value: string) => value.replace(/["\\]/g, " ").trim();
 const cityMatchesStation = (city: string, station: unknown) => {
-  const wanted = normalize(city)
+  const normCity = normalize(city);
+  const actual = normalize(station);
+  if (!normCity || !actual) return false;
+
+  // Major multi-station hubs
+  if (normCity.includes("paris") && actual.includes("paris")) return true;
+  if (normCity.includes("lyon") && actual.includes("lyon")) return true;
+  if (normCity.includes("marseille") && actual.includes("marseille")) return true;
+  if (normCity.includes("bordeaux") && actual.includes("bordeaux")) return true;
+  if (normCity.includes("lille") && actual.includes("lille")) return true;
+
+  const wanted = normCity
     .split(" ")
     .filter((word) => word.length >= 3);
-  const actual = normalize(station);
   return wanted.length > 0 && wanted.every((word) => new RegExp(`(^| )${word}( |$)`).test(actual));
 };
 const positive = (value: unknown) => {
