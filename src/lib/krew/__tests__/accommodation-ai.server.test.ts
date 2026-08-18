@@ -1,5 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
+  buildCanonicalAccommodationExternalId,
+  computeAccommodationRequestHash,
   mergeAccommodationLogistics,
   normalizeAccommodationCandidates,
   searchAccommodationsWithGemini,
@@ -113,6 +115,46 @@ it("effectue exactement un Gemini", async () => {
   vi.stubGlobal("fetch", fetchMock);
   expect(await searchAccommodationsWithGemini(spec)).toHaveLength(1);
   expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
+it("computeAccommodationRequestHash génère un hash déterministe", () => {
+  const hash1 = computeAccommodationRequestHash("trip-123", spec);
+  const hash2 = computeAccommodationRequestHash("trip-123", spec);
+  expect(hash1).toBe(hash2);
+  expect(hash1.startsWith("acc_")).toBe(true);
+});
+
+it("buildCanonicalAccommodationExternalId nettoie les liens de tracking et génère un ID canonique", () => {
+  const hotel1 = {
+    name: "Hôtel Central",
+    url: "https://example.com/hotel?utm_source=google&gclid=12345",
+    source: "gemini",
+  };
+  const hotel2 = {
+    name: "Hôtel Central",
+    url: "https://example.com/hotel?utm_source=facebook",
+    source: "gemini",
+  };
+  const id1 = buildCanonicalAccommodationExternalId("Paris", hotel1);
+  const id2 = buildCanonicalAccommodationExternalId("Paris", hotel2);
+  expect(id1).toBe(id2);
+});
+
+it("mergeAccommodationLogistics conserve les hôtels précédents si la tentative échoue (429 / error)", () => {
+  const previous = {
+    hotels: [{ id: "stay-old", name: "Ancien Hôtel" }],
+    hotelVotes: [{ userId: "u1", hotelId: "stay-old" }],
+    selectedHotelId: "stay-old",
+  };
+  const merged = mergeAccommodationLogistics(previous, [], ["rate limit"], {
+    status: "rate_limited",
+    requestHash: "acc_hash1",
+    attemptedAt: new Date().toISOString(),
+    userMessage: "Indisponible",
+  });
+  expect(merged.hotels).toEqual(previous.hotels);
+  expect(merged.selectedHotelId).toBe("stay-old");
+  expect(merged.accommodationGeneration.status).toBe("rate_limited");
 });
 
 it("préserve transports et nettoie seulement les références hôtel obsolètes", () => {

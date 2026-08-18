@@ -67,6 +67,49 @@ export type AccommodationGenerationMeta = {
   userMessage?: string | null;
 };
 
+export function canonicalizeUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    // Strip common tracking and marketing query parameters
+    const paramsToKeep = new URLSearchParams();
+    parsed.searchParams.forEach((val, key) => {
+      const k = key.toLowerCase();
+      if (!k.startsWith("utm_") && !["gclid", "fbclid", "ref", "source", "mc_cid", "mc_eid"].includes(k)) {
+        paramsToKeep.append(key, val);
+      }
+    });
+    parsed.search = paramsToKeep.toString();
+    // Normalize path trailing slash
+    if (parsed.pathname.length > 1 && parsed.pathname.endsWith("/")) {
+      parsed.pathname = parsed.pathname.slice(0, -1);
+    }
+    return parsed.toString().toLowerCase();
+  } catch {
+    return rawUrl.trim().toLowerCase();
+  }
+}
+
+export function buildCanonicalAccommodationExternalId(
+  destinationName: string,
+  hotel: { name: string; url?: string | null; source?: string | null },
+): string {
+  const normDest = destinationName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const normName = hotel.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  const normSource = (hotel.source || "gemini").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
+
+  if (hotel.url && typeof hotel.url === "string" && hotel.url.startsWith("https://")) {
+    const canonUrl = canonicalizeUrl(hotel.url);
+    let urlHash = 0;
+    for (let i = 0; i < canonUrl.length; i++) {
+      urlHash = (urlHash << 5) - urlHash + canonUrl.charCodeAt(i);
+      urlHash |= 0;
+    }
+    return `acc_${normSource}_${Math.abs(urlHash).toString(36)}`;
+  }
+
+  return `acc_${normDest}_${normName}_${normSource}`;
+}
+
 export function computeAccommodationRequestHash(
   tripId: string,
   specification: AccommodationSearchSpecification,

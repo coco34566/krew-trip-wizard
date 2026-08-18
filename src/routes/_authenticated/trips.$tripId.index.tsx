@@ -1735,9 +1735,21 @@ function TripDetail() {
             </p>
           ) : null}
 
+          {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited" ? (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+              <p className="font-semibold">
+                {(trip as any).group_logistics.accommodationGeneration.userMessage ||
+                  "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."}
+              </p>
+            </div>
+          ) : null}
+
           {!(trip as any).group_logistics?.hotels?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              {data.isOwner
+              {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited"
+                ? (trip as any).group_logistics.accommodationGeneration.userMessage ||
+                  "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."
+                : data.isOwner
                 ? "Lance la recherche pour proposer des hébergements."
                 : "L'organisateur·rice proposera bientôt des hôtels à voter."}
             </p>

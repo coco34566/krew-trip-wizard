@@ -2299,39 +2299,79 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           ),
         };
 
-      const prevLogistics = (trip.group_logistics as any) || {};
+      // Re-fetch latest group_logistics right before evaluating locks to eliminate race conditions
+      const { data: latestTrip } = await supabase
+        .from("trips")
+        .select("group_logistics")
+        .eq("id", data.tripId)
+        .maybeSingle();
+
+      const currentLogistics = (latestTrip?.group_logistics as any) || (trip.group_logistics as any) || {};
       const reqHash = accAi.computeAccommodationRequestHash(data.tripId, specification);
-      const prevMeta = prevLogistics.accommodationGeneration;
-      const existingHotels = Array.isArray(prevLogistics.hotels) ? prevLogistics.hotels : [];
+      const currentMeta = currentLogistics.accommodationGeneration;
+      const existingHotels = Array.isArray(currentLogistics.hotels) ? currentLogistics.hotels : [];
 
       const COOLDOWN_MS = 5 * 60 * 1000;
+      const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes lock window for concurrent calls
+
       const isRecentSame429 =
-        prevMeta &&
-        prevMeta.requestHash === reqHash &&
-        prevMeta.status === "rate_limited" &&
-        Date.now() - new Date(prevMeta.attemptedAt).getTime() < COOLDOWN_MS;
+        currentMeta &&
+        currentMeta.requestHash === reqHash &&
+        currentMeta.status === "rate_limited" &&
+        Date.now() - new Date(currentMeta.attemptedAt).getTime() < COOLDOWN_MS;
 
       const isRecentValidHash =
-        prevMeta &&
-        prevMeta.requestHash === reqHash &&
-        prevMeta.status === "success" &&
+        currentMeta &&
+        currentMeta.requestHash === reqHash &&
+        currentMeta.status === "success" &&
         existingHotels.length > 0;
+
+      const isConcurrentInProgress =
+        currentMeta &&
+        currentMeta.requestHash === reqHash &&
+        currentMeta.status === "in_progress" &&
+        Date.now() - new Date(currentMeta.attemptedAt).getTime() < LOCK_TIMEOUT_MS;
 
       if (isRecentValidHash) {
         topHotels = existingHotels;
         accommodationMeta = {
-          ...prevMeta,
+          ...currentMeta,
           completedAt: new Date().toISOString(),
+        };
+      } else if (isConcurrentInProgress) {
+        topHotels = existingHotels;
+        accommodationMeta = {
+          ...currentMeta,
+          userMessage: "Une recherche de logements est déjà en cours. Veuillez patienter.",
         };
       } else if (isRecentSame429) {
         topHotels = existingHotels;
         accommodationMeta = {
-          ...prevMeta,
+          ...currentMeta,
           userMessage: "Recherche de logements momentanément indisponible. Réessaie un peu plus tard.",
         };
         providerErrors.push("Gemini accommodation rate limit cooldown active");
       } else {
         const attemptedAt = new Date().toISOString();
+        // Set persistent in_progress lock before calling Gemini
+        const inProgressMeta = {
+          status: "in_progress" as const,
+          requestHash: reqHash,
+          attemptedAt,
+          completedAt: null,
+          userMessage: "Recherche de logements en cours...",
+        };
+        await supabase
+          .from("trips")
+          .update({
+            group_logistics: {
+              ...currentLogistics,
+              accommodationGeneration: inProgressMeta,
+            },
+            updated_at: new Date().toISOString(),
+          } as any)
+          .eq("id", data.tripId);
+
         try {
           topHotels = await accAi.searchAccommodationsWithGemini(specification);
           accommodationMeta = {
@@ -2342,14 +2382,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             userMessage: topHotels.length === 0 ? "Aucun logement disponible pour ces critères." : null,
           };
 
-          // Upsert valid candidates with HTTPS booking URL to the accommodations table
+          // Upsert valid candidates with HTTPS booking URL to the accommodations table using canonical external IDs
           const validHotelsForDb = topHotels.filter(
             (hotel) => hotel.url && typeof hotel.url === "string" && hotel.url.startsWith("https://"),
           );
           if (validHotelsForDb.length > 0) {
             try {
               const accsToUpsert = validHotelsForDb.map((hotel) => ({
-                external_id: `gemini:${destName.toLowerCase().replace(/\s+/g, "_")}:${hotel.id || hotel.name.toLowerCase().replace(/\s+/g, "_")}`,
+                external_id: accAi.buildCanonicalAccommodationExternalId(destName, hotel),
                 name: hotel.name,
                 destination_id: destId,
                 type: hotel.propertyType || "hotel",
@@ -2368,11 +2408,19 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
                 .select("id, external_id, name");
 
               if (upsertedAccs) {
-                const accMap = new Map(upsertedAccs.map((a: any) => [a.name.toLowerCase(), a.id]));
-                topHotels = topHotels.map((hotel) => ({
-                  ...hotel,
-                  accommodation_id: accMap.get(hotel.name.toLowerCase()) || hotel.id,
-                }));
+                const accMap = new Map(upsertedAccs.map((a: any) => [a.external_id, a.id]));
+                topHotels = topHotels.map((hotel) => {
+                  const extId = accAi.buildCanonicalAccommodationExternalId(destName, hotel);
+                  const dbId = accMap.get(extId);
+                  if (dbId) {
+                    return {
+                      ...hotel,
+                      id: dbId, // Map canonical Supabase UUID as primary hotel.id
+                      accommodation_id: dbId,
+                    };
+                  }
+                  return hotel;
+                });
               }
             } catch (accErr) {
               console.warn("Accommodations database upsert skipped:", accErr);
