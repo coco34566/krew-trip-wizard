@@ -8,7 +8,9 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  // Golden-path tests can call metered external providers. Never retry them automatically:
+  // a retry would duplicate Gemini/Tavily calls and make usage measurements misleading.
+  retries: 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL,
