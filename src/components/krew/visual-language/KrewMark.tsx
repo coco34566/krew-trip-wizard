@@ -16,7 +16,7 @@ export type KrewMarkSize = "sm" | "md" | "lg";
 
 const TONES: Record<KrewMarkTone, string> = {
   plum: "text-primary",
-  sage: "text-[oklch(0.709_0.034_162.8)]",
+  sage: "text-lagoon",
   ink: "text-foreground",
 };
 
@@ -56,15 +56,7 @@ function MarkShape({ type, dashed = false }: { type: KrewMarkType; dashed?: bool
   }
 }
 
-export function KrewMark({
-  type,
-  tone = "plum",
-  size = "md",
-  rotation = 0,
-  decorative = true,
-  dashed = false,
-  className,
-}: {
+export function KrewMark({ type, tone = "plum", size = "md", rotation = 0, decorative = true, dashed = false, className }: {
   type: KrewMarkType;
   tone?: KrewMarkTone;
   size?: KrewMarkSize;
@@ -74,13 +66,7 @@ export function KrewMark({
   className?: string;
 }) {
   return (
-    <svg
-      viewBox="0 0 100 64"
-      aria-hidden={decorative ? true : undefined}
-      role={decorative ? undefined : "img"}
-      className={cn("shrink-0 overflow-visible", TONES[tone], SIZES[size], className)}
-      style={{ transform: `rotate(${rotation}deg)` }}
-    >
+    <svg viewBox="0 0 100 64" aria-hidden={decorative ? true : undefined} role={decorative ? undefined : "img"} className={cn("shrink-0 overflow-visible", TONES[tone], SIZES[size], className)} style={{ transform: `rotate(${rotation}deg)` }}>
       <MarkShape type={type} dashed={dashed} />
     </svg>
   );
