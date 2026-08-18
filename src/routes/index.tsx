@@ -75,9 +75,9 @@ function Landing() {
 
               {/* Colonne gauche : Titre & Actions */}
               <div className="lg:col-span-7">
-                <Badge variant="secondary" className="mb-6 rounded-full px-3.5 py-1 text-xs font-medium bg-secondary/60 text-foreground border border-border/80">
+                <p className="mb-6 text-sm font-medium text-primary">
                   L’organisation des voyages de groupe, simplement
-                </Badge>
+                </p>
 
                 <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-foreground leading-[1.08]">
                   Le voyage de groupe,{" "}
@@ -98,13 +98,13 @@ function Landing() {
                   </Button>
                 </div>
 
-                <ul className="mt-10 flex flex-wrap gap-2.5 sm:gap-3">
+                <ul className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-foreground">
                   {TRUST.map((t) => (
                     <li
                       key={t}
-                      className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs font-medium text-foreground"
+                      className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-foreground"
                     >
-                      <Check className="size-3.5 text-secondary-foreground" />
+                      <Check className="size-4 text-primary shrink-0" />
                       {t}
                     </li>
                   ))}
@@ -146,7 +146,7 @@ function Landing() {
               <Link
                 key={ev.value}
                 to="/trips/new"
-                className="rounded-full border border-border/80 bg-background px-3.5 py-1 text-xs font-medium text-muted-foreground transition hover:border-primary/40 hover:text-primary"
+                className="rounded-md border border-border/80 bg-background px-3.5 py-1 text-xs font-medium text-muted-foreground transition hover:border-primary/40 hover:text-primary"
               >
                 {ev.label}
               </Link>
@@ -154,10 +154,13 @@ function Landing() {
           </div>
         </section>
 
-        {/* ——— Comment ça marche (stepper éditorial) ——— */}
+        {/* ——— Comment ça marche (stepper éditorial LE PLAN) ——— */}
         <section className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-2">
+              LE PLAN
+            </span>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Comment ça marche
             </p>
             <h2 className="mt-3 font-display text-3xl sm:text-4xl font-normal text-foreground">
@@ -165,29 +168,40 @@ function Landing() {
             </h2>
           </div>
 
-          <ol className="mx-auto mt-14 grid max-w-4xl gap-8 sm:grid-cols-3 sm:gap-6">
-            {STEPS.map((step, i) => (
-              <li key={step.title} className="relative flex flex-col items-center text-center sm:items-start sm:text-left rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
-                <div className="flex items-center justify-between w-full mb-4">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-secondary/30 text-foreground">
-                    <step.icon className="size-5" />
-                  </span>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
-                    Étape {i + 1}
-                  </span>
-                </div>
-                <h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{step.text}</p>
-              </li>
-            ))}
+          <ol className="relative mx-auto mt-16 max-w-5xl">
+            {/* Connected horizontal line for desktop */}
+            <div className="hidden sm:block absolute top-5 left-[12%] right-[12%] h-px bg-border/80" />
+
+            {/* Connected vertical line for mobile */}
+            <div className="sm:hidden absolute top-5 bottom-5 left-5 w-px bg-border/80" />
+
+            <div className="grid gap-10 sm:grid-cols-3 sm:gap-8 lg:gap-12">
+              {STEPS.map((step, i) => (
+                <li key={step.title} className="relative flex flex-col items-start pl-14 sm:pl-0">
+                  <div className="flex items-center justify-between w-full mb-4">
+                    <div className="absolute left-0 sm:relative z-10 flex size-10 items-center justify-center rounded-lg bg-secondary/30 text-foreground border border-border/40">
+                      <step.icon className="size-5 text-foreground" />
+                    </div>
+                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                      Étape {i + 1}
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground mt-1">{step.title}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{step.text}</p>
+                </li>
+              ))}
+            </div>
           </ol>
         </section>
 
-        {/* ——— Aperçu Projet Complet Fictif ——— */}
+        {/* ——— Aperçu Projet Complet Fictif (LE MOMENT) ——— */}
         <section className="border-t border-border bg-surface/40 py-16 sm:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <div className="mx-auto max-w-2xl text-center mb-12">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Aperçu interactif</p>
+              <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-2">
+                LE MOMENT
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Aperçu interactif</p>
               <h2 className="mt-3 font-display text-3xl sm:text-4xl font-normal text-foreground">Un voyage complet, assemblé en direct</h2>
               <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
                 Découvre à quoi peut ressembler un voyage organisé avec KREW.
@@ -292,15 +306,20 @@ function Landing() {
           </div>
         </section>
 
-        {/* ——— Features (Ce que KREW fait pour toi) ——— */}
+        {/* ——— Features (Ce que KREW fait pour toi / LA TEAM) ——— */}
         <section className="border-y border-border bg-background py-16 sm:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary text-center">
-              Ce que KREW fait pour toi
-            </p>
-            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-normal text-foreground text-center mb-14">
-              Moins de débats, plus de départ
-            </h2>
+            <div className="mx-auto max-w-2xl text-center mb-14">
+              <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-2">
+                LA TEAM
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Ce que KREW fait pour toi
+              </p>
+              <h2 className="mt-3 font-display text-3xl sm:text-4xl font-normal text-foreground">
+                Moins de débats, plus de départ
+              </h2>
+            </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <FeatureCard
                 icon={MapPinned}
