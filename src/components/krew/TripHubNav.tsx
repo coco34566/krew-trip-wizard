@@ -72,11 +72,11 @@ export function TripHubNav({
         <div className="flex items-center gap-2.5">
           <div className="h-2 w-28 overflow-hidden rounded-full bg-muted sm:w-36">
             <div
-              className="h-full rounded-full bg-lagoon transition-all duration-500"
+              className="h-full rounded-full bg-secondary transition-all duration-500"
               style={{ width: `${progressPct}%` }}
             />
           </div>
-          <span className="font-mono text-xs font-semibold tabular-nums text-lagoon">
+          <span className="font-mono text-xs font-semibold tabular-nums text-secondary">
             {progressPct}%
           </span>
         </div>
@@ -132,7 +132,7 @@ export function TripHubNav({
                   <span
                     className={cn(
                       "flex size-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors",
-                      isDone && "border-lagoon/80 bg-lagoon/10 text-lagoon",
+                      isDone && "border-secondary/80 bg-secondary/10 text-secondary",
                       isActive && !isDone && "border-primary bg-primary text-primary-foreground shadow-sm",
                       !isDone && !isActive && !isSoon && "border-border bg-background text-muted-foreground",
                       isSoon && "border-dashed border-border bg-muted/30 text-muted-foreground opacity-60",
@@ -153,7 +153,7 @@ export function TripHubNav({
                         aria-hidden="true"
                         className={cn(
                           "w-0.5 h-full rounded-full transition-colors",
-                          isDone ? "bg-lagoon/50" : "bg-border/60",
+                          isDone ? "bg-secondary/50" : "bg-border/60",
                         )}
                       />
                     </div>

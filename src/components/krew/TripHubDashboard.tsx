@@ -324,9 +324,9 @@ function NextActionsPanel({
 
   if (actions.length === 0 && participantCaughtUp) {
     return (
-      <section className="rounded-2xl border border-lagoon/30 bg-lagoon/10 p-5">
+      <section className="rounded-2xl border border-secondary/30 bg-secondary/10 p-5">
         <div className="flex gap-3">
-          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-lagoon" />
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-secondary" />
           <div>
             <h2 className="font-display text-lg font-normal tracking-tight text-foreground">
               Tout est à jour de ton côté
@@ -639,8 +639,8 @@ export function TripHubDashboard({
 
           {totalReserved != null && totalEstimated != null ? (
             <>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/30 bg-lagoon/10 px-3 py-1 font-sans text-foreground">
-                <Wallet className="size-3.5 text-lagoon" /> Réellement Réservé :{" "}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 font-sans text-foreground">
+                <Wallet className="size-3.5 text-secondary" /> Réellement Réservé :{" "}
                 <span className="font-mono">{formatEuro(totalReserved)}</span>
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
@@ -660,8 +660,8 @@ export function TripHubDashboard({
           )}
 
           {datesLocked && (trip.start_date || provisionalStart) ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-lagoon/30 bg-lagoon/10 px-3 py-1 font-sans text-foreground">
-              <CalendarDays className="size-3.5 text-lagoon" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 font-sans text-foreground">
+              <CalendarDays className="size-3.5 text-secondary" />
               {"Dates validées · "}
               {trip.start_date
                 ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
