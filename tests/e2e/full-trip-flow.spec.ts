@@ -40,10 +40,12 @@ test("single full KREW journey from zero to planning", async ({ page }, testInfo
 
   stage = "preferences";
   await page.goto(`/trips/${tripId}/questionnaire`);
-  await page.getByRole("button", { name: /Détente|Festif|Découverte/i }).first().click();
-  await page.getByRole("button", { name: /Culture|Gastronomie|Nature|Sport/i }).first().click();
-  await page.getByRole("button", { name: /Centre-ville \/ urbain/ }).click();
+  await page.getByRole("button", { name: "🧖 Détente", exact: true }).click();
+  await page.getByRole("button", { name: "🏛️ Musées & culture", exact: true }).click();
+  await page.getByRole("button", { name: "🏢 Centre-ville / urbain", exact: true }).click();
   await page.locator("#departure").fill("Paris");
+  const cityChoice = page.getByRole("button", { name: /Paris France/ }).first();
+  if (await cityChoice.isVisible().catch(() => false)) await cityChoice.click();
   await page.getByRole("button", { name: /Envoyer mes réponses/ }).click();
   await page.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
 
