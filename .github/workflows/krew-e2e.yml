@@ -20,7 +20,9 @@ on:
 jobs:
   golden-path:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 25
     env:
       KREW_E2E_BASE_URL: ${{ inputs.base_url }}
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
@@ -31,14 +33,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.test_ref }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
       - run: npm ci
-      - name: Install Playwright runner without changing the lockfile
+      - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false @playwright/test@1.55.0
-      - run: npx playwright install --with-deps chromium webkit
       - name: Run customer journey
         run: npm run test:e2e
       - name: Upload Playwright report
