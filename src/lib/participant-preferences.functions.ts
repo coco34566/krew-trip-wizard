@@ -497,42 +497,8 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     if (p.user_id) processedUserIds.add(p.user_id);
   }
 
-  // 2. Add virtual star if star is not in list but we have star details
-  const starInList = partsList.some((p) => p.isStar);
-  if (hasStar && !starInList) {
-    partsList.push({
-      id: "star-virtual-id",
-      user_id: starUid,
-      email: null,
-      display_name: celebratedPerson || "La Star",
-      status: "accepte",
-      isStar: true,
-      hasAnswered: !!starHasPrefs,
-      hasAnsweredAvailability: !!starHasAvail,
-      answeredAt: starHasPrefs ? (starPrefs.data.updated_at || starPrefs.data.submitted_at) : null,
-    });
-  }
-
   const baseExpected = Math.max(Number(tripRes.data?.participants_count) || 0, partsList.length, 1);
   const expected = baseExpected; // No extra counting for star!
-
-  // 3. Fill the list with generic participants up to expected
-  const currentLen = partsList.length;
-  if (currentLen < expected) {
-    for (let i = currentLen + 1; i <= expected; i++) {
-      partsList.push({
-        id: `generic-virtual-${i}`,
-        user_id: null,
-        email: null,
-        display_name: `Participant ${i}`,
-        status: "invite",
-        isStar: false,
-        hasAnswered: false,
-        hasAnsweredAvailability: false,
-        answeredAt: null,
-      });
-    }
-  }
 
   const joined = activeParticipants.length;
   const answered = partsList.filter((p) => p.hasAnswered).length;

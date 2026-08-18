@@ -90,8 +90,20 @@ export const listMyTrips = createServerFn({ method: "GET" })
     const uniqueIds = [...new Set(allTripIds)];
 
     const stageByTrip: Record<string, { destinationSelected: boolean; hasItinerary: boolean }> = {};
-    type TeamMember = { id: string; name: string; hasAnswered: boolean; isStar: boolean };
-    type TeamSummary = { total: number; answered: number; pending: number; members: TeamMember[] };
+    type TeamMember = {
+      id: string;
+      name: string;
+      availabilityDone: boolean;
+      preferencesDone: boolean;
+      isStar: boolean;
+    };
+    type TeamSummary = {
+      total: number;
+      identifiedCount: number;
+      availabilityAnswered: number;
+      preferencesAnswered: number;
+      members: TeamMember[];
+    };
     const teamSummaryByTrip: Record<string, TeamSummary> = {};
 
     for (const id of uniqueIds) {
@@ -99,7 +111,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
     }
 
     if (uniqueIds.length) {
-      const [selRecos, tripExtras, allParticipants, allPrefs, allStarPrefs] = await Promise.all([
+      const [selRecos, tripExtras, allParticipants, allPrefs, allAvail, allStarPrefs] = await Promise.all([
         supabase
           .from("recommendations")
           .select("trip_id")
@@ -118,8 +130,12 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .select("trip_id, user_id, submitted_at, updated_at")
           .in("trip_id", uniqueIds),
         supabase
+          .from("trip_availability")
+          .select("trip_id, user_id")
+          .in("trip_id", uniqueIds),
+        supabase
           .from("trip_star_preferences")
-          .select("trip_id, user_id, wanted_activities, ambiances, wanted_env_type, desired_destination, submitted_at, updated_at")
+          .select("trip_id, user_id, wanted_activities, ambiances, wanted_env_type, desired_destination, available_dates, blocked_dates, submitted_at, updated_at")
           .in("trip_id", uniqueIds),
       ]);
 
@@ -140,12 +156,12 @@ export const listMyTrips = createServerFn({ method: "GET" })
 
       const rawParticipants = allParticipants.data ?? [];
       const rawPrefs = allPrefs.data ?? [];
+      const rawAvail = allAvail.data ?? [];
       const rawStarPrefs = allStarPrefs.data ?? [];
 
       for (const tid of uniqueIds) {
         const tripData = tripExtrasMap.get(tid);
         const celebratedPerson = tripData?.celebrated_person;
-        const hasStar = Boolean(tripData?.has_star || celebratedPerson);
         const starUserId = tripData?.star_user_id || null;
 
         const activeParticipants = rawParticipants.filter(
@@ -154,6 +170,9 @@ export const listMyTrips = createServerFn({ method: "GET" })
 
         const prefRows = rawPrefs.filter((p: any) => p.trip_id === tid);
         const prefSet = new Set(prefRows.map((p: any) => p.user_id).filter(Boolean));
+
+        const availRows = rawAvail.filter((a: any) => a.trip_id === tid);
+        const availSet = new Set(availRows.map((a: any) => a.user_id).filter(Boolean));
 
         const starPref = rawStarPrefs.find((sp: any) => sp.trip_id === tid);
         const starHasPrefs = Boolean(
@@ -164,6 +183,11 @@ export const listMyTrips = createServerFn({ method: "GET" })
               starPref.desired_destination ||
               starPref.submitted_at),
         );
+        const starHasAvail = Boolean(
+          starPref &&
+            ((starPref.available_dates && starPref.available_dates.length > 0) ||
+              (starPref.blocked_dates && starPref.blocked_dates.length > 0)),
+        );
 
         const starParticipant = starUserId
           ? activeParticipants.find((p: any) => p.user_id === starUserId) || null
@@ -173,49 +197,32 @@ export const listMyTrips = createServerFn({ method: "GET" })
 
         for (const p of activeParticipants) {
           const isStar = p === starParticipant || Boolean(starUserId && p.user_id === starUserId);
-          let hasAnswered = p.user_id ? prefSet.has(p.user_id) : false;
-          if (isStar && starHasPrefs) {
-            hasAnswered = true;
+          let preferencesDone = p.user_id ? prefSet.has(p.user_id) : false;
+          let availabilityDone = p.user_id ? availSet.has(p.user_id) : false;
+
+          if (isStar) {
+            if (starHasPrefs) preferencesDone = true;
+            if (starHasAvail) availabilityDone = true;
           }
 
           membersList.push({
             id: p.id,
-            name: isStar && celebratedPerson ? celebratedPerson : (p.display_name ?? p.email?.split("@")[0] ?? "Participant"),
-            hasAnswered,
+            name: isStar && celebratedPerson ? celebratedPerson : (p.display_name ?? p.email?.split("@")[0] ?? p.id),
+            availabilityDone,
+            preferencesDone,
             isStar,
           });
         }
 
-        const starInList = membersList.some((m) => m.isStar);
-        if (hasStar && !starInList) {
-          membersList.push({
-            id: "star-virtual-id",
-            name: celebratedPerson || "La Star",
-            hasAnswered: starHasPrefs,
-            isStar: true,
-          });
-        }
-
         const expected = Math.max(Number(tripData?.participants_count) || 0, membersList.length, 1);
-        const currentLen = membersList.length;
-        if (currentLen < expected) {
-          for (let i = currentLen + 1; i <= expected; i++) {
-            membersList.push({
-              id: `generic-virtual-${i}`,
-              name: `Participant ${i}`,
-              hasAnswered: false,
-              isStar: false,
-            });
-          }
-        }
-
-        const answeredCount = membersList.filter((m) => m.hasAnswered).length;
-        const pendingCount = Math.max(expected - answeredCount, 0);
+        const availabilityAnswered = membersList.filter((m) => m.availabilityDone).length;
+        const preferencesAnswered = membersList.filter((m) => m.preferencesDone).length;
 
         teamSummaryByTrip[tid] = {
           total: expected,
-          answered: answeredCount,
-          pending: pendingCount,
+          identifiedCount: membersList.length,
+          availabilityAnswered,
+          preferencesAnswered,
           members: membersList,
         };
       }

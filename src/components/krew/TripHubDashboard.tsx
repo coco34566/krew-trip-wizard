@@ -656,10 +656,14 @@ export function TripHubDashboard({
 
       {/* Progression */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Parcours du groupe
-        </h2>
-        <TripHubNav tripId={tripId} steps={steps} />
+        <TripHubNav
+          tripId={tripId}
+          steps={steps}
+          availabilityAnswered={availabilityAnswered}
+          availabilityExpected={availabilityExpected}
+          progressAnswered={progressAnswered}
+          progressTotal={progressTotal || trip.participants_count || 1}
+        />
       </section>
 
       {/* Résumé des retours x/N */}
