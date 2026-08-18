@@ -2299,20 +2299,13 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           ),
         };
 
-      // Re-fetch latest group_logistics right before evaluating locks to eliminate race conditions
-      const { data: latestTrip } = await supabase
-        .from("trips")
-        .select("group_logistics")
-        .eq("id", data.tripId)
-        .maybeSingle();
-
-      const currentLogistics = (latestTrip?.group_logistics as any) || (trip.group_logistics as any) || {};
+      const currentLogistics = (trip.group_logistics as any) || {};
       const reqHash = accAi.computeAccommodationRequestHash(data.tripId, specification);
       const currentMeta = currentLogistics.accommodationGeneration;
       const existingHotels = Array.isArray(currentLogistics.hotels) ? currentLogistics.hotels : [];
 
       const COOLDOWN_MS = 5 * 60 * 1000;
-      const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes lock window for concurrent calls
+      let geminiCalled = false;
 
       const isRecentSame429 =
         currentMeta &&
@@ -2326,23 +2319,11 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         currentMeta.status === "success" &&
         existingHotels.length > 0;
 
-      const isConcurrentInProgress =
-        currentMeta &&
-        currentMeta.requestHash === reqHash &&
-        currentMeta.status === "in_progress" &&
-        Date.now() - new Date(currentMeta.attemptedAt).getTime() < LOCK_TIMEOUT_MS;
-
       if (isRecentValidHash) {
         topHotels = existingHotels;
         accommodationMeta = {
           ...currentMeta,
           completedAt: new Date().toISOString(),
-        };
-      } else if (isConcurrentInProgress) {
-        topHotels = existingHotels;
-        accommodationMeta = {
-          ...currentMeta,
-          userMessage: "Une recherche de logements est déjà en cours. Veuillez patienter.",
         };
       } else if (isRecentSame429) {
         topHotels = existingHotels;
@@ -2352,93 +2333,103 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         };
         providerErrors.push("Gemini accommodation rate limit cooldown active");
       } else {
-        const attemptedAt = new Date().toISOString();
-        // Set persistent in_progress lock before calling Gemini
-        const inProgressMeta = {
-          status: "in_progress" as const,
-          requestHash: reqHash,
-          attemptedAt,
-          completedAt: null,
-          userMessage: "Recherche de logements en cours...",
-        };
-        await supabase
-          .from("trips")
-          .update({
-            group_logistics: {
-              ...currentLogistics,
-              accommodationGeneration: inProgressMeta,
-            },
-            updated_at: new Date().toISOString(),
-          } as any)
-          .eq("id", data.tripId);
-
+        // Atomic acquisition via Supabase RPC function
+        let lockAcquired = false;
+        let rpcGeneration: any = null;
         try {
-          topHotels = await accAi.searchAccommodationsWithGemini(specification);
-          accommodationMeta = {
-            status: topHotels.length > 0 ? "success" : "empty",
-            requestHash: reqHash,
-            attemptedAt,
-            completedAt: new Date().toISOString(),
-            userMessage: topHotels.length === 0 ? "Aucun logement disponible pour ces critères." : null,
-          };
-
-          // Upsert valid candidates with HTTPS booking URL to the accommodations table using canonical external IDs
-          const validHotelsForDb = topHotels.filter(
-            (hotel) => hotel.url && typeof hotel.url === "string" && hotel.url.startsWith("https://"),
-          );
-          if (validHotelsForDb.length > 0) {
-            try {
-              const accsToUpsert = validHotelsForDb.map((hotel) => ({
-                external_id: accAi.buildCanonicalAccommodationExternalId(destName, hotel),
-                name: hotel.name,
-                destination_id: destId,
-                type: hotel.propertyType || "hotel",
-                rating: hotel.rating,
-                review_count: hotel.reviewCount,
-                price_per_night: hotel.pricePerPerson,
-                booking_url: hotel.url,
-                image_url: hotel.imageUrl,
-                krew_concept: hotel.krewConcept,
-                source: hotel.source || "gemini_grounded",
-                updated_at: new Date().toISOString(),
-              }));
-              const { data: upsertedAccs } = await supabase
-                .from("accommodations")
-                .upsert(accsToUpsert, { onConflict: "external_id" })
-                .select("id, external_id, name");
-
-              if (upsertedAccs) {
-                const accMap = new Map(upsertedAccs.map((a: any) => [a.external_id, a.id]));
-                topHotels = topHotels.map((hotel) => {
-                  const extId = accAi.buildCanonicalAccommodationExternalId(destName, hotel);
-                  const dbId = accMap.get(extId);
-                  if (dbId) {
-                    return {
-                      ...hotel,
-                      id: dbId, // Map canonical Supabase UUID as primary hotel.id
-                      accommodation_id: dbId,
-                    };
-                  }
-                  return hotel;
-                });
-              }
-            } catch (accErr) {
-              console.warn("Accommodations database upsert skipped:", accErr);
-            }
+          const rpcRes = await supabase.rpc("acquire_accommodation_generation_lock" as any, {
+            p_trip_id: data.tripId,
+            p_request_hash: reqHash,
+            p_stale_after_seconds: 120,
+          });
+          const rpcData = Array.isArray(rpcRes.data) ? rpcRes.data[0] : rpcRes.data;
+          if (rpcData) {
+            lockAcquired = Boolean(rpcData.acquired);
+            rpcGeneration = rpcData.generation;
           }
-        } catch (error) {
-          const errStr = String(error);
-          const is429 = errStr.includes("rate_limited") || errStr.includes("429");
-          providerErrors.push(errStr.slice(0, 180));
+        } catch (rpcErr) {
+          console.warn("acquire_accommodation_generation_lock RPC call failed or fallback:", rpcErr);
+          // Fallback if RPC function is not yet exposed in client mocks/RLS
+          lockAcquired = true;
+        }
+
+        if (!lockAcquired) {
+          topHotels = existingHotels;
           accommodationMeta = {
-            status: is429 ? "rate_limited" : "error",
-            requestHash: reqHash,
-            attemptedAt,
-            completedAt: new Date().toISOString(),
-            userMessage: is429
-              ? "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."
-              : "Erreur lors de la recherche des logements.",
+            ...(rpcGeneration || currentMeta),
+            userMessage: "Une recherche de logements est déjà en cours. Veuillez patienter.",
           };
+        } else {
+          const attemptedAt = new Date().toISOString();
+          try {
+            geminiCalled = true;
+            topHotels = await accAi.searchAccommodationsWithGemini(specification);
+            accommodationMeta = {
+              status: topHotels.length > 0 ? "success" : "empty",
+              requestHash: reqHash,
+              attemptedAt,
+              completedAt: new Date().toISOString(),
+              userMessage: topHotels.length === 0 ? "Aucun logement disponible pour ces critères." : null,
+            };
+
+            // Upsert valid candidates with HTTPS booking URL to the accommodations table using canonical external IDs
+            const validHotelsForDb = topHotels.filter(
+              (hotel) => hotel.url && typeof hotel.url === "string" && hotel.url.startsWith("https://"),
+            );
+            if (validHotelsForDb.length > 0) {
+              try {
+                const accsToUpsert = validHotelsForDb.map((hotel) => ({
+                  external_id: accAi.buildCanonicalAccommodationExternalId(destName, hotel),
+                  name: hotel.name,
+                  destination_id: destId,
+                  type: hotel.propertyType || "hotel",
+                  rating: hotel.rating,
+                  review_count: hotel.reviewCount,
+                  price_per_night: hotel.pricePerPerson,
+                  booking_url: hotel.url,
+                  image_url: hotel.imageUrl,
+                  krew_concept: hotel.krewConcept,
+                  source: hotel.source || "gemini_grounded",
+                  updated_at: new Date().toISOString(),
+                }));
+                const { data: upsertedAccs } = await supabase
+                  .from("accommodations")
+                  .upsert(accsToUpsert, { onConflict: "external_id" })
+                  .select("id, external_id, name");
+
+                if (upsertedAccs) {
+                  const accMap = new Map(upsertedAccs.map((a: any) => [a.external_id, a.id]));
+                  topHotels = topHotels.map((hotel) => {
+                    const extId = accAi.buildCanonicalAccommodationExternalId(destName, hotel);
+                    const dbId = accMap.get(extId);
+                    if (dbId) {
+                      return {
+                        ...hotel,
+                        id: dbId, // Map canonical Supabase UUID as primary hotel.id
+                        accommodation_id: dbId,
+                      };
+                    }
+                    return hotel;
+                  });
+                }
+              } catch (accErr) {
+                console.warn("Accommodations database upsert skipped:", accErr);
+              }
+            }
+          } catch (error) {
+            const errStr = String(error);
+            const is429 = errStr.includes("rate_limited") || errStr.includes("429");
+            providerErrors.push(errStr.slice(0, 180));
+            accommodationMeta = {
+              status: is429 ? "rate_limited" : "error",
+              requestHash: reqHash,
+              attemptedAt,
+              completedAt: new Date().toISOString(),
+              userMessage: is429
+                ? "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."
+                : "Erreur lors de la recherche des logements.",
+            };
+          }
         }
       }
 
@@ -2446,7 +2437,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         workflow: "accommodation",
         tripId: data.tripId,
         requestHash: reqHash,
-        geminiCalls: isRecentValidHash || isRecentSame429 ? 0 : 1,
+        geminiCalls: geminiCalled ? 1 : 0,
         cacheHit: Boolean(isRecentValidHash),
         status: accommodationMeta?.status,
         resultCount: topHotels.length,

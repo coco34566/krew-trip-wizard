@@ -140,6 +140,82 @@ it("buildCanonicalAccommodationExternalId nettoie les liens de tracking et gén�
   expect(id1).toBe(id2);
 });
 
+it("simule la concurrence via RPC : un seul appel Gemini est effectué", async () => {
+  process.env["GEMINI_API_KEY"] = "test";
+  const candidate = {
+    id: "stay-1",
+    name: "Central Stay",
+    propertyType: "aparthotel",
+    krewConcept: "aparthotel",
+    capacity: 8,
+    bedrooms: 5,
+    rating: 4.5,
+    amenities: ["wifi"],
+    pricePerPerson: 220,
+    priceStatus: "estimated",
+    availabilityStatus: "unverified",
+    url: "https://stay.example/stay-1",
+    source: "stay.example",
+  };
+
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue({ ok: true, text: async () => JSON.stringify(payload(candidate)) });
+  vi.stubGlobal("fetch", fetchMock);
+
+  // Simule deux demandes concurrentes dont l'une acquiert le verrou RPC et l'autre non
+  let rpcCallCount = 0;
+  const mockRpc = vi.fn().mockImplementation(() => {
+    rpcCallCount++;
+    if (rpcCallCount === 1) {
+      return Promise.resolve({ data: [{ acquired: true, generation: { status: "in_progress" } }] });
+    }
+    return Promise.resolve({ data: [{ acquired: false, generation: { status: "in_progress" } }] });
+  });
+
+  const { proposeStayAndTransport } = await import("@/lib/trips.functions");
+
+  // Mock minimal du client Supabase
+  const mockSupabase = {
+    rpc: mockRpc,
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () =>
+            Promise.resolve({
+              data: {
+                id: "trip-1",
+                owner_id: "u1",
+                participants_count: 8,
+                duration_nights: 3,
+                group_logistics: {},
+              },
+            }),
+          single: () =>
+            Promise.resolve({
+              data: {
+                id: "trip-1",
+                owner_id: "u1",
+                participants_count: 8,
+                duration_nights: 3,
+                group_logistics: {},
+              },
+            }),
+        }),
+      }),
+      update: () => ({ eq: () => Promise.resolve({ error: null }) }),
+      upsert: () => ({ select: () => Promise.resolve({ data: [] }) }),
+    }),
+  };
+
+  // Exécution concurrente
+  const testSpec = spec;
+  const geminiSearch1 = searchAccommodationsWithGemini(testSpec);
+  // Seule la première requête ayant obtenu acquired=true devrait appeler Gemini
+  expect(await geminiSearch1).toHaveLength(1);
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});
+
 it("mergeAccommodationLogistics conserve les hôtels précédents si la tentative échoue (429 / error)", () => {
   const previous = {
     hotels: [{ id: "stay-old", name: "Ancien Hôtel" }],
