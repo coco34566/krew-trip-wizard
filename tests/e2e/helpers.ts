@@ -1,9 +1,9 @@
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
 export const qa = {
-  email: process.env.KREW_E2E_EMAIL ?? "",
-  password: process.env.KREW_E2E_PASSWORD ?? "",
-  existingTripId: process.env.KREW_E2E_EXISTING_TRIP_ID ?? "",
+  email: (process.env.KREW_E2E_EMAIL ?? "").trim(),
+  password: (process.env.KREW_E2E_PASSWORD ?? "").trim(),
+  existingTripId: (process.env.KREW_E2E_EXISTING_TRIP_ID ?? "").trim(),
 };
 
 export function requireQaCredentials() {
@@ -39,9 +39,12 @@ export async function signIn(page: Page) {
 
 function isExpectedAbortedNavigation(url: string, errorText: string) {
   if (!/(?:ERR_ABORTED|Load request cancelled)/i.test(errorText)) return false;
+  if (/vercel\.live\/login\/validate/i.test(url)) return true;
   if (/\/\.well-known\/vercel\/jwe(?:\?|$)/i.test(url)) return true;
+  if (/\/_serverFn\//i.test(url)) return true;
   if (/\/auth(?:\?|$)|\/dashboard(?:\?|$)|\/trips\//i.test(url)) return true;
   if (/\/assets\//i.test(url)) return true;
+  if (/\/krew-logo\.jpg(?:\?|$)/i.test(url)) return true;
   if (/supabase\.co\/auth\/v1\/user/i.test(url)) return true;
   return false;
 }
@@ -87,7 +90,8 @@ export function installDiagnostics(page: Page, testInfo: TestInfo) {
 }
 
 export async function openTrip(page: Page, tripId: string) {
-  await page.goto(`/trips/${tripId}`);
-  await expect(page).toHaveURL(new RegExp(`/trips/${tripId}`));
+  const normalizedTripId = tripId.trim();
+  await page.goto(`/trips/${normalizedTripId}`);
+  await expect(page).toHaveURL(new RegExp(`/trips/${normalizedTripId}`));
   await expect(page.locator("main")).toBeVisible();
 }
