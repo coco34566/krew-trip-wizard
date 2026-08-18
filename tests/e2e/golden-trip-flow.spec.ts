@@ -45,8 +45,50 @@ test.describe("KREW golden customer journey", () => {
     await expect(accommodation, "Prepared trip must expose the accommodation section").toBeVisible();
     const accommodationButton = accommodation.getByRole("button", { name: /Rechercher des hébergements|Actualiser les offres/ });
     await expect(accommodationButton).toBeVisible();
+    await expect(accommodationButton).toBeEnabled();
+
+    const serverResponses: Array<{ url: string; status: number; body: string }> = [];
+    const captureServerFn = async (response: import("@playwright/test").Response) => {
+      if (!response.url().includes("/_serverFn/")) return;
+      let body = "";
+      try {
+        body = (await response.text()).slice(0, 2500);
+      } catch {
+        body = "<unreadable>";
+      }
+      serverResponses.push({ url: response.url(), status: response.status(), body });
+    };
+    page.on("response", captureServerFn);
+
     await accommodationButton.click();
-    await expect(accommodation.getByText(/Voir le logement|prix vérifié|indicatif|à vérifier/i).first()).toBeVisible({ timeout: 120_000 });
+
+    // The click must trigger an actual server-function round trip. This prevents a false-positive
+    // where the UI button is visible but the accommodation generator is never reached.
+    await expect
+      .poll(() => serverResponses.length, {
+        message: "Accommodation click must trigger at least one server function response",
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(0);
+
+    const success = accommodation.getByText(/Voir le logement|prix vérifié|indicatif|à vérifier/i).first();
+    const errorToast = page.getByText(/Recherche d.hebergements impossible|Erreur lors de la recherche des logements|no_tavily_key|tavily|gemini/i).first();
+
+    await Promise.race([
+      success.waitFor({ state: "visible", timeout: 120_000 }),
+      errorToast.waitFor({ state: "visible", timeout: 120_000 }),
+    ]).catch(() => undefined);
+
+    await testInfo.attach("accommodation-server-responses", {
+      body: Buffer.from(JSON.stringify(serverResponses, null, 2)),
+      contentType: "application/json",
+    });
+
+    if (await errorToast.isVisible().catch(() => false)) {
+      const message = await errorToast.textContent();
+      throw new Error(`Accommodation generation failed in real UI: ${message ?? "unknown error"}`);
+    }
+    await expect(success, "Accommodation generation must render at least one sourced result").toBeVisible({ timeout: 5_000 });
 
     const transports = page.locator("#hub-transports");
     await expect(transports).toBeVisible();
@@ -62,7 +104,6 @@ test.describe("KREW golden customer journey", () => {
     await planningButton.click();
     await expect(planning.getByText(/jour 1|planning|programme/i).first()).toBeVisible({ timeout: 120_000 });
 
-    // A successful screen that loses state after refresh is a customer-facing failure.
     const beforeReload = page.url();
     await page.reload();
     await expect(page).toHaveURL(beforeReload);
