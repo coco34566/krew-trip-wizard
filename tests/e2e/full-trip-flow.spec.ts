@@ -52,49 +52,68 @@ test("single full KREW journey from zero to planning", async ({ page }, testInfo
   stage = "lock-dates";
   const dates = page.locator("#hub-dates");
   await expect(dates).toBeVisible();
-  const lockButton = dates.getByRole("button", { name: /Valider|Choisir|Verrouiller/i }).first();
-  await expect(lockButton, "Fresh trip must expose an organizer date action").toBeVisible({ timeout: 20_000 });
+  const lockButton = dates.getByRole("button", { name: "Valider ces dates", exact: true }).first();
+  await expect(lockButton, "Fresh trip must expose an organizer date proposal").toBeVisible({ timeout: 20_000 });
   await lockButton.click();
-  await expect(dates.getByText(/verrouill|validée|choisie/i).first()).toBeVisible({ timeout: 30_000 });
+  await expect(dates.getByText("Dates validées", { exact: true })).toBeVisible({ timeout: 30_000 });
+
+  // Fresh trips must validate the KREW stay profile before destination generation.
+  stage = "stay-profile";
+  const profile = page.locator("#hub-profile");
+  await expect(profile).toBeVisible();
+  const validateProfile = profile.getByRole("button", { name: "Valider notre profil de voyage", exact: true });
+  if (await validateProfile.isVisible().catch(() => false)) {
+    await expect(validateProfile).toBeEnabled({ timeout: 20_000 });
+    await validateProfile.click();
+  }
+  await expect(profile.getByText(/Profil validé/).first()).toBeVisible({ timeout: 30_000 });
 
   stage = "destinations";
   const destinations = page.locator("#hub-destination");
   await expect(destinations).toBeVisible();
-  const generateDestinations = destinations.getByRole("button", { name: /Générer|Régénérer|Proposer/i }).first();
-  await expect(generateDestinations).toBeVisible({ timeout: 20_000 });
+  const generateDestinations = destinations.getByRole("button", { name: "Générer les propositions", exact: true });
+  await expect(generateDestinations).toBeEnabled({ timeout: 20_000 });
   await generateDestinations.click();
-  const selectDestination = destinations.getByRole("button", { name: /Choisir|Valider|Sélectionner/i }).first();
+  const selectDestination = destinations.getByRole("button", { name: "Choisir cette destination", exact: true }).first();
   await expect(selectDestination, "Destination generation must return a selectable proposal").toBeVisible({ timeout: 120_000 });
   await selectDestination.click();
-  await expect(page.locator("#hub-logistics")).toBeVisible({ timeout: 30_000 });
+  await expect(destinations.getByText(/Destination validée/).first()).toBeVisible({ timeout: 30_000 });
 
   stage = "accommodation";
   const accommodation = page.locator("#hub-logistics");
-  const accommodationButton = accommodation.getByRole("button", { name: /Rechercher des hébergements|Actualiser les offres/ });
+  await expect(accommodation).toBeVisible({ timeout: 30_000 });
+  const accommodationButton = accommodation.getByRole("button", { name: "Rechercher des hébergements", exact: true });
   await expect(accommodationButton).toBeVisible();
   await accommodationButton.click();
-  await expect(accommodation.getByText(/Recherche web Tavily|Voir le logement|indicatif|à vérifier/i).first()).toBeVisible({ timeout: 120_000 });
+  const hotelVote = accommodation.getByRole("button", { name: /^Voter ·/ }).first();
+  await expect(hotelVote, "Accommodation search must return at least one hotel to vote on").toBeVisible({ timeout: 120_000 });
+  await hotelVote.click();
+  await expect(accommodation.getByRole("button", { name: /^Mon vote ·/ }).first()).toBeVisible({ timeout: 30_000 });
 
   stage = "transport";
   const transports = page.locator("#hub-transports");
-  const transportButton = transports.getByRole("button", { name: /Générer des propositions/ });
-  await expect(transportButton).toBeVisible();
+  const transportButton = transports.getByRole("button", { name: "Générer des propositions", exact: true });
+  await expect(transportButton).toBeEnabled();
   await transportButton.click();
-  await expect(transports.getByText(/A\/R|aller|transport/i).first()).toBeVisible({ timeout: 120_000 });
+  const chooseTransport = transports.getByRole("button", { name: "Choisir ce trajet", exact: true }).first();
+  await expect(chooseTransport, "Transport generation must return at least one selectable route").toBeVisible({ timeout: 120_000 });
+  await chooseTransport.click();
+  await expect(transports.getByRole("button", { name: "Mon trajet", exact: true }).first()).toBeVisible({ timeout: 30_000 });
 
   stage = "planning";
   const planning = page.locator("#hub-activities-plan");
-  const planningButton = planning.getByRole("button", { name: /Générer le planning|Régénérer tout le planning/ });
+  const planningButton = planning.getByRole("button", { name: "Générer le planning", exact: true });
   await expect(planningButton).toBeVisible();
   await planningButton.click();
-  await expect(planning.getByText(/jour 1|planning|programme/i).first()).toBeVisible({ timeout: 120_000 });
+  await expect(planning.getByRole("heading", { name: /Jour 1/ }).first()).toBeVisible({ timeout: 120_000 });
 
   stage = "persistence";
   await page.reload();
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/?$`));
-  await expect(page.locator("#hub-logistics")).toBeVisible();
-  await expect(page.locator("#hub-transports")).toBeVisible();
-  await expect(page.locator("#hub-activities-plan")).toBeVisible();
+  await expect(page.locator("#hub-destination").getByText(/Destination validée/).first()).toBeVisible();
+  await expect(page.locator("#hub-logistics").getByRole("button", { name: /^Mon vote ·/ }).first()).toBeVisible();
+  await expect(page.locator("#hub-transports").getByRole("button", { name: "Mon trajet", exact: true }).first()).toBeVisible();
+  await expect(page.locator("#hub-activities-plan").getByRole("heading", { name: /Jour 1/ }).first()).toBeVisible();
   await testInfo.attach("full-trip", { body: Buffer.from(JSON.stringify({ tripId, tripName, serverResponses }, null, 2)), contentType: "application/json" });
   await assertDiagnostics();
 });
