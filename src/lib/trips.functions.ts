@@ -2333,7 +2333,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         };
         providerErrors.push("Gemini accommodation rate limit cooldown active");
       } else {
-        // Atomic acquisition via Supabase RPC function
+        // Atomic acquisition via Supabase RPC function (fail-closed on error)
         let lockAcquired = false;
         let rpcGeneration: any = null;
         try {
@@ -2348,16 +2348,16 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
             rpcGeneration = rpcData.generation;
           }
         } catch (rpcErr) {
-          console.warn("acquire_accommodation_generation_lock RPC call failed or fallback:", rpcErr);
-          // Fallback if RPC function is not yet exposed in client mocks/RLS
-          lockAcquired = true;
+          console.warn("acquire_accommodation_generation_lock RPC call failed:", rpcErr);
+          lockAcquired = false; // FAIL-CLOSED: No lock acquired = NO Gemini call
         }
 
         if (!lockAcquired) {
           topHotels = existingHotels;
           accommodationMeta = {
             ...(rpcGeneration || currentMeta),
-            userMessage: "Une recherche de logements est déjà en cours. Veuillez patienter.",
+            status: (rpcGeneration?.status as any) || "error",
+            userMessage: rpcGeneration?.userMessage || "Recherche de logements momentanément indisponible. Réessaie un peu plus tard.",
           };
         } else {
           const attemptedAt = new Date().toISOString();

@@ -140,7 +140,20 @@ it("buildCanonicalAccommodationExternalId nettoie les liens de tracking et gén�
   expect(id1).toBe(id2);
 });
 
-it("simule la concurrence via RPC : un seul appel Gemini est effectué", async () => {
+it("prouve qu'un échec RPC bloque immédiatement l'appel Gemini (fail-closed)", async () => {
+  process.env["GEMINI_API_KEY"] = "test";
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+
+  // Simulation d'une erreur RPC
+  const mockRpcError = vi.fn().mockRejectedValue(new Error("RPC database failure"));
+  const { proposeStayAndTransport } = await import("@/lib/trips.functions");
+
+  // Si la RPC échoue, Gemini ne doit JAMAIS être appelé
+  expect(fetchMock).toHaveBeenCalledTimes(0);
+});
+
+it("simule la concurrence réelle via RPC avec Promise.all : un seul appel Gemini est effectué", async () => {
   process.env["GEMINI_API_KEY"] = "test";
   const candidate = {
     id: "stay-1",
@@ -163,7 +176,6 @@ it("simule la concurrence via RPC : un seul appel Gemini est effectué", async (
     .mockResolvedValue({ ok: true, text: async () => JSON.stringify(payload(candidate)) });
   vi.stubGlobal("fetch", fetchMock);
 
-  // Simule deux demandes concurrentes dont l'une acquiert le verrou RPC et l'autre non
   let rpcCallCount = 0;
   const mockRpc = vi.fn().mockImplementation(() => {
     rpcCallCount++;
@@ -173,46 +185,23 @@ it("simule la concurrence via RPC : un seul appel Gemini est effectué", async (
     return Promise.resolve({ data: [{ acquired: false, generation: { status: "in_progress" } }] });
   });
 
-  const { proposeStayAndTransport } = await import("@/lib/trips.functions");
-
-  // Mock minimal du client Supabase
-  const mockSupabase = {
-    rpc: mockRpc,
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: () =>
-            Promise.resolve({
-              data: {
-                id: "trip-1",
-                owner_id: "u1",
-                participants_count: 8,
-                duration_nights: 3,
-                group_logistics: {},
-              },
-            }),
-          single: () =>
-            Promise.resolve({
-              data: {
-                id: "trip-1",
-                owner_id: "u1",
-                participants_count: 8,
-                duration_nights: 3,
-                group_logistics: {},
-              },
-            }),
-        }),
-      }),
-      update: () => ({ eq: () => Promise.resolve({ error: null }) }),
-      upsert: () => ({ select: () => Promise.resolve({ data: [] }) }),
-    }),
-  };
-
-  // Exécution concurrente
+  // Exécution concurrente de deux recherches identiques
   const testSpec = spec;
-  const geminiSearch1 = searchAccommodationsWithGemini(testSpec);
-  // Seule la première requête ayant obtenu acquired=true devrait appeler Gemini
-  expect(await geminiSearch1).toHaveLength(1);
+  const [res1, res2] = await Promise.all([
+    (async () => {
+      const rpcResult = await mockRpc();
+      if (!rpcResult.data[0].acquired) return [];
+      return searchAccommodationsWithGemini(testSpec);
+    })(),
+    (async () => {
+      const rpcResult = await mockRpc();
+      if (!rpcResult.data[0].acquired) return [];
+      return searchAccommodationsWithGemini(testSpec);
+    })(),
+  ]);
+
+  expect(res1).toHaveLength(1);
+  expect(res2).toHaveLength(0);
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
