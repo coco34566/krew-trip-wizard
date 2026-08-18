@@ -1,0 +1,38 @@
+name: KREW Autonomous Prod E2E
+
+on:
+  push:
+    branches:
+      - qa/autonomous-prod-e2e-20260818
+
+jobs:
+  golden-path:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 25
+    env:
+      KREW_E2E_BASE_URL: https://krew-trip-wizard.vercel.app
+      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
+      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_EXISTING_TRIP_ID: 0dda6234-bb1c-4196-9fe4-27d296e7df39
+    steps:
+      - name: Checkout test harness branch
+        uses: actions/checkout@v4
+        with:
+          ref: qa/playwright-golden-trip-flow
+      - run: npm ci
+      - name: Install Playwright test runner without changing the lockfile
+        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+      - name: Run customer journey
+        run: npm run test:e2e
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: krew-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
