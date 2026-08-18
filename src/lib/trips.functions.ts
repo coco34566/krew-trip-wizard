@@ -205,9 +205,13 @@ export const listMyTrips = createServerFn({ method: "GET" })
             if (starHasAvail) availabilityDone = true;
           }
 
+          const rawName = p.display_name ?? p.email?.split("@")[0] ?? null;
+          const memberName = isStar && celebratedPerson ? celebratedPerson : rawName;
+          if (!memberName) continue;
+
           membersList.push({
             id: p.id,
-            name: isStar && celebratedPerson ? celebratedPerson : (p.display_name ?? p.email?.split("@")[0] ?? p.id),
+            name: memberName,
             availabilityDone,
             preferencesDone,
             isStar,

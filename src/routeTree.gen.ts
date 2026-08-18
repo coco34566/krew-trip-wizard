@@ -15,7 +15,6 @@ import { Route as AProposRouteImport } from './routes/a-propos'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CguRouteImport } from './routes/cgu'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
-import { Route as DesignLabRouteImport } from './routes/design-lab'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
@@ -66,11 +65,6 @@ const CguRoute = CguRouteImport.update({
 const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
   id: '/confidentialite',
   path: '/confidentialite',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DesignLabRoute = DesignLabRouteImport.update({
-  id: '/design-lab',
-  path: '/design-lab',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqRoute = FaqRouteImport.update({
@@ -201,7 +195,6 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
-  '/design-lab': typeof DesignLabRoute
   '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
@@ -231,7 +224,6 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
-  '/design-lab': typeof DesignLabRoute
   '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
@@ -262,7 +254,6 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/cgu': typeof CguRoute
   '/confidentialite': typeof ConfidentialiteRoute
-  '/design-lab': typeof DesignLabRoute
   '/faq': typeof FaqRoute
   '/mcp': typeof McpRoute
   '/mentions-legales': typeof MentionsLegalesRoute
@@ -294,7 +285,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cgu'
     | '/confidentialite'
-    | '/design-lab'
     | '/faq'
     | '/mcp'
     | '/mentions-legales'
@@ -324,7 +314,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cgu'
     | '/confidentialite'
-    | '/design-lab'
     | '/faq'
     | '/mcp'
     | '/mentions-legales'
@@ -354,7 +343,6 @@ export interface FileRouteTypes {
     | '/auth'
     | '/cgu'
     | '/confidentialite'
-    | '/design-lab'
     | '/faq'
     | '/mcp'
     | '/mentions-legales'
@@ -386,7 +374,6 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CguRoute: typeof CguRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
-  DesignLabRoute: typeof DesignLabRoute
   FaqRoute: typeof FaqRoute
   McpRoute: typeof McpRoute
   MentionsLegalesRoute: typeof MentionsLegalesRoute
@@ -442,13 +429,6 @@ declare module '@tanstack/react-router' {
       path: '/confidentialite'
       fullPath: '/confidentialite'
       preLoaderRoute: typeof ConfidentialiteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/design-lab': {
-      id: '/design-lab'
-      path: '/design-lab'
-      fullPath: '/design-lab'
-      preLoaderRoute: typeof DesignLabRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -661,7 +641,6 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CguRoute: CguRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
-  DesignLabRoute: DesignLabRoute,
   FaqRoute: FaqRoute,
   McpRoute: McpRoute,
   MentionsLegalesRoute: MentionsLegalesRoute,

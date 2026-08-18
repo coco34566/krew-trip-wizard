@@ -1,7 +1,7 @@
-import { Check, Lock, ArrowRight } from "lucide-react";
+import { Lock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TripStep } from "@/lib/krew/availability";
-import { KrewConnector, KrewHighlight, KrewMark } from "@/components/krew/visual-language";
+import { KrewHighlight, KrewMark } from "@/components/krew/visual-language";
 
 const STEP_ROUTE: Record<string, string> = {
   availability: "/trips/$tripId/availability",
@@ -63,17 +63,12 @@ export function TripHubNav({
   }
 
   return (
-    <nav aria-label="Parcours du groupe" className="rounded-3xl border border-border/80 bg-card p-5 sm:p-7 shadow-sm">
+    <nav aria-label="Parcours du groupe" className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6">
       {/* En-tête de progression */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
-        <div>
-          <h3 className="font-sans text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Parcours du groupe
-          </h3>
-          <p className="mt-1 font-mono text-sm font-medium text-foreground">
-            {doneCount} / {total} étapes
-          </p>
-        </div>
+      <div className="mb-5 flex items-center justify-between gap-3 border-b border-border/40 pb-4">
+        <h3 className="font-sans text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Parcours du groupe
+        </h3>
         <div className="flex items-center gap-2.5">
           <div className="h-2 w-28 overflow-hidden rounded-full bg-muted sm:w-36">
             <div
@@ -97,14 +92,46 @@ export function TripHubNav({
           const isLast = i === steps.length - 1;
           const metric = renderMetric(step.id);
 
+          const StepContent = (
+            <div className="flex flex-1 items-center justify-between gap-3 py-1">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                {isActive ? (
+                  <KrewHighlight tone="plum" className="font-sans text-sm sm:text-base font-semibold">
+                    {step.label}
+                  </KrewHighlight>
+                ) : (
+                  <span
+                    className={cn(
+                      "font-sans text-sm sm:text-base font-semibold",
+                      isDone && "text-foreground",
+                      !isDone && !isActive && "text-muted-foreground",
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                )}
+                {metric ? metric : null}
+              </div>
+
+              {isActive || href ? (
+                <ArrowRight
+                  className={cn(
+                    "size-4 shrink-0 transition-transform group-hover:translate-x-0.5",
+                    isActive ? "text-primary" : "text-muted-foreground/60",
+                  )}
+                />
+              ) : null}
+            </div>
+          );
+
           return (
             <li key={step.id} className="relative">
               <div className="flex items-start gap-4">
                 {/* Colonne gauche : nœud statut + ligne de connexion KREW */}
-                <div className="flex w-9 flex-col items-center shrink-0">
+                <div className="flex w-8 flex-col items-center shrink-0">
                   <span
                     className={cn(
-                      "flex size-9 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors",
+                      "flex size-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-colors",
                       isDone && "border-lagoon/80 bg-lagoon/10 text-lagoon",
                       isActive && !isDone && "border-primary bg-primary text-primary-foreground shadow-sm",
                       !isDone && !isActive && !isSoon && "border-border bg-background text-muted-foreground",
@@ -112,16 +139,16 @@ export function TripHubNav({
                     )}
                   >
                     {isDone ? (
-                      <KrewMark type="check" tone="sage" size="sm" className="size-4" />
+                      <KrewMark type="check" tone="sage" size="sm" className="size-3.5" />
                     ) : isSoon ? (
-                      <Lock className="size-3.5" />
+                      <Lock className="size-3" />
                     ) : (
-                      <span className="font-mono">{i + 1}</span>
+                      <span className="font-mono text-[11px]">{i + 1}</span>
                     )}
                   </span>
 
                   {!isLast ? (
-                    <div className="my-1 flex h-8 items-center justify-center">
+                    <div className="my-1 flex h-7 items-center justify-center">
                       <div
                         aria-hidden="true"
                         className={cn(
@@ -133,57 +160,23 @@ export function TripHubNav({
                   ) : null}
                 </div>
 
-                {/* Colonne droite : Titre, métrique et action */}
-                <div className="flex flex-1 flex-wrap items-center justify-between gap-2 pb-5 pt-1">
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {isActive ? (
-                        <KrewHighlight tone="plum" className="font-sans text-sm sm:text-base font-semibold">
-                          {step.label}
-                        </KrewHighlight>
-                      ) : (
-                        <span
-                          className={cn(
-                            "font-sans text-sm sm:text-base font-semibold",
-                            isDone && "text-foreground",
-                            !isDone && !isActive && "text-muted-foreground",
-                          )}
-                        >
-                          {step.label}
-                        </span>
-                      )}
-                      {metric ? metric : null}
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div>
-                    {step.id === "invite" && onInviteClick ? (
-                      <button
-                        type="button"
-                        onClick={onInviteClick}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20"
-                      >
-                        {step.label}
-                        <ArrowRight className="size-3.5" />
-                      </button>
-                    ) : isActive && href ? (
-                      <a
-                        href={href}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
-                      >
-                        {step.label}
-                        <ArrowRight className="size-3.5" />
-                      </a>
-                    ) : isDone && href ? (
-                      <a
-                        href={href}
-                        className="text-xs font-medium text-lagoon hover:underline underline-offset-2"
-                      >
-                        {step.label}
-                      </a>
-                    ) : null}
-                  </div>
+                {/* Colonne droite : Ligne cliquable si lien/action disponible */}
+                <div className="flex-1 pb-4">
+                  {step.id === "invite" && onInviteClick ? (
+                    <button
+                      type="button"
+                      onClick={onInviteClick}
+                      className="group flex w-full items-center text-left bg-transparent border-0 p-0 cursor-pointer"
+                    >
+                      {StepContent}
+                    </button>
+                  ) : href ? (
+                    <a href={href} className="group flex w-full items-center no-underline">
+                      {StepContent}
+                    </a>
+                  ) : (
+                    <div className="flex w-full items-center">{StepContent}</div>
+                  )}
                 </div>
               </div>
             </li>
