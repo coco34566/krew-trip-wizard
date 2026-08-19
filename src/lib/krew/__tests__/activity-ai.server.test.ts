@@ -11,6 +11,7 @@ import {
   calculatePlanningWindow,
   haversineDistanceKm,
   validateItinerary,
+  adjustItineraryTransferTimes,
   buildKrewSkeleton,
   geminiEnrichSkeleton,
   type ActivityAiInput,
@@ -276,11 +277,19 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
 
   it("N. Au maximum 1 seul appel Gemini par enrichissement du skeleton", async () => {
     const skeleton = buildKrewSkeleton(input());
-    // Calling geminiEnrichSkeleton uses at most 1 fetch request
-    if (process.env["GEMINI_API_KEY"]) {
-      const res = await geminiEnrichSkeleton(skeleton, input());
-      expect(res.usedLlm).toBe(true);
-    }
+    const origKey = process.env["GEMINI_API_KEY"];
+    process.env["GEMINI_API_KEY"] = "test-key";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ days: [] }) }] } }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await geminiEnrichSkeleton(skeleton, input());
+    process.env["GEMINI_API_KEY"] = origKey;
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.usedLlm).toBe(true);
   });
 
   it("O. Aucune dépendance Tavily dans la découverte d'activités pour le planning", async () => {
@@ -296,7 +305,6 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
   });
 
   it("P. adjustItineraryTransferTimes décale les créneaux suivants d'au moins le temps de transfert quand les deux ont des coordonnées", () => {
-    const { adjustItineraryTransferTimes } = require("../activity-ai.server");
     const dayPlan = [
       {
         day: 2,
@@ -333,7 +341,6 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
   });
 
   it("Q. adjustItineraryTransferTimes n'ajoute pas de transfert de 20 min sans coordonnées", () => {
-    const { adjustItineraryTransferTimes } = require("../activity-ai.server");
     const dayPlan = [
       {
         day: 2,

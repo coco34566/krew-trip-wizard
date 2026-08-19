@@ -10,6 +10,10 @@ export type GeoapifyPlace = {
   longitude: number | null;
   distanceMeters: number | null;
   website: string | null;
+  openingHours?: string | null;
+  openingStatus?: "open" | "closed" | "unknown";
+  wheelchair?: boolean | null;
+  dietaryOptions?: string[];
   source: "geoapify";
   verified: boolean;
 };
@@ -20,20 +24,36 @@ export type GeoapifySearchOptions = {
   latitude: number;
   radiusMeters?: number;
   limit?: number;
+  conditions?: string[];
 };
+
+export type PlaceRequirements = {
+  canonicalFamily: string;
+  categories: string[];
+  subtype?: string | null;
+  dietary?: string[] | null;
+  accessibility?: string[] | null;
+  experienceTags?: string[];
+};
+
+// Cache for Place Details to avoid duplicate calls
+const placeDetailsCache = new Map<string, any>();
 
 export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: string): string[] {
   const norm = String(family || type || "").toLowerCase().trim();
   if (norm.includes("cafe") || norm.includes("brunch") || norm.includes("petit-dejeuner")) {
     return ["catering.cafe", "catering.restaurant"];
   }
-  if (norm.includes("restaurant") || norm.includes("diner") || norm.includes("dejeuner") || norm.includes("gastro") || norm === "resto") {
+  if (
+    norm.includes("restaurant") ||
+    norm.includes("diner") ||
+    norm.includes("dejeuner") ||
+    norm.includes("gastro") ||
+    norm === "resto"
+  ) {
     return ["catering.restaurant"];
   }
-  if (norm.includes("bar") || norm.includes("apero") || norm.includes("pub")) {
-    return ["catering.bar", "catering.pub"];
-  }
-  if (norm.includes("nightlife") || norm.includes("club") || norm.includes("soiree") || norm.includes("fete")) {
+  if (norm.includes("bar") || norm.includes("apero") || norm.includes("pub") || norm.includes("nightlife") || norm.includes("club") || norm.includes("soiree") || norm.includes("fete")) {
     return ["catering.bar", "catering.pub"];
   }
   if (norm.includes("sport") || norm.includes("outdoor") || norm.includes("nature") || norm.includes("rando") || norm.includes("velo")) {
@@ -42,14 +62,66 @@ export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: strin
   if (norm.includes("culture") || norm.includes("visite") || norm.includes("musee") || norm.includes("monument") || norm.includes("patrimoine")) {
     return ["tourism.sights", "tourism.attraction", "entertainment.museum", "entertainment.culture"];
   }
-  if (norm.includes("relax") || norm.includes("spa") || norm.includes("bien_etre") || norm.includes("relaxation")) {
+  if (norm.includes("relax") || norm.includes("spa") || norm.includes("bien_etre") || norm.includes("relaxation") || norm.includes("spa_wellness")) {
     return ["leisure.spa", "service.beauty.spa", "service.beauty.massage"];
+  }
+  if (norm.includes("shopping") || norm.includes("boutique") || norm.includes("marché") || norm.includes("market")) {
+    return ["commercial.shopping_mall", "commercial.marketplace", "commercial.clothing"];
   }
   return ["catering.restaurant", "tourism.attraction", "entertainment"];
 }
 
+export function convertIntentToPlaceRequirements(
+  family: string,
+  momentType: string,
+  searchIntent?: string,
+  dietaryConstraints: string[] = [],
+): PlaceRequirements {
+  const normIntent = String(searchIntent || "").toLowerCase();
+  const categories = mapVenueFamilyToGeoapifyCategories(family, momentType);
+  let subtype: string | null = null;
+
+  if (normIntent.includes("winery") || normIntent.includes("dégustation") || normIntent.includes("cave") || normIntent.includes("vin")) {
+    subtype = "production.winery";
+  } else if (normIntent.includes("market") || normIntent.includes("marché")) {
+    subtype = "commercial.marketplace";
+  } else if (normIntent.includes("cafe") || normIntent.includes("brunch") || normIntent.includes("petit-déjeuner")) {
+    subtype = "catering.cafe";
+  } else if (normIntent.includes("restaurant") || normIntent.includes("dîner") || normIntent.includes("déjeuner")) {
+    subtype = "catering.restaurant";
+  } else if (normIntent.includes("bar") || normIntent.includes("pub")) {
+    subtype = "catering.bar";
+  } else if (normIntent.includes("spa") || normIntent.includes("massage")) {
+    subtype = "leisure.spa";
+  }
+
+  const dietary = dietaryConstraints.length > 0 ? dietaryConstraints : null;
+
+  return {
+    canonicalFamily: family,
+    categories,
+    subtype,
+    dietary,
+  };
+}
+
+export function buildPoolKey(req: PlaceRequirements): string {
+  const parts = [
+    req.canonicalFamily,
+    ...req.categories.slice().sort(),
+    req.subtype || "",
+    (req.dietary || []).slice().sort().join(","),
+  ];
+  return parts.filter(Boolean).join("::");
+}
+
 export function determineSearchRadiusMeters(mobility?: string | null, profile?: string | null): number {
-  const m = String(mobility || "").toLowerCase();
+  if (!mobility) {
+    // Unknown mobility: prudent neutral policy (10 km)
+    return 10000;
+  }
+
+  const m = String(mobility).toLowerCase();
   const p = String(profile || "").toLowerCase();
 
   if (m === "walk_transit" || p.includes("city") || p.includes("urbain")) {
@@ -61,7 +133,7 @@ export function determineSearchRadiusMeters(mobility?: string | null, profile?: 
   if (m === "car_ok" || p.includes("outdoor") || p.includes("montagne") || p.includes("nature")) {
     return 25000; // 25 km
   }
-  return 8000; // default 8 km
+  return 10000; // default 10 km
 }
 
 export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Promise<GeoapifyPlace[]> {
@@ -71,13 +143,12 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
     return [];
   }
 
-  const { categories, longitude, latitude, radiusMeters = 8000, limit = 20 } = options;
+  const { categories, longitude, latitude, radiusMeters = 10000, limit = 20 } = options;
   if (!categories.length || longitude == null || latitude == null) {
     return [];
   }
 
   const categoriesParam = categories.join(",");
-  // Geoapify filter format: circle:lon,lat,radiusMeters
   const filterParam = `circle:${longitude},${latitude},${radiusMeters}`;
   const biasParam = `proximity:${longitude},${latitude}`;
 
@@ -87,6 +158,10 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
   url.searchParams.set("bias", biasParam);
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("apiKey", apiKey);
+
+  if (options.conditions && options.conditions.length > 0) {
+    url.searchParams.set("conditions", options.conditions.join(","));
+  }
 
   try {
     const response = await fetch(url.toString(), {
@@ -116,10 +191,19 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
       if (seenNames.has(normName)) continue;
       seenNames.add(normName);
 
-      const lat = typeof props.lat === "number" ? props.lat : typeof feature.geometry?.coordinates?.[1] === "number" ? feature.geometry.coordinates[1] : null;
-      const lon = typeof props.lon === "number" ? props.lon : typeof feature.geometry?.coordinates?.[0] === "number" ? feature.geometry.coordinates[0] : null;
+      const lat =
+        typeof props.lat === "number"
+          ? props.lat
+          : typeof feature.geometry?.coordinates?.[1] === "number"
+            ? feature.geometry.coordinates[1]
+            : null;
+      const lon =
+        typeof props.lon === "number"
+          ? props.lon
+          : typeof feature.geometry?.coordinates?.[0] === "number"
+            ? feature.geometry.coordinates[0]
+            : null;
 
-      // Deterministic ID generation: place_id > id > slug(name + lat + lon)
       const rawId = props.place_id || props.id;
       const stableId = rawId
         ? String(rawId)
@@ -138,11 +222,13 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
         longitude: lon,
         distanceMeters: typeof props.distance === "number" ? props.distance : null,
         website: typeof props.website === "string" && props.website.startsWith("http") ? props.website : null,
+        openingHours: props.opening_hours || null,
+        wheelchair: props.wheelchair != null ? Boolean(props.wheelchair) : null,
         source: "geoapify",
         verified: true,
       });
 
-      if (places.length >= 12) break;
+      if (places.length >= 15) break;
     }
 
     return places;
@@ -154,5 +240,27 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
       fallback: "empty_pool",
     });
     return [];
+  }
+}
+
+export async function fetchPlaceDetails(placeId: string): Promise<any | null> {
+  if (!placeId) return null;
+  if (placeDetailsCache.has(placeId)) {
+    return placeDetailsCache.get(placeId);
+  }
+
+  const apiKey = process.env["GEOAPIFY_API_KEY"];
+  if (!apiKey) return null;
+
+  try {
+    const url = `https://api.geoapify.com/v2/place-details?id=${encodeURIComponent(placeId)}&apiKey=${apiKey}`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const props = data?.features?.[0]?.properties || null;
+    placeDetailsCache.set(placeId, props);
+    return props;
+  } catch {
+    return null;
   }
 }

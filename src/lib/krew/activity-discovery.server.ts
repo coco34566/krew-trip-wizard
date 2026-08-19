@@ -63,7 +63,7 @@ type CacheEntry = { expiresAt: number; candidates: ActivityCandidate[]; days: an
 type TavilyResult = { title?: string; url?: string; content?: string; score?: number };
 const discoveryCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const getModel = () => process.env["GEMINI_MODEL"] || "gemini-3.6-flash";
+const getModel = () => process.env["GEMINI_GROUNDED_MODEL"] || "gemini-2.5-flash";
 
 const norm = (value: unknown) =>
   String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -242,7 +242,8 @@ export async function discoverActivities(input: ActivityDiscoveryInput): Promise
   const geminiKey = process.env["GEMINI_API_KEY"];
   const tavilyKey = process.env["TAVILY_API_KEY"];
   if (!geminiKey) return { candidates: [], days: [], cached: false, error: "no_gemini_key" };
-  if (!tavilyKey) return { candidates: [], days: [], cached: false, error: "no_tavily_key" };
+  // Tavily is decoupled from planning. Return empty candidates without error.
+  if (!tavilyKey) return { candidates: [], days: [], cached: false };
   try {
     const searchQuery = await generateTavilyQuery(input, geminiKey);
     const response = await fetch("https://api.tavily.com/search", {
