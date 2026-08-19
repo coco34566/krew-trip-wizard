@@ -63,7 +63,7 @@ function IconShape({ name }: { name: KrewIconName }) {
     case "accommodation":
       return <><path {...STROKE} d="M4.2 12.2 12 5.5l7.8 6.7" /><path {...STROKE} d="M6.2 10.7v9.1M17.8 10.7v9.1M6.2 19.8h11.6" /><path {...STROKE} d="M10 19.8v-5.5h4.2" /></>;
     case "transport":
-      return <><Dot cx={4.7} cy={18.2} r={1.55} /><path {...STROKE} d="M6.1 17.2c3.4-5.3 7.3-8.1 12.3-8.6" /><path {...STROKE} d="m16.1 6.2 3 2.3-2.7 3" /></>;
+      return <><path {...STROKE} d="M4.1 15.9c.5-2.6 1.2-4.5 2-5.9.6-1 1.5-1.6 2.7-1.8 2.1-.3 4.3-.3 6.4 0 1.2.2 2.1.8 2.7 1.8.8 1.4 1.5 3.3 2 5.9" /><path {...STROKE} d="M4.2 15.9h15.6v3.2H4.2z" /><path {...SOFT_STROKE} d="M7.5 11.1c3-.4 6-.4 9 0" /><Dot cx={7.1} cy={19.1} r={1.25} /><Dot cx={16.9} cy={19.1} r={1.25} /></>;
     case "planning":
       return <><path {...STROKE} d="M5 6.8c4.2-.3 9.6-.3 14 0l-.3 14c-4.2.3-9.1.3-13.4 0L5 6.8Z" /><path {...STROKE} d="M8.6 4.4v4.7M15.4 4.4v4.7" /><path {...SOFT_STROKE} d="M9.1 11.4h6.3M9.1 15h4.8M9.1 18.4h6.1" /><Dot cx={7} cy={11.4} r={0.95} /><Dot cx={7} cy={15} r={0.95} /><Dot cx={7} cy={18.4} r={0.95} /></>;
     case "tasks":
@@ -71,7 +71,7 @@ function IconShape({ name }: { name: KrewIconName }) {
     case "packing":
       return <><path {...STROKE} d="M6.1 8.4c3.4-.5 8.1-.5 11.6 0l1 12.1c-3.9.5-9.5.5-13.4 0l.8-12.1Z" /><path {...STROKE} d="M8.8 8.2V6.6c0-1.8 1.2-3 3.3-3 2 0 3.2 1.2 3.2 3v1.6" /><path {...SOFT_STROKE} d="M8.8 13.1c.9.9 2 1.4 3.3 1.4 1.3 0 2.4-.5 3.2-1.4" /><path {...STROKE} d="M12.1 14.6v2.6" /></>;
     case "budget":
-      return <><path {...STROKE} d="M12 4.5v15" /><path {...STROKE} d="M12 9.2 6.1 6.3M12 9.2l5.9-2.9M12 14.7l-5.9 3M12 14.7l5.9 3" /><Dot cx={6.1} cy={6.3} r={1.45} /><Dot cx={17.9} cy={6.3} r={1.45} /><Dot cx={6.1} cy={17.7} r={1.45} /><Dot cx={17.9} cy={17.7} r={1.45} /></>;
+      return <><path {...STROKE} d="M12.1 4.5c3.2 0 5.5 1.7 5.5 4.2 0 2.2-1.7 3.6-4.8 4.1l-1.4.2c-2.4.4-3.5 1.1-3.5 2.5 0 1.8 1.6 3 4.3 3 2.1 0 3.8-.6 5.2-1.7" /><path {...STROKE} d="M12.1 2.8v18.4" /><path {...SOFT_STROKE} d="M6.9 7.2c1.2-1.6 3-2.5 5.2-2.7" /></>;
   }
 }
 
