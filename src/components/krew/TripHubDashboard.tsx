@@ -27,6 +27,7 @@ import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { updateTripParticipantsCount } from "@/lib/trips.functions";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 
 type Props = {
   tripId: string;
@@ -324,9 +325,9 @@ function NextActionsPanel({
 
   if (actions.length === 0 && participantCaughtUp) {
     return (
-      <section className="rounded-2xl border border-secondary/30 bg-secondary/10 p-5">
+      <section className="rounded-2xl border border-sage/20 bg-sage/8 p-5">
         <div className="flex gap-3">
-          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-secondary" />
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-sage" />
           <div>
             <h2 className="font-display text-lg font-normal tracking-tight text-foreground">
               Tout est à jour de ton côté
@@ -354,10 +355,11 @@ function NextActionsPanel({
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
+        <div className="flex items-center gap-2">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
             Tes prochaines actions
           </h2>
+          <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-80" />
         </div>
       </div>
 
@@ -694,6 +696,13 @@ export function TripHubDashboard({
             className="h-full w-full object-cover"
             loading="eager"
           />
+          <KrewMark
+            type="circle"
+            tone="sage"
+            size="md"
+            rotation={-4}
+            className="absolute top-4 right-4 pointer-events-none opacity-80 text-white"
+          />
         </div>
       </header>
 
@@ -720,7 +729,10 @@ export function TripHubDashboard({
       />
 
       {/* Parcours du groupe */}
-      <section className="space-y-3">
+      <section className="space-y-3 relative">
+        <div className="hidden sm:block absolute -top-4 right-8 pointer-events-none z-10">
+          <KrewMark type="connector" tone="sage" size="md" rotation={-2} />
+        </div>
         <TripHubNav
           tripId={tripId}
           steps={steps}

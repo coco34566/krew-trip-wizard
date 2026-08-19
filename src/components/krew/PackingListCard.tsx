@@ -89,7 +89,7 @@ export function PackingListCard({
     setManualLabel("");
   };
   const renderItems = (items: PackingItem[], group = false) => (
-    <ul className="space-y-2">
+    <ul className="divide-y divide-border/40 text-sm">
       {items.map((item) => {
         const link =
           item.purchasable && !state.owned[item.id]
@@ -97,34 +97,33 @@ export function PackingListCard({
             : null;
         const participant = participants.find((p) => p.id === state.assigned[item.id]);
         return (
-          <li key={item.id} className="rounded-xl border border-border/70 p-3 text-sm">
-            <div className="flex gap-2">
+          <li key={item.id} className="py-2.5 flex flex-col gap-1.5">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 aria-label={`Cocher ${item.label}`}
                 onClick={() => toggle(item.id)}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {state.checked[item.id] ? (
-                  <CheckSquare className="size-4 text-primary" />
+                  <CheckSquare className="size-4 text-sage" />
                 ) : (
                   <Square className="size-4" />
                 )}
               </button>
-              <div className="min-w-0 flex-1">
-                <span
-                  className={
-                    state.checked[item.id] ? "line-through text-muted-foreground" : "font-medium"
-                  }
-                >
-                  {item.label}
-                </span>
-              </div>
+              <span
+                className={
+                  state.checked[item.id] ? "line-through text-muted-foreground font-normal" : "font-medium text-foreground"
+                }
+              >
+                {item.label}
+              </span>
             </div>
             {group ? (
-              <div className="mt-2 flex flex-wrap items-center gap-2 pl-6">
+              <div className="flex flex-wrap items-center gap-2 pl-6">
                 <select
                   aria-label={`Assigner ${item.label}`}
-                  className="h-8 rounded-md border bg-background px-2 text-xs"
+                  className="h-8 rounded-lg border border-border bg-background px-2 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                   value={state.assigned[item.id] || ""}
                   onChange={(e) =>
                     setState((s) => ({
@@ -145,6 +144,7 @@ export function PackingListCard({
                     type="button"
                     size="sm"
                     variant="outline"
+                    className="h-8 text-xs"
                     onClick={() =>
                       setState((s) => ({
                         ...s,
@@ -158,7 +158,7 @@ export function PackingListCard({
                   </Button>
                 ) : null}
                 {link ? (
-                  <Button asChild size="sm" variant="ghost">
+                  <Button asChild size="sm" variant="ghost" className="h-8 text-xs">
                     <a
                       href={link.url}
                       target="_blank"

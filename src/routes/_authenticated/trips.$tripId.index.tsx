@@ -93,6 +93,7 @@ import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
+import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
   destinationBudgetTotal,
@@ -181,17 +182,7 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
   for (const [city, url] of Object.entries(known)) {
     if (key.includes(city)) return url;
   }
-  // Fallback travel lifestyle (varie un peu avec le hash du nom)
-  const fallbacks = [
-    "https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1527631746610-b998ef1c7d1d?auto=format&fit=crop&w=800&q=80",
-  ];
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h + key.charCodeAt(i) * (i + 1)) % fallbacks.length;
-  return fallbacks[h]!;
+  return null;
 }
 
 const ACCOMMODATION_CONCEPT_LABELS: Record<string, string> = {
@@ -1569,6 +1560,10 @@ function TripDetail() {
                   const budgetEstimated =
                     reco.budget != null && isDestinationBudgetEstimated(reco.budget);
                   const reasons = (reco.match_reasons ?? []).slice(0, 4);
+                  const destPhoto = destinationPhotoUrl(
+                    reco.destinations?.name,
+                    reco.destinations?.image_url,
+                  );
                   return (
                     <article
                       key={reco.id}
@@ -1579,30 +1574,35 @@ function TripDetail() {
                           : "border-border",
                       )}
                     >
-                      <div className="flex gap-3 sm:gap-4">
-                        <img
-                          src={destinationPhotoUrl(
-                            reco.destinations?.name,
-                            reco.destinations?.image_url,
-                          )}
-                          alt={
-                            reco.destinations?.name
-                              ? `Vue de ${reco.destinations.name}`
-                              : "Destination"
-                          }
-                          loading="lazy"
-                          className="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-28 sm:w-28"
-                        />
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                        {destPhoto ? (
+                          <img
+                            src={destPhoto}
+                            alt={
+                              reco.destinations?.name
+                                ? `Vue de ${reco.destinations.name}`
+                                : "Destination"
+                            }
+                            loading="lazy"
+                            className="h-44 w-full sm:h-32 sm:w-44 shrink-0 rounded-xl object-cover aspect-[4/3]"
+                          />
+                        ) : (
+                          <KrewPhotoFallback
+                            type="destination"
+                            aspectRatio="4/3"
+                            className="h-44 w-full sm:h-32 sm:w-44 shrink-0"
+                          />
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-mono">
                                 #{index + 1}
                                 {reco.destinations?.country
                                   ? ` · ${reco.destinations.country}`
                                   : ""}
                               </p>
-                              <h3 className="font-display text-xl font-semibold leading-tight">
+                              <h3 className="font-display text-2xl font-semibold leading-tight">
                                 {reco.destinations?.name}
                               </h3>
                             </div>
@@ -1614,7 +1614,7 @@ function TripDetail() {
                           {/* Budget moyen */}
                           {budgetTotal != null && budgetTotal > 0 ? (
                             <p className="mt-2 text-sm">
-                              <span className="font-semibold text-foreground">
+                              <span className="font-semibold text-foreground font-mono">
                                 {budgetEstimated ? "Budget estimé ~" : ""}
                                 {formatEuro(budgetTotal)}
                               </span>
@@ -1780,17 +1780,15 @@ function TripDetail() {
                       <img
                         src={h.imageUrl}
                         alt=""
-                        className="mb-3 h-40 w-full rounded-xl object-cover"
+                        className="mb-3 h-40 w-full rounded-xl object-cover aspect-[4/3]"
                         loading="lazy"
                       />
                     ) : (
-                      <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                        <Hotel className="size-8" />
-                      </div>
+                      <KrewPhotoFallback className="mb-3 h-40 w-full" type="accommodation" aspectRatio="4/3" />
                     )}
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-medium">{h.name}</p>
+                        <p className="font-semibold text-base">{h.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {ACCOMMODATION_CONCEPT_LABELS[h.krewConcept] ?? "Sélection KREW"}
                           {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
@@ -1810,9 +1808,14 @@ function TripDetail() {
                       ) : null}
                     </div>
                     <p className="mt-2 text-sm">
-                      {h.pricePerPerson != null
-                        ? `${formatEuro(h.pricePerPerson)} / pers. pour le séjour`
-                        : "Prix à vérifier"}
+                      {h.pricePerPerson != null ? (
+                        <>
+                          <span className="font-mono font-semibold">{formatEuro(h.pricePerPerson)}</span>
+                          <span> / pers. pour le séjour</span>
+                        </>
+                      ) : (
+                        "Prix à vérifier"
+                      )}
                       {h.pricePerPerson != null ? (
                         <span className="text-muted-foreground">
                           {h.priceStatus === "verified" ? " · Prix vérifié" : " · Prix indicatif"}
@@ -1870,13 +1873,13 @@ function TripDetail() {
                             >
                               <div className="flex items-center justify-between font-medium">
                                 <span>{c.name}</span>
-                                <span className="text-primary">
+                                <span className="text-primary font-mono font-semibold">
                                   {formatEuro(c.pricePerPerson)} / pers.
                                 </span>
                               </div>
                               <p className="text-[11px] text-muted-foreground mt-0.5">
                                 🛌 {c.bedrooms} ch. · 🛌 {c.beds} lits · 🚿 {c.bathrooms} SDB ·
-                                Total : {formatEuro(c.totalCost)} (frais inclus)
+                                Total : <span className="font-mono">{formatEuro(c.totalCost)}</span> (frais inclus)
                               </p>
                               <p className="text-[11px] text-muted-foreground mt-1 italic leading-snug">
                                 {c.explanation}
@@ -2072,7 +2075,7 @@ function TripDetail() {
                               <p className="text-sm font-medium">
                                 {tr.modeLabel || tr.mode} · {tr.label}
                               </p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground font-mono">
                                 ~{formatEuro(tr.pricePerPerson)} / pers. A/R
                               </p>
                             </div>
@@ -2161,23 +2164,23 @@ function TripDetail() {
                 : "Le planning du séjour sera bientôt disponible."}
             </p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-8 pt-2">
               {((trip as any).group_itinerary.days as any[]).map((day: any) => (
-                <article
-                  key={day.day}
-                  className="rounded-3xl border border-border bg-card p-5 shadow-sm"
-                >
-                  <h3 className="font-display text-xl font-semibold tracking-tight">
-                    Jour {day.day}
-                    {day.date
-                      ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "short",
-                        })}`
-                      : ""}
-                  </h3>
-                  <ul className="mt-3 space-y-2">
+                <article key={day.day} className="space-y-4">
+                  <div className="border-b border-border/60 pb-2">
+                    <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+                      Jour {day.day}
+                      {day.date
+                        ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "short",
+                          })}`
+                        : ""}
+                    </h3>
+                  </div>
+
+                  <div className="relative pl-6 sm:pl-8 divide-y divide-border/40 before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border/60">
                     {(day.slots ?? []).map((slot: any, slotIndex: number) => {
                       const Icon =
                         slot.type === "resto"
@@ -2188,28 +2191,31 @@ function TripDetail() {
                               ? Camera
                               : CalendarDays;
                       return (
-                        <li
+                        <div
                           key={`${day.day}-${slotIndex}`}
-                          className="flex flex-wrap items-start justify-between gap-2 rounded-2xl border border-border/60 bg-surface/40 px-3 py-2.5"
+                          className="relative flex flex-wrap items-start justify-between gap-3 py-3"
                         >
-                          <div className="flex gap-2.5 min-w-0">
+                          {/* Circle node on vertical line */}
+                          <span className="absolute -left-6 sm:-left-8 top-4 size-2.5 rounded-full border border-primary bg-background ring-4 ring-card" />
+
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
                             <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
-                            <div className="min-w-0">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 {slot.time ? (
-                                  <span className="mr-1.5 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 font-semibold tabular-nums text-primary normal-case tracking-normal">
+                                  <span className="font-mono font-semibold text-primary">
                                     {slot.time}
                                   </span>
                                 ) : null}
-                                {slot.moment}
-                                {slot.type ? ` · ${slot.type}` : ""}
-                              </p>
-                              <p className="font-medium text-sm">{slot.label}</p>
+                                <span>{slot.moment}</span>
+                                {slot.type ? <span>· {slot.type}</span> : null}
+                              </div>
+                              <p className="font-semibold text-foreground text-sm mt-0.5">{slot.label}</p>
                               {slot.detail ? (
-                                <p className="text-xs text-muted-foreground">{slot.detail}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{slot.detail}</p>
                               ) : null}
                               {slot.priceHint != null ? (
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-muted-foreground font-mono mt-1">
                                   ~{formatEuro(Number(slot.priceHint))} / pers.
                                 </p>
                               ) : null}
@@ -2218,7 +2224,7 @@ function TripDetail() {
                                   href={slot.url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="mt-0.5 inline-block text-xs font-medium text-primary hover:underline"
+                                  className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
                                 >
                                   Voir ou réserver →
                                 </a>
@@ -2232,6 +2238,7 @@ function TripDetail() {
                               disabled={slotMutation.isPending}
                               onClick={() => slotMutation.mutate({ day: day.day, slotIndex })}
                               title="Proposer une autre option pour ce créneau seulement"
+                              className="shrink-0"
                             >
                               {slotMutation.isPending ? (
                                 <Loader2 className="size-3.5 animate-spin" />
@@ -2241,10 +2248,10 @@ function TripDetail() {
                               Autre option
                             </Button>
                           ) : null}
-                        </li>
+                        </div>
                       );
                     })}
-                  </ul>
+                  </div>
                 </article>
               ))}
             </div>
@@ -2330,12 +2337,12 @@ function TripDetail() {
                     return (
                       <tr
                         key={task.id}
-                        className="border-b border-border/50 hover:bg-surface/10 transition-colors"
+                        className="border-b border-border/40 hover:bg-muted/30 transition-colors"
                       >
-                        <td className="py-3.5 pr-3 text-xs font-semibold tabular-nums text-muted-foreground">
+                        <td className="py-3 pr-3 text-xs font-mono font-medium text-muted-foreground">
                           {taskDate} {task.start_time ? `· ${task.start_time}` : ""}
                         </td>
-                        <td className="py-3.5 pr-3">
+                        <td className="py-3 pr-3">
                           <span className="text-sm font-semibold text-foreground">
                             {task.title}
                           </span>

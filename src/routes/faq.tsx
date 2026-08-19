@@ -41,17 +41,17 @@ function FaqPage() {
         </header>
 
         <section className="max-w-2xl mx-auto">
-          <Accordion type="single" collapsible className="w-full space-y-4">
+          <Accordion type="single" collapsible className="w-full divide-y divide-border/50 border-y border-border/50">
             {FAQS.map((faq, index) => (
               <AccordionItem
                 key={index}
                 value={`item-${index}`}
-                className="rounded-2xl border border-border bg-card px-4 py-1"
+                className="border-b-0 py-1"
               >
-                <AccordionTrigger className="text-left font-semibold hover:no-underline">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
                   {faq.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pt-2">
+                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
                   {faq.a}
                 </AccordionContent>
               </AccordionItem>
@@ -59,10 +59,10 @@ function FaqPage() {
           </Accordion>
         </section>
 
-        <div className="mt-16 text-center p-6 bg-card/50 rounded-3xl border border-border">
-          <h3 className="font-display text-lg font-semibold">Prêt à organiser ton prochain voyage ?</h3>
+        <div className="mt-16 text-center py-8 border-t border-border/60">
+          <h3 className="font-display text-2xl font-bold">Prêt à organiser ton prochain voyage ?</h3>
           <p className="text-xs text-muted-foreground mt-1">Crée ton voyage et invite le groupe.</p>
-          <Button asChild className="mt-4" variant="hero">
+          <Button asChild className="mt-4">
             <Link to="/trips/new">Créer mon voyage</Link>
           </Button>
         </div>

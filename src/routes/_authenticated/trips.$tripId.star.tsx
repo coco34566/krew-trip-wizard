@@ -83,7 +83,7 @@ function MonthGrid({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-surface/40 p-3">
+    <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
@@ -103,11 +103,11 @@ function MonthGrid({
               disabled={isPast}
               onClick={() => onToggle(iso)}
               className={cn(
-                "aspect-square rounded-xl text-sm font-medium transition",
+                "aspect-square rounded-xl text-sm font-mono font-medium transition min-h-[38px] flex items-center justify-center",
                 isPast && "cursor-not-allowed opacity-30",
-                !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary",
-                mode === "available" && "bg-lagoon text-white shadow-sm hover:bg-lagoon/90",
-                mode === "blocked" && "bg-destructive/90 text-white hover:bg-destructive",
+                !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary border border-border/40",
+                mode === "available" && "bg-secondary text-secondary-foreground shadow-sm hover:opacity-90 font-bold",
+                mode === "blocked" && "bg-destructive/90 text-destructive-foreground hover:bg-destructive font-bold",
                 iso === todayISO && !mode && "ring-1 ring-primary/50",
               )}
             >
@@ -141,10 +141,10 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-2xl border px-3 py-2 text-sm transition-colors",
+        "cursor-pointer rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors",
         active
-          ? "border-primary bg-primary/15 text-foreground"
-          : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
+          ? "border-primary bg-primary/10 text-foreground"
+          : "border-border/70 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
       )}
     >
       {children}
@@ -368,8 +368,8 @@ function StarQuestionnaire() {
       <p className="mt-2 text-sm text-muted-foreground">
         Complète les réponses au nom de <strong>{starName}</strong> pour ce voyage.
       </p>
-      <section className="mt-8 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Sa façon de voyager</h2>
+      <section className="space-y-3 py-4 border-b border-border/50">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Sa façon de voyager</h2>
         <Label>Sur place, qu’est-ce que {starName} préférerait ?</Label>
         {[
           ["walk_transit", "Tout faire à pied / transports"],
@@ -401,8 +401,8 @@ function StarQuestionnaire() {
       </section>
 
       {/* Point de départ */}
-      <section className="mt-8 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold flex items-center gap-2">
+      <section className="space-y-3 py-4 border-b border-border/50">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground flex items-center gap-2">
           <MapPin className="size-4 text-primary" />
           Point de départ
         </h2>
@@ -428,8 +428,8 @@ function StarQuestionnaire() {
       </section>
 
       {/* Destinations rêvées / banni */}
-      <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Les lieux qui plairaient à {starName}</h2>
+      <section className="space-y-3 py-4 border-b border-border/50">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Les lieux qui plairaient à {starName}</h2>
         <div>
           <Label htmlFor="destination">Quelle serait sa destination rêvée ? (optionnel)</Label>
           <Input
@@ -507,8 +507,8 @@ function StarQuestionnaire() {
       </section>
 
       {/* Disponibilités Calendrier */}
-      <section className="mt-4 space-y-4 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Disponibilités de {starName}</h2>
+      <section className="space-y-4 py-4 border-b border-border/50">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Disponibilités de {starName}</h2>
         <p className="text-xs text-muted-foreground leading-relaxed">
           Indique les dates où {starName} serait disponible ou indisponible.
         </p>
@@ -591,8 +591,8 @@ function StarQuestionnaire() {
         </div>
       </section>
 
-      <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Quelles activités plairaient à {starName} ?</h2>
+      <section className="space-y-3 py-4 border-b border-border/50">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Quelles activités plairaient à {starName} ?</h2>
         <div className="flex flex-wrap gap-2">
           {STAR_WANTED_ACTIVITIES.map((a) => (
             <Chip key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
@@ -602,8 +602,8 @@ function StarQuestionnaire() {
         </div>
       </section>
 
-      <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Que refuserait absolument {starName} ?</h2>
+      <section className="space-y-3 py-4 border-b border-border/50">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Que refuserait absolument {starName} ?</h2>
         <div className="flex flex-wrap gap-2">
           {STAR_DEAL_BREAKERS.map((a) => (
             <Chip
@@ -617,8 +617,8 @@ function StarQuestionnaire() {
         </div>
       </section>
 
-      <section className="mt-4 space-y-3 rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-semibold">Quelle ambiance {starName} apprécierait ?</h2>
+      <section className="space-y-3 py-4 border-b border-border/50">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">Quelle ambiance {starName} apprécierait ?</h2>
         <div className="flex flex-wrap gap-2">
           {AMBIANCES.map((a) => (
             <Chip
@@ -632,7 +632,7 @@ function StarQuestionnaire() {
         </div>
       </section>
 
-      <section className="mt-4 space-y-2 rounded-2xl border border-border bg-card p-5">
+      <section className="space-y-2 py-4">
         <Label>Autres précisions utiles sur les préférences de {starName}</Label>
         <Textarea
           value={notes}

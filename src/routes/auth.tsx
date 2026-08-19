@@ -117,27 +117,26 @@ function AuthPage() {
 
   if (showConfirmationSent) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center bg-hero-gradient px-4 py-12">
+      <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
         <div className="w-full max-w-md">
           <Link to="/" className="mb-8 flex justify-center">
             <Logo size="lg" withTagline />
           </Link>
-          <div className="glass-panel rounded-3xl p-6 shadow-elevated sm:p-8 text-center space-y-6">
+          <div className="rounded-xl border border-border/60 bg-card p-6 sm:p-8 text-center space-y-6 shadow-sm">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Mail className="h-6 w-6" />
             </div>
             <div className="space-y-2">
-              <h2 className="font-display text-2xl font-bold text-foreground">Compte créé !</h2>
+              <h2 className="font-display text-3xl font-bold text-foreground">Compte créé !</h2>
               <p className="text-sm text-muted-foreground">
                 Vérifie ta boîte mail pour confirmer ton adresse e-mail.
               </p>
             </div>
-            <div className="rounded-2xl bg-surface p-4 text-left text-sm text-muted-foreground leading-relaxed">
+            <div className="rounded-xl border border-border/40 bg-muted/30 p-4 text-left text-sm text-muted-foreground leading-relaxed">
               Un e-mail de confirmation a été envoyé à <strong className="text-foreground">{email}</strong>. Clique sur le lien présent dans cet e-mail pour activer ton compte KREW.
             </div>
             <div className="space-y-3 pt-2">
               <Button
-                variant="hero"
                 size="lg"
                 className="w-full"
                 onClick={resendConfirmationEmail}
@@ -161,17 +160,17 @@ function AuthPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-hero-gradient px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-8 flex justify-center"><Logo size="lg" withTagline /></Link>
-        <div className="glass-panel rounded-3xl p-6 shadow-elevated sm:p-8">
+        <div className="rounded-xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
           <Tabs defaultValue="signin">
-            <TabsList className="grid w-full grid-cols-2 bg-surface"><TabsTrigger value="signin">Connexion</TabsTrigger><TabsTrigger value="signup">Créer un compte</TabsTrigger></TabsList>
+            <TabsList className="grid w-full grid-cols-2 bg-muted/40 p-1"><TabsTrigger value="signin">Connexion</TabsTrigger><TabsTrigger value="signup">Créer un compte</TabsTrigger></TabsList>
             <TabsContent value="signin" className="mt-6">
               <form onSubmit={signIn} className="space-y-4">
                 <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={busy}>Se connecter</Button>
+                <Button type="submit" size="lg" className="w-full" disabled={busy}>Se connecter</Button>
               </form>
             </TabsContent>
             <TabsContent value="signup" className="mt-6">
@@ -179,7 +178,7 @@ function AuthPage() {
                 <div className="space-y-2"><Label htmlFor="name">Prénom / pseudo</Label><Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="email2">Email</Label><Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="password2">Mot de passe</Label><Input id="password2" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={busy}>Créer mon compte</Button>
+                <Button type="submit" size="lg" className="w-full" disabled={busy}>Créer mon compte</Button>
               </form>
             </TabsContent>
           </Tabs>
