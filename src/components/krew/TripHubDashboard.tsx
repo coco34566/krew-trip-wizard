@@ -575,6 +575,17 @@ export function TripHubDashboard({
                 {trip.celebrated_person}
               </p>
             ) : null}
+            {trip.participants &&
+            Array.isArray(trip.participants) &&
+            trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Avec{" "}
+                {trip.participants
+                  .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+            ) : null}
 
             {/* Inline Meta rows with small Lucide icons */}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-1">
@@ -662,6 +673,12 @@ export function TripHubDashboard({
                         day: "numeric",
                         month: "short",
                       })}
+                  {trip.end_date
+                    ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })}`
+                    : ""}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5">

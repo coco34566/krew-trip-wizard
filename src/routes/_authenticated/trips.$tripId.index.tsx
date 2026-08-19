@@ -1535,7 +1535,7 @@ function TripDetail() {
               }
             >
               {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
-              {recommendations.length ? "Régénérer tout le planning" : "Générer les propositions"}
+              {recommendations.length ? "Régénérer" : "Générer les propositions"}
             </Button>
           ) : null}
         </div>
@@ -1549,7 +1549,16 @@ function TripDetail() {
               : "Les propositions de destinations arriveront bientôt."}
           </p>
         ) : (
-          (() => {
+          <>
+            {destinationSelected ? (
+              <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
+                Destination validée — {Math.max(0, recommendations.length - 1)} autre
+                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
+                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
+                {data.isOwner ? " (change possible)." : "."}
+              </p>
+            ) : null}
+          {(() => {
             const sortedRecos = [...recommendations].sort(
               (a, b) => Number(b.is_selected) - Number(a.is_selected) || b.score - a.score,
             );
@@ -1630,8 +1639,12 @@ function TripDetail() {
                       </div>
 
                       {budgetTotal != null && budgetTotal > 0 ? (
-                        <p className="text-sm font-mono text-foreground font-semibold">
-                          ~{formatEuro(budgetTotal)} <span className="font-sans font-normal text-muted-foreground">/ pers.</span>
+                        <p className="text-sm">
+                          <span className="font-semibold text-foreground font-mono">
+                            {isDestinationBudgetEstimated(reco.budget) ? "Budget estimé ~" : ""}
+                            {formatEuro(budgetTotal)}
+                          </span>
+                          <span className="text-muted-foreground"> / pers.</span>
                         </p>
                       ) : null}
 
@@ -1646,6 +1659,22 @@ function TripDetail() {
                             </li>
                           ))}
                         </ul>
+                      ) : reco.rationale ? (
+                        <p className="line-clamp-2 text-xs text-muted-foreground">
+                          {reco.rationale}
+                        </p>
+                      ) : null}
+
+                      {recoActivities.length ? (
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground/80">À faire · </span>
+                          {recoActivities
+                            .map(
+                              (a: any) =>
+                                `${a.name}${a.price_per_person ? ` (${formatEuro(Number(a.price_per_person))})` : ""}`,
+                            )
+                            .join(" · ")}
+                        </p>
                       ) : null}
 
                       <div className="pt-2 flex flex-wrap items-center gap-3">
@@ -1720,15 +1749,7 @@ function TripDetail() {
                             {reco.destinations?.name}
                           </h3>
                         </div>
-                        {(() => {
-                          const recoScore = reco.score;
-                          const compatibilityPct = Math.round(recoScore);
-                          return (
-                            <span className="font-mono text-sm font-semibold text-primary">
-                              {compatibilityPct}%
-                            </span>
-                          );
-                        })()}
+                        {reco.is_selected ? <Badge variant="success">Choisie</Badge> : null}
                       </div>
 
                       {budgetTotal != null && budgetTotal > 0 ? (
@@ -1777,7 +1798,8 @@ function TripDetail() {
                 ) : null}
               </div>
             );
-          })()
+          })()}
+          </>
         )}
       </section>
 

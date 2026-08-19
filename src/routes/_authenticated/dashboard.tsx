@@ -156,16 +156,40 @@ function TripRowItem({
               </span>
             </div>
           </div>
+
+          {team.members.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1 text-xs text-muted-foreground pr-8">
+              {team.members.slice(0, 5).map((m) => (
+                <div
+                  key={m.id}
+                  className="inline-flex items-center gap-1.5 text-[11px]"
+                >
+                  <span className="truncate max-w-[100px] text-foreground/90 font-medium">{m.name}</span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    {m.availabilityDone ? (
+                      <span className="size-1.5 rounded-full bg-success" />
+                    ) : (
+                      <span className="size-1.5 rounded-full bg-muted-foreground/30" />
+                    )}
+                    {m.preferencesDone ? (
+                      <Check className="size-3 text-sage shrink-0" />
+                    ) : (
+                      <span className="size-1.5 rounded-full bg-muted-foreground/30" />
+                    )}
+                  </span>
+                </div>
+              ))}
+              {team.members.length > 5 && (
+                <span className="text-[11px] text-muted-foreground/70 font-medium">
+                  +{team.members.length - 5}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action existante */}
         <div className="flex items-center gap-3 justify-end">
-          <Button asChild variant="outline" size="sm" className="rounded-xl h-10 px-4 gap-2">
-            <Link to="/trips/$tripId" params={{ tripId: trip.id }}>
-              Ouvrir
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
           {onCancel ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -236,12 +260,6 @@ function TripRowItem({
           </Badge>
 
           <div className="flex items-center gap-2 ml-auto">
-            <Button asChild size="sm" variant="outline" className="rounded-xl h-9 px-3 gap-1.5 text-xs">
-              <Link to="/trips/$tripId" params={{ tripId: trip.id }}>
-                Ouvrir
-                <ArrowRight className="size-3.5" />
-              </Link>
-            </Button>
             {onCancel ? (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -391,7 +409,6 @@ function Dashboard() {
             activités et budget détaillé.
           </p>
           <div className="mt-6 inline-flex flex-col items-center gap-2 relative">
-            <KrewMark type="arrow" tone="sage" size="md" rotation={-2} className="hidden sm:block absolute -left-12 -top-2 pointer-events-none" />
             <Button asChild size="lg" className="rounded-xl">
               <Link to="/trips/new">Créer mon premier voyage</Link>
             </Button>
@@ -411,7 +428,7 @@ function Dashboard() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucun voyage que tu organises.</p>
+              <p className="text-sm text-muted-foreground">Aucun voyage.</p>
             )}
           </section>
 
@@ -419,7 +436,7 @@ function Dashboard() {
           {invitations.length ? (
             <section className="bg-sage/6 rounded-[28px] p-5 sm:p-7 border border-border/50">
               <h2 className="font-sans font-semibold text-base text-foreground mb-4">
-                Je participe
+                Voyages auxquels je suis invité(e)
               </h2>
               <div className="divide-y divide-border/50">
                 {invitations
