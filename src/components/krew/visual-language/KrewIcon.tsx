@@ -1,3 +1,4 @@
+import type { SVGProps } from "react";
 import { cn } from "@/lib/utils";
 
 export type KrewIconName =
@@ -28,105 +29,140 @@ const SIZES: Record<KrewIconSize, string> = {
   lg: "size-10",
 };
 
-const common = {
+const STROKE = {
   fill: "none",
   stroke: "currentColor",
-  strokeWidth: 1.8,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-  vectorEffect: "non-scaling-stroke" as const,
-};
+  strokeWidth: 2.05,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  vectorEffect: "non-scaling-stroke",
+} satisfies SVGProps<SVGPathElement>;
+
+const SOFT_STROKE = {
+  ...STROKE,
+  strokeWidth: 1.6,
+  opacity: 0.72,
+} satisfies SVGProps<SVGPathElement>;
+
+function Dot({ cx, cy, r = 1.35 }: { cx: number; cy: number; r?: number }) {
+  return <circle cx={cx} cy={cy} r={r} fill="currentColor" />;
+}
 
 function IconShape({ name }: { name: KrewIconName }) {
   switch (name) {
     case "invite":
       return (
         <>
-          <path {...common} d="M9.3 11.1c1.8 0 3.1-1.4 3.1-3.2 0-1.7-1.3-3-3.1-3-1.7 0-3 1.3-3 3 0 1.8 1.3 3.2 3 3.2Z" />
-          <path {...common} d="M3.8 19c.3-3.3 2.1-5 5.5-5 2.3 0 3.9.8 4.8 2.5" />
-          <path {...common} d="M17.5 10v7M14 13.5h7" />
+          <path {...STROKE} d="M9.4 12.2c2.2 0 3.8-1.7 3.8-3.9 0-2.1-1.6-3.7-3.8-3.7S5.7 6.2 5.7 8.3c0 2.2 1.5 3.9 3.7 3.9Z" />
+          <path {...STROKE} d="M3.3 21.3c.4-4 2.5-6.1 6.2-6.1 2.4 0 4.2.9 5.3 2.6" />
+          <path {...STROKE} d="M18.9 9.3v8.1M14.8 13.4h8.1" />
+          <path {...SOFT_STROKE} d="M17.1 7.3c1.8.1 3.2.8 4.1 2" />
         </>
       );
+
     case "availability":
       return (
         <>
-          <path {...common} d="M5 6.8h14v12H5z" />
-          <path {...common} d="M8 4.5v4M16 4.5v4M5.2 10.2h13.6" />
-          <path {...common} d="m8.2 14 1.8 1.8 4-4" />
+          <path {...STROKE} d="M4.2 8.3c4.6-.3 10.6-.3 15.6 0l-.4 12.1c-4.7.4-10 .4-14.8 0L4.2 8.3Z" />
+          <path {...STROKE} d="M8.1 5v5M15.9 4.7v5.1" />
+          <path {...SOFT_STROKE} d="M4.5 11.6c4.4-.2 10.5-.2 15.1 0" />
+          <path {...STROKE} d="m8.2 15.7 2.2 2.1 5.6-5.5" />
         </>
       );
+
     case "preferences":
       return (
         <>
-          <path {...common} d="M5 7h14M5 12h14M5 17h14" />
-          <circle cx="9" cy="7" r="1.6" fill="currentColor" />
-          <circle cx="15" cy="12" r="1.6" fill="currentColor" />
-          <circle cx="11" cy="17" r="1.6" fill="currentColor" />
+          <path {...STROKE} d="M4.1 7.2h15.8M4.1 12.3h15.8M4.1 17.5h15.8" />
+          <path {...SOFT_STROKE} d="M8.8 5.2v4M15.4 10.2v4.2M10.8 15.5v4" />
+          <Dot cx={8.8} cy={7.2} r={1.65} />
+          <Dot cx={15.4} cy={12.3} r={1.65} />
+          <Dot cx={10.8} cy={17.5} r={1.65} />
         </>
       );
+
     case "profile":
       return (
         <>
-          <path {...common} d="M5.2 8.7c2.1-2.1 4.2-3.2 6.8-3.2 2.7 0 4.8 1.1 6.8 3.2M6.4 15.4c1.7 2 3.6 3.1 5.6 3.1 2.1 0 4-1 5.6-3.1" />
-          <path {...common} d="M8.5 10.7c1 1.1 2.2 1.7 3.5 1.7 1.4 0 2.6-.6 3.5-1.7" />
-          <circle cx="12" cy="12.3" r="1.25" fill="currentColor" />
+          <path {...STROKE} d="M4.6 9c2.1-2.6 4.6-3.9 7.5-3.9 3 0 5.5 1.3 7.5 3.9" />
+          <path {...STROKE} d="M5.4 16.1c1.9 2.5 4.1 3.8 6.7 3.8 2.5 0 4.8-1.3 6.6-3.8" />
+          <path {...SOFT_STROKE} d="M7.8 11.2c1.2 1.6 2.7 2.4 4.4 2.4 1.6 0 3-.7 4.1-2.1" />
+          <Dot cx={12.1} cy={13.5} r={1.55} />
+          <path {...STROKE} d="M12.1 5.1v2.6M12.1 17.3v2.6" />
         </>
       );
+
     case "destination":
       return (
         <>
-          <path {...common} d="M12 20c3.8-4.1 5.7-7.2 5.7-9.7A5.7 5.7 0 0 0 12 4.6a5.7 5.7 0 0 0-5.7 5.7C6.3 12.8 8.2 15.9 12 20Z" />
-          <path {...common} d="M9.6 10.3c.7-1.3 1.8-2 3.2-1.9 1 .1 1.8.6 2.3 1.4" />
+          <path {...STROKE} d="M12.1 21.1C8.3 17 6.1 13.7 6.1 10.7c0-3.6 2.5-6.1 6-6.1 3.6 0 5.9 2.5 5.9 6.1 0 2.9-2.1 6.2-5.9 10.4Z" />
+          <path {...STROKE} d="M8.9 11c1.1-1.4 2.2-2 3.6-1.9 1.2.1 2.1.6 2.9 1.6" />
+          <path {...SOFT_STROKE} d="M10.4 13.4c.8.5 1.7.7 2.6.5" />
+          <Dot cx={15.9} cy={7.1} r={1.05} />
         </>
       );
+
     case "accommodation":
       return (
         <>
-          <path {...common} d="M4.8 11.1 12 5l7.2 6.1v8H4.8z" />
-          <path {...common} d="M9 19v-5.5h6V19M7.2 9.4V5.9" />
+          <path {...STROKE} d="M3.7 11.6 11.9 4.7l8.4 6.9" />
+          <path {...STROKE} d="M5.2 10.5v10.4h13.7V10.5" />
+          <path {...STROKE} d="M9 20.9v-6.4h6.1v6.4" />
+          <path {...SOFT_STROKE} d="M7.3 8.5V5.6M7.3 5.6h2.8" />
+          <Dot cx={16.9} cy={15.1} r={1.05} />
         </>
       );
+
     case "transport":
       return (
         <>
-          <path {...common} d="M4.5 16.7c3.3-5.7 7-8.4 11.2-8.2 1.5.1 2.8.5 3.8 1.2" />
-          <path {...common} d="m16.9 6.7 2.8 3-3.4 2.2" />
-          <circle cx="5" cy="17" r="1.5" fill="currentColor" />
-          <circle cx="19" cy="9.8" r="1.5" fill="currentColor" />
+          <Dot cx={4.6} cy={18.7} r={1.7} />
+          <Dot cx={19.6} cy={8.2} r={1.7} />
+          <path {...STROKE} d="M5.7 17.5c3-4.9 6.3-7.6 10.1-8.5 1.2-.3 2.3-.4 3.4-.3" />
+          <path {...SOFT_STROKE} d="M8.4 20.2c2.4-2.7 5-4.4 7.8-5.2" />
+          <path {...STROKE} d="m16.5 5.5 3.3 2.6-3.7 2.7" />
         </>
       );
+
     case "planning":
       return (
         <>
-          <path {...common} d="M6 5.5h12v13H6zM9 4v3M15 4v3" />
-          <path {...common} d="M9 10h6M9 13.5h4.2M9 17h6" />
-          <circle cx="7.5" cy="10" r=".7" fill="currentColor" />
-          <circle cx="7.5" cy="13.5" r=".7" fill="currentColor" />
-          <circle cx="7.5" cy="17" r=".7" fill="currentColor" />
+          <path {...STROKE} d="M5 6.8c4.2-.3 9.6-.3 14 0l-.3 14c-4.2.3-9.1.3-13.4 0L5 6.8Z" />
+          <path {...STROKE} d="M8.6 4.4v4.7M15.4 4.4v4.7" />
+          <path {...SOFT_STROKE} d="M9.1 11.4h6.3M9.1 15h4.8M9.1 18.4h6.1" />
+          <Dot cx={7} cy={11.4} r={0.95} />
+          <Dot cx={7} cy={15} r={0.95} />
+          <Dot cx={7} cy={18.4} r={0.95} />
         </>
       );
+
     case "tasks":
       return (
         <>
-          <path {...common} d="M10 6h9M10 12h9M10 18h9" />
-          <path {...common} d="m4.8 6 1.4 1.4L8.5 5M4.8 12l1.4 1.4L8.5 11M4.8 18l1.4 1.4L8.5 17" />
+          <path {...STROKE} d="m4.1 7 1.8 1.9 3.2-3.5M4.1 13l1.8 1.9 3.2-3.5M4.1 19l1.8 1.9 3.2-3.5" />
+          <path {...SOFT_STROKE} d="M11.4 7.1h8.4M11.4 13.1h6.2M11.4 19.1h8.4" />
         </>
       );
+
     case "packing":
       return (
         <>
-          <path {...common} d="M7 8h10l1.2 11H5.8z" />
-          <path {...common} d="M9.2 8V6.4c0-1.4 1-2.4 2.8-2.4s2.8 1 2.8 2.4V8" />
-          <path {...common} d="M9.2 12.2c.7.7 1.6 1.1 2.8 1.1s2.1-.4 2.8-1.1" />
+          <path {...STROKE} d="M6.1 8.4c3.4-.5 8.1-.5 11.6 0l1 12.1c-3.9.5-9.5.5-13.4 0l.8-12.1Z" />
+          <path {...STROKE} d="M8.8 8.2V6.6c0-1.8 1.2-3 3.3-3 2 0 3.2 1.2 3.2 3v1.6" />
+          <path {...SOFT_STROKE} d="M8.8 13.1c.9.9 2 1.4 3.3 1.4 1.3 0 2.4-.5 3.2-1.4" />
+          <path {...STROKE} d="M12.1 14.6v2.6" />
         </>
       );
+
     case "budget":
       return (
         <>
-          <path {...common} d="M5 8.2h14v9.6H5z" />
-          <path {...common} d="M7.5 8.2V6h9v2.2" />
-          <path {...common} d="M8 13h3.1M15.8 11.1v3.8" />
-          <circle cx="15.8" cy="13" r="2.2" {...common} />
+          <path {...STROKE} d="M4.5 8.3c4.4-.5 10.4-.5 14.9 0v10.4c-4.5.5-10.5.5-14.9 0V8.3Z" />
+          <path {...SOFT_STROKE} d="M7.5 8.1V5.9c2.5-.3 6.4-.3 9 0v2.2" />
+          <path {...STROKE} d="M8.1 13.5h3.6" />
+          <path {...STROKE} d="M16.1 11.3v4.5" />
+          <Dot cx={16.1} cy={13.55} r={2.25} />
+          <path d="M15.2 13.55h1.8" stroke="white" strokeWidth="1" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         </>
       );
   }
