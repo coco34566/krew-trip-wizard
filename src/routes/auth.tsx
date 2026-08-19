@@ -137,7 +137,6 @@ function AuthPage() {
             </div>
             <div className="space-y-3 pt-2">
               <Button
-                variant="hero"
                 size="lg"
                 className="w-full"
                 onClick={resendConfirmationEmail}
@@ -171,7 +170,7 @@ function AuthPage() {
               <form onSubmit={signIn} className="space-y-4">
                 <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={busy}>Se connecter</Button>
+                <Button type="submit" size="lg" className="w-full" disabled={busy}>Se connecter</Button>
               </form>
             </TabsContent>
             <TabsContent value="signup" className="mt-6">
@@ -179,7 +178,7 @@ function AuthPage() {
                 <div className="space-y-2"><Label htmlFor="name">Prénom / pseudo</Label><Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="email2">Email</Label><Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="password2">Mot de passe</Label><Input id="password2" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={busy}>Créer mon compte</Button>
+                <Button type="submit" size="lg" className="w-full" disabled={busy}>Créer mon compte</Button>
               </form>
             </TabsContent>
           </Tabs>
