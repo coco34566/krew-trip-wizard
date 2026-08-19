@@ -2042,7 +2042,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
     };
 
-    const { buildKrewSkeleton, geminiEnrichSkeleton } = await import(
+    const { buildKrewPlanningBrief, composeItineraryWithGemini } = await import(
       "@/lib/krew/activity-ai.server"
     );
     const {
@@ -2051,12 +2051,12 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       determineSearchRadiusMeters,
     } = await import("@/lib/krew/geoapify.server");
 
-    // 1. Build deterministic KREW Skeleton
-    const krewSkeleton = buildKrewSkeleton(activityInput);
+    // 1. Build KREW PlanningBrief
+    const planningBrief = buildKrewPlanningBrief(activityInput);
 
-    // 2. Single Gemini call to enrich skeleton (internal creative moments + searchIntents)
-    const enrichResult = await geminiEnrichSkeleton(krewSkeleton, activityInput);
-    const enrichedSkeleton = enrichResult.enrichedSkeleton;
+    // 2. Single Gemini call to compose custom itinerary
+    const composeResult = await composeItineraryWithGemini(planningBrief, activityInput);
+    const enrichedSkeleton = composeResult.composedSkeleton;
 
     // Resolve reference coordinates (accommodation when centerpiece/part_of_stay, else destination)
     let refLat: number | null = null;
@@ -2285,8 +2285,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
     return {
       ok: true,
-      usedLlm: enrichResult.usedLlm,
-      error: enrichResult.error,
+      usedLlm: composeResult.usedLlm,
+      error: composeResult.error,
       itinerary: finalItinerary,
     };
   });
