@@ -70,26 +70,25 @@ function Landing() {
 
       <main>
         {/* ——— Hero Éditorial ——— */}
-        <section className="relative overflow-hidden pt-8 pb-16 sm:pt-12 sm:pb-20 lg:pt-16 lg:pb-24">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <section className="relative overflow-hidden pt-8 pb-16 sm:pt-12 sm:pb-20 lg:pt-14 lg:pb-20 min-h-[760px]">
+          <div className="mx-auto max-w-[1440px] px-6 lg:px-10 xl:px-14">
             <div className="grid gap-10 lg:grid-cols-12 lg:items-center lg:gap-12">
 
               {/* Colonne gauche : Titre & Actions */}
               <div className="lg:col-span-7">
-                <div className="relative mb-6 inline-block">
-                  <p className="text-sm font-medium text-primary">
-                    L’organisation des voyages de groupe, simplement
-                  </p>
-                  <KrewMark type="underline" tone="sage" size="sm" rotation={-2} className="absolute left-0 -bottom-1.5 w-10 sm:w-12 pointer-events-none" />
+                <p className="mb-6 text-sm font-medium text-primary">
+                  L’organisation des voyages de groupe, simplement
+                </p>
+
+                <div className="relative">
+                  <h1 className="font-display text-[52px] sm:text-[72px] lg:text-[88px] xl:text-[96px] font-normal tracking-[-0.035em] text-foreground leading-[0.96] lg:leading-[0.92]">
+                    Le voyage de groupe,{" "}
+                    <span className="italic text-primary">organisé pour toi.</span>
+                  </h1>
+                  <KrewMark type="underline" tone="sage" size="lg" rotation={-2} className="absolute left-0 -bottom-6 w-[150px] sm:w-[220px] h-auto opacity-80 pointer-events-none" />
                 </div>
 
-                <h1 className="relative font-display text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-foreground leading-[1.08]">
-                  Le voyage de groupe,{" "}
-                  <span className="italic text-primary">organisé pour toi.</span>
-                  <KrewMark type="sparkle" tone="sage" size="sm" rotation={4} className="hidden sm:inline-block ml-2 align-middle pointer-events-none" />
-                </h1>
-
-                <p className="mt-6 max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed">
+                <p className="mt-8 sm:mt-10 max-w-[500px] text-base sm:text-lg text-muted-foreground leading-relaxed">
                   Disponibilités, envies, budget : KREW rassemble les réponses du groupe et t’aide à
                   organiser le séjour, étape par étape.
                 </p>
@@ -114,28 +113,30 @@ function Landing() {
                     </li>
                   ))}
                 </ul>
+
+                <KrewMark type="arrow" tone="plum" size="md" rotation={-4} className="hidden lg:block absolute w-[96px] bottom-12 left-1/2 pointer-events-none" />
               </div>
 
               {/* Colonne droite : Photo Cadre Éditorial */}
               <div className="lg:col-span-5">
                 <div className="relative mx-auto max-w-md lg:max-w-none">
-                  <div className="absolute -bottom-3 -right-3 h-[75%] w-[80%] rounded-3xl bg-sage/10 pointer-events-none" />
-                  <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-card shadow-none">
+                  {/* Rectangle Sauge exact derrière photo */}
+                  <div className="absolute w-[88%] sm:w-[82%] h-[92%] sm:h-[88%] -bottom-4 sm:-bottom-8 -right-4 sm:-right-8 rounded-[36px] bg-sage/18 pointer-events-none" />
+                  <div className="relative overflow-hidden rounded-[32px] border border-border/60 bg-card shadow-none h-[460px] sm:h-[520px] lg:h-[660px] xl:h-[700px] w-full">
                     <img
                       src={heroImage}
                       alt=""
-                      className="h-[360px] sm:h-[440px] w-full object-cover"
+                      className="h-full w-full object-cover object-center"
                       fetchPriority="high"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-transparent to-transparent" />
 
-                    <div className="absolute bottom-5 left-5 right-5 text-white">
-                      <p className="font-display text-2xl font-normal leading-tight">
+                    <div className="absolute bottom-6 left-6 text-white">
+                      <p className="font-display text-2xl sm:text-[32px] font-normal leading-[1]">
                         La Team. Le Plan. Le Moment.
                       </p>
                     </div>
                   </div>
-                  <KrewMark type="arrow" tone="plum" size="md" rotation={-4} className="hidden lg:block absolute -left-8 -bottom-4 z-10 pointer-events-none" />
                 </div>
               </div>
 
@@ -144,20 +145,19 @@ function Landing() {
         </section>
 
         {/* ——— Types d'événements ——— */}
-        <section className="border-y border-border bg-surface/50 py-4 sm:py-5">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-2 px-4 sm:px-6 text-sm">
-            <div className="relative mr-2 flex items-center gap-1.5">
+        <section className="py-10 border-y border-border/70 bg-background">
+          <div className="mx-auto max-w-[1240px] px-6 flex flex-wrap items-center justify-center gap-y-3 text-sm">
+            <div className="relative flex items-center mr-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Idéal pour
               </span>
-              <KrewMark type="circle" tone="sage" size="sm" rotation={2} className="absolute -left-2 -top-1 size-7 pointer-events-none opacity-80" />
+              <KrewMark type="circle" tone="sage" size="sm" rotation={2} className="absolute w-8 -left-2 -top-1 opacity-70 pointer-events-none" />
             </div>
             {EVENT_TYPES.slice(0, 6).map((ev, index) => (
-              <div key={ev.value} className="flex items-center gap-2">
-                {index > 0 && <span className="text-muted-foreground/40 select-none" aria-hidden="true">·</span>}
+              <div key={ev.value} className={`flex items-center ${index > 0 ? "border-l border-border/60 pl-4 ml-4" : ""}`}>
                 <Link
                   to="/trips/new"
-                  className="text-xs sm:text-sm font-medium text-muted-foreground transition hover:text-primary"
+                  className="text-sm font-medium text-muted-foreground transition hover:text-primary"
                 >
                   {ev.label}
                 </Link>
@@ -167,7 +167,7 @@ function Landing() {
         </section>
 
         {/* ——— Comment ça marche (stepper éditorial LE PLAN) ——— */}
-        <section className="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24">
+        <section className="mx-auto max-w-[1280px] px-6 py-16 sm:py-24 lg:py-28 min-h-0 lg:min-h-[840px] relative">
           <div className="mx-auto max-w-2xl text-center">
             <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-2">
               LE PLAN
@@ -175,50 +175,51 @@ function Landing() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Comment ça marche
             </p>
-            <h2 className="relative inline-block mt-3 font-display text-3xl sm:text-4xl font-normal text-foreground">
+            <h2 className="relative inline-block mt-3 font-display text-3xl sm:text-4xl lg:text-[58px] font-normal text-foreground leading-tight lg:leading-[0.98] tracking-normal lg:tracking-[-0.025em]">
               Trois étapes, zéro chaos
-              <KrewMark type="highlight" tone="sage" size="lg" rotation={-2} className="absolute left-1/4 -bottom-1 -z-10 w-1/2 pointer-events-none" />
+              <KrewMark type="highlight" tone="sage" size="lg" rotation={-2} className="absolute w-[260px] opacity-70 -z-10 left-1/2 -bottom-2 pointer-events-none" />
             </h2>
           </div>
 
-          <ol className="relative mx-auto mt-16 max-w-5xl">
-            {/* Connectors for desktop */}
-            <div className="hidden sm:flex absolute top-4 left-[22%] right-[22%] justify-between items-center pointer-events-none z-0">
-              <KrewMark type="connector" tone="sage" size="md" rotation={-2} dashed className="w-1/3" />
-              <KrewMark type="connector" tone="sage" size="md" rotation={2} dashed className="w-1/3" />
+          <div className="relative mx-auto mt-16 lg:mt-24 max-w-5xl">
+            {/* Connectors Desktop */}
+            <div className="hidden lg:block absolute inset-0 pointer-events-none z-0">
+              <KrewMark type="connector" tone="sage" size="lg" rotation={-2} className="absolute w-[260px] opacity-55 left-[24%] top-[140px]" />
+              <KrewMark type="connector" tone="sage" size="lg" rotation={2} className="absolute w-[260px] opacity-55 right-[24%] top-[200px]" />
             </div>
 
-            {/* Connected vertical line for mobile */}
-            <div className="sm:hidden absolute top-5 bottom-5 left-5 w-px bg-sage/30" />
+            {/* Trajectoire mobile */}
+            <div className="lg:hidden absolute top-5 bottom-5 left-5 w-0 border-l border-sage/30" />
 
-            <div className="grid gap-10 sm:grid-cols-3 sm:gap-8 lg:gap-12">
-              {STEPS.map((step, i) => (
-                <li key={step.title} className="relative flex flex-col items-start pl-14 sm:pl-0">
-                  <div className="flex items-center justify-between w-full mb-4">
-                    <div className={`absolute left-0 sm:relative z-10 flex size-11 items-center justify-center rounded-lg ${i === 1 ? 'bg-sage/12 text-sage' : 'bg-primary/8 text-primary'}`}>
-                      <step.icon className="size-5" />
-                    </div>
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
-                      Étape {i + 1}
+            <div className="grid gap-14 lg:gap-8 lg:grid-cols-3 relative z-10">
+              {STEPS.map((step, i) => {
+                const offsets = ["lg:translate-y-0", "lg:translate-y-24", "lg:translate-y-8"];
+                return (
+                  <div key={step.title} className={`relative flex flex-col items-start pl-14 lg:pl-0 ${offsets[i]}`}>
+                    <span aria-hidden="true" className="font-display text-[72px] lg:text-[128px] font-normal text-sage/20 leading-none select-none -mb-4 lg:-mb-10">
+                      0{i + 1}
                     </span>
+                    <div className="flex items-center justify-between w-full mb-3">
+                      <div className={`flex size-11 items-center justify-center rounded-lg ${i === 1 ? 'bg-sage/12 text-sage' : 'bg-primary/8 text-primary'}`}>
+                        <step.icon className="size-5" />
+                      </div>
+                      <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                        Étape {i + 1}
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground mt-1">{step.title}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-xs">{step.text}</p>
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-foreground mt-1">{step.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{step.text}</p>
-                </li>
-              ))}
+                );
+              })}
             </div>
-          </ol>
+          </div>
         </section>
 
-        {/* Transition Mark between PLAN and MOMENT */}
-        <div className="hidden md:flex justify-center -mt-8 -mb-4 pointer-events-none">
-          <KrewMark type="arrow" tone="plum" size="md" rotation={2} />
-        </div>
-
         {/* ——— Aperçu Projet Complet Fictif (LE MOMENT) ——— */}
-        <section className="border-t border-border bg-surface/40 py-16 sm:py-24">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="mx-auto max-w-2xl text-center mb-12">
+        <section className="w-full bg-sage/12 py-16 sm:py-24 lg:py-28">
+          <div className="mx-auto max-w-[1360px] px-6 lg:px-10">
+            <div className="mx-auto max-w-2xl text-center mb-12 lg:mb-16">
               <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-2">
                 LE MOMENT
               </span>
@@ -229,109 +230,106 @@ function Landing() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card shadow-none overflow-hidden max-w-4xl mx-auto">
-              <div className="relative h-52 sm:h-64 bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=1200&q=80')` }}>
-                <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/40 to-transparent" />
-                <div className="absolute bottom-5 left-5 right-5 text-white flex justify-between items-end">
-                  <div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-white">Exemple de projet final</span>
-                    <h3 className="font-display text-2xl sm:text-4xl font-normal mt-1.5 text-white">Week-end Retrouvailles à Lisbonne</h3>
-                    <p className="text-xs text-white/80 mt-1">Organisé par Thomas · 8 personnes</p>
-                  </div>
-                  <KrewMark type="heart" tone="sage" size="sm" rotation={4} className="pointer-events-none opacity-90 hidden sm:block mb-1" />
-                </div>
-              </div>
+            {/* Composition Ouverte sans Wrapper Card */}
+            <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
 
-              <div className="p-5 sm:p-6 grid gap-6 md:grid-cols-3 text-sm border-b border-border/60 bg-surface/30 md:divide-x md:divide-border/40">
-                <div className="space-y-1 md:pr-4">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Dates</p>
-                  <p className="font-medium text-foreground">Vendredi 11 Sept. → Dimanche 13 Sept.</p>
-                </div>
-                <div className="space-y-1 md:px-4">
+              {/* Photo Lisbonne */}
+              <div className="lg:col-span-7 relative">
+                <img
+                  src="https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=1200&q=80"
+                  alt=""
+                  className="h-[400px] lg:h-[580px] xl:h-[620px] w-full object-cover rounded-[28px]"
+                />
+
+                {/* Budget Chevauchement Desktop */}
+                <div className="hidden lg:block absolute right-0 bottom-12 translate-x-12 bg-background rounded-xl px-6 py-5 shadow-none border border-border/40">
                   <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Budget estimé par personne</p>
-                  <p className="font-mono font-bold text-lg text-foreground">~360 €</p>
-                </div>
-                <div className="space-y-1 md:pl-4">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">État des réponses</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
-                    <p className="text-xs inline-flex items-center gap-1">
-                      <CalendarCheck className="size-4 text-sage" />
-                      <span>Disponibilités : </span>
-                      <span className="font-mono font-semibold text-success">8/8</span>
-                    </p>
-                    <p className="text-xs inline-flex items-center gap-1">
-                      <Vote className="size-4 text-sage" />
-                      <span>Préférences : </span>
-                      <span className="font-mono font-semibold text-success">8/8</span>
-                    </p>
-                  </div>
+                  <p className="font-mono text-[48px] font-bold text-primary leading-none mt-2">~360 €</p>
                 </div>
               </div>
 
-              <div className="p-6 grid gap-8 md:grid-cols-2">
-                <div className="space-y-6">
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground">
-                      <Check className="size-4 text-success" />
-                      Hébergement retenu par le groupe
-                    </h4>
-                    <div className="rounded-xl border border-border/60 p-4 bg-background">
-                      <div className="flex justify-between items-start gap-2">
-                        <div>
-                          <p className="font-semibold text-foreground">Lisbon Sky Apartments</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Appartement entier · ★ 4.7 · Proche centre (0.8 km)</p>
-                        </div>
-                        <Badge variant="success" className="shrink-0">5 votes sur 8</Badge>
-                      </div>
-                      <p className="mt-3 text-xs text-muted-foreground font-mono">42 € / personne par nuit · 84 € / personne pour le séjour</p>
+              {/* Contenu principal */}
+              <div className="lg:col-span-5 space-y-6 relative">
+                <KrewMark type="heart" tone="plum" size="lg" rotation={4} className="w-[84px] opacity-75 pointer-events-none absolute -top-10 right-0 hidden lg:block" />
+
+                <div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-foreground/10 px-2.5 py-0.5 rounded-full text-foreground">Exemple de projet final</span>
+                  <h3 className="font-display text-3xl sm:text-4xl lg:text-[58px] font-normal leading-tight lg:leading-[0.98] tracking-normal lg:tracking-[-0.025em] text-foreground mt-2">
+                    Week-end Retrouvailles à Lisbonne
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1.5">Organisé par Thomas · 8 personnes</p>
+                </div>
+
+                {/* Budget Mobile */}
+                <div className="lg:hidden -mt-7 relative z-10 bg-background rounded-xl p-4 border border-border/40 w-fit">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Budget estimé / personne</p>
+                  <p className="font-mono text-3xl font-bold text-primary leading-none mt-1">~360 €</p>
+                </div>
+
+                <div className="border-t border-b border-border/50 py-4 grid gap-4 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Dates</span>
+                    <span className="font-medium text-foreground">11 Sept. → 13 Sept.</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-border/40 pt-3">
+                    <span className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Réponses</span>
+                    <div className="flex gap-4">
+                      <span className="text-xs inline-flex items-center gap-1">
+                        <CalendarCheck className="size-4 text-sage" />
+                        <span className="font-mono font-semibold text-success">8/8</span>
+                      </span>
+                      <span className="text-xs inline-flex items-center gap-1">
+                        <Vote className="size-4 text-sage" />
+                        <span className="font-mono font-semibold text-success">8/8</span>
+                      </span>
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground">
-                      <Check className="size-4 text-success" />
-                      Transports par ville de départ
-                    </h4>
-                    <ul className="space-y-2">
-                      <li className="flex justify-between border-b border-border/60 pb-2 text-xs text-muted-foreground">
-                        <span>Paris (5 personnes) · Vol EasyJet aller-retour</span>
-                        <span className="font-mono font-semibold text-foreground">115 €</span>
-                      </li>
-                      <li className="flex justify-between border-b border-border/60 pb-2 text-xs text-muted-foreground">
-                        <span>Lyon (3 personnes) · Vol Transavia aller-retour</span>
-                        <span className="font-mono font-semibold text-foreground">125 €</span>
-                      </li>
-                    </ul>
+                {/* Hébergement */}
+                <div className="border-t border-border/50 pt-5 space-y-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <p className="font-semibold text-foreground text-base">Lisbon Sky Apartments</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Appartement entier · ★ 4.7 · Proche centre (0.8 km)</p>
+                    </div>
+                    <Badge variant="success" className="shrink-0">5 votes sur 8</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono">42 € / personne par nuit · 84 € / personne pour le séjour</p>
+                </div>
+
+                {/* Transport */}
+                <div className="border-t border-border/50 pt-4 space-y-2 text-xs">
+                  <p className="font-semibold text-muted-foreground uppercase tracking-wider">Transports</p>
+                  <div className="flex justify-between border-b border-border/40 pb-2 text-muted-foreground">
+                    <span>Paris (5 pers.) · Vol EasyJet A/R</span>
+                    <span className="font-mono font-semibold text-foreground">115 €</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Lyon (3 pers.) · Vol Transavia A/R</span>
+                    <span className="font-mono font-semibold text-foreground">125 €</span>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground">
-                    <Check className="size-4 text-success" />
-                    Extrait du planning jour par jour
-                  </h4>
-                  <div className="space-y-3.5 pt-1">
+                {/* Planning */}
+                <div className="border-t border-border/50 pt-4 space-y-3">
+                  <p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">Planning</p>
+                  <div className="space-y-3 pt-1">
                     <div className="relative pl-4 border-l-2 border-sage/35">
                       <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
                       <p className="text-xs font-mono font-semibold text-primary">JOUR 1 · 15:30</p>
-                      <p className="font-semibold text-xs mt-0.5 text-foreground">Arrivée à l&apos;aéroport de Lisbonne et transfert</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">Dépose des bagages aux Lisbon Sky Apartments.</p>
+                      <p className="font-semibold text-xs mt-0.5 text-foreground">Arrivée & transfert appartement</p>
                     </div>
                     <div className="relative pl-4 border-l-2 border-sage/35">
                       <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
                       <p className="text-xs font-mono font-semibold text-primary">JOUR 1 · 19:30</p>
-                      <p className="font-semibold text-xs mt-0.5 text-foreground">Dîner de Tapas locales chez Ramiro</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">Le resto mythique de fruits de mer plébiscité par le groupe.</p>
-                    </div>
-                    <div className="relative pl-4 border-l-2 border-sage/35">
-                      <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
-                      <p className="text-xs font-mono font-semibold text-primary">JOUR 2 · 14:00</p>
-                      <p className="font-semibold text-xs mt-0.5 text-foreground">Visite guidée en Tuk-Tuk électrique</p>
-                      <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">Balade insolite dans les ruelles pavées de l&apos;Alfama.</p>
+                      <p className="font-semibold text-xs mt-0.5 text-foreground">Dîner Tapas locales chez Ramiro</p>
                     </div>
                   </div>
                 </div>
+
               </div>
+
             </div>
           </div>
         </section>
