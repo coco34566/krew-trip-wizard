@@ -198,14 +198,17 @@ const ACCOMMODATION_CONCEPT_LABELS: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    view: (search.view as string) || "todo",
+  }),
   head: () => ({
     meta: [
-      { title: "Mon Voyage — KREW" },
+      { title: "Voyage — KREW" },
       {
         name: "description",
         content: "Propositions KREW, planning jour par jour, budget détaillé et votes du groupe.",
       },
-      { property: "og:title", content: "Mon Voyage — KREW" },
+      { property: "og:title", content: "Voyage — KREW" },
       {
         property: "og:description",
         content: "Compare les propositions et valide le voyage avec ton groupe.",
@@ -244,6 +247,8 @@ type Recommendation = {
 
 function TripDetail() {
   const { tripId } = Route.useParams();
+  const search = Route.useSearch();
+  const currentView = search?.view ?? "todo";
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const vote = useServerFn(toggleVote);
@@ -1096,159 +1101,223 @@ function TripDetail() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
-      <TripHubDashboard
-        viewerUserId={data.userId}
-        tripId={tripId}
-        trip={{
-          ...trip,
-          participants: participants,
-        }}
-        isOwner={data.isOwner}
-        participantsCount={progress?.total || participants.length}
-        progressAnswered={progress?.answered ?? 0}
-        progressTotal={progress?.total || participants.length}
-        availabilityAnswered={availData?.answered ?? 0}
-        availabilityExpected={progress?.total || participants.length}
-        provisionalStart={
-          trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date
-        }
-        provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
-        myAvailabilityDone={Boolean(availData?.mine)}
-        myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
-        starDone={Boolean(starData?.preferences)}
-        hasRecommendations={recommendations.length > 0}
-        profileReady={Boolean(readiness?.profile.questionnairesReady)}
-        profileValidated={Boolean(profile?.validated)}
-        destinationSelected={recommendations.some((r) => r.is_selected)}
-        destinationName={recommendations.find((r) => r.is_selected)?.destinations?.name ?? null}
-        liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
-        totalReserved={costSplitData?.totalReserved ?? null}
-        totalEstimated={costSplitData?.totalEstimated ?? null}
-        topScores={recommendations.slice(0, 3).map((r) => ({
-          name: r.destinations?.name ?? "Destination",
-          score: r.score,
-        }))}
-        activitiesValidated={activitiesValidated}
-        tripEndDatePassed={tripEndDatePassed}
-      ></TripHubDashboard>
+      {/* Top Navigation Tabs */}
+      <nav aria-label="Navigation principale du voyage" className="flex items-center border-b border-border/50 pb-3 gap-6 font-medium text-sm mb-6">
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          search={{ view: "todo" }}
+          className={cn(
+            "pb-1 transition-colors hover:text-foreground",
+            currentView === "todo"
+              ? "border-b-2 border-primary text-foreground font-semibold"
+              : "text-muted-foreground",
+          )}
+        >
+          À faire
+        </Link>
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          search={{ view: "voyage" }}
+          className={cn(
+            "pb-1 transition-colors hover:text-foreground",
+            currentView === "voyage"
+              ? "border-b-2 border-primary text-foreground font-semibold"
+              : "text-muted-foreground",
+          )}
+        >
+          Voyage
+        </Link>
+        <Link
+          to="/trips/$tripId/invite"
+          params={{ tripId }}
+          className="pb-1 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Groupe
+        </Link>
+      </nav>
 
-      {data.isOwner ? (
-        <div className="mt-4 flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => shareOnWhatsApp(buildWhatsAppStatusMessage())}
+      {currentView === "organize" ? (
+        <div className="mb-4">
+          <Link
+            to="/trips/$tripId"
+            params={{ tripId }}
+            search={{ view: "todo" }}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-            Partager l’état du voyage
-          </Button>
+            ← Retour au voyage
+          </Link>
         </div>
       ) : null}
 
-      {/* Restitution finale uniquement lorsque destination et planning sont réellement validés. */}
-      {finalRestitutionReady ? (
-        <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <Wallet className="size-5 text-primary" />
-                Résumé du voyage
-              </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Retrouve ici les éléments principaux du voyage.
-              </p>
-            </div>
-            <Button
-              type="button"
-              className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
-              onClick={() => {
-                const text = buildWhatsAppStatusMessage();
-                shareOnWhatsApp(text);
-              }}
-            >
-              Partager sur WhatsApp
-            </Button>
-          </div>
-
-          <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
-            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Dates</dt>
-              <dd className="mt-0.5 font-medium">
-                {trip.start_date && trip.end_date
-                  ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
-                  : trip.start_date
-                    ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR")
-                    : "À définir"}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Lieu</dt>
-              <dd className="mt-0.5 font-medium">
-                {liveBudget.destinationName
-                  ? `${liveBudget.destinationName}${liveBudget.country ? ` · ${liveBudget.country}` : ""}`
-                  : "Destination à choisir"}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                Budget estimé par personne
-              </dt>
-              <dd className="mt-0.5 font-semibold text-primary text-sm">
-                {(costSplitData?.totalReserved != null && costSplitData.totalReserved > 0) ||
-                (costSplitData?.totalEstimated != null && costSplitData.totalEstimated > 0) ? (
-                  <div className="text-xs space-y-0.5 font-normal">
-                    <div className="flex justify-between gap-1">
-                      <span>Déjà réservé :</span>{" "}
-                      <span className="font-bold text-emerald-600">
-                        {formatEuro(costSplitData.totalReserved ?? 0)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between gap-1">
-                      <span>Reste estimé :</span>{" "}
-                      <span className="font-bold text-amber-600">
-                        {formatEuro(costSplitData.totalEstimated ?? 0)}
-                      </span>
-                    </div>
-                  </div>
-                ) : liveBudget.total > 0 ? (
-                  `~${formatEuro(liveBudget.total)} / pers.`
-                ) : (
-                  "À définir"
-                )}
-              </dd>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5">
-              <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">Groupe</dt>
-              <dd className="mt-0.5 font-medium">
-                {trip.participants_count || participants?.length || "?"} pers.
-                {liveBudget.topHotelName ? ` · hôtel : ${liveBudget.topHotelName}` : ""}
-              </dd>
-            </div>
-          </dl>
-
-          {liveBudget.total > 0 ? (
-            <ul className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <li className="rounded-full border border-border px-2.5 py-1">
-                Transport ~{formatEuro(liveBudget.transport)}
-              </li>
-              <li className="rounded-full border border-border px-2.5 py-1">
-                Hébergement ~{formatEuro(liveBudget.accommodation)}
-              </li>
-              <li className="rounded-full border border-border px-2.5 py-1">
-                Activités ~{formatEuro(liveBudget.activities)}
-              </li>
-              <li className="rounded-full border border-border px-2.5 py-1">
-                Repas ~{formatEuro(liveBudget.food)}
-              </li>
-              {liveBudget.transportPicksCount > 0 ? (
-                <li className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-1 text-primary">
-                  {liveBudget.transportPicksCount} trajet(s) choisi(s)
-                </li>
-              ) : null}
-            </ul>
-          ) : null}
-        </section>
+      {/* Main Dashboard Header & Actions */}
+      {currentView === "todo" || currentView === "organize" ? (
+        <TripHubDashboard
+          viewerUserId={data.userId}
+          tripId={tripId}
+          trip={{
+            ...trip,
+            participants: participants,
+          }}
+          isOwner={data.isOwner}
+          participantsCount={progress?.total || participants.length}
+          progressAnswered={progress?.answered ?? 0}
+          progressTotal={progress?.total || participants.length}
+          availabilityAnswered={availData?.answered ?? 0}
+          availabilityExpected={progress?.total || participants.length}
+          provisionalStart={
+            trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date
+          }
+          provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
+          myAvailabilityDone={Boolean(availData?.mine)}
+          myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
+          starDone={Boolean(starData?.preferences)}
+          hasRecommendations={recommendations.length > 0}
+          profileReady={Boolean(readiness?.profile.questionnairesReady)}
+          profileValidated={Boolean(profile?.validated)}
+          destinationSelected={recommendations.some((r) => r.is_selected)}
+          destinationName={recommendations.find((r) => r.is_selected)?.destinations?.name ?? null}
+          liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
+          totalReserved={costSplitData?.totalReserved ?? null}
+          totalEstimated={costSplitData?.totalEstimated ?? null}
+          topScores={recommendations.slice(0, 3).map((r) => ({
+            name: r.destinations?.name ?? "Destination",
+            score: r.score,
+          }))}
+          activitiesValidated={activitiesValidated}
+          tripEndDatePassed={tripEndDatePassed}
+        />
       ) : null}
 
+      {/* VUE SYNTHÈSE : VOYAGE */}
+      {currentView === "voyage" ? (
+        <div className="space-y-6">
+          <div className="rounded-[28px] border border-border/60 bg-card p-6 sm:p-8 space-y-6">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
+                {eventTypeLabel(trip.event_type)}
+              </p>
+              <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-tight text-foreground">
+                {trip.name}
+              </h1>
+              {celebratedPerson ? (
+                <p className="text-sm font-medium text-foreground/80 mt-1">
+                  Pour {celebratedPerson}
+                </p>
+              ) : null}
+            </div>
+
+            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+              <div className="rounded-2xl border border-border/50 bg-surface/40 p-4">
+                <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Dates</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {trip.start_date && trip.end_date
+                    ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`
+                    : "À définir"}
+                </dd>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "organize" }}
+                  hash="hub-dates"
+                  className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  Voir les dates →
+                </Link>
+              </div>
+
+              <div className="rounded-2xl border border-border/50 bg-surface/40 p-4">
+                <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Destination</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {liveBudget.destinationName
+                    ? `${liveBudget.destinationName}${liveBudget.country ? ` (${liveBudget.country})` : ""}`
+                    : "À définir"}
+                </dd>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "organize" }}
+                  hash="hub-destination"
+                  className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  Voir les destinations →
+                </Link>
+              </div>
+
+              <div className="rounded-2xl border border-border/50 bg-surface/40 p-4">
+                <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Hébergement</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {liveBudget.topHotelName || (logistics.hotelBookingStatus === "réservé" ? "Réservé" : "À définir")}
+                </dd>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "organize" }}
+                  hash="hub-logistics"
+                  className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  Voir l’hébergement →
+                </Link>
+              </div>
+
+              <div className="rounded-2xl border border-border/50 bg-surface/40 p-4">
+                <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Transport</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {liveBudget.transportPicksCount > 0
+                    ? `${liveBudget.transportPicksCount} trajet(s) choisi(s)`
+                    : "À définir"}
+                </dd>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "organize" }}
+                  hash="hub-transports"
+                  className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  Voir les transports →
+                </Link>
+              </div>
+
+              <div className="rounded-2xl border border-border/50 bg-surface/40 p-4">
+                <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Planning</dt>
+                <dd className="mt-1 font-medium text-foreground">
+                  {hasItinerary ? "Planning prêt" : "À définir"}
+                </dd>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "organize" }}
+                  hash="hub-activities-plan"
+                  className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  Voir le planning →
+                </Link>
+              </div>
+
+              <div className="rounded-2xl border border-border/50 bg-surface/40 p-4">
+                <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Budget estimé</dt>
+                <dd className="mt-1 font-medium text-foreground font-mono">
+                  {liveBudget.total > 0 ? `~${formatEuro(liveBudget.total)} / pers.` : "À définir"}
+                </dd>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "organize" }}
+                  hash="hub-cost-split"
+                  className="mt-2 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  Voir la répartition →
+                </Link>
+              </div>
+            </dl>
+          </div>
+        </div>
+      ) : null}
+
+      {/* DETAILED DOMAIN MODULES (rendered on view=organize) */}
+      {currentView === "organize" ? (
+        <>
       <section
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
         id="hub-dates"
@@ -2938,6 +3007,8 @@ function TripDetail() {
             </Button>
           </div>
         </section>
+      ) : null}
+        </>
       ) : null}
     </main>
   );

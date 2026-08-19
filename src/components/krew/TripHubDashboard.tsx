@@ -157,7 +157,7 @@ function NextActionsPanel({
   if (!myAvailabilityDone) {
     push({
       key: "avail",
-      title: "Indique tes disponibilités",
+      title: "Indiquer mes disponibilités",
       desc: "Indispensable pour trouver une date commune.",
       href: `/trips/${tripId}/availability`,
       icon: CalendarDays,
@@ -166,8 +166,8 @@ function NextActionsPanel({
   if (!myPreferencesDone) {
     push({
       key: "prefs",
-      title: "Remplis tes préférences",
-      desc: "Budget, ambiances, transports… pour scorer les destinations.",
+      title: "Renseigner mes préférences",
+      desc: "Budget, envies et transports pour trouver les destinations qui correspondent au groupe.",
       href: `/trips/${tripId}/questionnaire`,
       icon: ClipboardList,
     });
@@ -176,31 +176,31 @@ function NextActionsPanel({
     push({
       key: "star",
       title: trip.celebrated_person
-        ? `Préférences de ${trip.celebrated_person}`
-        : "Préférences de la Star",
-      desc: "Complète ses préférences pour le voyage.",
+        ? `Renseigner les préférences de ${trip.celebrated_person}`
+        : "Renseigner les préférences de la Star",
+      desc: "Compléter ses préférences pour le voyage.",
       href: `/trips/${tripId}/star`,
       icon: Star,
     });
   }
 
-  // —— 2. Après destination : hôtel + transport (tous) ——
+  // —— 2. Après destination : hébergement + transport (tous) ——
   if (destinationSelected) {
     if (hotelOffersReady && !myHotelVoted) {
       push({
         key: "hotel",
-        title: "Vote pour un hôtel",
-        desc: "Un vote par personne — l'orga réserve le plus plébiscité.",
-        href: `#hub-logistics`,
+        title: "Voter pour un hébergement",
+        desc: "Un vote par personne — l’organisateur·rice finalise le choix.",
+        href: `/trips/${tripId}?view=organize#hub-logistics`,
         icon: Hotel,
       });
     }
     if (transportOffersReady && !myTransportPicked) {
       push({
         key: "transport",
-        title: "Choisis ton trajet A/R",
-        desc: "Selon ta ville + horaires d'arrivée / départ (utile pour le planning).",
-        href: `#hub-transports`,
+        title: "Choisir mon trajet",
+        desc: "Selon la ville de départ et les contraintes horaires.",
+        href: `/trips/${tripId}?view=organize#hub-transports`,
         icon: Plane,
       });
     }
@@ -212,8 +212,8 @@ function NextActionsPanel({
       push({
         key: "lock-dates",
         title: "Valider les dates du groupe",
-        desc: "Verrouille le week-end pour débloquer les destinations.",
-        href: `#hub-dates`,
+        desc: "Cette validation débloque la suite du voyage.",
+        href: `/trips/${tripId}?view=organize#hub-dates`,
         icon: CalendarDays,
       });
     }
@@ -221,17 +221,17 @@ function NextActionsPanel({
       if (!hasRecommendations) {
         push({
           key: "gen",
-          title: "Générer des destinations",
+          title: "Trouver des destinations",
           desc: "Des propositions adaptées aux préférences du groupe.",
-          href: `#hub-destination`,
+          href: `/trips/${tripId}?view=organize#hub-destination`,
           icon: Sparkles,
         });
       } else {
         push({
           key: "pick-dest",
           title: "Valider une destination",
-          desc: "Débloque hôtels, trajets et planning.",
-          href: `#hub-destination`,
+          desc: "Cette validation débloque les hébergements, les trajets et le planning.",
+          href: `/trips/${tripId}?view=organize#hub-destination`,
           icon: MapPin,
         });
       }
@@ -239,9 +239,9 @@ function NextActionsPanel({
     if (destinationSelected && !hotelOffersReady) {
       push({
         key: "search-hotels",
-        title: "Lancer la recherche hôtels",
-        desc: "Propose des hébergements au groupe pour voter.",
-        href: `#hub-logistics`,
+        title: "Rechercher des hébergements",
+        desc: "Proposer des hébergements au groupe pour le vote.",
+        href: `/trips/${tripId}?view=organize#hub-logistics`,
         icon: Hotel,
       });
     }
@@ -249,8 +249,8 @@ function NextActionsPanel({
       push({
         key: "search-transport",
         title: "Proposer des trajets A/R",
-        desc: "Options par ville de départ pour que chacun choisisse.",
-        href: `#hub-transports`,
+        desc: "Des options adaptées aux villes de départ du groupe.",
+        href: `/trips/${tripId}?view=organize#hub-transports`,
         icon: Plane,
       });
     }
@@ -262,18 +262,18 @@ function NextActionsPanel({
     ) {
       push({
         key: "plan",
-        title: "Générer le planning",
-        desc: "Jour par jour, en tenant compte des horaires d'arrivée / départ.",
-        href: `#hub-activities-plan`,
+        title: "Créer le planning",
+        desc: "Construire le séjour jour par jour en tenant compte des horaires d’arrivée et de départ.",
+        href: `/trips/${tripId}?view=organize#hub-activities-plan`,
         icon: Sparkles,
       });
     }
     if (hasItinerary) {
       push({
         key: "refine",
-        title: "Affiner l'organisation",
-        desc: "Régénère un créneau, check hôtel top votes, partage le résumé.",
-        href: `#hub-activities-plan`,
+        title: "Affiner l’organisation",
+        desc: "Ajuster un créneau, vérifier les choix du groupe ou partager le résumé.",
+        href: `/trips/${tripId}?view=organize#hub-activities-plan`,
         icon: ClipboardList,
       });
     }
@@ -335,13 +335,13 @@ function NextActionsPanel({
             <p className="mt-1 text-sm leading-relaxed text-foreground/80">
               {isOwner
                 ? hasItinerary
-                  ? "Planning en place — tu peux encore ajuster hôtels, trajets ou créneaux plus bas."
+                  ? "Le planning est en place. Les choix restent modifiables si nécessaire."
                   : destinationSelected
-                    ? "Enchaîne hôtels, trajets et planning plus bas sur la page."
+                    ? "L’hébergement, le transport et le planning restent à finaliser."
                     : "Dès que le groupe a assez répondu, valide dates et destination."
                 : !destinationSelected
-                  ? "C'est aux autres de répondre, et à l'organisateur·rice de faire avancer le parcours."
-                  : "L'organisateur·rice finalise l'organisation. Tu seras prévenu·e dès qu'il y a du nouveau."}
+                  ? "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."
+                  : "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."}
             </p>
           </div>
         </div>

@@ -234,7 +234,7 @@ function InvitePage() {
         params={{ tripId }}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
-        <ArrowLeft className="size-4" /> Hub du voyage
+        <ArrowLeft className="size-4" /> ← Retour au voyage
       </Link>
 
       <div className="space-y-2">
@@ -317,7 +317,7 @@ function InvitePage() {
                   shareOnWhatsApp(text);
                 }}
               >
-                Inviter sur WhatsApp
+                Inviter via WhatsApp
               </Button>
               <Button
                 type="button"
@@ -348,7 +348,7 @@ function InvitePage() {
                   !progress?.participants?.some((p) => !p.hasAnswered || !p.hasAnsweredAvailability)
                 }
               >
-                Relancer le groupe
+                Relancer sur WhatsApp
               </Button>
             </div>
           </div>
@@ -399,12 +399,12 @@ function InvitePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={p.status === "accepte" ? "success" : "muted"} className="font-normal">{p.status === "accepte" ? "Participe" : p.status}</Badge>
-                  {data.isCreator && p.user_id && p.user_id !== trip.owner_id ? (
+                  {data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id ? (
                     p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-destructive hover:bg-destructive/5 h-8 px-2"
+                        className="text-xs text-destructive hover:bg-destructive/5 h-8 px-2 font-normal"
                         disabled={setCoOrgMutation.isPending}
                         onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
                       >
@@ -414,7 +414,7 @@ function InvitePage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-primary hover:bg-primary/5 h-8 px-2"
+                        className="text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 h-8 px-2 font-normal"
                         disabled={setCoOrgMutation.isPending}
                         onClick={() =>
                           setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })

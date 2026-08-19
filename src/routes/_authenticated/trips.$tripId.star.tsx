@@ -363,7 +363,7 @@ function StarQuestionnaire() {
         params={{ tripId }}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
-        <ArrowLeft className="size-4" /> Retour à Mon Voyage
+        <ArrowLeft className="size-4" /> ← Retour au voyage
       </Link>
 
       <div className="space-y-2">
@@ -376,72 +376,51 @@ function StarQuestionnaire() {
       </div>
 
       <div className="pt-4">
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
-          <h2 className="font-display text-2xl font-normal text-foreground">Sa façon de voyager</h2>
-          <div className="space-y-3">
-            <Label className="font-semibold block text-base text-foreground">Sur place, qu’est-ce que {starName} préférerait ?</Label>
-            <div className="grid grid-cols-1 gap-3">
-              {[
-                ["walk_transit", "Tout faire à pied / transports"],
-                ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"],
-                ["car_ok", "Aucun problème pour se déplacer en voiture"],
-              ].map(([value, label]) => (
-                <SelectableOption
-                  key={value}
-                  active={localMobility === value}
-                  onClick={() => setLocalMobility(value as typeof localMobility)}
-                >
-                  {label}
+        {/* 1. Envies & ambiance */}
+        <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
+          <div className="space-y-4">
+            <h2 className="font-display text-2xl font-normal text-foreground">Quelles activités plairaient à {starName} ?</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {STAR_WANTED_ACTIVITIES.map((a) => (
+                <SelectableOption key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
+                  <span className="mr-1.5">{STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"}</span> {a.charAt(0).toUpperCase() + a.slice(1)}
                 </SelectableOption>
               ))}
             </div>
           </div>
-          <div className="space-y-3 pt-4">
-            <Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label>
-            <div className="grid grid-cols-1 gap-3">
-              {[
-                ["base_only", "Un point de chute"],
-                ["part_of_stay", "Un lieu où on aime aussi passer du temps"],
-                ["centerpiece", "Une vraie partie du voyage"],
-              ].map(([value, label]) => (
+
+          <div className="space-y-4 pt-2">
+            <h2 className="font-display text-2xl font-normal text-foreground">Quelle ambiance {starName} apprécierait ?</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {AMBIANCES.map((a) => (
                 <SelectableOption
-                  key={value}
-                  active={accommodationRole === value}
-                  onClick={() => setAccommodationRole(value as typeof accommodationRole)}
+                  key={a.value}
+                  active={ambiances.includes(a.value)}
+                  onClick={() => toggle(ambiances, setAmbiances, a.value)}
                 >
-                  {label}
+                  <span className="mr-1.5">{a.emoji}</span> {a.label}
+                </SelectableOption>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <h2 className="font-display text-2xl font-normal text-foreground">Que refuserait absolument {starName} ?</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {STAR_DEAL_BREAKERS.map((a) => (
+                <SelectableOption
+                  key={a}
+                  active={breakers.includes(a)}
+                  onClick={() => toggle(breakers, setBreakers, a)}
+                >
+                  <span className="mr-1.5">{STAR_DEAL_BREAKERS_EMOJIS[a] || "🚫"}</span> {a}
                 </SelectableOption>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Point de départ */}
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-3">
-          <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
-            <MapPin className="size-5 text-primary" />
-            Point de départ
-          </h2>
-          <div className="space-y-2">
-            <Label htmlFor="departure" className="font-semibold block text-base text-foreground">D’où partirait {starName} ? (ville ou code postal)</Label>
-            <CityAutocomplete
-              id="departure"
-              value={departureCity}
-              onChange={setDepartureCity}
-              onSelect={(sel) => {
-                setDepartureCity(sel.city);
-                if (sel.airportIata) {
-                  setDepartureAirportOrStation(sel.airportIata);
-                } else {
-                  setDepartureAirportOrStation("");
-                }
-              }}
-              placeholder="Ex. Lyon, 69001, Paris…"
-            />
-          </div>
-        </section>
-
-        {/* Destinations rêvées / banni */}
+        {/* 2. Destination & cadre */}
         <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
           <h2 className="font-display text-2xl font-normal text-foreground">Les lieux qui plairaient à {starName}</h2>
           <div className="space-y-2">
@@ -514,132 +493,158 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-      {/* Disponibilités Calendrier */}
-      <section className="space-y-4 py-4 border-b border-border/50">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">Disponibilités de {starName}</h2>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Indique les dates où {starName} serait disponible ou indisponible.
-        </p>
-
-        {/* Mode peinture */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPaintMode("available")}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
-              paintMode === "available"
-                ? "border-lagoon bg-lagoon text-white"
-                : "border-border bg-background text-muted-foreground hover:border-lagoon/50",
-            )}
-          >
-            <span className="size-2 rounded-full bg-current" /> Disponible
-          </button>
-          <button
-            type="button"
-            onClick={() => setPaintMode("blocked")}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
-              paintMode === "blocked"
-                ? "border-destructive bg-destructive text-white"
-                : "border-border bg-background text-muted-foreground hover:border-destructive/50",
-            )}
-          >
-            <span className="size-2 rounded-full bg-current" /> Impossible
-          </button>
-        </div>
-
-        {/* Navigation mois */}
-        <div className="flex items-center justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}
-            disabled={monthOffset <= 0}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <p className="text-[10px] text-muted-foreground">Fais défiler les mois →</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setMonthOffset((o) => o + 1)}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {months.map((m) => (
-            <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />
-          ))}
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={selectWeekendsInView}
-          >
-            Tous les week-ends affichés
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-xs"
-            onClick={clearSelection}
-          >
-            Tout effacer
-          </Button>
-        </div>
-      </section>
-
+        {/* 3. Hébergement */}
         <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
-          <h2 className="font-display text-2xl font-normal text-foreground">Quelles activités plairaient à {starName} ?</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {STAR_WANTED_ACTIVITIES.map((a) => (
-              <SelectableOption key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
-                <span className="mr-1.5">{STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"}</span> {a.charAt(0).toUpperCase() + a.slice(1)}
-              </SelectableOption>
-            ))}
+          <h2 className="font-display text-2xl font-normal text-foreground">Hébergement</h2>
+          <div className="space-y-3">
+            <Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label>
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                ["base_only", "Un point de chute"],
+                ["part_of_stay", "Un lieu où on aime aussi passer du temps"],
+                ["centerpiece", "Une vraie partie du voyage"],
+              ].map(([value, label]) => (
+                <SelectableOption
+                  key={value}
+                  active={accommodationRole === value}
+                  onClick={() => setAccommodationRole(value as typeof accommodationRole)}
+                >
+                  {label}
+                </SelectableOption>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
-          <h2 className="font-display text-2xl font-normal text-foreground">Que refuserait absolument {starName} ?</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {STAR_DEAL_BREAKERS.map((a) => (
-              <SelectableOption
-                key={a}
-                active={breakers.includes(a)}
-                onClick={() => toggle(breakers, setBreakers, a)}
-              >
-                <span className="mr-1.5">{STAR_DEAL_BREAKERS_EMOJIS[a] || "🚫"}</span> {a}
-              </SelectableOption>
-            ))}
+        {/* 4. Transport */}
+        <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
+          <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+            <MapPin className="size-5 text-primary" />
+            Transport
+          </h2>
+          <div className="space-y-2">
+            <Label htmlFor="departure" className="font-semibold block text-base text-foreground">D’où partirait {starName} ? (ville ou code postal)</Label>
+            <CityAutocomplete
+              id="departure"
+              value={departureCity}
+              onChange={setDepartureCity}
+              onSelect={(sel) => {
+                setDepartureCity(sel.city);
+                if (sel.airportIata) {
+                  setDepartureAirportOrStation(sel.airportIata);
+                } else {
+                  setDepartureAirportOrStation("");
+                }
+              }}
+              placeholder="Ex. Lyon, 69001, Paris…"
+            />
+          </div>
+          <div className="space-y-3 pt-2">
+            <Label className="font-semibold block text-base text-foreground">Sur place, qu’est-ce que {starName} préférerait ?</Label>
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                ["walk_transit", "Tout faire à pied / transports"],
+                ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"],
+                ["car_ok", "Aucun problème pour se déplacer en voiture"],
+              ].map(([value, label]) => (
+                <SelectableOption
+                  key={value}
+                  active={localMobility === value}
+                  onClick={() => setLocalMobility(value as typeof localMobility)}
+                >
+                  {label}
+                </SelectableOption>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
-          <h2 className="font-display text-2xl font-normal text-foreground">Quelle ambiance {starName} apprécierait ?</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {AMBIANCES.map((a) => (
-              <SelectableOption
-                key={a.value}
-                active={ambiances.includes(a.value)}
-                onClick={() => toggle(ambiances, setAmbiances, a.value)}
-              >
-                <span className="mr-1.5">{a.emoji}</span> {a.label}
-              </SelectableOption>
+        {/* 5. Disponibilités Calendrier */}
+        <section className="space-y-4 pb-8 mb-8 border-b border-border/50">
+          <h2 className="font-display text-2xl font-normal text-foreground">Disponibilités de {starName}</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Indique les dates où {starName} serait disponible ou indisponible.
+          </p>
+
+          {/* Mode peinture */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setPaintMode("available")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
+                paintMode === "available"
+                  ? "border-lagoon bg-lagoon text-white"
+                  : "border-border bg-background text-muted-foreground hover:border-lagoon/50",
+              )}
+            >
+              <span className="size-2 rounded-full bg-current" /> Disponible
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaintMode("blocked")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
+                paintMode === "blocked"
+                  ? "border-destructive bg-destructive text-white"
+                  : "border-border bg-background text-muted-foreground hover:border-destructive/50",
+              )}
+            >
+              <span className="size-2 rounded-full bg-current" /> Impossible
+            </button>
+          </div>
+
+          {/* Navigation mois */}
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}
+              disabled={monthOffset <= 0}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <p className="text-[10px] text-muted-foreground">Fais défiler les mois →</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMonthOffset((o) => o + 1)}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {months.map((m) => (
+              <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />
             ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={selectWeekendsInView}
+            >
+              Tous les week-ends affichés
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={clearSelection}
+            >
+              Tout effacer
+            </Button>
           </div>
         </section>
 
+        {/* 6. Précisions */}
         <section className="space-y-2 pb-8">
           <Label className="font-semibold block text-base text-foreground">Autres précisions utiles sur les préférences de {starName}</Label>
           <Textarea
