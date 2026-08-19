@@ -62,6 +62,7 @@
   --font-mono: "Space Mono", ui-monospace, monospace;
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
+  --color-sage: var(--sage);
   --color-lagoon: var(--lagoon);
   --color-lagoon-foreground: var(--lagoon-foreground);
   --color-sun: var(--sun);
@@ -103,6 +104,9 @@
   /* Accent Sauge doux */
   --accent: oklch(0.94 0.015 162.8);
   --accent-foreground: oklch(0.207 0.016 330.9);
+
+  /* Token Vert Sauge visible (#8FA89B) */
+  --sage: oklch(0.709 0.034 162.8);
 
   /* Remapping legacy pour rétro-compatibilité temporaire */
   --lagoon: oklch(0.709 0.034 162.8); /* Remapped vers Vert Sauge */
@@ -192,7 +196,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  h1, h2, h3, h4, .font-display {
+  .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }

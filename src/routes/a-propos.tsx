@@ -69,7 +69,7 @@ function AboutPage() {
         <div className="mt-12 text-center py-8 border-t border-border/60">
           <h3 className="font-display text-2xl font-bold">Prêt pour le prochain voyage ?</h3>
           <p className="text-xs text-muted-foreground mt-1">Crée ton premier voyage et invite le groupe.</p>
-          <Button asChild className="mt-4" variant="hero">
+          <Button asChild className="mt-4">
             <Link to="/trips/new">Créer mon voyage</Link>
           </Button>
         </div>

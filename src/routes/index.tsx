@@ -232,8 +232,16 @@ function Landing() {
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">État des réponses</p>
                   <div className="flex gap-4">
-                    <p className="text-xs">📅 Disponibilités : <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">8/8</span></p>
-                    <p className="text-xs">⚙️ Préférences : <span className="font-mono font-semibold text-emerald-700 dark:text-emerald-400">8/8</span></p>
+                    <p className="text-xs inline-flex items-center gap-1">
+                      <CalendarCheck className="size-3.5 text-primary" />
+                      <span>Disponibilités : </span>
+                      <span className="font-mono font-semibold text-success">8/8</span>
+                    </p>
+                    <p className="text-xs inline-flex items-center gap-1">
+                      <Vote className="size-3.5 text-primary" />
+                      <span>Préférences : </span>
+                      <span className="font-mono font-semibold text-success">8/8</span>
+                    </p>
                   </div>
                 </div>
               </div>
@@ -242,7 +250,7 @@ function Landing() {
                 <div className="space-y-6">
                   <div className="space-y-3">
                     <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground">
-                      <Check className="size-4 text-emerald-600" />
+                      <Check className="size-4 text-success" />
                       Hébergement retenu par le groupe
                     </h4>
                     <div className="rounded-xl border border-border p-4 bg-background">
@@ -259,7 +267,7 @@ function Landing() {
 
                   <div className="space-y-3">
                     <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground">
-                      <Check className="size-4 text-emerald-600" />
+                      <Check className="size-4 text-success" />
                       Transports par ville de départ
                     </h4>
                     <ul className="space-y-2">
@@ -277,7 +285,7 @@ function Landing() {
 
                 <div className="space-y-3">
                   <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground">
-                    <Check className="size-4 text-emerald-600" />
+                    <Check className="size-4 text-success" />
                     Extrait du planning jour par jour
                   </h4>
                   <div className="space-y-3.5 pt-1">

@@ -109,7 +109,7 @@ function TripCard({
               isCompleteStage
                 ? "success"
                 : isMiddleStage
-                  ? "lagoon"
+                  ? "secondary"
                   : "muted"
             }
             className="shrink-0 font-normal"
@@ -159,12 +159,12 @@ function TripCard({
                   <span className="truncate max-w-[100px]">{m.name}</span>
                   <span className="flex items-center gap-1 shrink-0">
                     {m.availabilityDone ? (
-                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                      <span className="size-1.5 rounded-full bg-success" />
                     ) : (
                       <span className="size-1.5 rounded-full bg-muted-foreground/30" />
                     )}
                     {m.preferencesDone ? (
-                      <Check className="size-3 text-secondary shrink-0" />
+                      <Check className="size-3 text-sage shrink-0" />
                     ) : (
                       <span className="size-1.5 rounded-full bg-muted-foreground/30" />
                     )}
@@ -259,7 +259,7 @@ function Dashboard() {
             Tes projets en cours et tes invitations reçues.
           </p>
         </div>
-        <Button asChild variant="hero">
+        <Button asChild>
           <Link to="/trips/new">
             <Plus className="size-4" /> Nouveau voyage
           </Link>
@@ -316,7 +316,7 @@ function Dashboard() {
             Lance le questionnaire KREW : en quelques minutes tu obtiens destination, hébergement,
             activités et budget détaillé.
           </p>
-          <Button asChild variant="hero" size="lg" className="mt-6">
+          <Button asChild size="lg" className="mt-6">
             <Link to="/trips/new">Créer mon premier voyage</Link>
           </Button>
         </div>

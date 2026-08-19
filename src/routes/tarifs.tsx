@@ -59,7 +59,7 @@ function PricingPage() {
               </ul>
             </div>
             <div className="mt-8 text-center">
-              <Button asChild variant="hero" className="w-full">
+              <Button asChild className="w-full">
                 <Link to="/trips/new">Créer mon voyage gratuitement</Link>
               </Button>
             </div>

@@ -106,7 +106,7 @@ export function PackingListCard({
                 className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {state.checked[item.id] ? (
-                  <CheckSquare className="size-4 text-secondary" />
+                  <CheckSquare className="size-4 text-sage" />
                 ) : (
                   <Square className="size-4" />
                 )}
