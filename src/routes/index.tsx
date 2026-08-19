@@ -69,37 +69,81 @@ function Landing() {
       <SiteHeader />
 
       <main>
-        {/* ——— Hero Éditorial ——— */}
-        <section className="relative overflow-hidden pt-8 pb-16 sm:pt-12 sm:pb-20 lg:pt-14 lg:pb-20 min-h-[760px]">
-          <div className="mx-auto max-w-[1440px] px-6 lg:px-10 xl:px-14">
-            <div className="grid gap-10 lg:grid-cols-12 lg:items-center lg:gap-12">
+        {/* ——— Hero Immersif V2 ——— */}
+        <section className="relative overflow-hidden pt-8 pb-16 sm:pt-12 sm:pb-20 lg:pt-14 lg:pb-20 min-h-[500px] lg:min-h-[clamp(780px,100vh-72px,900px)]">
+          {/* KrewMark Circle coupée haut/droite viewport */}
+          <KrewMark
+            type="circle"
+            tone="sage"
+            size="lg"
+            rotation={8}
+            className="hidden lg:block absolute -top-12 -right-16 w-[190px] h-auto opacity-80 pointer-events-none z-10"
+          />
 
-              {/* Colonne gauche : Titre & Actions */}
-              <div className="lg:col-span-7">
+          <div className="mx-auto max-w-[1500px] px-6 lg:px-10 xl:px-14 relative">
+            {/* Desktop Immersive Composition */}
+            <div className="relative lg:min-h-[680px]">
+              {/* Photo Absolute Right (Desktop) */}
+              <div className="relative lg:absolute lg:right-[clamp(24px,4vw,72px)] lg:top-14 w-full lg:w-[min(46vw,680px)] h-[500px] lg:h-[min(76vh,720px)] lg:min-h-[620px] z-10 my-8 lg:my-0">
+                {/* Aplat Sauge derrière photo */}
+                <div className="absolute -bottom-4 -right-4 lg:right-0 lg:top-[105px] w-[90%] lg:w-[min(43vw,640px)] h-[94%] lg:h-[min(75vh,700px)] rounded-[36px] lg:rounded-[40px] bg-sage/25 lg:translate-x-8 lg:translate-y-8 pointer-events-none -z-10" />
+
+                <div className="relative overflow-hidden rounded-[32px] lg:rounded-[36px] border border-border/60 bg-card shadow-none h-full w-full">
+                  <img
+                    src={heroImage}
+                    alt=""
+                    className="h-full w-full object-cover object-center"
+                    fetchPriority="high"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-transparent to-transparent" />
+
+                  <div className="absolute bottom-6 left-6 lg:bottom-7 lg:left-7 text-white max-w-[320px]">
+                    <p className="font-display text-2xl sm:text-[32px] lg:text-[38px] font-normal leading-tight lg:leading-[0.95]">
+                      La Team. Le Plan. Le Moment.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contenu Texte Chevauchant (Desktop) */}
+              <div className="relative z-20 lg:max-w-[68%] pt-2 lg:pt-6">
                 <p className="mb-6 text-sm font-medium text-primary">
                   L’organisation des voyages de groupe, simplement
                 </p>
 
                 <div className="relative">
-                  <h1 className="font-display text-[52px] sm:text-[72px] lg:text-[88px] xl:text-[96px] font-normal tracking-[-0.035em] text-foreground leading-[0.96] lg:leading-[0.92]">
+                  <h1 className="font-display text-[56px] sm:text-[72px] lg:text-[clamp(96px,8vw,128px)] font-normal tracking-[-0.035em] lg:tracking-[-0.045em] text-foreground leading-[0.92] lg:leading-[0.86]">
                     Le voyage de groupe,{" "}
                     <span className="italic text-primary">organisé pour toi.</span>
                   </h1>
-                  <KrewMark type="underline" tone="sage" size="lg" rotation={-2} className="absolute left-0 -bottom-6 w-[150px] sm:w-[220px] h-auto opacity-80 pointer-events-none" />
+                  <KrewMark
+                    type="underline"
+                    tone="sage"
+                    size="lg"
+                    rotation={-3}
+                    className="absolute left-0 -bottom-6 w-[160px] lg:w-[280px] h-auto opacity-85 pointer-events-none"
+                  />
                 </div>
 
-                <p className="mt-8 sm:mt-10 max-w-[500px] text-base sm:text-lg text-muted-foreground leading-relaxed">
+                <p className="mt-8 sm:mt-10 max-w-[460px] text-base sm:text-lg text-muted-foreground leading-relaxed">
                   Disponibilités, envies, budget : KREW rassemble les réponses du groupe et t’aide à
                   organiser le séjour, étape par étape.
                 </p>
 
-                <div className="mt-8 flex flex-wrap items-center gap-3">
+                <div className="mt-8 flex flex-wrap items-center gap-3 relative">
                   <Button asChild size="xl" className="rounded-xl px-7 text-base font-medium shadow-none">
                     <Link to="/trips/new">Créer mon voyage</Link>
                   </Button>
                   <Button asChild variant="ghost" size="lg" className="rounded-xl px-5 text-muted-foreground hover:text-foreground">
                     <Link to="/auth" search={{}}>Se connecter</Link>
                   </Button>
+                  <KrewMark
+                    type="arrow"
+                    tone="plum"
+                    size="lg"
+                    rotation={-8}
+                    className="hidden lg:block absolute -right-24 -top-2 w-[120px] h-auto pointer-events-none"
+                  />
                 </div>
 
                 <ul className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-foreground">
@@ -113,31 +157,6 @@ function Landing() {
                     </li>
                   ))}
                 </ul>
-
-                <KrewMark type="arrow" tone="plum" size="md" rotation={-4} className="hidden lg:block absolute w-[96px] bottom-12 left-1/2 pointer-events-none" />
-              </div>
-
-              {/* Colonne droite : Photo Cadre Éditorial */}
-              <div className="lg:col-span-5">
-                <div className="relative mx-auto max-w-md lg:max-w-none">
-                  {/* Rectangle Sauge exact derrière photo */}
-                  <div className="absolute w-[88%] sm:w-[82%] h-[92%] sm:h-[88%] -bottom-4 sm:-bottom-8 -right-4 sm:-right-8 rounded-[36px] bg-sage/18 pointer-events-none" />
-                  <div className="relative overflow-hidden rounded-[32px] border border-border/60 bg-card shadow-none h-[460px] sm:h-[520px] lg:h-[660px] xl:h-[700px] w-full">
-                    <img
-                      src={heroImage}
-                      alt=""
-                      className="h-full w-full object-cover object-center"
-                      fetchPriority="high"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-transparent to-transparent" />
-
-                    <div className="absolute bottom-6 left-6 text-white">
-                      <p className="font-display text-2xl sm:text-[32px] font-normal leading-[1]">
-                        La Team. Le Plan. Le Moment.
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
 
             </div>
@@ -145,14 +164,11 @@ function Landing() {
         </section>
 
         {/* ——— Types d'événements ——— */}
-        <section className="py-10 border-y border-border/70 bg-background">
-          <div className="mx-auto max-w-[1240px] px-6 flex flex-wrap items-center justify-center gap-y-3 text-sm">
-            <div className="relative flex items-center mr-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Idéal pour
-              </span>
-              <KrewMark type="circle" tone="sage" size="sm" rotation={2} className="absolute w-8 -left-2 -top-1 opacity-70 pointer-events-none" />
-            </div>
+        <section className="py-14 border-y border-border/70 bg-background">
+          <div className="mx-auto max-w-[1180px] px-6 flex flex-wrap items-center justify-center lg:justify-start gap-y-3 text-sm">
+            <span className="mr-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Idéal pour
+            </span>
             {EVENT_TYPES.slice(0, 6).map((ev, index) => (
               <div key={ev.value} className={`flex items-center ${index > 0 ? "border-l border-border/60 pl-4 ml-4" : ""}`}>
                 <Link
@@ -166,59 +182,87 @@ function Landing() {
           </div>
         </section>
 
-        {/* ——— Comment ça marche (stepper éditorial LE PLAN) ——— */}
-        <section className="mx-auto max-w-[1280px] px-6 py-16 sm:py-24 lg:py-28 min-h-0 lg:min-h-[840px] relative">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-2">
-              LE PLAN
-            </span>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Comment ça marche
-            </p>
-            <h2 className="relative inline-block mt-3 font-display text-3xl sm:text-4xl lg:text-[58px] font-normal text-foreground leading-tight lg:leading-[0.98] tracking-normal lg:tracking-[-0.025em]">
-              Trois étapes, zéro chaos
-              <KrewMark type="highlight" tone="sage" size="lg" rotation={-2} className="absolute w-[260px] opacity-70 -z-10 left-1/2 -bottom-2 pointer-events-none" />
-            </h2>
-          </div>
-
-          <div className="relative mx-auto mt-16 lg:mt-24 max-w-5xl">
-            {/* Connectors Desktop */}
-            <div className="hidden lg:block absolute inset-0 pointer-events-none z-0">
-              <KrewMark type="connector" tone="sage" size="lg" rotation={-2} className="absolute w-[260px] opacity-55 left-[24%] top-[140px]" />
-              <KrewMark type="connector" tone="sage" size="lg" rotation={2} className="absolute w-[260px] opacity-55 right-[24%] top-[200px]" />
+        {/* ——— Comment ça marche (stepper éditorial LE PLAN V2) ——— */}
+        <section className="relative overflow-hidden py-16 sm:py-24 lg:py-[140px] bg-background">
+          <div className="mx-auto max-w-[1320px] px-6 lg:px-10 relative">
+            <div className="mx-auto max-w-[680px] text-center">
+              <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-2">
+                LE PLAN
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Comment ça marche
+              </p>
+              <h2 className="relative inline-block mt-3 font-display text-3xl sm:text-5xl lg:text-[72px] font-normal text-foreground leading-tight lg:leading-[0.90]">
+                Trois étapes, zéro chaos
+                <KrewMark
+                  type="highlight"
+                  tone="sage"
+                  size="lg"
+                  rotation={-3}
+                  className="absolute w-[340px] opacity-75 -z-10 right-0 -bottom-2 pointer-events-none"
+                />
+              </h2>
             </div>
 
-            {/* Trajectoire mobile */}
-            <div className="lg:hidden absolute top-5 bottom-5 left-5 w-0 border-l border-sage/30" />
+            <div className="relative mx-auto mt-16 lg:mt-24">
+              {/* Connectors Desktop */}
+              <div className="hidden lg:block absolute inset-0 pointer-events-none z-0">
+                <KrewMark
+                  type="connector"
+                  tone="sage"
+                  size="lg"
+                  rotation={-3}
+                  className="absolute w-[300px] opacity-55 left-[22%] top-[120px]"
+                />
+                <KrewMark
+                  type="connector"
+                  tone="sage"
+                  size="lg"
+                  rotation={3}
+                  className="absolute w-[300px] opacity-55 right-[22%] top-[240px]"
+                />
+              </div>
 
-            <div className="grid gap-14 lg:gap-8 lg:grid-cols-3 relative z-10">
-              {STEPS.map((step, i) => {
-                const offsets = ["lg:translate-y-0", "lg:translate-y-24", "lg:translate-y-8"];
-                return (
-                  <div key={step.title} className={`relative flex flex-col items-start pl-14 lg:pl-0 ${offsets[i]}`}>
-                    <span aria-hidden="true" className="font-display text-[72px] lg:text-[128px] font-normal text-sage/20 leading-none select-none -mb-4 lg:-mb-10">
-                      0{i + 1}
-                    </span>
-                    <div className="flex items-center justify-between w-full mb-3">
-                      <div className={`flex size-11 items-center justify-center rounded-lg ${i === 1 ? 'bg-sage/12 text-sage' : 'bg-primary/8 text-primary'}`}>
-                        <step.icon className="size-5" />
-                      </div>
-                      <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
-                        Étape {i + 1}
+              {/* Trajectoire mobile */}
+              <div className="lg:hidden absolute top-5 bottom-5 left-5 w-0 border-l border-sage/30" />
+
+              <div className="grid gap-14 lg:gap-8 lg:grid-cols-3 relative z-10">
+                {STEPS.map((step, i) => {
+                  const offsets = ["lg:translate-y-0", "lg:translate-y-[180px]", "lg:translate-y-[90px]"];
+                  const numberStyles = [
+                    "text-sage/22",
+                    "text-primary/10",
+                    "text-sage/22",
+                  ];
+                  return (
+                    <div key={step.title} className={`relative flex flex-col items-start pl-14 lg:pl-0 max-w-[300px] mx-auto lg:mx-0 ${offsets[i]}`}>
+                      <span
+                        aria-hidden="true"
+                        className={`font-display text-[84px] lg:text-[190px] ${i === 1 ? "lg:text-[220px]" : ""} font-normal ${numberStyles[i]} leading-none select-none -mb-4 lg:-mb-14`}
+                      >
+                        0{i + 1}
                       </span>
+                      <div className="flex items-center justify-between w-full mb-3">
+                        <div className={`flex size-11 items-center justify-center rounded-lg ${i === 1 ? 'bg-sage/12 text-sage' : 'bg-primary/8 text-primary'}`}>
+                          <step.icon className="size-5" />
+                        </div>
+                        <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                          Étape {i + 1}
+                        </span>
+                      </div>
+                      <h3 className="text-base sm:text-lg font-semibold text-foreground mt-1">{step.title}</h3>
+                      <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{step.text}</p>
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-foreground mt-1">{step.title}</h3>
-                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed max-w-xs">{step.text}</p>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ——— Aperçu Projet Complet Fictif (LE MOMENT) ——— */}
-        <section className="w-full bg-sage/12 py-16 sm:py-24 lg:py-28">
-          <div className="mx-auto max-w-[1360px] px-6 lg:px-10">
+        {/* ——— Aperçu Projet Complet Fictif (LE MOMENT V2 IMMERSION) ——— */}
+        <section className="w-full bg-sage/18 py-16 sm:py-24 lg:py-[140px]">
+          <div className="mx-auto max-w-[1440px] px-6 lg:px-10 xl:px-14">
             <div className="mx-auto max-w-2xl text-center mb-12 lg:mb-16">
               <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-2">
                 LE MOMENT
@@ -230,40 +274,46 @@ function Landing() {
               </p>
             </div>
 
-            {/* Composition Ouverte sans Wrapper Card */}
+            {/* Composition Immersion V2 */}
             <div className="grid gap-10 lg:grid-cols-12 lg:items-center xl:gap-14">
 
-              {/* Photo Lisbonne */}
+              {/* Photo Lisbonne (62% width equivalent on desktop grid) */}
               <div className="lg:col-span-7 relative">
                 <img
                   src="https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=1200&q=80"
                   alt=""
-                  className="h-[400px] lg:h-[580px] xl:h-[620px] w-full object-cover rounded-[28px]"
+                  className="h-[440px] lg:h-[640px] w-full object-cover rounded-[32px]"
                 />
 
-                {/* Budget Chevauchement Desktop */}
-                <div className="hidden lg:block absolute right-0 bottom-12 translate-x-12 bg-background rounded-xl px-6 py-5 shadow-none border border-border/40">
+                {/* Budget Chevauchement Desktop (Max 64px) */}
+                <div className="hidden lg:block absolute right-0 bottom-12 translate-x-12 bg-background rounded-xl px-7 py-6 shadow-none border border-border/40 z-20">
                   <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Budget estimé par personne</p>
-                  <p className="font-mono text-[48px] font-bold text-primary leading-none mt-2">~360 €</p>
+                  <p className="font-mono text-[64px] font-bold text-primary leading-none mt-2">~360 €</p>
                 </div>
               </div>
 
               {/* Contenu principal */}
               <div className="lg:col-span-5 space-y-6 relative">
-                <KrewMark type="heart" tone="plum" size="lg" rotation={4} className="w-[84px] opacity-75 pointer-events-none absolute -top-10 right-0 hidden lg:block" />
+                <KrewMark
+                  type="heart"
+                  tone="plum"
+                  size="lg"
+                  rotation={4}
+                  className="w-[96px] opacity-75 pointer-events-none absolute -top-12 right-0 hidden lg:block"
+                />
 
                 <div>
                   <span className="text-[10px] font-semibold uppercase tracking-wider bg-foreground/10 px-2.5 py-0.5 rounded-full text-foreground">Exemple de projet final</span>
-                  <h3 className="font-display text-3xl sm:text-4xl lg:text-[58px] font-normal leading-tight lg:leading-[0.98] tracking-normal lg:tracking-[-0.025em] text-foreground mt-2">
+                  <h3 className="font-display text-[48px] sm:text-4xl lg:text-[72px] font-normal leading-[0.95] lg:leading-[0.9] tracking-[-0.03em] text-foreground mt-2">
                     Week-end Retrouvailles à Lisbonne
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1.5">Organisé par Thomas · 8 personnes</p>
+                  <p className="text-xs text-muted-foreground mt-2">Organisé par Thomas · 8 personnes</p>
                 </div>
 
-                {/* Budget Mobile */}
+                {/* Budget Mobile (Max 28px overlap) */}
                 <div className="lg:hidden -mt-7 relative z-10 bg-background rounded-xl p-4 border border-border/40 w-fit">
                   <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Budget estimé / personne</p>
-                  <p className="font-mono text-3xl font-bold text-primary leading-none mt-1">~360 €</p>
+                  <p className="font-mono text-[44px] font-bold text-primary leading-none mt-1">~360 €</p>
                 </div>
 
                 <div className="border-t border-b border-border/50 py-4 grid gap-4 text-sm">
