@@ -375,9 +375,14 @@ export function adjustItineraryTransferTimes(
 
         const duration = slot.durationMinutes ?? 90;
 
-        // Calculate transfer time if previous external location exists
-        const distance = previousCoords ? haversineDistanceKm(previousCoords, slot) : null;
-        const requiredTransfer = previousEnd >= 0 ? transferMinutes(distance) : 0;
+        // Calculate transfer time if both previous and current location have valid coordinates
+        const hasCoords =
+          previousCoords?.latitude != null &&
+          previousCoords?.longitude != null &&
+          slot.latitude != null &&
+          slot.longitude != null;
+        const distance = hasCoords ? haversineDistanceKm(previousCoords, slot) : null;
+        const requiredTransfer = previousEnd >= 0 && distance != null ? transferMinutes(distance) : 0;
         const minStart = previousEnd >= 0 ? previousEnd + requiredTransfer : start;
 
         if (start < minStart) {

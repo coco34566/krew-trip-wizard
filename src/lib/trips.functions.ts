@@ -2151,10 +2151,12 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const usedCandidateIdsSet = new Set<string>();
 
     const daysPlans: import("@/lib/krew/activity-ai.server").ItineraryDayPlan[] = [];
-    let lastSlotCoords: { latitude?: number | null; longitude?: number | null } | null =
-      refLat != null && refLon != null ? { latitude: refLat, longitude: refLon } : null;
 
     for (const day of enrichedSkeleton.days) {
+      // Reset spatial reference point to daily reference (accommodation or destination) at the start of each day
+      let lastSlotCoords: { latitude?: number | null; longitude?: number | null } | null =
+        refLat != null && refLon != null ? { latitude: refLat, longitude: refLon } : null;
+
       const slots: import("@/lib/krew/activity-ai.server").ActivitySlot[] = [];
 
       for (const s of day.slots) {
@@ -2379,11 +2381,21 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       const accRole = aggregated.groupAccommodationRole;
 
       const logistics = ((tripRes.data as any).group_logistics || {}) as any;
-      let refLat: number | null = current.latitude ?? null;
-      let refLon: number | null = current.longitude ?? null;
+      let refLat: number | null = null;
+      let refLon: number | null = null;
 
       // Coordinate reference hierarchy:
-      // 1. Slot's previous place location (current.latitude/longitude)
+      // 1. Coordinates of the previous slot in the same day (if valid)
+      const prevSlots = dayPlan.slots.slice(0, data.slotIndex);
+      for (let i = prevSlots.length - 1; i >= 0; i--) {
+        const pSlot = prevSlots[i];
+        if (pSlot?.latitude != null && pSlot?.longitude != null) {
+          refLat = Number(pSlot.latitude);
+          refLon = Number(pSlot.longitude);
+          break;
+        }
+      }
+
       // 2. Selected accommodation coordinates (if centerpiece/part_of_stay)
       if (refLat == null || refLon == null) {
         if ((accRole === "centerpiece" || accRole === "part_of_stay") && logistics.selectedHotelId) {

@@ -34,7 +34,7 @@ export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: strin
     return ["catering.bar", "catering.pub"];
   }
   if (norm.includes("nightlife") || norm.includes("club") || norm.includes("soiree") || norm.includes("fete")) {
-    return ["catering.bar", "catering.pub", "entertainment.nightclub"];
+    return ["catering.bar", "catering.pub"];
   }
   if (norm.includes("sport") || norm.includes("outdoor") || norm.includes("nature") || norm.includes("rando") || norm.includes("velo")) {
     return ["sport", "entertainment.activity_park", "tourism.attraction"];
@@ -42,8 +42,8 @@ export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: strin
   if (norm.includes("culture") || norm.includes("visite") || norm.includes("musee") || norm.includes("monument") || norm.includes("patrimoine")) {
     return ["tourism.sights", "tourism.attraction", "entertainment.museum", "entertainment.culture"];
   }
-  if (norm.includes("relax") || norm.includes("spa") || norm.includes("bien_etre")) {
-    return ["sport.fitness", "entertainment.theme_park", "tourism.attraction"];
+  if (norm.includes("relax") || norm.includes("spa") || norm.includes("bien_etre") || norm.includes("relaxation")) {
+    return ["leisure.spa", "service.beauty.spa", "service.beauty.massage"];
   }
   return ["catering.restaurant", "tourism.attraction", "entertainment"];
 }
@@ -119,8 +119,18 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
       const lat = typeof props.lat === "number" ? props.lat : typeof feature.geometry?.coordinates?.[1] === "number" ? feature.geometry.coordinates[1] : null;
       const lon = typeof props.lon === "number" ? props.lon : typeof feature.geometry?.coordinates?.[0] === "number" ? feature.geometry.coordinates[0] : null;
 
+      // Deterministic ID generation: place_id > id > slug(name + lat + lon)
+      const rawId = props.place_id || props.id;
+      const stableId = rawId
+        ? String(rawId)
+        : lat != null && lon != null
+          ? `geo_place_${normName.replace(/[^a-z0-9]+/g, "-")}_${lat.toFixed(4)}_${lon.toFixed(4)}`
+          : null;
+
+      if (!stableId) continue;
+
       places.push({
-        id: String(props.place_id || props.id || `geo_${Math.random().toString(36).substring(2, 9)}`),
+        id: stableId,
         name,
         category: Array.isArray(props.categories) ? props.categories.join(", ") : String(props.category || categories[0]),
         address: props.formatted || props.address_line2 || null,

@@ -295,7 +295,7 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     expect(res.candidates).toEqual([]);
   });
 
-  it("P. adjustItineraryTransferTimes décale les créneaux suivants d'au moins le temps de transfert", () => {
+  it("P. adjustItineraryTransferTimes décale les créneaux suivants d'au moins le temps de transfert quand les deux ont des coordonnées", () => {
     const { adjustItineraryTransferTimes } = require("../activity-ai.server");
     const dayPlan = [
       {
@@ -330,6 +330,48 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
 
     expect(slotB?.time).not.toBe("16:05");
     expect((slotB?.time ?? "") > "16:05").toBe(true);
+  });
+
+  it("Q. adjustItineraryTransferTimes n'ajoute pas de transfert de 20 min sans coordonnées", () => {
+    const { adjustItineraryTransferTimes } = require("../activity-ai.server");
+    const dayPlan = [
+      {
+        day: 2,
+        slots: [
+          {
+            moment: "Après-midi",
+            time: "14:00",
+            durationMinutes: 60,
+            endTime: "15:00",
+            label: "Slot interne sans coords",
+            type: "libre" as const,
+          },
+          {
+            moment: "Après-midi",
+            time: "15:00",
+            durationMinutes: 60,
+            endTime: "16:00",
+            label: "Slot suivant",
+            type: "activite" as const,
+          },
+        ],
+      },
+    ];
+
+    const adjusted = adjustItineraryTransferTimes(dayPlan, input());
+    const slotB = adjusted[0]?.slots[1];
+
+    expect(slotB?.time).toBe("15:00");
+  });
+
+  it("R. Geoapify categories: Nightlife (no adult/nightclub) et Spa (leisure.spa, service.beauty.spa, service.beauty.massage)", () => {
+    const nightlifeCats = mapVenueFamilyToGeoapifyCategories("nightlife", "bar");
+    expect(nightlifeCats).toEqual(["catering.bar", "catering.pub"]);
+    expect(nightlifeCats.some((c) => c.includes("adult") || c.includes("nightclub"))).toBe(false);
+
+    const spaCats = mapVenueFamilyToGeoapifyCategories("relaxation", "spa");
+    expect(spaCats).toEqual(["leisure.spa", "service.beauty.spa", "service.beauty.massage"]);
+    expect(spaCats.some((c) => c.includes("fitness") || c.includes("theme_park"))).toBe(false);
   });
 });
 
