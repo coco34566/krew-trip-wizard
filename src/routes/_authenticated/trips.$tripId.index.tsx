@@ -94,6 +94,7 @@ import { PackingListCard } from "@/components/krew/PackingListCard";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
   destinationBudgetTotal,
