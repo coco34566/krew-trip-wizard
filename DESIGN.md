@@ -107,6 +107,14 @@ Prioritaire pour destinations, logements, restaurants, activités, expériences,
 
 Style : éditorial, authentique, humain, désirable et légèrement spontané. Éviter les photos stock trop génériques ou artificiellement parfaites.
 
+Une image doit avoir une raison d’être : **aider à choisir, situer ou se projeter**. Sinon, ne pas en mettre.
+
+- **Destination** : photographie structurante ; l’image aide à se projeter et à choisir.
+- **Hébergement** : vraies photos du bien lorsque disponibles ; elles participent directement à la décision.
+- **Activités** : aucune photo systématique. Une photo seulement lorsqu’un moment fort le justifie ; éviter une vignette par activité.
+- **Planning** : photographie comme respiration éditoriale, avec au maximum **1 à 2 respirations photographiques par journée**, jamais une photo sur chaque ligne.
+- **Écrans fonctionnels** (questionnaires, disponibilités, transport, tâches, budget, auth, etc.) : ne pas ajouter de photographie uniquement pour décorer.
+
 ### Illustration = la personnalité KREW
 
 Utiliser en petites touches : traits dessinés, flèches, tracés de trajet, étoiles, annotations, petits objets de voyage et motifs éditoriaux simples.
@@ -114,6 +122,33 @@ Utiliser en petites touches : traits dessinés, flèches, tracés de trajet, ét
 Style recherché : **carnet de voyage contemporain / magazine éditorial vivant**.
 
 À éviter : 3D, isométrique, personnages génériques, packs d’illustrations startup, grosses illustrations IA ou illustrations qui remplacent la photographie réelle.
+
+### Langage graphique KREW — « Le voyage se dessine à plusieurs »
+
+Le réel appartient à la photographie. KREW intervient dessus ou autour par des traces graphiques ponctuelles et reconnaissables.
+
+Trois systèmes ont des rôles distincts :
+
+- **`KrewIcon` = concept KREW** : grandes notions du produit (inviter, disponibilités, préférences, profil du voyage, destination, hébergement, transport, planning, tâches, à emporter, budget). Utiliser devant un chapitre ou une notion structurante lorsque cela améliore le repérage.
+- **Lucide = action d’interface** : fermer, revenir, continuer, éditer, copier, verrouiller, chevron, menu et autres actions conventionnelles. Ne pas redessiner les conventions UI uniquement pour faire « KREW ».
+- **`KrewMark` = expression de marque** : cercle, soulignement, flèche éditoriale, étincelle, cœur, coche décorative, connexion et surlignage. Ces marques expriment une décision, une progression, un lien ou une emphase ; elles ne remplacent jamais une information fonctionnelle.
+
+Grammaire de couleur :
+
+- **Prune** = intervention, choix, décision, emphase.
+- **Sauge** = collectif, progression, élément partagé ou positif.
+- **Encre** = usage neutre lorsque nécessaire.
+
+Le vocabulaire est **limité et fixe**. Les formes peuvent être légèrement imparfaites mais leur variation reste contrôlée et déterministe : jamais de `Math.random()`, jamais de génération dynamique ou de variation à chaque rendu.
+
+Règles de densité :
+
+- niveau 0 — **fonctionnel** : aucune marque si elle n’apporte rien ;
+- niveau 1 — **signature** : une marque forte ; niveau normal des écrans importants ;
+- niveau 2 — **composition** : une marque principale + une secondaire, réservé aux moments forts comme Destination, Trip Hub ou Planning ;
+- ne pas accumuler trois marques ou plus dans une même zone visuelle.
+
+Une signature forte vaut mieux que plusieurs décorations. Aucune marque graphique sans raison. Ne jamais transformer l’interface en scrapbook.
 
 ---
 
@@ -279,6 +314,8 @@ Ne pas transformer KREW en Trello / Asana.
 
 Le design doit préserver contraste, focus visible, clavier, labels, structure sémantique, touch targets, reduced motion et lisibilité.
 
+Les `KrewMark` décoratifs sont `aria-hidden`. Une marque, une couleur ou un picto ne doit jamais être la seule manière de communiquer un état ou une information. Les `KrewIcon` décoratifs devant un titre sont également cachés des technologies d’assistance lorsque le libellé adjacent fournit déjà le sens.
+
 La beauté ne justifie jamais une perte d’accessibilité.
 
 ---
@@ -296,7 +333,7 @@ Stack actuel à privilégier :
 - primitives Radix UI déjà installées ;
 - composants UI existants ;
 - `class-variance-authority`, `clsx`, `tailwind-merge` ;
-- **Lucide React** pour les icônes.
+- **Lucide React pour les actions et conventions UI ; `KrewIcon` pour les grandes notions produit ; `KrewMark` pour l’expression de marque.**
 
 Règles : ne pas introduire une nouvelle librairie UI sans nécessité démontrée ; ne pas introduire une nouvelle librairie d’icônes ; adapter les composants existants lorsque c’est sûr et cohérent ; ne pas préserver un mauvais pattern visuel uniquement parce qu’il existe déjà ; centraliser tokens et primitives plutôt que multiplier les styles one-off.
 
