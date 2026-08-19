@@ -109,138 +109,173 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-10">
+    <main className="mx-auto max-w-[820px] space-y-8">
       <Link
         to="/dashboard"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="size-4" /> Dashboard
       </Link>
-      <div className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
-        <h1 className="font-display text-3xl font-bold tracking-tight">Créer un voyage</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Juste l'essentiel pour démarrer.</p>
-        <form onSubmit={onSubmit} className="mt-8 space-y-6">
-          <div>
-            <Label htmlFor="name">Nom du voyage</Label>
-            <Input
-              id="name"
-              className="mt-1.5"
-              placeholder="Ex. Week-end d'été / EVG de Jules"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-            />
+
+      <div className="space-y-2">
+        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          Créer un voyage
+        </h1>
+        <p className="text-sm text-muted-foreground">Juste l'essentiel pour démarrer.</p>
+      </div>
+
+      <form onSubmit={onSubmit} className="pt-4">
+        {/* Question 1: Nom du voyage */}
+        <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+          <Label htmlFor="name" className="text-base font-semibold text-foreground">
+            Nom du voyage
+          </Label>
+          <Input
+            id="name"
+            className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
+            placeholder="Ex. Week-end d'été / EVG de Jules"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        {/* Question 2: Prénom organisateur */}
+        <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+          <Label htmlFor="orga" className="text-base font-semibold text-foreground">
+            Ton prénom (organisateur)
+          </Label>
+          <Input
+            id="orga"
+            className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
+            placeholder="Ex. Camille"
+            value={organizerFirstName}
+            onChange={(e) => setOrganizerFirstName(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Pour que le groupe sache qui organise, et pour te reconnaître dans les réponses.
+          </p>
+        </div>
+
+        {/* Question 3: Type d'événement */}
+        <div className="border-b border-border/50 pb-8 mb-8 space-y-3">
+          <Label className="text-base font-semibold text-foreground block">Type d'événement</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {EVENT_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setEventType(t.value)}
+                className={cn(
+                  "rounded-[14px] p-4 border text-left transition-all",
+                  eventType === t.value
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-border bg-background hover:border-primary/40 text-foreground/80",
+                )}
+              >
+                <span className="text-xl block mb-1">{t.emoji}</span>
+                <span className="font-medium text-sm leading-tight block">{t.label}</span>
+              </button>
+            ))}
           </div>
-          <div>
-            <Label htmlFor="orga">Ton prénom (organisateur)</Label>
+        </div>
+
+        {/* Question 4 (conditionnelle): Star */}
+        {needsStar ? (
+          <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+            <Label htmlFor="star" className="text-base font-semibold text-foreground">
+              Personne principale (Star)
+            </Label>
             <Input
-              id="orga"
-              className="mt-1.5"
-              placeholder="Ex. Camille"
-              value={organizerFirstName}
-              onChange={(e) => setOrganizerFirstName(e.target.value)}
+              id="star"
+              className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
+              placeholder="Prénom"
+              value={celebratedPerson}
+              onChange={(e) => setCelebratedPerson(e.target.value)}
             />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Pour que le groupe sache qui organise, et pour te reconnaître dans les réponses.
+            <p className="text-xs text-muted-foreground">
+              Ses préférences compteront davantage dans les recommandations.
             </p>
           </div>
-          <div>
-            <Label className="mb-2 block">Type d'événement</Label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {EVENT_TYPES.map((t) => (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setEventType(t.value)}
-                  className={cn(
-                    "rounded-2xl border px-3 py-3 text-left text-sm transition-colors",
-                    eventType === t.value
-                      ? "border-primary bg-primary/15 shadow-glow"
-                      : "border-border bg-surface/50 hover:border-primary/40",
-                  )}
-                >
-                  <span className="text-base">{t.emoji}</span>
-                  <span className="mt-1 block font-medium leading-tight">{t.label}</span>
-                </button>
-              ))}
-            </div>
+        ) : null}
+
+        {/* Question 5: Nombre estimé */}
+        <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+          <Label htmlFor="n" className="text-base font-semibold text-foreground">
+            Nombre estimé de participants
+          </Label>
+          <Input
+            id="n"
+            type="number"
+            min={PARTICIPANTS_MIN}
+            max={PARTICIPANTS_MAX}
+            className="h-12 rounded-xl border-border focus-visible:ring-primary text-base font-mono"
+            value={participantsInput}
+            onChange={(e) => setParticipantsInput(e.target.value.replace(/[^\d]/g, ""))}
+            onBlur={() => setParticipantsInput(String(clampParticipants(participantsInput)))}
+          />
+          <p className="text-xs text-muted-foreground">
+            {needsStar
+              ? `Inclus bien la star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans ce nombre total de participant·e·s.`
+              : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX} — tu pourras inviter ensuite.`}
+          </p>
+        </div>
+
+        {/* Question 6: Tranche d'âge */}
+        <div className="border-b border-border/50 pb-8 mb-8 space-y-3">
+          <Label className="text-base font-semibold text-foreground block">
+            Tranche d’âge du groupe
+          </Label>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => (
+              <button
+                key={age}
+                type="button"
+                onClick={() => setGroupAgeRange(age)}
+                className={cn(
+                  "rounded-[14px] p-4 border text-center font-medium text-sm transition-all",
+                  groupAgeRange === age
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-border bg-background hover:border-primary/40 text-foreground/80",
+                )}
+              >
+                {age} ans
+              </button>
+            ))}
           </div>
-          {needsStar ? (
-            <div>
-              <Label htmlFor="star">Personne principale (Star)</Label>
-              <Input
-                id="star"
-                className="mt-1.5"
-                placeholder="Prénom"
-                value={celebratedPerson}
-                onChange={(e) => setCelebratedPerson(e.target.value)}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Ses préférences compteront davantage dans les recommandations.
-              </p>
-            </div>
-          ) : null}
-          <div>
-            <Label htmlFor="n">Nombre estimé de participants</Label>
-            <Input
-              id="n"
-              type="number"
-              min={PARTICIPANTS_MIN}
-              max={PARTICIPANTS_MAX}
-              className="mt-1.5"
-              value={participantsInput}
-              onChange={(e) => setParticipantsInput(e.target.value.replace(/[^\d]/g, ""))}
-              onBlur={() => setParticipantsInput(String(clampParticipants(participantsInput)))}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              {needsStar
-                ? `Inclus bien la star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans ce nombre total de participant·e·s.`
-                : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX} — tu pourras inviter ensuite.`}
-            </p>
-          </div>
-          <div>
-            <Label className="mb-2 block">Tranche d’âge du groupe</Label>
-            <div className="flex flex-wrap gap-2">
-              {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => (
-                <button
-                  key={age}
-                  type="button"
-                  onClick={() => setGroupAgeRange(age)}
-                  className={cn(
-                    "rounded-2xl border px-3 py-2 text-sm",
-                    groupAgeRange === age ? "border-primary bg-primary/15" : "border-border",
-                  )}
-                >
-                  {age} ans
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="durationDays">Durée du voyage (en jours)</Label>
-            <Input
-              id="durationDays"
-              type="number"
-              min={2}
-              max={31}
-              className="mt-1.5"
-              value={durationDaysInput}
-              onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))}
-              onBlur={() => {
-                const val = Math.max(2, Number(durationDaysInput) || 3);
-                setDurationDaysInput(String(val));
-              }}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              La durée du voyage commune à tout le groupe (ex : 3 jours correspond à 2 nuits).
-            </p>
-          </div>
-          <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+        </div>
+
+        {/* Question 7: Durée du voyage */}
+        <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+          <Label htmlFor="durationDays" className="text-base font-semibold text-foreground">
+            Durée du voyage (en jours)
+          </Label>
+          <Input
+            id="durationDays"
+            type="number"
+            min={2}
+            max={31}
+            className="h-12 rounded-xl border-border focus-visible:ring-primary text-base font-mono"
+            value={durationDaysInput}
+            onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))}
+            onBlur={() => {
+              const val = Math.max(2, Number(durationDaysInput) || 3);
+              setDurationDaysInput(String(val));
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            La durée du voyage commune à tout le groupe (ex : 3 jours correspond à 2 nuits).
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="pt-2">
+          <Button type="submit" size="lg" className="w-full h-12 rounded-xl text-base font-medium" disabled={submitting}>
             {submitting ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}
             Créer et inviter le groupe
           </Button>
-        </form>
-      </div>
+        </div>
+      </form>
     </main>
   );
 }

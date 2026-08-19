@@ -546,163 +546,128 @@ export function TripHubDashboard({
 
   return (
     <div className="space-y-8">
-      {/* Hero section : Titre + Métadonnées + Photo éditoriale */}
-      <header className="space-y-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
-            {theme}
-          </p>
-          <h1 className="mt-1 font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground tracking-tight">
-            {trip.name}
-          </h1>
-          {destinationName ? (
-            <p className="mt-1 font-display text-xl sm:text-2xl text-primary font-normal">
-              {destinationName}
-            </p>
-          ) : null}
-          {trip.celebrated_person ? (
-            <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80">
-              <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
-              {trip.celebrated_person}
-            </p>
-          ) : null}
-          {trip.participants &&
-          Array.isArray(trip.participants) &&
-          trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Avec{" "}
-              {trip.participants
-                .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
-                .filter(Boolean)
-                .join(", ")}
-            </p>
-          ) : null}
-        </div>
+      {/* TRIP CONTEXT : Surface bg-sage/8 rounded-[30px] p-8 */}
+      <header className="relative overflow-hidden rounded-[30px] bg-sage/8 border border-border/50 p-6 sm:p-8">
+        <KrewMark
+          type="circle"
+          tone="sage"
+          size="lg"
+          rotation={4}
+          className="absolute -top-6 -right-6 w-[120px] opacity-60 pointer-events-none"
+        />
 
-        {/* Métadonnées légères */}
-        <div className="flex flex-wrap gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
-            <Users className="size-3.5 text-muted-foreground" />
-            {editingCount ? (
-              <>
-                <Input
-                  aria-label="Nombre de participants"
-                  type="number"
-                  min={2}
-                  max={25}
-                  step={1}
-                  value={participantsValue}
-                  onChange={(e) => setParticipantsValue(e.target.value)}
-                  className="h-6 w-14 px-1 text-xs"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  disabled={
-                    countMutation.isPending ||
-                    !Number.isInteger(Number(participantsValue)) ||
-                    Number(participantsValue) < 2 ||
-                    Number(participantsValue) > 25
-                  }
-                  onClick={() => countMutation.mutate()}
-                >
-                  Enregistrer
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => {
-                    setParticipantsValue(String(trip.participants_count));
-                    setEditingCount(false);
-                  }}
-                >
-                  Annuler
-                </Button>
-              </>
-            ) : (
-              <>
-                <span className="font-mono">{trip.participants_count}</span> pers.
-                {isOwner ? (
-                  <button
-                    type="button"
-                    className="ml-1 text-muted-foreground hover:text-foreground"
-                    aria-label="Modifier le nombre de participants"
-                    onClick={() => setEditingCount(true)}
-                  >
-                    <Pencil className="size-3" />
-                  </button>
-                ) : null}
-              </>
-            )}
-          </span>
+        <div className="grid lg:grid-cols-[1fr_180px] gap-6 items-center">
+          <div className="space-y-3 min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
+              {theme}
+            </p>
+            <h1 className="font-display text-[38px] lg:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+              {trip.name}
+            </h1>
+            {destinationName ? (
+              <p className="font-display text-xl sm:text-2xl text-primary font-normal">
+                {destinationName}
+              </p>
+            ) : null}
+            {trip.celebrated_person ? (
+              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80">
+                <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
+                {trip.celebrated_person}
+              </p>
+            ) : null}
 
-          {totalReserved != null && totalEstimated != null ? (
-            <>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 font-sans text-foreground">
-                <Wallet className="size-3.5 text-secondary" /> Réellement Réservé :{" "}
-                <span className="font-mono">{formatEuro(totalReserved)}</span>
+            {/* Inline Meta rows with small Lucide icons */}
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-1">
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="size-3.5 text-muted-foreground" />
+                {editingCount ? (
+                  <>
+                    <Input
+                      aria-label="Nombre de participants"
+                      type="number"
+                      min={2}
+                      max={25}
+                      step={1}
+                      value={participantsValue}
+                      onChange={(e) => setParticipantsValue(e.target.value)}
+                      className="h-6 w-14 px-1 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      disabled={
+                        countMutation.isPending ||
+                        !Number.isInteger(Number(participantsValue)) ||
+                        Number(participantsValue) < 2 ||
+                        Number(participantsValue) > 25
+                      }
+                      onClick={() => countMutation.mutate()}
+                    >
+                      Enregistrer
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-mono">{trip.participants_count}</span> pers.
+                    {isOwner ? (
+                      <button
+                        type="button"
+                        className="ml-1 text-muted-foreground hover:text-foreground"
+                        aria-label="Modifier le nombre de participants"
+                        onClick={() => setEditingCount(true)}
+                      >
+                        <Pencil className="size-3" />
+                      </button>
+                    ) : null}
+                  </>
+                )}
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
-                <Wallet className="size-3.5 text-muted-foreground" /> Reste estimé :{" "}
-                <span className="font-mono">{formatEuro(totalEstimated)}</span>
-              </span>
-            </>
-          ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
-              <Wallet className="size-3.5 text-muted-foreground" /> ~
-              <span className="font-mono">{formatEuro(liveBudgetTotal)}</span> / pers.
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-muted-foreground">
-              <Wallet className="size-3.5" /> Budget à définir
-            </span>
-          )}
 
-          {datesLocked && (trip.start_date || provisionalStart) ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 font-sans text-foreground">
-              <CalendarDays className="size-3.5 text-secondary" />
-              {"Dates validées · "}
-              {trip.start_date
-                ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })
-                : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })}
-              {trip.end_date
-                ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })}`
-                : ""}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-muted-foreground">
-              <CalendarDays className="size-3.5" /> Date à définir
-            </span>
-          )}
-        </div>
+              {totalReserved != null && totalEstimated != null ? (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  <Wallet className="size-3.5 text-muted-foreground" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
+                </span>
+              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  <Wallet className="size-3.5 text-muted-foreground" /> ~{formatEuro(liveBudgetTotal)} / pers.
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <Wallet className="size-3.5 text-muted-foreground" /> Budget à définir
+                </span>
+              )}
 
-        {/* Photo éditoriale du voyage */}
-        <div className="relative aspect-[16/10] sm:aspect-[16/7] w-full overflow-hidden rounded-2xl border border-border/60 bg-muted">
-          <img
-            src={heroImageForEvent(trip.event_type)}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="eager"
-          />
-          <KrewMark
-            type="circle"
-            tone="sage"
-            size="md"
-            rotation={-4}
-            className="absolute top-4 right-4 pointer-events-none opacity-80 text-white"
-          />
+              {datesLocked && (trip.start_date || provisionalStart) ? (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  <CalendarDays className="size-3.5 text-muted-foreground" />
+                  Dates validées · {trip.start_date
+                    ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })
+                    : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarDays className="size-3.5 text-muted-foreground" /> Date à définir
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Visuel 180px desktop / 100% mobile */}
+          <div className="w-full lg:w-[180px] h-[140px] lg:h-[120px] overflow-hidden rounded-[20px] shrink-0 border border-border/60">
+            <img
+              src={heroImageForEvent(trip.event_type)}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="eager"
+            />
+          </div>
         </div>
       </header>
 

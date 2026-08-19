@@ -228,35 +228,38 @@ function InvitePage() {
   const total = Math.max(progress?.total ?? participants.length, trip.participants_count || 1);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-10">
+    <main className="space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="size-4" /> Hub du voyage
       </Link>
 
-      <header className="mt-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
           Étape collaborative · {eventTypeLabel(trip.event_type)}
         </p>
-        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">Inviter le groupe</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          Inviter le groupe
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Partage le lien ou ajoute des emails. Suis qui a rejoint et qui doit encore répondre.
         </p>
-      </header>
+      </div>
 
-      <section className="mt-8 rounded-3xl border border-primary/20 bg-primary/5 p-5">
-        <div className="flex items-center gap-2 text-sm font-medium">
+      {/* BLOC LIEN : bg-sage/8 rounded-[24px] p-6 */}
+      <section className="rounded-[24px] bg-sage/8 border border-sage/20 p-6 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Link2 className="size-4 text-primary" /> Lien d&apos;invitation
         </div>
-        <p className="mt-2 break-all rounded-2xl border border-border bg-background/80 px-3 py-2 font-mono text-xs">
+        <p className="break-all rounded-xl border border-border/60 bg-background/90 px-3.5 py-2.5 font-mono text-xs text-foreground">
           {shareUrl || "…"}
         </p>
-        <div className="mt-3 flex flex-col sm:flex-row gap-2">
+        <div className="pt-1 flex flex-col sm:flex-row gap-2">
           <Button
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto rounded-xl"
             variant="outline"
             onClick={async () => {
               try {
@@ -352,33 +355,34 @@ function InvitePage() {
         </section>
       ) : null}
 
-      <section className="mt-6 rounded-3xl border border-border bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 font-semibold">
-            <Users className="size-4" /> Participants
+      {/* PARTICIPANTS LIST AS CLEAN ROWS (NO CARDS) */}
+      <section className="space-y-4 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
+          <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+            <Users className="size-5 text-primary" /> Participants
           </h2>
-          <Badge variant="lagoon">
+          <Badge variant="secondary" className="font-mono text-xs font-normal">
             {answered}/{total} ont répondu au questionnaire
           </Badge>
         </div>
-        <ul className="mt-4 divide-y divide-border/40">
+        <div className="divide-y divide-border/50">
           {participants.length === 0 ? (
-            <li className="text-sm text-muted-foreground py-2">Personne n’a encore rejoint le groupe.</li>
+            <p className="text-sm text-muted-foreground py-4">Personne n’a encore rejoint le groupe.</p>
           ) : (
             participants.map((p) => (
-              <li
+              <div
                 key={p.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"
               >
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{p.display_name ?? p.email}</span>
+                    <span className="text-base font-medium text-foreground">{p.display_name ?? p.email}</span>
                     {p.user_id === trip.owner_id ? (
-                      <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px]">
+                      <Badge variant="sun" className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20">
                         <Crown className="size-2.5" /> Organisateur·rice
                       </Badge>
                     ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                      <Badge variant="lagoon" className="gap-1 px-1.5 py-0 text-[10px]">
+                      <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[10px]">
                         <Shield className="size-2.5" /> Co-organisateur·rice
                       </Badge>
                     ) : null}
@@ -391,16 +395,16 @@ function InvitePage() {
                       </Badge>
                     ) : null}
                   </div>
-                  <p className="text-xs text-muted-foreground">{p.email}</p>
+                  {p.email ? <p className="text-xs text-muted-foreground">{p.email}</p> : null}
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={p.status === "accepte" ? "success" : "muted"}>{p.status === "accepte" ? "Participe" : p.status}</Badge>
+                  <Badge variant={p.status === "accepte" ? "success" : "muted"} className="font-normal">{p.status === "accepte" ? "Participe" : p.status}</Badge>
                   {data.isCreator && p.user_id && p.user_id !== trip.owner_id ? (
                     p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-destructive hover:bg-destructive/5"
+                        className="text-xs text-destructive hover:bg-destructive/5 h-8 px-2"
                         disabled={setCoOrgMutation.isPending}
                         onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
                       >
@@ -410,7 +414,7 @@ function InvitePage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-primary hover:bg-primary/5"
+                        className="text-xs text-primary hover:bg-primary/5 h-8 px-2"
                         disabled={setCoOrgMutation.isPending}
                         onClick={() =>
                           setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
@@ -421,15 +425,15 @@ function InvitePage() {
                     )
                   ) : null}
                   {data.isOwner && !p.placeholder ? (
-                    <Button variant="ghost" size="sm" onClick={() => removeMutation.mutate(p.id)}>
+                    <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => removeMutation.mutate(p.id)}>
                       Retirer
                     </Button>
                   ) : null}
                 </div>
-              </li>
+              </div>
             ))
           )}
-        </ul>
+        </div>
       </section>
 
       {/* Rôle & Comportement de la Star (EVG, EVJF, Anniversaire, Retraite) */}

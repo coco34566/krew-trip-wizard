@@ -47,24 +47,27 @@ const BUDGET_PRIORITIES = [
   { value: "nice_to_have", label: "Peu importe, je m'adapte" },
 ] as const;
 
-function Chip({
+function SelectableOption({
   active,
   onClick,
   children,
+  className,
 }: {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors",
+        "cursor-pointer rounded-[14px] border p-4 text-left text-sm font-medium transition-colors select-none",
         active
-          ? "border-primary bg-primary/10 text-foreground"
-          : "border-border/70 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+          ? "border-primary bg-primary/5 text-foreground"
+          : "border-border bg-background text-foreground/80 hover:border-primary/40",
+        className,
       )}
     >
       {children}
@@ -82,10 +85,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3 py-4 border-b border-border/50 last:border-b-0">
+    <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
-        {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
+        <h2 className="font-display text-2xl font-normal text-foreground">{title}</h2>
+        {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
       </div>
       {children}
     </section>
@@ -321,132 +324,137 @@ function ParticipantQuestionnaire() {
   if (loading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="animate-spin" />
+        <Loader2 className="animate-spin text-primary size-6" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-8">
+    <main className="mx-auto max-w-[820px] space-y-8">
       <Button
         variant="ghost"
         size="sm"
         onClick={() => navigate({ to: "/trips/$tripId", params: { tripId } })}
+        className="gap-1.5 text-muted-foreground hover:text-primary px-0 hover:bg-transparent"
       >
-        <ArrowLeft className="mr-1 h-4 w-4" /> Retour au voyage
+        <ArrowLeft className="size-4" /> Retour au voyage
       </Button>
 
-      <h1 className="mt-4 text-2xl font-semibold">
-        {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
-      </h1>
-      {isEditing ? (
-        <p className="mt-2 rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
-          Tu as déjà répondu
-          {lastSavedAt
-            ? ` (dernière enreg. ${new Date(lastSavedAt).toLocaleString("fr-FR", {
-                day: "numeric",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })})`
-            : ""}
-          . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton
-          compte.
+      <div className="space-y-2">
+        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
+        </h1>
+        {isEditing ? (
+          <p className="text-sm text-muted-foreground pt-1">
+            Tu as déjà répondu
+            {lastSavedAt
+              ? ` (dernière enreg. ${new Date(lastSavedAt).toLocaleString("fr-FR", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })})`
+              : ""}
+            . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton
+            compte.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground pt-1">
+            Tes réponses individuelles ne sont pas visibles par les autres participants.
+          </p>
+        )}
+        <p className="text-sm text-muted-foreground">
+          Ces infos permettent à KREW de comprendre tes envies pour vous proposer le voyage qui
+          correspond le mieux au groupe.
         </p>
-      ) : (
-        <p className="mt-2 text-sm text-muted-foreground">
-          Tes réponses individuelles ne sont pas visibles par les autres participants.
-        </p>
-      )}
-      <p className="mt-1 text-sm text-muted-foreground">
-        Ces infos permettent à KREW de comprendre tes envies pour vous proposer le voyage qui
-        correspond le mieux au groupe.
-      </p>
+      </div>
 
-      <div className="mt-8 space-y-5">
+      <div className="pt-4">
         <Section
           title="Envies & ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
         >
-          <div>
-            <Label className="mb-2 block">Ambiances *</Label>
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-2">
+            <Label className="font-semibold block text-base text-foreground">Ambiances *</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {AMBIANCES.map((a) => (
-                <Chip
+                <SelectableOption
                   key={a.value}
                   active={ambiances.includes(a.value)}
                   onClick={() => toggle(ambiances, setAmbiances, a.value)}
                 >
-                  {a.emoji} {a.label}
-                </Chip>
+                  <span className="mr-1.5">{a.emoji}</span> {a.label}
+                </SelectableOption>
               ))}
             </div>
-            <div className="mt-6">
-              <Label className="mb-1 block">
+            <div className="mt-6 space-y-2">
+              <Label className="font-semibold block text-base text-foreground">
                 Deal-breakers — ambiances que tu refuses absolument
               </Label>
-              <p className="mb-2 text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Exclusion dure : une destination trop typée sur ces ambiances sera écartée, même si
                 le reste du groupe les veut.
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
                 {AMBIANCES.map((a) => (
-                  <Chip
+                  <SelectableOption
                     key={`db-${a.value}`}
                     active={dealBreakerAmbiances.includes(a.value)}
                     onClick={() => {
-                      // ne pas sélectionner à la fois comme envie et deal-breaker
                       if (!dealBreakerAmbiances.includes(a.value) && ambiances.includes(a.value)) {
                         setAmbiances((prev) => prev.filter((x) => x !== a.value));
                       }
                       toggle(dealBreakerAmbiances, setDealBreakerAmbiances, a.value);
                     }}
                   >
-                    🚫 {a.emoji} {a.label}
-                  </Chip>
+                    <span className="mr-1.5">🚫 {a.emoji}</span> {a.label}
+                  </SelectableOption>
                 ))}
               </div>
             </div>
           </div>
-          <div>
-            <Label className="mb-2 block">Activités *</Label>
-            <div className="flex flex-wrap gap-2">
+
+          <div className="space-y-2 pt-4">
+            <Label className="font-semibold block text-base text-foreground">Activités *</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {ACTIVITY_CATEGORIES.map((a) => (
-                <Chip
+                <SelectableOption
                   key={a.value}
                   active={activityCategories.includes(a.value)}
                   onClick={() => toggle(activityCategories, setActivityCategories, a.value)}
                 >
-                  {a.emoji} {a.label}
-                </Chip>
+                  <span className="mr-1.5">{a.emoji}</span> {a.label}
+                </SelectableOption>
               ))}
             </div>
           </div>
-          <div>
-            <Label className="mb-2 block">Rythme du séjour</Label>
-            <div className="flex flex-wrap gap-2">
+
+          <div className="space-y-2 pt-4">
+            <Label className="font-semibold block text-base text-foreground">Rythme du séjour</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {TRAVEL_PACE.map((p) => (
-                <Chip
+                <SelectableOption
                   key={p.value}
                   active={travelPace === p.value}
                   onClick={() => setTravelPace(p.value)}
                 >
                   {p.label}
-                </Chip>
+                </SelectableOption>
               ))}
             </div>
           </div>
-          <div>
-            <Label className="mb-2 block">Moments de la journée préférés</Label>
-            <div className="flex flex-wrap gap-2">
+
+          <div className="space-y-2 pt-4">
+            <Label className="font-semibold block text-base text-foreground">Moments de la journée préférés</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {TIME_SLOTS.map((t) => (
-                <Chip
+                <SelectableOption
                   key={t.value}
                   active={preferredTimeSlots.includes(t.value)}
                   onClick={() => toggle(preferredTimeSlots, setPreferredTimeSlots, t.value)}
                 >
                   {t.label}
-                </Chip>
+                </SelectableOption>
               ))}
             </div>
           </div>
@@ -456,34 +464,34 @@ function ParticipantQuestionnaire() {
           title="Destination & cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
         >
-          <div>
-            <Label htmlFor="destination">Destination rêvée (optionnel)</Label>
+          <div className="space-y-2">
+            <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Destination rêvée (optionnel)</Label>
             <Input
               id="destination"
               value={desiredDestination}
               onChange={(e) => setDesiredDestination(e.target.value)}
               placeholder="Ex : Lisbonne, Barcelone…"
-              className="mt-2"
+              className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
             />
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Si plusieurs personnes indiquent la même ville, KREW la priorise.
             </p>
           </div>
-          <div>
-            <Label htmlFor="excluded">Destinations à éviter (optionnel)</Label>
+          <div className="space-y-2 pt-2">
+            <Label htmlFor="excluded" className="font-semibold block text-base text-foreground">Destinations à éviter (optionnel)</Label>
             <Input
               id="excluded"
               value={excludedDestinations}
               onChange={(e) => setExcludedDestinations(e.target.value)}
               placeholder="Ex : Ibiza, Marrakech (séparées par des virgules)"
-              className="mt-2"
+              className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
             />
           </div>
-          <div className="space-y-2 pt-2 border-t border-border/40">
-            <Label className="font-semibold block text-sm">
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">
               Type de lieu / environnement recherché * (plusieurs choix possibles)
             </Label>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" },
                 { v: "Quartier animé", label: "🍻 Quartier animé" },
@@ -493,21 +501,21 @@ function ParticipantQuestionnaire() {
                 { v: "Montagne", label: "🏔️ Montagne" },
                 { v: "Lac / rivière", label: "🚣 Lac / rivière" },
               ].map((env) => (
-                <Chip
+                <SelectableOption
                   key={env.v}
                   active={wantedEnvTypes.includes(env.v)}
                   onClick={() => toggle(wantedEnvTypes, setWantedEnvTypes, env.v)}
                 >
                   {env.label}
-                </Chip>
+                </SelectableOption>
               ))}
             </div>
           </div>
-          <div className="space-y-2 pt-2 border-t border-border/40">
-            <Label className="font-semibold block text-sm">
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">
               Quelle importance accordes-tu à la météo pour ce voyage ?
             </Label>
-            <div className="flex flex-col gap-2">
+            <div className="grid grid-cols-1 gap-3">
               {[
                 {
                   v: 2,
@@ -517,19 +525,13 @@ function ParticipantQuestionnaire() {
                 { v: 1, label: "🌤️ C’est un plus, mais ce n’est pas déterminant" },
                 { v: 0, label: "🌍 La météo n’est pas un critère pour moi" },
               ].map((opt) => (
-                <button
+                <SelectableOption
                   key={opt.v}
-                  type="button"
+                  active={weatherPreference === opt.v}
                   onClick={() => setWeatherPreference(opt.v)}
-                  className={cn(
-                    "rounded-xl border px-4 py-2.5 text-left text-sm transition-colors cursor-pointer",
-                    weatherPreference === opt.v
-                      ? "border-primary bg-primary/15 text-foreground shadow-glow"
-                      : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
-                  )}
                 >
                   {opt.label}
-                </button>
+                </SelectableOption>
               ))}
             </div>
           </div>
@@ -539,9 +541,9 @@ function ParticipantQuestionnaire() {
           title="Budget"
           hint="Indique le budget qui te convient pour ce voyage."
         >
-          <div>
-            <Label className="mb-2 block">
-              Budget max par personne : {formatEuro(budgetMax)} *
+          <div className="space-y-3">
+            <Label className="font-semibold block text-base text-foreground">
+              Budget max par personne : <span className="font-mono text-primary">{formatEuro(budgetMax)}</span> *
             </Label>
             <Slider
               min={150}
@@ -549,32 +551,27 @@ function ParticipantQuestionnaire() {
               step={25}
               value={[budgetMax]}
               onValueChange={([v]) => setBudgetMax(v ?? budgetMax)}
+              className="py-2"
             />
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               {[250, 400, 600, 900].map((n) => (
-                <Chip key={n} active={budgetMax === n} onClick={() => setBudgetMax(n)}>
+                <SelectableOption key={n} active={budgetMax === n} onClick={() => setBudgetMax(n)} className="text-center font-mono">
                   {n} €
-                </Chip>
+                </SelectableOption>
               ))}
             </div>
           </div>
-          <div>
-            <Label className="mb-2 block">Ce budget, c&apos;est plutôt…</Label>
-            <div className="flex flex-col gap-2">
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">Ce budget, c&apos;est plutôt…</Label>
+            <div className="grid grid-cols-1 gap-3">
               {BUDGET_PRIORITIES.map((p) => (
-                <button
+                <SelectableOption
                   key={p.value}
-                  type="button"
+                  active={budgetPriority === p.value}
                   onClick={() => setBudgetPriority(p.value)}
-                  className={cn(
-                    "rounded-xl border px-4 py-2.5 text-left text-sm transition-colors",
-                    budgetPriority === p.value
-                      ? "border-primary bg-primary/15 text-foreground"
-                      : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
-                  )}
                 >
                   {p.label}
-                </button>
+                </SelectableOption>
               ))}
             </div>
           </div>
@@ -584,11 +581,11 @@ function ParticipantQuestionnaire() {
           title="Hébergement"
           hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
         >
-          <div>
-            <Label className="mb-2 block">Type de logement</Label>
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-3">
+            <Label className="font-semibold block text-base text-foreground">Type de logement</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {LODGING_TYPES.map((a) => (
-                <Chip
+                <SelectableOption
                   key={a.value}
                   active={lodgingTypes.includes(a.value)}
                   onClick={() => {
@@ -607,52 +604,52 @@ function ParticipantQuestionnaire() {
                   }}
                 >
                   {a.label}
-                </Chip>
+                </SelectableOption>
               ))}
             </div>
           </div>
-          <div>
-            <Label className="mb-2 block">Le logement, pour toi, c’est plutôt…</Label>
-            <div className="flex flex-col gap-2">
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">Le logement, pour toi, c’est plutôt…</Label>
+            <div className="grid grid-cols-1 gap-3">
               {[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => (
-                <Chip key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</Chip>
+                <SelectableOption key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>
+                  {label}
+                </SelectableOption>
               ))}
             </div>
           </div>
-          <div>
-            <Label className="mb-2 block">Chambre</Label>
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">Chambre</Label>
+            <div className="grid grid-cols-1 gap-3">
               {ROOM_TYPES.map((a) => (
-                <Chip
+                <SelectableOption
                   key={a.value}
                   active={roomType === a.value}
                   onClick={() => setRoomType(a.value)}
                 >
                   {a.label}
-                </Chip>
+                </SelectableOption>
               ))}
             </div>
           </div>
         </Section>
 
         <Section title="Transport" hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation.">
-          <div>
-            <Label htmlFor="departure">Ville de départ * (ou code postal)</Label>
-            <div className="mt-2">
-              <CityAutocomplete
-                id="departure"
-                value={departureCity}
-                onChange={setDepartureCity}
-                onSelect={(sel) => setDepartureCity(sel.city)}
-                placeholder={defaultDeparture || "Ex. Lyon, 69001, Paris…"}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="departure" className="font-semibold block text-base text-foreground">Ville de départ * (ou code postal)</Label>
+            <CityAutocomplete
+              id="departure"
+              value={departureCity}
+              onChange={setDepartureCity}
+              onSelect={(sel) => setDepartureCity(sel.city)}
+              placeholder={defaultDeparture || "Ex. Lyon, 69001, Paris…"}
+            />
           </div>
-          <div>
-            <Label className="mb-2 block">Modes de transport acceptés</Label>
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">Modes de transport acceptés</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {["avion", "train", "voiture", "peu importe"].map((m) => (
-                <Chip
+                <SelectableOption
                   key={m}
                   active={transportModeAccepted.includes(m)}
                   onClick={() => {
@@ -663,92 +660,94 @@ function ParticipantQuestionnaire() {
                       return next.length ? next : ["peu importe"];
                     });
                   }}
+                  className="text-center"
                 >
                   {m.charAt(0).toUpperCase() + m.slice(1)}
-                </Chip>
+                </SelectableOption>
               ))}
             </div>
           </div>
-          <div>
-            <Label className="mb-2 block">Durée de trajet max : {maxTravelDurationHours} h</Label>
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">
+              Durée de trajet max : <span className="font-mono text-primary">{maxTravelDurationHours} h</span>
+            </Label>
             <Slider
               min={2}
               max={12}
               step={1}
               value={[maxTravelDurationHours]}
               onValueChange={([v]) => setMaxTravelDurationHours(v ?? 6)}
+              className="py-2"
             />
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
+          <div className="pt-2">
+            <SelectableOption
+              active={accessibilityNeeds}
               onClick={() => setAccessibilityNeeds(!accessibilityNeeds)}
-              className={cn(
-                "rounded-xl border px-4 py-2 text-sm",
-                accessibilityNeeds
-                  ? "border-primary bg-primary/15"
-                  : "border-border bg-surface/60 text-muted-foreground",
-              )}
             >
               {accessibilityNeeds ? "Besoin d'accessibilité PMR" : "Pas de besoin PMR particulier"}
-            </button>
+            </SelectableOption>
           </div>
-          <div>
-            <Label className="mb-2 block">Sur place, tu préfères…</Label>
-            <div className="flex flex-col gap-2">
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">Sur place, tu préfères…</Label>
+            <div className="grid grid-cols-1 gap-3">
               {[["walk_transit", "Tout faire à pied / transports"], ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"], ["car_ok", "Aucun problème pour se déplacer en voiture"]].map(([value, label]) => (
-                <Chip key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>{label}</Chip>
+                <SelectableOption key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>
+                  {label}
+                </SelectableOption>
               ))}
             </div>
           </div>
         </Section>
 
         <Section title="Contraintes & précisions">
-          <div>
-            <Label className="mb-2 block">Alimentation</Label>
-            <div className="flex flex-wrap gap-2">
+          <div className="space-y-3">
+            <Label className="font-semibold block text-base text-foreground">Alimentation</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {DIETARY_OPTIONS.map((d) => (
-                <Chip
+                <SelectableOption
                   key={d}
                   active={dietaryConstraints.includes(d)}
                   onClick={() => toggle(dietaryConstraints, setDietaryConstraints, d)}
                 >
                   {d}
-                </Chip>
+                </SelectableOption>
               ))}
             </div>
           </div>
-          <div>
-            <Label htmlFor="mobility">Mobilité / accessibilité</Label>
+          <div className="space-y-2 pt-4">
+            <Label htmlFor="mobility" className="font-semibold block text-base text-foreground">Mobilité / accessibilité</Label>
             <Textarea
               id="mobility"
               value={mobilityNotes}
               onChange={(e) => setMobilityNotes(e.target.value)}
               placeholder="Ex : éviter trop de marche, besoin d'ascenseur…"
-              className="mt-2"
+              className="min-h-[120px] rounded-xl border-border focus-visible:ring-primary text-base"
             />
           </div>
-          <div>
-            <Label htmlFor="free">Autre chose à préciser ?</Label>
+          <div className="space-y-2 pt-4">
+            <Label htmlFor="free" className="font-semibold block text-base text-foreground">Autre chose à préciser ?</Label>
             <Textarea
               id="free"
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
               placeholder="Envies particulières, contraintes de dates perso…"
-              className="mt-2"
+              className="min-h-[120px] rounded-xl border-border focus-visible:ring-primary text-base"
             />
           </div>
         </Section>
 
-        <Button onClick={handleSubmit} disabled={submitting} className="w-full" size="lg">
-          {submitting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="mr-2 h-4 w-4" />
-          )}
-          {isEditing ? "Enregistrer mes modifications" : "Envoyer mes réponses"}
-        </Button>
+        <div className="pt-2 pb-12">
+          <Button onClick={handleSubmit} disabled={submitting} className="w-full h-12 rounded-xl text-base font-medium" size="lg">
+            {submitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            {isEditing ? "Enregistrer mes modifications" : "Envoyer mes réponses"}
+          </Button>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

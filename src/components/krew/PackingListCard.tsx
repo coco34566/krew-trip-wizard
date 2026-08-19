@@ -113,7 +113,7 @@ export function PackingListCard({
               </button>
               <span
                 className={
-                  state.checked[item.id] ? "line-through text-muted-foreground font-normal" : "font-medium text-foreground"
+                  state.checked[item.id] ? "text-muted-foreground/60 font-normal" : "font-medium text-foreground"
                 }
               >
                 {item.label}
@@ -178,28 +178,28 @@ export function PackingListCard({
     </ul>
   );
   return (
-    <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-5 shadow-sm">
+    <section className="space-y-6">
       <div>
-        <h2 className="font-display text-xl font-semibold">Préparer le voyage</h2>
+        <h2 className="font-display text-2xl font-normal text-foreground">Préparer le voyage</h2>
         <p className="text-xs text-muted-foreground">
           Retrouve ici ce qu’il faut prévoir pour le voyage.
         </p>
       </div>
-      <div className="grid gap-6 md:grid-cols-2">
-        <div>
-          <h3 className="mb-3 font-semibold">Mes affaires</h3>
+      <div className="grid gap-8 md:grid-cols-2">
+        <div className="space-y-3">
+          <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Mes affaires</h3>
           {renderItems(result.personal)}
         </div>
-        <div>
-          <h3 className="mb-3 font-semibold">Pour le groupe</h3>
+        <div className="space-y-3">
+          <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Pour le groupe</h3>
           {renderItems(result.group, true)}
         </div>
-        <div>
-          <h3 className="mb-3 font-semibold">Courses</h3>
-          <ul className="space-y-2 text-sm">
+        <div className="space-y-3">
+          <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Courses</h3>
+          <ul className="divide-y divide-border/40 text-sm">
             {result.groceries.map((g) => (
-              <li key={g.id} className="rounded-xl border p-3">
-                <span>
+              <li key={g.id} className="py-2.5 flex items-center justify-between">
+                <span className="font-medium text-foreground">
                   {g.label}
                   {g.optional ? " (facultatif)" : ""}
                 </span>
@@ -207,21 +207,21 @@ export function PackingListCard({
             ))}
           </ul>
         </div>
-        <div>
-          <h3 className="mb-3 font-semibold">À faire</h3>
-          <ul className="space-y-2 text-sm">
+        <div className="space-y-3">
+          <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">À faire</h3>
+          <ul className="divide-y divide-border/40 text-sm">
             {result.tasks.map((t) => (
-              <li key={t.id} className="rounded-xl border p-3">
-                <span>{t.label}</span>
-                <p className="text-xs italic text-muted-foreground">
+              <li key={t.id} className="py-2.5 flex items-center justify-between">
+                <span className="font-medium text-foreground">{t.label}</span>
+                <span className="text-xs text-muted-foreground">
                   À attribuer
-                </p>
+                </span>
               </li>
             ))}
           </ul>
         </div>
       </div>
-      <div className="flex flex-wrap gap-2 border-t pt-4">
+      <div className="flex flex-wrap gap-2 border-t border-border/50 pt-4">
         <Input
           value={manualLabel}
           onChange={(e) => setManualLabel(e.target.value)}

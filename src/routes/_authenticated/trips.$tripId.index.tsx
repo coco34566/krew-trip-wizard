@@ -1425,25 +1425,34 @@ function TripDetail() {
         )}
       </section>
 
+      {/* PROFIL DU VOYAGE */}
       <section
         id="hub-profile"
-        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        className="mt-8 space-y-4 scroll-mt-24"
       >
-        <div>
-          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+        <div className="relative inline-block">
+          <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
             <Sparkles className="size-5 text-primary" />
             Profil du voyage
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            KREW rassemble les préférences du groupe pour préparer les prochaines propositions.
-          </p>
+          <KrewMark
+            type="highlight"
+            tone="sage"
+            size="md"
+            rotation={-2}
+            className="absolute left-0 bottom-0 w-[220px] opacity-60 pointer-events-none"
+          />
         </div>
+        <p className="text-sm text-muted-foreground">
+          KREW rassemble les préférences du groupe pour préparer les prochaines propositions.
+        </p>
+
         {!readiness?.profile.questionnairesReady && !profile?.legacyBypass ? (
-          <p className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+          <p className="rounded-[22px] border border-dashed border-border p-6 text-sm text-muted-foreground bg-background">
             Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             {(profile?.calculatedConcepts ?? readiness?.profile.calculatedConcepts ?? [])
               .slice(0, 3)
               .map((concept: StayConcept) => {
@@ -1464,16 +1473,16 @@ function TripDetail() {
                       )
                     }
                     className={cn(
-                      "rounded-2xl border p-4 text-left transition",
-                      selected ? "border-primary bg-primary/5" : "border-border opacity-65",
+                      "bg-background border border-border/60 rounded-[22px] p-6 text-left transition-all",
+                      selected ? "border-primary bg-primary/4" : "hover:border-primary/40",
                       (!data.isOwner || profile?.validated) && "cursor-default",
                     )}
                   >
-                    <p className="font-semibold">
+                    <p className="font-display text-[28px] font-normal leading-snug text-foreground">
                       {selected ? "✓ " : ""}
                       {concept.title}
                     </p>
-                    <p className="mt-2 text-xs text-muted-foreground">{concept.rationale}</p>
+                    <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{concept.rationale}</p>
                   </button>
                 );
               })}
@@ -1488,6 +1497,7 @@ function TripDetail() {
             variant="hero"
             disabled={validateProfileMutation.isPending}
             onClick={() => validateProfileMutation.mutate()}
+            className="rounded-xl"
           >
             {validateProfileMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}
             Valider notre profil de voyage
@@ -1495,13 +1505,14 @@ function TripDetail() {
         ) : null}
       </section>
 
+      {/* DESTINATIONS proposées */}
       <section
         id="hub-destination"
-        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        className="mt-8 space-y-6 scroll-mt-24"
       >
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
           <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+            <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
               <MapPin className="size-5 text-primary" />
               Destinations proposées
             </h2>
@@ -1512,6 +1523,7 @@ function TripDetail() {
           {data.isOwner ? (
             <Button
               variant="hero"
+              className="rounded-xl"
               onClick={() => regenerateMutation.mutate(undefined)}
               disabled={
                 regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
@@ -1523,12 +1535,12 @@ function TripDetail() {
               }
             >
               {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
-              {recommendations.length ? "Régénérer" : "Générer les propositions"}
+              {recommendations.length ? "Régénérer tout le planning" : "Générer les propositions"}
             </Button>
           ) : null}
         </div>
         {recommendations.length === 0 ? (
-          <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-[24px] border border-dashed border-border p-8 text-center text-sm text-muted-foreground bg-background">
             {data.isOwner
               ? readiness && !readiness.canGenerate
                 ? (readiness.message ??
@@ -1537,173 +1549,247 @@ function TripDetail() {
               : "Les propositions de destinations arriveront bientôt."}
           </p>
         ) : (
-          <>
-            {destinationSelected ? (
-              <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
-                Destination validée — {Math.max(0, recommendations.length - 1)} autre
-                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
-                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
-                {data.isOwner ? " (change possible)." : "."}
-              </p>
-            ) : null}
-            <div className="grid gap-4 lg:grid-cols-1">
-              {[...recommendations]
-                .sort((a, b) => Number(b.is_selected) - Number(a.is_selected) || b.score - a.score)
-                .map((reco, index) => {
-                  const recoVotes = votes.filter((v) => v.recommendation_id === reco.id);
-                  const hasVoted = recoVotes.some((v) => v.user_id === data.userId);
-                  const recoActivities = activities
-                    .filter((a) => (reco.activity_ids ?? []).includes(a.id))
-                    .slice(0, 3);
-                  const budgetTotal =
-                    reco.budget != null ? destinationBudgetTotal(reco.budget) : null;
-                  const budgetEstimated =
-                    reco.budget != null && isDestinationBudgetEstimated(reco.budget);
-                  const reasons = (reco.match_reasons ?? []).slice(0, 4);
-                  const destPhoto = destinationPhotoUrl(
-                    reco.destinations?.name,
-                    reco.destinations?.image_url,
-                  );
-                  return (
-                    <article
-                      key={reco.id}
-                      className={cn(
-                        "rounded-2xl border bg-card p-4 shadow-sm transition sm:p-5",
-                        reco.is_selected
-                          ? "border-emerald-500 ring-2 ring-emerald-500/20"
-                          : "border-border",
+          (() => {
+            const sortedRecos = [...recommendations].sort(
+              (a, b) => Number(b.is_selected) - Number(a.is_selected) || b.score - a.score,
+            );
+            const topReco = sortedRecos[0];
+            const otherRecos = sortedRecos.slice(1);
+
+            const renderRecoCard = (reco: Recommendation, index: number, isFirst: boolean) => {
+              const recoVotes = votes.filter((v) => v.recommendation_id === reco.id);
+              const hasVoted = recoVotes.some((v) => v.user_id === data.userId);
+              const recoActivities = activities
+                .filter((a) => (reco.activity_ids ?? []).includes(a.id))
+                .slice(0, 3);
+              const budgetTotal =
+                reco.budget != null ? destinationBudgetTotal(reco.budget) : null;
+              const reasons = (reco.match_reasons ?? []).slice(0, 4);
+              const destPhoto = destinationPhotoUrl(
+                reco.destinations?.name,
+                reco.destinations?.image_url,
+              );
+
+              if (isFirst) {
+                // PROPOSITION #1 : Desktop grid-cols-[1.15fr_0.85fr], Photo left 4/3 rounded-[26px], Content right
+                return (
+                  <article
+                    key={reco.id}
+                    className={cn(
+                      "relative rounded-[28px] border bg-background p-6 shadow-none transition-all grid lg:grid-cols-[1.15fr_0.85fr] gap-6 items-center",
+                      reco.is_selected
+                        ? "border-emerald-500/80 ring-2 ring-emerald-500/20"
+                        : "border-border/60",
+                    )}
+                  >
+                    {/* Circle KrewMark sage sur proposition #1 */}
+                    <KrewMark
+                      type="circle"
+                      tone="sage"
+                      size="md"
+                      rotation={-4}
+                      className="absolute -top-3 -left-3 pointer-events-none opacity-70"
+                    />
+
+                    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[26px]">
+                      {destPhoto ? (
+                        <img
+                          src={destPhoto}
+                          alt={reco.destinations?.name || "Destination"}
+                          loading="lazy"
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <KrewPhotoFallback
+                          type="destination"
+                          aspectRatio="4/3"
+                          className="size-full rounded-[26px]"
+                        />
                       )}
-                    >
-                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                        {destPhoto ? (
-                          <img
-                            src={destPhoto}
-                            alt={
-                              reco.destinations?.name
-                                ? `Vue de ${reco.destinations.name}`
-                                : "Destination"
-                            }
-                            loading="lazy"
-                            className="h-44 w-full sm:h-32 sm:w-44 shrink-0 rounded-xl object-cover aspect-[4/3]"
-                          />
-                        ) : (
-                          <KrewPhotoFallback
-                            type="destination"
-                            aspectRatio="4/3"
-                            className="h-44 w-full sm:h-32 sm:w-44 shrink-0"
-                          />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-mono">
-                                #{index + 1}
-                                {reco.destinations?.country
-                                  ? ` · ${reco.destinations.country}`
-                                  : ""}
-                              </p>
-                              <h3 className="font-display text-2xl font-semibold leading-tight">
-                                {reco.destinations?.name}
-                              </h3>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-1.5">
-                              {reco.is_selected ? <Badge variant="success">Choisie</Badge> : null}
-                            </div>
-                          </div>
+                    </div>
 
-                          {/* Budget moyen */}
-                          {budgetTotal != null && budgetTotal > 0 ? (
-                            <p className="mt-2 text-sm">
-                              <span className="font-semibold text-foreground font-mono">
-                                {budgetEstimated ? "Budget estimé ~" : ""}
-                                {formatEuro(budgetTotal)}
-                              </span>
-                              <span className="text-muted-foreground"> / pers.</span>
-                            </p>
-                          ) : null}
-
-                          {/* Pourquoi ça match le groupe */}
-                          {reasons.length ? (
-                            <ul className="mt-2 flex flex-wrap gap-1.5">
-                              {reasons.map((reason: string) => (
-                                <li
-                                  key={reason}
-                                  className="rounded-full bg-primary/8 px-2.5 py-0.5 text-[11px] text-foreground/80"
-                                >
-                                  {reason}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : reco.rationale ? (
-                            <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
-                              {reco.rationale}
-                            </p>
-                          ) : null}
-
-                          {/* 2–3 activités */}
-                          {recoActivities.length ? (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              <span className="font-medium text-foreground/80">À faire · </span>
-                              {recoActivities
-                                .map(
-                                  (a: any) =>
-                                    `${a.name}${a.price_per_person ? ` (${formatEuro(Number(a.price_per_person))})` : ""}`,
-                                )
-                                .join(" · ")}
-                            </p>
-                          ) : null}
-
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant={hasVoted ? "lagoon" : "outline"}
-                              disabled={voteMutation.isPending}
-                              onClick={() => voteMutation.mutate(reco.id)}
-                            >
-                              <Heart className={cn("size-3.5", hasVoted && "fill-current")} />
-                              {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
-                            </Button>
-                            {data.isOwner && reco.is_selected ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled
-                                className="border-emerald-500 text-emerald-700"
-                              >
-                                <CheckCircle2 className="size-3.5" /> Destination choisie
-                              </Button>
-                            ) : data.isOwner ? (
-                              <Button
-                                size="sm"
-                                variant={destinationSelected ? "outline" : "hero"}
-                                onClick={() => selectMutation.mutate(reco.id)}
-                                disabled={selectMutation.isPending}
-                              >
-                                <CheckCircle2 className="size-3.5" />
-                                {destinationSelected
-                                  ? "Changer pour celle-ci"
-                                  : "Choisir cette destination"}
-                              </Button>
-                            ) : null}
-                          </div>
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
+                            #1 {reco.destinations?.country ? `· ${reco.destinations.country}` : ""}
+                          </p>
+                          <h3 className="font-display text-[38px] font-normal leading-tight text-foreground">
+                            {reco.destinations?.name}
+                          </h3>
                         </div>
+                        {(() => {
+                          const recoScore = reco.score;
+                          const compatibilityPct = Math.round(recoScore);
+                          return (
+                            <span className="font-mono text-[18px] font-semibold text-primary">
+                              {compatibilityPct}% compatibilité
+                            </span>
+                          );
+                        })()}
                       </div>
-                    </article>
-                  );
-                })}
-            </div>
-          </>
+
+                      {budgetTotal != null && budgetTotal > 0 ? (
+                        <p className="text-sm font-mono text-foreground font-semibold">
+                          ~{formatEuro(budgetTotal)} <span className="font-sans font-normal text-muted-foreground">/ pers.</span>
+                        </p>
+                      ) : null}
+
+                      {reasons.length ? (
+                        <ul className="flex flex-wrap gap-1.5">
+                          {reasons.map((reason: string) => (
+                            <li
+                              key={reason}
+                              className="rounded-full bg-sage/10 px-3 py-1 text-xs text-foreground/80 font-medium"
+                            >
+                              {reason}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+
+                      <div className="pt-2 flex flex-wrap items-center gap-3">
+                        <Button
+                          size="sm"
+                          variant={hasVoted ? "secondary" : "outline"}
+                          className="rounded-xl"
+                          disabled={voteMutation.isPending}
+                          onClick={() => voteMutation.mutate(reco.id)}
+                        >
+                          <Heart className={cn("size-3.5 mr-1", hasVoted && "fill-current")} />
+                          {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
+                        </Button>
+                        {data.isOwner && reco.is_selected ? (
+                          <Button size="sm" variant="outline" disabled className="rounded-xl border-emerald-500 text-emerald-700">
+                            <CheckCircle2 className="size-3.5 mr-1" /> Destination choisie
+                          </Button>
+                        ) : data.isOwner ? (
+                          <Button
+                            size="sm"
+                            variant={destinationSelected ? "outline" : "hero"}
+                            className="rounded-xl"
+                            onClick={() => selectMutation.mutate(reco.id)}
+                            disabled={selectMutation.isPending}
+                          >
+                            <CheckCircle2 className="size-3.5 mr-1" />
+                            {destinationSelected
+                              ? "Changer pour celle-ci"
+                              : "Choisir cette destination"}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                );
+              }
+
+              // AUTRES PROPOSITIONS : 2 colonnes desktop, photo top, contenu bottom
+              return (
+                <article
+                  key={reco.id}
+                  className={cn(
+                    "rounded-[24px] border bg-background p-5 shadow-none transition-all space-y-4 flex flex-col justify-between",
+                    reco.is_selected ? "border-emerald-500" : "border-border/60",
+                  )}
+                >
+                  <div className="space-y-4">
+                    <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[20px]">
+                      {destPhoto ? (
+                        <img
+                          src={destPhoto}
+                          alt={reco.destinations?.name || "Destination"}
+                          loading="lazy"
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <KrewPhotoFallback
+                          type="destination"
+                          aspectRatio="16/9"
+                          className="size-full rounded-[20px]"
+                        />
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
+                            #{index + 1} {reco.destinations?.country ? `· ${reco.destinations.country}` : ""}
+                          </p>
+                          <h3 className="font-display text-2xl font-normal leading-tight text-foreground">
+                            {reco.destinations?.name}
+                          </h3>
+                        </div>
+                        {(() => {
+                          const recoScore = reco.score;
+                          const compatibilityPct = Math.round(recoScore);
+                          return (
+                            <span className="font-mono text-sm font-semibold text-primary">
+                              {compatibilityPct}%
+                            </span>
+                          );
+                        })()}
+                      </div>
+
+                      {budgetTotal != null && budgetTotal > 0 ? (
+                        <p className="text-sm font-mono text-foreground font-semibold">
+                          ~{formatEuro(budgetTotal)} <span className="font-sans font-normal text-muted-foreground">/ pers.</span>
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant={hasVoted ? "secondary" : "outline"}
+                      className="rounded-xl text-xs h-8"
+                      disabled={voteMutation.isPending}
+                      onClick={() => voteMutation.mutate(reco.id)}
+                    >
+                      <Heart className={cn("size-3 mr-1", hasVoted && "fill-current")} />
+                      {hasVoted ? "Mon vote" : "Voter"} · {recoVotes.length}
+                    </Button>
+                    {data.isOwner && !reco.is_selected ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl text-xs h-8"
+                        onClick={() => selectMutation.mutate(reco.id)}
+                        disabled={selectMutation.isPending}
+                      >
+                        Choisir
+                      </Button>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            };
+
+            return (
+              <div className="space-y-6">
+                {topReco ? renderRecoCard(topReco, 0, true) : null}
+
+                {otherRecos.length > 0 ? (
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    {otherRecos.map((reco, idx) => renderRecoCard(reco, idx + 1, false))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })()
         )}
       </section>
 
+      {/* HÉBERGEMENTS : Vertical Editorial List */}
       {destinationSelected ? (
         <section
           id="hub-logistics"
-          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+          className="mt-8 space-y-6 scroll-mt-24"
         >
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
                 <Hotel className="size-5 text-primary" />
                 Hébergement
               </h2>
@@ -1714,6 +1800,7 @@ function TripDetail() {
             {data.isOwner ? (
               <Button
                 variant="hero"
+                className="rounded-xl"
                 disabled={hotelLogisticsMutation.isPending}
                 onClick={() => hotelLogisticsMutation.mutate()}
               >
@@ -1729,32 +1816,14 @@ function TripDetail() {
             ) : null}
           </div>
 
-          {(trip as any).group_logistics?.hotelVoteTodo ? (
-            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
-              To-do orga · {(trip as any).group_logistics.hotelVoteTodo}
-            </p>
-          ) : null}
-
-          {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited" ? (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
-              <p className="font-semibold">
-                {(trip as any).group_logistics.accommodationGeneration.userMessage ||
-                  "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."}
-              </p>
-            </div>
-          ) : null}
-
           {!(trip as any).group_logistics?.hotels?.length ? (
-            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited"
-                ? (trip as any).group_logistics.accommodationGeneration.userMessage ||
-                  "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."
-                : data.isOwner
+            <p className="rounded-[24px] border border-dashed border-border p-8 text-center text-sm text-muted-foreground bg-background">
+              {data.isOwner
                 ? "Lance la recherche pour proposer des hébergements."
                 : "L'organisateur·rice proposera bientôt des hôtels à voter."}
             </p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="divide-y divide-border/50">
               {((trip as any).group_logistics.hotels as any[]).map((h: any) => {
                 const votes = ((trip as any).group_logistics.hotelVotes ?? []) as {
                   userId: string;
@@ -1765,179 +1834,147 @@ function TripDetail() {
                 const isTop = (trip as any).group_logistics.selectedHotelId === h.id && n > 0;
                 const isReserved = (trip as any).group_logistics?.hotelBookingStatus === "réservé";
                 return (
-                  <article
-                    key={h.id}
-                    className={cn(
-                      "rounded-2xl border bg-card p-4 shadow-sm",
-                      isTop
-                        ? isReserved
-                          ? "border-emerald-500 ring-1 ring-emerald-500/20 bg-emerald-500/5"
-                          : "border-border ring-1 ring-border"
-                        : "border-border",
-                    )}
-                  >
-                    {h.imageUrl && /^https:\/\//i.test(h.imageUrl) ? (
-                      <img
-                        src={h.imageUrl}
-                        alt=""
-                        className="mb-3 h-40 w-full rounded-xl object-cover aspect-[4/3]"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <KrewPhotoFallback className="mb-3 h-40 w-full" type="accommodation" aspectRatio="4/3" />
-                    )}
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-base">{h.name}</p>
-                        <p className="text-xs text-muted-foreground">
+                  <article key={h.id} className="py-6 first:pt-0 last:pb-0">
+                    {/* Desktop Editorial Row Grid: [photo 280px] [contenu 1fr] [prix/action 180px] */}
+                    <div className="hidden lg:grid grid-cols-[280px_1fr_180px] gap-6 items-start">
+                      <div className="w-[280px] h-[210px] rounded-[22px] overflow-hidden shrink-0 border border-border/40">
+                        {h.imageUrl && /^https:\/\//i.test(h.imageUrl) ? (
+                          <img
+                            src={h.imageUrl}
+                            alt=""
+                            className="size-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <KrewPhotoFallback className="size-full" type="accommodation" aspectRatio="4/3" />
+                        )}
+                      </div>
+
+                      <div className="space-y-2 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-display text-[30px] font-normal leading-snug text-foreground">
+                            {h.name}
+                          </h3>
+                          {isTop ? (
+                            isReserved ? (
+                              <Badge variant="success">Réservé</Badge>
+                            ) : (
+                              <Badge variant="secondary">Top votes</Badge>
+                            )
+                          ) : null}
+                        </div>
+                        <p className="text-xs text-muted-foreground font-sans">
                           {ACCOMMODATION_CONCEPT_LABELS[h.krewConcept] ?? "Sélection KREW"}
                           {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
+                          {h.location?.area || h.location?.city ? ` · ${[h.location.area, h.location.city].filter(Boolean).join(" · ")}` : ""}
                         </p>
-                        {h.location?.area || h.location?.city ? (
-                          <p className="text-xs text-muted-foreground">
-                            {[h.location.area, h.location.city].filter(Boolean).join(" · ")}
+                        {h.capacity != null || h.bedrooms != null ? (
+                          <p className="text-xs text-muted-foreground font-sans">
+                            {h.capacity != null ? `${h.capacity} personnes` : ""}
+                            {h.capacity != null && h.bedrooms != null ? " · " : ""}
+                            {h.bedrooms != null ? `${h.bedrooms} chambres` : ""}
                           </p>
                         ) : null}
+                        {h.matchReasons?.length ? (
+                          <ul className="pt-1 space-y-0.5 text-xs text-muted-foreground">
+                            {h.matchReasons.slice(0, 2).map((reason: string) => (
+                              <li key={reason}>• {reason}</li>
+                            ))}
+                          </ul>
+                        ) : null}
                       </div>
-                      {isTop ? (
-                        isReserved ? (
-                          <Badge variant="success">Réservé</Badge>
-                        ) : (
-                          <Badge variant="muted">Top votes</Badge>
-                        )
-                      ) : null}
-                    </div>
-                    <p className="mt-2 text-sm">
-                      {h.pricePerPerson != null ? (
-                        <>
-                          <span className="font-mono font-semibold">{formatEuro(h.pricePerPerson)}</span>
-                          <span> / pers. pour le séjour</span>
-                        </>
-                      ) : (
-                        "Prix à vérifier"
-                      )}
-                      {h.pricePerPerson != null ? (
-                        <span className="text-muted-foreground">
-                          {h.priceStatus === "verified" ? " · Prix vérifié" : " · Prix indicatif"}
-                        </span>
-                      ) : null}
-                    </p>
-                    {h.capacity != null || h.bedrooms != null ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {h.capacity != null ? `${h.capacity} personnes` : ""}
-                        {h.capacity != null && h.bedrooms != null ? " · " : ""}
-                        {h.bedrooms != null ? `${h.bedrooms} chambres` : ""}
-                      </p>
-                    ) : null}
-                    {h.matchReasons?.length ? (
-                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                        {h.matchReasons.slice(0, 3).map((reason: string) => (
-                          <li key={reason}>• {reason}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant={iVoted ? "lagoon" : "outline"}
-                        disabled={hotelVoteMutation.isPending}
-                        onClick={() => hotelVoteMutation.mutate(h.id)}
-                      >
-                        <Heart className={cn("size-3.5", iVoted && "fill-current")} />
-                        {iVoted ? "Mon vote" : "Voter"} · {n}
-                      </Button>
-                      {(h.url ? [{ label: "Voir le logement", url: h.url }] : [])
-                        .slice(0, 1)
-                        .map((l: any) => (
-                          <a
-                            key={l.label + l.url}
-                            href={l.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-xs font-medium text-primary hover:underline"
-                          >
-                            {l.label} →
-                          </a>
-                        ))}
-                    </div>
-                    {h.configs && h.configs.length > 0 && (
-                      <div className="mt-4 space-y-2 border-t border-border/40 pt-3">
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
-                          Configurations de couchage recommandées :
+
+                      <div className="space-y-3 text-right">
+                        <p className="font-mono text-[24px] lg:text-[28px] font-semibold text-foreground leading-none">
+                          {h.pricePerPerson != null ? formatEuro(h.pricePerPerson) : "—"}
+                          <span className="font-sans text-xs font-normal text-muted-foreground block mt-1">/ pers.</span>
                         </p>
-                        <div className="space-y-2">
-                          {h.configs.map((c: any) => (
-                            <div
-                              key={c.id}
-                              className="text-xs bg-muted/40 rounded-xl p-2.5 border border-border/40"
+                        <div className="flex flex-col items-end gap-2">
+                          <Button
+                            size="sm"
+                            variant={iVoted ? "secondary" : "outline"}
+                            className="rounded-xl w-full"
+                            disabled={hotelVoteMutation.isPending}
+                            onClick={() => hotelVoteMutation.mutate(h.id)}
+                          >
+                            <Heart className={cn("size-3.5 mr-1", iVoted && "fill-current")} />
+                            {iVoted ? "Mon vote" : "Voter"} · {n}
+                          </Button>
+                          {h.url ? (
+                            <a
+                              href={h.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-medium text-primary hover:underline"
                             >
-                              <div className="flex items-center justify-between font-medium">
-                                <span>{c.name}</span>
-                                <span className="text-primary font-mono font-semibold">
-                                  {formatEuro(c.pricePerPerson)} / pers.
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
-                                🛌 {c.bedrooms} ch. · 🛌 {c.beds} lits · 🚿 {c.bathrooms} SDB ·
-                                Total : <span className="font-mono">{formatEuro(c.totalCost)}</span> (frais inclus)
-                              </p>
-                              <p className="text-[11px] text-muted-foreground mt-1 italic leading-snug">
-                                {c.explanation}
-                              </p>
-                            </div>
-                          ))}
+                              Voir le logement →
+                            </a>
+                          ) : null}
                         </div>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Mobile Full-width Stack */}
+                    <div className="lg:hidden space-y-4">
+                      <div className="w-full aspect-[4/3] rounded-[22px] overflow-hidden border border-border/40">
+                        {h.imageUrl && /^https:\/\//i.test(h.imageUrl) ? (
+                          <img
+                            src={h.imageUrl}
+                            alt=""
+                            className="size-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <KrewPhotoFallback className="size-full" type="accommodation" aspectRatio="4/3" />
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="font-display text-2xl font-normal leading-snug text-foreground">
+                          {h.name}
+                        </h3>
+                        <p className="font-mono text-xl font-semibold text-foreground">
+                          {h.pricePerPerson != null ? formatEuro(h.pricePerPerson) : "—"} <span className="font-sans text-xs font-normal text-muted-foreground">/ pers.</span>
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <Button
+                            size="sm"
+                            variant={iVoted ? "secondary" : "outline"}
+                            className="rounded-xl text-xs"
+                            disabled={hotelVoteMutation.isPending}
+                            onClick={() => hotelVoteMutation.mutate(h.id)}
+                          >
+                            <Heart className={cn("size-3.5 mr-1", iVoted && "fill-current")} />
+                            {iVoted ? "Mon vote" : "Voter"} · {n}
+                          </Button>
+                          {h.url ? (
+                            <a
+                              href={h.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-medium text-primary hover:underline"
+                            >
+                              Voir le logement →
+                            </a>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
                   </article>
                 );
               })}
             </div>
           )}
-
-          {Boolean(
-            data.isOwner ||
-            (trip &&
-              ((trip as any).co_organizer_id === data.userId ||
-                (trip as any).coOrganizerId === data.userId)),
-          ) &&
-            (trip as any).group_logistics?.hotels?.length > 0 && (
-              <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-muted/20 p-3 sm:px-4">
-                <div className="text-xs">
-                  <span className="font-semibold text-foreground">Statut de l&apos;hôtel : </span>
-                  <span className="capitalize font-medium text-primary">
-                    {(trip as any).group_logistics?.hotelBookingStatus || "estimé"}
-                  </span>
-                </div>
-                {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
-                    disabled={bookingStatusMutation.isPending}
-                    onClick={() =>
-                      bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })
-                    }
-                  >
-                    {bookingStatusMutation.isPending ? (
-                      <Loader2 className="animate-spin size-3" />
-                    ) : (
-                      <Check className="size-3" />
-                    )}
-                    Marquer comme réservé
-                  </Button>
-                )}
-              </div>
-            )}
         </section>
       ) : null}
 
+      {/* TRANSPORT : No photos, zones bg-background rounded-[24px] p-6 */}
       <section
         id="hub-transports"
-        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        className="mt-8 space-y-6 scroll-mt-24"
       >
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
           <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+            <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
               <Plane className="size-5 text-primary" />
               Transport
             </h2>
@@ -1947,6 +1984,7 @@ function TripDetail() {
           </div>
           <Button
             variant="outline"
+            className="rounded-xl"
             disabled={!destinationSelected || logisticsMutation.isPending}
             onClick={() => logisticsMutation.mutate()}
           >
@@ -1957,27 +1995,8 @@ function TripDetail() {
 
         <TransportTimePrefsCard tripId={tripId} />
 
-        {groupTimeWindow &&
-        (groupTimeWindow.majorityArrival || groupTimeWindow.majorityDeparture) ? (
-          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-xs space-y-2">
-            <div className="flex items-center gap-2 font-medium text-primary">
-              <Clock className="size-4" />
-              <span>Horaires du groupe</span>
-            </div>
-            <p className="text-muted-foreground">
-              La majorité du groupe arrive vers{" "}
-              <strong className="text-foreground">{groupTimeWindow.majorityArrival || "—"}</strong>{" "}
-              et repart vers{" "}
-              <strong className="text-foreground">
-                {groupTimeWindow.majorityDeparture || "—"}
-              </strong>
-              .
-            </p>
-          </div>
-        ) : null}
-
         {!(trip as any).group_logistics?.transports?.length ? (
-          <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-[24px] border border-dashed border-border p-8 text-center text-sm text-muted-foreground bg-background">
             Génère des propositions de transport pour le groupe.
           </p>
         ) : (
@@ -1988,73 +2007,13 @@ function TripDetail() {
               const cities = [...new Set(transports.map((tr) => tr.city as string))];
               return cities.map((city) => {
                 const options = transports.filter((tr) => tr.city === city);
-                const cityPicks = picks.filter(
-                  (p) => String(p.city).toLowerCase() === String(city).toLowerCase(),
-                );
                 const myPick = picks.find((p) => p.userId === data.userId);
                 return (
-                  <div key={city} className="rounded-3xl border border-border bg-card p-4 sm:p-5">
-                    <h3 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                      <Plane className="size-4 text-primary" />
+                  <div key={city} className="rounded-[24px] bg-background border border-border/50 p-6 space-y-4">
+                    <h3 className="font-display text-2xl font-normal text-foreground">
                       Depuis {city}
                     </h3>
-                    {cityPicks.length ? (
-                      <ul className="mt-2 space-y-1 rounded-xl bg-surface/50 px-3 py-2 text-xs text-muted-foreground">
-                        {cityPicks.map((p) => {
-                          const isReserved = p.status === "réservé";
-                          const isOrg = Boolean(
-                            data.isOwner ||
-                            (trip &&
-                              ((trip as any).co_organizer_id === data.userId ||
-                                (trip as any).coOrganizerId === data.userId)),
-                          );
-                          return (
-                            <li
-                              key={p.userId}
-                              className="flex items-center justify-between gap-2 py-0.5"
-                            >
-                              <div>
-                                <span className="font-medium text-foreground">{p.displayName}</span>
-                                {" · "}
-                                {p.modeLabel || p.mode}
-                                {p.arrivalTime || p.time
-                                  ? ` · arrivée ${p.arrivalTime || p.time}`
-                                  : ""}
-                                {p.departureTime ? ` · retour ${p.departureTime}` : ""}
-                                {p.label ? ` · ${p.label}` : ""}
-                                {" · "}
-                                <span className="italic text-[10px] text-muted-foreground font-semibold">
-                                  ({p.status || "estimé"})
-                                </span>
-                              </div>
-                              {isOrg && !isReserved && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 px-1.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                  disabled={bookingStatusMutation.isPending}
-                                  onClick={() =>
-                                    bookingStatusMutation.mutate({
-                                      type: "transport",
-                                      status: "réservé",
-                                      userId: p.userId,
-                                    })
-                                  }
-                                >
-                                  <Check className="size-3 mr-0.5" />
-                                  Marquer comme réservé
-                                </Button>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Personne au départ de {city} n&apos;a encore choisi son trajet.
-                      </p>
-                    )}
-                    <ul className="mt-3 space-y-2">
+                    <div className="divide-y divide-border/40">
                       {options.map((tr: any, i: number) => {
                         const isMine =
                           myPick &&
@@ -2062,27 +2021,23 @@ function TripDetail() {
                           myPick.mode === tr.mode &&
                           myPick.label === tr.label;
                         return (
-                          <li
+                          <div
                             key={`${tr.city}-${tr.mode}-${i}`}
-                            className={cn(
-                              "flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3",
-                              isMine
-                                ? "border-primary bg-primary/5"
-                                : "border-border bg-background/40",
-                            )}
+                            className="py-3 flex flex-wrap items-center justify-between gap-4 first:pt-0 last:pb-0"
                           >
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium">
+                            <div className="min-w-0 font-sans">
+                              <p className="text-sm font-semibold text-foreground">
                                 {tr.modeLabel || tr.mode} · {tr.label}
                               </p>
-                              <p className="text-xs text-muted-foreground font-mono">
-                                ~{formatEuro(tr.pricePerPerson)} / pers. A/R
-                              </p>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="font-mono text-sm font-semibold text-foreground">
+                              {formatEuro(tr.pricePerPerson)}
+                            </div>
+                            <div>
                               <Button
                                 size="sm"
                                 variant={isMine ? "hero" : "outline"}
+                                className="rounded-xl text-xs h-8"
                                 disabled={transportPickMutation.isPending}
                                 onClick={() =>
                                   transportPickMutation.mutate({
@@ -2104,22 +2059,11 @@ function TripDetail() {
                               >
                                 {isMine ? "Mon trajet" : "Choisir ce trajet"}
                               </Button>
-                              {(tr.links ?? []).slice(0, 1).map((l: any) => (
-                                <a
-                                  key={l.label}
-                                  href={l.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs text-primary hover:underline"
-                                >
-                                  {l.label} →
-                                </a>
-                              ))}
                             </div>
-                          </li>
+                          </div>
                         );
                       })}
-                    </ul>
+                    </div>
                   </div>
                 );
               });
@@ -2128,14 +2072,15 @@ function TripDetail() {
         )}
       </section>
 
+      {/* PLANNING : Single vertical timeline, No cards */}
       {destinationSelected ? (
         <section
           id="hub-activities-plan"
-          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+          className="mt-8 space-y-6 scroll-mt-24"
         >
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
                 <CalendarDays className="size-5 text-primary" />
                 Planning
               </h2>
@@ -2146,106 +2091,83 @@ function TripDetail() {
             {data.isOwner ? (
               <Button
                 variant="hero"
+                className="rounded-xl"
                 disabled={itineraryMutation.isPending}
                 onClick={() => itineraryMutation.mutate()}
               >
                 {itineraryMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
                 {(trip as any).group_itinerary?.days?.length
-                  ? "Régénérer tout le planning"
+                  ? "Régénérer le planning"
                   : "Générer le planning"}
               </Button>
             ) : null}
           </div>
 
           {!(trip as any).group_itinerary?.days?.length ? (
-            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            <p className="rounded-[24px] border border-dashed border-border p-8 text-center text-sm text-muted-foreground bg-background">
               {data.isOwner
                 ? "Génère le programme du séjour, de l’arrivée au départ."
                 : "Le planning du séjour sera bientôt disponible."}
             </p>
           ) : (
-            <div className="space-y-8 pt-2">
+            <div className="space-y-10">
               {((trip as any).group_itinerary.days as any[]).map((day: any) => (
                 <article key={day.day} className="space-y-4">
-                  <div className="border-b border-border/60 pb-2">
-                    <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-                      Jour {day.day}
-                      {day.date
-                        ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
-                            weekday: "long",
-                            day: "numeric",
-                            month: "short",
-                          })}`
-                        : ""}
-                    </h3>
-                  </div>
+                  <h3 className="font-display text-[34px] font-normal leading-none text-foreground mt-12 mb-6">
+                    Jour {day.day}
+                    {day.date
+                      ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "short",
+                        })}`
+                      : ""}
+                  </h3>
 
-                  <div className="relative pl-6 sm:pl-8 divide-y divide-border/40 before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border/60">
+                  <div className="space-y-4">
                     {(day.slots ?? []).map((slot: any, slotIndex: number) => {
-                      const Icon =
-                        slot.type === "resto"
-                          ? Utensils
-                          : slot.type === "bar"
-                            ? Wine
-                            : slot.type === "activite"
-                              ? Camera
-                              : CalendarDays;
                       return (
                         <div
                           key={`${day.day}-${slotIndex}`}
-                          className="relative flex flex-wrap items-start justify-between gap-3 py-3"
+                          className="grid lg:grid-cols-[100px_24px_1fr_auto] gap-3 items-center py-2 border-b border-border/30 last:border-0"
                         >
-                          {/* Circle node on vertical line */}
-                          <span className="absolute -left-6 sm:-left-8 top-4 size-2.5 rounded-full border border-primary bg-background ring-4 ring-card" />
-
-                          <div className="flex items-start gap-3 min-w-0 flex-1">
-                            <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                                {slot.time ? (
-                                  <span className="font-mono font-semibold text-primary">
-                                    {slot.time}
-                                  </span>
-                                ) : null}
-                                <span>{slot.moment}</span>
-                                {slot.type ? <span>· {slot.type}</span> : null}
-                              </div>
-                              <p className="font-semibold text-foreground text-sm mt-0.5">{slot.label}</p>
-                              {slot.detail ? (
-                                <p className="text-xs text-muted-foreground mt-0.5">{slot.detail}</p>
-                              ) : null}
-                              {slot.priceHint != null ? (
-                                <p className="text-xs text-muted-foreground font-mono mt-1">
-                                  ~{formatEuro(Number(slot.priceHint))} / pers.
-                                </p>
-                              ) : null}
-                              {slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
-                                <a
-                                  href={slot.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
-                                >
-                                  Voir ou réserver →
-                                </a>
-                              ) : null}
-                            </div>
+                          {/* Heure Space Mono */}
+                          <div className="font-mono text-sm font-semibold text-primary">
+                            {slot.time || slot.moment}
                           </div>
+
+                          {/* Timeline dot & line */}
+                          <div className="hidden lg:flex flex-col items-center justify-center size-full relative">
+                            <span className="size-2.5 rounded-full bg-primary shrink-0" />
+                          </div>
+
+                          {/* Contenu */}
+                          <div className="min-w-0">
+                            <p className="font-medium text-foreground text-sm">{slot.label}</p>
+                            {slot.detail ? (
+                              <p className="text-xs text-muted-foreground mt-0.5">{slot.detail}</p>
+                            ) : null}
+                            {slot.priceHint != null ? (
+                              <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                                ~{formatEuro(Number(slot.priceHint))} / pers.
+                              </p>
+                            ) : null}
+                          </div>
+
+                          {/* Actions */}
                           {data.isOwner ? (
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="ghost"
                               disabled={slotMutation.isPending}
                               onClick={() => slotMutation.mutate({ day: day.day, slotIndex })}
-                              title="Proposer une autre option pour ce créneau seulement"
-                              className="shrink-0"
+                              className="shrink-0 h-8 text-xs text-muted-foreground hover:text-foreground"
                             >
                               {slotMutation.isPending ? (
-                                <Loader2 className="size-3.5 animate-spin" />
+                                <Loader2 className="size-3 animate-spin" />
                               ) : (
-                                <RefreshCw className="size-3.5" />
+                                <RefreshCw className="size-3" />
                               )}
-                              Autre option
                             </Button>
                           ) : null}
                         </div>
@@ -2259,14 +2181,15 @@ function TripDetail() {
         </section>
       ) : null}
 
+      {/* TÂCHES : H1 -> rows (Checkbox, titre, assignation, statut). No cards. */}
       {destinationSelected ? (
         <section
           id="hub-tasks-org"
-          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+          className="mt-8 space-y-6 scroll-mt-24"
         >
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
                 <ClipboardList className="size-5 text-primary" />
                 Organisation du groupe
               </h2>
@@ -2280,7 +2203,7 @@ function TripDetail() {
                 size="sm"
                 disabled={generateTasksMutation.isPending}
                 onClick={() => generateTasksMutation.mutate()}
-                className="gap-1.5"
+                className="gap-1.5 rounded-xl"
               >
                 {generateTasksMutation.isPending ? (
                   <Loader2 className="animate-spin size-4" />
@@ -2293,17 +2216,17 @@ function TripDetail() {
           </div>
 
           {!hasItinerary ? (
-            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            <p className="rounded-[24px] border border-dashed border-border p-8 text-center text-sm text-muted-foreground bg-background">
               Le planning doit être prêt avant de répartir les tâches du voyage.
             </p>
           ) : !tasksData || tasksData.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            <div className="rounded-[24px] border border-dashed border-border p-8 text-center text-sm text-muted-foreground bg-background">
               <p>Aucune tâche pour le moment.</p>
               <Button
                 variant="hero"
                 size="sm"
                 onClick={() => generateTasksMutation.mutate()}
-                className="mt-4 gap-1.5"
+                className="mt-4 gap-1.5 rounded-xl"
                 disabled={generateTasksMutation.isPending}
               >
                 {generateTasksMutation.isPending ? (
@@ -2315,114 +2238,85 @@ function TripDetail() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] text-left text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-                    <th className="py-2.5 pr-3">Date et heure</th>
-                    <th className="py-2.5 pr-3">Action</th>
-                    <th className="py-2.5 pr-3">Responsable</th>
-                    <th className="py-2.5 pr-3">Statut</th>
-                    <th className="py-2.5 text-right">Lien</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasksData.map((task: any) => {
-                    const taskDate = task.day_date
-                      ? new Date(task.day_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                        })
-                      : "—";
-                    return (
-                      <tr
-                        key={task.id}
-                        className="border-b border-border/40 hover:bg-muted/30 transition-colors"
+            <div className="divide-y divide-border/50">
+              {tasksData.map((task: any) => {
+                const taskDate = task.day_date
+                  ? new Date(task.day_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                      day: "numeric",
+                      month: "short",
+                    })
+                  : "—";
+                return (
+                  <div
+                    key={task.id}
+                    className="flex flex-wrap items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-0 flex-1 flex items-center gap-3">
+                      <span className="font-mono text-xs text-muted-foreground shrink-0 w-24">
+                        {taskDate}
+                      </span>
+                      <span className="font-medium text-sm text-foreground truncate">
+                        {task.title}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      {data.isOwner ? (
+                        <select
+                          value={task.assigned_participant_id || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            reassignMutation.mutate({
+                              taskId: task.id,
+                              participantId: val ? val : null,
+                            });
+                          }}
+                          className="bg-background border border-border rounded-xl px-2.5 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                        >
+                          <option value="">Non attribué</option>
+                          {(participants ?? [])
+                            .filter((p: any) => p.status !== "absent")
+                            .map((p: any) => (
+                              <option key={p.id} value={p.id}>
+                                {p.display_name || p.email?.split("@")[0] || "Ami"}
+                              </option>
+                            ))}
+                        </select>
+                      ) : (
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {task.assigned_participant
+                            ? task.assigned_participant.display_name ||
+                              task.assigned_participant.email?.split("@")[0]
+                            : "Non attribué"}
+                        </span>
+                      )}
+
+                      <select
+                        value={task.status}
+                        onChange={(e) => {
+                          updateStatusMutation.mutate({
+                            taskId: task.id,
+                            status: e.target.value as any,
+                          });
+                        }}
+                        className={cn(
+                          "border rounded-xl px-2.5 py-1 text-xs focus:outline-none font-semibold",
+                          task.status === "done" &&
+                            "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+                          task.status === "in_progress" &&
+                            "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                          task.status === "todo" &&
+                            "bg-muted text-muted-foreground border-border",
+                        )}
                       >
-                        <td className="py-3 pr-3 text-xs font-mono font-medium text-muted-foreground">
-                          {taskDate} {task.start_time ? `· ${task.start_time}` : ""}
-                        </td>
-                        <td className="py-3 pr-3">
-                          <span className="text-sm font-semibold text-foreground">
-                            {task.title}
-                          </span>
-                        </td>
-                        <td className="py-3.5 pr-3">
-                          {data.isOwner ? (
-                            <select
-                              value={task.assigned_participant_id || ""}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                reassignMutation.mutate({
-                                  taskId: task.id,
-                                  participantId: val ? val : null,
-                                });
-                              }}
-                              className="bg-background border border-border rounded-xl px-2 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
-                            >
-                              <option value="">Non attribué</option>
-                              {(participants ?? [])
-                                .filter((p: any) => p.status !== "absent")
-                                .map((p: any) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.display_name || p.email?.split("@")[0] || "Ami"}
-                                  </option>
-                                ))}
-                            </select>
-                          ) : (
-                            <span className="text-xs px-2.5 py-1 rounded-full bg-surface border border-border/60">
-                              {task.assigned_participant
-                                ? task.assigned_participant.display_name ||
-                                  task.assigned_participant.email?.split("@")[0]
-                                : "Non attribué"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3.5 pr-3">
-                          <select
-                            value={task.status}
-                            onChange={(e) => {
-                              updateStatusMutation.mutate({
-                                taskId: task.id,
-                                status: e.target.value as any,
-                              });
-                            }}
-                            className={cn(
-                              "border rounded-xl px-2 py-1 text-xs focus:outline-none font-semibold",
-                              task.status === "done" &&
-                                "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
-                              task.status === "in_progress" &&
-                                "bg-amber-500/10 text-amber-600 border-amber-500/30",
-                              task.status === "todo" &&
-                                "bg-muted text-muted-foreground border-border",
-                            )}
-                          >
-                            <option value="todo">À faire</option>
-                            <option value="in_progress">En cours</option>
-                            <option value="done">Terminé</option>
-                          </select>
-                        </td>
-                        <td className="py-3.5 text-right">
-                          {task.booking_url ? (
-                            <Button
-                              asChild
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-2 gap-1 text-[11px]"
-                            >
-                              <a href={task.booking_url} target="_blank" rel="noopener noreferrer">
-                                Réserver
-                              </a>
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        <option value="todo">À faire</option>
+                        <option value="in_progress">En cours</option>
+                        <option value="done">Terminé</option>
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
