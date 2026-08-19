@@ -388,6 +388,10 @@ function Landing() {
                 <div className="lg:col-span-7 lg:col-start-6 space-y-8">
                   {/* Hébergement */}
                   <div className="border-t border-border/50 pt-5 space-y-2">
+                    <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground mb-3">
+                      <Check className="size-4 text-success" />
+                      Hébergement retenu par le groupe
+                    </h4>
                     <div className="flex justify-between items-start gap-2">
                       <div>
                         <p className="font-semibold text-foreground text-base">Lisbon Sky Apartments</p>
@@ -400,7 +404,10 @@ function Landing() {
 
                   {/* Transport */}
                   <div className="border-t border-border/50 pt-5 space-y-3 text-xs">
-                    <p className="font-semibold text-muted-foreground uppercase tracking-wider">Transports</p>
+                    <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground mb-3">
+                      <Check className="size-4 text-success" />
+                      Transports par ville de départ
+                    </h4>
                     <div className="flex justify-between border-b border-border/40 pb-2 text-muted-foreground">
                       <span>Paris (5 personnes) · Vol EasyJet aller-retour</span>
                       <span className="font-mono font-semibold text-foreground">115 €</span>
@@ -413,7 +420,10 @@ function Landing() {
 
                   {/* Planning Jour par Jour Restauré */}
                   <div className="border-t border-border/50 pt-5 space-y-4">
-                    <p className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">Planning</p>
+                    <h4 className="font-semibold text-sm sm:text-base flex items-center gap-2 text-foreground mb-3">
+                      <Check className="size-4 text-success" />
+                      Extrait du planning jour par jour
+                    </h4>
                     <div className="space-y-4 pt-1">
                       <div className="relative pl-5 border-l-2 border-sage/35">
                         <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
