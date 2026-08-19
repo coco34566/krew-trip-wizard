@@ -87,9 +87,9 @@ function MonthGrid({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-surface/40 p-3">
+    <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground font-mono">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
           <span key={i}>{d}</span>
         ))}
@@ -107,11 +107,11 @@ function MonthGrid({
               disabled={isPast}
               onClick={() => onToggle(iso)}
               className={cn(
-                "aspect-square rounded-xl text-sm font-medium transition",
+                "aspect-square rounded-xl text-sm font-mono font-medium transition min-h-[38px] flex items-center justify-center",
                 isPast && "cursor-not-allowed opacity-30",
-                !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary",
-                mode === "available" && "bg-lagoon text-white shadow-sm hover:bg-lagoon/90",
-                mode === "blocked" && "bg-destructive/90 text-white hover:bg-destructive",
+                !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary border border-border/40",
+                mode === "available" && "bg-secondary text-secondary-foreground shadow-sm hover:opacity-90 font-bold",
+                mode === "blocked" && "bg-destructive/90 text-destructive-foreground hover:bg-destructive font-bold",
                 iso === todayISO && !mode && "ring-1 ring-primary/50",
               )}
             >

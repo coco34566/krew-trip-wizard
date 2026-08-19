@@ -61,10 +61,10 @@ function Chip({
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-2xl border px-4 py-2.5 text-sm transition-colors",
+        "cursor-pointer rounded-xl border px-3.5 py-2 text-sm font-medium transition-colors",
         active
-          ? "border-primary bg-primary/15 text-foreground shadow-glow"
-          : "border-border bg-surface/60 text-muted-foreground hover:border-primary/50",
+          ? "border-primary bg-primary/10 text-foreground"
+          : "border-border/70 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
       )}
     >
       {children}
@@ -82,9 +82,9 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3 rounded-2xl border border-border/60 bg-surface/40 p-4">
+    <section className="space-y-3 py-4 border-b border-border/50 last:border-b-0">
       <div>
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">{title}</h2>
         {hint ? <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p> : null}
       </div>
       {children}

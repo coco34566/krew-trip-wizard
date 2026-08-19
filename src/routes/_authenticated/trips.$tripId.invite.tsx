@@ -361,14 +361,14 @@ function InvitePage() {
             {answered}/{total} ont répondu au questionnaire
           </Badge>
         </div>
-        <ul className="mt-4 space-y-2">
+        <ul className="mt-4 divide-y divide-border/40">
           {participants.length === 0 ? (
-            <li className="text-sm text-muted-foreground">Personne n’a encore rejoint le groupe.</li>
+            <li className="text-sm text-muted-foreground py-2">Personne n’a encore rejoint le groupe.</li>
           ) : (
             participants.map((p) => (
               <li
                 key={p.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/40 px-3 py-2.5"
+                className="flex flex-wrap items-center justify-between gap-2 py-3"
               >
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
