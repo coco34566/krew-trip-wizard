@@ -16,7 +16,7 @@ export type KrewMarkSize = "sm" | "md" | "lg";
 
 const TONES: Record<KrewMarkTone, string> = {
   plum: "text-primary",
-  sage: "text-secondary",
+  sage: "text-sage",
   ink: "text-foreground",
 };
 

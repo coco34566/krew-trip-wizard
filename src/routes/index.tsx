@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { SiteHeader } from "@/components/krew/SiteHeader";
 import { Logo } from "@/components/krew/Logo";
 import { EVENT_TYPES } from "@/lib/krew/constants";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -75,13 +76,17 @@ function Landing() {
 
               {/* Colonne gauche : Titre & Actions */}
               <div className="lg:col-span-7">
-                <p className="mb-6 text-sm font-medium text-primary">
-                  L’organisation des voyages de groupe, simplement
-                </p>
+                <div className="relative mb-6 inline-block">
+                  <p className="text-sm font-medium text-primary">
+                    L’organisation des voyages de groupe, simplement
+                  </p>
+                  <KrewMark type="underline" tone="sage" size="sm" rotation={-2} className="absolute left-0 -bottom-1.5 w-10 sm:w-12 pointer-events-none" />
+                </div>
 
-                <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-foreground leading-[1.08]">
+                <h1 className="relative font-display text-4xl sm:text-5xl lg:text-6xl font-normal tracking-tight text-foreground leading-[1.08]">
                   Le voyage de groupe,{" "}
                   <span className="italic text-primary">organisé pour toi.</span>
+                  <KrewMark type="sparkle" tone="sage" size="sm" rotation={4} className="hidden sm:inline-block ml-2 align-middle pointer-events-none" />
                 </h1>
 
                 <p className="mt-6 max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed">
@@ -114,7 +119,8 @@ function Landing() {
               {/* Colonne droite : Photo Cadre Éditorial */}
               <div className="lg:col-span-5">
                 <div className="relative mx-auto max-w-md lg:max-w-none">
-                  <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border bg-card shadow-sm">
+                  <div className="absolute -bottom-3 -right-3 h-[75%] w-[80%] rounded-3xl bg-sage/10 pointer-events-none" />
+                  <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 bg-card shadow-none">
                     <img
                       src={heroImage}
                       alt=""
@@ -129,6 +135,7 @@ function Landing() {
                       </p>
                     </div>
                   </div>
+                  <KrewMark type="arrow" tone="plum" size="md" rotation={-4} className="hidden lg:block absolute -left-8 -bottom-4 z-10 pointer-events-none" />
                 </div>
               </div>
 
@@ -138,18 +145,23 @@ function Landing() {
 
         {/* ——— Types d'événements ——— */}
         <section className="border-y border-border bg-surface/50 py-4 sm:py-5">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-2 px-4 sm:px-6">
-            <span className="mr-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Idéal pour
-            </span>
-            {EVENT_TYPES.slice(0, 6).map((ev) => (
-              <Link
-                key={ev.value}
-                to="/trips/new"
-                className="rounded-md border border-border/80 bg-background px-3.5 py-1 text-xs font-medium text-muted-foreground transition hover:border-primary/40 hover:text-primary"
-              >
-                {ev.label}
-              </Link>
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-2 px-4 sm:px-6 text-sm">
+            <div className="relative mr-2 flex items-center gap-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Idéal pour
+              </span>
+              <KrewMark type="circle" tone="sage" size="sm" rotation={2} className="absolute -left-2 -top-1 size-7 pointer-events-none opacity-80" />
+            </div>
+            {EVENT_TYPES.slice(0, 6).map((ev, index) => (
+              <div key={ev.value} className="flex items-center gap-2">
+                {index > 0 && <span className="text-muted-foreground/40 select-none" aria-hidden="true">·</span>}
+                <Link
+                  to="/trips/new"
+                  className="text-xs sm:text-sm font-medium text-muted-foreground transition hover:text-primary"
+                >
+                  {ev.label}
+                </Link>
+              </div>
             ))}
           </div>
         </section>
@@ -163,24 +175,28 @@ function Landing() {
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
               Comment ça marche
             </p>
-            <h2 className="mt-3 font-display text-3xl sm:text-4xl font-normal text-foreground">
+            <h2 className="relative inline-block mt-3 font-display text-3xl sm:text-4xl font-normal text-foreground">
               Trois étapes, zéro chaos
+              <KrewMark type="highlight" tone="sage" size="lg" rotation={-2} className="absolute left-1/4 -bottom-1 -z-10 w-1/2 pointer-events-none" />
             </h2>
           </div>
 
           <ol className="relative mx-auto mt-16 max-w-5xl">
-            {/* Connected horizontal line for desktop */}
-            <div className="hidden sm:block absolute top-5 left-[12%] right-[12%] h-px bg-border/80" />
+            {/* Connectors for desktop */}
+            <div className="hidden sm:flex absolute top-4 left-[22%] right-[22%] justify-between items-center pointer-events-none z-0">
+              <KrewMark type="connector" tone="sage" size="md" rotation={-2} dashed className="w-1/3" />
+              <KrewMark type="connector" tone="sage" size="md" rotation={2} dashed className="w-1/3" />
+            </div>
 
             {/* Connected vertical line for mobile */}
-            <div className="sm:hidden absolute top-5 bottom-5 left-5 w-px bg-border/80" />
+            <div className="sm:hidden absolute top-5 bottom-5 left-5 w-px bg-sage/30" />
 
             <div className="grid gap-10 sm:grid-cols-3 sm:gap-8 lg:gap-12">
               {STEPS.map((step, i) => (
                 <li key={step.title} className="relative flex flex-col items-start pl-14 sm:pl-0">
                   <div className="flex items-center justify-between w-full mb-4">
-                    <div className="absolute left-0 sm:relative z-10 flex size-10 items-center justify-center rounded-lg bg-secondary/30 text-foreground border border-border/40">
-                      <step.icon className="size-5 text-foreground" />
+                    <div className={`absolute left-0 sm:relative z-10 flex size-11 items-center justify-center rounded-lg ${i === 1 ? 'bg-sage/12 text-sage' : 'bg-primary/8 text-primary'}`}>
+                      <step.icon className="size-5" />
                     </div>
                     <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
                       Étape {i + 1}
@@ -193,6 +209,11 @@ function Landing() {
             </div>
           </ol>
         </section>
+
+        {/* Transition Mark between PLAN and MOMENT */}
+        <div className="hidden md:flex justify-center -mt-8 -mb-4 pointer-events-none">
+          <KrewMark type="arrow" tone="plum" size="md" rotation={2} />
+        </div>
 
         {/* ——— Aperçu Projet Complet Fictif (LE MOMENT) ——— */}
         <section className="border-t border-border bg-surface/40 py-16 sm:py-24">
@@ -208,37 +229,38 @@ function Landing() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden max-w-4xl mx-auto">
-              <div className="relative h-48 bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=1200&q=80')` }}>
+            <div className="rounded-2xl border border-border/60 bg-card shadow-none overflow-hidden max-w-4xl mx-auto">
+              <div className="relative h-52 sm:h-64 bg-cover bg-center" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=1200&q=80')` }}>
                 <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/40 to-transparent" />
                 <div className="absolute bottom-5 left-5 right-5 text-white flex justify-between items-end">
                   <div>
                     <span className="text-[10px] font-semibold uppercase tracking-wider bg-white/20 backdrop-blur-sm px-2.5 py-0.5 rounded-full text-white">Exemple de projet final</span>
-                    <h3 className="font-display text-2xl sm:text-3xl font-normal mt-1.5 text-white">Week-end Retrouvailles à Lisbonne</h3>
+                    <h3 className="font-display text-2xl sm:text-4xl font-normal mt-1.5 text-white">Week-end Retrouvailles à Lisbonne</h3>
                     <p className="text-xs text-white/80 mt-1">Organisé par Thomas · 8 personnes</p>
                   </div>
+                  <KrewMark type="heart" tone="sage" size="sm" rotation={4} className="pointer-events-none opacity-90 hidden sm:block mb-1" />
                 </div>
               </div>
 
-              <div className="p-5 sm:p-6 grid gap-6 md:grid-cols-3 text-sm border-b border-border bg-surface/50">
-                <div className="space-y-1">
+              <div className="p-5 sm:p-6 grid gap-6 md:grid-cols-3 text-sm border-b border-border/60 bg-surface/30 md:divide-x md:divide-border/40">
+                <div className="space-y-1 md:pr-4">
                   <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Dates</p>
                   <p className="font-medium text-foreground">Vendredi 11 Sept. → Dimanche 13 Sept.</p>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 md:px-4">
                   <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Budget estimé par personne</p>
-                  <p className="font-mono font-semibold text-foreground">~360 €</p>
+                  <p className="font-mono font-bold text-lg text-foreground">~360 €</p>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 md:pl-4">
                   <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">État des réponses</p>
-                  <div className="flex gap-4">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
                     <p className="text-xs inline-flex items-center gap-1">
-                      <CalendarCheck className="size-3.5 text-primary" />
+                      <CalendarCheck className="size-4 text-sage" />
                       <span>Disponibilités : </span>
                       <span className="font-mono font-semibold text-success">8/8</span>
                     </p>
                     <p className="text-xs inline-flex items-center gap-1">
-                      <Vote className="size-3.5 text-primary" />
+                      <Vote className="size-4 text-sage" />
                       <span>Préférences : </span>
                       <span className="font-mono font-semibold text-success">8/8</span>
                     </p>
@@ -253,7 +275,7 @@ function Landing() {
                       <Check className="size-4 text-success" />
                       Hébergement retenu par le groupe
                     </h4>
-                    <div className="rounded-xl border border-border p-4 bg-background">
+                    <div className="rounded-xl border border-border/60 p-4 bg-background">
                       <div className="flex justify-between items-start gap-2">
                         <div>
                           <p className="font-semibold text-foreground">Lisbon Sky Apartments</p>
@@ -289,19 +311,19 @@ function Landing() {
                     Extrait du planning jour par jour
                   </h4>
                   <div className="space-y-3.5 pt-1">
-                    <div className="relative pl-4 border-l-2 border-primary/40">
+                    <div className="relative pl-4 border-l-2 border-sage/35">
                       <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
                       <p className="text-xs font-mono font-semibold text-primary">JOUR 1 · 15:30</p>
                       <p className="font-semibold text-xs mt-0.5 text-foreground">Arrivée à l&apos;aéroport de Lisbonne et transfert</p>
                       <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">Dépose des bagages aux Lisbon Sky Apartments.</p>
                     </div>
-                    <div className="relative pl-4 border-l-2 border-primary/40">
+                    <div className="relative pl-4 border-l-2 border-sage/35">
                       <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
                       <p className="text-xs font-mono font-semibold text-primary">JOUR 1 · 19:30</p>
                       <p className="font-semibold text-xs mt-0.5 text-foreground">Dîner de Tapas locales chez Ramiro</p>
                       <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">Le resto mythique de fruits de mer plébiscité par le groupe.</p>
                     </div>
-                    <div className="relative pl-4 border-l-2 border-primary/40">
+                    <div className="relative pl-4 border-l-2 border-sage/35">
                       <span className="absolute -left-1.5 top-0.5 size-3 rounded-full bg-primary" />
                       <p className="text-xs font-mono font-semibold text-primary">JOUR 2 · 14:00</p>
                       <p className="font-semibold text-xs mt-0.5 text-foreground">Visite guidée en Tuk-Tuk électrique</p>

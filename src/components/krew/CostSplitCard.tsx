@@ -83,7 +83,7 @@ export function CostSplitCard({ split, tripName }: Props) {
     <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-primary font-mono">
+          <p className="text-xs font-medium uppercase tracking-wider text-primary">
             Répartition des coûts
           </p>
           <h3 className="mt-1 font-display text-2xl font-semibold">{split.destinationName}</h3>
