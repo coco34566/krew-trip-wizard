@@ -2000,85 +2000,284 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const tripProfile =
       aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null;
 
-    const result = await generateItineraryWithAi(
-      {
-        destination: destName,
-        country: destCountry,
-        startDate: trip.start_date,
-        endDate: trip.end_date,
-        nights,
-        participants: effCount,
-        budgetPerPerson:
-          Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400,
-        eventType: trip.event_type,
-        tripProfile,
-        ambiances: aggregated.ambiances ?? [],
-        activityCategories: aggregated.activityCategories ?? [],
-        starWanted: aggregated.starWantedActivities ?? [],
-        dietaryConstraints: aggregated.dietaryConstraints ?? [],
-        travelPace: aggregated.medianTravelPace,
-        preferredTimeSlots: aggregated.preferredTimeSlots ?? [],
-        matchReasons,
-        destinationScore: recoRow.score != null ? Number(recoRow.score) : null,
-        scoredActivityLabels: seedLabels,
-        latestGroupArrival: latestArrival,
-        earliestGroupDeparture: earliestReturn,
-        latestReturnHome: groupLatestReturnHome,
-        earliestOutboundDeparture: groupEarliestDeparture,
-        transportDurationHours,
-        forceDiscoveryRefresh: data.force === true,
-        transportPicksSummary: picks.slice(0, 12).map((p: any) => ({
-          city: p.city,
-          mode: p.modeLabel || p.mode,
-          outboundDeparture: p.outboundDepartureTime,
-          arrival: p.arrivalTime || p.time,
-          departure: p.departureTime,
-          returnArrival: p.returnArrivalTime,
-          durationHours: p.durationHours,
-        })),
-        individualPreferences: aggregated.individualPreferences,
-        groupAgeRange: aggregated.groupAgeRange ?? null,
-        starWantedEnvType: aggregated.starWantedEnvType ?? null,
-        wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
-      },
-      seedLabels,
+    const activityInput: import("@/lib/krew/activity-ai.server").ActivityAiInput = {
+      destination: destName,
+      country: destCountry,
+      startDate: trip.start_date,
+      endDate: trip.end_date,
+      nights,
+      participants: effCount,
+      budgetPerPerson:
+        Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400,
+      eventType: trip.event_type,
+      tripProfile,
+      ambiances: aggregated.ambiances ?? [],
+      activityCategories: aggregated.activityCategories ?? [],
+      starWanted: aggregated.starWantedActivities ?? [],
+      dietaryConstraints: aggregated.dietaryConstraints ?? [],
+      travelPace: aggregated.medianTravelPace,
+      preferredTimeSlots: aggregated.preferredTimeSlots ?? [],
+      matchReasons,
+      destinationScore: recoRow.score != null ? Number(recoRow.score) : null,
+      scoredActivityLabels: seedLabels,
+      latestGroupArrival: latestArrival,
+      earliestGroupDeparture: earliestReturn,
+      latestReturnHome: groupLatestReturnHome,
+      earliestOutboundDeparture: groupEarliestDeparture,
+      transportDurationHours,
+      forceDiscoveryRefresh: data.force === true,
+      transportPicksSummary: picks.slice(0, 12).map((p: any) => ({
+        city: p.city,
+        mode: p.modeLabel || p.mode,
+        outboundDeparture: p.outboundDepartureTime,
+        arrival: p.arrivalTime || p.time,
+        departure: p.departureTime,
+        returnArrival: p.returnArrivalTime,
+        durationHours: p.durationHours,
+      })),
+      individualPreferences: aggregated.individualPreferences,
+      groupAgeRange: aggregated.groupAgeRange ?? null,
+      groupAccommodationRole: aggregated.groupAccommodationRole ?? null,
+      starWantedEnvType: aggregated.starWantedEnvType ?? null,
+      wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
+    };
+
+    const { buildKrewSkeleton, geminiEnrichSkeleton } = await import(
+      "@/lib/krew/activity-ai.server"
+    );
+    const {
+      searchGeoapifyPlaces,
+      mapVenueFamilyToGeoapifyCategories,
+      determineSearchRadiusMeters,
+    } = await import("@/lib/krew/geoapify.server");
+
+    // 1. Build deterministic KREW Skeleton
+    const krewSkeleton = buildKrewSkeleton(activityInput);
+
+    // 2. Single Gemini call to enrich skeleton (internal creative moments + searchIntents)
+    const enrichResult = await geminiEnrichSkeleton(krewSkeleton, activityInput);
+    const enrichedSkeleton = enrichResult.enrichedSkeleton;
+
+    // Resolve reference coordinates (accommodation when centerpiece/part_of_stay, else destination)
+    let refLat: number | null = null;
+    let refLon: number | null = null;
+
+    const accRole = aggregated.groupAccommodationRole;
+    const preferAccomCoords = (accRole === "centerpiece" || accRole === "part_of_stay") && logistics.selectedHotelId;
+
+    if (preferAccomCoords) {
+      const selectedAccId = logistics.selectedHotelId;
+      const accRes = await supabase
+        .from("accommodations")
+        .select("latitude, longitude")
+        .eq("id", selectedAccId)
+        .maybeSingle();
+      if (accRes.data?.latitude != null && accRes.data?.longitude != null) {
+        refLat = Number(accRes.data.latitude);
+        refLon = Number(accRes.data.longitude);
+      }
+    }
+
+    if (refLat == null || refLon == null) {
+      if (recoRow.destination_id) {
+        const destRes = await supabase
+          .from("destinations")
+          .select("latitude, longitude")
+          .eq("id", recoRow.destination_id)
+          .maybeSingle();
+        if (destRes.data?.latitude != null && destRes.data?.longitude != null) {
+          refLat = Number(destRes.data.latitude);
+          refLon = Number(destRes.data.longitude);
+        }
+      }
+    }
+    // Fallback geocoding if coordinates not in DB
+    if (refLat == null || refLon == null) {
+      try {
+        const { geocodeDestination } = await import(
+          "@/integrations/external/geo-weather.server"
+        );
+        const geo = await geocodeDestination(
+          destCountry ? `${destName}, ${destCountry}` : destName,
+        );
+        if (geo) {
+          refLat = geo.latitude;
+          refLon = geo.longitude;
+        }
+      } catch {
+        /* geocoding optional */
+      }
+    }
+
+    const radiusMeters = determineSearchRadiusMeters(
+      aggregated.groupLocalMobility,
+      tripProfile,
     );
 
-    // Enrich with actual activities booking urls from catalog database when available
-    try {
-      const destinationId = (selected.data as any).destination_id;
-      if (destinationId && result.itinerary?.days) {
-        const { data: acts } = await supabase
-          .from("activities")
-          .select("name, booking_url")
-          .eq("destination_id", destinationId);
-        if (acts?.length) {
-          const urlByName = new Map<string, string>();
-          for (const a of acts) {
-            if (a.name && a.booking_url) {
-              urlByName.set(a.name.toLowerCase().trim(), a.booking_url);
-            }
-          }
-          for (const day of result.itinerary.days) {
-            for (const slot of day.slots ?? []) {
-              if (slot.label) {
-                const key = slot.label.toLowerCase().trim();
-                if (urlByName.has(key)) {
-                  slot.url = urlByName.get(key) ?? null;
-                }
-              }
-            }
+    // 3. Collect place_required needs and group into category pools
+    const poolCategoryMap = new Map<string, string[]>();
+    for (const day of enrichedSkeleton.days) {
+      for (const slot of day.slots) {
+        if (slot.kind === "place_required") {
+          const categories = mapVenueFamilyToGeoapifyCategories(
+            slot.venueFamily,
+            slot.type,
+          );
+          const poolKey = categories.slice(0, 2).sort().join("_");
+          if (!poolCategoryMap.has(poolKey)) {
+            poolCategoryMap.set(poolKey, categories);
           }
         }
       }
-    } catch (e) {
-      console.warn("itinerary post-processing failed:", e);
     }
+
+    // 4. Fetch Geoapify place pools for each unique family
+    const placePools: Record<string, any[]> = {};
+    if (refLat != null && refLon != null) {
+      for (const [poolKey, categories] of poolCategoryMap.entries()) {
+        const places = await searchGeoapifyPlaces({
+          categories,
+          latitude: refLat,
+          longitude: refLon,
+          radiusMeters,
+          limit: 15,
+        });
+        placePools[poolKey] = places;
+      }
+    }
+
+    // 5. Match Geoapify places to place_required slots from persisted pools (geographic proximity matching)
+    const { haversineDistanceKm } = await import("@/lib/krew/activity-ai.server");
+    const usedCandidateIdsSet = new Set<string>();
+
+    const daysPlans: import("@/lib/krew/activity-ai.server").ItineraryDayPlan[] = [];
+
+    for (const day of enrichedSkeleton.days) {
+      // Reset spatial reference point to daily reference (accommodation or destination) at the start of each day
+      let lastSlotCoords: { latitude?: number | null; longitude?: number | null } | null =
+        refLat != null && refLon != null ? { latitude: refLat, longitude: refLon } : null;
+
+      const slots: import("@/lib/krew/activity-ai.server").ActivitySlot[] = [];
+
+      for (const s of day.slots) {
+        if (s.kind === "internal") {
+          slots.push({
+            moment: s.moment,
+            time: s.time,
+            endTime: s.endTime,
+            durationMinutes: s.durationMinutes,
+            type: s.type,
+            category: s.category,
+            label: s.label,
+            detail: s.detail,
+            verified: false,
+            source: "krew",
+            url: null,
+          });
+          continue;
+        }
+
+        const categories = mapVenueFamilyToGeoapifyCategories(
+          s.venueFamily,
+          s.type,
+        );
+        const poolKey = categories.slice(0, 2).sort().join("_");
+        const pool = placePools[poolKey] || [];
+
+        // Pick unused candidate closest to lastSlotCoords (or reference point)
+        const candidatesAvailable = pool.filter((p) => !usedCandidateIdsSet.has(p.id));
+
+        let matchedPlace: any = null;
+        if (candidatesAvailable.length > 0) {
+          if (lastSlotCoords?.latitude != null && lastSlotCoords?.longitude != null) {
+            candidatesAvailable.sort((a, b) => {
+              const distA = haversineDistanceKm(lastSlotCoords!, a) ?? 99999;
+              const distB = haversineDistanceKm(lastSlotCoords!, b) ?? 99999;
+              return distA - distB;
+            });
+          }
+          matchedPlace = candidatesAvailable[0];
+          usedCandidateIdsSet.add(matchedPlace.id);
+          if (matchedPlace.latitude != null && matchedPlace.longitude != null) {
+            lastSlotCoords = { latitude: matchedPlace.latitude, longitude: matchedPlace.longitude };
+          }
+        } else if (pool.length > 0) {
+          // Fallback cycle if pool fully assigned across days
+          matchedPlace = pool[usedCandidateIdsSet.size % pool.length];
+        }
+
+        if (matchedPlace) {
+          slots.push({
+            moment: s.moment,
+            time: s.time,
+            endTime: s.endTime,
+            durationMinutes: s.durationMinutes,
+            type: s.type,
+            category: s.category,
+            venueFamily: s.venueFamily,
+            label: matchedPlace.name,
+            detail:
+              matchedPlace.address ||
+              s.detail ||
+              s.searchIntent ||
+              "Lieu sélectionné par KREW",
+            url: matchedPlace.website || null,
+            candidateId: matchedPlace.id,
+            verified: true,
+            source: "geoapify",
+            latitude: matchedPlace.latitude,
+            longitude: matchedPlace.longitude,
+          });
+        } else {
+          // Graceful degradation when Geoapify key is missing or no results returned
+          slots.push({
+            moment: s.moment,
+            time: s.time,
+            endTime: s.endTime,
+            durationMinutes: s.durationMinutes,
+            type: s.type,
+            category: s.category,
+            venueFamily: s.venueFamily,
+            label: `${s.label} — lieu à choisir`,
+            detail:
+              s.detail ||
+              s.searchIntent ||
+              "Réservation ou choix du lieu à préciser",
+            verified: false,
+            source: "krew",
+            url: null,
+          });
+        }
+      }
+
+      daysPlans.push({
+        day: day.day,
+        date: day.date ?? null,
+        slots,
+      });
+    }
+
+    const { adjustItineraryTransferTimes } = await import(
+      "@/lib/krew/activity-ai.server"
+    );
+    const timeCoherentDays = adjustItineraryTransferTimes(daysPlans, activityInput);
+
+    const finalItinerary: import("@/lib/krew/activity-ai.server").GroupItinerary = {
+      destination: destName,
+      nights,
+      days: timeCoherentDays,
+      source: "ai",
+      provider: "krew_geoapify",
+      generatedAt: new Date().toISOString(),
+      placePools,
+      usedCandidateIds: Array.from(usedCandidateIdsSet),
+      skeleton: enrichedSkeleton,
+    };
 
     const { error } = await supabase
       .from("trips")
       .update({
-        group_itinerary: result.itinerary,
+        group_itinerary: finalItinerary,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", data.tripId);
@@ -2086,9 +2285,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
     return {
       ok: true,
-      usedLlm: result.usedLlm,
-      error: result.error,
-      itinerary: result.itinerary,
+      usedLlm: enrichResult.usedLlm,
+      error: enrichResult.error,
+      itinerary: finalItinerary,
     };
   });
 
@@ -2131,7 +2330,9 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       days?: { day: number; date?: string | null; slots: any[] }[];
       source?: string;
       generatedAt?: string;
-      candidates?: import("@/lib/krew/activity-discovery.server").ActivityCandidate[];
+      placePools?: Record<string, any[]>;
+      usedCandidateIds?: string[];
+      skeleton?: import("@/lib/krew/activity-ai.server").KrewSkeleton;
     } | null;
     if (!itinerary?.days?.length) {
       throw new Error("Aucun planning à modifier — génère d'abord les activités");
@@ -2142,98 +2343,167 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       throw new Error("Créneau introuvable");
     }
     const current = dayPlan.slots[data.slotIndex];
-    const avoid = dayPlan.slots.map((s) => s.label).filter(Boolean);
+    const avoidLabels = dayPlan.slots.map((s) => s.label).filter(Boolean);
+    const usedIdsSet = new Set<string>(itinerary.usedCandidateIds ?? []);
 
-    const selected = await supabase
-      .from("recommendations")
-      .select("destination_id, destinations(name, country)")
-      .eq("trip_id", data.tripId)
-      .eq("is_selected", true)
-      .maybeSingle();
-    const destName =
-      (selected.data as any)?.destinations?.name || itinerary.destination || "Destination";
+    if (current.candidateId) {
+      usedIdsSet.add(current.candidateId);
+    }
 
-    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+    const {
+      mapVenueFamilyToGeoapifyCategories,
+      searchGeoapifyPlaces,
+      determineSearchRadiusMeters,
+    } = await import("@/lib/krew/geoapify.server");
 
-    const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
-    const effCount = getEffectiveParticipantsCount(tripRes.data, participants);
+    // Identify category pool for this slot
+    const categories = mapVenueFamilyToGeoapifyCategories(
+      current.venueFamily,
+      current.type,
+    );
+    const poolKey = categories.slice(0, 2).sort().join("_");
+    let pool = itinerary.placePools?.[poolKey] || [];
 
-    const { regenerateSlotWithAi } = await import("@/lib/krew/activity-ai.server");
-    const result = await regenerateSlotWithAi(
-      {
-        destination: destName,
-        startDate: (tripRes.data as any).start_date,
-        endDate: (tripRes.data as any).end_date,
-        nights: Number((tripRes.data as any).duration_nights) || itinerary.nights || 2,
-        participants: effCount,
-        budgetPerPerson: Number((tripRes.data as any).budget_per_person) || 400,
-        eventType: (tripRes.data as any).event_type,
-        tripProfile:
-          aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null,
-        ambiances: aggregated.ambiances ?? [],
-        activityCategories: aggregated.activityCategories ?? [],
-        starWanted: aggregated.starWantedActivities ?? [],
-        dietaryConstraints: aggregated.dietaryConstraints ?? [],
-        travelPace: aggregated.medianTravelPace,
-        individualPreferences: aggregated.individualPreferences,
-        groupAgeRange: aggregated.groupAgeRange ?? null,
-        starWantedEnvType: aggregated.starWantedEnvType ?? null,
-        wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
-        latestGroupArrival:
-          ((tripRes.data as any).group_logistics?.transportPicks ?? [])
-            .map((p: any) => p.arrivalTime || p.time)
-            .filter(Boolean)
-            .sort()
-            .at(-1) ?? null,
-        earliestGroupDeparture:
-          ((tripRes.data as any).group_logistics?.transportPicks ?? [])
-            .map((p: any) => p.departureTime)
-            .filter(Boolean)
-            .sort()[0] ?? null,
-        transportPicksSummary: ((tripRes.data as any).group_logistics?.transportPicks ?? []).map(
-          (p: any) => ({
-            city: p.city,
-            mode: p.modeLabel || p.mode,
-            outboundDeparture: p.outboundDepartureTime,
-            arrival: p.arrivalTime || p.time,
-            departure: p.departureTime,
-            returnArrival: p.returnArrivalTime,
-            durationHours: p.durationHours,
-          }),
-        ),
-      },
-      current,
-      data.day,
-      avoid,
-      itinerary.candidates ?? [],
+    // Find next unused candidate in persisted pool
+    let unusedPlace = pool.find(
+      (place) =>
+        !usedIdsSet.has(place.id) &&
+        !avoidLabels.some((label) => label.toLowerCase().trim() === place.name.toLowerCase().trim()),
     );
 
-    // Try to enrich the regenerated slot with catalog database booking_url if present
-    try {
-      const destinationId = (selected.data as any).destination_id;
-      if (destinationId && result.slot?.label) {
-        const { data: acts } = await supabase
-          .from("activities")
-          .select("name, booking_url")
-          .eq("destination_id", destinationId);
-        if (acts?.length) {
-          const match = acts.find(
-            (a: any) =>
-              a.name && a.name.toLowerCase().trim() === result.slot.label.toLowerCase().trim(),
-          );
-          if (match?.booking_url) {
-            result.slot.url = match.booking_url;
+    let usedLlm = false;
+
+    // If pool is exhausted, perform a new targeted Geoapify search without Gemini
+    if (!unusedPlace) {
+      const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+      const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+      const tripProfile = aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null;
+      const accRole = aggregated.groupAccommodationRole;
+
+      const logistics = ((tripRes.data as any).group_logistics || {}) as any;
+      let refLat: number | null = null;
+      let refLon: number | null = null;
+
+      // Coordinate reference hierarchy:
+      // 1. Coordinates of the previous slot in the same day (if valid)
+      const prevSlots = dayPlan.slots.slice(0, data.slotIndex);
+      for (let i = prevSlots.length - 1; i >= 0; i--) {
+        const pSlot = prevSlots[i];
+        if (pSlot?.latitude != null && pSlot?.longitude != null) {
+          refLat = Number(pSlot.latitude);
+          refLon = Number(pSlot.longitude);
+          break;
+        }
+      }
+
+      // 2. Selected accommodation coordinates (if centerpiece/part_of_stay)
+      if (refLat == null || refLon == null) {
+        if ((accRole === "centerpiece" || accRole === "part_of_stay") && logistics.selectedHotelId) {
+          const accRes = await supabase
+            .from("accommodations")
+            .select("latitude, longitude")
+            .eq("id", logistics.selectedHotelId)
+            .maybeSingle();
+          if (accRes.data?.latitude != null && accRes.data?.longitude != null) {
+            refLat = Number(accRes.data.latitude);
+            refLon = Number(accRes.data.longitude);
           }
         }
       }
-    } catch (e) {
-      console.warn("single slot url enrichment failed:", e);
+
+      // 3. Selected destination coordinates
+      if (refLat == null || refLon == null) {
+        const recoRes = await supabase
+          .from("recommendations")
+          .select("destination_id, destinations(name, country, latitude, longitude)")
+          .eq("trip_id", data.tripId)
+          .eq("is_selected", true)
+          .maybeSingle();
+
+        const destData = (recoRes.data as any)?.destinations;
+        if (destData?.latitude != null && destData?.longitude != null) {
+          refLat = Number(destData.latitude);
+          refLon = Number(destData.longitude);
+        }
+
+        // 4. Destination geocoding fallback
+        if ((refLat == null || refLon == null) && destData?.name) {
+          try {
+            const { geocodeDestination } = await import(
+              "@/integrations/external/geo-weather.server"
+            );
+            const geo = await geocodeDestination(
+              destData.country ? `${destData.name}, ${destData.country}` : destData.name,
+            );
+            if (geo) {
+              refLat = geo.latitude;
+              refLon = geo.longitude;
+            }
+          } catch {
+            /* geocoding optional */
+          }
+        }
+      }
+
+      // 5. If reliable coordinates exist, execute targeted Geoapify search with mobility & profile radius
+      if (refLat != null && refLon != null) {
+        const radiusMeters = determineSearchRadiusMeters(
+          aggregated.groupLocalMobility,
+          tripProfile,
+        );
+        const newPlaces = await searchGeoapifyPlaces({
+          categories,
+          latitude: refLat,
+          longitude: refLon,
+          radiusMeters,
+          limit: 15,
+        });
+
+        const knownIds = new Set(pool.map((p) => p.id));
+        const deduplicatedNew = newPlaces.filter((p) => !knownIds.has(p.id));
+
+        if (deduplicatedNew.length > 0) {
+          pool = [...pool, ...deduplicatedNew];
+          if (!itinerary.placePools) itinerary.placePools = {};
+          itinerary.placePools[poolKey] = pool;
+
+          unusedPlace = deduplicatedNew.find(
+            (place) =>
+              !usedIdsSet.has(place.id) &&
+              !avoidLabels.some((label) => label.toLowerCase().trim() === place.name.toLowerCase().trim()),
+          ) || deduplicatedNew[0];
+        }
+      }
     }
 
-    dayPlan.slots[data.slotIndex] = result.slot;
+    let updatedSlot: any;
+
+    if (unusedPlace) {
+      usedIdsSet.add(unusedPlace.id);
+      itinerary.usedCandidateIds = Array.from(usedIdsSet);
+
+      updatedSlot = {
+        ...current,
+        label: unusedPlace.name,
+        detail: unusedPlace.address || current.detail || "Lieu sélectionné par KREW",
+        url: unusedPlace.website || null,
+        candidateId: unusedPlace.id,
+        verified: true,
+        source: "geoapify",
+        latitude: unusedPlace.latitude,
+        longitude: unusedPlace.longitude,
+      };
+    } else {
+      // Graceful degradation when pool exhausted and no new Geoapify places found
+      updatedSlot = {
+        ...current,
+        label: `${current.label || "Créneau"} — choix à préciser`,
+        detail: "Toutes les alternatives locales disponibles ont été consultées",
+      };
+    }
+
+    dayPlan.slots[data.slotIndex] = updatedSlot;
     itinerary.generatedAt = new Date().toISOString();
-    if (result.usedLlm) itinerary.source = "ai";
 
     const { error } = await supabase
       .from("trips")
@@ -2244,7 +2514,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       .eq("id", data.tripId);
     if (error) throw error;
 
-    return { ok: true, usedLlm: result.usedLlm, slot: result.slot, itinerary };
+    return { ok: true, usedLlm, slot: updatedSlot, itinerary };
   });
 
 /** Reco hôtels + A/R multi-modes (avion, train, bus, voiture) avec liens de réservation. */

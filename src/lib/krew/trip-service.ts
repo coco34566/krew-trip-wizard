@@ -307,6 +307,26 @@ export function aggregateLocalMobility(
   return { value, consensus: scores[value] / total, scores };
 }
 
+export function aggregateAccommodationRole(
+  preferences: Array<{
+    accommodationRole?: "base_only" | "part_of_stay" | "centerpiece" | null;
+    weight?: number;
+  }>,
+) {
+  const scores = { base_only: 0, part_of_stay: 0, centerpiece: 0 };
+  let total = 0;
+  for (const preference of preferences) {
+    if (!preference.accommodationRole) continue;
+    const weight = Math.max(0.1, preference.weight ?? 1);
+    scores[preference.accommodationRole] += weight;
+    total += weight;
+  }
+  if (!total) return { value: null, consensus: 0, scores };
+  const order = ["base_only", "part_of_stay", "centerpiece"] as const;
+  const value = order.reduce((best, current) => (scores[current] > scores[best] ? current : best));
+  return { value, consensus: scores[value] / total, scores };
+}
+
 function frequencies(values: string[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const v of values) out[v] = (out[v] ?? 0) + 1;
@@ -649,6 +669,7 @@ export async function aggregateParticipantPreferences(
     };
   });
   const localMobility = aggregateLocalMobility(individualPreferences);
+  const accommodationRole = aggregateAccommodationRole(individualPreferences);
 
   const ageRanges = rows.map((r) => r.group_age_range).filter(Boolean);
   const ageRangeFreq = frequencies(ageRanges as string[]);
@@ -727,6 +748,8 @@ export async function aggregateParticipantPreferences(
     individualPreferences,
     groupLocalMobility: localMobility.value,
     localMobilityConsensus: localMobility.consensus,
+    groupAccommodationRole: accommodationRole.value,
+    accommodationRoleConsensus: accommodationRole.consensus,
     starWantedActivities,
     starDealBreakers,
     starWeight,
