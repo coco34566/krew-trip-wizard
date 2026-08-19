@@ -22,28 +22,41 @@ export type GeoapifySearchOptions = {
   limit?: number;
 };
 
+export type CanonicalKrewVenueFamily =
+  | "restaurant"
+  | "cafe"
+  | "bar_pub"
+  | "culture"
+  | "sport"
+  | "spa_wellness"
+  | "shopping"
+  | "local_experience";
+
 export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: string): string[] {
   const norm = String(family || type || "").toLowerCase().trim();
-  if (norm.includes("cafe") || norm.includes("brunch") || norm.includes("petit-dejeuner")) {
-    return ["catering.cafe", "catering.restaurant"];
+  if (norm === "cafe" || norm.includes("cafe") || norm.includes("brunch") || norm.includes("petit-dejeuner")) {
+    return ["catering.cafe"];
   }
-  if (norm.includes("restaurant") || norm.includes("diner") || norm.includes("dejeuner") || norm.includes("gastro") || norm === "resto") {
+  if (norm === "restaurant" || norm.includes("restaurant") || norm.includes("diner") || norm.includes("dejeuner") || norm.includes("gastro") || norm === "resto") {
     return ["catering.restaurant"];
   }
-  if (norm.includes("bar") || norm.includes("apero") || norm.includes("pub")) {
+  if (norm === "bar_pub" || norm.includes("bar") || norm.includes("apero") || norm.includes("pub") || norm.includes("soiree") || norm.includes("fete") || norm.includes("nightlife")) {
     return ["catering.bar", "catering.pub"];
   }
-  if (norm.includes("nightlife") || norm.includes("club") || norm.includes("soiree") || norm.includes("fete")) {
-    return ["catering.bar", "catering.pub"];
-  }
-  if (norm.includes("sport") || norm.includes("outdoor") || norm.includes("nature") || norm.includes("rando") || norm.includes("velo")) {
+  if (norm === "sport" || norm.includes("sport") || norm.includes("outdoor") || norm.includes("nature") || norm.includes("rando") || norm.includes("velo")) {
     return ["sport", "entertainment.activity_park", "tourism.attraction"];
   }
-  if (norm.includes("culture") || norm.includes("visite") || norm.includes("musee") || norm.includes("monument") || norm.includes("patrimoine")) {
+  if (norm === "culture" || norm.includes("culture") || norm.includes("visite") || norm.includes("musee") || norm.includes("monument") || norm.includes("patrimoine")) {
     return ["tourism.sights", "tourism.attraction", "entertainment.museum", "entertainment.culture"];
   }
-  if (norm.includes("relax") || norm.includes("spa") || norm.includes("bien_etre") || norm.includes("relaxation")) {
+  if (norm === "spa_wellness" || norm.includes("relax") || norm.includes("spa") || norm.includes("bien_etre") || norm.includes("relaxation")) {
     return ["leisure.spa", "service.beauty.spa", "service.beauty.massage"];
+  }
+  if (norm === "shopping" || norm.includes("shopping") || norm.includes("boutique") || norm.includes("magasin")) {
+    return ["commercial.shopping_mall", "commercial.clothing"];
+  }
+  if (norm === "local_experience" || norm.includes("experience")) {
+    return ["tourism.attraction", "tourism.sights", "entertainment"];
   }
   return ["catering.restaurant", "tourism.attraction", "entertainment"];
 }

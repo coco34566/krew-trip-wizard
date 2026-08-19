@@ -907,9 +907,12 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
 
     const evtTime = "22:15";
     const evtMin = toMinutes(evtTime)!;
-    if (evtMin >= dayStartLimit && evtMin + 90 <= dayEndLimit) {
-      const eventTypeNorm = norm(input.eventType);
-      if (/evg|evjf/.test(eventTypeNorm) && day === Math.min(2, count)) {
+    const eventTypeNorm = norm(input.eventType);
+
+    if (/evg|evjf|anniversaire|retraite/.test(eventTypeNorm)) {
+      // For event trips, place event moment on the first available full/partial evening
+      const isSignatureDay = count === 1 || day === 1 || (day === 2 && count > 2);
+      if (isSignatureDay && evtMin >= dayStartLimit && evtMin + 90 <= dayEndLimit) {
         addSlotIfValid({
           moment: "Soir",
           time: evtTime,
@@ -917,43 +920,33 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
           durationMinutes: 90,
           kind: "internal",
           type: "libre",
-          category: "jeu_groupe",
-          label: eventTypeNorm === "evjf" ? "Grand Jeu de la mariée (EVJF)" : "Défis & Rituals du marié (EVG)",
-          detail: "Animation sur-mesure préparée par le groupe au logement",
+          category: /evg|evjf/.test(eventTypeNorm) ? "jeu_groupe" : "evenement",
+          label: eventTypeNorm === "evjf"
+            ? "Grand Jeu de la mariée (EVJF)"
+            : eventTypeNorm === "evg"
+              ? "Défis & Rituals du marié (EVG)"
+              : "Surprise Anniversaire & Célébration",
+          detail: "Animation sur-mesure organisée par le groupe",
           importance: "high",
           flexibility: "flexible",
-        });
-      } else if (eventTypeNorm === "anniversaire" && day === Math.min(2, count)) {
-        addSlotIfValid({
-          moment: "Soir",
-          time: evtTime,
-          endTime: fromMinutes(evtMin + 90),
-          durationMinutes: 90,
-          kind: "internal",
-          type: "libre",
-          category: "evenement",
-          label: "Surprise Anniversaire & Célébration",
-          detail: "Moment fort, gâteau, cadeaux et jeux organisés par le groupe",
-          importance: "high",
-          flexibility: "flexible",
-        });
-      } else if (wantsNightlife && !isLastDay) {
-        addSlotIfValid({
-          moment: "Soir",
-          time: evtTime,
-          endTime: fromMinutes(evtMin + 105),
-          durationMinutes: 105,
-          kind: "place_required",
-          type: "bar",
-          category: "soiree",
-          label: "Soirée festive, bar & clubbing",
-          detail: "Bar musical, pub ou club pour prolonger la nuit",
-          importance: "medium",
-          flexibility: "flexible",
-          venueFamily: "nightlife",
-          searchIntent: `bar fete club nocturne groupe à ${input.destination}`,
         });
       }
+    } else if (wantsNightlife && !isLastDay && evtMin >= dayStartLimit && evtMin + 105 <= dayEndLimit) {
+      addSlotIfValid({
+        moment: "Soir",
+        time: evtTime,
+        endTime: fromMinutes(evtMin + 105),
+        durationMinutes: 105,
+        kind: "place_required",
+        type: "bar",
+        category: "soiree",
+        label: "Soirée festive, bar & clubbing",
+        detail: "Bar musical, pub ou club pour prolonger la nuit",
+        importance: "medium",
+        flexibility: "flexible",
+        venueFamily: "bar_pub",
+        searchIntent: `bar fete club nocturne groupe à ${input.destination}`,
+      });
     }
 
     days.push({
@@ -963,10 +956,114 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
     });
   }
 
-  return {
+  const skeleton: KrewSkeleton = {
     destination: input.destination,
     nights: input.nights,
     days,
+  };
+
+  return ensurePlanningCoverage(skeleton, input);
+}
+
+export function ensurePlanningCoverage(
+  skeleton: KrewSkeleton,
+  input: ActivityAiInput,
+): KrewSkeleton {
+  const window = calculatePlanningWindow(input);
+  const arrivalMinutes = toMinutes(window.arrivalReady);
+  const departureMinutes = toMinutes(window.latestDestinationDeparture);
+
+  const categoriesNorm = (input.activityCategories ?? []).map(norm);
+  const ambiancesNorm = (input.ambiances ?? []).map(norm);
+  const starNorm = (input.starWanted ?? []).map(norm);
+  const combined = [...categoriesNorm, ...ambiancesNorm, ...starNorm].join(" ");
+
+  const wantsGastro = /gastronomie|terroir|resto|degustation|vin/.test(combined);
+  const wantsCulture = /culture|musee|visite|patrimoine|decouverte|histoire/.test(combined);
+  const wantsExperience = /experience|decouverte|insolite|atelier|balade/.test(combined);
+  const wantsNightlife = /soiree|bar|fete|club|pub|nightlife/.test(combined);
+
+  let slotIdCounter = 100;
+  const nextSlotId = () => `slot_cov_${slotIdCounter++}`;
+
+  const coveredDays = skeleton.days.map((day) => {
+    const slots = [...day.slots];
+    const isFirstDay = day.day === 1;
+    const isLastDay = day.day === skeleton.days.length;
+
+    const dayStartLimit = isFirstDay
+      ? arrivalMinutes != null
+        ? arrivalMinutes
+        : 18 * 60
+      : 8 * 60;
+
+    const dayEndLimit = isLastDay
+      ? departureMinutes != null
+        ? departureMinutes
+        : 12 * 60
+      : 23 * 60 + 59;
+
+    const hasSlotAt = (time: string) => slots.some((s) => s.time === time);
+
+    // If day 1 has evening arrival (e.g. 18:00 - 19:00) and lacks dinner, guarantee dinner
+    if (isFirstDay && arrivalMinutes != null && arrivalMinutes <= 19 * 60 + 30 && !slots.some((s) => s.category === "repas" && s.moment === "Soir")) {
+      const dMin = Math.max(arrivalMinutes + 45, 20 * 60);
+      if (dMin + 90 <= dayEndLimit) {
+        slots.push({
+          id: nextSlotId(),
+          day: day.day,
+          moment: "Soir",
+          time: fromMinutes(dMin),
+          endTime: fromMinutes(dMin + 90),
+          durationMinutes: 90,
+          kind: "place_required",
+          type: "resto",
+          category: "repas",
+          label: "Dîner convivial de bienvenue",
+          detail: wantsGastro ? "Table régionale et spécialités de saison" : "Dîner chaleureux de groupe",
+          importance: "high",
+          flexibility: "flexible",
+          venueFamily: "restaurant",
+          searchIntent: `restaurant dîner groupe convivial à ${input.destination}`,
+        });
+      }
+    }
+
+    // If afternoon is empty and available, add a discovery/experience slot
+    if (!isFirstDay || (isFirstDay && arrivalMinutes != null && arrivalMinutes <= 14 * 60)) {
+      if (!slots.some((s) => s.moment === "Après-midi" && s.kind === "place_required") && dayStartLimit <= 15 * 60 && dayEndLimit >= 17 * 60) {
+        slots.push({
+          id: nextSlotId(),
+          day: day.day,
+          moment: "Après-midi",
+          time: "15:00",
+          endTime: "17:00",
+          durationMinutes: 120,
+          kind: "place_required",
+          type: "activite",
+          category: wantsCulture ? "culture" : "culture",
+          label: wantsExperience ? "Expérience locale & découverte" : "Balade & découverte incontournable",
+          detail: "Moment d'exploration caractéristique de la destination",
+          importance: "medium",
+          flexibility: "flexible",
+          venueFamily: wantsCulture ? "culture" : "local_experience",
+          searchIntent: `activité découverte incontournable groupe à ${input.destination}`,
+        });
+      }
+    }
+
+    // Sort slots by time
+    slots.sort((a, b) => (toMinutes(a.time) ?? 9999) - (toMinutes(b.time) ?? 9999));
+
+    return {
+      ...day,
+      slots,
+    };
+  });
+
+  return {
+    ...skeleton,
+    days: coveredDays,
   };
 }
 
@@ -1074,11 +1171,9 @@ Brief du séjour = ${JSON.stringify(brief)}`;
           };
         }
 
+        // Preserve KREW's immutable canonical venueFamily (Gemini suggestions cannot override KREW venueFamily)
         return {
           ...slot,
-          venueFamily: typeof enriched.venueFamily === "string" && enriched.venueFamily.trim()
-            ? enriched.venueFamily.trim()
-            : slot.venueFamily,
           searchIntent: typeof enriched.searchIntent === "string" && enriched.searchIntent.trim()
             ? enriched.searchIntent.trim().slice(0, 200)
             : slot.searchIntent,

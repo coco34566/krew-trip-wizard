@@ -372,6 +372,48 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     const spaCats = mapVenueFamilyToGeoapifyCategories("relaxation", "spa");
     expect(spaCats).toEqual(["leisure.spa", "service.beauty.spa", "service.beauty.massage"]);
     expect(spaCats.some((c) => c.includes("fitness") || c.includes("theme_park"))).toBe(false);
+
+    const cafeCats = mapVenueFamilyToGeoapifyCategories("cafe", "resto");
+    expect(cafeCats).toEqual(["catering.cafe"]);
+  });
+
+  it("S. Test 12 non-regression scenario (1 night EVJF Beaune-like context)", () => {
+    const skeleton = buildKrewSkeleton(
+      input({
+        destination: "Beaune",
+        eventType: "evjf",
+        nights: 1,
+        latestGroupArrival: "13:00",
+        earliestGroupDeparture: "17:00",
+        ambiances: ["fete", "gastronomique"],
+        activityCategories: ["gastronomie", "degustation", "spa"],
+        groupAccommodationRole: "part_of_stay",
+      }),
+    );
+
+    const allSlots = skeleton.days.flatMap((d) => d.slots);
+    expect(allSlots.length).toBeGreaterThanOrEqual(5);
+
+    const eventSlot = allSlots.find((s) => s.category === "jeu_groupe" || s.category === "evenement");
+    expect(eventSlot).toBeDefined();
+
+    const cafeSlot = allSlots.find((s) => s.venueFamily === "cafe");
+    if (cafeSlot) {
+      const cats = mapVenueFamilyToGeoapifyCategories(cafeSlot.venueFamily, cafeSlot.type);
+      expect(cats).toEqual(["catering.cafe"]);
+    }
+  });
+
+  it("T. Transport semantics: departureOrigin + duration + margin", () => {
+    const win = calculatePlanningWindow(
+      input({
+        earliestOutboundDeparture: "20:30",
+        transportDurationHours: 2,
+        transferMarginMinutes: 45,
+      }),
+    );
+
+    expect(win.arrivalReady).toBe("23:15");
   });
 });
 
