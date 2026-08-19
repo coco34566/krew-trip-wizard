@@ -198,7 +198,7 @@ function geographyPolicy(input: ActivityAiInput) {
   return { maxKm: 25, profile: "city" as const };
 }
 
-function transferMinutes(distanceKm: number | null): number {
+export function transferMinutes(distanceKm: number | null): number {
   if (distanceKm == null) return 20;
   if (distanceKm <= 2) return 15;
   if (distanceKm <= 8) return 30;
@@ -349,6 +349,73 @@ function normalizeSlot(
   };
 }
 
+export function adjustItineraryTransferTimes(
+  days: ItineraryDayPlan[],
+  input: ActivityAiInput,
+): ItineraryDayPlan[] {
+  const expectedDays = Math.max(1, input.nights + 1);
+  const window = calculatePlanningWindow(input);
+  const arrival = toMinutes(window.arrivalReady);
+  const departure = toMinutes(window.latestDestinationDeparture);
+
+  return days
+    .filter((day) => day.day >= 1 && day.day <= expectedDays)
+    .map((day) => {
+      let previousEnd = -1;
+      let previousCoords: { latitude?: number | null; longitude?: number | null } | null = null;
+
+      const slots: ActivitySlot[] = [];
+
+      for (const slot of day.slots) {
+        let start = toMinutes(slot.time);
+        if (start == null) {
+          slots.push(slot);
+          continue;
+        }
+
+        const duration = slot.durationMinutes ?? 90;
+
+        // Calculate transfer time if previous external location exists
+        const distance = previousCoords ? haversineDistanceKm(previousCoords, slot) : null;
+        const requiredTransfer = previousEnd >= 0 ? transferMinutes(distance) : 0;
+        const minStart = previousEnd >= 0 ? previousEnd + requiredTransfer : start;
+
+        if (start < minStart) {
+          start = minStart;
+        }
+
+        const end = start + duration;
+
+        // Hard arrival boundary on day 1
+        if (day.day === 1 && arrival != null && start < arrival) continue;
+        if (day.day === 1 && arrival == null && start < 18 * 60) continue;
+
+        // Hard departure boundary on last day
+        if (day.day === expectedDays && departure != null && end > departure) continue;
+        if (day.day === expectedDays && departure == null && end > 12 * 60) continue;
+
+        const updatedSlot: ActivitySlot = {
+          ...slot,
+          time: fromMinutes(start),
+          endTime: fromMinutes(end),
+          durationMinutes: duration,
+        };
+
+        previousEnd = end;
+        if (slot.latitude != null && slot.longitude != null) {
+          previousCoords = { latitude: slot.latitude, longitude: slot.longitude };
+        }
+
+        slots.push(updatedSlot);
+      }
+
+      return {
+        ...day,
+        slots,
+      };
+    });
+}
+
 export function validateItinerary(
   days: ItineraryDayPlan[],
   input: ActivityAiInput,
@@ -473,8 +540,8 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
   const isPartOfStay = lodgRole === "part_of_stay";
 
   const timeSlotPrefs = (input.preferredTimeSlots ?? []).map(norm);
-  const wantsLateMorning = timeSlotPrefs.some((s) => s.includes("matin_tard") || s.includes("grasse") || s.includes("tard"));
-  const wantsLateNight = timeSlotPrefs.some((s) => s.includes("nuit") || s.includes("tard_soir") || s.includes("soiree"));
+  const wantsLateMorning = timeSlotPrefs.some((s) => s.includes("matin_tard") || s.includes("grasse") || s === "matin_tardif");
+  const wantsLateNight = timeSlotPrefs.some((s) => s.includes("tard_soir") || s.includes("nuit") || s.includes("soiree_tardive"));
 
   const categoriesNorm = (input.activityCategories ?? []).map(norm);
   const starNorm = (input.starWanted ?? []).map(norm);
@@ -649,7 +716,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
           type: "resto",
           category: "repas",
           label: "Déjeuner convivial au logement",
-          detail: "Barbecue, buffet local ou repas partagé à la maison",
+          detail: "Repas partagé ou buffet convivial au logement",
           importance: "medium",
           flexibility: "flexible",
         });
@@ -665,7 +732,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
           label: "Déjeuner au restaurant",
           detail: wantsGastro
             ? "Restaurant spécialités locales et produits de saison"
-            : "Déjeuner sympa en terrasse ou lieu typique",
+            : "Déjeuner sympa au restaurant ou lieu typique",
           importance: "high",
           flexibility: "flexible",
           venueFamily: "restaurant",
@@ -801,7 +868,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
           kind: "place_required",
           type: "bar",
           category: "soiree",
-          label: "Apéro en terrasse / bar local",
+          label: "Apéro au bar local",
           detail: "Cocktails, bières locales et ambiance chaleureuse",
           importance: "medium",
           flexibility: "flexible",

@@ -2255,10 +2255,15 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       });
     }
 
+    const { adjustItineraryTransferTimes } = await import(
+      "@/lib/krew/activity-ai.server"
+    );
+    const timeCoherentDays = adjustItineraryTransferTimes(daysPlans, activityInput);
+
     const finalItinerary: import("@/lib/krew/activity-ai.server").GroupItinerary = {
       destination: destName,
       nights,
-      days: daysPlans,
+      days: timeCoherentDays,
       source: "ai",
       provider: "krew_geoapify",
       generatedAt: new Date().toISOString(),
@@ -2368,12 +2373,20 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
 
     // If pool is exhausted, perform a new targeted Geoapify search without Gemini
     if (!unusedPlace) {
+      const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
+      const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
+      const tripProfile = aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null;
+      const accRole = aggregated.groupAccommodationRole;
+
       const logistics = ((tripRes.data as any).group_logistics || {}) as any;
       let refLat: number | null = current.latitude ?? null;
       let refLon: number | null = current.longitude ?? null;
 
+      // Coordinate reference hierarchy:
+      // 1. Slot's previous place location (current.latitude/longitude)
+      // 2. Selected accommodation coordinates (if centerpiece/part_of_stay)
       if (refLat == null || refLon == null) {
-        if (logistics.selectedHotelId) {
+        if ((accRole === "centerpiece" || accRole === "part_of_stay") && logistics.selectedHotelId) {
           const accRes = await supabase
             .from("accommodations")
             .select("latitude, longitude")
@@ -2386,8 +2399,46 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         }
       }
 
+      // 3. Selected destination coordinates
+      if (refLat == null || refLon == null) {
+        const recoRes = await supabase
+          .from("recommendations")
+          .select("destination_id, destinations(name, country, latitude, longitude)")
+          .eq("trip_id", data.tripId)
+          .eq("is_selected", true)
+          .maybeSingle();
+
+        const destData = (recoRes.data as any)?.destinations;
+        if (destData?.latitude != null && destData?.longitude != null) {
+          refLat = Number(destData.latitude);
+          refLon = Number(destData.longitude);
+        }
+
+        // 4. Destination geocoding fallback
+        if ((refLat == null || refLon == null) && destData?.name) {
+          try {
+            const { geocodeDestination } = await import(
+              "@/integrations/external/geo-weather.server"
+            );
+            const geo = await geocodeDestination(
+              destData.country ? `${destData.name}, ${destData.country}` : destData.name,
+            );
+            if (geo) {
+              refLat = geo.latitude;
+              refLon = geo.longitude;
+            }
+          } catch {
+            /* geocoding optional */
+          }
+        }
+      }
+
+      // 5. If reliable coordinates exist, execute targeted Geoapify search with mobility & profile radius
       if (refLat != null && refLon != null) {
-        const radiusMeters = determineSearchRadiusMeters();
+        const radiusMeters = determineSearchRadiusMeters(
+          aggregated.groupLocalMobility,
+          tripProfile,
+        );
         const newPlaces = await searchGeoapifyPlaces({
           categories,
           latitude: refLat,

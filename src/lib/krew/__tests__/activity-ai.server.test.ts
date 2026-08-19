@@ -128,18 +128,40 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     expect(homeSlotsCount(centerpiece)).toBeGreaterThan(homeSlotsCount(baseOnly));
   });
 
-  it("D2. preferredTimeSlots modifie effectivement les horaires du skeleton", () => {
-    const lateMorningSkeleton = buildKrewSkeleton(
+  it("D2. preferredTimeSlots : tard_soir ≠ matin_tard", () => {
+    const lateNightOnly = buildKrewSkeleton(
       input({
-        preferredTimeSlots: ["matin_tard", "tard_soir"],
+        preferredTimeSlots: ["tard_soir"],
       }),
     );
 
-    const dinnerSlot = lateMorningSkeleton.days
-      .flatMap((d) => d.slots)
-      .find((s) => s.category === "repas" && s.moment === "Soir");
+    const breakfastSlot = lateNightOnly.days[1]?.slots.find((s) => s.category === "repas" && s.moment === "Matin");
+    const dinnerSlot = lateNightOnly.days[1]?.slots.find((s) => s.category === "repas" && s.moment === "Soir");
 
     expect(dinnerSlot?.time).toBe("20:30");
+    expect(breakfastSlot?.time).toBe("08:30");
+
+    const lateMorningOnly = buildKrewSkeleton(
+      input({
+        preferredTimeSlots: ["matin_tard"],
+      }),
+    );
+
+    const breakfastLate = lateMorningOnly.days[1]?.slots.find((s) => s.category === "repas" && s.moment === "Matin");
+    const dinnerNormal = lateMorningOnly.days[1]?.slots.find((s) => s.category === "repas" && s.moment === "Soir");
+
+    expect(breakfastLate?.time).toBe("09:30");
+    expect(dinnerNormal?.time).toBe("20:00");
+  });
+
+  it("D3. Aucun équipement logement non vérifié dans les defaults du skeleton", () => {
+    const skeleton = buildKrewSkeleton(input());
+    const allText = skeleton.days
+      .flatMap((d) => d.slots)
+      .map((s) => `${s.label} ${s.detail || ""}`.toLowerCase())
+      .join(" ");
+
+    expect(allText).not.toMatch(/barbecue|piscine|terrasse|jacuzzi|spa privé|jardin|cheminée/);
   });
 
   it("E. Profil montagne + souhait sport -> intention outdoor/sport cohérente", () => {
@@ -271,6 +293,43 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     });
     // Tavily is completely bypassed in planning discovery
     expect(res.candidates).toEqual([]);
+  });
+
+  it("P. adjustItineraryTransferTimes décale les créneaux suivants d'au moins le temps de transfert", () => {
+    const { adjustItineraryTransferTimes } = require("../activity-ai.server");
+    const dayPlan = [
+      {
+        day: 2,
+        slots: [
+          {
+            moment: "Après-midi",
+            time: "15:00",
+            durationMinutes: 60,
+            endTime: "16:00",
+            label: "Lieu A",
+            latitude: 45.9,
+            longitude: 6.1,
+            type: "activite" as const,
+          },
+          {
+            moment: "Après-midi",
+            time: "16:05",
+            durationMinutes: 60,
+            endTime: "17:05",
+            label: "Lieu B",
+            latitude: 46.1, // ~22km away -> requires transfer
+            longitude: 6.2,
+            type: "activite" as const,
+          },
+        ],
+      },
+    ];
+
+    const adjusted = adjustItineraryTransferTimes(dayPlan, input());
+    const slotB = adjusted[0]?.slots[1];
+
+    expect(slotB?.time).not.toBe("16:05");
+    expect((slotB?.time ?? "") > "16:05").toBe(true);
   });
 });
 
