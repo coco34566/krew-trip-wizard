@@ -51,144 +51,30 @@ function Dot({ cx, cy, r = 1.35 }: { cx: number; cy: number; r?: number }) {
 function IconShape({ name }: { name: KrewIconName }) {
   switch (name) {
     case "invite":
-      return (
-        <>
-          <path {...STROKE} d="M9.4 12.2c2.2 0 3.8-1.7 3.8-3.9 0-2.1-1.6-3.7-3.8-3.7S5.7 6.2 5.7 8.3c0 2.2 1.5 3.9 3.7 3.9Z" />
-          <path {...STROKE} d="M3.3 21.3c.4-4 2.5-6.1 6.2-6.1 2.4 0 4.2.9 5.3 2.6" />
-          <path {...STROKE} d="M18.9 9.3v8.1M14.8 13.4h8.1" />
-          <path {...SOFT_STROKE} d="M17.1 7.3c1.8.1 3.2.8 4.1 2" />
-        </>
-      );
-
+      return <><path {...STROKE} d="M9.4 12.2c2.2 0 3.8-1.7 3.8-3.9 0-2.1-1.6-3.7-3.8-3.7S5.7 6.2 5.7 8.3c0 2.2 1.5 3.9 3.7 3.9Z" /><path {...STROKE} d="M3.3 21.3c.4-4 2.5-6.1 6.2-6.1 2.4 0 4.2.9 5.3 2.6" /><path {...STROKE} d="M18.9 9.3v8.1M14.8 13.4h8.1" /><path {...SOFT_STROKE} d="M17.1 7.3c1.8.1 3.2.8 4.1 2" /></>;
     case "availability":
-      return (
-        <>
-          <path {...STROKE} d="M4.2 8.3c4.6-.3 10.6-.3 15.6 0l-.4 12.1c-4.7.4-10 .4-14.8 0L4.2 8.3Z" />
-          <path {...STROKE} d="M8.1 5v5M15.9 4.7v5.1" />
-          <path {...SOFT_STROKE} d="M4.5 11.6c4.4-.2 10.5-.2 15.1 0" />
-          <path {...STROKE} d="m8.2 15.7 2.2 2.1 5.6-5.5" />
-        </>
-      );
-
+      return <><path {...STROKE} d="M4.2 8.3c4.6-.3 10.6-.3 15.6 0l-.4 12.1c-4.7.4-10 .4-14.8 0L4.2 8.3Z" /><path {...STROKE} d="M8.1 5v5M15.9 4.7v5.1" /><path {...SOFT_STROKE} d="M4.5 11.6c4.4-.2 10.5-.2 15.1 0" /><path {...STROKE} d="m8.2 15.7 2.2 2.1 5.6-5.5" /></>;
     case "preferences":
-      return (
-        <>
-          <path {...STROKE} d="M4.1 7.2h15.8M4.1 12.3h15.8M4.1 17.5h15.8" />
-          <path {...SOFT_STROKE} d="M8.8 5.2v4M15.4 10.2v4.2M10.8 15.5v4" />
-          <Dot cx={8.8} cy={7.2} r={1.65} />
-          <Dot cx={15.4} cy={12.3} r={1.65} />
-          <Dot cx={10.8} cy={17.5} r={1.65} />
-        </>
-      );
-
+      return <><path {...STROKE} d="M4.1 7.2h15.8M4.1 12.3h15.8M4.1 17.5h15.8" /><path {...SOFT_STROKE} d="M8.8 5.2v4M15.4 10.2v4.2M10.8 15.5v4" /><Dot cx={8.8} cy={7.2} r={1.65} /><Dot cx={15.4} cy={12.3} r={1.65} /><Dot cx={10.8} cy={17.5} r={1.65} /></>;
     case "profile":
-      return (
-        <>
-          <path {...STROKE} d="M4.6 9c2.1-2.6 4.6-3.9 7.5-3.9 3 0 5.5 1.3 7.5 3.9" />
-          <path {...STROKE} d="M5.4 16.1c1.9 2.5 4.1 3.8 6.7 3.8 2.5 0 4.8-1.3 6.6-3.8" />
-          <path {...SOFT_STROKE} d="M7.8 11.2c1.2 1.6 2.7 2.4 4.4 2.4 1.6 0 3-.7 4.1-2.1" />
-          <Dot cx={12.1} cy={13.5} r={1.55} />
-          <path {...STROKE} d="M12.1 5.1v2.6M12.1 17.3v2.6" />
-        </>
-      );
-
+      return <><path {...STROKE} d="M4.6 9c2.1-2.6 4.6-3.9 7.5-3.9 3 0 5.5 1.3 7.5 3.9" /><path {...STROKE} d="M5.4 16.1c1.9 2.5 4.1 3.8 6.7 3.8 2.5 0 4.8-1.3 6.6-3.8" /><path {...SOFT_STROKE} d="M7.8 11.2c1.2 1.6 2.7 2.4 4.4 2.4 1.6 0 3-.7 4.1-2.1" /><Dot cx={12.1} cy={13.5} r={1.55} /><path {...STROKE} d="M12.1 5.1v2.6M12.1 17.3v2.6" /></>;
     case "destination":
-      return (
-        <>
-          <path {...STROKE} d="M12.1 21.1C8.3 17 6.1 13.7 6.1 10.7c0-3.6 2.5-6.1 6-6.1 3.6 0 5.9 2.5 5.9 6.1 0 2.9-2.1 6.2-5.9 10.4Z" />
-          <path {...STROKE} d="M8.9 11c1.1-1.4 2.2-2 3.6-1.9 1.2.1 2.1.6 2.9 1.6" />
-          <path {...SOFT_STROKE} d="M10.4 13.4c.8.5 1.7.7 2.6.5" />
-          <Dot cx={15.9} cy={7.1} r={1.05} />
-        </>
-      );
-
+      return <><path {...STROKE} d="M12.1 21.1C8.3 17 6.1 13.7 6.1 10.7c0-3.6 2.5-6.1 6-6.1 3.6 0 5.9 2.5 5.9 6.1 0 2.9-2.1 6.2-5.9 10.4Z" /><path {...STROKE} d="M8.9 11c1.1-1.4 2.2-2 3.6-1.9 1.2.1 2.1.6 2.9 1.6" /><path {...SOFT_STROKE} d="M10.4 13.4c.8.5 1.7.7 2.6.5" /><Dot cx={15.9} cy={7.1} r={1.05} /></>;
     case "accommodation":
-      return (
-        <>
-          <path {...STROKE} d="M3.7 11.6 11.9 4.7l8.4 6.9" />
-          <path {...STROKE} d="M5.2 10.5v10.4h13.7V10.5" />
-          <path {...STROKE} d="M9 20.9v-6.4h6.1v6.4" />
-          <path {...SOFT_STROKE} d="M7.3 8.5V5.6M7.3 5.6h2.8" />
-          <Dot cx={16.9} cy={15.1} r={1.05} />
-        </>
-      );
-
+      return <><path {...STROKE} d="M4.2 12.2 12 5.5l7.8 6.7" /><path {...STROKE} d="M6.2 10.7v9.1M17.8 10.7v9.1M6.2 19.8h11.6" /><path {...STROKE} d="M10 19.8v-5.5h4.2" /></>;
     case "transport":
-      return (
-        <>
-          <Dot cx={4.6} cy={18.7} r={1.7} />
-          <Dot cx={19.6} cy={8.2} r={1.7} />
-          <path {...STROKE} d="M5.7 17.5c3-4.9 6.3-7.6 10.1-8.5 1.2-.3 2.3-.4 3.4-.3" />
-          <path {...SOFT_STROKE} d="M8.4 20.2c2.4-2.7 5-4.4 7.8-5.2" />
-          <path {...STROKE} d="m16.5 5.5 3.3 2.6-3.7 2.7" />
-        </>
-      );
-
+      return <><Dot cx={4.7} cy={18.2} r={1.55} /><path {...STROKE} d="M6.1 17.2c3.4-5.3 7.3-8.1 12.3-8.6" /><path {...STROKE} d="m16.1 6.2 3 2.3-2.7 3" /></>;
     case "planning":
-      return (
-        <>
-          <path {...STROKE} d="M5 6.8c4.2-.3 9.6-.3 14 0l-.3 14c-4.2.3-9.1.3-13.4 0L5 6.8Z" />
-          <path {...STROKE} d="M8.6 4.4v4.7M15.4 4.4v4.7" />
-          <path {...SOFT_STROKE} d="M9.1 11.4h6.3M9.1 15h4.8M9.1 18.4h6.1" />
-          <Dot cx={7} cy={11.4} r={0.95} />
-          <Dot cx={7} cy={15} r={0.95} />
-          <Dot cx={7} cy={18.4} r={0.95} />
-        </>
-      );
-
+      return <><path {...STROKE} d="M5 6.8c4.2-.3 9.6-.3 14 0l-.3 14c-4.2.3-9.1.3-13.4 0L5 6.8Z" /><path {...STROKE} d="M8.6 4.4v4.7M15.4 4.4v4.7" /><path {...SOFT_STROKE} d="M9.1 11.4h6.3M9.1 15h4.8M9.1 18.4h6.1" /><Dot cx={7} cy={11.4} r={0.95} /><Dot cx={7} cy={15} r={0.95} /><Dot cx={7} cy={18.4} r={0.95} /></>;
     case "tasks":
-      return (
-        <>
-          <path {...STROKE} d="m4.1 7 1.8 1.9 3.2-3.5M4.1 13l1.8 1.9 3.2-3.5M4.1 19l1.8 1.9 3.2-3.5" />
-          <path {...SOFT_STROKE} d="M11.4 7.1h8.4M11.4 13.1h6.2M11.4 19.1h8.4" />
-        </>
-      );
-
+      return <><path {...STROKE} d="m4.1 7 1.8 1.9 3.2-3.5M4.1 13l1.8 1.9 3.2-3.5M4.1 19l1.8 1.9 3.2-3.5" /><path {...SOFT_STROKE} d="M11.4 7.1h8.4M11.4 13.1h6.2M11.4 19.1h8.4" /></>;
     case "packing":
-      return (
-        <>
-          <path {...STROKE} d="M6.1 8.4c3.4-.5 8.1-.5 11.6 0l1 12.1c-3.9.5-9.5.5-13.4 0l.8-12.1Z" />
-          <path {...STROKE} d="M8.8 8.2V6.6c0-1.8 1.2-3 3.3-3 2 0 3.2 1.2 3.2 3v1.6" />
-          <path {...SOFT_STROKE} d="M8.8 13.1c.9.9 2 1.4 3.3 1.4 1.3 0 2.4-.5 3.2-1.4" />
-          <path {...STROKE} d="M12.1 14.6v2.6" />
-        </>
-      );
-
+      return <><path {...STROKE} d="M6.1 8.4c3.4-.5 8.1-.5 11.6 0l1 12.1c-3.9.5-9.5.5-13.4 0l.8-12.1Z" /><path {...STROKE} d="M8.8 8.2V6.6c0-1.8 1.2-3 3.3-3 2 0 3.2 1.2 3.2 3v1.6" /><path {...SOFT_STROKE} d="M8.8 13.1c.9.9 2 1.4 3.3 1.4 1.3 0 2.4-.5 3.2-1.4" /><path {...STROKE} d="M12.1 14.6v2.6" /></>;
     case "budget":
-      return (
-        <>
-          <path {...STROKE} d="M4.5 8.3c4.4-.5 10.4-.5 14.9 0v10.4c-4.5.5-10.5.5-14.9 0V8.3Z" />
-          <path {...SOFT_STROKE} d="M7.5 8.1V5.9c2.5-.3 6.4-.3 9 0v2.2" />
-          <path {...STROKE} d="M8.1 13.5h3.6" />
-          <path {...STROKE} d="M16.1 11.3v4.5" />
-          <Dot cx={16.1} cy={13.55} r={2.25} />
-          <path d="M15.2 13.55h1.8" stroke="white" strokeWidth="1" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-        </>
-      );
+      return <><path {...STROKE} d="M12 4.5v15" /><path {...STROKE} d="M12 9.2 6.1 6.3M12 9.2l5.9-2.9M12 14.7l-5.9 3M12 14.7l5.9 3" /><Dot cx={6.1} cy={6.3} r={1.45} /><Dot cx={17.9} cy={6.3} r={1.45} /><Dot cx={6.1} cy={17.7} r={1.45} /><Dot cx={17.9} cy={17.7} r={1.45} /></>;
   }
 }
 
-export function KrewIcon({
-  name,
-  tone = "plum",
-  size = "md",
-  decorative = true,
-  className,
-}: {
-  name: KrewIconName;
-  tone?: KrewIconTone;
-  size?: KrewIconSize;
-  decorative?: boolean;
-  className?: string;
-}) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden={decorative ? true : undefined}
-      role={decorative ? undefined : "img"}
-      className={cn("shrink-0 overflow-visible", TONES[tone], SIZES[size], className)}
-    >
-      <IconShape name={name} />
-    </svg>
-  );
+export function KrewIcon({ name, tone = "plum", size = "md", decorative = true, className }: { name: KrewIconName; tone?: KrewIconTone; size?: KrewIconSize; decorative?: boolean; className?: string }) {
+  return <svg viewBox="0 0 24 24" aria-hidden={decorative ? true : undefined} role={decorative ? undefined : "img"} className={cn("shrink-0 overflow-visible", TONES[tone], SIZES[size], className)}><IconShape name={name} /></svg>;
 }
