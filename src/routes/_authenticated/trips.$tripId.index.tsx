@@ -2180,7 +2180,7 @@ function TripDetail() {
                     </h3>
                   </div>
 
-                  <div className="relative pl-6 sm:pl-8 space-y-4 before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border/60">
+                  <div className="relative pl-6 sm:pl-8 divide-y divide-border/40 before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border/60">
                     {(day.slots ?? []).map((slot: any, slotIndex: number) => {
                       const Icon =
                         slot.type === "resto"
@@ -2193,7 +2193,7 @@ function TripDetail() {
                       return (
                         <div
                           key={`${day.day}-${slotIndex}`}
-                          className="relative flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-border/40 bg-background/50 p-3.5 transition hover:border-border/80"
+                          className="relative flex flex-wrap items-start justify-between gap-3 py-3"
                         >
                           {/* Circle node on vertical line */}
                           <span className="absolute -left-6 sm:-left-8 top-4 size-2.5 rounded-full border border-primary bg-background ring-4 ring-card" />
@@ -2343,7 +2343,7 @@ function TripDetail() {
                           {taskDate} {task.start_time ? `· ${task.start_time}` : ""}
                         </td>
                         <td className="py-3 pr-3">
-                          <span className={cn("text-sm font-medium text-foreground", task.status === "done" && "line-through text-muted-foreground")}>
+                          <span className="text-sm font-semibold text-foreground">
                             {task.title}
                           </span>
                         </td>

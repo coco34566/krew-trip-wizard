@@ -108,18 +108,18 @@ export function CostSplitCard({ split, tripName }: Props) {
 
       <div ref={ref} className="mt-5 space-y-4">
         <div className="grid gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm sm:grid-cols-3">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Hébergement</p>
-            <p className="font-mono font-semibold text-base mt-0.5">{formatEuro(split.accommodation)}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Activités</p>
-            <p className="font-mono font-semibold text-base mt-0.5">{formatEuro(split.activities)}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Repas</p>
-            <p className="font-mono font-semibold text-base mt-0.5">{formatEuro(split.food)}</p>
-          </div>
+          <p>
+            <span className="text-muted-foreground">Hébergement : </span>
+            <span className="font-mono font-semibold">{formatEuro(split.accommodation)}</span>
+          </p>
+          <p>
+            <span className="text-muted-foreground">Activités : </span>
+            <span className="font-mono font-semibold">{formatEuro(split.activities)}</span>
+          </p>
+          <p>
+            <span className="text-muted-foreground">Repas : </span>
+            <span className="font-mono font-semibold">{formatEuro(split.food)}</span>
+          </p>
         </div>
 
         <p className="text-sm font-medium">
@@ -153,14 +153,22 @@ export function CostSplitCard({ split, tripName }: Props) {
         {/* Mobile Stacked View */}
         <div className="md:hidden space-y-3">
           {split.lines.map((l) => (
-            <div key={l.city} className="rounded-2xl border border-border/50 bg-background/50 p-3.5 text-sm space-y-1">
-              <div className="flex justify-between items-center border-b border-border/40 pb-1.5 font-medium">
-                <span>{l.city}</span>
-                <span className="font-mono font-semibold text-primary">{formatEuro(l.totalPerPerson)}</span>
+            <div key={l.city} className="rounded-2xl border border-border/50 bg-background/50 p-3.5 text-sm space-y-1.5">
+              <div className="flex justify-between items-center border-b border-border/40 pb-1.5">
+                <span className="text-xs text-muted-foreground font-medium">Participant (Ville)</span>
+                <span className="font-medium text-foreground">{l.city}</span>
               </div>
-              <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                <span>Transport : <strong className="font-mono font-normal text-foreground">{formatEuro(l.transport)}</strong></span>
-                <span>Part égale : <strong className="font-mono font-normal text-foreground">{formatEuro(l.shared)}</strong></span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Transport</span>
+                <span className="font-mono text-foreground">{formatEuro(l.transport)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-muted-foreground">Part égale</span>
+                <span className="font-mono text-foreground">{formatEuro(l.shared)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-semibold pt-1 border-t border-border/30">
+                <span>Total</span>
+                <span className="font-mono text-primary">{formatEuro(l.totalPerPerson)}</span>
               </div>
             </div>
           ))}
@@ -169,7 +177,7 @@ export function CostSplitCard({ split, tripName }: Props) {
         <div className="pt-2 border-t border-border/60 flex items-center justify-between">
           <span className="flex items-center gap-2 font-display text-lg font-semibold">
             <Wallet className="size-5 text-primary" />
-            Total groupe
+            Total groupe :
           </span>
           <span className="font-mono font-bold text-xl text-primary">{formatEuro(split.totalGroup)}</span>
         </div>
