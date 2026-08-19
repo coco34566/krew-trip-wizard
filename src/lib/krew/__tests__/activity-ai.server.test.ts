@@ -94,15 +94,31 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     expect(countSlots(lightSkeleton)).toBeLessThan(countSlots(intenseSkeleton));
   });
 
+  it("C2. Travel pace intense sans préférence sport -> aucune activité sportive forcée", () => {
+    const intenseNoSport = buildKrewSkeleton(
+      input({
+        travelPace: "intense",
+        ambiances: ["culturel"],
+        activityCategories: ["musée", "gastronomie"],
+      }),
+    );
+
+    const hasSport = intenseNoSport.days
+      .flatMap((d) => d.slots)
+      .some((s) => s.category === "sport_outdoor");
+
+    expect(hasSport).toBe(false);
+  });
+
   it("D. Accommodation role centerpiece -> davantage de moments au logement qu'un base_only", () => {
     const centerpiece = buildKrewSkeleton(
       input({
-        individualPreferences: [{ accommodationRole: "centerpiece" }],
+        groupAccommodationRole: "centerpiece",
       }),
     );
     const baseOnly = buildKrewSkeleton(
       input({
-        individualPreferences: [{ accommodationRole: "base_only" }],
+        groupAccommodationRole: "base_only",
       }),
     );
 
@@ -110,6 +126,20 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
       s.days.flatMap((d) => d.slots).filter((slot) => slot.category === "moment_maison").length;
 
     expect(homeSlotsCount(centerpiece)).toBeGreaterThan(homeSlotsCount(baseOnly));
+  });
+
+  it("D2. preferredTimeSlots modifie effectivement les horaires du skeleton", () => {
+    const lateMorningSkeleton = buildKrewSkeleton(
+      input({
+        preferredTimeSlots: ["matin_tard", "tard_soir"],
+      }),
+    );
+
+    const dinnerSlot = lateMorningSkeleton.days
+      .flatMap((d) => d.slots)
+      .find((s) => s.category === "repas" && s.moment === "Soir");
+
+    expect(dinnerSlot?.time).toBe("20:30");
   });
 
   it("E. Profil montagne + souhait sport -> intention outdoor/sport cohérente", () => {

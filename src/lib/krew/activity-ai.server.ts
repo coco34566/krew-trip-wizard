@@ -92,6 +92,7 @@ export type GroupItinerary = {
   };
   candidates?: ActivityCandidate[];
   placePools?: Record<string, any[]> | undefined;
+  usedCandidateIds?: string[] | undefined;
   skeleton?: KrewSkeleton | undefined;
 };
 export type TransportPickSummary = {
@@ -131,6 +132,7 @@ export type ActivityAiInput = {
   transportPicksSummary?: TransportPickSummary[];
   individualPreferences?: any[];
   groupAgeRange?: string | null;
+  groupAccommodationRole?: string | null;
   starWantedEnvType?: string | null;
   wantedEnvTypes?: string[];
   forceDiscoveryRefresh?: boolean;
@@ -457,21 +459,22 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
       ? "intense"
       : "equilibre";
 
-  const lodgRoles = (input.individualPreferences ?? [])
-    .map((p) => p?.accommodationRole)
-    .filter((r): r is string => Boolean(r));
-  const lodgRole = lodgRoles.length > 0
-    ? lodgRoles[0]
-    : /centerpiece|coeur|destination/.test(norm(input.tripProfile))
+  const lodgRole = input.groupAccommodationRole ?? (
+    /centerpiece|coeur|destination/.test(norm(input.tripProfile))
       ? "centerpiece"
       : /part_of_stay|partie/.test(norm(input.tripProfile))
         ? "part_of_stay"
         : isHomeProfile(input)
           ? "part_of_stay"
-          : "base_only";
+          : "base_only"
+  );
 
   const isCenterpiece = lodgRole === "centerpiece";
   const isPartOfStay = lodgRole === "part_of_stay";
+
+  const timeSlotPrefs = (input.preferredTimeSlots ?? []).map(norm);
+  const wantsLateMorning = timeSlotPrefs.some((s) => s.includes("matin_tard") || s.includes("grasse") || s.includes("tard"));
+  const wantsLateNight = timeSlotPrefs.some((s) => s.includes("nuit") || s.includes("tard_soir") || s.includes("soiree"));
 
   const categoriesNorm = (input.activityCategories ?? []).map(norm);
   const starNorm = (input.starWanted ?? []).map(norm);
@@ -542,7 +545,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
     }
 
     if (!isFirstDay) {
-      const bTime = isCenterpiece || isPartOfStay ? "09:30" : "08:30";
+      const bTime = (isCenterpiece || isPartOfStay || wantsLateMorning) ? "09:30" : "08:30";
       const bMin = toMinutes(bTime)!;
       if (bMin >= dayStartLimit && bMin + 60 <= dayEndLimit) {
         if (isCenterpiece || (isPartOfStay && day % 2 === 0)) {
@@ -580,7 +583,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
     }
 
     if (!isFirstDay && pace !== "leger") {
-      const mTime = "10:30";
+      const mTime = wantsLateMorning ? "11:00" : "10:30";
       const mMin = toMinutes(mTime)!;
       if (mMin >= dayStartLimit && mMin + 90 <= dayEndLimit) {
         if (wantsOutdoor && day % 2 === 1) {
@@ -625,7 +628,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
             type: "libre",
             category: "moment_maison",
             label: "Matinée détente au logement",
-            detail: "Piscine, terrasse, jeux ou temps calme entre vous",
+            detail: "Jeux de société, détente ou temps calme entre vous",
             importance: "low",
             flexibility: "flexible",
           });
@@ -675,6 +678,8 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
     const aMin = toMinutes(aTime)!;
     if (aMin >= dayStartLimit && aMin + 120 <= dayEndLimit) {
       if (pace === "intense" && !isCenterpiece && day % 2 === 0) {
+        const intenseCat = wantsOutdoor ? "sport_outdoor" : wantsCulture ? "culture" : wantsGastro ? "repas" : "culture";
+        const intenseFamily = wantsOutdoor ? "sport" : wantsCulture ? "culture" : wantsGastro ? "restaurant" : "tourism";
         addSlotIfValid({
           moment: "Après-midi",
           time: "14:00",
@@ -682,13 +687,13 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
           durationMinutes: 120,
           kind: "place_required",
           type: "activite",
-          category: "sport_outdoor",
-          label: "Activité aventure intense",
-          detail: "Challenge outdoor ou parcours sportif dynamique",
+          category: intenseCat,
+          label: wantsOutdoor ? "Activité aventure outdoor" : "Activité découverte locale",
+          detail: "Expérience dynamique adaptée aux préférences du groupe",
           importance: "high",
           flexibility: "flexible",
-          venueFamily: "sport",
-          searchIntent: `parcours aventure sport intense groupe à ${input.destination}`,
+          venueFamily: intenseFamily,
+          searchIntent: `activité ${intenseCat} groupe à ${input.destination}`,
         });
         addSlotIfValid({
           moment: "Après-midi",
@@ -697,13 +702,13 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
           durationMinutes: 90,
           kind: "place_required",
           type: "activite",
-          category: "culture",
+          category: wantsRelax ? "detente" : "culture",
           label: "Seconde activité de l'après-midi",
           detail: "Visite ou expérience complémentaire",
           importance: "medium",
           flexibility: "flexible",
-          venueFamily: "tourism",
-          searchIntent: `expérience culturelle courte à ${input.destination}`,
+          venueFamily: wantsRelax ? "relaxation" : "tourism",
+          searchIntent: `expérience culturelle ou détente courte à ${input.destination}`,
         });
       } else if (wantsOutdoor && (day === 1 || !isCenterpiece)) {
         addSlotIfValid({
@@ -747,7 +752,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
           type: "libre",
           category: "moment_maison",
           label: "Après-midi cocooning & activités au logement",
-          detail: "Jeux collectifs, piscine, tournoi ou repos selon les envies",
+          detail: "Jeux collectifs, détente ou repos selon les envies",
           importance: "high",
           flexibility: "flexible",
         });
@@ -806,7 +811,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
       }
     }
 
-    const dTime = "20:00";
+    const dTime = wantsLateNight ? "20:30" : "20:00";
     const dMin = toMinutes(dTime)!;
     if (dMin >= dayStartLimit && dMin + 120 <= dayEndLimit) {
       addSlotIfValid({
@@ -943,7 +948,9 @@ CONSIGNE STRICTE :
    - Ne fournit AUCUN nom d'établissement réel, d'entreprise ou de marque.
    - Ne fournit AUCUNE adresse, URL, prix, note ou horaire d'ouverture.
    - Ne modifie PAS les créneaux temporels (time, endTime, durationMinutes), ni les jours, ni le nombre de créneaux.
-Retourne STRICTEMENT du JSON au format : {"enrichedSlots":[{"id":"slot_1","label":"...","detail":"...","venueFamily":"...","searchIntent":"..."}]}`;
+Retourne STRICTEMENT du JSON au format : {"enrichedSlots":[{"id":"slot_1","label":"...","detail":"...","venueFamily":"...","searchIntent":"..."}]}
+
+Brief du séjour = ${JSON.stringify(brief)}`;
 
   try {
     const response = await fetch(
@@ -1120,7 +1127,7 @@ export function buildLocalItinerary(
           day === 1 ? "moment_maison" : "repas",
         );
       if (day > 1 && day < count)
-        addInternal("16:00", "Jeux, piscine ou temps libre au logement", "moment_maison", 120);
+        addInternal("16:00", "Jeux collectifs ou temps libre au logement", "moment_maison", 120);
     } else {
       const desiredStarts =
         day === 1

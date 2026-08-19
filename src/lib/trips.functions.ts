@@ -2037,6 +2037,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       })),
       individualPreferences: aggregated.individualPreferences,
       groupAgeRange: aggregated.groupAgeRange ?? null,
+      groupAccommodationRole: aggregated.groupAccommodationRole ?? null,
       starWantedEnvType: aggregated.starWantedEnvType ?? null,
       wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
     };
@@ -2057,18 +2058,37 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const enrichResult = await geminiEnrichSkeleton(krewSkeleton, activityInput);
     const enrichedSkeleton = enrichResult.enrichedSkeleton;
 
-    // Resolve reference coordinates (destination or selected accommodation)
+    // Resolve reference coordinates (accommodation when centerpiece/part_of_stay, else destination)
     let refLat: number | null = null;
     let refLon: number | null = null;
-    if (recoRow.destination_id) {
-      const destRes = await supabase
-        .from("destinations")
+
+    const accRole = aggregated.groupAccommodationRole;
+    const preferAccomCoords = (accRole === "centerpiece" || accRole === "part_of_stay") && logistics.selectedHotelId;
+
+    if (preferAccomCoords) {
+      const selectedAccId = logistics.selectedHotelId;
+      const accRes = await supabase
+        .from("accommodations")
         .select("latitude, longitude")
-        .eq("id", recoRow.destination_id)
+        .eq("id", selectedAccId)
         .maybeSingle();
-      if (destRes.data?.latitude != null && destRes.data?.longitude != null) {
-        refLat = Number(destRes.data.latitude);
-        refLon = Number(destRes.data.longitude);
+      if (accRes.data?.latitude != null && accRes.data?.longitude != null) {
+        refLat = Number(accRes.data.latitude);
+        refLon = Number(accRes.data.longitude);
+      }
+    }
+
+    if (refLat == null || refLon == null) {
+      if (recoRow.destination_id) {
+        const destRes = await supabase
+          .from("destinations")
+          .select("latitude, longitude")
+          .eq("id", recoRow.destination_id)
+          .maybeSingle();
+        if (destRes.data?.latitude != null && destRes.data?.longitude != null) {
+          refLat = Number(destRes.data.latitude);
+          refLon = Number(destRes.data.longitude);
+        }
       }
     }
     // Fallback geocoding if coordinates not in DB
@@ -2126,89 +2146,114 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       }
     }
 
-    // 5. Match Geoapify places to place_required slots from persisted pools
-    const poolUsageCounter = new Map<string, number>();
+    // 5. Match Geoapify places to place_required slots from persisted pools (geographic proximity matching)
+    const { haversineDistanceKm } = await import("@/lib/krew/activity-ai.server");
+    const usedCandidateIdsSet = new Set<string>();
 
-    const daysPlans: import("@/lib/krew/activity-ai.server").ItineraryDayPlan[] =
-      enrichedSkeleton.days.map((day) => {
-        const slots: import("@/lib/krew/activity-ai.server").ActivitySlot[] =
-          day.slots.map((s) => {
-            if (s.kind === "internal") {
-              return {
-                moment: s.moment,
-                time: s.time,
-                endTime: s.endTime,
-                durationMinutes: s.durationMinutes,
-                type: s.type,
-                category: s.category,
-                label: s.label,
-                detail: s.detail,
-                verified: false,
-                source: "krew",
-                url: null,
-              };
-            }
+    const daysPlans: import("@/lib/krew/activity-ai.server").ItineraryDayPlan[] = [];
+    let lastSlotCoords: { latitude?: number | null; longitude?: number | null } | null =
+      refLat != null && refLon != null ? { latitude: refLat, longitude: refLon } : null;
 
-            const categories = mapVenueFamilyToGeoapifyCategories(
-              s.venueFamily,
-              s.type,
-            );
-            const poolKey = categories.slice(0, 2).sort().join("_");
-            const pool = placePools[poolKey] || [];
-            const index = poolUsageCounter.get(poolKey) || 0;
-            const matchedPlace = pool[index % Math.max(1, pool.length)];
-            poolUsageCounter.set(poolKey, index + 1);
+    for (const day of enrichedSkeleton.days) {
+      const slots: import("@/lib/krew/activity-ai.server").ActivitySlot[] = [];
 
-            if (matchedPlace) {
-              return {
-                moment: s.moment,
-                time: s.time,
-                endTime: s.endTime,
-                durationMinutes: s.durationMinutes,
-                type: s.type,
-                category: s.category,
-                venueFamily: s.venueFamily,
-                label: matchedPlace.name,
-                detail:
-                  matchedPlace.address ||
-                  s.detail ||
-                  s.searchIntent ||
-                  "Lieu sélectionné par KREW",
-                url: matchedPlace.website || null,
-                candidateId: matchedPlace.id,
-                verified: true,
-                source: "geoapify",
-                latitude: matchedPlace.latitude,
-                longitude: matchedPlace.longitude,
-              };
-            }
-
-            // Graceful degradation when Geoapify key is missing or no results returned
-            return {
-              moment: s.moment,
-              time: s.time,
-              endTime: s.endTime,
-              durationMinutes: s.durationMinutes,
-              type: s.type,
-              category: s.category,
-              venueFamily: s.venueFamily,
-              label: `${s.label} — lieu à choisir`,
-              detail:
-                s.detail ||
-                s.searchIntent ||
-                "Réservation ou choix du lieu à préciser",
-              verified: false,
-              source: "krew",
-              url: null,
-            };
+      for (const s of day.slots) {
+        if (s.kind === "internal") {
+          slots.push({
+            moment: s.moment,
+            time: s.time,
+            endTime: s.endTime,
+            durationMinutes: s.durationMinutes,
+            type: s.type,
+            category: s.category,
+            label: s.label,
+            detail: s.detail,
+            verified: false,
+            source: "krew",
+            url: null,
           });
+          continue;
+        }
 
-        return {
-          day: day.day,
-          date: day.date ?? null,
-          slots,
-        };
+        const categories = mapVenueFamilyToGeoapifyCategories(
+          s.venueFamily,
+          s.type,
+        );
+        const poolKey = categories.slice(0, 2).sort().join("_");
+        const pool = placePools[poolKey] || [];
+
+        // Pick unused candidate closest to lastSlotCoords (or reference point)
+        const candidatesAvailable = pool.filter((p) => !usedCandidateIdsSet.has(p.id));
+
+        let matchedPlace: any = null;
+        if (candidatesAvailable.length > 0) {
+          if (lastSlotCoords?.latitude != null && lastSlotCoords?.longitude != null) {
+            candidatesAvailable.sort((a, b) => {
+              const distA = haversineDistanceKm(lastSlotCoords!, a) ?? 99999;
+              const distB = haversineDistanceKm(lastSlotCoords!, b) ?? 99999;
+              return distA - distB;
+            });
+          }
+          matchedPlace = candidatesAvailable[0];
+          usedCandidateIdsSet.add(matchedPlace.id);
+          if (matchedPlace.latitude != null && matchedPlace.longitude != null) {
+            lastSlotCoords = { latitude: matchedPlace.latitude, longitude: matchedPlace.longitude };
+          }
+        } else if (pool.length > 0) {
+          // Fallback cycle if pool fully assigned across days
+          matchedPlace = pool[usedCandidateIdsSet.size % pool.length];
+        }
+
+        if (matchedPlace) {
+          slots.push({
+            moment: s.moment,
+            time: s.time,
+            endTime: s.endTime,
+            durationMinutes: s.durationMinutes,
+            type: s.type,
+            category: s.category,
+            venueFamily: s.venueFamily,
+            label: matchedPlace.name,
+            detail:
+              matchedPlace.address ||
+              s.detail ||
+              s.searchIntent ||
+              "Lieu sélectionné par KREW",
+            url: matchedPlace.website || null,
+            candidateId: matchedPlace.id,
+            verified: true,
+            source: "geoapify",
+            latitude: matchedPlace.latitude,
+            longitude: matchedPlace.longitude,
+          });
+        } else {
+          // Graceful degradation when Geoapify key is missing or no results returned
+          slots.push({
+            moment: s.moment,
+            time: s.time,
+            endTime: s.endTime,
+            durationMinutes: s.durationMinutes,
+            type: s.type,
+            category: s.category,
+            venueFamily: s.venueFamily,
+            label: `${s.label} — lieu à choisir`,
+            detail:
+              s.detail ||
+              s.searchIntent ||
+              "Réservation ou choix du lieu à préciser",
+            verified: false,
+            source: "krew",
+            url: null,
+          });
+        }
+      }
+
+      daysPlans.push({
+        day: day.day,
+        date: day.date ?? null,
+        slots,
       });
+    }
 
     const finalItinerary: import("@/lib/krew/activity-ai.server").GroupItinerary = {
       destination: destName,
@@ -2218,6 +2263,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       provider: "krew_geoapify",
       generatedAt: new Date().toISOString(),
       placePools,
+      usedCandidateIds: Array.from(usedCandidateIdsSet),
       skeleton: enrichedSkeleton,
     };
 
@@ -2278,6 +2324,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       source?: string;
       generatedAt?: string;
       placePools?: Record<string, any[]>;
+      usedCandidateIds?: string[];
       skeleton?: import("@/lib/krew/activity-ai.server").KrewSkeleton;
     } | null;
     if (!itinerary?.days?.length) {
@@ -2290,10 +2337,17 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     }
     const current = dayPlan.slots[data.slotIndex];
     const avoidLabels = dayPlan.slots.map((s) => s.label).filter(Boolean);
+    const usedIdsSet = new Set<string>(itinerary.usedCandidateIds ?? []);
 
-    const { mapVenueFamilyToGeoapifyCategories } = await import(
-      "@/lib/krew/geoapify.server"
-    );
+    if (current.candidateId) {
+      usedIdsSet.add(current.candidateId);
+    }
+
+    const {
+      mapVenueFamilyToGeoapifyCategories,
+      searchGeoapifyPlaces,
+      determineSearchRadiusMeters,
+    } = await import("@/lib/krew/geoapify.server");
 
     // Identify category pool for this slot
     const categories = mapVenueFamilyToGeoapifyCategories(
@@ -2301,22 +2355,74 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       current.type,
     );
     const poolKey = categories.slice(0, 2).sort().join("_");
-    const pool = itinerary.placePools?.[poolKey] || [];
+    let pool = itinerary.placePools?.[poolKey] || [];
 
     // Find next unused candidate in persisted pool
-    const unusedPlace = pool.find(
-      (place) => !avoidLabels.some((label) => label.toLowerCase().trim() === place.name.toLowerCase().trim()),
+    let unusedPlace = pool.find(
+      (place) =>
+        !usedIdsSet.has(place.id) &&
+        !avoidLabels.some((label) => label.toLowerCase().trim() === place.name.toLowerCase().trim()),
     );
 
-    let updatedSlot: any;
     let usedLlm = false;
 
+    // If pool is exhausted, perform a new targeted Geoapify search without Gemini
+    if (!unusedPlace) {
+      const logistics = ((tripRes.data as any).group_logistics || {}) as any;
+      let refLat: number | null = current.latitude ?? null;
+      let refLon: number | null = current.longitude ?? null;
+
+      if (refLat == null || refLon == null) {
+        if (logistics.selectedHotelId) {
+          const accRes = await supabase
+            .from("accommodations")
+            .select("latitude, longitude")
+            .eq("id", logistics.selectedHotelId)
+            .maybeSingle();
+          if (accRes.data?.latitude != null && accRes.data?.longitude != null) {
+            refLat = Number(accRes.data.latitude);
+            refLon = Number(accRes.data.longitude);
+          }
+        }
+      }
+
+      if (refLat != null && refLon != null) {
+        const radiusMeters = determineSearchRadiusMeters();
+        const newPlaces = await searchGeoapifyPlaces({
+          categories,
+          latitude: refLat,
+          longitude: refLon,
+          radiusMeters,
+          limit: 15,
+        });
+
+        const knownIds = new Set(pool.map((p) => p.id));
+        const deduplicatedNew = newPlaces.filter((p) => !knownIds.has(p.id));
+
+        if (deduplicatedNew.length > 0) {
+          pool = [...pool, ...deduplicatedNew];
+          if (!itinerary.placePools) itinerary.placePools = {};
+          itinerary.placePools[poolKey] = pool;
+
+          unusedPlace = deduplicatedNew.find(
+            (place) =>
+              !usedIdsSet.has(place.id) &&
+              !avoidLabels.some((label) => label.toLowerCase().trim() === place.name.toLowerCase().trim()),
+          ) || deduplicatedNew[0];
+        }
+      }
+    }
+
+    let updatedSlot: any;
+
     if (unusedPlace) {
-      // Pick alternative directly from persisted pool without Gemini or Geoapify call
+      usedIdsSet.add(unusedPlace.id);
+      itinerary.usedCandidateIds = Array.from(usedIdsSet);
+
       updatedSlot = {
         ...current,
         label: unusedPlace.name,
-        detail: unusedPlace.address || current.detail || "Lieu alternatif du pool KREW",
+        detail: unusedPlace.address || current.detail || "Lieu sélectionné par KREW",
         url: unusedPlace.website || null,
         candidateId: unusedPlace.id,
         verified: true,
@@ -2325,11 +2431,11 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         longitude: unusedPlace.longitude,
       };
     } else {
-      // Fallback if pool exhausted
+      // Graceful degradation when pool exhausted and no new Geoapify places found
       updatedSlot = {
         ...current,
-        label: `${current.label || "Créneau"} — autre option`,
-        detail: "Toutes les alternatives enregistrées ont été consultées",
+        label: `${current.label || "Créneau"} — choix à préciser`,
+        detail: "Toutes les alternatives locales disponibles ont été consultées",
       };
     }
 
@@ -2345,7 +2451,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       .eq("id", data.tripId);
     if (error) throw error;
 
-    return { ok: true, usedLlm: result.usedLlm, slot: result.slot, itinerary };
+    return { ok: true, usedLlm, slot: updatedSlot, itinerary };
   });
 
 /** Reco hôtels + A/R multi-modes (avion, train, bus, voiture) avec liens de réservation. */
