@@ -186,15 +186,16 @@ function ParticipantQuestionnaire() {
           setDepartureCity(preferences.departure_city ?? dep);
           setRoomType(preferences.accepts_shared_room ? "shared_ok" : "solo");
           {
+            const ltp = (preferences as any).lodging_type_preferences ?? [];
             const am = preferences.required_amenities ?? [];
-            const known = am.filter((x: string) =>
+            const source = ltp.length > 0 ? ltp : am.filter((x: string) =>
               ["hotel", "airbnb", "maison", "villa", "logement_entier", "peu_importe"].includes(x),
             );
             setLodgingTypes(
-              known.length
+              source.length
                 ? [
                     ...new Set<string>(
-                      known.map((x: string) =>
+                      source.map((x: string) =>
                         ["airbnb", "maison", "villa"].includes(x) ? "logement_entier" : x,
                       ),
                     ),
@@ -270,7 +271,8 @@ function ParticipantQuestionnaire() {
           dateFlexDays: 0,
           acceptsSharedRoom: roomType !== "solo",
           roomTypePreference: roomType === "solo" ? "solo" : "peu_importe",
-          requiredAmenities: lodgingTypes,
+          lodgingTypePreferences: lodgingTypes,
+          requiredAmenities: [],
           minAccommodationRating: undefined,
           travelPace: travelPace as "plein_programme" | "equilibre" | "chill",
           preferredTimeSlots,
