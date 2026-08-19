@@ -12,6 +12,9 @@ import {
   haversineDistanceKm,
   validateItinerary,
   buildKrewSkeleton,
+  buildKrewPlanningBrief,
+  validateAndRepairItinerary,
+  canonicalFamilyForMoment,
   geminiEnrichSkeleton,
   type ActivityAiInput,
 } from "../activity-ai.server";
@@ -212,11 +215,11 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     const origKey = process.env["GEMINI_API_KEY"];
     delete process.env["GEMINI_API_KEY"];
 
-    const enriched = await geminiEnrichSkeleton(skeleton, input());
+    const result = await geminiEnrichSkeleton(skeleton, input());
     process.env["GEMINI_API_KEY"] = origKey;
 
-    expect(enriched.usedLlm).toBe(false);
-    expect(enriched.enrichedSkeleton.days.length).toBe(skeleton.days.length);
+    expect(result.usedLlm).toBe(false);
+    expect(result.composedSkeleton.days.length).toBe(skeleton.days.length);
   });
 
   it("I. Geoapify en erreur / clé absente -> aucune fausse activité & planning non vide", async () => {
@@ -402,6 +405,118 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
       const cats = mapVenueFamilyToGeoapifyCategories(cafeSlot.venueFamily, cafeSlot.type);
       expect(cats).toEqual(["catering.cafe"]);
     }
+  });
+
+  it("V. canonicalVenueFamily invalid repair: never defaults to restaurant", () => {
+    // A. Sport slot with invalid family -> repaired to sport
+    expect(
+      canonicalFamilyForMoment({
+        kind: "place_required",
+        type: "activite",
+        category: "sport_outdoor",
+        label: "Session Kayak",
+      }),
+    ).toBe("sport");
+
+    // B. Dinner slot -> restaurant
+    expect(
+      canonicalFamilyForMoment({
+        kind: "place_required",
+        type: "resto",
+        category: "repas",
+        moment: "Soir",
+        label: "Dîner du groupe",
+      }),
+    ).toBe("restaurant");
+
+    // C. Breakfast slot -> cafe
+    expect(
+      canonicalFamilyForMoment({
+        kind: "place_required",
+        type: "resto",
+        category: "repas",
+        moment: "Matin",
+        label: "Petit-déjeuner",
+      }),
+    ).toBe("cafe");
+
+    // D. Culture slot -> culture
+    expect(
+      canonicalFamilyForMoment({
+        kind: "place_required",
+        type: "activite",
+        category: "culture",
+        label: "Visite du Musée",
+      }),
+    ).toBe("culture");
+
+    // E. Completely unknown slot -> null (rejected, never forced to restaurant)
+    expect(
+      canonicalFamilyForMoment({
+        kind: "place_required",
+        type: "unknown" as any,
+        category: "unknown" as any,
+        label: "XYZ Unknown",
+      }),
+    ).toBeNull();
+  });
+
+  it("U. localMobility aggregation: majority rule is respected and individualPreferences[0] is never taken unconditionally", () => {
+    const input: ActivityAiInput = {
+      destination: "Dijon",
+      nights: 2,
+      participants: 3,
+      budgetPerPerson: 300,
+      ambiances: [],
+      activityCategories: [],
+      individualPreferences: [
+        { localMobility: "walk_transit" },
+        { localMobility: "car_if_worth_it" },
+        { localMobility: "car_if_worth_it" },
+      ],
+    };
+
+    const brief = buildKrewPlanningBrief(input);
+    expect(brief.preferences.localMobility).toBe("car_if_worth_it");
+  });
+
+  it("W. Midnight crossing transport semantics: Saturday 20:30 + 5h travel + 45m margin -> Sunday 02:15 arrival date", () => {
+    const win = calculatePlanningWindow({
+      destination: "Beaune",
+      startDate: "2025-06-07", // Saturday
+      nights: 2,
+      participants: 4,
+      budgetPerPerson: 400,
+      ambiances: [],
+      activityCategories: [],
+      earliestOutboundDeparture: "20:30",
+      transportDurationHours: 5,
+      transferMarginMinutes: 45,
+    });
+
+    // 20:30 + 5h = 01:30 Sunday + 45m margin = 02:15 Sunday
+    expect(win.arrivalReady).toBe("02:15");
+    expect(win.arrivalReadyDate).toBe("2025-06-08"); // Sunday
+    expect(win.arrivalDayIndex).toBe(2);
+
+    const brief = buildKrewPlanningBrief({
+      destination: "Beaune",
+      startDate: "2025-06-07",
+      nights: 2,
+      participants: 4,
+      budgetPerPerson: 400,
+      ambiances: [],
+      activityCategories: [],
+      earliestOutboundDeparture: "20:30",
+      transportDurationHours: 5,
+      transferMarginMinutes: 45,
+    });
+
+    // Saturday (day 1) has no available time left at destination
+    expect(brief.dayWindows[0]?.availableMinutes).toBe(0);
+    // Sunday (day 2) is available starting at 02:15
+    expect(brief.dayWindows[1]?.availableFrom).toBe("02:15");
+    expect(brief.dayWindows[1]?.isArrivalDay).toBe(true);
   });
 
   it("T. Transport semantics: departureOrigin + duration + margin", () => {

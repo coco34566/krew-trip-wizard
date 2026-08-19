@@ -2038,6 +2038,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       individualPreferences: aggregated.individualPreferences,
       groupAgeRange: aggregated.groupAgeRange ?? null,
       groupAccommodationRole: aggregated.groupAccommodationRole ?? null,
+      groupLocalMobility: aggregated.groupLocalMobility ?? null,
       starWantedEnvType: aggregated.starWantedEnvType ?? null,
       wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
     };

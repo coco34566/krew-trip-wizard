@@ -213,6 +213,7 @@ export type ActivityAiInput = {
   individualPreferences?: any[];
   groupAgeRange?: string | null;
   groupAccommodationRole?: string | null;
+  groupLocalMobility?: string | null;
   starWantedEnvType?: string | null;
   wantedEnvTypes?: string[];
   forceDiscoveryRefresh?: boolean;
@@ -238,6 +239,84 @@ const fromMinutes = (minutes: number) =>
   `${String(Math.floor((((minutes % 1440) + 1440) % 1440) / 60)).padStart(2, "0")}:${String((((minutes % 1440) + 1440) % 1440) % 60).padStart(2, "0")}`;
 const mapsUrl = (query: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+
+export function canonicalFamilyForMoment(slot: {
+  kind?: string;
+  type?: string;
+  category?: string;
+  moment?: string;
+  label?: string;
+  momentType?: string;
+}): AllowedCanonicalVenueFamily | null {
+  if (slot.kind === "internal") return null;
+
+  const mt = norm(slot.momentType ?? "");
+  const cat = norm(slot.category ?? "");
+  const stype = norm(slot.type ?? "");
+  const mom = norm(slot.moment ?? "");
+  const lbl = norm(slot.label ?? "");
+
+  // 1. Explicit momentType checks
+  if (/breakfast|petit_dejeuner|petit dejeuner/.test(mt)) return "cafe";
+  if (/brunch/.test(mt)) return mom === "midi" || /diner|lunch|repas/.test(cat) ? "restaurant" : "cafe";
+  if (/lunch|dinner|diner|dejeuner|repas/.test(mt)) return "restaurant";
+  if (/nightlife|bar_pub|bar|apero|pub|club/.test(mt)) return "bar_pub";
+  if (/culture|visite|museum|musee/.test(mt)) return "culture";
+  if (/sport|outdoor|rando/.test(mt)) return "sport";
+  if (/spa|wellness|relaxation|relax|bien_etre/.test(mt)) return "spa_wellness";
+  if (/shopping|marche/.test(mt)) return "shopping";
+  if (/local_experience|experience_locale/.test(mt)) return "local_experience";
+
+  // 2. KREW Category checks
+  if (cat === "repas") {
+    if (mom === "matin" || /breakfast|petit/.test(lbl)) return "cafe";
+    return "restaurant";
+  }
+  if (cat === "soiree") return "bar_pub";
+  if (cat === "sport_outdoor") return "sport";
+  if (cat === "culture") return "culture";
+  if (cat === "detente") return "spa_wellness";
+
+  // 3. Slot type checks
+  if (stype === "resto") {
+    if (mom === "matin") return "cafe";
+    return "restaurant";
+  }
+  if (stype === "bar") return "bar_pub";
+
+  // 4. Label heuristics
+  if (/petit-dejeuner|breakfast|cafe/.test(lbl)) return "cafe";
+  if (/brunch/.test(lbl)) return "cafe";
+  if (/dejeuner|diner|restaurant|repas/.test(lbl)) return "restaurant";
+  if (/bar|apero|pub|soiree|clubbing/.test(lbl)) return "bar_pub";
+  if (/visite|culture|patrimoine|musee/.test(lbl)) return "culture";
+  if (/sport|plein air|outdoor|randonnee|velo/.test(lbl)) return "sport";
+  if (/spa|detente|bien-etre|wellness|massage/.test(lbl)) return "spa_wellness";
+  if (/shopping|marche/.test(lbl)) return "shopping";
+  if (/experience locale|degustation|insolite/.test(lbl)) return "local_experience";
+
+  return null;
+}
+
+export function aggregateLocalMobility(
+  preferences: Array<{
+    localMobility?: "walk_transit" | "car_if_worth_it" | "car_ok" | string | null;
+    weight?: number;
+  }>,
+) {
+  const scores: Record<string, number> = { walk_transit: 0, car_if_worth_it: 0, car_ok: 0 };
+  let total = 0;
+  for (const preference of preferences) {
+    if (!preference.localMobility || !(preference.localMobility in scores)) continue;
+    const weight = Math.max(0.1, preference.weight ?? 1);
+    scores[preference.localMobility] += weight;
+    total += weight;
+  }
+  if (!total) return { value: null, consensus: 0, scores };
+  const order = ["walk_transit", "car_if_worth_it", "car_ok"] as const;
+  const value = order.reduce((best, current) => (scores[current] > scores[best] ? current : best));
+  return { value, consensus: scores[value] / total, scores };
+}
 
 export function aggregateMajorityTimePreference(
   values: (string | null | undefined)[],
@@ -333,40 +412,91 @@ export function openingStatus(
     : "closed";
 }
 
+export type PlanningTimestampWindow = {
+  arrivalReadyTime: string | null; // HH:mm
+  arrivalReadyDate: string | null; // YYYY-MM-DD
+  arrivalDayIndex: number; // 1-based day index relative to startDate
+  latestDestinationDepartureTime: string | null; // HH:mm
+  latestDestinationDepartureDate: string | null; // YYYY-MM-DD
+  departureDayIndex: number; // 1-based day index relative to startDate
+};
+
 export function calculatePlanningWindow(input: ActivityAiInput): {
   arrivalReady: string | null;
   latestDestinationDeparture: string | null;
+  arrivalReadyDate?: string | null;
+  latestDestinationDepartureDate?: string | null;
+  arrivalDayIndex?: number;
+  departureDayIndex?: number;
 } {
   const margin = Math.max(30, input.transferMarginMinutes ?? 75);
-  const knownArrivals = (input.transportPicksSummary ?? [])
-    .map((pick) => toMinutes(pick.arrival))
-    .filter((v): v is number => v != null);
-  const explicitArrival = toMinutes(input.latestGroupArrival);
-  const outbound = toMinutes(input.earliestOutboundDeparture);
-  const duration = Number(input.transportDurationHours);
-  let arrival = knownArrivals.length ? Math.max(...knownArrivals) : explicitArrival;
-  if (arrival == null && outbound != null && Number.isFinite(duration) && duration > 0)
-    arrival = outbound + Math.round(duration * 60);
+  const startDate = input.startDate ?? null;
+  const totalDays = Math.max(1, input.nights + 1);
 
-  const knownDepartures = (input.transportPicksSummary ?? [])
-    .map((pick) => toMinutes(pick.departure))
-    .filter((v): v is number => v != null);
-  let destinationDeparture = knownDepartures.length
-    ? Math.min(...knownDepartures)
-    : toMinutes(input.earliestGroupDeparture);
-  const returnHome = toMinutes(input.latestReturnHome);
-  if (
-    destinationDeparture == null &&
-    returnHome != null &&
-    Number.isFinite(duration) &&
-    duration > 0
-  )
-    destinationDeparture = returnHome - Math.round(duration * 60) - margin;
+  // Check selected transport pick with full departure/arrival timestamps
+  const transportPick = input.transportPicksSummary?.[0];
+  let arrivalTotalMinutes: number | null = null;
+  let arrivalDayOffset = 0;
+
+  if (transportPick?.arrival && HHMM.test(transportPick.arrival.slice(0, 5))) {
+    arrivalTotalMinutes = toMinutes(transportPick.arrival.slice(0, 5))! + margin;
+  } else {
+    const explicitArrival = toMinutes(input.latestGroupArrival);
+    const outbound = toMinutes(input.earliestOutboundDeparture);
+    const durationHours = Number(input.transportDurationHours);
+
+    if (explicitArrival != null) {
+      arrivalTotalMinutes = explicitArrival + margin;
+    } else if (outbound != null && Number.isFinite(durationHours) && durationHours > 0) {
+      arrivalTotalMinutes = outbound + Math.round(durationHours * 60) + margin;
+    }
+  }
+
+  if (arrivalTotalMinutes != null && arrivalTotalMinutes >= 1440) {
+    arrivalDayOffset = Math.floor(arrivalTotalMinutes / 1440);
+    arrivalTotalMinutes = arrivalTotalMinutes % 1440;
+  }
+
+  const arrivalReadyTime = arrivalTotalMinutes != null ? fromMinutes(arrivalTotalMinutes) : null;
+  const arrivalDayIndex = 1 + arrivalDayOffset;
+  const arrivalReadyDate = startDate ? addDays(startDate, arrivalDayOffset) : null;
+
+  // Departure logistics
+  let departureTotalMinutes: number | null = null;
+  let departureDayOffset = totalDays - 1;
+
+  if (transportPick?.departure && HHMM.test(transportPick.departure.slice(0, 5))) {
+    departureTotalMinutes = toMinutes(transportPick.departure.slice(0, 5));
+  } else {
+    const explicitDeparture = toMinutes(input.earliestGroupDeparture);
+    const returnHome = toMinutes(input.latestReturnHome);
+    const durationHours = Number(input.transportDurationHours);
+
+    if (explicitDeparture != null) {
+      departureTotalMinutes = explicitDeparture;
+    } else if (returnHome != null && Number.isFinite(durationHours) && durationHours > 0) {
+      departureTotalMinutes = returnHome - Math.round(durationHours * 60) - margin;
+    }
+  }
+
+  if (departureTotalMinutes != null && departureTotalMinutes < 0) {
+    const prevDays = Math.ceil(Math.abs(departureTotalMinutes) / 1440);
+    departureDayOffset = Math.max(0, totalDays - 1 - prevDays);
+    departureTotalMinutes = ((departureTotalMinutes % 1440) + 1440) % 1440;
+  }
+
+  const latestDestinationDepartureTime =
+    departureTotalMinutes != null ? fromMinutes(departureTotalMinutes) : null;
+  const departureDayIndex = 1 + departureDayOffset;
+  const latestDestinationDepartureDate = startDate ? addDays(startDate, departureDayOffset) : null;
 
   return {
-    arrivalReady: arrival == null ? null : fromMinutes(arrival + margin),
-    latestDestinationDeparture:
-      destinationDeparture == null ? null : fromMinutes(destinationDeparture),
+    arrivalReady: arrivalReadyTime,
+    latestDestinationDeparture: latestDestinationDepartureTime,
+    arrivalReadyDate,
+    latestDestinationDepartureDate,
+    arrivalDayIndex,
+    departureDayIndex,
   };
 }
 
@@ -398,22 +528,38 @@ export function buildKrewPlanningBrief(input: ActivityAiInput): PlanningBrief {
   const allowLateNight = timeSlotPrefs.some((s) => s.includes("tard_soir") || s.includes("nuit") || s.includes("soiree_tardive"));
 
   const dayWindows: PlanningDayWindow[] = [];
+  const actualArrivalDay = window.arrivalDayIndex ?? 1;
+  const actualDepartureDay = window.departureDayIndex ?? totalDays;
 
   for (let day = 1; day <= totalDays; day++) {
-    const isArrivalDay = day === 1;
-    const isDepartureDay = day === totalDays;
+    const isArrivalDay = day === actualArrivalDay;
+    const isDepartureDay = day === actualDepartureDay;
     const dateStr = input.startDate ? addDays(input.startDate, day - 1) : null;
 
-    let availableFrom = isArrivalDay ? (arrivalMin != null ? fromMinutes(arrivalMin) : "18:00") : "08:30";
-    let availableUntil = isDepartureDay ? (departureMin != null ? fromMinutes(departureMin) : "12:00") : "23:59";
+    let availableFrom = "08:30";
+    let availableUntil = "23:59";
+
+    if (day < actualArrivalDay) {
+      availableFrom = "23:59";
+      availableUntil = "23:59";
+    } else if (isArrivalDay) {
+      availableFrom = arrivalMin != null ? fromMinutes(arrivalMin) : "18:00";
+    }
+
+    if (day > actualDepartureDay) {
+      availableFrom = "00:00";
+      availableUntil = "00:00";
+    } else if (isDepartureDay) {
+      availableUntil = departureMin != null ? fromMinutes(departureMin) : "12:00";
+    }
 
     let fromMin = toMinutes(availableFrom) ?? 510;
     let untilMin = toMinutes(availableUntil) ?? 1439;
 
     let crossesMidnight = false;
-    if (untilMin <= fromMin && untilMin < 360) {
+    if (untilMin <= fromMin && untilMin < 360 && day >= actualArrivalDay && day <= actualDepartureDay) {
       crossesMidnight = true;
-      untilMin += 1440; // Maintain duration across midnight boundary without date reset
+      untilMin += 1440;
     }
 
     const availableMinutes = Math.max(0, untilMin - fromMin);
@@ -488,7 +634,10 @@ export function buildKrewPlanningBrief(input: ActivityAiInput): PlanningBrief {
       activityCategories: input.activityCategories ?? [],
       wantedEnvTypes: input.wantedEnvTypes ?? [],
       accommodationRole: lodgRole,
-      localMobility: input.individualPreferences?.[0]?.localMobility ?? "walk_transit",
+      localMobility:
+        input.groupLocalMobility ??
+        aggregateLocalMobility(input.individualPreferences ?? []).value ??
+        "walk_transit",
       dietaryConstraints: input.dietaryConstraints ?? [],
       accessibilityNeeds: Boolean(input.individualPreferences?.some((p) => p.needsAccessibility)),
       budgetPerPerson: input.budgetPerPerson,
@@ -1333,11 +1482,17 @@ export function validateAndRepairItinerary(
       // General window bounds
       if (end > untilMin + 30) return false;
 
-      // Strict enum validation for canonicalVenueFamily
-      if (slot.kind === "place_required" && slot.canonicalVenueFamily) {
-        if (!brief.allowedVenueFamilies.includes(slot.canonicalVenueFamily)) {
-          slot.canonicalVenueFamily = "restaurant";
-          slot.venueFamily = "restaurant";
+      // Strict enum validation for canonicalVenueFamily using deterministic moment repair
+      if (slot.kind === "place_required") {
+        if (!slot.canonicalVenueFamily || !brief.allowedVenueFamilies.includes(slot.canonicalVenueFamily)) {
+          const repairedFamily = canonicalFamilyForMoment(slot);
+          if (repairedFamily) {
+            slot.canonicalVenueFamily = repairedFamily;
+            slot.venueFamily = repairedFamily;
+          } else {
+            // Reject unrepairable place_required slot without a valid canonical family
+            return false;
+          }
         }
       }
 
@@ -1678,12 +1833,18 @@ PlanningBrief = ${JSON.stringify(brief)}`;
         const kind: SkeletonSlotKind = m.kind === "internal" ? "internal" : "place_required";
         const requestedFamily = String(m.canonicalVenueFamily ?? "").toLowerCase().trim();
 
-        const canonicalVenueFamily: AllowedCanonicalVenueFamily | undefined = brief.allowedVenueFamilies.includes(
+        let canonicalVenueFamily: AllowedCanonicalVenueFamily | undefined = brief.allowedVenueFamilies.includes(
           requestedFamily as AllowedCanonicalVenueFamily,
         )
           ? (requestedFamily as AllowedCanonicalVenueFamily)
           : kind === "place_required"
-            ? "restaurant"
+            ? canonicalFamilyForMoment({
+                kind,
+                momentType: String(m.momentType ?? ""),
+                type: String(m.type ?? ""),
+                category: String(m.category ?? ""),
+                label: String(m.title ?? ""),
+              }) ?? undefined
             : undefined;
 
         const momentLabel: "Matin" | "Midi" | "Après-midi" | "Soir" =
