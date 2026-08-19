@@ -297,7 +297,7 @@ function TripRecapPage() {
                           </Button>
                         </div>
                       </div>
-                      <h3 className="mt-2 font-display text-xl font-semibold">
+                      <h3 className="mt-2 font-display text-2xl font-semibold">
                         {destName}
                         {reco.destination?.country ? (
                           <span className="text-base font-normal text-muted-foreground">
@@ -313,7 +313,7 @@ function TripRecapPage() {
                         <p className="text-xs uppercase tracking-wide text-muted-foreground">
                           Budget estimé
                         </p>
-                        <p className="font-display text-lg font-semibold">
+                        <p className="font-mono text-lg font-semibold">
                           <Wallet className="mr-1 inline size-4" />
                           {formatEuro(budget.totalPerPerson)} / pers.
                         </p>

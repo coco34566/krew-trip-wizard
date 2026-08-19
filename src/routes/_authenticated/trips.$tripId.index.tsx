@@ -93,6 +93,7 @@ import { buildTripStatusWhatsApp, shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
+import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
   destinationBudgetTotal,
@@ -1579,7 +1580,7 @@ function TripDetail() {
                           : "border-border",
                       )}
                     >
-                      <div className="flex gap-3 sm:gap-4">
+                      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                         <img
                           src={destinationPhotoUrl(
                             reco.destinations?.name,
@@ -1591,18 +1592,18 @@ function TripDetail() {
                               : "Destination"
                           }
                           loading="lazy"
-                          className="h-24 w-24 shrink-0 rounded-xl object-cover sm:h-28 sm:w-28"
+                          className="h-44 w-full sm:h-32 sm:w-44 shrink-0 rounded-xl object-cover aspect-[4/3]"
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-mono">
                                 #{index + 1}
                                 {reco.destinations?.country
                                   ? ` · ${reco.destinations.country}`
                                   : ""}
                               </p>
-                              <h3 className="font-display text-xl font-semibold leading-tight">
+                              <h3 className="font-display text-2xl font-semibold leading-tight">
                                 {reco.destinations?.name}
                               </h3>
                             </div>
@@ -1614,7 +1615,7 @@ function TripDetail() {
                           {/* Budget moyen */}
                           {budgetTotal != null && budgetTotal > 0 ? (
                             <p className="mt-2 text-sm">
-                              <span className="font-semibold text-foreground">
+                              <span className="font-semibold text-foreground font-mono">
                                 {budgetEstimated ? "Budget estimé ~" : ""}
                                 {formatEuro(budgetTotal)}
                               </span>
@@ -1780,17 +1781,15 @@ function TripDetail() {
                       <img
                         src={h.imageUrl}
                         alt=""
-                        className="mb-3 h-40 w-full rounded-xl object-cover"
+                        className="mb-3 h-40 w-full rounded-xl object-cover aspect-[4/3]"
                         loading="lazy"
                       />
                     ) : (
-                      <div className="mb-3 flex h-28 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                        <Hotel className="size-8" />
-                      </div>
+                      <KrewPhotoFallback className="mb-3 h-40 w-full" type="accommodation" aspectRatio="4/3" />
                     )}
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="font-medium">{h.name}</p>
+                        <p className="font-semibold text-base">{h.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {ACCOMMODATION_CONCEPT_LABELS[h.krewConcept] ?? "Sélection KREW"}
                           {h.rating ? ` · ★ ${Number(h.rating).toFixed(1)}` : ""}
@@ -1810,9 +1809,14 @@ function TripDetail() {
                       ) : null}
                     </div>
                     <p className="mt-2 text-sm">
-                      {h.pricePerPerson != null
-                        ? `${formatEuro(h.pricePerPerson)} / pers. pour le séjour`
-                        : "Prix à vérifier"}
+                      {h.pricePerPerson != null ? (
+                        <>
+                          <span className="font-mono font-semibold">{formatEuro(h.pricePerPerson)}</span>
+                          <span> / pers. pour le séjour</span>
+                        </>
+                      ) : (
+                        "Prix à vérifier"
+                      )}
                       {h.pricePerPerson != null ? (
                         <span className="text-muted-foreground">
                           {h.priceStatus === "verified" ? " · Prix vérifié" : " · Prix indicatif"}
@@ -1870,13 +1874,13 @@ function TripDetail() {
                             >
                               <div className="flex items-center justify-between font-medium">
                                 <span>{c.name}</span>
-                                <span className="text-primary">
+                                <span className="text-primary font-mono font-semibold">
                                   {formatEuro(c.pricePerPerson)} / pers.
                                 </span>
                               </div>
                               <p className="text-[11px] text-muted-foreground mt-0.5">
                                 🛌 {c.bedrooms} ch. · 🛌 {c.beds} lits · 🚿 {c.bathrooms} SDB ·
-                                Total : {formatEuro(c.totalCost)} (frais inclus)
+                                Total : <span className="font-mono">{formatEuro(c.totalCost)}</span> (frais inclus)
                               </p>
                               <p className="text-[11px] text-muted-foreground mt-1 italic leading-snug">
                                 {c.explanation}
@@ -2072,7 +2076,7 @@ function TripDetail() {
                               <p className="text-sm font-medium">
                                 {tr.modeLabel || tr.mode} · {tr.label}
                               </p>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground font-mono">
                                 ~{formatEuro(tr.pricePerPerson)} / pers. A/R
                               </p>
                             </div>
@@ -2197,7 +2201,7 @@ function TripDetail() {
                             <div className="min-w-0">
                               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                                 {slot.time ? (
-                                  <span className="mr-1.5 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 font-semibold tabular-nums text-primary normal-case tracking-normal">
+                                  <span className="mr-1.5 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 font-semibold font-mono text-primary normal-case tracking-normal">
                                     {slot.time}
                                   </span>
                                 ) : null}
@@ -2209,7 +2213,7 @@ function TripDetail() {
                                 <p className="text-xs text-muted-foreground">{slot.detail}</p>
                               ) : null}
                               {slot.priceHint != null ? (
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-xs text-muted-foreground font-mono">
                                   ~{formatEuro(Number(slot.priceHint))} / pers.
                                 </p>
                               ) : null}
