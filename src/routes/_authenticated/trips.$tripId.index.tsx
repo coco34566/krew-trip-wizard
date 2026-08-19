@@ -2164,23 +2164,23 @@ function TripDetail() {
                 : "Le planning du séjour sera bientôt disponible."}
             </p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-8 pt-2">
               {((trip as any).group_itinerary.days as any[]).map((day: any) => (
-                <article
-                  key={day.day}
-                  className="rounded-3xl border border-border bg-card p-5 shadow-sm"
-                >
-                  <h3 className="font-display text-xl font-semibold tracking-tight">
-                    Jour {day.day}
-                    {day.date
-                      ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "short",
-                        })}`
-                      : ""}
-                  </h3>
-                  <ul className="mt-3 space-y-2">
+                <article key={day.day} className="space-y-4">
+                  <div className="border-b border-border/60 pb-2">
+                    <h3 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+                      Jour {day.day}
+                      {day.date
+                        ? ` · ${new Date(day.date + "T12:00:00").toLocaleDateString("fr-FR", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "short",
+                          })}`
+                        : ""}
+                    </h3>
+                  </div>
+
+                  <div className="relative pl-6 sm:pl-8 space-y-4 before:absolute before:left-2 sm:before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border/60">
                     {(day.slots ?? []).map((slot: any, slotIndex: number) => {
                       const Icon =
                         slot.type === "resto"
@@ -2191,28 +2191,31 @@ function TripDetail() {
                               ? Camera
                               : CalendarDays;
                       return (
-                        <li
+                        <div
                           key={`${day.day}-${slotIndex}`}
-                          className="flex flex-wrap items-start justify-between gap-2 rounded-2xl border border-border/60 bg-surface/40 px-3 py-2.5"
+                          className="relative flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-border/40 bg-background/50 p-3.5 transition hover:border-border/80"
                         >
-                          <div className="flex gap-2.5 min-w-0">
+                          {/* Circle node on vertical line */}
+                          <span className="absolute -left-6 sm:-left-8 top-4 size-2.5 rounded-full border border-primary bg-background ring-4 ring-card" />
+
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
                             <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
-                            <div className="min-w-0">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                                 {slot.time ? (
-                                  <span className="mr-1.5 inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 font-semibold font-mono text-primary normal-case tracking-normal">
+                                  <span className="font-mono font-semibold text-primary">
                                     {slot.time}
                                   </span>
                                 ) : null}
-                                {slot.moment}
-                                {slot.type ? ` · ${slot.type}` : ""}
-                              </p>
-                              <p className="font-medium text-sm">{slot.label}</p>
+                                <span>{slot.moment}</span>
+                                {slot.type ? <span>· {slot.type}</span> : null}
+                              </div>
+                              <p className="font-semibold text-foreground text-sm mt-0.5">{slot.label}</p>
                               {slot.detail ? (
-                                <p className="text-xs text-muted-foreground">{slot.detail}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{slot.detail}</p>
                               ) : null}
                               {slot.priceHint != null ? (
-                                <p className="text-xs text-muted-foreground font-mono">
+                                <p className="text-xs text-muted-foreground font-mono mt-1">
                                   ~{formatEuro(Number(slot.priceHint))} / pers.
                                 </p>
                               ) : null}
@@ -2221,7 +2224,7 @@ function TripDetail() {
                                   href={slot.url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="mt-0.5 inline-block text-xs font-medium text-primary hover:underline"
+                                  className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
                                 >
                                   Voir ou réserver →
                                 </a>
@@ -2235,6 +2238,7 @@ function TripDetail() {
                               disabled={slotMutation.isPending}
                               onClick={() => slotMutation.mutate({ day: day.day, slotIndex })}
                               title="Proposer une autre option pour ce créneau seulement"
+                              className="shrink-0"
                             >
                               {slotMutation.isPending ? (
                                 <Loader2 className="size-3.5 animate-spin" />
@@ -2244,10 +2248,10 @@ function TripDetail() {
                               Autre option
                             </Button>
                           ) : null}
-                        </li>
+                        </div>
                       );
                     })}
-                  </ul>
+                  </div>
                 </article>
               ))}
             </div>
@@ -2333,13 +2337,13 @@ function TripDetail() {
                     return (
                       <tr
                         key={task.id}
-                        className="border-b border-border/50 hover:bg-surface/10 transition-colors"
+                        className="border-b border-border/40 hover:bg-muted/30 transition-colors"
                       >
-                        <td className="py-3.5 pr-3 text-xs font-semibold tabular-nums text-muted-foreground">
+                        <td className="py-3 pr-3 text-xs font-mono font-medium text-muted-foreground">
                           {taskDate} {task.start_time ? `· ${task.start_time}` : ""}
                         </td>
-                        <td className="py-3.5 pr-3">
-                          <span className="text-sm font-semibold text-foreground">
+                        <td className="py-3 pr-3">
+                          <span className={cn("text-sm font-medium text-foreground", task.status === "done" && "line-through text-muted-foreground")}>
                             {task.title}
                           </span>
                         </td>
