@@ -121,7 +121,7 @@ describe('getParticipantsProgress', () => {
     expect(result.expected).toBe(6); // should match participants_count = 6
     expect(result.joined).toBe(3);   // 3 accepted
     expect(result.answered).toBe(3); // Coco + Bruce + Titi (via starPrefs)
-    expect(result.participants.length).toBe(6); // 3 accepted + 3 padded generic participants
+    expect(result.participants.length).toBe(3); // 3 accepted real participants (no generic virtual padding)
     expect(result.participants[1].isStar).toBe(true); // Titi is correctly marked as the star
     expect(result.participants[1].hasAnswered).toBe(true); // star has answered since starPrefs is filled
   });

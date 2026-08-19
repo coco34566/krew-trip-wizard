@@ -42,14 +42,16 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 type TeamMember = {
   id: string;
   name: string;
-  hasAnswered: boolean;
+  availabilityDone: boolean;
+  preferencesDone: boolean;
   isStar: boolean;
 };
 
 type TeamSummary = {
   total: number;
-  answered: number;
-  pending: number;
+  identifiedCount: number;
+  availabilityAnswered: number;
+  preferencesAnswered: number;
   members: TeamMember[];
 };
 
@@ -84,12 +86,11 @@ function TripCard({
 
   const team = trip.team_summary ?? {
     total: Math.max(trip.participants_count || 1, 1),
-    answered: 0,
-    pending: Math.max(trip.participants_count || 1, 1),
+    identifiedCount: 0,
+    availabilityAnswered: 0,
+    preferencesAnswered: 0,
     members: [],
   };
-
-  const pct = Math.min(100, Math.max(0, Math.round((team.answered / Math.max(team.total, 1)) * 100)));
 
   return (
     <div className="relative rounded-2xl border border-border/80 bg-card p-5 sm:p-6 transition-colors hover:border-primary/40 flex flex-col justify-between">
@@ -133,22 +134,19 @@ function TripCard({
 
         {/* Bloc Team / Progression */}
         <div className="pt-2 border-t border-border/40 space-y-2">
-          <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-            <span>
-              {team.answered} / {team.total} répondus
-            </span>
-            {team.pending > 0 && (
-              <span className="text-muted-foreground/80">
-                {team.pending} en attente
+          <div className="flex flex-col gap-1 text-xs text-muted-foreground font-medium">
+            <div className="flex items-center justify-between">
+              <span>Disponibilités</span>
+              <span className="tabular-nums font-sans">
+                {team.availabilityAnswered} / {team.total}
               </span>
-            )}
-          </div>
-
-          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-secondary transition-all duration-300"
-              style={{ width: `${pct}%` }}
-            />
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Préférences</span>
+              <span className="tabular-nums font-sans">
+                {team.preferencesAnswered} / {team.total}
+              </span>
+            </div>
           </div>
 
           {team.members.length > 0 && (
@@ -156,14 +154,21 @@ function TripCard({
               {team.members.slice(0, 5).map((m) => (
                 <span
                   key={m.id}
-                  className="inline-flex items-center gap-1 bg-muted/50 px-2 py-0.5 rounded text-[11px]"
+                  className="inline-flex items-center gap-1.5 bg-muted/50 px-2 py-0.5 rounded text-[11px]"
                 >
                   <span className="truncate max-w-[100px]">{m.name}</span>
-                  {m.hasAnswered ? (
-                    <Check className="size-3 text-secondary shrink-0" />
-                  ) : (
-                    <span className="size-1.5 rounded-full bg-muted-foreground/40 shrink-0" />
-                  )}
+                  <span className="flex items-center gap-1 shrink-0">
+                    {m.availabilityDone ? (
+                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                    ) : (
+                      <span className="size-1.5 rounded-full bg-muted-foreground/30" />
+                    )}
+                    {m.preferencesDone ? (
+                      <Check className="size-3 text-secondary shrink-0" />
+                    ) : (
+                      <span className="size-1.5 rounded-full bg-muted-foreground/30" />
+                    )}
+                  </span>
                 </span>
               ))}
               {team.members.length > 5 && (

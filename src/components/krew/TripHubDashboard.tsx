@@ -324,14 +324,14 @@ function NextActionsPanel({
 
   if (actions.length === 0 && participantCaughtUp) {
     return (
-      <section className="rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-5 sm:p-6">
+      <section className="rounded-2xl border border-secondary/30 bg-secondary/10 p-5">
         <div className="flex gap-3">
-          <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-secondary" />
           <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight text-emerald-900 dark:text-emerald-200">
+            <h2 className="font-display text-lg font-normal tracking-tight text-foreground">
               Tout est à jour de ton côté
             </h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-emerald-800/90 dark:text-emerald-300/90">
+            <p className="mt-1 text-sm leading-relaxed text-foreground/80">
               {isOwner
                 ? hasItinerary
                   ? "Planning en place — tu peux encore ajuster hôtels, trajets ou créneaux plus bas."
@@ -348,64 +348,94 @@ function NextActionsPanel({
     );
   }
 
+  const primaryAction = actions.find((a) => a.primary) ?? actions[0];
+  const secondaryActions = actions.filter((a) => a !== primaryAction);
+
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
             Tes prochaines actions
           </h2>
         </div>
       </div>
 
       {waitingOnOthers ? (
-        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+        <div className="rounded-2xl border border-border/80 bg-muted/40 px-4 py-3 text-sm text-foreground/90">
           De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
           l&apos;organisateur·rice.
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {actions.slice(0, 6).map((a) => {
-          const Tag = a.href ? "a" : "div";
-          return (
-            <Tag
-              key={a.key}
-              {...(a.href ? { href: a.href } : {})}
-              className={cn(
-                "group flex items-start gap-3 rounded-2xl border bg-card p-4 shadow-sm transition",
-                a.primary
-                  ? "border-primary/40 bg-primary/5 hover:border-primary hover:shadow-glow"
-                  : "border-border hover:border-primary/30",
-                a.href && "cursor-pointer",
-              )}
-            >
-              <span
+      <div className="space-y-3">
+        {/* Action principale (bloc horizontal léger) */}
+        {primaryAction ? (
+          (() => {
+            const Tag = primaryAction.href ? "a" : "div";
+            return (
+              <Tag
+                key={primaryAction.key}
+                {...(primaryAction.href ? { href: primaryAction.href } : {})}
                 className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-xl",
-                  a.primary ? "bg-primary text-primary-foreground" : "bg-muted text-primary",
+                  "group flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 sm:p-5 transition hover:border-primary/50",
+                  primaryAction.href && "cursor-pointer",
                 )}
               >
-                <a.icon className="size-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                    <primaryAction.icon className="size-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-sans font-semibold text-foreground group-hover:text-primary transition-colors">
+                      {primaryAction.title}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                      {primaryAction.desc}
+                    </p>
+                  </div>
+                </div>
+                {primaryAction.href ? (
+                  <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
+                ) : null}
+              </Tag>
+            );
+          })()
+        ) : null}
+
+        {/* Actions secondaires (lignes simples) */}
+        {secondaryActions.length > 0 ? (
+          <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3">
+            {secondaryActions.map((a) => {
+              const Tag = a.href ? "a" : "div";
+              return (
+                <Tag
+                  key={a.key}
+                  {...(a.href ? { href: a.href } : {})}
                   className={cn(
-                    "font-semibold leading-snug",
-                    a.primary && "text-primary",
-                    "group-hover:text-primary",
+                    "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
+                    a.href && "cursor-pointer",
                   )}
                 >
-                  {a.title}
-                </p>
-                <p className="mt-0.5 text-xs text-muted-foreground leading-snug">{a.desc}</p>
-              </div>
-              {a.href ? (
-                <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
-              ) : null}
-            </Tag>
-          );
-        })}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-primary transition-colors">
+                      <a.icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                        {a.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
+                    </div>
+                  </div>
+                  {a.href ? (
+                    <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  ) : null}
+                </Tag>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -514,45 +544,43 @@ export function TripHubDashboard({
 
   return (
     <div className="space-y-8">
-      {/* Hero image + titre */}
-      <header className="relative overflow-hidden rounded-3xl border border-border shadow-elevated">
-        <div className="relative h-44 sm:h-56 md:h-64">
-          <img
-            src={heroImageForEvent(trip.event_type)}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-            loading="eager"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/40 to-black/20" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent" />
-          <div className="relative z-10 flex h-full flex-col justify-end p-5 sm:p-7 md:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/80">
-              {theme}
+      {/* Hero section : Titre + Métadonnées + Photo éditoriale */}
+      <header className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
+            {theme}
+          </p>
+          <h1 className="mt-1 font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground tracking-tight">
+            {trip.name}
+          </h1>
+          {destinationName ? (
+            <p className="mt-1 font-display text-xl sm:text-2xl text-primary font-normal">
+              {destinationName}
             </p>
-            <h1 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-white drop-shadow-sm sm:text-4xl">
-              {trip.name}
-            </h1>
-            {trip.celebrated_person ? (
-              <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-white/90">
-                <Star className="size-4 fill-amber-400 text-amber-400" /> Pour{" "}
-                {trip.celebrated_person}
-              </p>
-            ) : null}
-            {trip.participants &&
-            Array.isArray(trip.participants) &&
-            trip.participants.length > 0 ? (
-              <p className="mt-1 text-xs text-white/70">
-                Avec{" "}
-                {trip.participants
-                  .map((p: any) => p.display_name || p.email?.split("@")[0] || "Ami")
-                  .join(", ")}
-              </p>
-            ) : null}
-          </div>
+          ) : null}
+          {trip.celebrated_person ? (
+            <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80">
+              <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
+              {trip.celebrated_person}
+            </p>
+          ) : null}
+          {trip.participants &&
+          Array.isArray(trip.participants) &&
+          trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Avec{" "}
+              {trip.participants
+                .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+          ) : null}
         </div>
-        <div className="flex flex-wrap gap-2 border-t border-border/60 bg-card/95 px-5 py-3.5 sm:px-7">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
-            <Users className="size-3.5 text-primary" />
+
+        {/* Métadonnées légères */}
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
+            <Users className="size-3.5 text-muted-foreground" />
             {editingCount ? (
               <>
                 <Input
@@ -563,11 +591,12 @@ export function TripHubDashboard({
                   step={1}
                   value={participantsValue}
                   onChange={(e) => setParticipantsValue(e.target.value)}
-                  className="h-7 w-16 px-2"
+                  className="h-6 w-14 px-1 text-xs"
                 />
                 <Button
                   type="button"
                   size="sm"
+                  className="h-6 px-2 text-xs"
                   disabled={
                     countMutation.isPending ||
                     !Number.isInteger(Number(participantsValue)) ||
@@ -582,6 +611,7 @@ export function TripHubDashboard({
                   type="button"
                   size="sm"
                   variant="ghost"
+                  className="h-6 px-2 text-xs"
                   onClick={() => {
                     setParticipantsValue(String(trip.participants_count));
                     setEditingCount(false);
@@ -592,11 +622,11 @@ export function TripHubDashboard({
               </>
             ) : (
               <>
-                {trip.participants_count} pers.
+                <span className="font-mono">{trip.participants_count}</span> pers.
                 {isOwner ? (
                   <button
                     type="button"
-                    className="ml-1 text-white/80 hover:text-white"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
                     aria-label="Modifier le nombre de participants"
                     onClick={() => setEditingCount(true)}
                   >
@@ -606,29 +636,32 @@ export function TripHubDashboard({
               </>
             )}
           </span>
+
           {totalReserved != null && totalEstimated != null ? (
             <>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:text-emerald-300">
-                <Wallet className="size-3.5 text-emerald-600" /> Réellement Réservé :{" "}
-                {formatEuro(totalReserved)}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 font-sans text-foreground">
+                <Wallet className="size-3.5 text-secondary" /> Réellement Réservé :{" "}
+                <span className="font-mono">{formatEuro(totalReserved)}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 text-sm text-amber-800 dark:text-amber-300">
-                <Wallet className="size-3.5 text-amber-600" /> Reste estimé :{" "}
-                {formatEuro(totalEstimated)}
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
+                <Wallet className="size-3.5 text-muted-foreground" /> Reste estimé :{" "}
+                <span className="font-mono">{formatEuro(totalEstimated)}</span>
               </span>
             </>
           ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm">
-              <Wallet className="size-3.5 text-primary" /> ~{formatEuro(liveBudgetTotal)} / pers.
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
+              <Wallet className="size-3.5 text-muted-foreground" /> ~
+              <span className="font-mono">{formatEuro(liveBudgetTotal)}</span> / pers.
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-muted-foreground">
               <Wallet className="size-3.5" /> Budget à définir
             </span>
           )}
+
           {datesLocked && (trip.start_date || provisionalStart) ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-800 dark:text-emerald-300">
-              <CalendarDays className="size-3.5" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 font-sans text-foreground">
+              <CalendarDays className="size-3.5 text-secondary" />
               {"Dates validées · "}
               {trip.start_date
                 ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
@@ -647,58 +680,24 @@ export function TripHubDashboard({
                 : ""}
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-muted-foreground">
               <CalendarDays className="size-3.5" /> Date à définir
             </span>
           )}
         </div>
+
+        {/* Photo éditoriale du voyage */}
+        <div className="relative aspect-[16/10] sm:aspect-[16/7] w-full overflow-hidden rounded-2xl border border-border/60 bg-muted">
+          <img
+            src={heroImageForEvent(trip.event_type)}
+            alt=""
+            className="h-full w-full object-cover"
+            loading="eager"
+          />
+        </div>
       </header>
 
-      {/* Progression */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Parcours du groupe
-        </h2>
-        <TripHubNav tripId={tripId} steps={steps} />
-      </section>
-
-      {/* Résumé des retours x/N */}
-      <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          État des réponses · groupe de {trip.participants_count || participantsCount}
-        </h2>
-        <ul className="mt-4 space-y-3 text-sm">
-          <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3">
-            <span className="font-medium">Disponibilités</span>
-            <span className="tabular-nums">
-              <strong>{availabilityAnswered}</strong>/{availabilityExpected}
-              {availabilityExpected - availabilityAnswered > 0 ? (
-                <span className="ml-2 text-xs text-muted-foreground">
-                  · {availabilityExpected - availabilityAnswered} n&apos;ont pas répondu
-                </span>
-              ) : (
-                <span className="ml-2 text-xs text-lagoon">· tout le monde a répondu</span>
-              )}
-            </span>
-          </li>
-          <li className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3">
-            <span className="font-medium">Préférences</span>
-            <span className="tabular-nums">
-              <strong>{progressAnswered}</strong>/{progressTotal || trip.participants_count}
-              {(progressTotal || trip.participants_count) - progressAnswered > 0 ? (
-                <span className="ml-2 text-xs text-muted-foreground">
-                  · {(progressTotal || trip.participants_count) - progressAnswered} n&apos;ont pas
-                  répondu
-                </span>
-              ) : (
-                <span className="ml-2 text-xs text-lagoon">· tout le monde a répondu</span>
-              )}
-            </span>
-          </li>
-        </ul>
-      </section>
-
-      {/* Prochaines étapes (perso, pas un doublon du parcours) */}
+      {/* Prochaines étapes (prioritaires) */}
       <NextActionsPanel
         tripId={tripId}
         isOwner={isOwner}
@@ -719,6 +718,18 @@ export function TripHubDashboard({
         transportOffersReady={transportOffersReady}
         hasItinerary={hasItinerary}
       />
+
+      {/* Parcours du groupe */}
+      <section className="space-y-3">
+        <TripHubNav
+          tripId={tripId}
+          steps={steps}
+          availabilityAnswered={availabilityAnswered}
+          availabilityExpected={availabilityExpected}
+          progressAnswered={progressAnswered}
+          progressTotal={progressTotal || trip.participants_count || 1}
+        />
+      </section>
 
       {children}
     </div>
