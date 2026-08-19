@@ -89,7 +89,7 @@ function MonthGrid({
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground font-mono">
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
           <span key={i}>{d}</span>
         ))}
