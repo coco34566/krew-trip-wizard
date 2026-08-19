@@ -231,6 +231,7 @@ type ParticipantPrefRow = {
   budget_max: number | string | null;
   budget_priority: string | null;
   date_flex_days: number | null;
+  lodging_type_preferences?: string[] | null;
   required_amenities: string[] | null;
   min_accommodation_rating: number | string | null;
   travel_pace: string | null;
@@ -332,7 +333,7 @@ export async function aggregateParticipantPreferences(
   const res = await supabase
     .from("trip_participant_preferences")
     .select(
-      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference, free_text, local_mobility, accommodation_role",
+      "user_id, ambiances, activity_categories, budget_max, budget_priority, date_flex_days, lodging_type_preferences, required_amenities, min_accommodation_rating, travel_pace, duration_nights_min, duration_nights_max, desired_destination, departure_city, excluded_destinations, deal_breaker_ambiances, accepts_shared_room, room_type_preference, preferred_time_slots, dietary_constraints, mobility_notes, accessibility_needs, departure_airport_or_station, transport_mode_accepted, max_travel_duration_hours, blackout_dates, group_age_range, wanted_env_type, weather_preference, free_text, local_mobility, accommodation_role",
     )
     .eq("trip_id", tripId);
   if (res.error) {
@@ -542,10 +543,15 @@ export async function aggregateParticipantPreferences(
   // Type de logement le plus demandé par le groupe (majorité des réponses individuelles)
   const lodgingTypeFreq: Record<string, number> = {};
   for (const r of rows) {
-    const types = r.required_amenities ?? [];
+    const ltp = r.lodging_type_preferences ?? [];
+    const am = r.required_amenities ?? [];
+    const types = ltp.length > 0 ? ltp : am.filter((x) =>
+      ["hotel", "airbnb", "maison", "villa", "logement_entier", "peu_importe"].includes(x),
+    );
     for (const t of types) {
-      if (t && t !== "peu_importe") {
-        lodgingTypeFreq[t] = (lodgingTypeFreq[t] || 0) + 1;
+      const normalized = ["airbnb", "maison", "villa"].includes(t) ? "logement_entier" : t;
+      if (normalized && normalized !== "peu_importe") {
+        lodgingTypeFreq[normalized] = (lodgingTypeFreq[normalized] || 0) + 1;
       }
     }
   }
@@ -701,7 +707,17 @@ export async function aggregateParticipantPreferences(
     vetoBudgetMax,
     hasBudgetVeto,
     minAccommodationRating: ratings.length ? Math.max(...ratings) : null,
-    requiredAmenities: Array.from(new Set(rows.flatMap((r) => r.required_amenities ?? []))),
+    requiredAmenities: Array.from(
+      new Set(
+        rows
+          .flatMap((r) => r.required_amenities ?? [])
+          .filter(
+            (x) =>
+              x &&
+              !["hotel", "airbnb", "maison", "villa", "logement_entier", "peu_importe"].includes(x),
+          ),
+      ),
+    ),
     medianTravelPace: byFrequency(paceFreq)[0] ?? null,
     dateFlexDays: flex.length ? Math.min(...flex) : null,
     desiredDestination: byFrequency(destinationFrequencies)[0] ?? null,

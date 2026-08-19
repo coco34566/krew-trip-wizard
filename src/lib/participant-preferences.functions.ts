@@ -29,6 +29,7 @@ export const participantPreferencesSchema = z.object({
   dateFlexDays: z.number().int().min(0).max(30).default(0),
   acceptsSharedRoom: z.boolean().default(false),
   roomTypePreference: z.string().max(80).optional(),
+  lodgingTypePreferences: z.array(z.string()).default(["peu_importe"]),
   requiredAmenities: z.array(z.string()).default([]),
   minAccommodationRating: z.number().min(0).max(5).optional().nullable(),
   travelPace: z.enum(["plein_programme", "equilibre", "chill"]).optional(),
@@ -315,7 +316,12 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       date_flex_days: (data as any).dateFlexDays ?? null,
       accepts_shared_room: (data as any).acceptsSharedRoom ?? false,
       room_type_preference: (data as any).roomTypePreference ?? null,
-      required_amenities: (data as any).requiredAmenities ?? [],
+      lodging_type_preferences: ((data as any).lodgingTypePreferences ?? ["peu_importe"]).filter(
+        (x: string) => x !== ""
+      ),
+      required_amenities: ((data as any).requiredAmenities ?? []).filter(
+        (x: string) => !["hotel", "airbnb", "maison", "villa", "logement_entier", "peu_importe"].includes(x)
+      ),
       min_accommodation_rating: (data as any).minAccommodationRating ?? null,
       travel_pace: (data as any).travelPace ?? null,
       deal_breaker_ambiances: (data as any).dealBreakerAmbiances ?? [],
