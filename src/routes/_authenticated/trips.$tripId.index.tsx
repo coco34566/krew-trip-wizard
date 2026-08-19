@@ -182,17 +182,7 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
   for (const [city, url] of Object.entries(known)) {
     if (key.includes(city)) return url;
   }
-  // Fallback travel lifestyle (varie un peu avec le hash du nom)
-  const fallbacks = [
-    "https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1527631746610-b998ef1c7d1d?auto=format&fit=crop&w=800&q=80",
-  ];
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h + key.charCodeAt(i) * (i + 1)) % fallbacks.length;
-  return fallbacks[h]!;
+  return null;
 }
 
 const ACCOMMODATION_CONCEPT_LABELS: Record<string, string> = {
@@ -1570,6 +1560,10 @@ function TripDetail() {
                   const budgetEstimated =
                     reco.budget != null && isDestinationBudgetEstimated(reco.budget);
                   const reasons = (reco.match_reasons ?? []).slice(0, 4);
+                  const destPhoto = destinationPhotoUrl(
+                    reco.destinations?.name,
+                    reco.destinations?.image_url,
+                  );
                   return (
                     <article
                       key={reco.id}
@@ -1581,19 +1575,24 @@ function TripDetail() {
                       )}
                     >
                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                        <img
-                          src={destinationPhotoUrl(
-                            reco.destinations?.name,
-                            reco.destinations?.image_url,
-                          )}
-                          alt={
-                            reco.destinations?.name
-                              ? `Vue de ${reco.destinations.name}`
-                              : "Destination"
-                          }
-                          loading="lazy"
-                          className="h-44 w-full sm:h-32 sm:w-44 shrink-0 rounded-xl object-cover aspect-[4/3]"
-                        />
+                        {destPhoto ? (
+                          <img
+                            src={destPhoto}
+                            alt={
+                              reco.destinations?.name
+                                ? `Vue de ${reco.destinations.name}`
+                                : "Destination"
+                            }
+                            loading="lazy"
+                            className="h-44 w-full sm:h-32 sm:w-44 shrink-0 rounded-xl object-cover aspect-[4/3]"
+                          />
+                        ) : (
+                          <KrewPhotoFallback
+                            type="destination"
+                            aspectRatio="4/3"
+                            className="h-44 w-full sm:h-32 sm:w-44 shrink-0"
+                          />
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
