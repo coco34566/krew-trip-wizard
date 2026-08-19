@@ -24,7 +24,7 @@ function PricingPage() {
             Tarifs simples
           </p>
           <h1 className="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-            Gratuit pour démarrer, <span className="text-brand-gradient">simplement.</span>
+            Gratuit pour démarrer, <span className="text-primary">simplement.</span>
           </h1>
           <p className="mt-4 text-base text-muted-foreground">
             On veut que tu puisses organiser tes voyages de groupe sans aucune barrière financière.
@@ -32,11 +32,11 @@ function PricingPage() {
         </header>
 
         <section className="grid gap-6 sm:grid-cols-1 max-w-md mx-auto">
-          <div className="rounded-3xl border border-primary/30 bg-card p-6 shadow-glow flex flex-col justify-between">
+          <div className="rounded-xl border border-border/60 bg-card p-6 shadow-sm flex flex-col justify-between">
             <div>
               <p className="text-xs uppercase tracking-wide text-primary font-semibold">Formule unique</p>
               <div className="mt-4 flex items-baseline">
-                <span className="font-display text-4xl font-bold">0 €</span>
+                <span className="font-mono text-4xl font-bold">0 €</span>
                 <span className="text-muted-foreground ml-2">/ voyage</span>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">
@@ -52,7 +52,7 @@ function PricingPage() {
                   "Répartition des coûts",
                 ].map((line) => (
                   <li key={line} className="flex gap-2">
-                    <Check className="size-4 shrink-0 text-emerald-500 mt-0.5" />
+                    <Check className="size-4 shrink-0 text-secondary mt-0.5" />
                     {line}
                   </li>
                 ))}
@@ -70,14 +70,14 @@ function PricingPage() {
           <h2 className="text-xl font-bold text-center flex items-center justify-center gap-2">
             <HelpCircle className="size-5 text-primary" /> Des questions sur nos tarifs ?
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 text-sm">
-            <div className="rounded-2xl border border-border/60 bg-surface/40 p-4 space-y-1">
+          <div className="divide-y divide-border/40 text-sm">
+            <div className="py-4 space-y-1">
               <h3 className="font-semibold">Comment KREW se finance ?</h3>
               <p className="text-muted-foreground leading-relaxed text-xs">
                 KREW peut percevoir une commission lorsque tu passes par certains liens partenaires. Cela n&apos;ajoute pas de frais au prix affiché par le partenaire.
               </p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-surface/40 p-4 space-y-1">
+            <div className="py-4 space-y-1">
               <h3 className="font-semibold">Y a-t-il des frais cachés ?</h3>
               <p className="text-muted-foreground leading-relaxed text-xs">
                 Non. KREW ne facture pas de frais supplémentaires dans l&apos;application. Les réservations sont payées directement auprès des prestataires concernés.

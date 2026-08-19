@@ -24,7 +24,7 @@ function AboutPage() {
             Notre mission
           </p>
           <h1 className="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-            Pourquoi <span className="text-brand-gradient">KREW ?</span>
+            Pourquoi <span className="text-primary">KREW ?</span>
           </h1>
           <p className="mt-4 text-base text-muted-foreground">
             On adore voyager entre ami·e·s, mais on déteste devoir relancer tout le monde sur WhatsApp ou remplir des fichiers Excel sans fin.
@@ -66,8 +66,8 @@ function AboutPage() {
           </section>
         </article>
 
-        <div className="mt-12 text-center p-6 bg-card/50 rounded-3xl border border-border">
-          <h3 className="font-display text-lg font-semibold">Prêt pour le prochain voyage ?</h3>
+        <div className="mt-12 text-center py-8 border-t border-border/60">
+          <h3 className="font-display text-2xl font-bold">Prêt pour le prochain voyage ?</h3>
           <p className="text-xs text-muted-foreground mt-1">Crée ton premier voyage et invite le groupe.</p>
           <Button asChild className="mt-4" variant="hero">
             <Link to="/trips/new">Créer mon voyage</Link>

@@ -84,70 +84,69 @@ function AccountPage() {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-14">
       <div className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight">Mon compte</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight">Mon compte</h1>
         <p className="mt-2 text-muted-foreground">
           Gère les informations associées à ton compte KREW.
         </p>
       </div>
 
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Mes informations</CardTitle>
-            <CardDescription>Les informations associées à ton compte KREW.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+      <div className="space-y-10">
+        <section className="space-y-4">
+          <div className="border-b border-border/60 pb-2">
+            <h2 className="text-lg font-semibold tracking-tight">Mes informations</h2>
+            <p className="text-xs text-muted-foreground">Les informations associées à ton compte KREW.</p>
+          </div>
+          <div className="divide-y divide-border/40 text-sm">
             {firstName ? (
-              <div className="rounded-lg border border-border bg-muted/30 p-4">
-                <p className="text-sm text-muted-foreground">Prénom</p>
-                <p className="mt-1 font-medium">{firstName}</p>
+              <div className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                <span className="text-muted-foreground">Prénom</span>
+                <span className="font-medium text-foreground">{firstName}</span>
               </div>
             ) : null}
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <p className="text-sm text-muted-foreground">Adresse e-mail</p>
-              <p className="mt-1 break-all font-medium">{user?.email ?? "—"}</p>
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <span className="text-muted-foreground">Adresse e-mail</span>
+              <span className="font-medium text-foreground break-all">{user?.email ?? "—"}</span>
             </div>
-            <div className="rounded-lg border border-border bg-muted/30 p-4">
-              <p className="text-sm text-muted-foreground">Date de création du compte</p>
-              <p className="mt-1 font-medium">{createdAt}</p>
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <span className="text-muted-foreground">Date de création du compte</span>
+              <span className="font-medium text-foreground">{createdAt}</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Supprimer mon compte</CardTitle>
-            <CardDescription>
+        <section className="space-y-4 border-t border-border/60 pt-8">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight text-destructive">Supprimer mon compte</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
               Supprime ton compte et les données personnelles qui n'ont plus de raison légale d'être conservées.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert>
-              <AlertTriangle className="size-4" />
-              <AlertTitle>À savoir</AlertTitle>
-              <AlertDescription>
-                Certaines données peuvent être conservées lorsque la loi nous y oblige, notamment dans le cadre d'une obligation légale ou d'un litige.
-              </AlertDescription>
-            </Alert>
+            </p>
+          </div>
 
-            {error ? (
-              <p className="mt-4 text-sm font-medium text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
+          <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 text-destructive">
+            <AlertTriangle className="size-4" />
+            <AlertTitle>À savoir</AlertTitle>
+            <AlertDescription>
+              Certaines données peuvent être conservées lorsque la loi nous y oblige, notamment dans le cadre d'une obligation légale ou d'un litige.
+            </AlertDescription>
+          </Alert>
 
-            <Button
-              type="button"
-              variant="destructive"
-              className="mt-6"
-              onClick={() => setOpen(true)}
-              disabled={deleting}
-            >
-              <Trash2 className="mr-2 size-4" />
-              Supprimer mon compte
-            </Button>
-          </CardContent>
-        </Card>
+          {error ? (
+            <p className="mt-2 text-sm font-medium text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+
+          <Button
+            type="button"
+            variant="destructive"
+            className="mt-4"
+            onClick={() => setOpen(true)}
+            disabled={deleting}
+          >
+            <Trash2 className="mr-2 size-4" />
+            Supprimer mon compte
+          </Button>
+        </section>
       </div>
 
       <Dialog open={open} onOpenChange={(nextOpen) => !deleting && setOpen(nextOpen)}>

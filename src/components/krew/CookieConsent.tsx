@@ -104,10 +104,10 @@ export function CookieConsent() {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300 md:left-auto md:right-4 md:max-w-md">
-      <div className="space-y-4 rounded-3xl border border-border bg-card p-6 shadow-elevated">
+      <div className="space-y-4 rounded-xl border border-border/60 bg-card p-5 shadow-sm">
         <header className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <Shield className="size-5" />
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Shield className="size-4" />
           </span>
           <div>
             <h3 className="text-sm font-semibold">Tes choix de cookies</h3>

@@ -154,14 +154,13 @@ function JoinTripPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="pointer-events-none absolute inset-0 bg-hero-gradient opacity-80" />
-      <div className="relative z-10 flex w-full max-w-md flex-col items-center">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
+      <div className="flex w-full max-w-md flex-col items-center">
         <Link to="/" className="mb-8">
           <Logo size="lg" withTagline />
         </Link>
 
-        <div className="w-full rounded-3xl border border-border bg-card p-6 shadow-elevated sm:p-8">
+        <div className="w-full rounded-xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
           {loading || authLoading || checkingStatus ? (
             <div className="flex flex-col items-center gap-3 py-12">
               <Loader2 className="size-8 animate-spin text-primary" />
@@ -192,7 +191,7 @@ function JoinTripPage() {
                 </p>
               </div>
 
-              <ul className="space-y-2 rounded-2xl border border-border bg-surface/50 px-4 py-3 text-sm">
+              <ul className="space-y-2 border-y border-border/40 py-3.5 my-2 text-sm">
                 <li className="flex items-center gap-2">
                   <Users className="size-4 shrink-0 text-primary" />
                   Groupe prévu : ~{preview.participantsCount || "?"} personnes
@@ -200,7 +199,7 @@ function JoinTripPage() {
                 {preview.startDate ? (
                   <li className="flex items-center gap-2">
                     <Calendar className="size-4 shrink-0 text-primary" />
-                    À partir du {new Date(preview.startDate + "T12:00:00").toLocaleDateString("fr-FR")}
+                    À partir du <span className="font-mono">{new Date(preview.startDate + "T12:00:00").toLocaleDateString("fr-FR")}</span>
                   </li>
                 ) : null}
               </ul>
@@ -236,9 +235,7 @@ function JoinTripPage() {
               >
                 {joining ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 size-4" />
-                )}
+                ) : null}
                 {isAuthenticated
                   ? "Rejoindre et indiquer mes dispos"
                   : "Se connecter pour rejoindre"}
