@@ -1816,9 +1816,27 @@ function TripDetail() {
             ) : null}
           </div>
 
+          {(trip as any).group_logistics?.hotelVoteTodo ? (
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+              To-do orga · {(trip as any).group_logistics.hotelVoteTodo}
+            </p>
+          ) : null}
+
+          {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited" ? (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+              <p className="font-semibold">
+                {(trip as any).group_logistics.accommodationGeneration.userMessage ||
+                  "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."}
+              </p>
+            </div>
+          ) : null}
+
           {!(trip as any).group_logistics?.hotels?.length ? (
             <p className="rounded-[24px] border border-dashed border-border p-8 text-center text-sm text-muted-foreground bg-background">
-              {data.isOwner
+              {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited"
+                ? (trip as any).group_logistics.accommodationGeneration.userMessage ||
+                  "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."
+                : data.isOwner
                 ? "Lance la recherche pour proposer des hébergements."
                 : "L'organisateur·rice proposera bientôt des hôtels à voter."}
             </p>
@@ -1964,6 +1982,40 @@ function TripDetail() {
               })}
             </div>
           )}
+
+          {Boolean(
+            data.isOwner ||
+            (trip &&
+              ((trip as any).co_organizer_id === data.userId ||
+                (trip as any).coOrganizerId === data.userId)),
+          ) &&
+            (trip as any).group_logistics?.hotels?.length > 0 && (
+              <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-muted/20 p-3 sm:px-4">
+                <div className="text-xs">
+                  <span className="font-semibold text-foreground">Statut de l&apos;hôtel : </span>
+                  <span className="capitalize font-medium text-primary">
+                    {(trip as any).group_logistics?.hotelBookingStatus || "estimé"}
+                  </span>
+                </div>
+                {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                    disabled={bookingStatusMutation.isPending}
+                    onClick={() =>
+                      bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })
+                    }
+                  >
+                    {bookingStatusMutation.isPending ? (
+                      <Loader2 className="animate-spin size-3" />
+                    ) : (
+                      <Check className="size-3" />
+                    )}
+                    Marquer comme réservé
+                  </Button>
+                )}
+              </div>
+            )}
         </section>
       ) : null}
 
@@ -2013,6 +2065,68 @@ function TripDetail() {
                     <h3 className="font-display text-2xl font-normal text-foreground">
                       Depuis {city}
                     </h3>
+                    {(() => {
+                      const picks = ((trip as any).group_logistics.transportPicks ?? []) as any[];
+                      const cityPicks = picks.filter(
+                        (p) => String(p.city).toLowerCase() === String(city).toLowerCase(),
+                      );
+                      return cityPicks.length ? (
+                        <ul className="mt-2 space-y-1 rounded-xl bg-surface/50 px-3 py-2 text-xs text-muted-foreground">
+                          {cityPicks.map((p) => {
+                            const isReserved = p.status === "réservé";
+                            const isOrg = Boolean(
+                              data.isOwner ||
+                              (trip &&
+                                ((trip as any).co_organizer_id === data.userId ||
+                                  (trip as any).coOrganizerId === data.userId)),
+                            );
+                            return (
+                              <li
+                                key={p.userId}
+                                className="flex items-center justify-between gap-2 py-0.5"
+                              >
+                                <div>
+                                  <span className="font-medium text-foreground">{p.displayName}</span>
+                                  {" · "}
+                                  {p.modeLabel || p.mode}
+                                  {p.arrivalTime || p.time
+                                    ? ` · arrivée ${p.arrivalTime || p.time}`
+                                    : ""}
+                                  {p.departureTime ? ` · retour ${p.departureTime}` : ""}
+                                  {p.label ? ` · ${p.label}` : ""}
+                                  {" · "}
+                                  <span className="italic text-[10px] text-muted-foreground font-semibold">
+                                    ({p.status || "estimé"})
+                                  </span>
+                                </div>
+                                {isOrg && !isReserved && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 px-1.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                    disabled={bookingStatusMutation.isPending}
+                                    onClick={() =>
+                                      bookingStatusMutation.mutate({
+                                        type: "transport",
+                                        status: "réservé",
+                                        userId: p.userId,
+                                      })
+                                    }
+                                  >
+                                    <Check className="size-3 mr-0.5" />
+                                    Marquer comme réservé
+                                  </Button>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Personne au départ de {city} n&apos;a encore choisi son trajet.
+                        </p>
+                      );
+                    })()}
                     <div className="divide-y divide-border/40">
                       {options.map((tr: any, i: number) => {
                         const isMine =
@@ -2033,7 +2147,7 @@ function TripDetail() {
                             <div className="font-mono text-sm font-semibold text-foreground">
                               {formatEuro(tr.pricePerPerson)}
                             </div>
-                            <div>
+                            <div className="flex flex-wrap items-center gap-2">
                               <Button
                                 size="sm"
                                 variant={isMine ? "hero" : "outline"}
@@ -2059,6 +2173,17 @@ function TripDetail() {
                               >
                                 {isMine ? "Mon trajet" : "Choisir ce trajet"}
                               </Button>
+                              {(tr.links ?? []).slice(0, 1).map((l: any) => (
+                                <a
+                                  key={l.label}
+                                  href={l.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs text-primary hover:underline"
+                                >
+                                  {l.label} →
+                                </a>
+                              ))}
                             </div>
                           </div>
                         );
@@ -2151,6 +2276,16 @@ function TripDetail() {
                               <p className="text-xs text-muted-foreground font-mono mt-0.5">
                                 ~{formatEuro(Number(slot.priceHint))} / pers.
                               </p>
+                            ) : null}
+                            {slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
+                              <a
+                                href={slot.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
+                              >
+                                Voir ou réserver →
+                              </a>
                             ) : null}
                           </div>
 
@@ -2313,6 +2448,21 @@ function TripDetail() {
                         <option value="in_progress">En cours</option>
                         <option value="done">Terminé</option>
                       </select>
+
+                      {task.booking_url ? (
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 gap-1 text-[11px] rounded-lg"
+                        >
+                          <a href={task.booking_url} target="_blank" rel="noopener noreferrer">
+                            Réserver
+                          </a>
+                        </Button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">—</span>
+                      )}
                     </div>
                   </div>
                 );

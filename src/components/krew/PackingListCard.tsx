@@ -113,7 +113,9 @@ export function PackingListCard({
               </button>
               <span
                 className={
-                  state.checked[item.id] ? "text-muted-foreground/60 font-normal" : "font-medium text-foreground"
+                  state.checked[item.id]
+                    ? "line-through text-muted-foreground font-normal"
+                    : "font-medium text-foreground"
                 }
               >
                 {item.label}

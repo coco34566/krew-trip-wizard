@@ -606,6 +606,18 @@ export function TripHubDashboard({
                     >
                       Enregistrer
                     </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => {
+                        setParticipantsValue(String(trip.participants_count));
+                        setEditingCount(false);
+                      }}
+                    >
+                      Annuler
+                    </Button>
                   </>
                 ) : (
                   <>
