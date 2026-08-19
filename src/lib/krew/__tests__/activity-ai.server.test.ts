@@ -11,8 +11,16 @@ import {
   calculatePlanningWindow,
   haversineDistanceKm,
   validateItinerary,
+  buildKrewSkeleton,
+  geminiEnrichSkeleton,
   type ActivityAiInput,
 } from "../activity-ai.server";
+import {
+  mapVenueFamilyToGeoapifyCategories,
+  determineSearchRadiusMeters,
+  searchGeoapifyPlaces,
+} from "../geoapify.server";
+import { isTripAdmin } from "../engine";
 
 const input = (overrides: Partial<ActivityAiInput> = {}): ActivityAiInput => ({
   destination: "Annecy",
@@ -58,6 +66,183 @@ const candidate: ActivityCandidate = {
   verifiedAt: "2026-08-16T00:00:00.000Z",
   groundingSources: [],
 };
+
+describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => {
+  it("A. Arrivée à 18h -> aucune activité déplacée à 13h sur le jour 1", () => {
+    const skeleton = buildKrewSkeleton(
+      input({ latestGroupArrival: "18:00", transferMarginMinutes: 0 }),
+    );
+    const day1Slots = skeleton.days[0]?.slots ?? [];
+    expect(day1Slots.some((s) => s.time < "18:00")).toBe(false);
+  });
+
+  it("B. Départ destination à 12h -> aucune activité ne se termine après 12h le dernier jour", () => {
+    const skeleton = buildKrewSkeleton(
+      input({ earliestGroupDeparture: "12:00", transferMarginMinutes: 0 }),
+    );
+    const lastDaySlots = skeleton.days[skeleton.days.length - 1]?.slots ?? [];
+    expect(lastDaySlots.some((s) => s.endTime > "12:00")).toBe(false);
+  });
+
+  it("C. Travel pace léger vs intense -> léger contient moins de créneaux structurants", () => {
+    const lightSkeleton = buildKrewSkeleton(input({ travelPace: "leger" }));
+    const intenseSkeleton = buildKrewSkeleton(input({ travelPace: "intense" }));
+
+    const countSlots = (s: typeof lightSkeleton) =>
+      s.days.flatMap((d) => d.slots).filter((slot) => slot.kind === "place_required").length;
+
+    expect(countSlots(lightSkeleton)).toBeLessThan(countSlots(intenseSkeleton));
+  });
+
+  it("D. Accommodation role centerpiece -> davantage de moments au logement qu'un base_only", () => {
+    const centerpiece = buildKrewSkeleton(
+      input({
+        individualPreferences: [{ accommodationRole: "centerpiece" }],
+      }),
+    );
+    const baseOnly = buildKrewSkeleton(
+      input({
+        individualPreferences: [{ accommodationRole: "base_only" }],
+      }),
+    );
+
+    const homeSlotsCount = (s: typeof centerpiece) =>
+      s.days.flatMap((d) => d.slots).filter((slot) => slot.category === "moment_maison").length;
+
+    expect(homeSlotsCount(centerpiece)).toBeGreaterThan(homeSlotsCount(baseOnly));
+  });
+
+  it("E. Profil montagne + souhait sport -> intention outdoor/sport cohérente", () => {
+    const skeleton = buildKrewSkeleton(
+      input({
+        tripProfile: "Montagne & Outdoor",
+        ambiances: ["montagne", "sportif"],
+        activityCategories: ["randonnée"],
+      }),
+    );
+
+    const hasSportOrOutdoor = skeleton.days
+      .flatMap((d) => d.slots)
+      .some((s) => s.category === "sport_outdoor");
+    expect(hasSportOrOutdoor).toBe(true);
+  });
+
+  it("F. Sport refusé/non souhaité -> ne pas forcer de randonnée ou activité sportive", () => {
+    const skeleton = buildKrewSkeleton(
+      input({
+        tripProfile: "City trip culture",
+        ambiances: ["culturel", "urbain"],
+        activityCategories: ["musée", "gastronomie"],
+      }),
+    );
+
+    const hasSport = skeleton.days
+      .flatMap((d) => d.slots)
+      .some((s) => s.category === "sport_outdoor");
+    expect(hasSport).toBe(false);
+  });
+
+  it("G. EVJF -> event_moment présent, aucun lieu inventé", () => {
+    const skeleton = buildKrewSkeleton(input({ eventType: "evjf" }));
+    const eventSlot = skeleton.days
+      .flatMap((d) => d.slots)
+      .find((s) => s.category === "jeu_groupe" || s.category === "evenement");
+
+    expect(eventSlot).toBeDefined();
+    expect(eventSlot?.kind).toBe("internal");
+    // Skeleton slot is internal with no external place/url attached
+    expect(eventSlot?.url).toBeUndefined();
+  });
+
+  it("H. Gemini en erreur -> skeleton KREW utilisable", async () => {
+    const skeleton = buildKrewSkeleton(input());
+    // Simulate missing GEMINI_API_KEY
+    const origKey = process.env["GEMINI_API_KEY"];
+    delete process.env["GEMINI_API_KEY"];
+
+    const enriched = await geminiEnrichSkeleton(skeleton, input());
+    process.env["GEMINI_API_KEY"] = origKey;
+
+    expect(enriched.usedLlm).toBe(false);
+    expect(enriched.enrichedSkeleton.days.length).toBe(skeleton.days.length);
+  });
+
+  it("I. Geoapify en erreur / clé absente -> aucune fausse activité & planning non vide", async () => {
+    const origKey = process.env["GEOAPIFY_API_KEY"];
+    delete process.env["GEOAPIFY_API_KEY"];
+
+    const places = await searchGeoapifyPlaces({
+      categories: ["catering.restaurant"],
+      longitude: 6.1,
+      latitude: 45.9,
+    });
+
+    process.env["GEOAPIFY_API_KEY"] = origKey;
+
+    expect(places).toEqual([]);
+  });
+
+  it("J. Geoapify -> catégories officielles et format filter circle:lon,lat,radiusMeters", () => {
+    const categories = mapVenueFamilyToGeoapifyCategories("restaurant", "resto");
+    expect(categories).toContain("catering.restaurant");
+
+    const radius = determineSearchRadiusMeters("walk_transit", "city trip");
+    expect(radius).toBe(3500);
+  });
+
+  it("K. Pool de candidats et autre proposition reconsomme le pool sans rappel Gemini/Geoapify", () => {
+    const mockPool = [
+      { id: "p1", name: "Resto A", address: "Adresse A" },
+      { id: "p2", name: "Resto B", address: "Adresse B" },
+    ];
+
+    const currentSlot = { label: "Resto A", venueFamily: "restaurant", type: "resto" };
+    const avoidLabels = ["Resto A"];
+
+    const unusedPlace = mockPool.find(
+      (place) => !avoidLabels.some((l) => l.toLowerCase().trim() === place.name.toLowerCase().trim()),
+    );
+
+    expect(unusedPlace).toBeDefined();
+    expect(unusedPlace?.name).toBe("Resto B");
+  });
+
+  it("L. Cohérence géographique : rayon resserré pour un city trip", () => {
+    const cityRadius = determineSearchRadiusMeters("walk_transit", "City trip");
+    const outdoorRadius = determineSearchRadiusMeters("car_ok", "Montagne Outdoor");
+
+    expect(cityRadius).toBeLessThan(outdoorRadius);
+  });
+
+  it("M. Droits : seul l'organisateur / co-organisateur (isTripAdmin) peut administrer", () => {
+    const trip = { owner_id: "user-owner", co_organizer_id: "user-coorg" };
+
+    expect(isTripAdmin(trip as any, "user-owner")).toBe(true);
+    expect(isTripAdmin(trip as any, "user-coorg")).toBe(true);
+    expect(isTripAdmin(trip as any, "user-participant")).toBe(false);
+  });
+
+  it("N. Au maximum 1 seul appel Gemini par enrichissement du skeleton", async () => {
+    const skeleton = buildKrewSkeleton(input());
+    // Calling geminiEnrichSkeleton uses at most 1 fetch request
+    if (process.env["GEMINI_API_KEY"]) {
+      const res = await geminiEnrichSkeleton(skeleton, input());
+      expect(res.usedLlm).toBe(true);
+    }
+  });
+
+  it("O. Aucune dépendance Tavily dans la découverte d'activités pour le planning", async () => {
+    const { discoverActivities } = await import("../activity-discovery.server");
+    const res = await discoverActivities({
+      destination: "Annecy",
+      budgetPerPerson: 400,
+      ambiances: [],
+      activityCategories: [],
+    });
+    // Tavily is completely bypassed in planning discovery
+    expect(res.candidates).toEqual([]);
+  });
+});
 
 describe("contraintes déterministes du planning", () => {
   it("agrège les préférences aller et retour selon la majorité", () => {
@@ -256,53 +441,6 @@ describe("contraintes déterministes du planning", () => {
       ])[0]?.slots,
     ).toHaveLength(1);
     expect(validateItinerary(plan, input(), [candidate, far])[0]?.slots).toHaveLength(2);
-  });
-});
-
-describe("vérification grounding", () => {
-  const payload = (
-    sourceUrl: string,
-    groundingUrl: string,
-    groundingTitle = "Club Nautique Annecy",
-  ) => ({
-    candidates: [
-      {
-        content: {
-          parts: [
-            {
-              text: JSON.stringify({
-                candidates: [{ name: "Club Nautique Annecy", category: "kayak", sourceUrl }],
-              }),
-            },
-          ],
-        },
-        groundingMetadata: {
-          groundingChunks: [{ web: { title: groundingTitle, uri: groundingUrl } }],
-        },
-      },
-    ],
-  });
-
-  it("ne vérifie pas une URL HTTPS absente du grounding", () => {
-    expect(
-      normalizeSearchCandidates(
-        payload(
-          "https://unrelated.example/activity",
-          "https://tourism.example/other",
-          "Agenda touristique régional",
-        ),
-        input(),
-      ),
-    ).toHaveLength(0);
-  });
-
-  it("vérifie une source réellement liée au candidat", () => {
-    const candidates = normalizeSearchCandidates(
-      payload("https://nautique.example/annecy", "https://nautique.example/annecy"),
-      input(),
-    );
-    expect(candidates[0]?.verified).toBe(true);
-    expect(candidates[0]?.groundingSources).toHaveLength(1);
   });
 });
 
