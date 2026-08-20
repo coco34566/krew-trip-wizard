@@ -27,7 +27,6 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { updateTripParticipantsCount } from "@/lib/trips.functions";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
-import { Logo } from "@/components/krew/Logo";
 
 type Props = {
   tripId: string;
