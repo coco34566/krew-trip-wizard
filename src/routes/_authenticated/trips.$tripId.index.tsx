@@ -80,6 +80,7 @@ import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import type { StayConcept } from "@/lib/krew/stay-profiles";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { Logo } from "@/components/krew/Logo";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
 import {
@@ -987,9 +988,7 @@ function TripDetail() {
   if (isSecretStar) {
     return (
       <main className="mx-auto max-w-lg px-4 py-20 text-center space-y-6">
-        <span className="inline-flex size-20 items-center justify-center rounded-full bg-primary/10 text-primary animate-pulse text-4xl">
-          🤫
-        </span>
+        <Logo variant="icon" size="md" className="mx-auto" />
         <h1 className="font-display text-3xl font-bold tracking-tight text-primary">
           Chut... C&apos;est un secret !
         </h1>
