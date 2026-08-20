@@ -21,6 +21,7 @@ import {
   searchGeoapifyPlaces,
   fetchPlaceDetails,
   rankGeoapifyCandidates,
+  selectGeoapifyCandidate,
   mergeUniquePlacesById,
   mapDietaryConstraintsToGeoapifyConditions,
   mapAccessibilityToGeoapifyConditions,
@@ -588,5 +589,107 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
     const merged = mergeUniquePlacesById([p1, p2], [p1Dup]);
     expect(merged.length).toBe(2);
     expect(merged.map((m) => m.id)).toEqual(["geo-1", "geo-2"]);
+  });
+
+  describe("PR 107 — Tests Régénération & Shared Selector", () => {
+    // TEST 1 — Subtype
+    it("1. selectGeoapifyCandidate choisit B quand A a un mauvais subtype", async () => {
+      const req = convertIntentToPlaceRequirements("restaurant", "repas", "dégustation vin");
+      const candA = { id: "p1", name: "Musée", category: "tourism.attraction", categories: ["tourism.attraction"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+      const candB = { id: "p2", name: "Cave du Domaine", category: "production.winery", categories: ["production.winery"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
+
+      const selected = await selectGeoapifyCandidate({
+        candidates: [candA, candB],
+        req,
+        usedCandidateIdsSet: new Set(),
+      });
+      expect(selected?.id).toBe("p2");
+    });
+
+    // TEST 2 — Opening
+    it("2. selectGeoapifyCandidate ignore closed et choisit B (unknown/open)", async () => {
+      const req = convertIntentToPlaceRequirements("restaurant", "repas", "dîner");
+      const candA = { id: "p1", name: "Resto A", category: "catering.restaurant", categories: ["catering.restaurant"], openingHours: "lundi: ferme", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+      const candB = { id: "p2", name: "Resto B", category: "catering.restaurant", categories: ["catering.restaurant"], openingHours: null, address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
+
+      const selected = await selectGeoapifyCandidate({
+        candidates: [candA, candB],
+        req,
+        usedCandidateIdsSet: new Set(),
+        date: "2026-06-15", // Lundi
+        time: "20:00",
+      });
+      expect(selected?.id).toBe("p2");
+    });
+
+    // TEST 3 — Used ID
+    it("3. selectGeoapifyCandidate saute les candidats déjà utilisés", async () => {
+      const req = convertIntentToPlaceRequirements("restaurant", "repas", "dîner");
+      const candA = { id: "p1", name: "Resto A", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+      const candB = { id: "p2", name: "Resto B", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
+
+      const selected = await selectGeoapifyCandidate({
+        candidates: [candA, candB],
+        req,
+        usedCandidateIdsSet: new Set(["p1"]),
+      });
+      expect(selected?.id).toBe("p2");
+    });
+
+    // TEST 4 & 5 — Pool vide, 1 recherche ciblée & mergeUniquePlacesById
+    it("4 & 5. pool vide -> recherche ciblée + mergeUniquePlacesById", async () => {
+      const p1 = { id: "geo-1", name: "Place 1", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+      const p2 = { id: "geo-2", name: "Place 2", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
+
+      const merged = mergeUniquePlacesById([p1], [p1, p2]);
+      expect(merged.length).toBe(2);
+
+      const req = convertIntentToPlaceRequirements("restaurant", "repas", "dîner");
+      const selected = await selectGeoapifyCandidate({
+        candidates: merged,
+        req,
+        usedCandidateIdsSet: new Set(["geo-1"]),
+      });
+      expect(selected?.id).toBe("geo-2");
+    });
+
+    // TEST 6 — Second selector après recherche ciblée
+    it("6. second selector après recherche ciblée choisit le deuxième si le premier est incompatible", async () => {
+      const req = convertIntentToPlaceRequirements("restaurant", "repas", "dégustation vin");
+      const candA = { id: "new-1", name: "Café", category: "catering.cafe", categories: ["catering.cafe"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+      const candB = { id: "new-2", name: "Domaine Viticole", category: "production.winery", categories: ["production.winery"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
+
+      const selected = await selectGeoapifyCandidate({
+        candidates: [candA, candB],
+        req,
+        usedCandidateIdsSet: new Set(),
+      });
+      expect(selected?.id).toBe("new-2");
+    });
+
+    // TEST 7 — Fallback neutre
+    it("7. aucune alternative compatible -> null (dégrade vers lieu à choisir)", async () => {
+      const req = convertIntentToPlaceRequirements("restaurant", "repas", "dîner");
+      const candA = { id: "p1", name: "Resto A", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+
+      const selected = await selectGeoapifyCandidate({
+        candidates: [candA],
+        req,
+        usedCandidateIdsSet: new Set(["p1"]),
+      });
+      expect(selected).toBeNull();
+    });
+
+    // TEST 8 — 0 Gemini sur regenerateSlotWithAi
+    it("8. regenerateSlotWithAi effectue 0 appel Gemini", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      const mockSlot = { moment: "Midi", type: "resto" as const, label: "Déjeuner", time: "12:30" };
+      const res = await regenerateSlotWithAi(baseInput(), mockSlot, 1, [], []);
+
+      expect(fetchMock).toHaveBeenCalledTimes(0);
+      expect(res.usedLlm).toBe(false);
+    });
   });
 });
