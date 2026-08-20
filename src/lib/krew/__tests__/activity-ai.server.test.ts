@@ -13,7 +13,10 @@ import {
   validateItinerary,
   adjustItineraryTransferTimes,
   buildKrewSkeleton,
+  buildPlanningBrief,
+  buildGroupPlanningContext,
   geminiEnrichSkeleton,
+  regenerateSlotWithAi,
   type ActivityAiInput,
 } from "../activity-ai.server";
 import {
@@ -641,5 +644,187 @@ describe("personnalisation du fallback et de la discovery", () => {
         .flatMap((day) => day.slots)
         .some((slot) => slot.type === "transport" && slot.time === "11:00"),
     ).toBe(false);
+  });
+});
+
+describe("Pipeline Planning Gemini & Backups Contractuels", () => {
+  it("construit un GroupPlanningContext complet avec Star séparée et signaux de scoring", () => {
+    const testInput = input({
+      destinationScore: 88,
+      matchReasons: ["Proche de la nature", "Adapté au groupe"],
+      scoredActivityLabels: ["Canoë lac", "Randonnée col"],
+      activityCategoryFrequencies: { kayak: 5, rando: 3 },
+      ambianceFrequencies: { nature: 6, sportif: 4 },
+      starWanted: ["Escape Game Star"],
+      starWantedEnvType: "montagne",
+      starDealBreakers: ["pas_de_boite"],
+      dealBreakerAmbiances: ["soiree_arrosee"],
+      groupAgeRange: "25-35",
+      wantedEnvTypes: ["lac"],
+    });
+
+    const brief = buildPlanningBrief(testInput);
+    const ctx = buildGroupPlanningContext(testInput, brief);
+
+    expect(ctx.trip.destination).toBe("Annecy");
+    expect(ctx.trip.participantCount).toBe(8);
+    expect(ctx.group.activityPreferences["kayak"]?.frequency).toBe(5);
+    expect(ctx.group.ambiancePreferences["nature"]?.frequency).toBe(6);
+    expect(ctx.group.dealBreakers).toContain("soiree_arrosee");
+
+    // Star transmise séparément
+    expect(ctx.star.starWantedActivities).toContain("Escape Game Star");
+    expect(ctx.star.starWantedEnvType).toBe("montagne");
+    expect(ctx.star.starDealBreakers).toContain("pas_de_boite");
+
+    // KREW Signals & Scoring
+    expect(ctx.krewSignals.destinationScore).toBe(88);
+    expect(ctx.krewSignals.matchReasons).toContain("Proche de la nature");
+    expect(ctx.krewSignals.scoredActivityLabels).toContain("Canoë lac");
+
+    // Day windows & mandatory needs
+    expect(ctx.planning.dayWindows.length).toBeGreaterThan(0);
+    expect(ctx.planning.maxActivitiesPerDay).toBe(2);
+  });
+
+  it("parse le planning principal et les backups dans un unique appel Gemini et conserve le detail", async () => {
+    const originalFetch = global.fetch;
+    let fetchCalls = 0;
+
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      fetchCalls++;
+      if (String(url).includes("googleapis.com")) {
+        return {
+          ok: true,
+          text: async () =>
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          days: [
+                            {
+                              day: 1,
+                              slots: [
+                                {
+                                  id: "slot_1_1",
+                                  kind: "place_required",
+                                  momentType: "sport_outdoor",
+                                  label: "Kayak sur le lac",
+                                  detail: "Un moment rafraîchissant sur le lac parfait pour le groupe.",
+                                  time: "14:00",
+                                  durationMinutes: 120,
+                                  locationContext: "external",
+                                  canonicalVenueFamily: "sport",
+                                  searchIntent: "kayak lac d'Annecy",
+                                  suggestedPlace: "Club Nautique Annecy",
+                                },
+                              ],
+                            },
+                          ],
+                          backups: [
+                            {
+                              id: "backup_1_1",
+                              day: 1,
+                              forSlot: "slot_1_1",
+                              kind: "place_required",
+                              momentType: "sport_outdoor",
+                              label: "Paddle sur le lac",
+                              detail: "Une belle alternative glisse sur l'eau.",
+                              time: "14:00",
+                              durationMinutes: 120,
+                              locationContext: "external",
+                              canonicalVenueFamily: "sport",
+                              searchIntent: "paddle lac d'Annecy",
+                              suggestedPlace: "Paddle Club",
+                            },
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+        };
+      }
+      return originalFetch(url);
+    });
+
+    try {
+      vi.stubEnv("GEMINI_API_KEY", "fake_key");
+      const testInput = input({ latestGroupArrival: "10:00" });
+      const skeleton = buildKrewSkeleton(testInput);
+      const res = await geminiEnrichSkeleton(skeleton, testInput);
+
+      expect(fetchCalls).toBe(1);
+      expect(res.usedLlm).toBe(true);
+      expect(res.enrichedSkeleton.days.length).toBeGreaterThan(0);
+
+      const day1 = res.enrichedSkeleton.days[0];
+      const kayakSlot = day1?.slots.find((s) => s.label === "Kayak sur le lac");
+      expect(kayakSlot).toBeDefined();
+      expect(kayakSlot?.detail).toBe("Un moment rafraîchissant sur le lac parfait pour le groupe.");
+
+      // Backups conservés
+      expect(res.enrichedSkeleton.backups).toBeDefined();
+      expect(res.enrichedSkeleton.backups?.length).toBe(1);
+      expect(res.enrichedSkeleton.backups?.[0]?.label).toBe("Paddle sur le lac");
+      expect(res.enrichedSkeleton.backups?.[0]?.suggestedPlace).toBe("Paddle Club");
+    } finally {
+      global.fetch = originalFetch;
+      vi.stubEnv("GEMINI_API_KEY", "");
+    }
+  });
+
+  it("regenerateSlotWithAi réutilise un candidat du pool avant toute nouvelle requête externe", async () => {
+    const poolCandidate = {
+      id: "geo_1",
+      name: "Canoë Club Annecy",
+      address: "Lac d'Annecy",
+      categories: ["sport.water"],
+      latitude: 45.9,
+      longitude: 6.1,
+      website: "https://example.com/canoe",
+    };
+
+    const existingSlot = {
+      moment: "Après-midi",
+      type: "activite" as const,
+      category: "sport_outdoor" as const,
+      label: "Kayak sur le lac",
+      detail: "Descriptif original",
+      time: "14:00",
+      durationMinutes: 90,
+      venueFamily: "sport",
+      searchIntent: "kayak lac annecy",
+    };
+
+    const { convertIntentToPlaceRequirements, buildPoolKey } = await import("../geoapify.server");
+    const req = convertIntentToPlaceRequirements("sport", "sport_outdoor", "kayak lac annecy");
+    const poolKey = buildPoolKey(req);
+
+    const placePools = {
+      [poolKey]: [poolCandidate],
+    };
+
+    const result = await regenerateSlotWithAi(
+      input(),
+      existingSlot,
+      1,
+      [],
+      [],
+      placePools,
+      [],
+      { latitude: 45.9, longitude: 6.1 },
+    );
+
+    expect(result.usedLlm).toBe(false);
+    expect(result.slot.label).toBe("Canoë Club Annecy");
+    expect(result.slot.candidateId).toBe("geo_1");
+    expect(result.slot.verified).toBe(true);
+    expect(result.updatedUsedIds).toContain("geo_1");
   });
 });

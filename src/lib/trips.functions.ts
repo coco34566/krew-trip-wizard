@@ -2407,6 +2407,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       destination: destName,
       nights,
       days: timeCoherentDays,
+      backups: enrichedSkeleton.backups,
       source: "ai",
       provider: "krew_geoapify",
       generatedAt: new Date().toISOString(),
@@ -2470,6 +2471,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       destination?: string;
       nights?: number;
       days?: { day: number; date?: string | null; slots: any[] }[];
+      backups?: import("@/lib/krew/activity-ai.server").GeminiBackupSlot[];
       source?: string;
       generatedAt?: string;
       placePools?: Record<string, any[]>;
@@ -2606,8 +2608,127 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       accessibilityRequired: isAccessibilityRequired,
     });
 
-    // 4. If no candidate found, perform exactly 1 targeted Geoapify search (0 Gemini calls)
-    if (!matchedCandidate && refLat != null && refLon != null) {
+    let updatedSlot: any = null;
+
+    if (matchedCandidate) {
+      usedIdsSet.add(matchedCandidate.id);
+      itinerary.usedCandidateIds = Array.from(usedIdsSet);
+
+      updatedSlot = {
+        ...current,
+        label: matchedCandidate.name,
+        detail: matchedCandidate.address || current.detail || "Lieu sélectionné par KREW",
+        url: matchedCandidate.website || null,
+        candidateId: matchedCandidate.id,
+        verified: true,
+        source: "geoapify",
+        latitude: matchedCandidate.latitude,
+        longitude: matchedCandidate.longitude,
+      };
+    } else {
+      // Check existing Gemini backups before doing any new Geoapify API call
+      const unusedBackup =
+        (itinerary.backups ?? []).find(
+          (b) =>
+            b.forSlot === current.id &&
+            !avoidLabels.includes(b.label) &&
+            !usedIdsSet.has(b.id),
+        ) ??
+        (itinerary.backups ?? []).find(
+          (b) =>
+            b.day === data.day &&
+            !avoidLabels.includes(b.label) &&
+            !usedIdsSet.has(b.id),
+        );
+
+      if (unusedBackup) {
+        if (unusedBackup.kind === "internal") {
+          usedIdsSet.add(unusedBackup.id);
+          itinerary.usedCandidateIds = Array.from(usedIdsSet);
+          updatedSlot = {
+            ...current,
+            label: unusedBackup.label,
+            detail: unusedBackup.detail,
+            type: unusedBackup.momentType === "soiree" ? "bar" : "libre",
+            category: unusedBackup.momentType,
+            locationContext: unusedBackup.locationContext,
+            venueFamily: undefined,
+            searchIntent: undefined,
+            verified: false,
+            source: "krew",
+            candidateId: unusedBackup.id,
+            url: null,
+          };
+        } else {
+          // place_required backup: check existing pools first
+          const backupReq = convertIntentToPlaceRequirements(
+            unusedBackup.canonicalVenueFamily || "local_experience",
+            unusedBackup.momentType,
+            unusedBackup.searchIntent || unusedBackup.label,
+            aggregated.dietaryConstraints,
+            isAccessibilityRequired,
+            aggregated.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
+          );
+          const backupPoolKey = buildPoolKey(backupReq);
+          const backupPool = itinerary.placePools[backupPoolKey] || [];
+          const backupMatchedCandidate = await selectGeoapifyCandidate({
+            candidates: backupPool,
+            req: backupReq,
+            usedCandidateIdsSet: usedIdsSet,
+            avoidList: avoidLabels,
+            refCoords,
+            maxKm: 50,
+            date: dayPlan.date,
+            time: current.time,
+            durationMinutes: current.durationMinutes ?? 90,
+            accessibilityRequired: isAccessibilityRequired,
+          });
+
+          if (backupMatchedCandidate) {
+            usedIdsSet.add(backupMatchedCandidate.id);
+            usedIdsSet.add(unusedBackup.id);
+            itinerary.usedCandidateIds = Array.from(usedIdsSet);
+            updatedSlot = {
+              ...current,
+              label: backupMatchedCandidate.name,
+              detail: backupMatchedCandidate.address || unusedBackup.detail || "Alternative sélectionnée par KREW",
+              type: unusedBackup.momentType === "repas" ? "resto" : unusedBackup.momentType === "soiree" ? "bar" : "activite",
+              category: unusedBackup.momentType,
+              venueFamily: unusedBackup.canonicalVenueFamily,
+              searchIntent: unusedBackup.searchIntent,
+              locationContext: unusedBackup.locationContext ?? "external",
+              candidateId: backupMatchedCandidate.id,
+              url: backupMatchedCandidate.website || null,
+              verified: true,
+              source: "geoapify",
+              latitude: backupMatchedCandidate.latitude,
+              longitude: backupMatchedCandidate.longitude,
+            };
+          } else {
+            // Use Gemini backup directly
+            usedIdsSet.add(unusedBackup.id);
+            itinerary.usedCandidateIds = Array.from(usedIdsSet);
+            updatedSlot = {
+              ...current,
+              label: unusedBackup.suggestedPlace || unusedBackup.label,
+              detail: unusedBackup.detail || "Alternative suggérée par KREW",
+              type: unusedBackup.momentType === "repas" ? "resto" : unusedBackup.momentType === "soiree" ? "bar" : "activite",
+              category: unusedBackup.momentType,
+              venueFamily: unusedBackup.canonicalVenueFamily,
+              searchIntent: unusedBackup.searchIntent,
+              locationContext: unusedBackup.locationContext ?? "external",
+              candidateId: unusedBackup.id,
+              verified: false,
+              source: "krew",
+              url: null,
+            };
+          }
+        }
+      }
+    }
+
+    // 4. If no candidate found and no backup used, perform exactly 1 targeted Geoapify search (0 Gemini calls)
+    if (!updatedSlot && refLat != null && refLon != null) {
       const tripProfile = aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null;
       const radiusMeters = determineSearchRadiusMeters(
         aggregated.groupLocalMobility,
@@ -2639,27 +2760,27 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
           durationMinutes: current.durationMinutes ?? 90,
           accessibilityRequired: isAccessibilityRequired,
         });
+
+        if (matchedCandidate) {
+          usedIdsSet.add(matchedCandidate.id);
+          itinerary.usedCandidateIds = Array.from(usedIdsSet);
+
+          updatedSlot = {
+            ...current,
+            label: matchedCandidate.name,
+            detail: matchedCandidate.address || current.detail || "Lieu sélectionné par KREW",
+            url: matchedCandidate.website || null,
+            candidateId: matchedCandidate.id,
+            verified: true,
+            source: "geoapify",
+            latitude: matchedCandidate.latitude,
+            longitude: matchedCandidate.longitude,
+          };
+        }
       }
     }
 
-    let updatedSlot: any;
-
-    if (matchedCandidate) {
-      usedIdsSet.add(matchedCandidate.id);
-      itinerary.usedCandidateIds = Array.from(usedIdsSet);
-
-      updatedSlot = {
-        ...current,
-        label: matchedCandidate.name,
-        detail: matchedCandidate.address || current.detail || "Lieu sélectionné par KREW",
-        url: matchedCandidate.website || null,
-        candidateId: matchedCandidate.id,
-        verified: true,
-        source: "geoapify",
-        latitude: matchedCandidate.latitude,
-        longitude: matchedCandidate.longitude,
-      };
-    } else {
+    if (!updatedSlot) {
       updatedSlot = {
         ...current,
         label: `${current.label || "Créneau"} — lieu à choisir`,
