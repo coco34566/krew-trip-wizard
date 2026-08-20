@@ -279,9 +279,26 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     const skeleton = buildKrewSkeleton(input());
     const origKey = process.env["GEMINI_API_KEY"];
     process.env["GEMINI_API_KEY"] = "test-key";
+    const validPayload = {
+      days: [
+        {
+          day: 1,
+          slots: [
+            {
+              kind: "place_required",
+              momentType: "repas",
+              canonicalVenueFamily: "restaurant",
+              label: "Dîner",
+              time: "20:00",
+              durationMinutes: 90,
+            },
+          ],
+        },
+      ],
+    };
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ days: [] }) }] } }] }),
+      text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(validPayload) }] } }] }),
     });
     vi.stubGlobal("fetch", fetchMock);
 

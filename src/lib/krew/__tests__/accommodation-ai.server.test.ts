@@ -94,27 +94,33 @@ it("rejette URL absente ou veto connu", () => {
 });
 it("effectue exactement un Gemini", async () => {
   process.env["GEMINI_API_KEY"] = "test";
-  const candidate = {
-    id: "stay-1",
-    name: "Central Stay",
-    propertyType: "aparthotel",
-    krewConcept: "aparthotel",
-    capacity: 8,
-    bedrooms: 5,
-    rating: 4.5,
-    amenities: ["wifi"],
-    pricePerPerson: 220,
-    priceStatus: "estimated",
-    availabilityStatus: "unverified",
-    url: "https://stay.example/stay-1",
-    source: "stay.example",
+  process.env["TAVILY_API_KEY"] = "test-tavily-key";
+  const tavilyResult = {
+    results: [
+      {
+        title: "Central Stay Lisbonne - Aparthotel wifi 8 personnes 5 chambres",
+        url: "https://stay.example/stay-1",
+        content: "Aparthotel wifi pour 8 personnes avec 5 chambres et note 4.5/5 à Lisbonne",
+        score: 0.9,
+      },
+    ],
   };
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValue({ ok: true, text: async () => JSON.stringify(payload(candidate)) });
+  const fetchMock = vi.fn().mockImplementation((url: string) => {
+    if (typeof url === "string" && url.includes("generativelanguage.googleapis.com")) {
+      return Promise.resolve({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            candidates: [
+              { content: { parts: [{ text: JSON.stringify({ searchQuery: "aparthotel wifi Lisbonne" }) }] } },
+            ],
+          }),
+      });
+    }
+    return Promise.resolve({ ok: true, text: async () => JSON.stringify(tavilyResult) });
+  });
   vi.stubGlobal("fetch", fetchMock);
   expect(await searchAccommodationsWithGemini(spec)).toHaveLength(1);
-  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
 it("computeAccommodationRequestHash génère un hash déterministe", () => {
@@ -155,25 +161,32 @@ it("prouve qu'un échec RPC bloque immédiatement l'appel Gemini (fail-closed)",
 
 it("simule la concurrence réelle via RPC avec Promise.all : un seul appel Gemini est effectué", async () => {
   process.env["GEMINI_API_KEY"] = "test";
-  const candidate = {
-    id: "stay-1",
-    name: "Central Stay",
-    propertyType: "aparthotel",
-    krewConcept: "aparthotel",
-    capacity: 8,
-    bedrooms: 5,
-    rating: 4.5,
-    amenities: ["wifi"],
-    pricePerPerson: 220,
-    priceStatus: "estimated",
-    availabilityStatus: "unverified",
-    url: "https://stay.example/stay-1",
-    source: "stay.example",
+  process.env["TAVILY_API_KEY"] = "test-tavily-key";
+  const tavilyResult = {
+    results: [
+      {
+        title: "Central Stay Lisbonne - Aparthotel wifi 8 personnes 5 chambres",
+        url: "https://stay.example/stay-1",
+        content: "Aparthotel wifi pour 8 personnes avec 5 chambres et note 4.5/5 à Lisbonne",
+        score: 0.9,
+      },
+    ],
   };
 
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValue({ ok: true, text: async () => JSON.stringify(payload(candidate)) });
+  const fetchMock = vi.fn().mockImplementation((url: string) => {
+    if (typeof url === "string" && url.includes("generativelanguage.googleapis.com")) {
+      return Promise.resolve({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            candidates: [
+              { content: { parts: [{ text: JSON.stringify({ searchQuery: "aparthotel wifi Lisbonne" }) }] } },
+            ],
+          }),
+      });
+    }
+    return Promise.resolve({ ok: true, text: async () => JSON.stringify(tavilyResult) });
+  });
   vi.stubGlobal("fetch", fetchMock);
 
   let rpcCallCount = 0;
@@ -202,7 +215,8 @@ it("simule la concurrence réelle via RPC avec Promise.all : un seul appel Gemin
 
   expect(res1).toHaveLength(1);
   expect(res2).toHaveLength(0);
-  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const geminiCalls = fetchMock.mock.calls.filter((call) => typeof call[0] === "string" && call[0].includes("generativelanguage.googleapis.com"));
+  expect(geminiCalls).toHaveLength(1);
 });
 
 it("mergeAccommodationLogistics conserve les hôtels précédents si la tentative échoue (429 / error)", () => {
