@@ -2054,6 +2054,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         return [tripProfile].filter(Boolean);
       })(),
       localMobility: aggregated.groupLocalMobility,
+      accessibilityRequired: (aggregated.individualPreferences ?? []).some(
+        (preference: any) => preference?.accessibilityRequired === true,
+      ),
     };
 
     const { buildKrewSkeleton, geminiEnrichSkeleton } = await import(
@@ -2487,7 +2490,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       current.category,
       current.searchIntent || current.label,
       aggregated.dietaryConstraints,
-      Boolean(tripRes.data as any),
+      isAccessibilityRequired,
       aggregated.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
     );
     const poolKey = buildPoolKey(req);
@@ -2576,6 +2579,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       date: dayPlan.date,
       time: current.time,
       durationMinutes: current.durationMinutes ?? 90,
+      accessibilityRequired: isAccessibilityRequired,
     });
 
     // 4. If no candidate found, perform exactly 1 targeted Geoapify search (0 Gemini calls)
@@ -2609,6 +2613,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
           date: dayPlan.date,
           time: current.time,
           durationMinutes: current.durationMinutes ?? 90,
+          accessibilityRequired: isAccessibilityRequired,
         });
       }
     }
@@ -2650,7 +2655,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       .eq("id", data.tripId);
     if (error) throw error;
 
-    return { ok: true, usedLlm, slot: updatedSlot, itinerary };
+    return { ok: true, usedLlm: false, slot: updatedSlot, itinerary };
   });
 
 /** Reco hôtels + A/R multi-modes (avion, train, bus, voiture) avec liens de réservation. */
