@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { buildTripSteps } from "@/lib/krew/availability";
-import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
+import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { updateTripParticipantsCount } from "@/lib/trips.functions";
@@ -64,6 +64,9 @@ type Props = {
 
 /** Photos lifestyle premium (Unsplash) — voyage & ambiance, pas de clichés ballons/kitsch. */
 function heroImageForEvent(eventType?: string | null) {
+  const localImage = getTripTypeImage(eventType);
+  if (localImage) return localImage;
+
   const q = "auto=format&fit=crop&w=1600&q=85";
   const map: Record<string, string> = {
     evg: `https://images.unsplash.com/photo-1514933651103-005eec06c04b?${q}`,
