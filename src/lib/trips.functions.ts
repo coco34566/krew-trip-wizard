@@ -2001,8 +2001,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const effCount = getEffectiveParticipantsCount(trip, participants);
 
     // Ordinary answers are collective preferences: KREW uses the group
-    // median/majority, not a value compatible with every respondent. Actual
-    // selected transport times remain authoritative in calculatePlanningWindow.
+    // median/majority, not a value compatible with every respondent.
+    // Planning initial window relies strictly on explicit group destination times or official 18:30 / 16:30 fallbacks.
     const activeParticipantIds = new Set(participants.map((p: any) => p.id));
     const activeTimePrefs = (timePrefsRes.data ?? []).filter((row: any) =>
       row.participant_id ? activeParticipantIds.has(row.participant_id) : true,
@@ -2391,7 +2391,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const timeCoherentDays = adjustItineraryTransferTimes(daysPlans, activityInput);
 
     const telemetry = {
-      geminiCalls: enrichResult.usedLlm ? 1 : 0,
+      geminiCalls: enrichResult.geminiCalled ? 1 : (enrichResult.usedLlm ? 1 : 0),
       geoapifyPlacesCalls,
       geoapifyDetailsCalls,
       poolHits,
