@@ -319,7 +319,7 @@ function NextActionsPanel({
     return (
       <section className="rounded-2xl border border-sage/20 bg-sage/8 p-5">
         <div className="flex gap-3 items-start">
-          <Logo variant="icon" size="sm" className="mt-0.5 shrink-0" />
+          <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 shrink-0" />
           <div>
             <h2 className="font-display text-lg font-normal tracking-tight text-foreground">
               Tout est à jour de ton côté
