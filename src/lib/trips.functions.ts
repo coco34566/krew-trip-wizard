@@ -90,6 +90,10 @@ export const listMyTrips = createServerFn({ method: "GET" })
     const uniqueIds = [...new Set(allTripIds)];
 
     const stageByTrip: Record<string, { destinationSelected: boolean; hasItinerary: boolean }> = {};
+    const selectedDestinationByTrip: Record<
+      string,
+      { destination_name: string | null; destination_image_url: string | null }
+    > = {};
     type TeamMember = {
       id: string;
       name: string;
@@ -108,13 +112,14 @@ export const listMyTrips = createServerFn({ method: "GET" })
 
     for (const id of uniqueIds) {
       stageByTrip[id] = { destinationSelected: false, hasItinerary: false };
+      selectedDestinationByTrip[id] = { destination_name: null, destination_image_url: null };
     }
 
     if (uniqueIds.length) {
       const [selRecos, tripExtras, allParticipants, allPrefs, allAvail, allStarPrefs] = await Promise.all([
         supabase
           .from("recommendations")
-          .select("trip_id")
+          .select("trip_id, destinations(name, image_url)")
           .in("trip_id", uniqueIds)
           .eq("is_selected", true),
         supabase
@@ -142,6 +147,11 @@ export const listMyTrips = createServerFn({ method: "GET" })
       for (const r of selRecos.data ?? []) {
         const tid = (r as any).trip_id as string;
         if (stageByTrip[tid]) stageByTrip[tid].destinationSelected = true;
+        const dest = (r as any).destinations;
+        if (dest && selectedDestinationByTrip[tid]) {
+          selectedDestinationByTrip[tid].destination_name = dest.name ?? null;
+          selectedDestinationByTrip[tid].destination_image_url = dest.image_url ?? null;
+        }
       }
 
       const tripExtrasMap = new Map<string, any>();
@@ -248,8 +258,14 @@ export const listMyTrips = createServerFn({ method: "GET" })
         pending: Math.max(Number(row.participants_count) || 1, 1),
         members: [],
       };
+      const destInfo = selectedDestinationByTrip[row.id] || {
+        destination_name: null,
+        destination_image_url: null,
+      };
       return {
         ...row,
+        destination_name: destInfo.destination_name,
+        destination_image_url: destInfo.destination_image_url,
         dates_locked: datesLocked,
         destination_selected: destinationSelected,
         has_itinerary: hasItinerary,
