@@ -1907,7 +1907,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       supabase.from("trip_participants").select("*").eq("trip_id", data.tripId),
       supabase
         .from("trip_transport_time_prefs")
-        .select("earliest_departure_time, latest_return_time")
+        .select("participant_id, earliest_departure_time, latest_return_time")
         .eq("trip_id", data.tripId),
     ]);
     if (tripRes.error) throw tripRes.error;
@@ -1987,11 +1987,15 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     // Ordinary answers are collective preferences: KREW uses the group
     // median/majority, not a value compatible with every respondent. Actual
     // selected transport times remain authoritative in calculatePlanningWindow.
+    const activeParticipantIds = new Set(participants.map((p: any) => p.id));
+    const activeTimePrefs = (timePrefsRes.data ?? []).filter((row: any) =>
+      row.participant_id ? activeParticipantIds.has(row.participant_id) : true,
+    );
     const groupEarliestDeparture = aggregateMajorityTimePreference(
-      (timePrefsRes.data ?? []).map((row: any) => row.earliest_departure_time),
+      activeTimePrefs.map((row: any) => row.earliest_departure_time),
     );
     const groupLatestReturnHome = aggregateMajorityTimePreference(
-      (timePrefsRes.data ?? []).map((row: any) => row.latest_return_time),
+      activeTimePrefs.map((row: any) => row.latest_return_time),
     );
     const retainedDurations = picks
       .map((pick: any) => Number(pick.durationHours))
@@ -3954,12 +3958,6 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
       return !isStarByUid;
     });
 
-    // Fallback if no assignable participant exists
-    const fallbackAssignees =
-      assignable.length > 0
-        ? assignable
-        : participants.filter((p) => (p.status as string) !== "absent");
-
     // 3. Fetch existing tasks
     const tasksRes = await supabase
       .from("trip_tasks" as any)
@@ -3968,7 +3966,43 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
 
     const existingTasks = (tasksRes.error ? [] : (tasksRes.data ?? [])) as any[];
 
-    // 4. Generate tasks
+    // Helper to resolve task type and default title from a slot
+    const getTaskSlotInfo = (slot: any): { taskType: "resto" | "activite" | "bar"; defaultTitle: string } | null => {
+      if (!slot || typeof slot !== "object") return null;
+
+      const rawType = String(slot.type || "").trim().toLowerCase();
+      const rawCategory = String(slot.category || "").trim().toLowerCase();
+      const rawVenue = String(slot.venueFamily || "").trim().toLowerCase();
+      const rawKind = String(slot.kind || "").trim().toLowerCase();
+      const label = String(slot.label || "").trim();
+
+      if (!label) return null;
+
+      let taskType: "resto" | "activite" | "bar" | null = null;
+
+      if (rawType === "resto" || rawCategory === "repas" || rawVenue === "restaurant" || rawVenue === "cafe") {
+        taskType = "resto";
+      } else if (rawType === "bar" || rawCategory === "soiree" || rawVenue === "bar_pub") {
+        taskType = "bar";
+      } else if (
+        rawType === "activite" ||
+        rawKind === "place_required" ||
+        ["culture", "sport_outdoor", "detente", "shopping", "local_experience"].includes(rawCategory)
+      ) {
+        taskType = "activite";
+      }
+
+      if (!taskType) return null;
+
+      let defaultTitle = "";
+      if (taskType === "resto") defaultTitle = `Réserver le restaurant : ${label}`;
+      else if (taskType === "activite") defaultTitle = `Réserver l'activité : ${label}`;
+      else defaultTitle = `Vérifier / réserver : ${label}`;
+
+      return { taskType, defaultTitle };
+    };
+
+    // 4. Generate tasks across all days
     const tasksToUpsert = [];
     let newTaskIndex = 0;
 
@@ -3976,7 +4010,8 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
       const slots = day.slots ?? [];
       for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
         const slot = slots[slotIndex];
-        if (slot && ["resto", "activite", "bar"].includes(slot.type)) {
+        const slotInfo = getTaskSlotInfo(slot);
+        if (slotInfo) {
           const slotId = `${day.day}-${slotIndex}`;
           const existing = existingTasks.find((t) => t.slot_id === slotId);
 
@@ -3985,11 +4020,6 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
           let isManual = false;
           let taskId = undefined;
 
-          let defaultTitle = "";
-          if (slot.type === "resto") defaultTitle = `Réserver le restaurant : ${slot.label}`;
-          else if (slot.type === "activite") defaultTitle = `Réserver l'activité : ${slot.label}`;
-          else defaultTitle = `Vérifier / réserver : ${slot.label}`;
-
           if (existing) {
             taskId = existing.id;
             assignedId = existing.assigned_participant_id;
@@ -3997,13 +4027,13 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
             isManual = existing.is_manually_assigned;
 
             // Reset status and manual assignment if the generated title changed
-            if (existing.title !== defaultTitle) {
+            if (existing.title !== slotInfo.defaultTitle) {
               taskStatus = "todo";
               isManual = false;
             }
           } else {
-            if (fallbackAssignees.length > 0) {
-              const p = fallbackAssignees[newTaskIndex % fallbackAssignees.length]!;
+            if (assignable.length > 0) {
+              const p = assignable[newTaskIndex % assignable.length]!;
               assignedId = p.id;
               newTaskIndex++;
             }
@@ -4013,8 +4043,8 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
             ...(taskId ? { id: taskId } : {}),
             trip_id: data.tripId,
             slot_id: slotId,
-            title: defaultTitle,
-            type: slot.type,
+            title: slotInfo.defaultTitle,
+            type: slotInfo.taskType,
             assigned_participant_id: assignedId,
             status: taskStatus,
             booking_url: slot.url || null,
@@ -4044,13 +4074,13 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
         tripId: data.tripId,
         generatedTasks: preparation.tasks,
         existingTasks,
-        assigneeIds: fallbackAssignees.map((participant) => participant.id),
+        assigneeIds: assignable.map((participant) => participant.id),
       }),
     );
 
     if (tasksToUpsert.length > 0) {
-      const { error } = await supabase.from("trip_tasks" as any).upsert(tasksToUpsert);
-      if (error) throw error;
+      const { error: upsertErr } = await supabase.from("trip_tasks" as any).upsert(tasksToUpsert, { onConflict: "trip_id,slot_id" });
+      if (upsertErr) throw upsertErr;
     }
 
     // Clean up orphan tasks that no longer exist in the new itinerary slots
@@ -4059,7 +4089,8 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
       const slots = day.slots ?? [];
       for (let slotIndex = 0; slotIndex < slots.length; slotIndex++) {
         const slot = slots[slotIndex];
-        if (slot && ["resto", "activite", "bar"].includes(slot.type)) {
+        const slotInfo = getTaskSlotInfo(slot);
+        if (slotInfo) {
           activeSlotIds.add(`${day.day}-${slotIndex}`);
         }
       }
@@ -4074,9 +4105,7 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
         .not(
           "slot_id",
           "in",
-          `(${Array.from(activeSlotIds)
-            .map((id) => `'${id}'`)
-            .join(",")})`,
+          `(${Array.from(activeSlotIds).join(",")})`,
         );
       if (deleteErr) throw deleteErr;
     } else {
@@ -4087,7 +4116,21 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
       if (deleteErr) throw deleteErr;
     }
 
-    return { ok: true, count: tasksToUpsert.length };
+    // Verify actual database persistence of generated tasks
+    const { count: persistedCount, error: countErr } = await supabase
+      .from("trip_tasks" as any)
+      .select("id", { count: "exact", head: true })
+      .eq("trip_id", data.tripId);
+
+    if (countErr) throw countErr;
+
+    if (tasksToUpsert.length > 0 && (persistedCount == null || persistedCount === 0)) {
+      throw new Error(
+        `Erreur de persistance des tâches : ${tasksToUpsert.length} tâches calculées mais 0 ligne enregistrée dans trip_tasks.`,
+      );
+    }
+
+    return { ok: true, count: persistedCount ?? tasksToUpsert.length };
   });
 
 export const updateTaskStatus = createServerFn({ method: "POST" })
