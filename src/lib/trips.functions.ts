@@ -2166,7 +2166,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           longitude: refLon,
           radiusMeters,
           limit: 15,
-          conditions: [...(req.dietary || []), ...(req.accessibility || [])],
+          conditions: req.accessibility || [],
         });
         placePools[poolKey] = places;
       }
@@ -2178,6 +2178,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
     let poolHits = 0;
     let poolMisses = 0;
+    let candidatesRejectedOpeningHours = 0;
+    let candidatesRejectedGeography = 0;
+    let candidatesRejectedRequirements = 0;
 
     for (const day of enrichedSkeleton.days) {
       let lastSlotCoords: { latitude?: number | null; longitude?: number | null } | null =
@@ -2203,7 +2206,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           });
 
           // Reset spatial reference to lodging ONLY when locationContext === "lodging"
-          if (accLat != null && accLon != null && (s.locationContext === "lodging" || s.category === "moment_maison")) {
+          if (accLat != null && accLon != null && s.locationContext === "lodging") {
             lastSlotCoords = { latitude: accLat, longitude: accLon };
           }
           continue;
@@ -2234,7 +2237,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             longitude: refLon,
             radiusMeters: radiusMeters * 1.5,
             limit: 15,
-            conditions: [...(req.dietary || []), ...(req.accessibility || [])],
+            conditions: req.accessibility || [],
           });
           if (newPlaces.length > 0) {
             placePools[poolKey] = mergeUniquePlacesById(pool, newPlaces);
@@ -2247,9 +2250,37 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         }
 
         let matchedPlace: any = null;
-        if (candidatesAvailable.length > 0) {
-          matchedPlace = candidatesAvailable[0];
-          if (matchedPlace && matchedPlace.id) {
+
+        for (const candidate of candidatesAvailable) {
+          // Check hard distance threshold
+          if (lastSlotCoords?.latitude != null && lastSlotCoords?.longitude != null && candidate.latitude != null && candidate.longitude != null) {
+            const { haversineDistanceKm } = await import("@/lib/krew/activity-ai.server");
+            const dist = haversineDistanceKm(lastSlotCoords, candidate);
+            if (dist != null && dist > 50) {
+              candidatesRejectedGeography++;
+              continue;
+            }
+          }
+
+          // Check opening hours if present
+          if (candidate.openingHours) {
+            const { openingStatus } = await import("@/lib/krew/activity-ai.server");
+            const status = openingStatus(
+              candidate as any,
+              day.date,
+              s.time,
+              s.durationMinutes,
+            );
+            if (status === "closed") {
+              candidatesRejectedOpeningHours++;
+              continue;
+            }
+          }
+
+          matchedPlace = candidate;
+
+          // Call Details sparingly ONLY if address or website is missing
+          if (matchedPlace && matchedPlace.id && (!matchedPlace.address || !matchedPlace.website)) {
             geoapifyDetailsCalls++;
             const details = await fetchPlaceDetails(matchedPlace.id);
             if (details) {
@@ -2262,6 +2293,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           if (matchedPlace.latitude != null && matchedPlace.longitude != null) {
             lastSlotCoords = { latitude: matchedPlace.latitude, longitude: matchedPlace.longitude };
           }
+          break;
         }
 
         if (matchedPlace) {
@@ -2329,9 +2361,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       geoapifyDetailsCalls,
       poolHits,
       poolMisses,
-      candidatesRejectedOpeningHours: 0,
-      candidatesRejectedGeography: 0,
-      candidatesRejectedRequirements: 0,
+      candidatesRejectedOpeningHours,
+      candidatesRejectedGeography,
+      candidatesRejectedRequirements,
     };
 
     console.info("krew-planning-telemetry", telemetry);

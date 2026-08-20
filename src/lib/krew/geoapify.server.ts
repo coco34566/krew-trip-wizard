@@ -5,6 +5,7 @@ export type GeoapifyPlace = {
   id: string;
   name: string;
   category: string;
+  categories: string[];
   address: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -13,7 +14,6 @@ export type GeoapifyPlace = {
   openingHours?: string | null;
   openingStatus?: "open" | "closed" | "unknown";
   wheelchair?: boolean | null;
-  dietaryOptions?: string[];
   source: "geoapify";
   verified: boolean;
 };
@@ -120,18 +120,6 @@ export function buildPoolKey(req: PlaceRequirements): string {
     (req.accessibility || []).slice().sort().join(","),
   ];
   return parts.filter(Boolean).join("::");
-}
-
-export function mapDietaryConstraintsToGeoapifyConditions(dietary: string[] = []): string[] {
-  const conditions: string[] = [];
-  for (const d of dietary) {
-    const norm = String(d).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    if (norm.includes("vegan") || norm.includes("vegetalien")) conditions.push("vegan");
-    if (norm.includes("vegetar")) conditions.push("vegetarian");
-    if (norm.includes("halal")) conditions.push("halal");
-    if (norm.includes("gluten")) conditions.push("gluten_free");
-  }
-  return Array.from(new Set(conditions));
 }
 
 export function mapAccessibilityToGeoapifyConditions(accessibilityRequired?: boolean, userNotes?: string[]): string[] {
@@ -260,10 +248,15 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
 
       if (!stableId) continue;
 
+      const rawCategories: string[] = Array.isArray(props.categories)
+        ? props.categories.map(String)
+        : [String(props.category || categories[0])];
+
       places.push({
         id: stableId,
         name,
-        category: Array.isArray(props.categories) ? props.categories.join(", ") : String(props.category || categories[0]),
+        category: rawCategories.join(", "),
+        categories: rawCategories,
         address: props.formatted || props.address_line2 || null,
         latitude: lat,
         longitude: lon,
@@ -290,7 +283,10 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
   }
 }
 
-export async function fetchPlaceDetails(placeId: string): Promise<any | null> {
+export async function fetchPlaceDetails(
+  placeId: string,
+  telemetryCounter?: { detailsCalls: number },
+): Promise<any | null> {
   if (!placeId) return null;
   if (placeDetailsCache.has(placeId)) {
     return placeDetailsCache.get(placeId);
@@ -300,6 +296,7 @@ export async function fetchPlaceDetails(placeId: string): Promise<any | null> {
   if (!apiKey) return null;
 
   try {
+    if (telemetryCounter) telemetryCounter.detailsCalls++;
     const url = `https://api.geoapify.com/v2/place-details?id=${encodeURIComponent(placeId)}&apiKey=${apiKey}`;
     const res = await fetch(url, { headers: { Accept: "application/json" } });
     if (!res.ok) return null;
@@ -340,10 +337,10 @@ export function rankGeoapifyCandidates(
     const usedB = usedCandidateIdsSet.has(b.id) ? 1 : 0;
     if (usedA !== usedB) return usedA - usedB;
 
-    // 2. Subtype match
+    // 2. Subtype match using categories array
     if (normSubtype) {
-      const matchA = String(a.category || "").toLowerCase().includes(normSubtype) ? 0 : 1;
-      const matchB = String(b.category || "").toLowerCase().includes(normSubtype) ? 0 : 1;
+      const matchA = (a.categories || []).some((c) => c.toLowerCase().includes(normSubtype)) ? 0 : 1;
+      const matchB = (b.categories || []).some((c) => c.toLowerCase().includes(normSubtype)) ? 0 : 1;
       if (matchA !== matchB) return matchA - matchB;
     }
 

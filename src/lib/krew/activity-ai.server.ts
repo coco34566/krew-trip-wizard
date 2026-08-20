@@ -471,6 +471,7 @@ export function calculatePlanningWindow(input: ActivityAiInput): PlanningWindowR
 
 /**
   * Build PlanningBrief deterministically from KREW input data.
+  * Unknown arrival/departure boundaries stay null!
   */
 export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
   const nights = Math.max(1, input.nights || 1);
@@ -486,10 +487,8 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
     let availableFrom: string | null = "08:00";
     let availableUntil: string | null = "23:59";
 
-    // Handle overnight arrival day offset
     if (window.arrivalDayOffset > 0) {
       if (d <= window.arrivalDayOffset) {
-        // Day before arrival offset is completely unavailable at destination!
         availableFrom = null;
         availableUntil = null;
       } else if (d === window.arrivalDayOffset + 1) {
@@ -513,7 +512,7 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
     });
   }
 
-  // Calculate mandatoryNeeds
+  // Calculate mandatoryNeeds only when known bounds explicitly prove intersection!
   const mandatoryNeeds: MandatoryNeed[] = [];
   let needIdCount = 1;
 
@@ -522,62 +521,98 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
   const wantsLateNight = timeSlotPrefs.some((s) => s.includes("tard_soir") || s.includes("nuit") || s.includes("soiree_tardive"));
 
   for (const dw of dayWindows) {
-    if (dw.availableFrom === null && dw.availableUntil === null) continue; // Day completely unavailable
+    if (dw.availableFrom === null && dw.availableUntil === null) continue;
 
-    const startMin = dw.availableFrom ? toMinutes(dw.availableFrom)! : 0;
-    const endMin = dw.availableUntil ? toMinutes(dw.availableUntil)! : 1439;
-
-    // Breakfast (08:30 / 09:30)
-    if (dw.availableFrom !== null && startMin <= 9 * 60 + 30 && endMin >= 8 * 60 + 30) {
-      mandatoryNeeds.push({
-        id: `need_${needIdCount++}`,
-        type: "meal",
-        subType: "breakfast",
-        targetDay: dw.day,
-        timeWindow: { start: wantsLateMorning ? "09:30" : "08:30", end: "10:30" },
-        durationMinutes: 45,
-        label: "Petit-déjeuner local",
-      });
+    // Breakfast (08:30 / 09:30): created ONLY if availableFrom is known and <= 09:30
+    if (dw.availableFrom !== null) {
+      const startMin = toMinutes(dw.availableFrom)!;
+      const endMin = dw.availableUntil !== null ? toMinutes(dw.availableUntil)! : 1439;
+      if (startMin <= 9 * 60 + 30 && endMin >= 8 * 60 + 30) {
+        mandatoryNeeds.push({
+          id: `need_${needIdCount++}`,
+          type: "meal",
+          subType: "breakfast",
+          targetDay: dw.day,
+          timeWindow: { start: wantsLateMorning ? "09:30" : "08:30", end: "10:30" },
+          durationMinutes: 45,
+          label: "Petit-déjeuner local",
+        });
+      }
     }
 
-    // Lunch (11:30 - 14:30)
-    if (startMin <= 13 * 60 && endMin >= 12 * 60 + 30) {
-      mandatoryNeeds.push({
-        id: `need_${needIdCount++}`,
-        type: "meal",
-        subType: "lunch",
-        targetDay: dw.day,
-        timeWindow: { start: "11:30", end: "14:30" },
-        durationMinutes: 90,
-        label: "Déjeuner de groupe",
-      });
+    // Lunch (11:30 - 14:30): created ONLY if known window intersects lunch
+    if (dw.availableFrom !== null && dw.availableUntil !== null) {
+      const startMin = toMinutes(dw.availableFrom)!;
+      const endMin = toMinutes(dw.availableUntil)!;
+      if (startMin <= 13 * 60 && endMin >= 12 * 60 + 30) {
+        mandatoryNeeds.push({
+          id: `need_${needIdCount++}`,
+          type: "meal",
+          subType: "lunch",
+          targetDay: dw.day,
+          timeWindow: { start: "11:30", end: "14:30" },
+          durationMinutes: 90,
+          label: "Déjeuner de groupe",
+        });
+      }
+    } else if (dw.availableFrom !== null && !dw.isDepartureDay) {
+      const startMin = toMinutes(dw.availableFrom)!;
+      if (startMin <= 13 * 60) {
+        mandatoryNeeds.push({
+          id: `need_${needIdCount++}`,
+          type: "meal",
+          subType: "lunch",
+          targetDay: dw.day,
+          timeWindow: { start: "11:30", end: "14:30" },
+          durationMinutes: 90,
+          label: "Déjeuner de groupe",
+        });
+      }
     }
 
-    // Dinner (18:30 - 22:30)
-    if (startMin <= 20 * 60 + 30 && (dw.availableUntil === null || endMin >= 19 * 60 + 30)) {
-      mandatoryNeeds.push({
-        id: `need_${needIdCount++}`,
-        type: "meal",
-        subType: "dinner",
-        targetDay: dw.day,
-        timeWindow: { start: wantsLateNight ? "20:30" : "20:00", end: "22:30" },
-        durationMinutes: 120,
-        label: "Dîner convivial de groupe",
-      });
+    // Dinner (18:30 - 22:30): created ONLY if known window intersects dinner
+    if (dw.availableFrom !== null && dw.availableUntil !== null) {
+      const startMin = toMinutes(dw.availableFrom)!;
+      const endMin = toMinutes(dw.availableUntil)!;
+      if (startMin <= 20 * 60 + 30 && endMin >= 19 * 60 + 30) {
+        mandatoryNeeds.push({
+          id: `need_${needIdCount++}`,
+          type: "meal",
+          subType: "dinner",
+          targetDay: dw.day,
+          timeWindow: { start: wantsLateNight ? "20:30" : "20:00", end: "22:30" },
+          durationMinutes: 120,
+          label: "Dîner convivial de groupe",
+        });
+      }
+    } else if (dw.availableFrom !== null && !dw.isDepartureDay) {
+      const startMin = toMinutes(dw.availableFrom)!;
+      if (startMin <= 20 * 60 + 30) {
+        mandatoryNeeds.push({
+          id: `need_${needIdCount++}`,
+          type: "meal",
+          subType: "dinner",
+          targetDay: dw.day,
+          timeWindow: { start: wantsLateNight ? "20:30" : "20:00", end: "22:30" },
+          durationMinutes: 120,
+          label: "Dîner convivial de groupe",
+        });
+      }
     }
   }
 
-  // Event signature: deterministically choose best available dayWindow
+  // Event signature: deterministically choose best available dayWindow where BOTH boundaries are known or reliable
   const eventNorm = norm(input.eventType);
   if (eventNorm.includes("evjf") || eventNorm.includes("evg") || eventNorm.includes("anniversaire") || eventNorm.includes("evenement")) {
     let targetDayWindow = dayWindows.find((dw) => {
-      if (dw.availableFrom === null && dw.availableUntil === null) return false;
+      if (dw.availableFrom === null) return false;
+      const startMin = toMinutes(dw.availableFrom)!;
       const endMin = dw.availableUntil ? toMinutes(dw.availableUntil)! : 1439;
-      return endMin >= 21 * 60 + 30; // Has full evening available
+      return startMin <= 19 * 60 && (!dw.isDepartureDay || endMin >= 21 * 60 + 30);
     });
 
     if (!targetDayWindow) {
-      targetDayWindow = dayWindows.find((dw) => dw.availableFrom !== null || dw.availableUntil !== null);
+      targetDayWindow = dayWindows.find((dw) => dw.availableFrom !== null);
     }
 
     if (targetDayWindow) {
@@ -599,7 +634,7 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
   const lodgRole = input.groupAccommodationRole || "part_of_stay";
   if (lodgRole === "centerpiece") {
     const targetDw = dayWindows.find((dw) => dw.day === 2) || dayWindows[0];
-    if (targetDw && (targetDw.availableFrom !== null || targetDw.availableUntil !== null)) {
+    if (targetDw && targetDw.availableFrom !== null) {
       mandatoryNeeds.push({
         id: `need_${needIdCount++}`,
         type: "lodging_rest",
@@ -700,20 +735,20 @@ export function findAvailableGap(options: {
 }): { start: string; end: string } | null {
   const { dayWindow, existingSlots, preferredWindow, durationMinutes } = options;
 
-  // On arrival day with unknown arrival, allow evening slots (>= 17:00)
-  let dwStart: number | null = null;
-  if (dayWindow.availableFrom !== null) {
-    dwStart = toMinutes(dayWindow.availableFrom)!;
-  } else if (dayWindow.isArrivalDay) {
-    const prefSt = preferredWindow ? toMinutes(preferredWindow.start)! : 0;
-    if (prefSt >= 17 * 60) {
-      dwStart = 17 * 60;
-    }
-  } else {
-    dwStart = 8 * 60;
+  if (dayWindow.availableFrom === null && dayWindow.availableUntil === null) {
+    return null; // Day completely unavailable
   }
 
-  const dwEnd = dayWindow.availableUntil !== null ? toMinutes(dayWindow.availableUntil)! : (dayWindow.isDepartureDay ? null : 23 * 60 + 59);
+  if (preferredWindow) {
+    const prefStart = toMinutes(preferredWindow.start)!;
+    const prefEnd = toMinutes(preferredWindow.end)!;
+
+    if (prefStart < 12 * 60 && dayWindow.availableFrom === null) return null;
+    if (prefEnd > 18 * 60 && dayWindow.availableUntil === null) return null;
+  }
+
+  const dwStart = dayWindow.availableFrom !== null ? toMinutes(dayWindow.availableFrom)! : null;
+  const dwEnd = dayWindow.availableUntil !== null ? toMinutes(dayWindow.availableUntil)! : null;
 
   if (dwStart === null || dwEnd === null) {
     return null; // Boundary is unknown on arrival/departure day
@@ -725,12 +760,8 @@ export function findAvailableGap(options: {
   prefStart = Math.max(dwStart, prefStart);
   prefEnd = Math.min(dwEnd, prefEnd);
 
-  if (prefEnd - prefStart < durationMinutes) {
-    prefStart = dwStart;
-    prefEnd = dwEnd;
-  }
+  if (prefEnd - prefStart < durationMinutes) return null;
 
-  // Sort existing occupied intervals
   const occupied = existingSlots
     .map((s) => {
       const st = toMinutes(s.time);
@@ -740,20 +771,8 @@ export function findAvailableGap(options: {
     .filter((v): v is { start: number; end: number } => v != null)
     .sort((a, b) => a.start - b.start);
 
-  // Search gap in preferred window first
   let candidateStart = prefStart;
   while (candidateStart + durationMinutes <= prefEnd) {
-    const candidateEnd = candidateStart + durationMinutes;
-    const overlap = occupied.some((occ) => Math.max(occ.start, candidateStart) < Math.min(occ.end, candidateEnd));
-    if (!overlap) {
-      return { start: fromMinutes(candidateStart), end: fromMinutes(candidateEnd) };
-    }
-    candidateStart += 15;
-  }
-
-  // Search gap anywhere in dayWindow
-  candidateStart = dwStart;
-  while (candidateStart + durationMinutes <= dwEnd) {
     const candidateEnd = candidateStart + durationMinutes;
     const overlap = occupied.some((occ) => Math.max(occ.start, candidateStart) < Math.min(occ.end, candidateEnd));
     if (!overlap) {
@@ -1091,7 +1110,6 @@ export function applyMaxActivitiesPerDay(skeleton: KrewSkeleton, brief: Planning
 
     if (mainActs.length <= maxActs) return day;
 
-    // Smart ranking based on preference frequencies and diversity
     const prefFreqs = brief.preferenceSignals.activityCategoryFrequencies || {};
 
     const rankedActs = mainActs.slice().sort((a, b) => {
@@ -1156,13 +1174,13 @@ export async function geminiEnrichSkeleton(
   const prompt = `Tu es l'IA de composition de planning KREW.
 CONSIGNE STRICTE :
 Compose le planning de séjour pour ${brief.destination} en respectant impérativement le brief ci-dessous.
-- Pour chaque créneau "internal" (jeux, apéro, moments maison, surprise) : propose un intitulé (label) et un descriptif (detail). Set locationContext="lodging" pour les moments au logement.
+- Pour chaque créneau "internal" (jeux, apéro, moments maison, surprise) : propose un intitulé (label) et un descriptif (detail). Set locationContext="lodging" pour les moments au logement, "flexible" pour un jeu libre non forcé au logement.
 - Pour chaque créneau "place_required" (repas, restaurants, bars, activités externes, visites) : choisis uniquement une canonicalVenueFamily autorisée et décris précisément l'expérience recherchée via searchIntent. Set locationContext="external".
 - Enum canonicalVenueFamily autorisées STRICTEMENT : ${JSON.stringify(CANONICAL_VENUE_FAMILIES)}
 - INTERDICTION ABSOLUE :
   * Ne propose AUCUN nom d'établissement réel, marque, entreprise, adresse, URL, prix ou note.
   * Ne suppose jamais qu'un équipement, service, prix, régime alimentaire, accessibilité ou horaire existe s'il n'est pas fourni comme vérifié.
-  * Respecte strictement les dealBreakers et les dayWindows.
+  * Respecte strictly les dealBreakers et les dayWindows.
 
 Brief JSON = ${JSON.stringify(brief)}`;
 
@@ -1278,7 +1296,13 @@ Brief JSON = ${JSON.stringify(brief)}`;
         if (availEnd !== null && endMin > availEnd) continue;
 
         const locCtx: "lodging" | "external" | "flexible" =
-          kind === "internal" || momentType === "moment_maison" ? "lodging" : "external";
+          rawSlot.locationContext === "lodging" || rawSlot.locationContext === "external" || rawSlot.locationContext === "flexible"
+            ? rawSlot.locationContext
+            : momentType === "moment_maison"
+              ? "lodging"
+              : kind === "internal"
+                ? "flexible"
+                : "external";
 
         slots.push({
           id: `slot_${slotIdCounter++}`,
@@ -1358,11 +1382,10 @@ export function adjustItineraryTransferTimes(
       let previousCoords: { latitude?: number | null; longitude?: number | null } | null = null;
       const slots: ActivitySlot[] = [];
 
-      // Check overnight arrival boundary
       let dayArrivalMin: number | null = null;
       if (window.arrivalDayOffset > 0) {
         if (day.day <= window.arrivalDayOffset) {
-          return { ...day, slots: [] }; // Day before overnight arrival is empty at destination
+          return { ...day, slots: [] };
         }
         if (day.day === window.arrivalDayOffset + 1 && window.arrivalReady) {
           dayArrivalMin = toMinutes(window.arrivalReady);
@@ -1469,10 +1492,21 @@ function normalizeSlot(
   const durationMinutes = Number.isFinite(Number(raw.durationMinutes))
     ? Math.max(15, Math.min(480, Number(raw.durationMinutes)))
     : (candidate?.durationMinutes ?? 90);
+
+  const category = categoryFor(raw);
+  const locCtx: "lodging" | "external" | "flexible" =
+    raw.locationContext === "lodging" || raw.locationContext === "external" || raw.locationContext === "flexible"
+      ? raw.locationContext
+      : category === "moment_maison"
+        ? "lodging"
+        : internal
+          ? "flexible"
+          : "external";
+
   return {
     moment: String(raw.moment ?? "Après-midi").slice(0, 24),
     type,
-    category: categoryFor(raw),
+    category,
     tags: Array.isArray(raw.tags) ? raw.tags.map(String).slice(0, 8) : candidate?.tags,
     label: String(raw.label).trim().slice(0, 100),
     detail: raw.detail ? String(raw.detail).slice(0, 220) : (candidate?.description ?? undefined),
@@ -1480,7 +1514,8 @@ function normalizeSlot(
     time,
     endTime: time ? fromMinutes(toMinutes(time)! + durationMinutes) : null,
     durationMinutes,
-    locationContext: raw.locationContext ?? (internal ? "lodging" : "external"),
+    locationContext: locCtx,
+    dietaryCheckRequired: Array.isArray(input.dietaryConstraints) && input.dietaryConstraints.length > 0 && (category === "repas" || type === "resto"),
     url: candidate ? candidate.sourceUrl : (raw.url || null),
     candidateId: candidate?.id ?? raw.candidateId ?? null,
     verified: candidate?.verified === true || raw.verified === true,
@@ -1507,7 +1542,6 @@ export function validateItinerary(
       let previousEnd = -1;
       let previousExternal: ActivitySlot | null = null;
 
-      // Handle overnight arrival day offset
       let dayArrivalMin: number | null = null;
       if (window.arrivalDayOffset > 0) {
         if (day.day <= window.arrivalDayOffset) {
@@ -1688,7 +1722,7 @@ export async function generateItineraryWithAi(
 /**
   * Regenerates a single slot.
   * Exactly 0 Gemini calls for "another proposition"!
-  * Reuses existing persisted candidates or targeted Geoapify search without Gemini.
+  * Reuses existing persisted candidates/pools or performs 1 targeted Geoapify search.
   */
 export async function regenerateSlotWithAi(
   input: ActivityAiInput,
@@ -1696,35 +1730,102 @@ export async function regenerateSlotWithAi(
   day: number,
   avoid: string[] = [],
   candidates: ActivityCandidate[] = [],
-): Promise<{ slot: ActivitySlot; usedLlm: false; error?: string }> {
-  const alternative = candidates.find(
-    (candidate) => !avoid.some((label) => norm(label) === norm(candidate.name)),
+  placePools: Record<string, any[]> = {},
+  usedCandidateIds: string[] = [],
+  refCoords?: { latitude: number; longitude: number } | null,
+): Promise<{ slot: ActivitySlot; usedLlm: false; updatedPools?: Record<string, any[]>; updatedUsedIds?: string[]; error?: string }> {
+  const usedSet = new Set(usedCandidateIds);
+  const avoidNorms = avoid.map(norm);
+
+  const req = convertIntentToPlaceRequirements(
+    existing.venueFamily || "local_experience",
+    existing.category || "culture",
+    existing.searchIntent || existing.label,
+    input.dietaryConstraints,
+    Boolean(input.accessibilityRequired),
+    input.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
   );
 
-  if (alternative) {
+  const poolKey = buildPoolKey(req);
+  let pool = placePools[poolKey] || [];
+
+  // Filter unused/non-avoided
+  let available = rankGeoapifyCandidates(pool, req, refCoords ?? null, usedSet).filter(
+    (p) => !usedSet.has(p.id) && !avoidNorms.includes(norm(p.name)),
+  );
+
+  // If pool exhausted, perform 1 targeted Geoapify search
+  let updatedPools = { ...placePools };
+  if (available.length === 0 && refCoords?.latitude != null && refCoords?.longitude != null) {
+    const newPlaces = await searchGeoapifyPlaces({
+      categories: req.categories,
+      latitude: refCoords.latitude,
+      longitude: refCoords.longitude,
+      radiusMeters: 15000,
+      limit: 15,
+      conditions: req.accessibility || [],
+    });
+
+    if (newPlaces.length > 0) {
+      const merged = mergeUniquePlacesById(pool, newPlaces);
+      updatedPools[poolKey] = merged;
+      available = rankGeoapifyCandidates(merged, req, refCoords, usedSet).filter(
+        (p) => !usedSet.has(p.id) && !avoidNorms.includes(norm(p.name)),
+      );
+    }
+  }
+
+  const selectedPlace = available[0];
+  if (selectedPlace) {
+    usedSet.add(selectedPlace.id);
     return {
       slot: {
         ...existing,
-        label: alternative.name,
-        candidateId: alternative.id,
-        category: (alternative.category as ActivityCategory) ?? existing.category,
-        url: alternative.sourceUrl,
+        label: selectedPlace.name,
+        detail: selectedPlace.address || existing.detail || "Alternative sélectionnée par KREW",
+        candidateId: selectedPlace.id,
+        category: existing.category,
+        url: selectedPlace.website || null,
         verified: true,
-        source: alternative.source,
-        latitude: alternative.latitude,
-        longitude: alternative.longitude,
+        source: "geoapify",
+        latitude: selectedPlace.latitude,
+        longitude: selectedPlace.longitude,
       },
       usedLlm: false,
+      updatedPools,
+      updatedUsedIds: Array.from(usedSet),
+    };
+  }
+
+  // Candidates array fallback
+  const candidateAlt = candidates.find(
+    (c) => !avoidNorms.includes(norm(c.name)) && !usedSet.has(c.id),
+  );
+
+  if (candidateAlt) {
+    usedSet.add(candidateAlt.id);
+    return {
+      slot: {
+        ...existing,
+        label: candidateAlt.name,
+        candidateId: candidateAlt.id,
+        category: (candidateAlt.category as ActivityCategory) ?? existing.category,
+        url: candidateAlt.sourceUrl,
+        verified: true,
+        source: candidateAlt.source,
+        latitude: candidateAlt.latitude,
+        longitude: candidateAlt.longitude,
+      },
+      usedLlm: false,
+      updatedUsedIds: Array.from(usedSet),
     };
   }
 
   return {
     slot: {
       ...existing,
-      type: "libre",
-      category: "temps_libre",
-      label: "Temps libre",
-      detail: "Aucun autre lieu disponible pour ce créneau",
+      label: `${existing.label} — lieu à choisir`,
+      detail: "Choix de l'alternative à préciser",
       url: null,
       candidateId: null,
       verified: false,
