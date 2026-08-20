@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  ArrowLeft,
   Check,
   Copy,
   Link2,
@@ -19,7 +18,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
@@ -37,7 +35,7 @@ import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/invite")({
   head: () => ({
-    meta: [{ title: "Inviter le groupe — KREW" }],
+    meta: [{ title: "Groupe — KREW" }],
   }),
   component: InvitePage,
 });
@@ -53,7 +51,7 @@ function InvitePage() {
   const setCoOrg = useServerFn(setCoOrganizer);
   const finishInvite = useServerFn(finalizeInvitationStep);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
     retry: 3,
@@ -61,7 +59,6 @@ function InvitePage() {
   });
   const {
     data: progress,
-    isError: isProgressError,
     refetch: refetchProgress,
   } = useQuery({
     queryKey: ["trip-progress", tripId],
@@ -224,145 +221,59 @@ function InvitePage() {
     }),
   );
   const participants = [...combinedParticipants, ...placeholders];
-  const answered = progress?.answered ?? 0;
-  const total = Math.max(progress?.total ?? participants.length, trip.participants_count || 1);
+  const realJoinedCount = rawParticipants.filter((p) => p.user_id && !p.placeholder).length;
+  const totalPlanned = Number(trip.participants_count || 1);
 
   return (
-    <main className="space-y-8">
-      <Link
-        to="/trips/$tripId"
-        params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
-      >
-        <ArrowLeft className="size-4" /> Retour au voyage
-      </Link>
+    <main className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+      {/* Top Navigation Tabs */}
+      <nav aria-label="Navigation principale du voyage" className="flex items-center border-b border-border/50 pb-3 gap-6 font-medium text-sm mb-6">
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          search={{ view: "todo" }}
+          className="pb-1 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          À faire
+        </Link>
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          search={{ view: "voyage" }}
+          className="pb-1 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Voyage
+        </Link>
+        <Link
+          to="/trips/$tripId/invite"
+          params={{ tripId }}
+          className="pb-1 border-b-2 border-primary text-foreground font-semibold transition-colors"
+        >
+          Groupe
+        </Link>
+      </nav>
 
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
-          Étape collaborative · {eventTypeLabel(trip.event_type)}
-        </p>
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          Inviter le groupe
+      {/* Heading */}
+      <div className="space-y-1">
+        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-tight tracking-tight text-foreground">
+          Groupe
         </h1>
         <p className="text-sm text-muted-foreground">
-          Partage le lien ou ajoute des emails. Suis qui a rejoint et qui doit encore répondre.
+          Gère les participants, les invitations et les réponses du groupe.
+        </p>
+        <p className="text-xs font-semibold text-primary font-mono pt-1">
+          {totalPlanned} personnes prévues · {realJoinedCount} ont rejoint
         </p>
       </div>
 
-      {/* BLOC LIEN : bg-sage/8 rounded-[24px] p-6 */}
-      <section className="rounded-[24px] bg-sage/8 border border-sage/20 p-6 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Link2 className="size-4 text-primary" /> Lien d&apos;invitation
-        </div>
-        <p className="break-all rounded-xl border border-border/60 bg-background/90 px-3.5 py-2.5 font-mono text-xs text-foreground">
-          {shareUrl || "…"}
-        </p>
-        <div className="pt-1 flex flex-col sm:flex-row gap-2">
-          <Button
-            className="w-full sm:w-auto rounded-xl"
-            variant="outline"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(shareUrl);
-                setCopied(true);
-                toast.success("Lien copié");
-                setTimeout(() => setCopied(false), 2000);
-              } catch {
-                toast.error("Impossible de copier le lien.");
-              }
-            }}
-          >
-            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-            {copied ? "Copié" : "Copier le lien"}
-          </Button>
-        </div>
-      </section>
-
-      {data.isOwner ? (
-        <section className="mt-6 rounded-3xl border border-border bg-card p-5 space-y-4">
-          <h2 className="flex items-center gap-2 font-semibold text-foreground">
-            <UserPlus className="size-4 text-primary" /> Inviter de nouveaux participants ou
-            relancer le groupe
-          </h2>
-
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Ajouter une adresse e-mail</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                type="email"
-                placeholder="ami@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <Button
-                disabled={!email.trim() || inviteMutation.isPending}
-                onClick={() => inviteMutation.mutate()}
-                className="shrink-0"
-              >
-                {inviteMutation.isPending ? <Loader2 className="animate-spin" /> : "Inviter"}
-              </Button>
-            </div>
-          </div>
-
-          <div className="border-t border-border/40 pt-4 space-y-2">
-            <Label className="text-xs text-muted-foreground">
-              Partager ou relancer sur WhatsApp
-            </Label>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                type="button"
-                className="flex-1 bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
-                onClick={() => {
-                  const text = `Salut ! On organise « ${trip.name} » avec KREW ✈️\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n👉 ${shareUrl}`;
-                  shareOnWhatsApp(text);
-                }}
-              >
-                Inviter via WhatsApp
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1 border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10"
-                onClick={() => {
-                  const missingParticipants =
-                    progress?.participants?.filter(
-                      (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
-                    ) || [];
-                  const lines = [
-                    `Petit point KREW pour « ${trip.name} » ✈️`,
-                    "",
-                    "Il reste quelques petites choses à faire :",
-                  ];
-                  for (const p of missingParticipants) {
-                    const name = p.display_name || p.email?.split("@")[0] || "Ami";
-                    const missing = [
-                      !p.hasAnsweredAvailability ? "disponibilités" : null,
-                      !p.hasAnswered ? "préférences" : null,
-                    ].filter(Boolean);
-                    lines.push(`• ${name} : ${missing.join(" + ")}`);
-                  }
-                  lines.push("", `👉 ${window.location.origin}/trips/${trip.id}`);
-                  shareOnWhatsApp(lines.join("\n"));
-                }}
-                disabled={
-                  !progress?.participants?.some((p) => !p.hasAnswered || !p.hasAnsweredAvailability)
-                }
-              >
-                Relancer sur WhatsApp
-              </Button>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {/* PARTICIPANTS LIST AS CLEAN ROWS (NO CARDS) */}
+      {/* 1. PARTICIPANTS LIST FIRST */}
       <section className="space-y-4 pt-2">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
           <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
-            <Users className="size-5 text-primary" /> Participants
+            <Users className="size-5 text-primary" /> Membres du groupe
           </h2>
           <Badge variant="secondary" className="font-mono text-xs font-normal">
-            {answered}/{total} ont renseigné leurs préférences
+            {progress?.answered ?? 0}/{totalPlanned} ont renseigné leurs préférences
           </Badge>
         </div>
         <div className="divide-y divide-border/50">
@@ -436,33 +347,87 @@ function InvitePage() {
         </div>
       </section>
 
-      {/* Rôle & Comportement de la Star (EVG, EVJF, Anniversaire, Retraite) */}
+      {/* 2. INVITATION & RELANCE */}
+      <section className="rounded-[24px] bg-sage/8 border border-sage/20 p-6 space-y-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <Link2 className="size-4 text-primary" /> Inviter de nouveaux membres
+        </div>
+        <p className="break-all rounded-xl border border-border/60 bg-background/90 px-3.5 py-2.5 font-mono text-xs text-foreground">
+          {shareUrl || "…"}
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            className="rounded-xl"
+            variant="outline"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(shareUrl);
+                setCopied(true);
+                toast.success("Lien copié");
+                setTimeout(() => setCopied(false), 2000);
+              } catch {
+                toast.error("Impossible de copier le lien.");
+              }
+            }}
+          >
+            {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+            {copied ? "Copié" : "Copier le lien"}
+          </Button>
+          <Button
+            type="button"
+            className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent rounded-xl"
+            onClick={() => {
+              const text = `Salut ! On organise « ${trip.name} » avec KREW ✈️\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n👉 ${shareUrl}`;
+              shareOnWhatsApp(text);
+            }}
+          >
+            Inviter via WhatsApp
+          </Button>
+        </div>
+
+        {data.isOwner ? (
+          <div className="pt-4 border-t border-border/40 space-y-3">
+            <Label className="text-xs text-muted-foreground">Ajouter par adresse e-mail</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                type="email"
+                placeholder="ami@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <Button
+                disabled={!email.trim() || inviteMutation.isPending}
+                onClick={() => inviteMutation.mutate()}
+                className="shrink-0 rounded-xl"
+              >
+                {inviteMutation.isPending ? <Loader2 className="animate-spin" /> : "Inviter"}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      {/* 3. RÉGLAGES STAR SI APPLICABLES */}
       {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
-        <section className="mt-6 rounded-3xl border border-border bg-card p-5">
+        <section className="rounded-3xl border border-border bg-card p-5 space-y-4">
           <h2 className="flex items-center gap-2 font-semibold text-foreground">
-            <Star className="size-4 text-primary" /> Rôle de la Star (
-            {trip.celebrated_person || "Star"})
+            <Star className="size-4 text-primary" /> Rôle de la Star ({trip.celebrated_person || "Star"})
           </h2>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            Définis si l&apos;organisation de l&apos;événement doit rester un secret pour la Star ou
-            non.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <button
               type="button"
               disabled={!data.isOwner}
               onClick={() => setStarMode("secret")}
               className={cn(
-                "rounded-2xl border p-4 text-left text-sm transition transition-all",
+                "rounded-2xl border p-4 text-left text-sm transition-all",
                 starMode === "secret"
-                  ? "border-primary bg-primary/10 shadow-glow text-foreground font-semibold"
+                  ? "border-primary bg-primary/10 text-foreground font-semibold"
                   : "border-border bg-surface/30 text-muted-foreground hover:border-primary/45",
               )}
             >
               <span className="block text-base">🤫 Mode Secret</span>
               <span className="mt-1 block text-xs text-muted-foreground font-normal leading-relaxed">
-                La Star ne remplit pas elle-même son questionnaire (c&apos;est toi qui t&apos;en
-                charges) et n&apos;aura pas accès au tableau de bord pour préserver la surprise !
+                La Star ne voit pas l'organisation pour préserver la surprise.
               </span>
             </button>
             <button
@@ -470,80 +435,20 @@ function InvitePage() {
               disabled={!data.isOwner}
               onClick={() => setStarMode("participant")}
               className={cn(
-                "rounded-2xl border p-4 text-left text-sm transition transition-all",
+                "rounded-2xl border p-4 text-left text-sm transition-all",
                 starMode === "participant"
-                  ? "border-primary bg-primary/10 shadow-glow text-foreground font-semibold"
+                  ? "border-primary bg-primary/10 text-foreground font-semibold"
                   : "border-border bg-surface/30 text-muted-foreground hover:border-primary/45",
               )}
             >
               <span className="block text-base">🎂 Mode Participant</span>
               <span className="mt-1 block text-xs text-muted-foreground font-normal leading-relaxed">
-                La Star est invitée, voit l&apos;organisation, peut répondre au questionnaire comme
-                les autres, tout en restant identifiée comme la Star.
+                La Star est invitée et répond comme les autres.
               </span>
             </button>
           </div>
-          <div className="mt-5 border-t border-border pt-4">
-            <Label>La Star participe aux frais</Label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <Button
-                type="button"
-                variant={starPaysShare ? "default" : "outline"}
-                onClick={() => setStarPaysShare(true)}
-              >
-                Oui
-              </Button>
-              <Button
-                type="button"
-                variant={!starPaysShare ? "default" : "outline"}
-                onClick={() => setStarPaysShare(false)}
-              >
-                Non, sa part est répartie entre les autres
-              </Button>
-            </div>
-          </div>
         </section>
       ) : null}
-
-      {data.isOwner ? (
-        <section className="mt-8 rounded-3xl border border-primary/20 bg-primary/5 p-6 text-center space-y-4">
-          <div className="space-y-1">
-            <h3 className="font-display text-lg font-bold text-primary">
-              Finaliser l&apos;invitation
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Une fois que tu as partagé le lien et configuré le rôle de la Star, accède au tableau
-              de bord.
-            </p>
-          </div>
-          <Button
-            size="lg"
-            className="w-full sm:w-auto px-8"
-            disabled={finishInviteMutation.isPending}
-            onClick={() => finishInviteMutation.mutate()}
-          >
-            {finishInviteMutation.isPending ? (
-              <Loader2 className="animate-spin mr-1.5 size-4" />
-            ) : (
-              <Sparkles className="mr-1.5 size-4" />
-            )}
-            Accéder au tableau de bord du voyage
-          </Button>
-        </section>
-      ) : (
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button asChild variant="outline" className="flex-1">
-            <Link to="/trips/$tripId" params={{ tripId }}>
-              Voir le hub
-            </Link>
-          </Button>
-          <Button asChild className="flex-1">
-            <Link to="/trips/$tripId/availability" params={{ tripId }}>
-              Continuer → disponibilités
-            </Link>
-          </Button>
-        </div>
-      )}
     </main>
   );
 }

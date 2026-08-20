@@ -21,7 +21,6 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TripHubNav } from "@/components/krew/TripHubNav";
 import { buildTripSteps } from "@/lib/krew/availability";
 import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
@@ -63,7 +62,6 @@ type Props = {
   children?: React.ReactNode;
 };
 
-/** Photos voyage (Unsplash) selon le type d'événement. */
 /** Photos lifestyle premium (Unsplash) — voyage & ambiance, pas de clichés ballons/kitsch. */
 function heroImageForEvent(eventType?: string | null) {
   const q = "auto=format&fit=crop&w=1600&q=85";
@@ -191,7 +189,7 @@ function NextActionsPanel({
         key: "hotel",
         title: "Voter pour un hébergement",
         desc: "Un vote par personne — l’organisateur·rice finalise le choix.",
-        href: `/trips/${tripId}?view=organize#hub-logistics`,
+        href: `/trips/${tripId}?view=voyage&section=accommodation`,
         icon: Hotel,
       });
     }
@@ -200,7 +198,7 @@ function NextActionsPanel({
         key: "transport",
         title: "Choisir mon trajet",
         desc: "Selon la ville de départ et les contraintes horaires.",
-        href: `/trips/${tripId}?view=organize#hub-transports`,
+        href: `/trips/${tripId}?view=voyage&section=transport`,
         icon: Plane,
       });
     }
@@ -213,7 +211,7 @@ function NextActionsPanel({
         key: "lock-dates",
         title: "Valider les dates du groupe",
         desc: "Cette validation débloque la suite du voyage.",
-        href: `/trips/${tripId}?view=organize#hub-dates`,
+        href: `/trips/${tripId}?view=voyage&section=dates`,
         icon: CalendarDays,
       });
     }
@@ -223,7 +221,7 @@ function NextActionsPanel({
           key: "gen",
           title: "Trouver des destinations",
           desc: "Des propositions adaptées aux préférences du groupe.",
-          href: `/trips/${tripId}?view=organize#hub-destination`,
+          href: `/trips/${tripId}?view=voyage&section=destination`,
           icon: Sparkles,
         });
       } else {
@@ -231,7 +229,7 @@ function NextActionsPanel({
           key: "pick-dest",
           title: "Valider une destination",
           desc: "Cette validation débloque les hébergements, les trajets et le planning.",
-          href: `/trips/${tripId}?view=organize#hub-destination`,
+          href: `/trips/${tripId}?view=voyage&section=destination`,
           icon: MapPin,
         });
       }
@@ -241,7 +239,7 @@ function NextActionsPanel({
         key: "search-hotels",
         title: "Rechercher des hébergements",
         desc: "Proposer des hébergements au groupe pour le vote.",
-        href: `/trips/${tripId}?view=organize#hub-logistics`,
+        href: `/trips/${tripId}?view=voyage&section=accommodation`,
         icon: Hotel,
       });
     }
@@ -250,7 +248,7 @@ function NextActionsPanel({
         key: "search-transport",
         title: "Proposer des trajets A/R",
         desc: "Des options adaptées aux villes de départ du groupe.",
-        href: `/trips/${tripId}?view=organize#hub-transports`,
+        href: `/trips/${tripId}?view=voyage&section=transport`,
         icon: Plane,
       });
     }
@@ -264,7 +262,7 @@ function NextActionsPanel({
         key: "plan",
         title: "Créer le planning",
         desc: "Construire le séjour jour par jour en tenant compte des horaires d’arrivée et de départ.",
-        href: `/trips/${tripId}?view=organize#hub-activities-plan`,
+        href: `/trips/${tripId}?view=voyage&section=planning`,
         icon: Sparkles,
       });
     }
@@ -273,7 +271,7 @@ function NextActionsPanel({
         key: "refine",
         title: "Affiner l’organisation",
         desc: "Ajuster un créneau, vérifier les choix du groupe ou partager le résumé.",
-        href: `/trips/${tripId}?view=organize#hub-activities-plan`,
+        href: `/trips/${tripId}?view=voyage&section=planning`,
         icon: ClipboardList,
       });
     }
@@ -294,20 +292,13 @@ function NextActionsPanel({
         ]
           .filter(Boolean)
           .join(" · "),
-        href: `#invite-section`,
+        href: `/trips/${tripId}/invite`,
         icon: Users,
         primary: false,
       });
     }
   }
 
-  const personalDone =
-    myAvailabilityDone &&
-    myPreferencesDone &&
-    (!hasStar || starDone) &&
-    (!destinationSelected || (myHotelVoted && myTransportPicked) || !hotelOffersReady);
-
-  // Participant "à jour" si prefs+dispos (+ star) et, si offres ouvertes, a voté hôtel + trajet
   const participantCaughtUp =
     myAvailabilityDone &&
     myPreferencesDone &&
@@ -371,7 +362,6 @@ function NextActionsPanel({
       ) : null}
 
       <div className="space-y-3">
-        {/* Action principale (bloc horizontal léger) */}
         {primaryAction ? (
           (() => {
             const Tag = primaryAction.href ? "a" : "div";
@@ -405,7 +395,6 @@ function NextActionsPanel({
           })()
         ) : null}
 
-        {/* Actions secondaires (lignes simples) */}
         {secondaryActions.length > 0 ? (
           <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3">
             {secondaryActions.map((a) => {
@@ -492,21 +481,7 @@ export function TripHubDashboard({
   const datesLocked = Boolean((trip as any).dates_locked || (trip as any).datesLocked);
   const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const logistics = ((trip as any).group_logistics || {}) as any;
-  const hotelBookingStatus = logistics.hotelBookingStatus || "estimé";
-  const hotelVoted = hotelBookingStatus === "sélectionné" || hotelBookingStatus === "réservé";
 
-  const activeParticipants = Array.isArray(trip.participants)
-    ? trip.participants.filter((p: any) => p.status !== "absent")
-    : [];
-
-  const transportPicked =
-    activeParticipants.length > 0 &&
-    activeParticipants.every((p: any) => {
-      const userPick = p.user_id
-        ? (logistics.transportPicks ?? []).find((pk: any) => pk.userId === p.user_id)
-        : null;
-      return userPick && (userPick.status === "sélectionné" || userPick.status === "réservé");
-    });
   const myHotelVoted = Boolean(
     viewerUserId && (logistics.hotelVotes ?? []).some((v: any) => v.userId === viewerUserId),
   );
@@ -516,37 +491,11 @@ export function TripHubDashboard({
   const hotelOffersReady = Boolean(logistics.hotels?.length);
   const transportOffersReady = Boolean(logistics.transports?.length);
 
-  // Même seuil que `assessGenerationReadiness` côté serveur (MIN_ANSWERS / MIN_ANSWER_RATIO) :
-  // Règle retirée pour toujours afficher les propositions sans seuil minimum de préférences
-  const steps = buildTripSteps({
-    tripId,
-    participantsJoined: participantsCount,
-    participantsExpected: trip.participants_count || 1,
-    availabilityAnswered,
-    questionnaireAnswered: progressAnswered,
-    datesLocked,
-    profileReady,
-    profileValidated,
-    hasRecommendations,
-    destinationSelected,
-    hotelVoted,
-    transportPicked,
-    hasItinerary,
-    activitiesValidated: inputActivitiesValidated,
-    tripEndDatePassed: inputTripEndDatePassed,
-    showStarStep:
-      isOwner &&
-      Boolean(trip.has_star || trip.celebrated_person) &&
-      logistics.star_mode === "secret",
-    starName: trip.celebrated_person,
-    starDone,
-  });
-
   const theme = eventTypeLabel(trip.event_type);
 
   return (
     <div className="space-y-8">
-      {/* TRIP CONTEXT : Surface bg-sage/8 rounded-[30px] p-8 */}
+      {/* TRIP CONTEXT */}
       <header className="relative overflow-hidden rounded-[30px] bg-sage/8 border border-border/50 p-6 sm:p-8">
         <KrewMark
           type="circle"
@@ -587,7 +536,6 @@ export function TripHubDashboard({
               </p>
             ) : null}
 
-            {/* Inline Meta rows with small Lucide icons */}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-1">
               <span className="inline-flex items-center gap-1.5">
                 <Users className="size-3.5 text-muted-foreground" />
@@ -688,7 +636,6 @@ export function TripHubDashboard({
             </div>
           </div>
 
-          {/* Visuel 180px desktop / 100% mobile */}
           <div className="w-full lg:w-[180px] h-[140px] lg:h-[120px] overflow-hidden rounded-[20px] shrink-0 border border-border/60">
             <img
               src={heroImageForEvent(trip.event_type)}
@@ -700,7 +647,7 @@ export function TripHubDashboard({
         </div>
       </header>
 
-      {/* Prochaines étapes (prioritaires) */}
+      {/* Prochaines actions prioritaires */}
       <NextActionsPanel
         tripId={tripId}
         isOwner={isOwner}
@@ -721,21 +668,6 @@ export function TripHubDashboard({
         transportOffersReady={transportOffersReady}
         hasItinerary={hasItinerary}
       />
-
-      {/* Parcours du groupe */}
-      <section className="space-y-3 relative">
-        <div className="hidden sm:block absolute -top-4 right-8 pointer-events-none z-10">
-          <KrewMark type="connector" tone="sage" size="md" rotation={-2} />
-        </div>
-        <TripHubNav
-          tripId={tripId}
-          steps={steps}
-          availabilityAnswered={availabilityAnswered}
-          availabilityExpected={availabilityExpected}
-          progressAnswered={progressAnswered}
-          progressTotal={progressTotal || trip.participants_count || 1}
-        />
-      </section>
 
       {children}
     </div>
