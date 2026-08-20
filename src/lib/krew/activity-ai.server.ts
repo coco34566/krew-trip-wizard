@@ -474,8 +474,8 @@ export function calculatePlanningWindow(input: ActivityAiInput): PlanningWindowR
   * Unknown arrival/departure boundaries stay null!
   */
 export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
-  const nights = Math.max(1, input.nights || 1);
-  const daysCount = nights + 1;
+  const nights = input.nights ?? 1;
+  const daysCount = Math.max(1, nights + 1);
   const window = calculatePlanningWindow(input);
 
   const dayWindows: DayWindow[] = [];
@@ -484,8 +484,8 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
     const isDepartureDay = d === daysCount;
     const date = input.startDate ? addDays(input.startDate, d - 1) : null;
 
-    let availableFrom: string | null = "08:00";
-    let availableUntil: string | null = "23:59";
+    let availableFrom: string | null = isArrivalDay ? window.arrivalReady : "08:00";
+    let availableUntil: string | null = isDepartureDay ? window.latestDestinationDeparture : "23:59";
 
     if (window.arrivalDayOffset > 0) {
       if (d <= window.arrivalDayOffset) {
@@ -494,12 +494,6 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
       } else if (d === window.arrivalDayOffset + 1) {
         availableFrom = window.arrivalReady;
       }
-    } else if (isArrivalDay) {
-      availableFrom = window.arrivalReady; // null if unknown
-    }
-
-    if (isDepartureDay) {
-      availableUntil = window.latestDestinationDeparture; // null if unknown
     }
 
     dayWindows.push({
@@ -521,98 +515,86 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
   const wantsLateNight = timeSlotPrefs.some((s) => s.includes("tard_soir") || s.includes("nuit") || s.includes("soiree_tardive"));
 
   for (const dw of dayWindows) {
-    if (dw.availableFrom === null && dw.availableUntil === null) continue;
+    if (dw.availableFrom === null || dw.availableUntil === null) continue;
 
-    // Breakfast (08:30 / 09:30): created ONLY if availableFrom is known and <= 09:30
-    if (dw.availableFrom !== null) {
-      const startMin = toMinutes(dw.availableFrom)!;
-      const endMin = dw.availableUntil !== null ? toMinutes(dw.availableUntil)! : 1439;
-      if (startMin <= 9 * 60 + 30 && endMin >= 8 * 60 + 30) {
-        mandatoryNeeds.push({
-          id: `need_${needIdCount++}`,
-          type: "meal",
-          subType: "breakfast",
-          targetDay: dw.day,
-          timeWindow: { start: wantsLateMorning ? "09:30" : "08:30", end: "10:30" },
-          durationMinutes: 45,
-          label: "Petit-déjeuner local",
-        });
-      }
+    const startMin = toMinutes(dw.availableFrom)!;
+    const endMin = toMinutes(dw.availableUntil)!;
+
+    // Breakfast (07:30 - 10:30): created ONLY if both bounds known & intersects breakfast with enough time
+    if (startMin <= 9 * 60 + 30 && endMin >= 8 * 60 + 15 && (endMin - Math.max(startMin, 7 * 60 + 30)) >= 30) {
+      mandatoryNeeds.push({
+        id: `need_${needIdCount++}`,
+        type: "meal",
+        subType: "breakfast",
+        targetDay: dw.day,
+        timeWindow: { start: wantsLateMorning ? "09:30" : "08:30", end: "10:30" },
+        durationMinutes: 45,
+        label: "Petit-déjeuner local",
+      });
     }
 
-    // Lunch (11:30 - 14:30): created ONLY if known window intersects lunch
-    if (dw.availableFrom !== null && dw.availableUntil !== null) {
-      const startMin = toMinutes(dw.availableFrom)!;
-      const endMin = toMinutes(dw.availableUntil)!;
-      if (startMin <= 13 * 60 && endMin >= 12 * 60 + 30) {
-        mandatoryNeeds.push({
-          id: `need_${needIdCount++}`,
-          type: "meal",
-          subType: "lunch",
-          targetDay: dw.day,
-          timeWindow: { start: "11:30", end: "14:30" },
-          durationMinutes: 90,
-          label: "Déjeuner de groupe",
-        });
-      }
-    } else if (dw.availableFrom !== null && !dw.isDepartureDay) {
-      const startMin = toMinutes(dw.availableFrom)!;
-      if (startMin <= 13 * 60) {
-        mandatoryNeeds.push({
-          id: `need_${needIdCount++}`,
-          type: "meal",
-          subType: "lunch",
-          targetDay: dw.day,
-          timeWindow: { start: "11:30", end: "14:30" },
-          durationMinutes: 90,
-          label: "Déjeuner de groupe",
-        });
-      }
+    // Lunch (11:30 - 14:30): created ONLY if both bounds known & intersects lunch with enough time
+    if (startMin <= 13 * 60 + 30 && endMin >= 12 * 60 + 15 && (endMin - Math.max(startMin, 11 * 60 + 30)) >= 45) {
+      mandatoryNeeds.push({
+        id: `need_${needIdCount++}`,
+        type: "meal",
+        subType: "lunch",
+        targetDay: dw.day,
+        timeWindow: { start: "11:30", end: "14:30" },
+        durationMinutes: 90,
+        label: "Déjeuner de groupe",
+      });
     }
 
-    // Dinner (18:30 - 22:30): created ONLY if known window intersects dinner
-    if (dw.availableFrom !== null && dw.availableUntil !== null) {
-      const startMin = toMinutes(dw.availableFrom)!;
-      const endMin = toMinutes(dw.availableUntil)!;
-      if (startMin <= 20 * 60 + 30 && endMin >= 19 * 60 + 30) {
-        mandatoryNeeds.push({
-          id: `need_${needIdCount++}`,
-          type: "meal",
-          subType: "dinner",
-          targetDay: dw.day,
-          timeWindow: { start: wantsLateNight ? "20:30" : "20:00", end: "22:30" },
-          durationMinutes: 120,
-          label: "Dîner convivial de groupe",
-        });
-      }
-    } else if (dw.availableFrom !== null && !dw.isDepartureDay) {
-      const startMin = toMinutes(dw.availableFrom)!;
-      if (startMin <= 20 * 60 + 30) {
-        mandatoryNeeds.push({
-          id: `need_${needIdCount++}`,
-          type: "meal",
-          subType: "dinner",
-          targetDay: dw.day,
-          timeWindow: { start: wantsLateNight ? "20:30" : "20:00", end: "22:30" },
-          durationMinutes: 120,
-          label: "Dîner convivial de groupe",
-        });
-      }
+    // Dinner (18:30 - 22:30): created ONLY if both bounds known & intersects dinner with enough time
+    if (startMin <= 21 * 60 && endMin >= 19 * 60 + 30 && (endMin - Math.max(startMin, 18 * 60 + 30)) >= 60) {
+      mandatoryNeeds.push({
+        id: `need_${needIdCount++}`,
+        type: "meal",
+        subType: "dinner",
+        targetDay: dw.day,
+        timeWindow: { start: wantsLateNight ? "20:30" : "20:00", end: "22:30" },
+        durationMinutes: 120,
+        label: "Dîner convivial de groupe",
+      });
     }
   }
 
-  // Event signature: deterministically choose best available dayWindow where BOTH boundaries are known or reliable
+  // Event signature: deterministically choose best available dayWindow where BOTH boundaries are known and allow >= 60 min
   const eventNorm = norm(input.eventType);
   if (eventNorm.includes("evjf") || eventNorm.includes("evg") || eventNorm.includes("anniversaire") || eventNorm.includes("evenement")) {
-    let targetDayWindow = dayWindows.find((dw) => {
-      if (dw.availableFrom === null) return false;
+    // Helper to calculate total known minutes for a DayWindow
+    const getWindowDetails = (dw: DayWindow) => {
+      if (dw.availableFrom === null || dw.availableUntil === null) return null;
       const startMin = toMinutes(dw.availableFrom)!;
-      const endMin = dw.availableUntil ? toMinutes(dw.availableUntil)! : 1439;
-      return startMin <= 19 * 60 && (!dw.isDepartureDay || endMin >= 21 * 60 + 30);
+      const endMin = toMinutes(dw.availableUntil)!;
+      if (endMin - startMin < 60) return null;
+      return { startMin, endMin, totalMinutes: endMin - startMin };
+    };
+
+    // Priority 1: Evening window (intersection with 18:00 - 23:30 >= 60 min)
+    let targetDayWindow = dayWindows.find((dw) => {
+      const details = getWindowDetails(dw);
+      if (!details) return false;
+      const overlapStart = Math.max(details.startMin, 18 * 60);
+      const overlapEnd = Math.min(details.endMin, 23 * 60 + 30);
+      return overlapEnd - overlapStart >= 60;
     });
 
+    // Priority 2: Late afternoon window (intersection with 16:00 - 19:30 >= 60 min)
     if (!targetDayWindow) {
-      targetDayWindow = dayWindows.find((dw) => dw.availableFrom !== null);
+      targetDayWindow = dayWindows.find((dw) => {
+        const details = getWindowDetails(dw);
+        if (!details) return false;
+        const overlapStart = Math.max(details.startMin, 16 * 60);
+        const overlapEnd = Math.min(details.endMin, 19 * 60 + 30);
+        return overlapEnd - overlapStart >= 60;
+      });
+    }
+
+    // Priority 3: Any other known window >= 60 min
+    if (!targetDayWindow) {
+      targetDayWindow = dayWindows.find((dw) => getWindowDetails(dw) !== null);
     }
 
     if (targetDayWindow) {
@@ -623,7 +605,10 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
         type: "event_signature",
         subType,
         targetDay: targetDayWindow.day,
-        timeWindow: { start: "17:00", end: "23:30" },
+        timeWindow: {
+          start: targetDayWindow.availableFrom!,
+          end: targetDayWindow.availableUntil!,
+        },
         durationMinutes: 90,
         label,
       });

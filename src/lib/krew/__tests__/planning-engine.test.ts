@@ -43,8 +43,91 @@ const baseInput = (overrides: Partial<ActivityAiInput> = {}): ActivityAiInput =>
 });
 
 describe("PR 107 — Tests Obligatoires Logistique & Fenêtres", () => {
-  // A. arrival unknown -> availableFrom null -> findAvailableGap does not transform into 08:00
-  it("A. arrival inconnue -> availableFrom est null et findAvailableGap ne fabrique pas 08:00", () => {
+  // A. availableFrom=09:00, availableUntil=null -> aucun lunch, aucun dinner
+  it("A. availableFrom=09:00 & availableUntil=null -> aucun lunch ni dinner mandatory", () => {
+    const brief = buildPlanningBrief(
+      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: "09:00", earliestGroupDeparture: null }),
+    );
+    expect(brief.mandatoryNeeds.some((n) => n.subType === "lunch")).toBe(false);
+    expect(brief.mandatoryNeeds.some((n) => n.subType === "dinner")).toBe(false);
+  });
+
+  // B. availableFrom=null, availableUntil=22:00 -> aucun breakfast/lunch/dinner
+  it("B. availableFrom=null & availableUntil=22:00 -> aucun breakfast/lunch/dinner", () => {
+    const brief = buildPlanningBrief(
+      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: null, earliestGroupDeparture: "22:00" }),
+    );
+    expect(brief.mandatoryNeeds.some((n) => n.type === "meal")).toBe(false);
+  });
+
+  // C. availableFrom=10:00, availableUntil=14:00 -> lunch présent
+  it("C. availableFrom=10:00 & availableUntil=14:00 -> lunch présent", () => {
+    const brief = buildPlanningBrief(
+      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: "10:00", earliestGroupDeparture: "14:00" }),
+    );
+    expect(brief.mandatoryNeeds.some((n) => n.subType === "lunch")).toBe(true);
+  });
+
+  // D. availableFrom=18:00, availableUntil=22:30 -> dinner présent
+  it("D. availableFrom=18:00 & availableUntil=22:30 -> dinner présent", () => {
+    const brief = buildPlanningBrief(
+      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: "18:00", earliestGroupDeparture: "22:30" }),
+    );
+    expect(brief.mandatoryNeeds.some((n) => n.subType === "dinner")).toBe(true);
+  });
+
+  // E. availableFrom=18:00, availableUntil=null -> dinner absent
+  it("E. availableFrom=18:00 & availableUntil=null -> dinner absent", () => {
+    const brief = buildPlanningBrief(
+      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: "18:00", earliestGroupDeparture: null }),
+    );
+    expect(brief.mandatoryNeeds.some((n) => n.subType === "dinner")).toBe(false);
+  });
+
+  // F. EVJF day1 18:00–23:00 -> day1 choisi
+  it("F. EVJF day1 18:00-23:00 -> day1 choisi pour event_signature", () => {
+    const brief = buildPlanningBrief(
+      baseInput({ nights: 0, endDate: "2026-06-13", eventType: "evjf", latestGroupArrival: "18:00", earliestGroupDeparture: "23:00" }),
+    );
+    const ev = brief.mandatoryNeeds.find((n) => n.type === "event_signature");
+    expect(ev).toBeDefined();
+    expect(ev?.targetDay).toBe(1);
+  });
+
+  // G. EVJF day1 18:00–null -> day1 non considéré comme soirée certaine
+  it("G. EVJF day1 18:00-null -> aucun event_signature", () => {
+    const brief = buildPlanningBrief(
+      baseInput({ nights: 0, endDate: "2026-06-13", eventType: "evjf", latestGroupArrival: "18:00", earliestGroupDeparture: null }),
+    );
+    expect(brief.mandatoryNeeds.some((n) => n.type === "event_signature")).toBe(false);
+  });
+
+  // H. EVJF day1 inconnu, day2 17:00–19:00 -> day2 choisi si >=60 min
+  it("H. EVJF day1 inconnu, day2 17:00-19:00 -> day2 choisi", () => {
+    const brief = buildPlanningBrief(
+      baseInput({
+        eventType: "evjf",
+        startDate: "2026-06-06",
+        endDate: "2026-06-07",
+        nights: 1,
+        latestGroupArrival: null,
+        earliestGroupDeparture: "19:00",
+      }),
+    );
+    const ev = brief.mandatoryNeeds.find((n) => n.type === "event_signature");
+    expect(ev?.targetDay).toBe(2);
+  });
+
+  // I. aucune fenêtre avec deux bornes connues >=60 min -> aucun mandatory event_signature
+  it("I. aucune fenêtre avec deux bornes connues >=60 min -> aucun event_signature", () => {
+    const brief = buildPlanningBrief(
+      baseInput({ eventType: "evjf", latestGroupArrival: null, earliestGroupDeparture: null }),
+    );
+    expect(brief.mandatoryNeeds.some((n) => n.type === "event_signature")).toBe(false);
+  });
+
+  // A2. arrival unknown -> availableFrom null -> findAvailableGap does not transform into 08:00
+  it("A2. arrival inconnue -> availableFrom est null et findAvailableGap ne fabrique pas 08:00", () => {
     const brief = buildPlanningBrief(baseInput({ latestGroupArrival: null, earliestOutboundDeparture: null }));
     expect(brief.dayWindows[0]?.availableFrom).toBeNull();
 
@@ -226,7 +309,7 @@ describe("PR 107 — Tests Mandatory Needs", () => {
 
   // J. EVJF + availableUntil unknown -> unknown ne compte pas comme soirée certaine
   it("J. EVJF + availableUntil unknown le jour de départ -> ne crée pas d'événement impossible", () => {
-    const brief = buildPlanningBrief(baseInput({ eventType: "evjf", nights: 1, earliestGroupDeparture: null, latestReturnHome: null }));
+    const brief = buildPlanningBrief(baseInput({ eventType: "evjf", nights: 1, latestGroupArrival: "12:00", earliestGroupDeparture: null, latestReturnHome: null }));
     expect(brief.mandatoryNeeds.find((n) => n.type === "event_signature")?.targetDay).toBe(1);
   });
 
@@ -444,8 +527,8 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
   it("Y. rankGeoapifyCandidates utilise subtype pour classer les candidats", () => {
     const req = convertIntentToPlaceRequirements("shopping", "activite", "marché local");
     const candidates = [
-      { id: "p1", name: "Magasin général", category: "commercial.shopping_mall", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true },
-      { id: "p2", name: "Grand Marché", category: "commercial.marketplace", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 500, website: null, source: "geoapify" as const, verified: true },
+      { id: "p1", name: "Magasin général", category: "commercial.shopping_mall", categories: ["commercial.shopping_mall"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true },
+      { id: "p2", name: "Grand Marché", category: "commercial.marketplace", categories: ["commercial.marketplace"], address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 500, website: null, source: "geoapify" as const, verified: true },
     ];
 
     const ranked = rankGeoapifyCandidates(candidates, req, null, new Set());

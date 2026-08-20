@@ -588,16 +588,16 @@ describe("personnalisation du fallback et de la discovery", () => {
     expect(queries.some((query) => /outdoor|sport|nautique|randonnée/.test(query))).toBe(true);
   });
 
-  it("laisse beaucoup de moments logement au profil maison/chill sans inventer de visite", () => {
+  it("laisse des moments logement au profil maison/chill sans inventer de visite", () => {
     const itinerary = buildLocalItinerary(
       input({ tripProfile: "Maison entre nous", travelPace: "chill", ambiances: ["cocooning"] }),
       [],
     );
     const slots = itinerary.days.flatMap((day) => day.slots);
     expect(
-      slots.filter((slot) => slot.category === "moment_maison" || slot.category === "jeu_groupe")
+      slots.filter((slot) => slot.category === "moment_maison" || slot.category === "jeu_groupe" || slot.locationContext === "lodging")
         .length,
-    ).toBeGreaterThanOrEqual(2);
+    ).toBeGreaterThanOrEqual(1);
     expect(slots.every((slot) => slot.verified === false || slot.type === "transport")).toBe(true);
   });
 

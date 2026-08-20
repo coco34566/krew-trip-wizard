@@ -2044,7 +2044,15 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       ambianceFrequencies: aggregated.ambianceFrequencies,
       dealBreakerAmbiances: aggregated.dealBreakerAmbiances,
       starDealBreakers: aggregated.starDealBreakers,
-      validatedTripProfiles: aggregated.stayConcepts?.map((c: any) => c.title) || [tripProfile].filter(Boolean),
+      validatedTripProfiles: (() => {
+        const isValidated = Boolean(trip.stay_profile_validated_at);
+        const selected = (trip.stay_concepts_selected ?? []) as any[];
+        if (isValidated && Array.isArray(selected) && selected.length > 0) {
+          const titles = selected.map((c: any) => c.title).filter(Boolean);
+          if (titles.length > 0) return titles;
+        }
+        return [tripProfile].filter(Boolean);
+      })(),
       localMobility: aggregated.groupLocalMobility,
     };
 
@@ -2068,23 +2076,35 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     let accLat: number | null = null;
     let accLon: number | null = null;
 
+    let verifiedAmenities: string[] = [];
     const accRole = aggregated.groupAccommodationRole;
-    const preferAccomCoords = (accRole === "centerpiece" || accRole === "part_of_stay") && logistics.selectedHotelId;
+    const selectedAccId = logistics.selectedHotelId;
 
-    if (preferAccomCoords) {
-      const selectedAccId = logistics.selectedHotelId;
+    if (selectedAccId) {
       const accRes = await supabase
         .from("accommodations")
-        .select("latitude, longitude")
+        .select("latitude, longitude, amenities")
         .eq("id", selectedAccId)
         .maybeSingle();
-      if (accRes.data?.latitude != null && accRes.data?.longitude != null) {
-        accLat = Number(accRes.data.latitude);
-        accLon = Number(accRes.data.longitude);
-        refLat = accLat;
-        refLon = accLon;
+
+      if (accRes.data) {
+        if (accRes.data.latitude != null && accRes.data.longitude != null) {
+          accLat = Number(accRes.data.latitude);
+          accLon = Number(accRes.data.longitude);
+          if (accRole === "centerpiece" || accRole === "part_of_stay") {
+            refLat = accLat;
+            refLon = accLon;
+          }
+        }
+        if (Array.isArray(accRes.data.amenities)) {
+          verifiedAmenities = accRes.data.amenities.map(String).filter(Boolean);
+        } else if (typeof accRes.data.amenities === "string") {
+          verifiedAmenities = [accRes.data.amenities].filter(Boolean);
+        }
       }
     }
+
+    activityInput.verifiedLodgingAmenities = verifiedAmenities;
 
     if (refLat == null || refLon == null) {
       if (recoRow.destination_id) {
@@ -2252,6 +2272,17 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         let matchedPlace: any = null;
 
         for (const candidate of candidatesAvailable) {
+          // Check explicit req.subtype constraint if non-null
+          if (req.subtype) {
+            const normSubtype = String(req.subtype).toLowerCase();
+            const candCategories = (candidate.categories || []).map((c: any) => String(c).toLowerCase());
+            const hasSubtype = candCategories.some((c: string) => c.includes(normSubtype));
+            if (!hasSubtype) {
+              candidatesRejectedRequirements++;
+              continue;
+            }
+          }
+
           // Check hard distance threshold
           if (lastSlotCoords?.latitude != null && lastSlotCoords?.longitude != null && candidate.latitude != null && candidate.longitude != null) {
             const { haversineDistanceKm } = await import("@/lib/krew/activity-ai.server");
