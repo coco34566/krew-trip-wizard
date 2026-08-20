@@ -15,6 +15,7 @@ import {
   PARTICIPANTS_MAX,
   PARTICIPANTS_MIN,
   STAR_EVENT_TYPES,
+  getTripTypeImage,
 } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 
@@ -168,22 +169,45 @@ function NewTripPage() {
         <div className="border-b border-border/50 pb-8 mb-8 space-y-4">
           <Label className="text-base font-semibold text-foreground block">Type d'événement</Label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {activeEventTypes.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => setEventType(t.value)}
-                className={cn(
-                  "rounded-[14px] p-4 border text-left transition-all cursor-pointer",
-                  eventType === t.value
-                    ? "border-primary bg-primary/5 text-foreground font-medium"
-                    : "border-border bg-background hover:border-primary/40 text-foreground/80",
-                )}
-              >
-                <span className="text-xl block mb-1">{t.emoji}</span>
-                <span className="font-medium text-sm leading-tight block">{t.label}</span>
-              </button>
-            ))}
+            {activeEventTypes.map((t) => {
+              const imgUrl = getTripTypeImage(t.value);
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setEventType(t.value)}
+                  className={cn(
+                    "group relative overflow-hidden rounded-[14px] border text-left transition-all cursor-pointer",
+                    imgUrl ? "p-0 min-h-[110px] flex flex-col justify-end" : "p-4",
+                    eventType === t.value
+                      ? "border-primary bg-primary/5 text-foreground ring-2 ring-primary/20"
+                      : "border-border bg-background hover:border-primary/40 text-foreground/80",
+                  )}
+                >
+                  {imgUrl ? (
+                    <>
+                      <img
+                        src={imgUrl}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
+                      <div className="relative p-3.5 z-10 text-white">
+                        <span className="text-base block mb-0.5">{t.emoji}</span>
+                        <span className="font-semibold text-sm leading-tight block text-white drop-shadow-sm">
+                          {t.label}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xl block mb-1">{t.emoji}</span>
+                      <span className="font-medium text-sm leading-tight block">{t.label}</span>
+                    </>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           <div className="pt-2 space-y-2">
