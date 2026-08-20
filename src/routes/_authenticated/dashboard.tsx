@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMyTrips, listMyPriceWatches, cancelTrip } from "@/lib/trips.functions";
 import { eventTypeLabel } from "@/lib/krew/constants";
-import { Logo } from "@/components/krew/Logo";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { useAuth } from "@/hooks/useAuth";
@@ -269,7 +268,6 @@ function Dashboard() {
         </div>
       ) : trips.length === 0 && invitations.length === 0 ? (
         <div className="rounded-[28px] border border-dashed border-border bg-surface/40 p-10 text-center sm:p-16 relative">
-          <Logo variant="icon" size="md" className="mx-auto mb-4" />
           <h2 className="font-display text-2xl font-normal text-foreground">Aucun voyage pour l'instant</h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
             Lance le questionnaire KREW : en quelques minutes tu obtiens destination, hébergement,

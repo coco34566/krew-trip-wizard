@@ -279,9 +279,26 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     const skeleton = buildKrewSkeleton(input());
     const origKey = process.env["GEMINI_API_KEY"];
     process.env["GEMINI_API_KEY"] = "test-key";
+    const validPayload = {
+      days: [
+        {
+          day: 1,
+          slots: [
+            {
+              kind: "place_required",
+              momentType: "repas",
+              canonicalVenueFamily: "restaurant",
+              label: "Dîner",
+              time: "20:00",
+              durationMinutes: 90,
+            },
+          ],
+        },
+      ],
+    };
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ days: [] }) }] } }] }),
+      text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(validPayload) }] } }] }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -392,7 +409,7 @@ describe("contraintes déterministes du planning", () => {
     ).toBe("20:00");
   });
 
-  it("donne la priorité à l'arrivée du transport réellement sélectionné", () => {
+  it("P1 & P2. transportPicksSummary et transportDurationHours ne dévient pas les fallbacks 18:30 / 16:30 sans vraie heure destination", () => {
     expect(
       calculatePlanningWindow(
         input({
@@ -402,10 +419,10 @@ describe("contraintes déterministes du planning", () => {
           transportPicksSummary: [{ city: "Paris", mode: "train", arrival: "18:00" }],
         }),
       ).arrivalReady,
-    ).toBe("19:00");
+    ).toBe("18:30");
   });
 
-  it("calcule l'arrivée depuis un départ à 13:00 et la durée, puis applique la marge", () => {
+  it("P3. earliestOutboundDeparture ne transforme pas l'horaire origine en arrivée destination", () => {
     expect(
       calculatePlanningWindow(
         input({
@@ -414,7 +431,7 @@ describe("contraintes déterministes du planning", () => {
           transferMarginMinutes: 60,
         }),
       ).arrivalReady,
-    ).toBe("18:00");
+    ).toBe("18:30");
   });
 
   it("supprime tout slot avant une arrivée à 18:00 plus marge", () => {
@@ -447,13 +464,13 @@ describe("contraintes déterministes du planning", () => {
     expect(day?.slots.map((slot) => slot.time)).toEqual(["19:00"]);
   });
 
-  it("calcule le départ destination à rebours d'un retour impératif à 20:00", () => {
+  it("P4. latestReturnHome ne transforme pas l'horaire origine en départ destination (reste 16:30)", () => {
     const ctx = input({
       latestReturnHome: "20:00",
       transportDurationHours: 4,
       transferMarginMinutes: 60,
     });
-    expect(calculatePlanningWindow(ctx).latestDestinationDeparture).toBe("15:00");
+    expect(calculatePlanningWindow(ctx).latestDestinationDeparture).toBe("16:30");
     const last = validateItinerary(
       [
         {
@@ -461,7 +478,7 @@ describe("contraintes déterministes du planning", () => {
           slots: [
             {
               moment: "Après-midi",
-              time: "14:30",
+              time: "15:30",
               durationMinutes: 90,
               type: "activite",
               label: candidate.name,

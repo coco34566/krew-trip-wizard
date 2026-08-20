@@ -73,7 +73,7 @@ function Landing() {
 
       <main>
         {/* ——— Hero Poster / Normal Flow Container ——— */}
-        <section className="relative overflow-hidden bg-background py-12 lg:py-20">
+        <section className="relative overflow-hidden bg-background py-10 lg:py-16">
           <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative">
             <KrewMark
               type="circle"
@@ -86,12 +86,12 @@ function Landing() {
             <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               {/* Text Column (7 cols) */}
               <div className="lg:col-span-7 space-y-6 z-10">
-                <p className="text-sm font-semibold uppercase tracking-wider text-primary">
+                <p className="text-sm font-medium text-primary">
                   L’organisation des voyages de groupe, simplement
                 </p>
 
                 <div className="relative inline-block">
-                  <h1 className="font-display text-[44px] sm:text-[64px] lg:text-[84px] font-normal tracking-tight text-foreground leading-[0.92]">
+                  <h1 className="font-display text-[48px] sm:text-[64px] lg:text-[88px] font-normal tracking-tight text-foreground leading-[0.88]">
                     Le voyage de groupe,{" "}
                     <span className="italic text-primary">organisé pour toi.</span>
                   </h1>
@@ -104,7 +104,7 @@ function Landing() {
                   />
                 </div>
 
-                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl pt-1">
+                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl pt-2">
                   Disponibilités, envies, budget : KREW rassemble les réponses du groupe et t’aide à
                   organiser le séjour, étape par étape.
                 </p>
@@ -133,7 +133,7 @@ function Landing() {
 
               {/* Photo Column (5 cols) */}
               <div className="lg:col-span-5 relative z-10">
-                <div className="relative overflow-hidden rounded-[28px] lg:rounded-[36px] border border-border/40 shadow-sm aspect-[4/5] sm:aspect-[4/3] lg:aspect-[4/5] w-full">
+                <div className="relative overflow-hidden rounded-[28px] lg:rounded-l-[44px] border-0 shadow-none aspect-[4/5] sm:aspect-[4/3] lg:aspect-[4/5] w-full">
                   <img
                     src={heroImage}
                     alt=""
@@ -390,7 +390,6 @@ function Landing() {
         {/* ——— CTA final ——— */}
         <section className="relative bg-surface/60 border-b border-border py-20 sm:py-28">
           <div className="max-w-3xl mx-auto px-5 sm:px-6 text-center">
-            <KrewMark type="sparkle" tone="sage" size="md" rotation={4} className="mx-auto mb-4 opacity-80 pointer-events-none" />
             <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground">
               Ta prochaine légende commence ici
             </h2>

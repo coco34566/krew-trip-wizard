@@ -402,26 +402,13 @@ export function openingStatus(
 export function calculatePlanningWindow(input: ActivityAiInput): PlanningWindowResult {
   const margin = Math.max(0, input.transferMarginMinutes ?? 75);
 
-  const knownArrivals = (input.transportPicksSummary ?? [])
-    .map((pick) => toMinutes(pick.arrival))
-    .filter((v): v is number => v != null);
   const explicitArrival = toMinutes(input.latestGroupArrival);
-  const outbound = toMinutes(input.earliestOutboundDeparture);
-  const duration = Number(input.transportDurationHours);
 
   let arrivalTotalMinutes: number | null = null;
-  if (knownArrivals.length > 0) {
-    arrivalTotalMinutes = Math.max(...knownArrivals) + margin;
-  } else if (explicitArrival != null) {
+  if (explicitArrival != null) {
     arrivalTotalMinutes = explicitArrival + margin;
-  } else if (outbound != null && Number.isFinite(duration) && duration > 0) {
-    arrivalTotalMinutes = outbound + Math.round(duration * 60) + margin;
-  } else if (outbound != null) {
-    // No transport pick selected, convert departure time from origin to arrival ready at destination
-    const estimatedTravelBuffer = 120;
-    arrivalTotalMinutes = Math.max(toMinutes("18:30")!, outbound + estimatedTravelBuffer);
   } else {
-    // Official product fallback when no transport or departure time is known: First day planifiable from 18:30
+    // Official product fallback when no explicit destination arrival time is known: First day planifiable from 18:30
     arrivalTotalMinutes = toMinutes("18:30")!;
   }
 
@@ -438,25 +425,13 @@ export function calculatePlanningWindow(input: ActivityAiInput): PlanningWindowR
     }
   }
 
-  const knownDepartures = (input.transportPicksSummary ?? [])
-    .map((pick) => toMinutes(pick.departure))
-    .filter((v): v is number => v != null);
   const explicitDeparture = toMinutes(input.earliestGroupDeparture);
-  const returnHome = toMinutes(input.latestReturnHome);
 
   let departureTotalMinutes: number | null = null;
-  if (knownDepartures.length > 0) {
-    departureTotalMinutes = Math.min(...knownDepartures);
-  } else if (explicitDeparture != null) {
+  if (explicitDeparture != null) {
     departureTotalMinutes = explicitDeparture;
-  } else if (returnHome != null && Number.isFinite(duration) && duration > 0) {
-    departureTotalMinutes = returnHome - Math.round(duration * 60) - margin;
-  } else if (returnHome != null) {
-    // No transport pick selected, convert latest return home time to destination departure
-    const estimatedReturnBuffer = 120;
-    departureTotalMinutes = Math.min(toMinutes("16:30")!, Math.max(toMinutes("08:00")!, returnHome - estimatedReturnBuffer));
   } else {
-    // Official product fallback when no transport or return constraint is known: Last day planifiable until 16:30
+    // Official product fallback when no explicit destination departure time is known: Last day planifiable until 16:30
     departureTotalMinutes = toMinutes("16:30")!;
   }
 
@@ -1159,7 +1134,7 @@ export function applyMaxActivitiesPerDay(skeleton: KrewSkeleton, brief: Planning
 export async function geminiEnrichSkeleton(
   skeleton: KrewSkeleton,
   input: ActivityAiInput,
-): Promise<{ enrichedSkeleton: KrewSkeleton; usedLlm: boolean; error?: string }> {
+): Promise<{ enrichedSkeleton: KrewSkeleton; usedLlm: boolean; geminiCalled?: boolean; error?: string }> {
   const key = process.env["GEMINI_API_KEY"];
   const brief = buildPlanningBrief(input);
 
@@ -1167,6 +1142,7 @@ export async function geminiEnrichSkeleton(
     return {
       enrichedSkeleton: buildMinimalFallbackFromBrief(brief),
       usedLlm: false,
+      geminiCalled: false,
       error: "no_gemini_key",
     };
   }
@@ -1360,6 +1336,7 @@ Brief JSON = ${JSON.stringify(brief)}`;
     return {
       enrichedSkeleton: finalSkeleton,
       usedLlm: true,
+      geminiCalled: true,
     };
   } catch (error) {
     console.warn("gemini-composition-telemetry", {
@@ -1379,6 +1356,7 @@ Brief JSON = ${JSON.stringify(brief)}`;
     return {
       enrichedSkeleton: buildMinimalFallbackFromBrief(brief),
       usedLlm: false,
+      geminiCalled: true,
       error: String(error).slice(0, 180),
     };
   }
@@ -1740,7 +1718,10 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[] } |
     const rawDay = rawDays[idx];
     if (!rawDay || typeof rawDay !== "object") continue;
 
-    const dayNumber = Number(rawDay.day ?? rawDay.jour ?? rawDay.dayNumber ?? idx + 1);
+    const rawDayVal = rawDay.day ?? rawDay.jour ?? rawDay.dayNumber;
+    if (rawDayVal == null) continue;
+
+    const dayNumber = Number(rawDayVal);
     if (!Number.isFinite(dayNumber) || dayNumber <= 0) continue;
 
     let rawSlots: any[] | null = null;

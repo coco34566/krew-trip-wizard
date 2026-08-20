@@ -111,6 +111,30 @@ export function eventTypeLabel(value: string) {
   return EVENT_TYPES.find((e) => e.value === value)?.label ?? value;
 }
 
+/**
+ * Image locale officielle selon l'event_type du voyage.
+ * Retourne null si aucun visuel officiel n'est mappé (laissant la surface appliquer son fallback).
+ */
+export function getTripTypeImage(eventType?: string | null): string | null {
+  if (!eventType) return null;
+  const key = String(eventType)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/[-\s]+/g, "_");
+
+  const officialMap: Record<string, string> = {
+    evg: "/images/trip-types/evg.png",
+    evjf: "/images/trip-types/evjf.png",
+    anniversaire: "/images/trip-types/anniversaire.png",
+    weekend: "/images/trip-types/weekend.png",
+    week_end: "/images/trip-types/weekend.png",
+  };
+
+  return officialMap[key] ?? null;
+}
+
 export function ambianceLabel(value: string) {
   return AMBIANCES.find((a) => a.value === value)?.label ?? value;
 }

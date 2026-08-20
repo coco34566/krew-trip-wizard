@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { buildTripSteps } from "@/lib/krew/availability";
-import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
+import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { updateTripParticipantsCount } from "@/lib/trips.functions";
@@ -62,14 +62,16 @@ type Props = {
   children?: React.ReactNode;
 };
 
-/** Photos lifestyle premium (Unsplash) — voyage & ambiance, pas de clichés ballons/kitsch. */
+/**
+ * Visual hero du voyage : utilise en priorité l'image locale officielle,
+ * et retombe sur la photo lifestyle Unsplash pour les types non mappés.
+ */
 function heroImageForEvent(eventType?: string | null) {
+  const officialImage = getTripTypeImage(eventType);
+  if (officialImage) return officialImage;
+
   const q = "auto=format&fit=crop&w=1600&q=85";
   const map: Record<string, string> = {
-    evg: `https://images.unsplash.com/photo-1514933651103-005eec06c04b?${q}`,
-    evjf: `https://images.unsplash.com/photo-1527529482838-46479466cbfe?${q}`,
-    anniversaire: `https://images.unsplash.com/photo-1414235077428-338989a2e8c0?${q}`,
-    weekend: `https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?${q}`,
     voyage_groupe: `https://images.unsplash.com/photo-1527631746610-b998ef1c7d1d?${q}`,
     famille: `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?${q}`,
     seminaire: `https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?${q}`,
@@ -85,7 +87,6 @@ function heroImageForEvent(eventType?: string | null) {
     .replace(/[-\s]+/g, "_");
 
   if (key === "voyage") key = "voyage_groupe";
-  if (key === "week_end") key = "weekend";
 
   return map[key] || map["autre"];
 }
@@ -317,8 +318,8 @@ function NextActionsPanel({
   if (actions.length === 0 && participantCaughtUp) {
     return (
       <section className="rounded-2xl border border-sage/20 bg-sage/8 p-5">
-        <div className="flex gap-3 items-start">
-          <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 shrink-0" />
+        <div className="flex gap-3">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-sage" />
           <div>
             <h2 className="font-display text-lg font-normal tracking-tight text-foreground">
               Tout est à jour de ton côté

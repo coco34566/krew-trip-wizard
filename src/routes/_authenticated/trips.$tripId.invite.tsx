@@ -32,7 +32,6 @@ import { STAR_EVENT_TYPES, eventTypeLabel } from "@/lib/krew/constants";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
-import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/invite")({
   head: () => ({
@@ -259,13 +258,10 @@ function InvitePage() {
 
       {/* Heading */}
       <div className="space-y-1">
-        <div className="relative inline-block">
-          <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-tight tracking-tight text-foreground">
-            Groupe
-          </h1>
-          <KrewMark type="underline" tone="sage" size="sm" rotation={-2} className="absolute left-0 -bottom-1 pointer-events-none opacity-80" />
-        </div>
-        <p className="text-sm text-muted-foreground pt-1">
+        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-tight tracking-tight text-foreground">
+          Groupe
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Gère les participants, les invitations et les réponses du groupe.
         </p>
         <p className="text-xs font-semibold text-primary font-mono pt-1">
@@ -342,7 +338,7 @@ function InvitePage() {
                       </Button>
                     )
                   ) : null}
-                  {data.isOwner && !p.placeholder && !p.isStar ? (
+                  {data.isOwner && !p.placeholder ? (
                     <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => removeMutation.mutate(p.id)}>
                       Retirer
                     </Button>
@@ -460,7 +456,7 @@ function InvitePage() {
       {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
         <section className="rounded-3xl border border-border bg-card p-5 space-y-4">
           <h2 className="flex items-center gap-2 font-semibold text-foreground">
-            <KrewMark type="heart" tone="plum" size="sm" /> Rôle de la Star ({trip.celebrated_person || "Star"})
+            <Star className="size-4 text-primary" /> Rôle de la Star ({trip.celebrated_person || "Star"})
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <button
