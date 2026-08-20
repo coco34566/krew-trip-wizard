@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- external API payloads are normalized at the boundary */
+/* eslint-disable @typescript-eslint/no-explicit-any -- external API payloads are normalized at boundary */
 import { reportServerError } from "@/lib/server-error-reporting.server";
 
 export type GeoapifyPlace = {
@@ -36,18 +36,19 @@ export type PlaceRequirements = {
   experienceTags?: string[];
 };
 
-// Cache for Place Details to avoid duplicate calls
 const placeDetailsCache = new Map<string, any>();
 
 export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: string): string[] {
   const norm = String(family || type || "").toLowerCase().trim();
-  if (norm.includes("cafe") || norm.includes("brunch") || norm.includes("petit-dejeuner")) {
+  if (norm.includes("cafe") || norm.includes("brunch") || norm.includes("petit-dejeuner") || norm.includes("petit-déjeuner")) {
     return ["catering.cafe", "catering.restaurant"];
   }
   if (
     norm.includes("restaurant") ||
     norm.includes("diner") ||
+    norm.includes("dîner") ||
     norm.includes("dejeuner") ||
+    norm.includes("déjeuner") ||
     norm.includes("gastro") ||
     norm === "resto"
   ) {
@@ -76,6 +77,8 @@ export function convertIntentToPlaceRequirements(
   momentType: string,
   searchIntent?: string,
   dietaryConstraints: string[] = [],
+  accessibilityRequired = false,
+  userNotes: string[] = [],
 ): PlaceRequirements {
   const normIntent = String(searchIntent || "").toLowerCase();
   const categories = mapVenueFamilyToGeoapifyCategories(family, momentType);
@@ -95,13 +98,16 @@ export function convertIntentToPlaceRequirements(
     subtype = "leisure.spa";
   }
 
+  const effectiveCategories = subtype ? Array.from(new Set([subtype, ...categories])) : categories;
   const dietary = dietaryConstraints.length > 0 ? dietaryConstraints : null;
+  const accessibility = mapAccessibilityToGeoapifyConditions(accessibilityRequired, userNotes);
 
   return {
     canonicalFamily: family,
-    categories,
+    categories: effectiveCategories,
     subtype,
     dietary,
+    accessibility: accessibility.length ? accessibility : null,
   };
 }
 
@@ -111,13 +117,33 @@ export function buildPoolKey(req: PlaceRequirements): string {
     ...req.categories.slice().sort(),
     req.subtype || "",
     (req.dietary || []).slice().sort().join(","),
+    (req.accessibility || []).slice().sort().join(","),
   ];
   return parts.filter(Boolean).join("::");
 }
 
+export function mapDietaryConstraintsToGeoapifyConditions(dietary: string[] = []): string[] {
+  const conditions: string[] = [];
+  for (const d of dietary) {
+    const norm = String(d).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    if (norm.includes("vegan") || norm.includes("vegetalien")) conditions.push("vegan");
+    if (norm.includes("vegetar")) conditions.push("vegetarian");
+    if (norm.includes("halal")) conditions.push("halal");
+    if (norm.includes("gluten")) conditions.push("gluten_free");
+  }
+  return Array.from(new Set(conditions));
+}
+
+export function mapAccessibilityToGeoapifyConditions(accessibilityRequired?: boolean, userNotes?: string[]): string[] {
+  const text = String(userNotes?.join(" ") || "").toLowerCase();
+  if (accessibilityRequired || text.includes("pmr") || text.includes("fauteuil") || text.includes("wheelchair")) {
+    return ["wheelchair"];
+  }
+  return [];
+}
+
 export function determineSearchRadiusMeters(mobility?: string | null, profile?: string | null): number {
   if (!mobility) {
-    // Unknown mobility: prudent neutral policy (10 km)
     return 10000;
   }
 
@@ -125,15 +151,36 @@ export function determineSearchRadiusMeters(mobility?: string | null, profile?: 
   const p = String(profile || "").toLowerCase();
 
   if (m === "walk_transit" || p.includes("city") || p.includes("urbain")) {
-    return 3500; // 3.5 km
+    return 3500;
   }
   if (m === "car_if_worth_it" || p.includes("maison") || p.includes("chill")) {
-    return 12000; // 12 km
+    return 12000;
   }
   if (m === "car_ok" || p.includes("outdoor") || p.includes("montagne") || p.includes("nature")) {
-    return 25000; // 25 km
+    return 25000;
   }
-  return 10000; // default 10 km
+  return 10000;
+}
+
+export function mergeUniquePlacesById(existing: GeoapifyPlace[] = [], incoming: GeoapifyPlace[] = []): GeoapifyPlace[] {
+  const seen = new Set<string>();
+  const merged: GeoapifyPlace[] = [];
+
+  for (const item of existing) {
+    if (item && item.id && !seen.has(item.id)) {
+      seen.add(item.id);
+      merged.push(item);
+    }
+  }
+
+  for (const item of incoming) {
+    if (item && item.id && !seen.has(item.id)) {
+      seen.add(item.id);
+      merged.push(item);
+    }
+  }
+
+  return merged;
 }
 
 export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Promise<GeoapifyPlace[]> {
@@ -263,4 +310,50 @@ export async function fetchPlaceDetails(placeId: string): Promise<any | null> {
   } catch {
     return null;
   }
+}
+
+export function rankGeoapifyCandidates(
+  candidates: GeoapifyPlace[],
+  req: PlaceRequirements,
+  lastCoords: { latitude?: number | null; longitude?: number | null } | null,
+  usedCandidateIdsSet: Set<string>,
+): GeoapifyPlace[] {
+  const normSubtype = String(req.subtype || "").toLowerCase();
+
+  const haversine = (
+    a: { latitude?: number | null; longitude?: number | null },
+    b: { latitude?: number | null; longitude?: number | null },
+  ) => {
+    if (a.latitude == null || a.longitude == null || b.latitude == null || b.longitude == null) return 99999;
+    const rad = (deg: number) => (deg * Math.PI) / 180;
+    const dLat = rad(b.latitude - a.latitude);
+    const dLon = rad(b.longitude - a.longitude);
+    const h =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLon / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  };
+
+  return candidates.slice().sort((a, b) => {
+    // 1. Unused candidate first
+    const usedA = usedCandidateIdsSet.has(a.id) ? 1 : 0;
+    const usedB = usedCandidateIdsSet.has(b.id) ? 1 : 0;
+    if (usedA !== usedB) return usedA - usedB;
+
+    // 2. Subtype match
+    if (normSubtype) {
+      const matchA = String(a.category || "").toLowerCase().includes(normSubtype) ? 0 : 1;
+      const matchB = String(b.category || "").toLowerCase().includes(normSubtype) ? 0 : 1;
+      if (matchA !== matchB) return matchA - matchB;
+    }
+
+    // 3. Distance
+    if (lastCoords?.latitude != null && lastCoords?.longitude != null) {
+      const distA = haversine(lastCoords, a);
+      const distB = haversine(lastCoords, b);
+      return distA - distB;
+    }
+
+    return 0;
+  });
 }
