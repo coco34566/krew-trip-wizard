@@ -33,12 +33,12 @@ export function TripHubNav({
 
   function stepHref(step: TripStep): string | null {
     if (step.id === "invite") return `/trips/${tripId}/invite`;
-    if (step.id === "dates") return `/trips/${tripId}?view=organize#hub-dates`;
-    if (step.id === "profile") return `/trips/${tripId}?view=organize#hub-profile`;
-    if (step.id === "destination") return `/trips/${tripId}?view=organize#hub-destination`;
-    if (step.id === "hotels") return `/trips/${tripId}?view=organize#hub-logistics`;
-    if (step.id === "transport") return `/trips/${tripId}?view=organize#hub-transports`;
-    if (step.id === "organize") return `/trips/${tripId}?view=organize#hub-activities-plan`;
+    if (step.id === "dates") return `/trips/${tripId}?view=voyage&section=dates`;
+    if (step.id === "profile") return `/trips/${tripId}?view=voyage&section=profile`;
+    if (step.id === "destination") return `/trips/${tripId}?view=voyage&section=destination`;
+    if (step.id === "hotels") return `/trips/${tripId}?view=voyage&section=accommodation`;
+    if (step.id === "transport") return `/trips/${tripId}?view=voyage&section=transport`;
+    if (step.id === "organize") return `/trips/${tripId}?view=voyage&section=planning`;
     const routeTo = STEP_ROUTE[step.id];
     if (routeTo) return routeTo.replace("$tripId", tripId);
     return null;

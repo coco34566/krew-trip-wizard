@@ -1124,7 +1124,7 @@ function TripDetail() {
           search={{ view: "voyage" }}
           className={cn(
             "pb-1 transition-colors hover:text-foreground",
-            currentView === "voyage" || currentView === "organize"
+            currentView === "voyage"
               ? "border-b-2 border-primary text-foreground font-semibold"
               : "text-muted-foreground",
           )}
@@ -1297,7 +1297,7 @@ function TripDetail() {
 
 
       {/* VUE VOYAGE (SYNTHÈSE ET MODULES) */}
-      {(currentView === "voyage" || currentView === "organize") ? (
+      {currentView === "voyage" ? (
         !currentSection ? (
           /* SYNTHESIS 9-ENTRY LIST VIEW */
           <div className="space-y-6">
@@ -1410,7 +1410,7 @@ function TripDetail() {
               <ArrowLeft className="size-4" /> Voyage
             </Link>
 
-      {(currentSection === "dates" || currentView === "organize") ? (
+      {currentSection === "dates" ? (
       <section
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
         id="hub-dates"
@@ -1589,7 +1589,7 @@ function TripDetail() {
       </section>
       ) : null}
 
-      {(currentSection === "profile" || currentView === "organize") ? (
+      {currentSection === "profile" ? (
       <section
         id="hub-profile"
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -1661,7 +1661,7 @@ function TripDetail() {
       </section>
       ) : null}
 
-      {(currentSection === "destination" || currentView === "organize") ? (
+      {currentSection === "destination" ? (
       <section
         id="hub-destination"
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -1864,7 +1864,7 @@ function TripDetail() {
       </section>
       ) : null}
 
-      {(currentSection === "accommodation" || currentView === "organize") && destinationSelected ? (
+      {currentSection === "accommodation" && destinationSelected ? (
         <section
           id="hub-logistics"
           className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2099,7 +2099,7 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {(currentSection === "transport" || currentView === "organize") ? (
+      {currentSection === "transport" ? (
       <section
         id="hub-transports"
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2298,7 +2298,7 @@ function TripDetail() {
       </section>
       ) : null}
 
-      {(currentSection === "planning" || currentView === "organize") && destinationSelected ? (
+      {currentSection === "planning" && destinationSelected ? (
         <section
           id="hub-activities-plan"
           className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2429,7 +2429,7 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {(currentSection === "tasks" || currentView === "organize") && destinationSelected ? (
+      {currentSection === "tasks" && destinationSelected ? (
         <section
           id="hub-tasks-org"
           className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2598,7 +2598,7 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {(currentSection === "expenses" || currentView === "organize") && destinationSelected && costSplitData?.split ? (
+      {currentSection === "expenses" && destinationSelected && costSplitData?.split ? (
         <section
           id="hub-cost-split"
           className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2618,7 +2618,7 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {(currentSection === "packing" || currentView === "organize") ? (
+      {currentSection === "packing" ? (
         <section id="hub-packing" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <PackingListCard
             tripId={tripId}

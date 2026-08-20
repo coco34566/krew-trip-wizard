@@ -224,6 +224,9 @@ function InvitePage() {
   const realJoinedCount = rawParticipants.filter((p) => p.user_id && !p.placeholder).length;
   const totalPlanned = Number(trip.participants_count || 1);
 
+  const missingParticipants =
+    progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-8 space-y-8">
       {/* Top Navigation Tabs */}
@@ -355,7 +358,7 @@ function InvitePage() {
         <p className="break-all rounded-xl border border-border/60 bg-background/90 px-3.5 py-2.5 font-mono text-xs text-foreground">
           {shareUrl || "…"}
         </p>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
           <Button
             className="rounded-xl"
             variant="outline"
@@ -383,6 +386,48 @@ function InvitePage() {
           >
             Inviter via WhatsApp
           </Button>
+          {missingParticipants.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => {
+                const statusLines: string[] = [];
+                if (trip.start_date && trip.end_date) {
+                  const start = new Date(`${trip.start_date}T12:00:00`).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  });
+                  const end = new Date(`${trip.end_date}T12:00:00`).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  });
+                  statusLines.push(`📅 Dates : ${start} → ${end}`);
+                }
+                const actions: { name: string; action: string }[] = [];
+                for (const p of progress?.participants ?? []) {
+                  const name = p.display_name || p.email?.split("@")[0] || "Ami";
+                  if (!p.hasAnsweredAvailability)
+                    actions.push({ name, action: "disponibilités" });
+                  if (!p.hasAnswered)
+                    actions.push({ name, action: "préférences" });
+                }
+                const text = buildTripStatusWhatsApp({
+                  tripName: trip.name || "notre voyage",
+                  tripUrl:
+                    typeof window === "undefined"
+                      ? `/trips/${trip.id}`
+                      : `${window.location.origin}/trips/${trip.id}`,
+                  statusLines,
+                  actions,
+                });
+                shareOnWhatsApp(text);
+              }}
+            >
+              Relancer sur WhatsApp
+            </Button>
+          ) : null}
         </div>
 
         {data.isOwner ? (
