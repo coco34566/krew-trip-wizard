@@ -317,8 +317,8 @@ function NextActionsPanel({
   if (actions.length === 0 && participantCaughtUp) {
     return (
       <section className="rounded-2xl border border-sage/20 bg-sage/8 p-5">
-        <div className="flex gap-3">
-          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-sage" />
+        <div className="flex gap-3 items-start">
+          <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 shrink-0" />
           <div>
             <h2 className="font-display text-lg font-normal tracking-tight text-foreground">
               Tout est à jour de ton côté

@@ -80,6 +80,8 @@ import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import type { StayConcept } from "@/lib/krew/stay-profiles";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { Logo } from "@/components/krew/Logo";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
 import {
@@ -987,9 +989,7 @@ function TripDetail() {
   if (isSecretStar) {
     return (
       <main className="mx-auto max-w-lg px-4 py-20 text-center space-y-6">
-        <span className="inline-flex size-20 items-center justify-center rounded-full bg-primary/10 text-primary animate-pulse text-4xl">
-          🤫
-        </span>
+        <Logo variant="icon" size="md" className="mx-auto" />
         <h1 className="font-display text-3xl font-bold tracking-tight text-primary">
           Chut... C&apos;est un secret !
         </h1>
@@ -1191,7 +1191,7 @@ function TripDetail() {
       ) : null}
 
       {/* Restitution finale uniquement lorsque destination et planning sont réellement validés. */}
-      {finalRestitutionReady ? (
+      {currentView === "voyage" && !currentSection && finalRestitutionReady ? (
         <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -1316,55 +1316,73 @@ function TripDetail() {
 
               <div className="divide-y divide-border/50 text-sm">
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">1. Dates</span>
-                    <p className="text-xs text-muted-foreground">
-                      {trip.start_date && trip.end_date
-                        ? trip.start_date + " → " + trip.end_date
-                        : "À définir"}
-                    </p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="circle" tone="sage" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">1. Dates</span>
+                      <p className="text-xs text-muted-foreground">
+                        {trip.start_date && trip.end_date
+                          ? trip.start_date + " → " + trip.end_date
+                          : "À définir"}
+                      </p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "dates" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">2. Profil du voyage</span>
-                    <p className="text-xs text-muted-foreground">
-                      {profile?.selectedConcepts?.length ? profile.selectedConcepts.map(c => c.title).join(" · ") : "À définir"}
-                    </p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="heart" tone="plum" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">2. Profil du voyage</span>
+                      <p className="text-xs text-muted-foreground">
+                        {profile?.selectedConcepts?.length ? profile.selectedConcepts.map(c => c.title).join(" · ") : "À définir"}
+                      </p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "profile" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">3. Destination</span>
-                    <p className="text-xs text-muted-foreground">{liveBudget.destinationName || "À définir"}</p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="arrow" tone="sage" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">3. Destination</span>
+                      <p className="text-xs text-muted-foreground">{liveBudget.destinationName || "À définir"}</p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "destination" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">4. Hébergement</span>
-                    <p className="text-xs text-muted-foreground">{liveBudget.topHotelName || "À définir"}</p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="highlight" tone="plum" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">4. Hébergement</span>
+                      <p className="text-xs text-muted-foreground">{liveBudget.topHotelName || "À définir"}</p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "accommodation" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">5. Transport</span>
-                    <p className="text-xs text-muted-foreground">{liveBudget.transportPicksCount ? liveBudget.transportPicksCount + " trajet(s) choisi(s)" : "À définir"}</p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="connector" tone="sage" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">5. Transport</span>
+                      <p className="text-xs text-muted-foreground">{liveBudget.transportPicksCount ? liveBudget.transportPicksCount + " trajet(s) choisi(s)" : "À définir"}</p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "transport" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">6. Planning</span>
-                    <p className="text-xs text-muted-foreground">{hasItinerary ? "Planning prêt" : "À définir"}</p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="arrow" tone="plum" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">6. Planning</span>
+                      <p className="text-xs text-muted-foreground">{hasItinerary ? "Planning prêt" : "À définir"}</p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
@@ -1374,25 +1392,34 @@ function TripDetail() {
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">7. Tâches</span>
-                    <p className="text-xs text-muted-foreground">{tasksData?.length ? tasksData.length + " tâche(s)" : "À préparer"}</p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="check" tone="sage" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">7. Tâches</span>
+                      <p className="text-xs text-muted-foreground">{tasksData?.length ? tasksData.length + " tâche(s)" : "À préparer"}</p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "tasks" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">8. À emporter</span>
-                    <p className="text-xs text-muted-foreground">Checklist personnalisée</p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="circle" tone="plum" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">8. À emporter</span>
+                      <p className="text-xs text-muted-foreground">Checklist personnalisée</p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "packing" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
 
                 <div className="py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-semibold text-foreground">9. Dépenses</span>
-                    <p className="text-xs text-muted-foreground">{liveBudget.total > 0 ? "~" + formatEuro(liveBudget.total) + " / pers." : "À définir"}</p>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <KrewMark type="highlight" tone="sage" size="sm" className="shrink-0" />
+                    <div>
+                      <span className="font-semibold text-foreground">9. Dépenses</span>
+                      <p className="text-xs text-muted-foreground">{liveBudget.total > 0 ? "~" + formatEuro(liveBudget.total) + " / pers." : "À définir"}</p>
+                    </div>
                   </div>
                   <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "expenses" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
                 </div>
@@ -1417,7 +1444,7 @@ function TripDetail() {
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-            <CalendarDays className="size-5 text-primary" />
+            <KrewMark type="circle" tone="sage" size="sm" />
             Dates du groupe
           </h2>
           <a
@@ -1596,7 +1623,7 @@ function TripDetail() {
       >
         <div>
           <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-            <Sparkles className="size-5 text-primary" />
+            <KrewMark type="heart" tone="plum" size="sm" />
             Profil du voyage
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -1669,7 +1696,7 @@ function TripDetail() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-              <MapPin className="size-5 text-primary" />
+              <KrewMark type="arrow" tone="sage" size="sm" />
               Destinations proposées
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -1872,7 +1899,7 @@ function TripDetail() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <Hotel className="size-5 text-primary" />
+                <KrewMark type="highlight" tone="plum" size="sm" />
                 Hébergement
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -2107,7 +2134,7 @@ function TripDetail() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-              <Plane className="size-5 text-primary" />
+              <KrewMark type="connector" tone="sage" size="sm" />
               Transport
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -2306,7 +2333,7 @@ function TripDetail() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <CalendarDays className="size-5 text-primary" />
+                <KrewMark type="arrow" tone="plum" size="sm" />
                 Planning
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -2437,7 +2464,7 @@ function TripDetail() {
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
             <div>
               <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <ClipboardList className="size-5 text-primary" />
+                <KrewMark type="check" tone="sage" size="sm" />
                 Organisation du groupe
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
