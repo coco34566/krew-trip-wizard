@@ -2475,6 +2475,10 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
 
+    const isAccessibilityRequired = (aggregated.individualPreferences ?? []).some(
+      (preference: any) => preference?.accessibilityRequired === true,
+    );
+
     const {
       convertIntentToPlaceRequirements,
       buildPoolKey,
