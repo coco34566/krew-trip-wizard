@@ -291,26 +291,28 @@ function AvailabilityPage() {
       : null;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
+    <main className="space-y-8">
       <a
         href={`/trips/${tripId}`}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="size-4" /> Retour à Mon Voyage
       </a>
 
-      <header className="mt-4">
-        <p className="text-xs font-medium uppercase tracking-wider text-primary">
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-primary font-mono">
           Disponibilités · résumé live
         </p>
-        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">{data.trip.name}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          {data.trip.name}
+        </h1>
+        <p className="text-sm text-muted-foreground">
           {data.answered}/{data.expected} ont indiqué leurs dates
         </p>
-      </header>
+      </div>
 
-      {/* Formulaire ultra simple */}
-      <section className="mt-6 space-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm">
+      {/* CALENDRIER DEVENU L'OBJET PRINCIPAL */}
+      <section className="w-full rounded-[24px] bg-background border border-border/50 p-6 space-y-6">
         <div>
           <h2 className="font-display text-lg font-semibold">Mes disponibilités</h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -387,19 +389,19 @@ function AvailabilityPage() {
         </div>
 
         {/* Chips résumé */}
-        <div className="space-y-2">
+        <div className="space-y-3 pt-2">
           <div>
-            <p className="text-xs font-medium text-lagoon">Dispo ({availableDates.length})</p>
+            <p className="text-xs font-semibold text-secondary">Dispo ({availableDates.length})</p>
             {availableDates.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Aucune date sélectionnée</p>
+              <p className="text-xs text-muted-foreground mt-1">Aucune date sélectionnée</p>
             ) : (
-              <div className="mt-1 flex flex-wrap gap-1.5">
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {availableDates.map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => toggleDay(d)}
-                    className="inline-flex items-center gap-1 rounded-full bg-lagoon/15 px-2.5 py-1 text-xs text-foreground"
+                    className="inline-flex items-center gap-1 rounded-full bg-secondary/20 px-3 py-1 text-xs text-foreground font-mono"
                   >
                     {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
                       weekday: "short",
@@ -414,16 +416,16 @@ function AvailabilityPage() {
           </div>
           {blockedDates.length > 0 ? (
             <div>
-              <p className="text-xs font-medium text-destructive">
+              <p className="text-xs font-semibold text-destructive">
                 Impossible ({blockedDates.length})
               </p>
-              <div className="mt-1 flex flex-wrap gap-1.5">
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {blockedDates.map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => toggleDay(d)}
-                    className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs"
+                    className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-3 py-1 text-xs font-mono"
                   >
                     {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
                       weekday: "short",
@@ -438,10 +440,10 @@ function AvailabilityPage() {
           ) : null}
         </div>
 
-        <div>
-          <Label>Notes (optionnel)</Label>
+        <div className="space-y-2 pt-2">
+          <Label className="font-semibold text-foreground">Notes (optionnel)</Label>
           <Textarea
-            className="mt-1"
+            className="min-h-[120px] rounded-xl border-border focus-visible:ring-primary text-base"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Ex. : OK pour partir le jeudi soir, préfère un week-end…"
@@ -449,8 +451,8 @@ function AvailabilityPage() {
         </div>
 
         {datesLocked ? (
-          <p className="rounded-2xl border border-lagoon/40 bg-lagoon/10 px-4 py-3 text-sm text-foreground">
-            <Lock className="mr-1.5 inline size-4 text-lagoon" />
+          <p className="rounded-2xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-foreground">
+            <Lock className="mr-1.5 inline size-4 text-secondary" />
             Dates validées par l&apos;organisateur·rice — tes disponibilités sont figées et ne
             peuvent plus être modifiées.
           </p>
@@ -458,7 +460,7 @@ function AvailabilityPage() {
         <Button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending || availableDates.length === 0 || datesLocked}
-          className="w-full"
+          className="w-full h-12 rounded-xl text-base font-medium"
           size="lg"
         >
           {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}

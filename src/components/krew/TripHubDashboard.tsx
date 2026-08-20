@@ -21,7 +21,6 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TripHubNav } from "@/components/krew/TripHubNav";
 import { buildTripSteps } from "@/lib/krew/availability";
 import { eventTypeLabel, formatEuro } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
@@ -63,7 +62,6 @@ type Props = {
   children?: React.ReactNode;
 };
 
-/** Photos voyage (Unsplash) selon le type d'événement. */
 /** Photos lifestyle premium (Unsplash) — voyage & ambiance, pas de clichés ballons/kitsch. */
 function heroImageForEvent(eventType?: string | null) {
   const q = "auto=format&fit=crop&w=1600&q=85";
@@ -157,7 +155,7 @@ function NextActionsPanel({
   if (!myAvailabilityDone) {
     push({
       key: "avail",
-      title: "Indique tes disponibilités",
+      title: "Indiquer mes disponibilités",
       desc: "Indispensable pour trouver une date commune.",
       href: `/trips/${tripId}/availability`,
       icon: CalendarDays,
@@ -166,8 +164,8 @@ function NextActionsPanel({
   if (!myPreferencesDone) {
     push({
       key: "prefs",
-      title: "Remplis tes préférences",
-      desc: "Budget, ambiances, transports… pour scorer les destinations.",
+      title: "Renseigner mes préférences",
+      desc: "Budget, envies et transports pour trouver les destinations qui correspondent au groupe.",
       href: `/trips/${tripId}/questionnaire`,
       icon: ClipboardList,
     });
@@ -176,31 +174,31 @@ function NextActionsPanel({
     push({
       key: "star",
       title: trip.celebrated_person
-        ? `Préférences de ${trip.celebrated_person}`
-        : "Préférences de la Star",
-      desc: "Complète ses préférences pour le voyage.",
+        ? `Renseigner les préférences de ${trip.celebrated_person}`
+        : "Renseigner les préférences de la Star",
+      desc: "Compléter ses préférences pour le voyage.",
       href: `/trips/${tripId}/star`,
       icon: Star,
     });
   }
 
-  // —— 2. Après destination : hôtel + transport (tous) ——
+  // —— 2. Après destination : hébergement + transport (tous) ——
   if (destinationSelected) {
     if (hotelOffersReady && !myHotelVoted) {
       push({
         key: "hotel",
-        title: "Vote pour un hôtel",
-        desc: "Un vote par personne — l'orga réserve le plus plébiscité.",
-        href: `#hub-logistics`,
+        title: "Voter pour un hébergement",
+        desc: "Un vote par personne — l’organisateur·rice finalise le choix.",
+        href: `/trips/${tripId}?view=voyage&section=accommodation`,
         icon: Hotel,
       });
     }
     if (transportOffersReady && !myTransportPicked) {
       push({
         key: "transport",
-        title: "Choisis ton trajet A/R",
-        desc: "Selon ta ville + horaires d'arrivée / départ (utile pour le planning).",
-        href: `#hub-transports`,
+        title: "Choisir mon trajet",
+        desc: "Selon la ville de départ et les contraintes horaires.",
+        href: `/trips/${tripId}?view=voyage&section=transport`,
         icon: Plane,
       });
     }
@@ -212,8 +210,8 @@ function NextActionsPanel({
       push({
         key: "lock-dates",
         title: "Valider les dates du groupe",
-        desc: "Verrouille le week-end pour débloquer les destinations.",
-        href: `#hub-dates`,
+        desc: "Cette validation débloque la suite du voyage.",
+        href: `/trips/${tripId}?view=voyage&section=dates`,
         icon: CalendarDays,
       });
     }
@@ -221,17 +219,17 @@ function NextActionsPanel({
       if (!hasRecommendations) {
         push({
           key: "gen",
-          title: "Générer des destinations",
+          title: "Trouver des destinations",
           desc: "Des propositions adaptées aux préférences du groupe.",
-          href: `#hub-destination`,
+          href: `/trips/${tripId}?view=voyage&section=destination`,
           icon: Sparkles,
         });
       } else {
         push({
           key: "pick-dest",
           title: "Valider une destination",
-          desc: "Débloque hôtels, trajets et planning.",
-          href: `#hub-destination`,
+          desc: "Cette validation débloque les hébergements, les trajets et le planning.",
+          href: `/trips/${tripId}?view=voyage&section=destination`,
           icon: MapPin,
         });
       }
@@ -239,9 +237,9 @@ function NextActionsPanel({
     if (destinationSelected && !hotelOffersReady) {
       push({
         key: "search-hotels",
-        title: "Lancer la recherche hôtels",
-        desc: "Propose des hébergements au groupe pour voter.",
-        href: `#hub-logistics`,
+        title: "Rechercher des hébergements",
+        desc: "Proposer des hébergements au groupe pour le vote.",
+        href: `/trips/${tripId}?view=voyage&section=accommodation`,
         icon: Hotel,
       });
     }
@@ -249,8 +247,8 @@ function NextActionsPanel({
       push({
         key: "search-transport",
         title: "Proposer des trajets A/R",
-        desc: "Options par ville de départ pour que chacun choisisse.",
-        href: `#hub-transports`,
+        desc: "Des options adaptées aux villes de départ du groupe.",
+        href: `/trips/${tripId}?view=voyage&section=transport`,
         icon: Plane,
       });
     }
@@ -262,18 +260,18 @@ function NextActionsPanel({
     ) {
       push({
         key: "plan",
-        title: "Générer le planning",
-        desc: "Jour par jour, en tenant compte des horaires d'arrivée / départ.",
-        href: `#hub-activities-plan`,
+        title: "Créer le planning",
+        desc: "Construire le séjour jour par jour en tenant compte des horaires d’arrivée et de départ.",
+        href: `/trips/${tripId}?view=voyage&section=planning`,
         icon: Sparkles,
       });
     }
     if (hasItinerary) {
       push({
         key: "refine",
-        title: "Affiner l'organisation",
-        desc: "Régénère un créneau, check hôtel top votes, partage le résumé.",
-        href: `#hub-activities-plan`,
+        title: "Affiner l’organisation",
+        desc: "Ajuster un créneau, vérifier les choix du groupe ou partager le résumé.",
+        href: `/trips/${tripId}?view=voyage&section=planning`,
         icon: ClipboardList,
       });
     }
@@ -294,20 +292,13 @@ function NextActionsPanel({
         ]
           .filter(Boolean)
           .join(" · "),
-        href: `#invite-section`,
+        href: `/trips/${tripId}/invite`,
         icon: Users,
         primary: false,
       });
     }
   }
 
-  const personalDone =
-    myAvailabilityDone &&
-    myPreferencesDone &&
-    (!hasStar || starDone) &&
-    (!destinationSelected || (myHotelVoted && myTransportPicked) || !hotelOffersReady);
-
-  // Participant "à jour" si prefs+dispos (+ star) et, si offres ouvertes, a voté hôtel + trajet
   const participantCaughtUp =
     myAvailabilityDone &&
     myPreferencesDone &&
@@ -335,13 +326,13 @@ function NextActionsPanel({
             <p className="mt-1 text-sm leading-relaxed text-foreground/80">
               {isOwner
                 ? hasItinerary
-                  ? "Planning en place — tu peux encore ajuster hôtels, trajets ou créneaux plus bas."
+                  ? "Le planning est en place. Les choix restent modifiables si nécessaire."
                   : destinationSelected
-                    ? "Enchaîne hôtels, trajets et planning plus bas sur la page."
+                    ? "L’hébergement, le transport et le planning restent à finaliser."
                     : "Dès que le groupe a assez répondu, valide dates et destination."
                 : !destinationSelected
-                  ? "C'est aux autres de répondre, et à l'organisateur·rice de faire avancer le parcours."
-                  : "L'organisateur·rice finalise l'organisation. Tu seras prévenu·e dès qu'il y a du nouveau."}
+                  ? "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."
+                  : "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."}
             </p>
           </div>
         </div>
@@ -371,7 +362,6 @@ function NextActionsPanel({
       ) : null}
 
       <div className="space-y-3">
-        {/* Action principale (bloc horizontal léger) */}
         {primaryAction ? (
           (() => {
             const Tag = primaryAction.href ? "a" : "div";
@@ -405,7 +395,6 @@ function NextActionsPanel({
           })()
         ) : null}
 
-        {/* Actions secondaires (lignes simples) */}
         {secondaryActions.length > 0 ? (
           <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3">
             {secondaryActions.map((a) => {
@@ -492,21 +481,7 @@ export function TripHubDashboard({
   const datesLocked = Boolean((trip as any).dates_locked || (trip as any).datesLocked);
   const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const logistics = ((trip as any).group_logistics || {}) as any;
-  const hotelBookingStatus = logistics.hotelBookingStatus || "estimé";
-  const hotelVoted = hotelBookingStatus === "sélectionné" || hotelBookingStatus === "réservé";
 
-  const activeParticipants = Array.isArray(trip.participants)
-    ? trip.participants.filter((p: any) => p.status !== "absent")
-    : [];
-
-  const transportPicked =
-    activeParticipants.length > 0 &&
-    activeParticipants.every((p: any) => {
-      const userPick = p.user_id
-        ? (logistics.transportPicks ?? []).find((pk: any) => pk.userId === p.user_id)
-        : null;
-      return userPick && (userPick.status === "sélectionné" || userPick.status === "réservé");
-    });
   const myHotelVoted = Boolean(
     viewerUserId && (logistics.hotelVotes ?? []).some((v: any) => v.userId === viewerUserId),
   );
@@ -516,197 +491,163 @@ export function TripHubDashboard({
   const hotelOffersReady = Boolean(logistics.hotels?.length);
   const transportOffersReady = Boolean(logistics.transports?.length);
 
-  // Même seuil que `assessGenerationReadiness` côté serveur (MIN_ANSWERS / MIN_ANSWER_RATIO) :
-  // Règle retirée pour toujours afficher les propositions sans seuil minimum de préférences
-  const steps = buildTripSteps({
-    tripId,
-    participantsJoined: participantsCount,
-    participantsExpected: trip.participants_count || 1,
-    availabilityAnswered,
-    questionnaireAnswered: progressAnswered,
-    datesLocked,
-    profileReady,
-    profileValidated,
-    hasRecommendations,
-    destinationSelected,
-    hotelVoted,
-    transportPicked,
-    hasItinerary,
-    activitiesValidated: inputActivitiesValidated,
-    tripEndDatePassed: inputTripEndDatePassed,
-    showStarStep:
-      isOwner &&
-      Boolean(trip.has_star || trip.celebrated_person) &&
-      logistics.star_mode === "secret",
-    starName: trip.celebrated_person,
-    starDone,
-  });
-
   const theme = eventTypeLabel(trip.event_type);
 
   return (
     <div className="space-y-8">
-      {/* Hero section : Titre + Métadonnées + Photo éditoriale */}
-      <header className="space-y-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
-            {theme}
-          </p>
-          <h1 className="mt-1 font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground tracking-tight">
-            {trip.name}
-          </h1>
-          {destinationName ? (
-            <p className="mt-1 font-display text-xl sm:text-2xl text-primary font-normal">
-              {destinationName}
-            </p>
-          ) : null}
-          {trip.celebrated_person ? (
-            <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80">
-              <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
-              {trip.celebrated_person}
-            </p>
-          ) : null}
-          {trip.participants &&
-          Array.isArray(trip.participants) &&
-          trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Avec{" "}
-              {trip.participants
-                .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
-                .filter(Boolean)
-                .join(", ")}
-            </p>
-          ) : null}
-        </div>
+      {/* TRIP CONTEXT */}
+      <header className="relative overflow-hidden rounded-[30px] bg-sage/8 border border-border/50 p-6 sm:p-8">
+        <KrewMark
+          type="circle"
+          tone="sage"
+          size="lg"
+          rotation={4}
+          className="absolute -top-6 -right-6 w-[120px] opacity-60 pointer-events-none"
+        />
 
-        {/* Métadonnées légères */}
-        <div className="flex flex-wrap gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
-            <Users className="size-3.5 text-muted-foreground" />
-            {editingCount ? (
-              <>
-                <Input
-                  aria-label="Nombre de participants"
-                  type="number"
-                  min={2}
-                  max={25}
-                  step={1}
-                  value={participantsValue}
-                  onChange={(e) => setParticipantsValue(e.target.value)}
-                  className="h-6 w-14 px-1 text-xs"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  disabled={
-                    countMutation.isPending ||
-                    !Number.isInteger(Number(participantsValue)) ||
-                    Number(participantsValue) < 2 ||
-                    Number(participantsValue) > 25
-                  }
-                  onClick={() => countMutation.mutate()}
-                >
-                  Enregistrer
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-6 px-2 text-xs"
-                  onClick={() => {
-                    setParticipantsValue(String(trip.participants_count));
-                    setEditingCount(false);
-                  }}
-                >
-                  Annuler
-                </Button>
-              </>
-            ) : (
-              <>
-                <span className="font-mono">{trip.participants_count}</span> pers.
-                {isOwner ? (
-                  <button
-                    type="button"
-                    className="ml-1 text-muted-foreground hover:text-foreground"
-                    aria-label="Modifier le nombre de participants"
-                    onClick={() => setEditingCount(true)}
-                  >
-                    <Pencil className="size-3" />
-                  </button>
-                ) : null}
-              </>
-            )}
-          </span>
+        <div className="grid lg:grid-cols-[1fr_180px] gap-6 items-center">
+          <div className="space-y-3 min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
+              {theme}
+            </p>
+            <h1 className="font-display text-[38px] lg:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+              {trip.name}
+            </h1>
+            {destinationName ? (
+              <p className="font-display text-xl sm:text-2xl text-primary font-normal">
+                {destinationName}
+              </p>
+            ) : null}
+            {trip.celebrated_person ? (
+              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80">
+                <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
+                {trip.celebrated_person}
+              </p>
+            ) : null}
+            {trip.participants &&
+            Array.isArray(trip.participants) &&
+            trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Avec{" "}
+                {trip.participants
+                  .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+            ) : null}
 
-          {totalReserved != null && totalEstimated != null ? (
-            <>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 font-sans text-foreground">
-                <Wallet className="size-3.5 text-secondary" /> Réellement Réservé :{" "}
-                <span className="font-mono">{formatEuro(totalReserved)}</span>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-1">
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="size-3.5 text-muted-foreground" />
+                {editingCount ? (
+                  <>
+                    <Input
+                      aria-label="Nombre de participants"
+                      type="number"
+                      min={2}
+                      max={25}
+                      step={1}
+                      value={participantsValue}
+                      onChange={(e) => setParticipantsValue(e.target.value)}
+                      className="h-6 w-14 px-1 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      disabled={
+                        countMutation.isPending ||
+                        !Number.isInteger(Number(participantsValue)) ||
+                        Number(participantsValue) < 2 ||
+                        Number(participantsValue) > 25
+                      }
+                      onClick={() => countMutation.mutate()}
+                    >
+                      Enregistrer
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => {
+                        setParticipantsValue(String(trip.participants_count));
+                        setEditingCount(false);
+                      }}
+                    >
+                      Annuler
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-mono">{trip.participants_count}</span> pers.
+                    {isOwner ? (
+                      <button
+                        type="button"
+                        className="ml-1 text-muted-foreground hover:text-foreground"
+                        aria-label="Modifier le nombre de participants"
+                        onClick={() => setEditingCount(true)}
+                      >
+                        <Pencil className="size-3" />
+                      </button>
+                    ) : null}
+                  </>
+                )}
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
-                <Wallet className="size-3.5 text-muted-foreground" /> Reste estimé :{" "}
-                <span className="font-mono">{formatEuro(totalEstimated)}</span>
-              </span>
-            </>
-          ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 font-sans">
-              <Wallet className="size-3.5 text-muted-foreground" /> ~
-              <span className="font-mono">{formatEuro(liveBudgetTotal)}</span> / pers.
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-muted-foreground">
-              <Wallet className="size-3.5" /> Budget à définir
-            </span>
-          )}
 
-          {datesLocked && (trip.start_date || provisionalStart) ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1 font-sans text-foreground">
-              <CalendarDays className="size-3.5 text-secondary" />
-              {"Dates validées · "}
-              {trip.start_date
-                ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })
-                : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })}
-              {trip.end_date
-                ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                  })}`
-                : ""}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-muted-foreground">
-              <CalendarDays className="size-3.5" /> Date à définir
-            </span>
-          )}
-        </div>
+              {totalReserved != null && totalEstimated != null ? (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  <Wallet className="size-3.5 text-muted-foreground" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
+                </span>
+              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  <Wallet className="size-3.5 text-muted-foreground" /> ~{formatEuro(liveBudgetTotal)} / pers.
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <Wallet className="size-3.5 text-muted-foreground" /> Budget à définir
+                </span>
+              )}
 
-        {/* Photo éditoriale du voyage */}
-        <div className="relative aspect-[16/10] sm:aspect-[16/7] w-full overflow-hidden rounded-2xl border border-border/60 bg-muted">
-          <img
-            src={heroImageForEvent(trip.event_type)}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="eager"
-          />
-          <KrewMark
-            type="circle"
-            tone="sage"
-            size="md"
-            rotation={-4}
-            className="absolute top-4 right-4 pointer-events-none opacity-80 text-white"
-          />
+              {datesLocked && (trip.start_date || provisionalStart) ? (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  <CalendarDays className="size-3.5 text-muted-foreground" />
+                  Dates validées · {trip.start_date
+                    ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })
+                    : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                  {trip.end_date
+                    ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })}`
+                    : ""}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarDays className="size-3.5 text-muted-foreground" /> Date à définir
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="w-full lg:w-[180px] h-[140px] lg:h-[120px] overflow-hidden rounded-[20px] shrink-0 border border-border/60">
+            <img
+              src={heroImageForEvent(trip.event_type)}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="eager"
+            />
+          </div>
         </div>
       </header>
 
-      {/* Prochaines étapes (prioritaires) */}
+      {/* Prochaines actions prioritaires */}
       <NextActionsPanel
         tripId={tripId}
         isOwner={isOwner}
@@ -727,21 +668,6 @@ export function TripHubDashboard({
         transportOffersReady={transportOffersReady}
         hasItinerary={hasItinerary}
       />
-
-      {/* Parcours du groupe */}
-      <section className="space-y-3 relative">
-        <div className="hidden sm:block absolute -top-4 right-8 pointer-events-none z-10">
-          <KrewMark type="connector" tone="sage" size="md" rotation={-2} />
-        </div>
-        <TripHubNav
-          tripId={tripId}
-          steps={steps}
-          availabilityAnswered={availabilityAnswered}
-          availabilityExpected={availabilityExpected}
-          progressAnswered={progressAnswered}
-          progressTotal={progressTotal || trip.participants_count || 1}
-        />
-      </section>
 
       {children}
     </div>

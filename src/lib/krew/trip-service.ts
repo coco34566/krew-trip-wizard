@@ -998,15 +998,24 @@ export async function assessGenerationReadiness(
     !(trip.data as any).stay_profile_validated_at &&
     JSON.stringify(persistedCalculated) !== JSON.stringify(calculatedConcepts)
   ) {
-    await supabase
-      .from("trips")
-      .update({ stay_concepts_calculated: calculatedConcepts } as any)
-      .eq("id", tripId);
+    try {
+      await supabase
+        .from("trips")
+        .update({ stay_concepts_calculated: calculatedConcepts } as any)
+        .eq("id", tripId);
+    } catch (e) {
+      console.warn("Opportunistic stay_concepts_calculated update failed:", e);
+    }
   }
 
   let message: string | undefined;
   if (!prefsOk) message = "Les questionnaires n’ont pas encore atteint le seuil requis.";
   else if (!validated) message = "Validez d’abord le profil du voyage.";
+
+  const effectiveCalculatedConcepts =
+    persistedCalculated.length > 0
+      ? persistedCalculated
+      : calculatedConcepts;
 
   return {
     canGenerate,
@@ -1035,7 +1044,7 @@ export async function assessGenerationReadiness(
       questionnairesReady: prefsOk,
       validated,
       legacyBypass,
-      calculatedConcepts: persistedCalculated.length ? persistedCalculated : calculatedConcepts,
+      calculatedConcepts: effectiveCalculatedConcepts,
       selectedConcepts,
     },
     ...(message ? { message } : {}),

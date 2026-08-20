@@ -94,74 +94,70 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   });
 
   return (
-    <div className="space-y-3 py-2">
+    <div className="rounded-2xl border border-border/60 bg-background p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <Clock className="size-5 text-primary" />
-        <h2 className="font-display text-base font-semibold tracking-tight">
-          Contraintes horaires
-        </h2>
+        <Clock className="size-4 text-primary" />
+        <h3 className="font-display text-base font-medium text-foreground">
+          Horaires de transport
+        </h3>
       </div>
-      <p className="text-xs text-muted-foreground leading-snug">
-        Indique l'heure à partir de laquelle tu peux partir à l'aller, et l'heure limite de retour
-        chez toi. Ces préférences orientent le choix des billets du groupe.
+      <p className="text-xs text-muted-foreground">
+        Indiquer l’heure de départ la plus tôt possible et l’heure limite de retour.
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 items-end">
         <div>
-          <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
-            Je peux partir à partir de
+          <label className="text-xs font-medium text-foreground block mb-1">
+            Départ au plus tôt
           </label>
           <Input
             type="time"
-            className="mt-1 w-full"
+            className="h-9 text-xs rounded-xl"
             value={earliest}
             onChange={(e) => setEarliest(e.target.value)}
           />
         </div>
         <div>
-          <label className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
-            Je dois être rentré avant
+          <label className="text-xs font-medium text-foreground block mb-1">
+            Retour au plus tard
           </label>
           <Input
             type="time"
-            className="mt-1 w-full"
+            className="h-9 text-xs rounded-xl"
             value={latest}
             onChange={(e) => setLatest(e.target.value)}
           />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4 mt-2">
-        {/* Contrainte collective du groupe */}
-        <div className="text-xs text-muted-foreground flex items-center gap-1.5 flex-1 min-w-[200px]">
-          <Users className="size-4 text-primary opacity-80" />
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
+        <p className="text-xs text-muted-foreground font-sans">
           {groupWindow.earliestDeparture || groupWindow.latestReturn ? (
             <span>
-              Contrainte collective :
+              Groupe :
               {groupWindow.earliestDeparture
                 ? ` départ au plus tôt à ${groupWindow.earliestDeparture}`
                 : ""}
-              {groupWindow.earliestDeparture && groupWindow.latestReturn ? " et " : ""}
-              {groupWindow.latestReturn ? ` retour au plus tard à ${groupWindow.latestReturn}` : ""}
+              {groupWindow.earliestDeparture && groupWindow.latestReturn ? " · " : ""}
+              {groupWindow.latestReturn ? `retour au plus tard à ${groupWindow.latestReturn}` : ""}
             </span>
           ) : (
-            <span>Aucune contrainte horaire définie pour le groupe pour l'instant.</span>
+            <span>Aucune contrainte horaire définie pour le groupe.</span>
           )}
-        </div>
+        </p>
 
         <Button
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending || isMyPrefsLoading}
-          variant="hero"
           size="sm"
-          className="gap-1.5 shrink-0"
+          className="h-8 rounded-xl text-xs px-3 font-medium"
         >
           {saveMutation.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin mr-1" />
           ) : (
-            <Save className="size-4" />
+            <Save className="size-3.5 mr-1" />
           )}
-          Sauvegarder
+          Enregistrer
         </Button>
       </div>
     </div>

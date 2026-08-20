@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated")({
     return { user: data.user };
   },
   component: () => (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20">
       <SiteHeader />
       <Outlet />
     </div>

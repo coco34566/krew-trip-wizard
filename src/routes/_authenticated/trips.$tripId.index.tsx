@@ -29,6 +29,7 @@ import {
   Hotel,
   Train,
   Clock,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -197,6 +198,10 @@ const ACCOMMODATION_CONCEPT_LABELS: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    view: (search.view as string) || "todo",
+    section: (search.section as string) || undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Mon Voyage — KREW" },
@@ -243,6 +248,9 @@ type Recommendation = {
 
 function TripDetail() {
   const { tripId } = Route.useParams();
+  const search = Route.useSearch();
+  const currentView = search?.view ?? "todo";
+  const currentSection = search?.section;
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const vote = useServerFn(toggleVote);
@@ -1095,41 +1103,80 @@ function TripDetail() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
-      <TripHubDashboard
-        viewerUserId={data.userId}
-        tripId={tripId}
-        trip={{
-          ...trip,
-          participants: participants,
-        }}
-        isOwner={data.isOwner}
-        participantsCount={progress?.total || participants.length}
-        progressAnswered={progress?.answered ?? 0}
-        progressTotal={progress?.total || participants.length}
-        availabilityAnswered={availData?.answered ?? 0}
-        availabilityExpected={progress?.total || participants.length}
-        provisionalStart={
-          trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date
-        }
-        provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
-        myAvailabilityDone={Boolean(availData?.mine)}
-        myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
-        starDone={Boolean(starData?.preferences)}
-        hasRecommendations={recommendations.length > 0}
-        profileReady={Boolean(readiness?.profile.questionnairesReady)}
-        profileValidated={Boolean(profile?.validated)}
-        destinationSelected={recommendations.some((r) => r.is_selected)}
-        destinationName={recommendations.find((r) => r.is_selected)?.destinations?.name ?? null}
-        liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
-        totalReserved={costSplitData?.totalReserved ?? null}
-        totalEstimated={costSplitData?.totalEstimated ?? null}
-        topScores={recommendations.slice(0, 3).map((r) => ({
-          name: r.destinations?.name ?? "Destination",
-          score: r.score,
-        }))}
-        activitiesValidated={activitiesValidated}
-        tripEndDatePassed={tripEndDatePassed}
-      ></TripHubDashboard>
+      {/* Top Navigation Tabs */}
+      <nav aria-label="Navigation principale du voyage" className="flex items-center border-b border-border/50 pb-3 gap-6 font-medium text-sm mb-6">
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          search={{ view: "todo" }}
+          className={cn(
+            "pb-1 transition-colors hover:text-foreground",
+            currentView === "todo"
+              ? "border-b-2 border-primary text-foreground font-semibold"
+              : "text-muted-foreground",
+          )}
+        >
+          À faire
+        </Link>
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          search={{ view: "voyage" }}
+          className={cn(
+            "pb-1 transition-colors hover:text-foreground",
+            currentView === "voyage" || currentView === "organize"
+              ? "border-b-2 border-primary text-foreground font-semibold"
+              : "text-muted-foreground",
+          )}
+        >
+          Voyage
+        </Link>
+        <Link
+          to="/trips/$tripId/invite"
+          params={{ tripId }}
+          className="pb-1 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Groupe
+        </Link>
+      </nav>
+
+      {currentView === "todo" ? (
+        <TripHubDashboard
+          viewerUserId={data.userId}
+          tripId={tripId}
+          trip={{
+            ...trip,
+            participants: participants,
+          }}
+          isOwner={data.isOwner}
+          participantsCount={progress?.total || participants.length}
+          progressAnswered={progress?.answered ?? 0}
+          progressTotal={progress?.total || participants.length}
+          availabilityAnswered={availData?.answered ?? 0}
+          availabilityExpected={progress?.total || participants.length}
+          provisionalStart={
+            trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date
+          }
+          provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
+          myAvailabilityDone={Boolean(availData?.mine)}
+          myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
+          starDone={Boolean(starData?.preferences)}
+          hasRecommendations={recommendations.length > 0}
+          profileReady={Boolean(readiness?.profile.questionnairesReady)}
+          profileValidated={Boolean(profile?.validated)}
+          destinationSelected={recommendations.some((r) => r.is_selected)}
+          destinationName={recommendations.find((r) => r.is_selected)?.destinations?.name ?? null}
+          liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
+          totalReserved={costSplitData?.totalReserved ?? null}
+          totalEstimated={costSplitData?.totalEstimated ?? null}
+          topScores={recommendations.slice(0, 3).map((r) => ({
+            name: r.destinations?.name ?? "Destination",
+            score: r.score,
+          }))}
+          activitiesValidated={activitiesValidated}
+          tripEndDatePassed={tripEndDatePassed}
+        />
+      ) : null}
 
       {data.isOwner ? (
         <div className="mt-4 flex justify-end">
@@ -1248,6 +1295,122 @@ function TripDetail() {
         </section>
       ) : null}
 
+
+      {/* VUE VOYAGE (SYNTHÈSE ET MODULES) */}
+      {(currentView === "voyage" || currentView === "organize") ? (
+        !currentSection ? (
+          /* SYNTHESIS 9-ENTRY LIST VIEW */
+          <div className="space-y-6">
+            <div className="rounded-[28px] border border-border/60 bg-card p-6 sm:p-8 space-y-6">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
+                  {eventTypeLabel(trip.event_type)}
+                </p>
+                <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-tight text-foreground">
+                  {trip.name}
+                </h1>
+                {celebratedPerson ? (
+                  <p className="text-sm font-medium text-foreground/80 mt-1">Pour {celebratedPerson}</p>
+                ) : null}
+              </div>
+
+              <div className="divide-y divide-border/50 text-sm">
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">1. Dates</span>
+                    <p className="text-xs text-muted-foreground">
+                      {trip.start_date && trip.end_date
+                        ? trip.start_date + " → " + trip.end_date
+                        : "À définir"}
+                    </p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "dates" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">2. Profil du voyage</span>
+                    <p className="text-xs text-muted-foreground">
+                      {profile?.selectedConcepts?.length ? profile.selectedConcepts.map(c => c.title).join(" · ") : "À définir"}
+                    </p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "profile" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">3. Destination</span>
+                    <p className="text-xs text-muted-foreground">{liveBudget.destinationName || "À définir"}</p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "destination" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">4. Hébergement</span>
+                    <p className="text-xs text-muted-foreground">{liveBudget.topHotelName || "À définir"}</p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "accommodation" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">5. Transport</span>
+                    <p className="text-xs text-muted-foreground">{liveBudget.transportPicksCount ? liveBudget.transportPicksCount + " trajet(s) choisi(s)" : "À définir"}</p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "transport" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">6. Planning</span>
+                    <p className="text-xs text-muted-foreground">{hasItinerary ? "Planning prêt" : "À définir"}</p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+
+                <div className="pt-4 pb-2">
+                  <span className="text-xs font-semibold uppercase text-muted-foreground">Organisation</span>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">7. Tâches</span>
+                    <p className="text-xs text-muted-foreground">{tasksData?.length ? tasksData.length + " tâche(s)" : "À préparer"}</p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "tasks" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">8. À emporter</span>
+                    <p className="text-xs text-muted-foreground">Checklist personnalisée</p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "packing" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+
+                <div className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-foreground">9. Dépenses</span>
+                    <p className="text-xs text-muted-foreground">{liveBudget.total > 0 ? "~" + formatEuro(liveBudget.total) + " / pers." : "À définir"}</p>
+                  </div>
+                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "expenses" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <Link
+              to="/trips/$tripId"
+              params={{ tripId }}
+              search={{ view: "voyage" }}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ArrowLeft className="size-4" /> Voyage
+            </Link>
+
+      {(currentSection === "dates" || currentView === "organize") ? (
       <section
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
         id="hub-dates"
@@ -1424,7 +1587,9 @@ function TripDetail() {
           </>
         )}
       </section>
+      ) : null}
 
+      {(currentSection === "profile" || currentView === "organize") ? (
       <section
         id="hub-profile"
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -1494,7 +1659,9 @@ function TripDetail() {
           </Button>
         ) : null}
       </section>
+      ) : null}
 
+      {(currentSection === "destination" || currentView === "organize") ? (
       <section
         id="hub-destination"
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -1695,8 +1862,9 @@ function TripDetail() {
           </>
         )}
       </section>
+      ) : null}
 
-      {destinationSelected ? (
+      {(currentSection === "accommodation" || currentView === "organize") && destinationSelected ? (
         <section
           id="hub-logistics"
           className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -1931,6 +2099,7 @@ function TripDetail() {
         </section>
       ) : null}
 
+      {(currentSection === "transport" || currentView === "organize") ? (
       <section
         id="hub-transports"
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2127,8 +2296,9 @@ function TripDetail() {
           </div>
         )}
       </section>
+      ) : null}
 
-      {destinationSelected ? (
+      {(currentSection === "planning" || currentView === "organize") && destinationSelected ? (
         <section
           id="hub-activities-plan"
           className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2259,7 +2429,7 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {destinationSelected ? (
+      {(currentSection === "tasks" || currentView === "organize") && destinationSelected ? (
         <section
           id="hub-tasks-org"
           className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2428,7 +2598,7 @@ function TripDetail() {
         </section>
       ) : null}
 
-      {destinationSelected && costSplitData?.split ? (
+      {(currentSection === "expenses" || currentView === "organize") && destinationSelected && costSplitData?.split ? (
         <section
           id="hub-cost-split"
           className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
@@ -2448,8 +2618,38 @@ function TripDetail() {
         </section>
       ) : null}
 
+      {(currentSection === "packing" || currentView === "organize") ? (
+        <section id="hub-packing" className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+          <PackingListCard
+            tripId={tripId}
+            participants={participants}
+            avgTemp={null}
+            activities={
+              hasItinerary && (trip as any).group_itinerary?.days
+                ? ((trip as any).group_itinerary.days as any[])
+                    .flatMap((day) =>
+                      (day.slots ?? []).map((slot: any) =>
+                        `${slot.label || ""} ${slot.detail || ""}`.trim(),
+                      ),
+                    )
+                    .filter(Boolean)
+                : activities.map((a) => a.name)
+            }
+            durationDays={liveBudget.nights || 2}
+            eventType={trip.event_type}
+            accommodation={String(
+              logistics.hotels?.find((hotel: any) => hotel.id === logistics.selectedHotelId)
+                ?.type ||
+                (selectedReco as any)?.accommodations?.type ||
+                logistics.accommodationType ||
+                "",
+            )}
+          />
+        </section>
+      ) : null}
+
       {datesLocked ? (
-        <div className="space-y-8 mt-8">
+        <div className="mt-8">
           <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
             <Dialog>
               <DialogTrigger asChild>
@@ -2491,34 +2691,6 @@ function TripDetail() {
               </DialogContent>
             </Dialog>
           </section>
-
-          {finalRestitutionReady ? (
-            <PackingListCard
-              tripId={tripId}
-              participants={participants}
-              avgTemp={null}
-              activities={
-                hasItinerary && (trip as any).group_itinerary?.days
-                  ? ((trip as any).group_itinerary.days as any[])
-                      .flatMap((day) =>
-                        (day.slots ?? []).map((slot: any) =>
-                          `${slot.label || ""} ${slot.detail || ""}`.trim(),
-                        ),
-                      )
-                      .filter(Boolean)
-                  : activities.map((a) => a.name)
-              }
-              durationDays={liveBudget.nights || 2}
-              eventType={trip.event_type}
-              accommodation={String(
-                logistics.hotels?.find((hotel: any) => hotel.id === logistics.selectedHotelId)
-                  ?.type ||
-                  (selectedReco as any)?.accommodations?.type ||
-                  logistics.accommodationType ||
-                  "",
-              )}
-            />
-          ) : null}
         </div>
       ) : null}
 
@@ -2837,6 +3009,10 @@ function TripDetail() {
           </div>
         </div>
       </section>
+          </div>
+        )
+      ) : null}
+
       {data.isOwner && (trip.status as string) !== "annule" ? (
         <section className="mt-10 space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
           <p className="mb-3 text-sm text-muted-foreground">Gestion du voyage</p>
