@@ -51,6 +51,13 @@ function NewTripPage() {
   const [groupAgeRange, setGroupAgeRange] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const activeEventTypes = EVENT_TYPES.filter((t) =>
+    ["evg", "evjf", "anniversaire", "weekend"].includes(t.value),
+  );
+  const upcomingEventTypes = EVENT_TYPES.filter((t) =>
+    ["voyage_groupe", "famille", "seminaire", "retraite"].includes(t.value),
+  );
+
   const needsStar = STAR_EVENT_TYPES.has(eventType as any);
 
   async function onSubmit(e: React.FormEvent) {
@@ -158,18 +165,18 @@ function NewTripPage() {
         </div>
 
         {/* Question 3: Type d'événement */}
-        <div className="border-b border-border/50 pb-8 mb-8 space-y-3">
+        <div className="border-b border-border/50 pb-8 mb-8 space-y-4">
           <Label className="text-base font-semibold text-foreground block">Type d'événement</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {EVENT_TYPES.map((t) => (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {activeEventTypes.map((t) => (
               <button
                 key={t.value}
                 type="button"
                 onClick={() => setEventType(t.value)}
                 className={cn(
-                  "rounded-[14px] p-4 border text-left transition-all",
+                  "rounded-[14px] p-4 border text-left transition-all cursor-pointer",
                   eventType === t.value
-                    ? "border-primary bg-primary/5 text-foreground"
+                    ? "border-primary bg-primary/5 text-foreground font-medium"
                     : "border-border bg-background hover:border-primary/40 text-foreground/80",
                 )}
               >
@@ -177,6 +184,24 @@ function NewTripPage() {
                 <span className="font-medium text-sm leading-tight block">{t.label}</span>
               </button>
             ))}
+          </div>
+
+          <div className="pt-2 space-y-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+              À venir
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {upcomingEventTypes.map((t) => (
+                <div
+                  key={t.value}
+                  aria-disabled="true"
+                  className="rounded-[14px] p-4 border border-border/50 bg-muted/30 text-muted-foreground/70 opacity-60 cursor-not-allowed select-none"
+                >
+                  <span className="text-xl block mb-1 opacity-70">{t.emoji}</span>
+                  <span className="font-medium text-sm leading-tight block">{t.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
