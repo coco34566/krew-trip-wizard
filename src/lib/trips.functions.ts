@@ -4113,22 +4113,20 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
     }
     for (const task of preparation.tasks) activeSlotIds.add(`prep:${task.id}`);
 
-    if (activeSlotIds.size > 0) {
+    const orphanTaskIds = existingTasks
+      .filter((task: any) => {
+        const slotId = String(task.slot_id ?? "");
+        return slotId && !activeSlotIds.has(slotId);
+      })
+      .map((task: any) => task.id)
+      .filter(Boolean);
+
+    if (orphanTaskIds.length > 0) {
       const { error: deleteErr } = await supabase
         .from("trip_tasks" as any)
         .delete()
         .eq("trip_id", data.tripId)
-        .not(
-          "slot_id",
-          "in",
-          `(${Array.from(activeSlotIds).join(",")})`,
-        );
-      if (deleteErr) throw deleteErr;
-    } else {
-      const { error: deleteErr } = await supabase
-        .from("trip_tasks" as any)
-        .delete()
-        .eq("trip_id", data.tripId);
+        .in("id", orphanTaskIds);
       if (deleteErr) throw deleteErr;
     }
 
