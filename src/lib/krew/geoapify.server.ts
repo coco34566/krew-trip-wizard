@@ -309,6 +309,229 @@ export async function fetchPlaceDetails(
   }
 }
 
+const weekdaysMap: Record<string, number> = {
+  dimanche: 0,
+  sunday: 0,
+  lundi: 1,
+  monday: 1,
+  mardi: 2,
+  tuesday: 2,
+  mercredi: 3,
+  wednesday: 3,
+  jeudi: 4,
+  thursday: 4,
+  vendredi: 5,
+  friday: 5,
+  samedi: 6,
+  saturday: 6,
+};
+
+function toMinutes(t?: string | null): number | null {
+  if (!t || typeof t !== "string") return null;
+  const match = t.match(/([01]?\d|2[0-3])[:h]([0-5]\d)/i);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+export function geoapifyOpeningStatus(
+  place: GeoapifyPlace | null | undefined,
+  date: string | null | undefined,
+  time: string | null | undefined,
+  durationMinutes = 90,
+): "open" | "closed" | "unknown" {
+  if (!place || !place.openingHours || !date || !time) return "unknown";
+
+  const timeMins = toMinutes(time);
+  if (timeMins == null) return "unknown";
+
+  const raw = typeof place.openingHours === "string" ? place.openingHours : String(place.openingHours || "");
+  if (!raw.trim()) return "unknown";
+
+  const normRaw = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (normRaw.includes("24/7") || normRaw.includes("open 24 hours") || normRaw.includes("24h/24")) {
+    return "open";
+  }
+
+  const dateObj = new Date(`${date}T12:00:00Z`);
+  if (isNaN(dateObj.getTime())) return "unknown";
+  const weekday = dateObj.getUTCDay();
+
+  // Look for day matching lines (e.g. "Mo-Fr 09:00-18:00" or "lundi: 09:00-18:00")
+  const lines = normRaw.split(/[\n;]/);
+  let matchingLine: string | null = null;
+
+  for (const line of lines) {
+    for (const [name, dayNum] of Object.entries(weekdaysMap)) {
+      if (dayNum === weekday && line.includes(name)) {
+        matchingLine = line;
+        break;
+      }
+    }
+    if (matchingLine) break;
+  }
+
+  const targetLine = matchingLine || normRaw;
+
+  if (targetLine.includes("closed") || targetLine.includes("ferme")) {
+    return "closed";
+  }
+
+  const ranges = [
+    ...targetLine.matchAll(
+      /([01]?\d|2[0-3])[:h]([0-5]\d)\s*(?:-|–|—|a|to)\s*([01]?\d|2[0-3])[:h]([0-5]\d)/gi,
+    ),
+  ];
+
+  if (!ranges.length) return "unknown";
+
+  const slotStart = timeMins;
+  const slotEnd = slotStart + durationMinutes;
+
+  for (const match of ranges) {
+    const rStart = Number(match[1]) * 60 + Number(match[2]);
+    let rEnd = Number(match[3]) * 60 + Number(match[4]);
+    if (rEnd < rStart) rEnd += 1440; // Overnight range
+
+    if (slotStart >= rStart && slotEnd <= rEnd) {
+      return "open";
+    }
+  }
+
+  return "closed";
+}
+
+export type SelectCandidateOptions = {
+  candidates: GeoapifyPlace[];
+  req: PlaceRequirements;
+  usedCandidateIdsSet: Set<string>;
+  avoidList?: string[];
+  refCoords?: { latitude?: number | null; longitude?: number | null } | null;
+  maxKm?: number;
+  date?: string | null;
+  time?: string | null;
+  durationMinutes?: number;
+  accessibilityRequired?: boolean;
+  telemetry?: {
+    candidatesRejectedRequirements?: number;
+    candidatesRejectedGeography?: number;
+    candidatesRejectedOpeningHours?: number;
+    detailsCalls?: number;
+  };
+};
+
+export async function selectGeoapifyCandidate(
+  options: SelectCandidateOptions,
+): Promise<GeoapifyPlace | null> {
+  const {
+    candidates,
+    req,
+    usedCandidateIdsSet,
+    avoidList = [],
+    refCoords,
+    maxKm = 50,
+    date,
+    time,
+    durationMinutes = 90,
+    accessibilityRequired = false,
+    telemetry,
+  } = options;
+
+  const avoidSet = new Set(avoidList.map((s) => s.toLowerCase().trim()));
+
+  const haversineKm = (
+    a: { latitude?: number | null; longitude?: number | null },
+    b: { latitude?: number | null; longitude?: number | null },
+  ) => {
+    if (a.latitude == null || a.longitude == null || b.latitude == null || b.longitude == null) return null;
+    const rad = (deg: number) => (deg * Math.PI) / 180;
+    const dLat = rad(b.longitude - a.longitude);
+    const dLon = rad(b.latitude - a.latitude);
+    const h =
+      Math.sin(dLon / 2) ** 2 +
+      Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLat / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  };
+
+  const ranked = rankGeoapifyCandidates(candidates, req, refCoords || null, usedCandidateIdsSet);
+
+  for (const candidate of ranked) {
+    if (!candidate || !candidate.id) continue;
+
+    // 1. USED / AVOID
+    if (usedCandidateIdsSet.has(candidate.id)) continue;
+    const normName = candidate.name.toLowerCase().trim();
+    if (avoidSet.has(normName) || avoidSet.has(candidate.id.toLowerCase())) continue;
+
+    // 2. SUBTYPE
+    if (req.subtype) {
+      const normSubtype = String(req.subtype).toLowerCase();
+      const candCategories = (candidate.categories || []).map((c) => String(c).toLowerCase());
+      const hasSubtype = candCategories.some((c) => c.includes(normSubtype));
+      if (!hasSubtype) {
+        if (telemetry?.candidatesRejectedRequirements != null) {
+          telemetry.candidatesRejectedRequirements++;
+        }
+        continue;
+      }
+    }
+
+    // 3. HARD ACCESSIBILITY (Wheelchair explicit requirement)
+    if (accessibilityRequired && candidate.wheelchair === false) {
+      if (telemetry?.candidatesRejectedRequirements != null) {
+        telemetry.candidatesRejectedRequirements++;
+      }
+      continue;
+    }
+
+    // 4. GEOGRAPHY
+    if (refCoords?.latitude != null && refCoords?.longitude != null && candidate.latitude != null && candidate.longitude != null) {
+      const dist = haversineKm(refCoords, candidate);
+      if (dist != null && dist > maxKm) {
+        if (telemetry?.candidatesRejectedGeography != null) {
+          telemetry.candidatesRejectedGeography++;
+        }
+        continue;
+      }
+    }
+
+    // 5. OPENING HOURS
+    let status = geoapifyOpeningStatus(candidate, date, time, durationMinutes);
+
+    // Call Details ONLY if opening status is unknown AND details is required
+    if (status === "unknown" && candidate.id && date && time) {
+      const details = await fetchPlaceDetails(
+        candidate.id,
+        telemetry,
+      );
+      if (details) {
+        if (details.opening_hours && typeof details.opening_hours === "string") {
+          candidate.openingHours = details.opening_hours;
+          status = geoapifyOpeningStatus(candidate, date, time, durationMinutes);
+        }
+        if (details.wheelchair != null) {
+          candidate.wheelchair = Boolean(details.wheelchair);
+        }
+      }
+    }
+
+    if (status === "closed") {
+      if (telemetry?.candidatesRejectedOpeningHours != null) {
+        telemetry.candidatesRejectedOpeningHours++;
+      }
+      continue;
+    }
+
+    // ACCEPT FIRST COMPATIBLE CANDIDATE
+    return candidate;
+  }
+
+  return null;
+}
+
 export function rankGeoapifyCandidates(
   candidates: GeoapifyPlace[],
   req: PlaceRequirements,

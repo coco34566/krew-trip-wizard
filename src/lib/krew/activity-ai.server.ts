@@ -12,6 +12,7 @@ import {
   searchGeoapifyPlaces,
   fetchPlaceDetails,
   rankGeoapifyCandidates,
+  selectGeoapifyCandidate,
   mergeUniquePlacesById,
 } from "@/lib/krew/geoapify.server";
 
@@ -1733,15 +1734,22 @@ export async function regenerateSlotWithAi(
 
   const poolKey = buildPoolKey(req);
   let pool = placePools[poolKey] || [];
-
-  // Filter unused/non-avoided
-  let available = rankGeoapifyCandidates(pool, req, refCoords ?? null, usedSet).filter(
-    (p) => !usedSet.has(p.id) && !avoidNorms.includes(norm(p.name)),
-  );
-
-  // If pool exhausted, perform 1 targeted Geoapify search
   let updatedPools = { ...placePools };
-  if (available.length === 0 && refCoords?.latitude != null && refCoords?.longitude != null) {
+
+  let selectedPlace = await selectGeoapifyCandidate({
+    candidates: pool,
+    req,
+    usedCandidateIdsSet: usedSet,
+    avoidList: avoid,
+    refCoords,
+    maxKm: 50,
+    time: existing.time,
+    durationMinutes: existing.durationMinutes ?? 90,
+    accessibilityRequired: Boolean(input.accessibilityRequired),
+  });
+
+  // If pool exhausted, perform 1 targeted Geoapify search (0 Gemini calls)
+  if (!selectedPlace && refCoords?.latitude != null && refCoords?.longitude != null) {
     const newPlaces = await searchGeoapifyPlaces({
       categories: req.categories,
       latitude: refCoords.latitude,
@@ -1754,13 +1762,20 @@ export async function regenerateSlotWithAi(
     if (newPlaces.length > 0) {
       const merged = mergeUniquePlacesById(pool, newPlaces);
       updatedPools[poolKey] = merged;
-      available = rankGeoapifyCandidates(merged, req, refCoords, usedSet).filter(
-        (p) => !usedSet.has(p.id) && !avoidNorms.includes(norm(p.name)),
-      );
+      selectedPlace = await selectGeoapifyCandidate({
+        candidates: merged,
+        req,
+        usedCandidateIdsSet: usedSet,
+        avoidList: avoid,
+        refCoords,
+        maxKm: 50,
+        time: existing.time,
+        durationMinutes: existing.durationMinutes ?? 90,
+        accessibilityRequired: Boolean(input.accessibilityRequired),
+      });
     }
   }
 
-  const selectedPlace = available[0];
   if (selectedPlace) {
     usedSet.add(selectedPlace.id);
     return {

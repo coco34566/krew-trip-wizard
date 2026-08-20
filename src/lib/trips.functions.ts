@@ -2243,12 +2243,31 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         const poolKey = buildPoolKey(req);
         let pool = placePools[poolKey] || [];
 
-        // Rank candidates deterministically
-        let ranked = rankGeoapifyCandidates(pool, req, lastSlotCoords, usedCandidateIdsSet);
-        let candidatesAvailable = ranked.filter((p) => !usedCandidateIdsSet.has(p.id));
+        const telemetryObj = {
+          candidatesRejectedRequirements: 0,
+          candidatesRejectedGeography: 0,
+          candidatesRejectedOpeningHours: 0,
+          detailsCalls: geoapifyDetailsCalls,
+        };
 
-        // If pool exhausted, perform at most 1 targeted search with expanded radius
-        if (candidatesAvailable.length === 0 && refLat != null && refLon != null) {
+        const { selectGeoapifyCandidate } = await import("@/lib/krew/geoapify.server");
+
+        let matchedPlace = await selectGeoapifyCandidate({
+          candidates: pool,
+          req,
+          usedCandidateIdsSet,
+          refCoords: lastSlotCoords,
+          maxKm: 50,
+          date: day.date,
+          time: s.time,
+          durationMinutes: s.durationMinutes ?? 90,
+          accessibilityRequired: Boolean(activityInput.accessibilityRequired),
+          telemetry: telemetryObj,
+        });
+
+        if (matchedPlace) {
+          poolHits++;
+        } else if (refLat != null && refLon != null) {
           poolMisses++;
           geoapifyPlacesCalls++;
           const newPlaces = await searchGeoapifyPlaces({
@@ -2262,69 +2281,31 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           if (newPlaces.length > 0) {
             placePools[poolKey] = mergeUniquePlacesById(pool, newPlaces);
             pool = placePools[poolKey]!;
-            ranked = rankGeoapifyCandidates(pool, req, lastSlotCoords, usedCandidateIdsSet);
-            candidatesAvailable = ranked.filter((p) => !usedCandidateIdsSet.has(p.id));
+            matchedPlace = await selectGeoapifyCandidate({
+              candidates: pool,
+              req,
+              usedCandidateIdsSet,
+              refCoords: lastSlotCoords,
+              maxKm: 50,
+              date: day.date,
+              time: s.time,
+              durationMinutes: s.durationMinutes ?? 90,
+              accessibilityRequired: Boolean(activityInput.accessibilityRequired),
+              telemetry: telemetryObj,
+            });
           }
-        } else {
-          poolHits++;
         }
 
-        let matchedPlace: any = null;
+        candidatesRejectedRequirements += telemetryObj.candidatesRejectedRequirements;
+        candidatesRejectedGeography += telemetryObj.candidatesRejectedGeography;
+        candidatesRejectedOpeningHours += telemetryObj.candidatesRejectedOpeningHours;
+        geoapifyDetailsCalls = telemetryObj.detailsCalls;
 
-        for (const candidate of candidatesAvailable) {
-          // Check explicit req.subtype constraint if non-null
-          if (req.subtype) {
-            const normSubtype = String(req.subtype).toLowerCase();
-            const candCategories = (candidate.categories || []).map((c: any) => String(c).toLowerCase());
-            const hasSubtype = candCategories.some((c: string) => c.includes(normSubtype));
-            if (!hasSubtype) {
-              candidatesRejectedRequirements++;
-              continue;
-            }
-          }
-
-          // Check hard distance threshold
-          if (lastSlotCoords?.latitude != null && lastSlotCoords?.longitude != null && candidate.latitude != null && candidate.longitude != null) {
-            const { haversineDistanceKm } = await import("@/lib/krew/activity-ai.server");
-            const dist = haversineDistanceKm(lastSlotCoords, candidate);
-            if (dist != null && dist > 50) {
-              candidatesRejectedGeography++;
-              continue;
-            }
-          }
-
-          // Check opening hours if present
-          if (candidate.openingHours) {
-            const { openingStatus } = await import("@/lib/krew/activity-ai.server");
-            const status = openingStatus(
-              candidate as any,
-              day.date,
-              s.time,
-              s.durationMinutes,
-            );
-            if (status === "closed") {
-              candidatesRejectedOpeningHours++;
-              continue;
-            }
-          }
-
-          matchedPlace = candidate;
-
-          // Call Details sparingly ONLY if address or website is missing
-          if (matchedPlace && matchedPlace.id && (!matchedPlace.address || !matchedPlace.website)) {
-            geoapifyDetailsCalls++;
-            const details = await fetchPlaceDetails(matchedPlace.id);
-            if (details) {
-              if (details.formatted) matchedPlace.address = details.formatted;
-              if (details.website) matchedPlace.website = details.website;
-            }
-          }
-
+        if (matchedPlace) {
           usedCandidateIdsSet.add(matchedPlace.id);
           if (matchedPlace.latitude != null && matchedPlace.longitude != null) {
             lastSlotCoords = { latitude: matchedPlace.latitude, longitude: matchedPlace.longitude };
           }
-          break;
         }
 
         if (matchedPlace) {
