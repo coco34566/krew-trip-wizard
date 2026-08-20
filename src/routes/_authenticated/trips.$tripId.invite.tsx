@@ -338,7 +338,7 @@ function InvitePage() {
                       </Button>
                     )
                   ) : null}
-                  {data.isOwner && !p.placeholder ? (
+                  {data.isOwner && !p.placeholder && !p.isStar ? (
                     <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => removeMutation.mutate(p.id)}>
                       Retirer
                     </Button>

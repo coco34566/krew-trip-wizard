@@ -1191,7 +1191,7 @@ function TripDetail() {
       ) : null}
 
       {/* Restitution finale uniquement lorsque destination et planning sont réellement validés. */}
-      {finalRestitutionReady ? (
+      {currentView === "voyage" && !currentSection && finalRestitutionReady ? (
         <section className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
