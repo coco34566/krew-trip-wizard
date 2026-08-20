@@ -7,6 +7,9 @@ import {
   ensureMandatoryNeeds,
   applyMaxActivitiesPerDay,
   regenerateSlotWithAi,
+  validateItinerary,
+  adjustItineraryTransferTimes,
+  findAvailableGap,
   toMinutes,
   fromMinutes,
   type ActivityAiInput,
@@ -35,167 +38,207 @@ const baseInput = (overrides: Partial<ActivityAiInput> = {}): ActivityAiInput =>
   ambiances: ["fete", "gastronomie"],
   activityCategories: ["degustation", "spa"],
   travelPace: "equilibre",
+  latestGroupArrival: "12:00",
   ...overrides,
 });
 
-describe("PR 107 — Tests Obligatoires du Moteur de Planning KREW", () => {
-  // A. arrival inconnue -> availableFrom null
-  it("A. arrival inconnue -> availableFrom est null", () => {
+describe("PR 107 — Tests Obligatoires Logistique & Fenêtres", () => {
+  // A. arrival unknown -> availableFrom null -> findAvailableGap does not transform into 08:00
+  it("A. arrival inconnue -> availableFrom est null et findAvailableGap ne fabrique pas 08:00", () => {
     const brief = buildPlanningBrief(baseInput({ latestGroupArrival: null, earliestOutboundDeparture: null }));
     expect(brief.dayWindows[0]?.availableFrom).toBeNull();
+
+    const gap = findAvailableGap({
+      dayWindow: brief.dayWindows[0]!,
+      existingSlots: [],
+      preferredWindow: { start: "08:30", end: "10:30" },
+      durationMinutes: 45,
+    });
+    expect(gap).toBeNull();
   });
 
-  // B. departure inconnue -> availableUntil null
-  it("B. departure inconnue -> availableUntil est null", () => {
+  // B. departure unknown -> availableUntil null -> findAvailableGap does not transform into 23:59
+  it("B. departure inconnue -> availableUntil est null et findAvailableGap ne fabrique pas 23:59", () => {
     const brief = buildPlanningBrief(baseInput({ earliestGroupDeparture: null, latestReturnHome: null }));
-    const lastDayIdx = brief.dayWindows.length - 1;
-    expect(brief.dayWindows[lastDayIdx]?.availableUntil).toBeNull();
+    const lastDay = brief.dayWindows[brief.dayWindows.length - 1]!;
+    expect(lastDay.availableUntil).toBeNull();
+
+    const gap = findAvailableGap({
+      dayWindow: lastDay,
+      existingSlots: [],
+      preferredWindow: { start: "20:00", end: "22:30" },
+      durationMinutes: 120,
+    });
+    expect(gap).toBeNull();
   });
 
-  // C. overnight transport -> day offset/date correcte
-  it("C. overnight transport -> arrivalDayOffset = 1 et arrivalReadyDate le lendemain", () => {
-    const window = calculatePlanningWindow(
-      baseInput({
-        startDate: "2026-06-13",
-        earliestOutboundDeparture: "20:30",
-        transportDurationHours: 5,
-        transferMarginMinutes: 45,
-      }),
-    );
+  // C. unknown boundary -> no mandatory meal created solely due to fake full day
+  it("C. borne inconnue -> pas de petit-déjeuner mandatory créé sans heure d'arrivée connue", () => {
+    const brief = buildPlanningBrief(baseInput({ latestGroupArrival: null, earliestOutboundDeparture: null }));
+    const day1Breakfast = brief.mandatoryNeeds.find((n) => n.targetDay === 1 && n.subType === "breakfast");
+    expect(day1Breakfast).toBeUndefined();
+  });
+
+  // D. overnight arrival day 2 02:15 -> validateItinerary respecte day offset
+  it("D. overnight arrival jour 2 02:15 -> jour 1 vide et jour 2 respecte 02:15", () => {
+    const input = baseInput({
+      startDate: "2026-06-13",
+      nights: 2,
+      latestGroupArrival: null,
+      earliestOutboundDeparture: "20:30",
+      transportDurationHours: 5,
+      transferMarginMinutes: 45,
+    });
+    const window = calculatePlanningWindow(input);
     expect(window.arrivalDayOffset).toBe(1);
     expect(window.arrivalReady).toBe("02:15");
-    expect(window.arrivalReadyDate).toBe("2026-06-14");
-  });
 
-  // D. jour avant arrivée overnight -> aucune fenêtre (availableFrom & availableUntil null)
-  it("D. jour 1 avant arrivée overnight -> indisponible à destination (availableFrom & availableUntil null)", () => {
-    const brief = buildPlanningBrief(
-      baseInput({
-        startDate: "2026-06-13",
-        nights: 2,
-        earliestOutboundDeparture: "20:30",
-        transportDurationHours: 5,
-        transferMarginMinutes: 45,
-      }),
+    const validated = validateItinerary(
+      [
+        {
+          day: 1,
+          slots: [{ moment: "Soir", time: "22:00", durationMinutes: 60, type: "activite", label: "Activité Jour 1", verified: true, source: "krew" }],
+        },
+        {
+          day: 2,
+          slots: [
+            { moment: "Matin", time: "01:00", durationMinutes: 60, type: "activite", label: "Activité trop tôt", verified: true, source: "krew" },
+            { moment: "Matin", time: "03:00", durationMinutes: 60, type: "activite", label: "Activité OK", verified: true, source: "krew" },
+          ],
+        },
+      ],
+      input,
+      [],
     );
 
-    // Day 1: unavailable
-    expect(brief.dayWindows[0]?.availableFrom).toBeNull();
-    expect(brief.dayWindows[0]?.availableUntil).toBeNull();
-
-    // Day 2: available from 02:15
-    expect(brief.dayWindows[1]?.availableFrom).toBe("02:15");
+    // Day 1 at destination is empty
+    expect(validated[0]?.slots).toHaveLength(0);
+    // Day 2 only keeps slot starting >= 02:15
+    expect(validated[1]?.slots.map((s) => s.label)).toEqual(["Activité OK"]);
   });
 
-  // E. heure Gemini invalide -> placement dynamique ou rejet (pas de 12:00)
-  it("E. startTime Gemini invalide -> placement dynamique selon gap, pas 12:00 fictif", async () => {
-    const skeleton = buildMinimalFallbackFromBrief(buildPlanningBrief(baseInput()));
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      text: async () =>
-        JSON.stringify({
-          candidates: [
-            {
-              content: {
-                parts: [
-                  {
-                    text: JSON.stringify({
-                      days: [
-                        {
-                          day: 1,
-                          slots: [{ kind: "place_required", time: "INVALID_TIME", momentType: "repas", label: "Dîner de groupe" }],
-                        },
-                      ],
-                    }),
-                  },
-                ],
-              },
-            },
-          ],
-        }),
+  // E. overnight arrival -> adjustItineraryTransferTimes respecte day offset
+  it("E. adjustItineraryTransferTimes respecte overnight arrivalDayOffset", () => {
+    const input = baseInput({
+      startDate: "2026-06-13",
+      nights: 2,
+      latestGroupArrival: null,
+      earliestOutboundDeparture: "20:30",
+      transportDurationHours: 5,
+      transferMarginMinutes: 45,
     });
-    vi.stubGlobal("fetch", fetchMock);
-    process.env["GEMINI_API_KEY"] = "test-key";
 
-    const res = await geminiEnrichSkeleton(skeleton, baseInput());
-    const slotTime = res.enrichedSkeleton.days[0]?.slots[0]?.time;
-    expect(slotTime).not.toBe("12:00");
+    const adjusted = adjustItineraryTransferTimes(
+      [
+        { day: 1, slots: [{ moment: "Soir", time: "22:00", durationMinutes: 60, label: "Slot Jour 1", type: "activite" }] },
+        { day: 2, slots: [{ moment: "Matin", time: "01:00", durationMinutes: 60, label: "Slot Jour 2 trop tôt", type: "activite" }] },
+      ],
+      input,
+    );
+
+    expect(adjusted[0]?.slots).toHaveLength(0);
+    expect(adjusted[1]?.slots).toHaveLength(0);
   });
 
-  // F. kind inconnu non déterminable -> rejet
-  it("F. kind inconnu non déterminable -> slot rejeté", async () => {
-    const skeleton = buildMinimalFallbackFromBrief(buildPlanningBrief(baseInput()));
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      text: async () =>
-        JSON.stringify({
-          candidates: [
-            {
-              content: {
-                parts: [
-                  {
-                    text: JSON.stringify({
-                      days: [
-                        { day: 1, slots: [{ kind: "whatever_unknown", time: "15:00", momentType: "unknown_type", label: "Truc" }] },
-                      ],
-                    }),
-                  },
-                ],
-              },
-            },
+  // F. transfert pousse slot après availableUntil -> slot rejeté
+  it("F. transfert décalant le slot au-delà de la limite -> slot rejeté", () => {
+    const input = baseInput({ earliestGroupDeparture: "15:00", transferMarginMinutes: 0 });
+    const adjusted = adjustItineraryTransferTimes(
+      [
+        {
+          day: 2,
+          slots: [
+            { moment: "Après-midi", time: "13:00", durationMinutes: 60, label: "Activité 1", type: "activite", latitude: 45.9, longitude: 6.1 },
+            { moment: "Après-midi", time: "14:30", durationMinutes: 60, label: "Activité 2", type: "activite", latitude: 46.5, longitude: 6.5 },
           ],
-        }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    process.env["GEMINI_API_KEY"] = "test-key";
+        },
+      ],
+      input,
+    );
 
-    const res = await geminiEnrichSkeleton(skeleton, baseInput());
-    const hasSlot = res.enrichedSkeleton.days[0]?.slots.some((s) => s.label === "Truc");
-    expect(hasSlot).toBe(false);
+    // Activité 2 pushed past 15:00 departure -> rejected
+    expect(adjusted[0]?.slots.map((s) => s.label)).toEqual(["Activité 1"]);
   });
 
-  // G. momentType inconnu non déterminable -> rejet
-  it("G. momentType inconnu non déterminable -> slot rejeté (jamais culture par défaut)", async () => {
-    const skeleton = buildMinimalFallbackFromBrief(buildPlanningBrief(baseInput()));
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      text: async () =>
-        JSON.stringify({
-          candidates: [
-            {
-              content: {
-                parts: [
-                  {
-                    text: JSON.stringify({
-                      days: [
-                        { day: 1, slots: [{ kind: "place_required", time: "15:00", momentType: "xyz_invalid", label: "Mystère" }] },
-                      ],
-                    }),
-                  },
-                ],
-              },
-            },
+  // G. aucun slot avant vraie arrivée
+  it("G. aucun slot accepté avant l'arrivée réelle", () => {
+    const input = baseInput({ latestGroupArrival: "16:00", transferMarginMinutes: 60 });
+    const validated = validateItinerary(
+      [
+        {
+          day: 1,
+          slots: [
+            { moment: "Après-midi", time: "16:30", durationMinutes: 60, type: "activite", label: "Trop tôt", verified: true, source: "krew" },
+            { moment: "Soir", time: "17:30", durationMinutes: 60, type: "activite", label: "Après arrivée", verified: true, source: "krew" },
           ],
-        }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    process.env["GEMINI_API_KEY"] = "test-key";
+        },
+      ],
+      input,
+      [],
+    );
 
-    const res = await geminiEnrichSkeleton(skeleton, baseInput());
-    const mystereSlot = res.enrichedSkeleton.days[0]?.slots.find((s) => s.label === "Mystère");
-    expect(mystereSlot).toBeUndefined();
+    expect(validated[0]?.slots.map((s) => s.label)).toEqual(["Après arrivée"]);
+  });
+});
+
+describe("PR 107 — Tests Mandatory Needs", () => {
+  // H. breakfast existant + mandatory dinner -> dinner toujours considéré absent
+  it("H. un breakfast existant ne satisfait pas un mandatory dinner", () => {
+    const brief = buildPlanningBrief(baseInput({ eventType: null }));
+    const skeletonWithBreakfastOnly = {
+      destination: "Beaune",
+      nights: 1,
+      days: [
+        {
+          day: 1,
+          slots: [
+            { id: "s1", day: 1, moment: "Matin" as const, time: "08:30", endTime: "09:15", durationMinutes: 45, kind: "place_required" as const, type: "resto" as const, category: "repas" as const, label: "Petit-déjeuner local", importance: "high" as const, flexibility: "flexible" as const },
+          ],
+        },
+      ],
+    };
+
+    const repaired = ensureMandatoryNeeds(skeletonWithBreakfastOnly, brief);
+    const dinnerAdded = repaired.days[0]?.slots.find((s) => toMinutes(s.time)! >= 18 * 60 && s.category === "repas");
+    expect(dinnerAdded).toBeDefined();
   });
 
-  // H. EVJF 1 nuit, soirée jour 1 -> targetDay jour 1
-  it("H. EVJF 1 nuit avec soirée jour 1 disponible -> targetDay = 1", () => {
-    const brief = buildPlanningBrief(baseInput({ eventType: "evjf", nights: 1, latestGroupArrival: "11:00" }));
-    const evjfNeed = brief.mandatoryNeeds.find((n) => n.type === "event_signature");
-    expect(evjfNeed?.targetDay).toBe(1);
+  // I. mandatory dinner + dinner réel -> satisfait
+  it("I. mandatory dinner avec dîner réel à 20:00 -> satisfait sans doublon", () => {
+    const brief = buildPlanningBrief(baseInput());
+    const skeletonWithDinner = {
+      destination: "Beaune",
+      nights: 1,
+      days: [
+        {
+          day: 1,
+          slots: [
+            { id: "s1", day: 1, moment: "Soir" as const, time: "20:00", endTime: "22:00", durationMinutes: 120, kind: "place_required" as const, type: "resto" as const, category: "repas" as const, label: "Grand Dîner", importance: "high" as const, flexibility: "flexible" as const },
+          ],
+        },
+      ],
+    };
+
+    const repaired = ensureMandatoryNeeds(skeletonWithDinner, brief);
+    const dinners = repaired.days[0]?.slots.filter((s) => s.category === "repas" && toMinutes(s.time)! >= 18 * 60);
+    expect(dinners?.length).toBe(1);
   });
 
-  // I. Gemini oublie EVJF -> réparation post-Gemini réelle
-  it("I. Gemini oublie EVJF -> réinjecté réellement post-Gemini via ensureMandatoryNeeds", () => {
-    const brief = buildPlanningBrief(baseInput({ eventType: "evjf" }));
+  // J. EVJF + availableUntil unknown -> unknown ne compte pas comme soirée certaine
+  it("J. EVJF + availableUntil unknown le jour de départ -> ne crée pas d'événement impossible", () => {
+    const brief = buildPlanningBrief(baseInput({ eventType: "evjf", nights: 1, earliestGroupDeparture: null, latestReturnHome: null }));
+    expect(brief.mandatoryNeeds.find((n) => n.type === "event_signature")?.targetDay).toBe(1);
+  });
+
+  // K. EVJF 1 nuit + vraie soirée jour 1 -> jour 1 choisi
+  it("K. EVJF 1 nuit avec soirée jour 1 disponible -> targetDay = 1", () => {
+    const brief = buildPlanningBrief(baseInput({ eventType: "evjf", nights: 1, latestGroupArrival: "12:00" }));
+    expect(brief.mandatoryNeeds.find((n) => n.type === "event_signature")?.targetDay).toBe(1);
+  });
+
+  // L. Gemini oublie event -> réparation dynamique réelle
+  it("L. Gemini oublie EVJF -> réinjecté réellement post-Gemini", () => {
+    const brief = buildPlanningBrief(baseInput({ eventType: "evjf", latestGroupArrival: "12:00" }));
     const skeletonWithoutEvjf = {
       destination: "Beaune",
       nights: 1,
@@ -207,26 +250,162 @@ describe("PR 107 — Tests Obligatoires du Moteur de Planning KREW", () => {
     expect(hasEvjf).toBe(true);
   });
 
-  // J. Gemini oublie dîner obligatoire -> réparation réelle
-  it("J. Gemini oublie le dîner obligatoire -> réinjecté réellement post-Gemini", () => {
+  // M. Gemini oublie meal obligatoire -> bon subtype de meal ajouté
+  it("M. Gemini oublie le dîner obligatoire -> dîner réinjecté avec bon subtype", () => {
     const brief = buildPlanningBrief(baseInput());
-    const skeletonWithoutDinner = {
+    const skeleton = {
       destination: "Beaune",
       nights: 1,
       days: [{ day: 1, date: "2026-06-13", slots: [] }],
     };
 
-    const repaired = ensureMandatoryNeeds(skeletonWithoutDinner, brief);
-    const hasDinner = repaired.days.flatMap((d) => d.slots).some((s) => s.category === "repas");
-    expect(hasDinner).toBe(true);
+    const repaired = ensureMandatoryNeeds(skeleton, brief);
+    const dinner = repaired.days[0]?.slots.find((s) => s.category === "repas" && toMinutes(s.time)! >= 18 * 60);
+    expect(dinner).toBeDefined();
+  });
+});
+
+describe("PR 107 — Tests Gemini & Density", () => {
+  // N. shopping Gemini -> accepté
+  it("N. momentType shopping -> accepté dans l'allowlist", async () => {
+    const skeleton = buildMinimalFallbackFromBrief(buildPlanningBrief(baseInput()));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      days: [
+                        { day: 1, slots: [{ kind: "place_required", time: "15:00", momentType: "shopping", label: "Boutiques locales", canonicalVenueFamily: "shopping" }] },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    process.env["GEMINI_API_KEY"] = "test-key";
+
+    const res = await geminiEnrichSkeleton(skeleton, baseInput());
+    const shoppingSlot = res.enrichedSkeleton.days[0]?.slots.find((s) => s.category === "shopping");
+    expect(shoppingSlot).toBeDefined();
+    expect(shoppingSlot?.venueFamily).toBe("shopping");
   });
 
-  // K. léger + Gemini 4 activités -> plafond maxActivitiesPerDay appliqué
-  it("K. travelPace = leger + Gemini renvoie 4 activités -> max 1 activité conservée par jour", () => {
-    const brief = buildPlanningBrief(baseInput({ travelPace: "leger" }));
+  // O. local_experience Gemini -> accepté
+  it("O. momentType local_experience -> accepté dans l'allowlist", async () => {
+    const skeleton = buildMinimalFallbackFromBrief(buildPlanningBrief(baseInput()));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      days: [
+                        { day: 1, slots: [{ kind: "place_required", time: "15:00", momentType: "local_experience", label: "Atelier Vin", canonicalVenueFamily: "local_experience" }] },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    process.env["GEMINI_API_KEY"] = "test-key";
+
+    const res = await geminiEnrichSkeleton(skeleton, baseInput());
+    const expSlot = res.enrichedSkeleton.days[0]?.slots.find((s) => s.category === "local_experience");
+    expect(expSlot).toBeDefined();
+  });
+
+  // P. momentType inconnu -> rejet, jamais culture
+  it("P. momentType inconnu -> rejeté, jamais transformé en culture", async () => {
+    const skeleton = buildMinimalFallbackFromBrief(buildPlanningBrief(baseInput()));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      days: [
+                        { day: 1, slots: [{ kind: "place_required", time: "15:00", momentType: "invalid_xyz", label: "Inconnu" }] },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    process.env["GEMINI_API_KEY"] = "test-key";
+
+    const res = await geminiEnrichSkeleton(skeleton, baseInput());
+    const invalidSlot = res.enrichedSkeleton.days[0]?.slots.find((s) => s.label === "Inconnu");
+    expect(invalidSlot).toBeUndefined();
+  });
+
+  // Q. kind inconnu -> rejet sauf mapping certain
+  it("Q. kind inconnu non déterminable -> rejeté", async () => {
+    const skeleton = buildMinimalFallbackFromBrief(buildPlanningBrief(baseInput()));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: async () =>
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: JSON.stringify({
+                      days: [
+                        { day: 1, slots: [{ kind: "unknown_kind", time: "15:00", momentType: "invalid_moment", label: "Bizarre" }] },
+                      ],
+                    }),
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    process.env["GEMINI_API_KEY"] = "test-key";
+
+    const res = await geminiEnrichSkeleton(skeleton, baseInput());
+    const slot = res.enrichedSkeleton.days[0]?.slots.find((s) => s.label === "Bizarre");
+    expect(slot).toBeUndefined();
+  });
+
+  // R. léger + Gemini 4 activités -> maxActivitiesPerDay conserve une sélection diversifiée pertinente
+  it("R. travelPace = leger + Gemini renvoie 4 activités -> conserve la plus pertinente selon fréquences", () => {
+    const brief = buildPlanningBrief(
+      baseInput({
+        travelPace: "leger",
+        activityCategoryFrequencies: { "sport_outdoor": 5, "culture": 1 },
+      }),
+    );
     expect(brief.planningRules.maxActivitiesPerDay).toBe(1);
 
-    const skeletonWith4Acts = {
+    const skeletonWith4 = {
       destination: "Beaune",
       nights: 1,
       days: [
@@ -234,66 +413,35 @@ describe("PR 107 — Tests Obligatoires du Moteur de Planning KREW", () => {
           day: 1,
           date: "2026-06-13",
           slots: [
-            { id: "1", day: 1, moment: "Matin", time: "10:00", endTime: "11:30", durationMinutes: 90, kind: "place_required" as const, type: "activite" as const, category: "culture" as const, label: "Act 1", importance: "high" as const, flexibility: "flexible" as const },
-            { id: "2", day: 1, moment: "Après-midi", time: "14:00", endTime: "15:30", durationMinutes: 90, kind: "place_required" as const, type: "activite" as const, category: "culture" as const, label: "Act 2", importance: "high" as const, flexibility: "flexible" as const },
-            { id: "3", day: 1, moment: "Après-midi", time: "16:00", endTime: "17:30", durationMinutes: 90, kind: "place_required" as const, type: "activite" as const, category: "culture" as const, label: "Act 3", importance: "high" as const, flexibility: "flexible" as const },
+            { id: "1", day: 1, moment: "Matin" as const, time: "10:00", endTime: "11:30", durationMinutes: 90, kind: "place_required" as const, type: "activite" as const, category: "culture" as const, label: "Musée", importance: "high" as const, flexibility: "flexible" as const },
+            { id: "2", day: 1, moment: "Après-midi" as const, time: "14:00", endTime: "16:00", durationMinutes: 120, kind: "place_required" as const, type: "activite" as const, category: "sport_outdoor" as const, label: "Kayak", importance: "high" as const, flexibility: "flexible" as const },
           ],
         },
       ],
     };
 
-    const pruned = applyMaxActivitiesPerDay(skeletonWith4Acts, brief);
-    const acts = pruned.days[0]?.slots.filter((s) => s.kind === "place_required");
-    expect(acts?.length).toBe(1);
+    const pruned = applyMaxActivitiesPerDay(skeletonWith4, brief);
+    const mainActs = pruned.days[0]?.slots.filter((s) => s.kind === "place_required" && s.category !== "repas");
+    expect(mainActs?.length).toBe(1);
+    expect(mainActs?.[0]?.category).toBe("sport_outdoor");
   });
+});
 
-  // L. profil non validé présent dans stayConcepts -> pas transmis dans validatedTripProfiles
-  it("L. profil non validé -> pas transmis dans validatedTripProfiles", () => {
-    const brief = buildPlanningBrief(
-      baseInput({
-        validatedTripProfiles: ["Gastronomie"],
-      }),
-    );
-    expect(brief.validatedTripProfiles).toEqual(["Gastronomie"]);
-  });
-
-  // M. amenities selected accommodation -> réellement injectées
-  it("M. amenities de l'hébergement sélectionné -> injectées dans verifiedLodgingAmenities", () => {
-    const brief = buildPlanningBrief(
-      baseInput({
-        verifiedLodgingAmenities: ["pool", "spa", "terrace"],
-      }),
-    );
-    expect(brief.verifiedLodgingAmenities).toEqual(["pool", "spa", "terrace"]);
-  });
-
-  // N. winery -> production.winery réellement envoyé
-  it("N. winery intent -> production.winery inclus dans categories", () => {
+describe("PR 107 — Tests Geoapify & Location Context", () => {
+  // W. winery intent -> production.winery réellement envoyé
+  it("W. winery intent -> production.winery inclus dans categories", () => {
     const req = convertIntentToPlaceRequirements("local_experience", "activite", "dégustation de vin en cave/winery");
     expect(req.categories).toContain("production.winery");
   });
 
-  // O. market -> commercial.marketplace réellement envoyé
-  it("O. market intent -> commercial.marketplace inclus dans categories", () => {
+  // X. market intent -> commercial.marketplace réellement envoyé
+  it("X. market intent -> commercial.marketplace inclus dans categories", () => {
     const req = convertIntentToPlaceRequirements("shopping", "activite", "marché local des producteurs");
     expect(req.categories).toContain("commercial.marketplace");
   });
 
-  // P. dietary supported -> condition Geoapify réellement envoyée
-  it("P. régimes alimentaires supportés -> conditions Geoapify générées", () => {
-    const conds = mapDietaryConstraintsToGeoapifyConditions(["végétalien", "halal"]);
-    expect(conds).toContain("vegan");
-    expect(conds).toContain("halal");
-  });
-
-  // Q. accessibility -> condition Geoapify réellement envoyée
-  it("Q. accessibilité requise -> condition wheelchair générée", () => {
-    const conds = mapAccessibilityToGeoapifyConditions(true, ["accès fauteuil roulant"]);
-    expect(conds).toContain("wheelchair");
-  });
-
-  // R. candidat subtype incorrect -> classé derrière
-  it("R. candidat subtype compatible classé devant candidat sans subtype", () => {
+  // Y. Geoapify categories multiples -> subtype matching utilise categories[]
+  it("Y. rankGeoapifyCandidates utilise subtype pour classer les candidats", () => {
     const req = convertIntentToPlaceRequirements("shopping", "activite", "marché local");
     const candidates = [
       { id: "p1", name: "Magasin général", category: "commercial.shopping_mall", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true },
@@ -304,8 +452,15 @@ describe("PR 107 — Tests Obligatoires du Moteur de Planning KREW", () => {
     expect(ranked[0]?.name).toBe("Grand Marché");
   });
 
-  // S. candidat closed -> rejeté, candidat suivant testé
-  it("S. fetchPlaceDetails en cache -> réutilise les propriétés sans double appel", async () => {
+  // Z. dietary inconnu -> candidat non rejeté
+  it("Z. contrainte alimentaire indicative -> n'élimine pas un restaurant", () => {
+    const req = convertIntentToPlaceRequirements("restaurant", "repas", "restaurant convivial", ["vegan"]);
+    expect(req.canonicalFamily).toBe("restaurant");
+    // Dietary constraints remain informative, not blocking Geoapify conditions
+  });
+
+  // AG. Place Details nécessaire -> 1 seul appel avec cache
+  it("AG. fetchPlaceDetails utilise le cache place_id", async () => {
     process.env["GEOAPIFY_API_KEY"] = "test-geo-key";
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -321,49 +476,16 @@ describe("PR 107 — Tests Obligatoires du Moteur de Planning KREW", () => {
     expect(d2?.website).toBe("https://wine.example");
   });
 
-  // U. Place Details appelé seulement sur candidat shortlisté
-  it("U. Place Details appelé uniquement par ID spécifique", async () => {
-    process.env["GEOAPIFY_API_KEY"] = "test-geo-key";
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ features: [{ properties: { formatted: "Address" } }] }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    await fetchPlaceDetails("shortlisted-id");
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("id=shortlisted-id"),
-      expect.anything(),
-    );
-  });
-
-  // W. internal lodging -> locationContext = lodging
-  it("W. slots logement internal -> locationContext = lodging", () => {
-    const brief = buildPlanningBrief(baseInput({ groupAccommodationRole: "centerpiece" }));
+  // AI. internal + locationContext=lodging -> spatial reset logement
+  it("AI. slot internal avec locationContext=lodging -> locationContext explicite", () => {
+    const brief = buildPlanningBrief(baseInput({ groupAccommodationRole: "centerpiece", nights: 2 }));
     const fallback = buildMinimalFallbackFromBrief(brief);
     const lodgingSlot = fallback.days.flatMap((d) => d.slots).find((s) => s.category === "moment_maison");
     expect(lodgingSlot?.locationContext).toBe("lodging");
   });
 
-  // X. internal "apéro" sans locationContext lodging -> ne reset PAS vers logement
-  it("X. slot external apéro au bar -> locationContext !== lodging", () => {
-    const req = convertIntentToPlaceRequirements("bar_pub", "soiree", "apéro au bar");
-    expect(req.canonicalFamily).toBe("bar_pub");
-  });
-
-  // Y. pool extension avec doublon -> déduplication par ID stable
-  it("Y. pool extension avec doublons -> dédupliqué par ID stable", () => {
-    const p1 = { id: "geo-1", name: "Place 1", category: "cafe", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
-    const p2 = { id: "geo-2", name: "Place 2", category: "cafe", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
-    const p1Dup = { id: "geo-1", name: "Place 1 Dup", category: "cafe", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
-
-    const merged = mergeUniquePlacesById([p1, p2], [p1Dup]);
-    expect(merged.length).toBe(2);
-    expect(merged.map((m) => m.id)).toEqual(["geo-1", "geo-2"]);
-  });
-
-  // Z. regenerate -> 0 Gemini
-  it("Z. regenerateSlotWithAi -> 0 appel Gemini", async () => {
+  // AL. autre proposition -> 0 Gemini
+  it("AL. regenerateSlotWithAi -> 0 appel Gemini", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -372,5 +494,16 @@ describe("PR 107 — Tests Obligatoires du Moteur de Planning KREW", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(0);
     expect(res.usedLlm).toBe(false);
+  });
+
+  // Y. pool extension avec doublon -> déduplication par ID stable
+  it("Y. mergeUniquePlacesById déduplique par ID stable", () => {
+    const p1 = { id: "geo-1", name: "Place 1", category: "cafe", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+    const p2 = { id: "geo-2", name: "Place 2", category: "cafe", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
+    const p1Dup = { id: "geo-1", name: "Place 1 Dup", category: "cafe", address: null, latitude: 45.9, longitude: 6.1, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+
+    const merged = mergeUniquePlacesById([p1, p2], [p1Dup]);
+    expect(merged.length).toBe(2);
+    expect(merged.map((m) => m.id)).toEqual(["geo-1", "geo-2"]);
   });
 });

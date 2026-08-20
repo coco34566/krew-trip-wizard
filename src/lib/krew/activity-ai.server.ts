@@ -26,7 +26,9 @@ export type ActivityCategory =
   | "transport"
   | "temps_libre"
   | "culture"
-  | "soiree";
+  | "soiree"
+  | "shopping"
+  | "local_experience";
 
 export type ActivitySlot = {
   moment: string;
@@ -38,6 +40,7 @@ export type ActivitySlot = {
   venueFamily?: string | undefined;
   searchIntent?: string | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
+  dietaryCheckRequired?: boolean | undefined;
   priceHint?: number | undefined;
   time?: string | null | undefined;
   endTime?: string | null | undefined;
@@ -71,6 +74,7 @@ export type KrewSkeletonSlot = {
   venueFamily?: string | undefined;
   searchIntent?: string | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
+  dietaryCheckRequired?: boolean | undefined;
   candidateId?: string | null | undefined;
   url?: string | null | undefined;
   verified?: boolean | undefined;
@@ -195,6 +199,20 @@ export const CANONICAL_VENUE_FAMILIES: CanonicalVenueFamily[] = [
   "spa_wellness",
   "shopping",
   "local_experience",
+];
+
+export const ALLOWED_MOMENT_TYPES = [
+  "repas",
+  "evenement",
+  "sport_outdoor",
+  "detente",
+  "culture",
+  "soiree",
+  "shopping",
+  "local_experience",
+  "moment_maison",
+  "transport",
+  "temps_libre",
 ];
 
 export type MandatoryNeedType = "meal" | "event_signature" | "lodging_rest";
@@ -682,12 +700,24 @@ export function findAvailableGap(options: {
 }): { start: string; end: string } | null {
   const { dayWindow, existingSlots, preferredWindow, durationMinutes } = options;
 
-  if (dayWindow.availableFrom === null && dayWindow.availableUntil === null) {
-    return null; // Day completely unavailable
+  // On arrival day with unknown arrival, allow evening slots (>= 17:00)
+  let dwStart: number | null = null;
+  if (dayWindow.availableFrom !== null) {
+    dwStart = toMinutes(dayWindow.availableFrom)!;
+  } else if (dayWindow.isArrivalDay) {
+    const prefSt = preferredWindow ? toMinutes(preferredWindow.start)! : 0;
+    if (prefSt >= 17 * 60) {
+      dwStart = 17 * 60;
+    }
+  } else {
+    dwStart = 8 * 60;
   }
 
-  const dwStart = dayWindow.availableFrom ? toMinutes(dayWindow.availableFrom)! : 8 * 60;
-  const dwEnd = dayWindow.availableUntil ? toMinutes(dayWindow.availableUntil)! : 23 * 60 + 59;
+  const dwEnd = dayWindow.availableUntil !== null ? toMinutes(dayWindow.availableUntil)! : (dayWindow.isDepartureDay ? null : 23 * 60 + 59);
+
+  if (dwStart === null || dwEnd === null) {
+    return null; // Boundary is unknown on arrival/departure day
+  }
 
   let prefStart = preferredWindow ? toMinutes(preferredWindow.start)! : dwStart;
   let prefEnd = preferredWindow ? toMinutes(preferredWindow.end)! : dwEnd;
@@ -789,7 +819,6 @@ export function buildMinimalFallbackFromBrief(brief: PlanningBrief): KrewSkeleto
       });
     }
 
-    // Add place_required activities based on travelPace ceiling if gap available
     const maxActs = brief.planningRules.maxActivitiesPerDay;
     const isHomeProfile = /maison|cocoon|chill|logement/.test(
       norm([brief.destination, ...brief.validatedTripProfiles].join(" "))
@@ -799,29 +828,78 @@ export function buildMinimalFallbackFromBrief(brief: PlanningBrief): KrewSkeleto
     const wantsSport = /sport|outdoor|montagne|rando|kayak|randonnee/.test(categories.join(" "));
 
     if (isHomeProfile) {
-      const gap = findAvailableGap({
-        dayWindow: dw,
-        existingSlots: slots,
-        preferredWindow: { start: "15:00", end: "18:00" },
-        durationMinutes: 120,
-      });
-
-      if (gap) {
-        slots.push({
-          id: `slot_${slotIdCounter++}`,
-          day: dw.day,
-          moment: "Après-midi",
-          time: gap.start,
-          endTime: gap.end,
-          durationMinutes: 120,
-          kind: "internal",
-          type: "libre",
-          category: "moment_maison",
-          label: "Jeux collectifs ou temps libre au logement",
-          importance: "medium",
-          flexibility: "flexible",
-          locationContext: "lodging",
+      if (dw.day === 1) {
+        const gap = findAvailableGap({
+          dayWindow: dw,
+          existingSlots: slots,
+          preferredWindow: { start: "18:00", end: "20:00" },
+          durationMinutes: 90,
         });
+        if (gap) {
+          slots.push({
+            id: `slot_${slotIdCounter++}`,
+            day: dw.day,
+            moment: "Soir",
+            time: gap.start,
+            endTime: gap.end,
+            durationMinutes: 90,
+            kind: "internal",
+            type: "libre",
+            category: "moment_maison",
+            label: "Apéro & installation au logement",
+            importance: "medium",
+            flexibility: "flexible",
+            locationContext: "lodging",
+          });
+        }
+      } else if (!dw.isDepartureDay) {
+        const gap = findAvailableGap({
+          dayWindow: dw,
+          existingSlots: slots,
+          preferredWindow: { start: "15:00", end: "18:00" },
+          durationMinutes: 120,
+        });
+        if (gap) {
+          slots.push({
+            id: `slot_${slotIdCounter++}`,
+            day: dw.day,
+            moment: "Après-midi",
+            time: gap.start,
+            endTime: gap.end,
+            durationMinutes: 120,
+            kind: "internal",
+            type: "libre",
+            category: "moment_maison",
+            label: "Jeux collectifs ou temps libre au logement",
+            importance: "medium",
+            flexibility: "flexible",
+            locationContext: "lodging",
+          });
+        }
+      } else if (dw.isDepartureDay) {
+        const gap = findAvailableGap({
+          dayWindow: dw,
+          existingSlots: slots,
+          preferredWindow: { start: "10:00", end: "12:00" },
+          durationMinutes: 90,
+        });
+        if (gap) {
+          slots.push({
+            id: `slot_${slotIdCounter++}`,
+            day: dw.day,
+            moment: "Matin",
+            time: gap.start,
+            endTime: gap.end,
+            durationMinutes: 90,
+            kind: "internal",
+            type: "libre",
+            category: "moment_maison",
+            label: "Matinée cocooning & rangement au logement",
+            importance: "low",
+            flexibility: "flexible",
+            locationContext: "lodging",
+          });
+        }
       }
     }
 
@@ -904,6 +982,7 @@ export function buildKrewSkeleton(input: ActivityAiInput): KrewSkeleton {
 
 /**
   * Ensure mandatoryNeeds post-Gemini.
+  * Checks specific meal subtypes (breakfast satisfied only by breakfast/brunch, lunch by lunch/brunch, dinner by dinner).
   * Repairs missing mandatory needs deterministically without 2nd Gemini call!
   */
 export function ensureMandatoryNeeds(skeleton: KrewSkeleton, brief: PlanningBrief): KrewSkeleton {
@@ -918,7 +997,21 @@ export function ensureMandatoryNeeds(skeleton: KrewSkeleton, brief: PlanningBrie
     for (const need of dayNeeds) {
       const satisfied = currentSlots.some((s) => {
         if (need.type === "meal") {
-          return (s.category === "repas" || s.type === "resto") && s.time != null;
+          const isMealSlot = s.category === "repas" || s.type === "resto";
+          if (!isMealSlot) return false;
+          const sStart = toMinutes(s.time);
+          if (sStart == null) return false;
+
+          if (need.subType === "breakfast") {
+            return sStart < 11 * 60 + 30 || norm(s.label).includes("breakfast") || norm(s.label).includes("brunch");
+          }
+          if (need.subType === "lunch") {
+            return (sStart >= 11 * 60 + 30 && sStart < 15 * 60 + 30) || norm(s.label).includes("dejeuner") || norm(s.label).includes("brunch");
+          }
+          if (need.subType === "dinner") {
+            return sStart >= 18 * 60 || norm(s.label).includes("diner") || norm(s.label).includes("souper");
+          }
+          return true;
         }
         if (need.type === "event_signature") {
           return (s.category === "evenement" || s.category === "jeu_groupe") && s.time != null;
@@ -982,7 +1075,7 @@ export function ensureMandatoryNeeds(skeleton: KrewSkeleton, brief: PlanningBrie
 }
 
 /**
-  * Apply maxActivitiesPerDay ceiling post-Gemini.
+  * Apply maxActivitiesPerDay ceiling post-Gemini with smart category diversity selection.
   */
 export function applyMaxActivitiesPerDay(skeleton: KrewSkeleton, brief: PlanningBrief): KrewSkeleton {
   const maxActs = brief.planningRules.maxActivitiesPerDay;
@@ -998,7 +1091,27 @@ export function applyMaxActivitiesPerDay(skeleton: KrewSkeleton, brief: Planning
 
     if (mainActs.length <= maxActs) return day;
 
-    const keptMainSet = new Set(mainActs.slice(0, maxActs).map((s) => s.id));
+    // Smart ranking based on preference frequencies and diversity
+    const prefFreqs = brief.preferenceSignals.activityCategoryFrequencies || {};
+
+    const rankedActs = mainActs.slice().sort((a, b) => {
+      const freqA = prefFreqs[a.category] || 0;
+      const freqB = prefFreqs[b.category] || 0;
+      if (freqA !== freqB) return freqB - freqA;
+      return (toMinutes(a.time) ?? 0) - (toMinutes(b.time) ?? 0);
+    });
+
+    const keptSet = new Set<string>();
+    const seenCategories = new Set<string>();
+
+    for (const act of rankedActs) {
+      if (keptSet.size >= maxActs) break;
+      if (!seenCategories.has(act.category) || keptSet.size < maxActs) {
+        keptSet.add(act.id);
+        seenCategories.add(act.category);
+      }
+    }
+
     const prunedSlots = day.slots.filter((s) => {
       const isMain =
         s.kind === "place_required" &&
@@ -1006,7 +1119,7 @@ export function applyMaxActivitiesPerDay(skeleton: KrewSkeleton, brief: Planning
         s.type !== "resto" &&
         s.type !== "transport";
       if (!isMain) return true;
-      return keptMainSet.has(s.id);
+      return keptSet.has(s.id);
     });
 
     return {
@@ -1097,11 +1210,10 @@ Brief JSON = ${JSON.stringify(brief)}`;
         if (rawSlot.kind === "internal") kind = "internal";
         else if (rawSlot.kind === "place_required") kind = "place_required";
         else {
-          // Repair kind ONLY if momentType / category allows unambiguous determination
           const mNorm = norm(rawSlot.momentType || rawSlot.category);
           if (["moment_maison", "jeu_groupe", "evenement", "lodging", "free_time"].includes(mNorm)) {
             kind = "internal";
-          } else if (["repas", "culture", "sport", "sport_outdoor", "relaxation", "soiree", "shopping", "local_experience"].includes(mNorm)) {
+          } else if (["repas", "culture", "sport_outdoor", "detente", "soiree", "shopping", "local_experience"].includes(mNorm)) {
             kind = "place_required";
           } else {
             continue; // Reject slot if kind is unresolvable
@@ -1111,8 +1223,8 @@ Brief JSON = ${JSON.stringify(brief)}`;
         // Strict momentType validation (NO "culture" default!)
         let momentType = norm(rawSlot.momentType || rawSlot.category);
         if (momentType === "sport") momentType = "sport_outdoor";
-        const allowedMoments = ["repas", "evenement", "sport_outdoor", "detente", "culture", "soiree", "moment_maison", "transport", "temps_libre"];
-        if (!allowedMoments.includes(momentType)) {
+
+        if (!ALLOWED_MOMENT_TYPES.includes(momentType)) {
           if (rawSlot.label && norm(rawSlot.label).includes("diner")) momentType = "repas";
           else continue; // Reject slot if momentType unresolvable
         }
@@ -1159,11 +1271,11 @@ Brief JSON = ${JSON.stringify(brief)}`;
         const startMin = toMinutes(time)!;
         const endMin = startMin + durationMinutes;
 
-        const availStart = dw.availableFrom ? toMinutes(dw.availableFrom)! : 0;
-        const availEnd = dw.availableUntil ? toMinutes(dw.availableUntil)! : 1439;
+        const availStart = dw.availableFrom !== null ? toMinutes(dw.availableFrom)! : null;
+        const availEnd = dw.availableUntil !== null ? toMinutes(dw.availableUntil)! : null;
 
-        if (dw.availableFrom !== null && startMin < availStart) continue;
-        if (dw.availableUntil !== null && endMin > availEnd) continue;
+        if (availStart !== null && startMin < availStart) continue;
+        if (availEnd !== null && endMin > availEnd) continue;
 
         const locCtx: "lodging" | "external" | "flexible" =
           kind === "internal" || momentType === "moment_maison" ? "lodging" : "external";
@@ -1208,7 +1320,6 @@ Brief JSON = ${JSON.stringify(brief)}`;
       days: Array.from(mergedDaysMap.values()).sort((a, b) => a.day - b.day),
     };
 
-    // Ensure mandatoryNeeds and apply maxActivitiesPerDay ceiling
     finalSkeleton = ensureMandatoryNeeds(finalSkeleton, brief);
     finalSkeleton = applyMaxActivitiesPerDay(finalSkeleton, brief);
 
@@ -1239,8 +1350,6 @@ export function adjustItineraryTransferTimes(
 ): ItineraryDayPlan[] {
   const expectedDays = Math.max(1, input.nights + 1);
   const window = calculatePlanningWindow(input);
-  const arrival = window.arrivalReady ? toMinutes(window.arrivalReady) : null;
-  const departure = window.latestDestinationDeparture ? toMinutes(window.latestDestinationDeparture) : null;
 
   return days
     .filter((day) => day.day >= 1 && day.day <= expectedDays)
@@ -1248,6 +1357,24 @@ export function adjustItineraryTransferTimes(
       let previousEnd = -1;
       let previousCoords: { latitude?: number | null; longitude?: number | null } | null = null;
       const slots: ActivitySlot[] = [];
+
+      // Check overnight arrival boundary
+      let dayArrivalMin: number | null = null;
+      if (window.arrivalDayOffset > 0) {
+        if (day.day <= window.arrivalDayOffset) {
+          return { ...day, slots: [] }; // Day before overnight arrival is empty at destination
+        }
+        if (day.day === window.arrivalDayOffset + 1 && window.arrivalReady) {
+          dayArrivalMin = toMinutes(window.arrivalReady);
+        }
+      } else if (day.day === 1 && window.arrivalReady) {
+        dayArrivalMin = toMinutes(window.arrivalReady);
+      }
+
+      let dayDepartureMin: number | null = null;
+      if (day.day === expectedDays && window.latestDestinationDeparture) {
+        dayDepartureMin = toMinutes(window.latestDestinationDeparture);
+      }
 
       for (const slot of day.slots) {
         let start = toMinutes(slot.time);
@@ -1274,8 +1401,8 @@ export function adjustItineraryTransferTimes(
 
         const end = start + duration;
 
-        if (day.day === 1 && arrival != null && start < arrival) continue;
-        if (day.day === expectedDays && departure != null && end > departure) continue;
+        if (dayArrivalMin != null && start < dayArrivalMin) continue;
+        if (dayDepartureMin != null && end > dayDepartureMin) continue;
 
         const updatedSlot: ActivitySlot = {
           ...slot,
@@ -1309,6 +1436,7 @@ function categoryFor(raw: any): ActivityCategory {
   if (/bar|club|soir/.test(value)) return "soiree";
   if (/spa|detente|détente/.test(value)) return "detente";
   if (/transport|arrivee|arrivée|depart|départ/.test(value)) return "transport";
+  if (/shopping|boutique|marché/.test(value)) return "shopping";
   if (/libre/.test(value)) return "temps_libre";
   return "culture";
 }
@@ -1369,8 +1497,6 @@ export function validateItinerary(
 ): ItineraryDayPlan[] {
   const expectedDays = Math.max(1, input.nights + 1);
   const window = calculatePlanningWindow(input);
-  const arrival = window.arrivalReady ? toMinutes(window.arrivalReady) : null;
-  const departure = window.latestDestinationDeparture ? toMinutes(window.latestDestinationDeparture) : null;
 
   let rejectedOpeningHours = 0;
   let rejectedGeography = 0;
@@ -1381,6 +1507,24 @@ export function validateItinerary(
       let previousEnd = -1;
       let previousExternal: ActivitySlot | null = null;
 
+      // Handle overnight arrival day offset
+      let dayArrivalMin: number | null = null;
+      if (window.arrivalDayOffset > 0) {
+        if (day.day <= window.arrivalDayOffset) {
+          return { day: day.day, date: input.startDate ? addDays(input.startDate, day.day - 1) : null, slots: [] };
+        }
+        if (day.day === window.arrivalDayOffset + 1 && window.arrivalReady) {
+          dayArrivalMin = toMinutes(window.arrivalReady);
+        }
+      } else if (day.day === 1 && window.arrivalReady) {
+        dayArrivalMin = toMinutes(window.arrivalReady);
+      }
+
+      let dayDepartureMin: number | null = null;
+      if (day.day === expectedDays && window.latestDestinationDeparture) {
+        dayDepartureMin = toMinutes(window.latestDestinationDeparture);
+      }
+
       const slots = day.slots
         .map((raw) => normalizeSlot(raw, input, candidates))
         .filter((slot): slot is ActivitySlot => Boolean(slot))
@@ -1390,8 +1534,8 @@ export function validateItinerary(
           if (start == null) return slot.type === "transport" || slot.type === "libre";
           const end = start + (slot.durationMinutes ?? 90);
 
-          if (day.day === 1 && arrival != null && start < arrival) return false;
-          if (day.day === expectedDays && departure != null && end > departure) return false;
+          if (dayArrivalMin != null && start < dayArrivalMin) return false;
+          if (dayDepartureMin != null && end > dayDepartureMin) return false;
 
           const candidate = slot.candidateId
             ? candidates.find((item) => item.id === slot.candidateId)
