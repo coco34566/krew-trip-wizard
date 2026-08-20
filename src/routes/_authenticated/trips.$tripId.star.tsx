@@ -347,7 +347,7 @@ function StarQuestionnaire() {
         </p>
         <Button asChild variant="outline" className="rounded-xl">
           <Link to="/trips/$tripId" params={{ tripId }}>
-            Retour à Mon Voyage
+            Retour au voyage
           </Link>
         </Button>
       </main>
@@ -363,7 +363,7 @@ function StarQuestionnaire() {
         params={{ tripId }}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
-        <ArrowLeft className="size-4" /> ← Retour au voyage
+        <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
       <div className="space-y-2">

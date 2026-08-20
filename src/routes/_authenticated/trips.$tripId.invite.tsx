@@ -234,7 +234,7 @@ function InvitePage() {
         params={{ tripId }}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
-        <ArrowLeft className="size-4" /> ← Retour au voyage
+        <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
       <div className="space-y-2">
@@ -362,7 +362,7 @@ function InvitePage() {
             <Users className="size-5 text-primary" /> Participants
           </h2>
           <Badge variant="secondary" className="font-mono text-xs font-normal">
-            {answered}/{total} ont répondu au questionnaire
+            {answered}/{total} ont renseigné leurs préférences
           </Badge>
         </div>
         <div className="divide-y divide-border/50">
