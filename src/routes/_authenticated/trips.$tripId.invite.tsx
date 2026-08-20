@@ -447,7 +447,40 @@ function InvitePage() {
               </span>
             </button>
           </div>
+
+          <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+            <Label htmlFor="star-pays-share" className="text-xs text-muted-foreground cursor-pointer">
+              La Star paye sa part du séjour
+            </Label>
+            <input
+              id="star-pays-share"
+              type="checkbox"
+              disabled={!data.isOwner}
+              checked={starPaysShare}
+              onChange={(e) => setStarPaysShare(e.target.checked)}
+              className="size-4 rounded border-border text-primary focus:ring-primary"
+            />
+          </div>
         </section>
+      ) : null}
+
+      {data.isOwner ? (
+        <div className="pt-4 flex justify-end">
+          <Button
+            size="lg"
+            variant="hero"
+            disabled={finishInviteMutation.isPending}
+            onClick={() => finishInviteMutation.mutate()}
+            className="rounded-xl gap-2"
+          >
+            {finishInviteMutation.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
+            Accéder au tableau de bord du voyage →
+          </Button>
+        </div>
       ) : null}
     </main>
   );
