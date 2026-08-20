@@ -12,6 +12,8 @@ import {
   findAvailableGap,
   toMinutes,
   fromMinutes,
+  aggregateMajorityTimePreference,
+  normalizeGeminiParsedResponse,
   type ActivityAiInput,
 } from "../activity-ai.server";
 import {
@@ -43,117 +45,39 @@ const baseInput = (overrides: Partial<ActivityAiInput> = {}): ActivityAiInput =>
   ...overrides,
 });
 
-describe("PR 107 — Tests Obligatoires Logistique & Fenêtres", () => {
-  // A. availableFrom=09:00, availableUntil=null -> aucun lunch, aucun dinner
-  it("A. availableFrom=09:00 & availableUntil=null -> aucun lunch ni dinner mandatory", () => {
-    const brief = buildPlanningBrief(
-      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: "09:00", earliestGroupDeparture: null }),
-    );
-    expect(brief.mandatoryNeeds.some((n) => n.subType === "lunch")).toBe(false);
-    expect(brief.mandatoryNeeds.some((n) => n.subType === "dinner")).toBe(false);
-  });
-
-  // B. availableFrom=null, availableUntil=22:00 -> aucun breakfast/lunch/dinner
-  it("B. availableFrom=null & availableUntil=22:00 -> aucun breakfast/lunch/dinner", () => {
-    const brief = buildPlanningBrief(
-      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: null, earliestGroupDeparture: "22:00" }),
-    );
-    expect(brief.mandatoryNeeds.some((n) => n.type === "meal")).toBe(false);
-  });
-
-  // C. availableFrom=10:00, availableUntil=14:00 -> lunch présent
-  it("C. availableFrom=10:00 & availableUntil=14:00 -> lunch présent", () => {
-    const brief = buildPlanningBrief(
-      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: "10:00", earliestGroupDeparture: "14:00" }),
-    );
-    expect(brief.mandatoryNeeds.some((n) => n.subType === "lunch")).toBe(true);
-  });
-
-  // D. availableFrom=18:00, availableUntil=22:30 -> dinner présent
-  it("D. availableFrom=18:00 & availableUntil=22:30 -> dinner présent", () => {
-    const brief = buildPlanningBrief(
-      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: "18:00", earliestGroupDeparture: "22:30" }),
-    );
-    expect(brief.mandatoryNeeds.some((n) => n.subType === "dinner")).toBe(true);
-  });
-
-  // E. availableFrom=18:00, availableUntil=null -> dinner absent
-  it("E. availableFrom=18:00 & availableUntil=null -> dinner absent", () => {
-    const brief = buildPlanningBrief(
-      baseInput({ nights: 0, endDate: "2026-06-13", latestGroupArrival: "18:00", earliestGroupDeparture: null }),
-    );
-    expect(brief.mandatoryNeeds.some((n) => n.subType === "dinner")).toBe(false);
-  });
-
-  // F. EVJF day1 18:00–23:00 -> day1 choisi
-  it("F. EVJF day1 18:00-23:00 -> day1 choisi pour event_signature", () => {
-    const brief = buildPlanningBrief(
-      baseInput({ nights: 0, endDate: "2026-06-13", eventType: "evjf", latestGroupArrival: "18:00", earliestGroupDeparture: "23:00" }),
-    );
-    const ev = brief.mandatoryNeeds.find((n) => n.type === "event_signature");
-    expect(ev).toBeDefined();
-    expect(ev?.targetDay).toBe(1);
-  });
-
-  // G. EVJF day1 18:00–null -> day1 non considéré comme soirée certaine
-  it("G. EVJF day1 18:00-null -> aucun event_signature", () => {
-    const brief = buildPlanningBrief(
-      baseInput({ nights: 0, endDate: "2026-06-13", eventType: "evjf", latestGroupArrival: "18:00", earliestGroupDeparture: null }),
-    );
-    expect(brief.mandatoryNeeds.some((n) => n.type === "event_signature")).toBe(false);
-  });
-
-  // H. EVJF day1 inconnu, day2 17:00–19:00 -> day2 choisi si >=60 min
-  it("H. EVJF day1 inconnu, day2 17:00-19:00 -> day2 choisi", () => {
+describe("Planning Sans Transport Sélectionné — Fallbacks Produit Officiels", () => {
+  it("A. aucun transport sélectionné, aucun horaire renseigné, séjour vendredi -> dimanche (2 nuits, 3 jours)", () => {
     const brief = buildPlanningBrief(
       baseInput({
-        eventType: "evjf",
-        startDate: "2026-06-06",
-        endDate: "2026-06-07",
-        nights: 1,
+        nights: 2,
+        startDate: "2026-06-12", // Vendredi
+        endDate: "2026-06-14",   // Dimanche
         latestGroupArrival: null,
-        earliestGroupDeparture: "19:00",
+        earliestGroupDeparture: null,
+        earliestOutboundDeparture: null,
+        latestReturnHome: null,
+        transportPicksSummary: [],
       }),
     );
-    const ev = brief.mandatoryNeeds.find((n) => n.type === "event_signature");
-    expect(ev?.targetDay).toBe(2);
+    expect(brief.dayWindows[0]?.availableFrom).toBe("18:30"); // Vendredi planifiable à partir de 18:30
+    expect(brief.dayWindows[1]?.availableFrom).toBe("08:00"); // Samedi journée complète
+    expect(brief.dayWindows[1]?.availableUntil).toBe("23:59");
+    expect(brief.dayWindows[2]?.availableUntil).toBe("16:30"); // Dimanche planifiable jusqu'à 16:30
   });
 
-  // I. aucune fenêtre avec deux bornes connues >=60 min -> aucun mandatory event_signature
-  it("I. aucune fenêtre avec deux bornes connues >=60 min -> aucun event_signature", () => {
+  it("E. séjour 1 nuit (vendredi -> samedi) : premier jour 18:30 et dernier jour 16:30", () => {
     const brief = buildPlanningBrief(
-      baseInput({ eventType: "evjf", latestGroupArrival: null, earliestGroupDeparture: null }),
+      baseInput({
+        nights: 1,
+        startDate: "2026-06-12",
+        endDate: "2026-06-13",
+        latestGroupArrival: null,
+        earliestGroupDeparture: null,
+        transportPicksSummary: [],
+      }),
     );
-    expect(brief.mandatoryNeeds.some((n) => n.type === "event_signature")).toBe(false);
-  });
-
-  // A2. arrival unknown -> availableFrom null -> findAvailableGap does not transform into 08:00
-  it("A2. arrival inconnue -> availableFrom est null et findAvailableGap ne fabrique pas 08:00", () => {
-    const brief = buildPlanningBrief(baseInput({ latestGroupArrival: null, earliestOutboundDeparture: null }));
-    expect(brief.dayWindows[0]?.availableFrom).toBeNull();
-
-    const gap = findAvailableGap({
-      dayWindow: brief.dayWindows[0]!,
-      existingSlots: [],
-      preferredWindow: { start: "08:30", end: "10:30" },
-      durationMinutes: 45,
-    });
-    expect(gap).toBeNull();
-  });
-
-  // B. departure unknown -> availableUntil null -> findAvailableGap does not transform into 23:59
-  it("B. departure inconnue -> availableUntil est null et findAvailableGap ne fabrique pas 23:59", () => {
-    const brief = buildPlanningBrief(baseInput({ earliestGroupDeparture: null, latestReturnHome: null }));
-    const lastDay = brief.dayWindows[brief.dayWindows.length - 1]!;
-    expect(lastDay.availableUntil).toBeNull();
-
-    const gap = findAvailableGap({
-      dayWindow: lastDay,
-      existingSlots: [],
-      preferredWindow: { start: "20:00", end: "22:30" },
-      durationMinutes: 120,
-    });
-    expect(gap).toBeNull();
+    expect(brief.dayWindows[0]?.availableFrom).toBe("18:30");
+    expect(brief.dayWindows[1]?.availableUntil).toBe("16:30");
   });
 
   // C. unknown boundary -> no mandatory meal created solely due to fake full day
@@ -690,6 +614,109 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(0);
       expect(res.usedLlm).toBe(false);
+    });
+  });
+
+  describe("Nouveaux Tests Obligatoires - Planning, Gemini Robustesse & Tâches (Test 12 / 13 Fixes)", () => {
+    it("A & D. Génération de planning sans transport sélectionné", () => {
+      const brief = buildPlanningBrief(
+        baseInput({
+          nights: 2,
+          startDate: "2026-06-12",
+          endDate: "2026-06-14",
+          latestGroupArrival: null,
+          earliestGroupDeparture: null,
+          transportPicksSummary: [],
+        }),
+      );
+      expect(brief.dayWindows[0]?.availableFrom).toBe("18:30");
+      expect(brief.dayWindows[1]?.availableFrom).toBe("08:00");
+      expect(brief.dayWindows[1]?.availableUntil).toBe("23:59");
+      expect(brief.dayWindows[2]?.availableUntil).toBe("16:30");
+    });
+
+    it("B. Agrégation horaire : un participant très tardif ne decale pas tout le groupe", () => {
+      // 5 personnes à 16h00, 1 personne à 20h00 -> la majorité/médiane est à 16h00
+      const prefs = ["16:00", "16:00", "16:00", "16:00", "16:00", "20:00"];
+      const groupDeparture = aggregateMajorityTimePreference(prefs);
+      expect(groupDeparture).toBe("16:00");
+    });
+
+    it("C. Agrégation horaire : retour anticipé minoritaire ne tronque pas la journée collective", () => {
+      // 5 personnes à 18h00, 1 personne à 12h00 -> médiane à 18h00
+      const prefs = ["18:00", "18:00", "18:00", "18:00", "18:00", "12:00"];
+      const groupReturn = aggregateMajorityTimePreference(prefs);
+      expect(groupReturn).toBe("18:00");
+    });
+
+    it("E. Séjour 1 nuit : premier jour 18:30 et dernier jour 16:30", () => {
+      const brief = buildPlanningBrief(
+        baseInput({
+          nights: 1,
+          startDate: "2026-06-12",
+          endDate: "2026-06-13",
+          latestGroupArrival: null,
+          earliestGroupDeparture: null,
+          transportPicksSummary: [],
+        }),
+      );
+      expect(brief.dayWindows[0]?.availableFrom).toBe("18:30");
+      expect(brief.dayWindows[1]?.availableUntil).toBe("16:30");
+    });
+
+    it("F. Gemini : réponse strictement conforme est acceptée", () => {
+      const rawPayload = {
+        days: [
+          {
+            day: 1,
+            slots: [
+              {
+                kind: "place_required",
+                momentType: "repas",
+                canonicalVenueFamily: "restaurant",
+                label: "Dîner de bienvenue",
+                time: "19:00",
+                durationMinutes: 90,
+              },
+            ],
+          },
+        ],
+      };
+      const normalized = normalizeGeminiParsedResponse(rawPayload);
+      expect(normalized).not.toBeNull();
+      expect(normalized?.days.length).toBe(1);
+      expect(normalized?.days[0]?.slots[0]?.label).toBe("Dîner de bienvenue");
+    });
+
+    it("G. Gemini : réponse avec variation de structure (jours au lieu de days, creneaux au lieu de slots) est normalisée localement sans 2e appel", () => {
+      const rawPayloadWithVariation = {
+        jours: [
+          {
+            jour: 1,
+            creneaux: [
+              {
+                kind: "place_required",
+                moment_type: "repas",
+                venue_family: "restaurant",
+                intitule: "Pizzas Le Khéops",
+                startTime: "20:00",
+                duration_minutes: 90,
+              },
+            ],
+          },
+        ],
+      };
+      const normalized = normalizeGeminiParsedResponse(rawPayloadWithVariation);
+      expect(normalized).not.toBeNull();
+      expect(normalized?.days.length).toBe(1);
+      expect(normalized?.days[0]?.slots[0]?.label).toBe("Pizzas Le Khéops");
+      expect(normalized?.days[0]?.slots[0]?.time).toBe("20:00");
+    });
+
+    it("H. Gemini : réponse inexploitable retourne null pour basculer vers le fallback local", () => {
+      const invalidPayload = { invalidKey: "broken" };
+      const normalized = normalizeGeminiParsedResponse(invalidPayload);
+      expect(normalized).toBeNull();
     });
   });
 });

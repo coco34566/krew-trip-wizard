@@ -416,9 +416,16 @@ export function calculatePlanningWindow(input: ActivityAiInput): PlanningWindowR
     arrivalTotalMinutes = explicitArrival + margin;
   } else if (outbound != null && Number.isFinite(duration) && duration > 0) {
     arrivalTotalMinutes = outbound + Math.round(duration * 60) + margin;
+  } else if (outbound != null) {
+    // No transport pick selected, convert departure time from origin to arrival ready at destination
+    const estimatedTravelBuffer = 120;
+    arrivalTotalMinutes = Math.max(toMinutes("18:30")!, outbound + estimatedTravelBuffer);
+  } else {
+    // Official product fallback when no transport or departure time is known: First day planifiable from 18:30
+    arrivalTotalMinutes = toMinutes("18:30")!;
   }
 
-  let arrivalReady: string | null = null;
+  let arrivalReady: string = "18:30";
   let arrivalDayOffset = 0;
   let arrivalReadyDate: string | null = null;
 
@@ -444,9 +451,16 @@ export function calculatePlanningWindow(input: ActivityAiInput): PlanningWindowR
     departureTotalMinutes = explicitDeparture;
   } else if (returnHome != null && Number.isFinite(duration) && duration > 0) {
     departureTotalMinutes = returnHome - Math.round(duration * 60) - margin;
+  } else if (returnHome != null) {
+    // No transport pick selected, convert latest return home time to destination departure
+    const estimatedReturnBuffer = 120;
+    departureTotalMinutes = Math.min(toMinutes("16:30")!, Math.max(toMinutes("08:00")!, returnHome - estimatedReturnBuffer));
+  } else {
+    // Official product fallback when no transport or return constraint is known: Last day planifiable until 16:30
+    departureTotalMinutes = toMinutes("16:30")!;
   }
 
-  let latestDestinationDeparture: string | null = null;
+  let latestDestinationDeparture: string = "16:30";
   let departureDayOffset = 0;
   let departureDate: string | null = null;
 
@@ -1189,18 +1203,22 @@ Brief JSON = ${JSON.stringify(brief)}`;
     }
 
     const payload = JSON.parse(text);
-    const parsed = parseJson(
-      (payload?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? "").join(""),
-    );
+    const rawText = (payload?.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? "").join("");
+    const rawParsed = parseJson(rawText);
 
-    if (!parsed || !Array.isArray(parsed.days)) {
+    const normalizedParsed = normalizeGeminiParsedResponse(rawParsed);
+
+    if (!normalizedParsed || !Array.isArray(normalizedParsed.days) || normalizedParsed.days.length === 0) {
       throw new Error("gemini_invalid_response_format");
     }
+
+    const isDirectMatch = rawParsed && typeof rawParsed === "object" && Array.isArray(rawParsed.days);
+    const telemetryStatus = isDirectMatch ? "accepted_direct" : "accepted_normalized";
 
     const enrichedDays: KrewSkeletonDay[] = [];
     let slotIdCounter = 1;
 
-    for (const rawDay of parsed.days) {
+    for (const rawDay of normalizedParsed.days) {
       const dayNum = Number(rawDay.day);
       const dw = brief.dayWindows.find((w) => w.day === dayNum);
       if (!dw || dayNum === 99) continue;
@@ -1333,11 +1351,23 @@ Brief JSON = ${JSON.stringify(brief)}`;
     finalSkeleton = ensureMandatoryNeeds(finalSkeleton, brief);
     finalSkeleton = applyMaxActivitiesPerDay(finalSkeleton, brief);
 
+    console.info("gemini-composition-telemetry", {
+      status: telemetryStatus,
+      daysCount: finalSkeleton.days.length,
+      destination: input.destination,
+    });
+
     return {
       enrichedSkeleton: finalSkeleton,
       usedLlm: true,
     };
   } catch (error) {
+    console.warn("gemini-composition-telemetry", {
+      status: "rejected_fallback",
+      error: String(error),
+      destination: input.destination,
+    });
+
     reportServerError(error, {
       provider: "gemini",
       model: GEMINI_MODEL,
@@ -1651,14 +1681,105 @@ export function buildLocalItinerary(
 }
 
 function parseJson(raw: string): any {
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
+  if (!raw || typeof raw !== "string") return null;
+  const cleaned = raw.trim();
   try {
-    return JSON.parse(raw.slice(start, end + 1));
+    return JSON.parse(cleaned);
   } catch {
+    // Attempt object boundary extraction if JSON was surrounded by markdown or commentary
+    const startObj = cleaned.indexOf("{");
+    const endObj = cleaned.lastIndexOf("}");
+    if (startObj >= 0 && endObj > startObj) {
+      try {
+        return JSON.parse(cleaned.slice(startObj, endObj + 1));
+      } catch {
+        // Continue to array check
+      }
+    }
+    const startArr = cleaned.indexOf("[");
+    const endArr = cleaned.lastIndexOf("]");
+    if (startArr >= 0 && endArr > startArr) {
+      try {
+        return JSON.parse(cleaned.slice(startArr, endArr + 1));
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
+}
+
+/**
+ * Deterministically normalizes structural variations in Gemini's parsed output.
+ * Does not invent missing content or weaken business constraints.
+ */
+export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[] } | null {
+  if (!rawParsed) return null;
+
+  let rawDays: any[] | null = null;
+
+  if (Array.isArray(rawParsed)) {
+    rawDays = rawParsed;
+  } else if (typeof rawParsed === "object") {
+    if (Array.isArray(rawParsed.days)) rawDays = rawParsed.days;
+    else if (Array.isArray(rawParsed.jours)) rawDays = rawParsed.jours;
+    else if (Array.isArray(rawParsed.itinerary)) rawDays = rawParsed.itinerary;
+    else if (Array.isArray(rawParsed.planning)) rawDays = rawParsed.planning;
+    else if (Array.isArray(rawParsed.schedule)) rawDays = rawParsed.schedule;
+    else if (rawParsed.data && Array.isArray(rawParsed.data.days)) rawDays = rawParsed.data.days;
+    else if (rawParsed.data && Array.isArray(rawParsed.data)) rawDays = rawParsed.data;
+  }
+
+  if (!rawDays || !Array.isArray(rawDays) || rawDays.length === 0) {
+    return null;
+  }
+
+  const normalizedDays: any[] = [];
+
+  for (let idx = 0; idx < rawDays.length; idx++) {
+    const rawDay = rawDays[idx];
+    if (!rawDay || typeof rawDay !== "object") continue;
+
+    const dayNumber = Number(rawDay.day ?? rawDay.jour ?? rawDay.dayNumber ?? idx + 1);
+    if (!Number.isFinite(dayNumber) || dayNumber <= 0) continue;
+
+    let rawSlots: any[] | null = null;
+    if (Array.isArray(rawDay.slots)) rawSlots = rawDay.slots;
+    else if (Array.isArray(rawDay.creneaux)) rawSlots = rawDay.creneaux;
+    else if (Array.isArray(rawDay.activities)) rawSlots = rawDay.activities;
+    else if (Array.isArray(rawDay.activites)) rawSlots = rawDay.activites;
+    else if (Array.isArray(rawDay.items)) rawSlots = rawDay.items;
+    else if (Array.isArray(rawDay.events)) rawSlots = rawDay.events;
+
+    if (!rawSlots || !Array.isArray(rawSlots)) continue;
+
+    const normalizedSlots: any[] = [];
+    for (const slot of rawSlots) {
+      if (!slot || typeof slot !== "object") continue;
+
+      const normalizedSlot = {
+        kind: slot.kind ?? slot.type_kind,
+        momentType: slot.momentType ?? slot.category ?? slot.type ?? slot.moment_type,
+        canonicalVenueFamily: slot.canonicalVenueFamily ?? slot.venueFamily ?? slot.venue_family,
+        label: slot.label ?? slot.title ?? slot.name ?? slot.intitule,
+        detail: slot.detail ?? slot.description ?? slot.details,
+        time: slot.time ?? slot.startTime ?? slot.start_time ?? slot.heure,
+        durationMinutes: slot.durationMinutes ?? slot.duration ?? slot.duration_minutes,
+        locationContext: slot.locationContext ?? slot.location_context ?? slot.context,
+        searchIntent: slot.searchIntent ?? slot.search_intent ?? slot.intent,
+      };
+
+      normalizedSlots.push(normalizedSlot);
+    }
+
+    normalizedDays.push({
+      day: dayNumber,
+      date: rawDay.date ?? null,
+      slots: normalizedSlots,
+    });
+  }
+
+  return normalizedDays.length > 0 ? { days: normalizedDays } : null;
 }
 
 export async function generateItineraryWithAi(
