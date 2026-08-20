@@ -392,27 +392,37 @@ function InvitePage() {
               variant="outline"
               className="rounded-xl"
               onClick={() => {
-                const lines: string[] = [
-                  `🔔 Petit rappel pour le voyage « ${trip.name || "notre voyage"} » !`,
-                  "",
-                  "Certain·es d'entre nous n'ont pas encore eu le temps de remplir leurs infos :",
-                ];
-
-                for (const p of missingParticipants) {
+                const statusLines: string[] = [];
+                if (trip.start_date && trip.end_date) {
+                  const start = new Date(`${trip.start_date}T12:00:00`).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                  });
+                  const end = new Date(`${trip.end_date}T12:00:00`).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  });
+                  statusLines.push(`📅 Dates : ${start} → ${end}`);
+                }
+                const actions: { name: string; action: string }[] = [];
+                for (const p of progress?.participants ?? []) {
                   const name = p.display_name || p.email?.split("@")[0] || "Ami";
-                  const missing: string[] = [];
-                  if (!p.hasAnsweredAvailability) missing.push("disponibilités 📅");
-                  if (!p.hasAnswered) missing.push("préférences ⚙️");
-                  lines.push(`• *${name}* : il te manque tes ${missing.join(" et ")}`);
+                  if (!p.hasAnsweredAvailability)
+                    actions.push({ name, action: "disponibilités" });
+                  if (!p.hasAnswered)
+                    actions.push({ name, action: "préférences" });
                 }
-
-                lines.push("");
-                if (typeof window !== "undefined" && trip.id) {
-                  lines.push(
-                    `Prenez 2 petites minutes pour compléter vos infos : 👉 ${window.location.origin}/trips/${trip.id}`,
-                  );
-                }
-                shareOnWhatsApp(lines.join("\n"));
+                const text = buildTripStatusWhatsApp({
+                  tripName: trip.name || "notre voyage",
+                  tripUrl:
+                    typeof window === "undefined"
+                      ? `/trips/${trip.id}`
+                      : `${window.location.origin}/trips/${trip.id}`,
+                  statusLines,
+                  actions,
+                });
+                shareOnWhatsApp(text);
               }}
             >
               Relancer sur WhatsApp
