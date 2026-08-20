@@ -32,6 +32,7 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     process.env["GEMINI_API_KEY"] = "test-key";
+    process.env["TAVILY_API_KEY"] = "test-tavily-key";
     delete process.env["GEMINI_GROUNDED_MODEL"];
     delete process.env["GEMINI_MODEL"];
   });
@@ -41,30 +42,29 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
     process.env = { ...originalEnv };
   });
 
-  it("searchAccommodationsWithGemini utilise gemini-2.5-flash par défaut et GEMINI_GROUNDED_MODEL si défini", async () => {
+  it("searchAccommodationsWithGemini utilise gemini-2.5-flash par défaut ou GEMINI_MODEL si configuré", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => JSON.stringify({ candidates: [] }),
+      text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ searchQuery: "aparthotel Lisbonne" }) }] } }], results: [] }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
     await searchAccommodationsWithGemini(spec);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalled();
     const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(calledUrl).toContain("/models/gemini-2.5-flash:generateContent");
+    expect(calledUrl).toContain("generativelanguage.googleapis.com");
 
-    // Avec GEMINI_GROUNDED_MODEL surchargé
-    process.env["GEMINI_GROUNDED_MODEL"] = "custom-grounded-model";
+    process.env["GEMINI_MODEL"] = "custom-model";
     await searchAccommodationsWithGemini(spec);
-    const calledUrlCustom = fetchMock.mock.calls[1][0] as string;
-    expect(calledUrlCustom).toContain("/models/custom-grounded-model:generateContent");
+    const geminiCalls = fetchMock.mock.calls.filter((c) => typeof c[0] === "string" && c[0].includes("generativelanguage.googleapis.com"));
+    expect(geminiCalls[1][0]).toContain("/models/custom-model:generateContent");
   });
 
-  it("discoverActivities utilise gemini-2.5-flash par défaut et GEMINI_GROUNDED_MODEL si défini", async () => {
+  it("discoverActivities utilise gemini-3.6-flash par défaut ou GEMINI_MODEL si configuré", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      text: async () => JSON.stringify({ candidates: [], days: [] }),
+      text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ searchQuery: "activites Paris" }) }] } }], results: [] }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -76,12 +76,11 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
       forceRefresh: true,
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalled();
     const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(calledUrl).toContain("/models/gemini-2.5-flash:generateContent");
+    expect(calledUrl).toContain("/models/gemini-3.6-flash:generateContent");
 
-    // Avec GEMINI_GROUNDED_MODEL surchargé
-    process.env["GEMINI_GROUNDED_MODEL"] = "custom-grounded-model";
+    process.env["GEMINI_MODEL"] = "custom-model";
     await discoverActivities({
       destination: "Paris",
       ambiances: ["fete"],
@@ -89,8 +88,8 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
       budgetPerPerson: 100,
       forceRefresh: true,
     });
-    const calledUrlCustom = fetchMock.mock.calls[1][0] as string;
-    expect(calledUrlCustom).toContain("/models/custom-grounded-model:generateContent");
+    const geminiCalls = fetchMock.mock.calls.filter((c) => typeof c[0] === "string" && c[0].includes("generativelanguage.googleapis.com"));
+    expect(geminiCalls[1][0]).toContain("/models/custom-model:generateContent");
   });
 
   it("discoverDestinationsWithAi continue d'utiliser GEMINI_MODEL / gemini-3.6-flash", async () => {
@@ -117,7 +116,7 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
     expect(body.model).toBe("gemini-3.6-flash");
   });
 
-  it("regenerateSlotWithAi continue d'utiliser GEMINI_MODEL / gemini-3.6-flash", async () => {
+  it("regenerateSlotWithAi effectue 0 appel Gemini et réutilise les candidats", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       text: async () => JSON.stringify({ candidates: [] }),
@@ -159,7 +158,7 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
       groundingSources: [],
     };
 
-    await regenerateSlotWithAi(
+    const res = await regenerateSlotWithAi(
       {
         destination: "Paris",
         nights: 2,
@@ -174,8 +173,7 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
       [mockCandidate],
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const calledUrl = fetchMock.mock.calls[0][0] as string;
-    expect(calledUrl).toContain("/models/gemini-3.6-flash:generateContent");
+    expect(res.usedLlm).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
   });
 });

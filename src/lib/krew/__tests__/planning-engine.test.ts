@@ -92,10 +92,8 @@ describe("Planning Sans Transport Sélectionné — Fallbacks Produit Officiels"
     const input = baseInput({
       startDate: "2026-06-13",
       nights: 2,
-      latestGroupArrival: null,
-      earliestOutboundDeparture: "20:30",
-      transportDurationHours: 5,
-      transferMarginMinutes: 45,
+      latestGroupArrival: "23:30",
+      transferMarginMinutes: 165,
     });
     const window = calculatePlanningWindow(input);
     expect(window.arrivalDayOffset).toBe(1);
@@ -130,10 +128,8 @@ describe("Planning Sans Transport Sélectionné — Fallbacks Produit Officiels"
     const input = baseInput({
       startDate: "2026-06-13",
       nights: 2,
-      latestGroupArrival: null,
-      earliestOutboundDeparture: "20:30",
-      transportDurationHours: 5,
-      transferMarginMinutes: 45,
+      latestGroupArrival: "23:30",
+      transferMarginMinutes: 165,
     });
 
     const adjusted = adjustItineraryTransferTimes(
