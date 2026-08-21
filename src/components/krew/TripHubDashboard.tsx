@@ -1,12 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarDays,
   ClipboardList,
-  Copy,
-  Check,
   CheckCircle2,
   ArrowRight,
   MapPin,
@@ -16,16 +11,9 @@ import {
   Wallet,
   Hotel,
   Plane,
-  Pencil,
 } from "lucide-react";
-import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { buildTripSteps } from "@/lib/krew/availability";
 import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
-import { updateTripParticipantsCount } from "@/lib/trips.functions";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 
 type Props = {
@@ -308,7 +296,7 @@ function NextActionsPanel({
         ]
           .filter(Boolean)
           .join(" · "),
-        href: `/trips/${tripId}/invite`,
+        href: `/trips/${tripId}#group-section`,
         icon: Users,
         primary: false,
       });
@@ -475,25 +463,6 @@ export function TripHubDashboard({
   tripEndDatePassed: inputTripEndDatePassed = false,
   children,
 }: Props) {
-  const queryClient = useQueryClient();
-  const updateCount = useServerFn(updateTripParticipantsCount);
-  const [editingCount, setEditingCount] = useState(false);
-  const [participantsValue, setParticipantsValue] = useState(String(trip.participants_count));
-  const countMutation = useMutation({
-    mutationFn: () =>
-      updateCount({ data: { tripId, participantsCount: Number(participantsValue) } }),
-    onSuccess: async () => {
-      setEditingCount(false);
-      toast.success("Nombre de participants mis à jour");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["trip", tripId] }),
-        queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] }),
-        queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] }),
-      ]);
-    },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Mise à jour impossible"),
-  });
   const datesLocked = Boolean((trip as any).dates_locked || (trip as any).datesLocked);
   const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const logistics = ((trip as any).group_logistics || {}) as any;
@@ -553,62 +522,9 @@ export function TripHubDashboard({
             ) : null}
 
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-1">
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 font-sans">
                 <Users className="size-3.5 text-muted-foreground" />
-                {editingCount ? (
-                  <>
-                    <Input
-                      aria-label="Nombre de participants"
-                      type="number"
-                      min={2}
-                      max={25}
-                      step={1}
-                      value={participantsValue}
-                      onChange={(e) => setParticipantsValue(e.target.value)}
-                      className="h-6 w-14 px-1 text-xs"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-6 px-2 text-xs"
-                      disabled={
-                        countMutation.isPending ||
-                        !Number.isInteger(Number(participantsValue)) ||
-                        Number(participantsValue) < 2 ||
-                        Number(participantsValue) > 25
-                      }
-                      onClick={() => countMutation.mutate()}
-                    >
-                      Enregistrer
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => {
-                        setParticipantsValue(String(trip.participants_count));
-                        setEditingCount(false);
-                      }}
-                    >
-                      Annuler
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-mono">{trip.participants_count}</span> pers.
-                    {isOwner ? (
-                      <button
-                        type="button"
-                        className="ml-1 text-muted-foreground hover:text-foreground"
-                        aria-label="Modifier le nombre de participants"
-                        onClick={() => setEditingCount(true)}
-                      >
-                        <Pencil className="size-3" />
-                      </button>
-                    ) : null}
-                  </>
-                )}
+                <span className="font-mono">{trip.participants_count}</span> pers.
               </span>
 
               {totalReserved != null && totalEstimated != null ? (
