@@ -4,6 +4,7 @@ import {
   computeAccommodationRequestHash,
   mergeAccommodationLogistics,
   normalizeAccommodationCandidates,
+  normalizeTavilyAccommodationResults,
   searchAccommodationsWithGemini,
   type AccommodationSearchSpecification,
 } from "../accommodation-ai.server";
@@ -270,4 +271,157 @@ it("préserve transports et nettoie seulement les références hôtel obsolètes
   expect(merged.transports).toEqual([{ id: "flight" }]);
   expect(merged.hotelVotes).toEqual([{ userId: "u1", hotelId: "stay-1" }]);
   expect(merged.selectedHotelId).toBeNull();
+});
+
+it("TEST A — Gérardmer rejeté pour Annecy", () => {
+  const specAnnecy: AccommodationSearchSpecification = {
+    ...spec,
+    destination: { name: "Annecy", country: "France" },
+    searchStrategies: [
+      {
+        concept: "chalet",
+        score: 80,
+        priority: 1,
+        resultsWanted: 5,
+        propertyTypes: ["chalet"],
+        mustHave: [],
+        preferred: [],
+      },
+    ],
+    requiredAmenities: [],
+  };
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Location Chalet familial pour 10 avec sauna et jacuzzi à Gérardmer",
+        url: "https://example.com/gerardmer",
+        content: "Grand chalet à Gérardmer pour 10 personnes",
+        score: 0.9,
+      },
+    ],
+  };
+  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecy)).toEqual([]);
+});
+
+it("TEST B — La Toussuire rejetée pour Annecy", () => {
+  const specAnnecy: AccommodationSearchSpecification = {
+    ...spec,
+    destination: { name: "Annecy", country: "France" },
+    searchStrategies: [
+      {
+        concept: "gite",
+        score: 80,
+        priority: 1,
+        resultsWanted: 5,
+        propertyTypes: ["gite"],
+        mustHave: [],
+        preferred: [],
+      },
+    ],
+    requiredAmenities: [],
+  };
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Location Gîte La Toussuire 73300 8 personnes",
+        url: "https://example.com/la-toussuire",
+        content: "Gîte situé à La Toussuire en Savoie",
+        score: 0.9,
+      },
+    ],
+  };
+  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecy)).toEqual([]);
+});
+
+it("TEST C — un résultat qui mentionne Annecy reste accepté", () => {
+  const specAnnecy: AccommodationSearchSpecification = {
+    ...spec,
+    destination: { name: "Annecy", country: "France" },
+    searchStrategies: [
+      {
+        concept: "chalet",
+        score: 80,
+        priority: 1,
+        resultsWanted: 5,
+        propertyTypes: ["chalet"],
+        mustHave: [],
+        preferred: [],
+      },
+    ],
+    requiredAmenities: [],
+  };
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Chalet pour 8 personnes près d'Annecy",
+        url: "https://example.com/annecy-chalet",
+        content: "Chalet de groupe près du lac d'Annecy",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecy);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("TEST D — résultat sans localisation explicite", () => {
+  const specAnnecy: AccommodationSearchSpecification = {
+    ...spec,
+    destination: { name: "Annecy", country: "France" },
+    searchStrategies: [
+      {
+        concept: "chalet",
+        score: 80,
+        priority: 1,
+        resultsWanted: 5,
+        propertyTypes: ["chalet"],
+        mustHave: [],
+        preferred: [],
+      },
+    ],
+    requiredAmenities: [],
+  };
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Grand chalet nature pour 8 personnes",
+        url: "https://example.com/chalet",
+        content: "Chalet avec terrasse et vue montagne",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecy);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("TEST E — le prompt Gemini conserve bien la destination", async () => {
+  process.env["GEMINI_API_KEY"] = "test";
+  process.env["TAVILY_API_KEY"] = "test-tavily-key";
+  const tavilyResult = { results: [] };
+  let capturedBody: any = null;
+  const fetchMock = vi.fn().mockImplementation((url: string, init?: any) => {
+    if (typeof url === "string" && url.includes("generativelanguage.googleapis.com")) {
+      capturedBody = JSON.parse(init?.body || "{}");
+      return Promise.resolve({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            candidates: [
+              { content: { parts: [{ text: JSON.stringify({ searchQuery: "aparthotel wifi Lisbonne" }) }] } },
+            ],
+          }),
+      });
+    }
+    return Promise.resolve({ ok: true, text: async () => JSON.stringify(tavilyResult) });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  await searchAccommodationsWithGemini(spec);
+
+  const promptText = capturedBody?.contents?.[0]?.parts?.[0]?.text ?? "";
+  expect(promptText).toContain("La requête DOIT toujours contenir explicitement destination.name.");
+  expect(promptText).toContain("Lisbonne");
 });
