@@ -45,4 +45,28 @@ describe("server stay profile validation", () => {
       "Profil de voyage invalide",
     );
   });
+  it("rejects a canonical concept ID if it was not proposed/calculated", () => {
+    expect(() => selectValidatedStayConcepts(concepts, ["wellness_slow"])).toThrow(
+      "Profil de voyage non proposé pour ce séjour",
+    );
+  });
+  it("accepts a valid concept selected from legacy composite calculated concepts", () => {
+    const legacyCalculated = [
+      {
+        profiles: ["house_together", "regional_explorer", "charm_escape"],
+        title: "Une grande maison dans une belle région à explorer",
+      },
+    ] as any[];
+
+    const selected = selectValidatedStayConcepts(legacyCalculated, ["regional_explorer"]);
+    expect(selected).toEqual([
+      {
+        id: "regional_explorer",
+        profiles: ["regional_explorer"],
+        title: PROFILE_LABELS["regional_explorer"],
+        score: 50,
+        rationale: PROFILE_LABELS["regional_explorer"],
+      },
+    ]);
+  });
 });

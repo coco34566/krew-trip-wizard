@@ -1069,7 +1069,7 @@ export function haversineDistanceKm(
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
-function geographyPolicy(input: ActivityAiInput) {
+export function geographyPolicy(input: ActivityAiInput) {
   const profiles = (input.validatedTripProfiles ?? [input.tripProfile]).filter(
     (x): x is StayProfileId => Boolean(x) && typeof x === "string",
   );
@@ -1096,7 +1096,10 @@ function geographyPolicy(input: ActivityAiInput) {
     return { maxKm: 30, profile: "regional" as const };
   }
 
-  if (profiles.includes("regional_explorer")) {
+  if (
+    profiles.includes("regional_explorer") ||
+    profiles.includes("charm_escape")
+  ) {
     return { maxKm: 30, profile: "regional" as const };
   }
 

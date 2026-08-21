@@ -38,8 +38,9 @@ describe("Stay Profile Refinements & Regressions", () => {
   });
 
   describe("geographyPolicy & Preference Signals", () => {
-    it("respects regional_explorer without defaulting to city policy", () => {
-      const brief = buildPlanningBrief({
+    it("evaluates regional_explorer as regional policy with 30km radius", async () => {
+      const { geographyPolicy } = await import("../krew/activity-ai.server");
+      const policy = geographyPolicy({
         destination: "Dordogne",
         nights: 2,
         participants: 6,
@@ -48,11 +49,26 @@ describe("Stay Profile Refinements & Regressions", () => {
         activityCategories: [],
         validatedTripProfiles: ["regional_explorer"],
       });
-      expect(brief.validatedTripProfiles).toContain("regional_explorer");
+      expect(policy).toEqual({ maxKm: 30, profile: "regional" });
     });
 
-    it("respects house_together or centerpiece lodging as home policy", () => {
-      const briefHome = buildPlanningBrief({
+    it("evaluates charm_escape as regional policy with 30km radius", async () => {
+      const { geographyPolicy } = await import("../krew/activity-ai.server");
+      const policy = geographyPolicy({
+        destination: "Provence",
+        nights: 2,
+        participants: 6,
+        budgetPerPerson: 400,
+        ambiances: [],
+        activityCategories: [],
+        validatedTripProfiles: ["charm_escape"],
+      });
+      expect(policy).toEqual({ maxKm: 30, profile: "regional" });
+    });
+
+    it("evaluates house_together as home policy with 8km radius", async () => {
+      const { geographyPolicy } = await import("../krew/activity-ai.server");
+      const policy = geographyPolicy({
         destination: "Luberon",
         nights: 2,
         participants: 8,
@@ -61,7 +77,64 @@ describe("Stay Profile Refinements & Regressions", () => {
         activityCategories: [],
         validatedTripProfiles: ["house_together"],
       });
-      expect(briefHome.validatedTripProfiles).toContain("house_together");
+      expect(policy).toEqual({ maxKm: 8, profile: "home" });
+    });
+
+    it("evaluates outdoor_active as outdoor policy with 30km radius", async () => {
+      const { geographyPolicy } = await import("../krew/activity-ai.server");
+      const policy = geographyPolicy({
+        destination: "Chamonix",
+        nights: 2,
+        participants: 4,
+        budgetPerPerson: 500,
+        ambiances: [],
+        activityCategories: [],
+        validatedTripProfiles: ["outdoor_active"],
+      });
+      expect(policy).toEqual({ maxKm: 30, profile: "outdoor" });
+    });
+
+    it("evaluates nature_disconnect as outdoor policy with 30km radius", async () => {
+      const { geographyPolicy } = await import("../krew/activity-ai.server");
+      const policy = geographyPolicy({
+        destination: "Vosges",
+        nights: 2,
+        participants: 4,
+        budgetPerPerson: 400,
+        ambiances: [],
+        activityCategories: [],
+        validatedTripProfiles: ["nature_disconnect"],
+      });
+      expect(policy).toEqual({ maxKm: 30, profile: "outdoor" });
+    });
+
+    it("evaluates groupAccommodationRole === centerpiece as home policy", async () => {
+      const { geographyPolicy } = await import("../krew/activity-ai.server");
+      const policy = geographyPolicy({
+        destination: "Annecy",
+        nights: 2,
+        participants: 6,
+        budgetPerPerson: 400,
+        ambiances: [],
+        activityCategories: [],
+        validatedTripProfiles: ["city_discovery"],
+        groupAccommodationRole: "centerpiece",
+      });
+      expect(policy).toEqual({ maxKm: 8, profile: "home" });
+    });
+
+    it("evaluates environmental signals (e.g. montagne/nature in wantedEnvTypes) as outdoor policy", async () => {
+      const { geographyPolicy } = await import("../krew/activity-ai.server");
+      const policy = geographyPolicy({
+        destination: "Pyénées",
+        nights: 2,
+        participants: 6,
+        budgetPerPerson: 400,
+        ambiances: [],
+        activityCategories: [],
+        wantedEnvTypes: ["montagne"],
+      });
+      expect(policy).toEqual({ maxKm: 30, profile: "outdoor" });
     });
   });
 });

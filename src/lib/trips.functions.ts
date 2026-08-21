@@ -653,6 +653,9 @@ export function selectValidatedStayConcepts(
   if (!selectedConceptIds.length) throw new Error("Sélectionnez au moins un profil de voyage");
   if (selectedConceptIds.length > 3) throw new Error("Sélectionnez au maximum 3 profils de voyage");
 
+  const normalizedCalculated = normalizeStayConcepts(calculated);
+  const allowedIds = new Set(normalizedCalculated.map((c) => c.id));
+
   const validIds = selectedConceptIds.filter((id): id is StayProfileId =>
     (STAY_PROFILE_IDS as readonly string[]).includes(id),
   );
@@ -662,13 +665,22 @@ export function selectValidatedStayConcepts(
 
   const uniqueIds = [...new Set(validIds)];
 
-  return uniqueIds.map((profileId) => ({
-    id: profileId,
-    profiles: [profileId],
-    title: PROFILE_LABELS[profileId],
-    score: calculated.find((c) => c.id === profileId)?.score ?? 50,
-    rationale: PROFILE_LABELS[profileId],
-  }));
+  for (const profileId of uniqueIds) {
+    if (!allowedIds.has(profileId)) {
+      throw new Error("Profil de voyage non proposé pour ce séjour");
+    }
+  }
+
+  return uniqueIds.map((profileId) => {
+    const matched = normalizedCalculated.find((c) => c.id === profileId);
+    return {
+      id: profileId,
+      profiles: [profileId],
+      title: PROFILE_LABELS[profileId],
+      score: matched?.score ?? 50,
+      rationale: matched?.rationale ?? PROFILE_LABELS[profileId],
+    };
+  });
 }
 
 export const validateStayProfile = createServerFn({ method: "POST" })
@@ -678,7 +690,7 @@ export const validateStayProfile = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("owner_id, co_organizer_id")
+      .select("owner_id, co_organizer_id, stay_concepts_calculated")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -687,8 +699,9 @@ export const validateStayProfile = createServerFn({ method: "POST" })
         "403 Forbidden: seul l’organisateur ou co-organisateur peut valider le profil",
       );
     }
+    const storedCalculated = normalizeStayConcepts(((trip.data as any).stay_concepts_calculated ?? []));
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
-    const calculated = (aggregated.stayConcepts ?? []).slice(0, 3) as StayConcept[];
+    const calculated = storedCalculated.length ? storedCalculated : normalizeStayConcepts((aggregated.stayConcepts ?? []).slice(0, 3));
     const selected = selectValidatedStayConcepts(calculated, data.selectedConceptIds);
     const { error } = await supabase
       .from("trips")
