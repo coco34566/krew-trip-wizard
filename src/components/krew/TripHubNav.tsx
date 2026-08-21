@@ -64,19 +64,101 @@ export function TripHubNav({
   }
 
   return (
-    <nav aria-label="Parcours du groupe" className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5 space-y-3">
-      {/* En-tête discret */}
-      <div className="flex items-center justify-between border-b border-border/30 pb-3">
+    <nav aria-label="Parcours du groupe" className="rounded-3xl border border-border/60 bg-surface/80 p-5 sm:p-6 space-y-5">
+      {/* En-tête du parcours du groupe */}
+      <div className="flex items-center justify-between border-b border-border/40 pb-3.5">
         <h3 className="font-sans text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Parcours du groupe
+          Parcours du <KrewHighlight tone="sage"><span className="text-foreground">groupe</span></KrewHighlight>
         </h3>
-        <span className="text-xs text-muted-foreground font-mono">
+        <span className="text-xs text-muted-foreground font-mono bg-surface-strong/60 px-2.5 py-1 rounded-full">
           {doneCount} / {total} étapes
         </span>
       </div>
 
-      {/* Liste verticale compacte du parcours */}
-      <ol className="space-y-0">
+      {/* Horizontale sur Desktop */}
+      <ol className="hidden sm:flex items-start justify-between gap-1 sm:gap-2 pt-1 overflow-x-auto pb-2 scrollbar-none">
+        {steps.map((step, i) => {
+          const isDone = step.status === "done";
+          const isActive = step.status === "active";
+          const isSoon = step.status === "soon";
+          const href = stepHref(step);
+          const isLast = i === steps.length - 1;
+          const metric = renderMetric(step.id);
+
+          const StepLabel = (
+            <div className="flex flex-col items-center text-center gap-0.5 mt-2.5 max-w-[90px] sm:max-w-[105px]">
+              <span
+                className={cn(
+                  "font-sans text-xs font-medium leading-tight transition-colors",
+                  isActive && "text-primary font-semibold",
+                  isDone && "text-foreground font-medium",
+                  !isDone && !isActive && "text-muted-foreground/80",
+                )}
+              >
+                {step.label}
+              </span>
+              {metric ? <span className="mt-0.5">{metric}</span> : null}
+            </div>
+          );
+
+          return (
+            <li key={step.id} className="flex-1 flex flex-col items-center relative group min-w-[75px] sm:min-w-[90px]">
+              <div className="flex items-center w-full">
+                {/* Badge circulaire */}
+                <span
+                  className={cn(
+                    "flex size-7 items-center justify-center rounded-full border text-[11px] font-semibold transition-all shrink-0 mx-auto",
+                    isDone && "border-sage/60 bg-sage/15 text-sage shadow-xs",
+                    isActive && !isDone && "border-primary bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20",
+                    !isDone && !isActive && !isSoon && "border-border bg-background text-muted-foreground",
+                    isSoon && "border-dashed border-border bg-muted/20 text-muted-foreground opacity-60",
+                  )}
+                >
+                  {isDone ? (
+                    <KrewMark type="check" tone="sage" size="sm" className="size-3.5" />
+                  ) : isSoon ? (
+                    <Lock className="size-2.5" />
+                  ) : (
+                    <span className="font-mono text-[11px]">{i + 1}</span>
+                  )}
+                </span>
+
+                {/* Ligne connectrice vers l'étape suivante */}
+                {!isLast ? (
+                  <div className="hidden sm:block flex-1 h-0.5 mx-1.5 self-center rounded-full transition-colors bg-border/40" aria-hidden="true">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-colors",
+                        isDone ? "bg-sage/50" : "bg-transparent",
+                      )}
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Contenu cliquable ou statique */}
+              {step.id === "invite" && onInviteClick ? (
+                <button
+                  type="button"
+                  onClick={onInviteClick}
+                  className="flex flex-col items-center text-center bg-transparent border-0 p-0 cursor-pointer w-full"
+                >
+                  {StepLabel}
+                </button>
+              ) : href ? (
+                <a href={href} className="flex flex-col items-center text-center no-underline w-full">
+                  {StepLabel}
+                </a>
+              ) : (
+                <div className="flex flex-col items-center text-center w-full">{StepLabel}</div>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+
+      {/* Verticale sur Mobile */}
+      <ol className="block sm:hidden space-y-0">
         {steps.map((step, i) => {
           const isDone = step.status === "done";
           const isActive = step.status === "active";
@@ -125,8 +207,8 @@ export function TripHubNav({
                   <span
                     className={cn(
                       "flex size-6 items-center justify-center rounded-full border text-[10px] font-semibold transition-colors",
-                      isDone && "border-secondary/80 bg-secondary/10 text-secondary",
-                      isActive && !isDone && "border-primary bg-primary text-primary-foreground shadow-sm",
+                      isDone && "border-sage/60 bg-sage/15 text-sage",
+                      isActive && !isDone && "border-primary bg-primary text-primary-foreground shadow-xs",
                       !isDone && !isActive && !isSoon && "border-border bg-background text-muted-foreground",
                       isSoon && "border-dashed border-border bg-muted/20 text-muted-foreground opacity-50",
                     )}
@@ -146,7 +228,7 @@ export function TripHubNav({
                         aria-hidden="true"
                         className={cn(
                           "w-0.5 h-full rounded-full transition-colors",
-                          isDone ? "bg-secondary/40" : "bg-border/40",
+                          isDone ? "bg-sage/40" : "bg-border/40",
                         )}
                       />
                     </div>

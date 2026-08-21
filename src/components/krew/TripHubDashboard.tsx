@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import {
   CalendarDays,
   ClipboardList,
-  CheckCircle2,
   ArrowRight,
   MapPin,
   Sparkles,
@@ -14,7 +13,7 @@ import {
 } from "lucide-react";
 import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
-import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewMark, KrewSectionWave } from "@/components/krew/visual-language";
 
 type Props = {
   tripId: string;
@@ -320,14 +319,14 @@ function NextActionsPanel({
 
   if (actions.length === 0 && participantCaughtUp) {
     return (
-      <section className="rounded-2xl border border-sage/20 bg-sage/8 p-5">
-        <div className="flex gap-3">
-          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-sage" />
+      <section className="rounded-3xl border border-sage/25 bg-sage/10 p-5 sm:p-6">
+        <div className="flex gap-3.5 items-start">
+          <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 size-6 shrink-0" />
           <div>
-            <h2 className="font-display text-lg font-normal tracking-tight text-foreground">
+            <h2 className="font-display text-xl sm:text-2xl font-normal tracking-tight text-foreground">
               Tout est à jour de ton côté
             </h2>
-            <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+            <p className="mt-1 text-sm leading-relaxed text-foreground/80 font-sans">
               {isOwner
                 ? hasItinerary
                   ? "Le planning est en place. Les choix restent modifiables si nécessaire."
@@ -359,7 +358,7 @@ function NextActionsPanel({
       </div>
 
       {waitingOnOthers ? (
-        <div className="rounded-2xl border border-border/80 bg-muted/40 px-4 py-3 text-sm text-foreground/90">
+        <div className="rounded-2xl border border-border/80 bg-muted/40 px-4 py-3 text-sm text-foreground/90 font-sans">
           De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
           l&apos;organisateur·rice.
         </div>
@@ -374,12 +373,12 @@ function NextActionsPanel({
                 key={primaryAction.key}
                 {...(primaryAction.href ? { href: primaryAction.href } : {})}
                 className={cn(
-                  "group flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 sm:p-5 transition hover:border-primary/50",
+                  "group flex items-center justify-between gap-4 rounded-2xl border border-sage/35 bg-sage/10 p-4 sm:p-5 transition hover:border-primary/50 shadow-xs",
                   primaryAction.href && "cursor-pointer",
                 )}
               >
                 <div className="flex items-start gap-3.5 min-w-0">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
                     <primaryAction.icon className="size-5" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -400,7 +399,7 @@ function NextActionsPanel({
         ) : null}
 
         {secondaryActions.length > 0 ? (
-          <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3">
+          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-3">
             {secondaryActions.map((a) => {
               const Tag = a.href ? "a" : "div";
               return (
@@ -413,7 +412,7 @@ function NextActionsPanel({
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-primary transition-colors">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
                       <a.icon className="size-4" />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -479,72 +478,89 @@ export function TripHubDashboard({
   const theme = eventTypeLabel(trip.event_type);
 
   return (
-    <div className="space-y-8">
-      {/* TRIP CONTEXT */}
-      <header className="relative overflow-hidden rounded-[30px] bg-sage/8 border border-border/50 p-6 sm:p-8">
+    <div className="space-y-6">
+      {/* TRIP CONTEXT / HERO COVER */}
+      <header className="relative overflow-hidden rounded-[28px] sm:rounded-[32px] bg-surface border border-border/60 shadow-xs">
         <KrewMark
           type="circle"
           tone="sage"
           size="lg"
           rotation={4}
-          className="absolute -top-6 -right-6 w-[120px] opacity-60 pointer-events-none"
+          className="absolute -top-5 -right-5 w-[110px] sm:w-[130px] opacity-40 pointer-events-none z-10"
         />
 
-        <div className="grid lg:grid-cols-[1fr_180px] gap-6 items-center">
-          <div className="space-y-3 min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
-              {theme}
-            </p>
-            <h1 className="font-display text-[38px] lg:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-              {trip.name}
-            </h1>
-            {destinationName ? (
-              <p className="font-display text-xl sm:text-2xl text-primary font-normal">
-                {destinationName}
-              </p>
-            ) : null}
-            {trip.celebrated_person ? (
-              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80">
-                <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
-                {trip.celebrated_person}
-              </p>
-            ) : null}
-            {trip.participants &&
-            Array.isArray(trip.participants) &&
-            trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Avec{" "}
-                {trip.participants
-                  .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
-            ) : null}
+        <div className="grid lg:grid-cols-12 gap-0">
+          {/* Cover Photo Block - prominent on Desktop, full width top on Mobile */}
+          <div className="lg:col-span-5 order-first lg:order-last relative h-52 sm:h-64 lg:h-auto min-h-[200px] overflow-hidden border-b lg:border-b-0 lg:border-l border-border/50">
+            <img
+              src={heroImageForEvent(trip.event_type)}
+              alt=""
+              className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+              loading="eager"
+            />
+          </div>
 
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-1">
+          {/* Text Content Block */}
+          <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-4 min-w-0 relative">
+            <div className="space-y-2.5 min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
+                {theme}
+              </p>
+              <h1 className="font-display text-[36px] sm:text-[44px] lg:text-[48px] font-normal leading-[0.98] tracking-tight text-foreground">
+                {trip.name}
+              </h1>
+
+              {destinationName ? (
+                <p className="font-display text-2xl sm:text-3xl text-primary font-normal flex items-center gap-2 pt-0.5">
+                  <MapPin className="size-5 text-primary shrink-0" />
+                  <span>{destinationName}</span>
+                </p>
+              ) : null}
+
+              {trip.celebrated_person ? (
+                <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80 pt-0.5">
+                  <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
+                  <span className="font-semibold">{trip.celebrated_person}</span>
+                </p>
+              ) : null}
+
+              {trip.participants &&
+              Array.isArray(trip.participants) &&
+              trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Avec{" "}
+                  {trip.participants
+                    .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-3 border-t border-border/40">
               <span className="inline-flex items-center gap-1.5 font-sans">
-                <Users className="size-3.5 text-muted-foreground" />
-                <span className="font-mono">{trip.participants_count}</span> pers.
+                <Users className="size-3.5 text-primary shrink-0" />
+                <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
               </span>
 
               {totalReserved != null && totalEstimated != null ? (
                 <span className="inline-flex items-center gap-1.5 font-mono">
-                  <Wallet className="size-3.5 text-muted-foreground" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
+                  <Wallet className="size-3.5 text-primary shrink-0" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
                 </span>
               ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
                 <span className="inline-flex items-center gap-1.5 font-mono">
-                  <Wallet className="size-3.5 text-muted-foreground" /> ~{formatEuro(liveBudgetTotal)} / pers.
+                  <Wallet className="size-3.5 text-primary shrink-0" /> ~{formatEuro(liveBudgetTotal)} / pers.
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5">
-                  <Wallet className="size-3.5 text-muted-foreground" /> Budget à définir
+                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> Budget à définir
                 </span>
               )}
 
               {datesLocked && (trip.start_date || provisionalStart) ? (
-                <span className="inline-flex items-center gap-1.5 font-mono">
-                  <CalendarDays className="size-3.5 text-muted-foreground" />
-                  Dates validées · {trip.start_date
+                <span className="inline-flex items-center gap-1.5 font-mono text-foreground font-medium">
+                  <CalendarDays className="size-3.5 text-primary shrink-0" />
+                  <span className="text-primary font-sans font-medium">Dates validées</span> · {trip.start_date
                     ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
                         day: "numeric",
                         month: "short",
@@ -562,19 +578,10 @@ export function TripHubDashboard({
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays className="size-3.5 text-muted-foreground" /> Date à définir
+                  <CalendarDays className="size-3.5 text-muted-foreground shrink-0" /> Date à définir
                 </span>
               )}
             </div>
-          </div>
-
-          <div className="w-full lg:w-[180px] h-[140px] lg:h-[120px] overflow-hidden rounded-[20px] shrink-0 border border-border/60">
-            <img
-              src={heroImageForEvent(trip.event_type)}
-              alt=""
-              className="h-full w-full object-cover"
-              loading="eager"
-            />
           </div>
         </div>
       </header>
@@ -602,6 +609,9 @@ export function TripHubDashboard({
         transportOffersReady={transportOffersReady}
         hasItinerary={hasItinerary}
       />
+
+      {/* Transition visuelle entre la zone hero+actions et le contenu inférieur */}
+      <KrewSectionWave tone="sage" className="my-4 sm:my-6" />
 
       {children}
     </div>
