@@ -97,6 +97,7 @@ import { PackingListCard } from "@/components/krew/PackingListCard";
 import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
   destinationBudgetTotal,
@@ -2342,7 +2343,9 @@ function TripDetail() {
                 </Button>
               ) : null}
             </div>
-        {recommendations.length === 0 ? (
+        {regenerateMutation.isPending ? (
+          <KrewThinkingState context="destinations" />
+        ) : recommendations.length === 0 ? (
           readiness && !readiness.canGenerate ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {data.isOwner
@@ -2578,7 +2581,9 @@ function TripDetail() {
             </div>
           ) : null}
 
-          {!(trip as any).group_logistics?.hotels?.length ? (
+          {hotelLogisticsMutation.isPending ? (
+            <KrewThinkingState context="accommodations" />
+          ) : !(trip as any).group_logistics?.hotels?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited"
                 ? (trip as any).group_logistics.accommodationGeneration.userMessage ||
@@ -2811,7 +2816,9 @@ function TripDetail() {
           </div>
         ) : null}
 
-        {!(trip as any).group_logistics?.transports?.length ? (
+        {logisticsMutation.isPending ? (
+          <KrewThinkingState context="transport" />
+        ) : !(trip as any).group_logistics?.transports?.length ? (
           <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             Génère des propositions de transport pour le groupe.
           </p>
@@ -2993,7 +3000,9 @@ function TripDetail() {
             ) : null}
           </div>
 
-          {!(trip as any).group_itinerary?.days?.length ? (
+          {itineraryMutation.isPending ? (
+            <KrewThinkingState context="planning" />
+          ) : !(trip as any).group_itinerary?.days?.length ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               {data.isOwner
                 ? "Génère le programme du séjour, de l’arrivée au départ."
