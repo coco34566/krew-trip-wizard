@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearDestinationAiCacheForTests,
   discoverDestinationsWithAi,
+  fingerprint,
   REQUEST_TIMEOUT_MS,
   type AiDiscoveryInput,
 } from "../krew/destination-ai.server";
@@ -28,6 +29,7 @@ const input: AiDiscoveryInput = {
   accommodationRole: "part_of_stay",
   relevantIndividualPreferences: [{ activities: ["sport"] }],
 };
+
 const response = (content: string, ok = true, status = 200) => ({
   ok,
   status,
@@ -42,20 +44,23 @@ describe("Gemini destination discovery unique provider", () => {
     clearDestinationAiCacheForTests();
     delete process.env["GEMINI_API_KEY"];
   });
+  const originalFetch = global.fetch;
+
   afterEach(() => {
-    vi.unstubAllGlobals();
+    global.fetch = originalFetch;
   });
-  it("effectue un seul Gemini et transmet origines et modes", async () => {
+
+  it("effectue un seul Gemini et transmet origines et modes sans scoringWeights dans le payload", async () => {
     process.env["GEMINI_API_KEY"] = "server-secret";
     process.env["GEMINI_MODEL"] = "gemini-test-model";
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
         response(
-          '{"destinations":[{"name":"Luberon","destinationType":"region_territory","anchorPlaces":["Gordes"]}]}',
+          '{"candidates":[{"name":"Luberon","country":"France","region":"Provence","destinationType":"region_territory","anchorPlaces":["Gordes"],"why":"Nature et villages","budgetFit":"likely_compatible","budgetReason":"Accessible","transport":{"Paris":{"plausibleModes":["train","car"],"plausibility":"likely"}},"activityFit":["nature"],"environmentFit":["village"],"accommodationFit":["house_together"],"seasonFit":"good"}]}',
         ),
       );
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock as any;
     const result = await discoverDestinationsWithAi(input);
     expect(result.provider).toBe("gemini");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -64,81 +69,84 @@ describe("Gemini destination discovery unique provider", () => {
     const compact = JSON.parse(body.input);
     expect(compact.departureOrigins).toEqual(input.departureOrigins);
     expect(compact.acceptedTransportModes).toEqual(input.acceptedTransportModes);
+    if (compact.scoringProfile) {
+      expect(compact.scoringProfile.scoringWeights).toBeUndefined();
+    }
   });
+
   it("ne cascade vers aucun autre LLM après erreur", async () => {
     process.env["GEMINI_API_KEY"] = "gemini";
     const fetchMock = vi.fn().mockResolvedValue(response("failure", false, 503));
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock as any;
     const result = await discoverDestinationsWithAi(input);
     expect(result.usedLlm).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
-  it("préserve types et estimations structurées compactes", async () => {
+
+  it("préserve types et estimations qualitatives de la nouvelle structure JSON contractuelle", async () => {
     process.env["GEMINI_API_KEY"] = "gemini";
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          response(
-            '{"destinations":[{"name":"Vercors","country":"France","region":"Isère","destinationType":"outdoor_area","anchorPlaces":["Autrans"],"why":"Montagne et sport","km":600,"months":[5,6,9],"transport":{"Paris":{"modes":["train"],"approxHours":4}},"budgetLevel":"medium","activityFit":["sport","nature"],"environmentFit":["mountain","outdoor"],"accommodationFit":["house_together"],"seasonFit":"good"}]}',
-          ),
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        response(
+          '{"candidates":[{"name":"Vercors","country":"France","region":"Isère","destinationType":"outdoor_area","anchorPlaces":["Autrans"],"why":"Montagne et sport","budgetFit":"likely_compatible","budgetReason":"Coût modéré pour séjour outdoor","transport":{"Paris":{"plausibleModes":["train"],"plausibility":"likely"}},"activityFit":["sport","nature"],"environmentFit":["mountain","outdoor"],"accommodationFit":["house_together"],"seasonFit":"good"}]}',
         ),
-    );
+      ) as any;
     const result = await discoverDestinationsWithAi(input);
     expect(result.candidates[0]).toMatchObject({
       destinationType: "outdoor_area",
-      budgetLevel: "medium",
+      budgetFit: "likely_compatible",
+      budgetReason: "Coût modéré pour séjour outdoor",
       seasonFit: "good",
     });
     const merged = mergeCandidates([], result.candidates)[0]!;
-    expect(merged.transport?.["Paris"]?.approxHours).toBe(4);
-    expect(merged.transport?.["Paris"]?.modes).toEqual(["train"]);
+    expect(merged.source).toBe("gemini");
+    expect(merged.transport?.["Paris"]?.plausibleModes).toEqual(["train"]);
+    expect(merged.transport?.["Paris"]?.plausibility).toBe("likely");
     expect(merged.activityFit).toEqual(["sport", "nature"]);
     expect(merged.environmentFit).toEqual(["mountain", "outdoor"]);
     expect(merged.accommodationFit).toEqual(["house_together"]);
     expect(result.candidates[0]?.dailyCost).toBeUndefined();
     expect(aiCandidateToDestinationRow(merged).avg_daily_cost).toBeNull();
   });
-  it("un budgetLevel 'medium' ne génère aucun montant artificiel 85", async () => {
+
+  it("supporte seasonFit = mixed (normalise acceptable en mixed)", async () => {
     process.env["GEMINI_API_KEY"] = "gemini";
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          response(
-            '{"destinations":[{"name":"Luberon","country":"France","destinationType":"region_territory","anchorPlaces":["Gordes"],"why":"Provence","km":700,"months":[5,6,9],"budgetLevel":"medium"}]}',
-          ),
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        response(
+          '{"candidates":[{"name":"Luberon","country":"France","destinationType":"region_territory","anchorPlaces":["Gordes"],"why":"Provence","budgetFit":"uncertain","budgetReason":"Incertain en haute saison","seasonFit":"acceptable"}]}',
         ),
-    );
+      ) as any;
     const result = await discoverDestinationsWithAi(input);
     const candidate = result.candidates[0]!;
-    expect(candidate.budgetLevel).toBe("medium");
+    expect(candidate.budgetFit).toBe("uncertain");
+    expect(candidate.seasonFit).toBe("mixed");
     expect(candidate.dailyCost).toBeUndefined();
-    expect(candidate.dailyCost).not.toBe(85);
   });
+
   it("sans Gemini retourne le fallback local sans appel externe", async () => {
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock as any;
     const result = await discoverDestinationsWithAi(input);
     expect(result.usedLlm).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
   it("exporte REQUEST_TIMEOUT_MS égal à 60000ms", () => {
     expect(REQUEST_TIMEOUT_MS).toBe(60_000);
   });
-  it("conserve jusqu'à 50 candidats avant scoring dans mergeCandidates et parseur Gemini", async () => {
+
+  it("conserve jusqu'à 50 candidats dans mergeCandidates et parseur Gemini", async () => {
     process.env["GEMINI_API_KEY"] = "gemini";
-    const destinations = Array.from({ length: 60 }, (_, i) => ({
+    const candidates = Array.from({ length: 60 }, (_, i) => ({
       name: `Ville ${i + 1}`,
       country: "France",
       why: "test",
+      budgetFit: "likely_compatible",
     }));
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(response(JSON.stringify({ destinations }))),
-    );
+    global.fetch = vi.fn().mockResolvedValue(response(JSON.stringify({ candidates }))) as any;
     const result = await discoverDestinationsWithAi(input);
     expect(result.candidates.length).toBe(50);
 
@@ -147,7 +155,6 @@ describe("Gemini destination discovery unique provider", () => {
       country: "France",
       affinity: 90 - i,
       reason: "règle locale",
-      dailyCost: 70,
       distanceKm: 500,
       bestMonths: [5, 6],
       destinationType: "city" as const,
@@ -158,76 +165,90 @@ describe("Gemini destination discovery unique provider", () => {
     expect(merged.slice(0, 50).length).toBe(50);
   });
 
-  describe("Contraintes transport compactes candidate.transport", () => {
-    it("une candidate dont une origine ne dispose d'aucun mode accepté ne peut pas contourner la contrainte", async () => {
-      process.env["GEMINI_API_KEY"] = "gemini";
-      vi.stubGlobal(
-        "fetch",
-        vi
-          .fn()
-          .mockResolvedValue(
-            response(
-              '{"destinations":[{"name":"Reykjavik","country":"Islande","destinationType":"city","anchorPlaces":["Reykjavik"],"why":"Islande","km":2500,"transport":{"Paris":{"modes":["flight"],"approxHours":3.5}}}]}',
-            ),
-          ),
-      );
-      const res = await discoverDestinationsWithAi(input);
-      const candidate = res.candidates[0]!;
-      expect(candidate.transport?.["Paris"]?.modes).toEqual(["flight"]);
-      // candidate a le transport flight uniquement. Si planeRefused = true ou acceptedModes = ["train"], elle sera rejetée.
+  describe("Sources dans mergeCandidates", () => {
+    it("gemini uniquement → source = gemini", () => {
+      const merged = mergeCandidates([], [
+        {
+          name: "Tokyo",
+          country: "Japon",
+          affinity: 80,
+          why: "Asie",
+          reason: "Japon",
+          destinationType: "city",
+          anchorPlaces: ["Tokyo"],
+        },
+      ]);
+      expect(merged[0]?.source).toBe("gemini");
     });
 
-    it("une candidate avec approxHours supérieure au max ne peut pas contourner la contrainte", async () => {
-      process.env["GEMINI_API_KEY"] = "gemini";
-      vi.stubGlobal(
-        "fetch",
-        vi
-          .fn()
-          .mockResolvedValue(
-            response(
-              '{"destinations":[{"name":"Athènes","country":"Grèce","destinationType":"city","anchorPlaces":["Athènes"],"why":"Grèce","km":2000,"transport":{"Paris":{"modes":["train"],"approxHours":18}}}]}',
-            ),
-          ),
+    it("règle locale uniquement → source = local", () => {
+      const merged = mergeCandidates(
+        [
+          {
+            name: "Bordeaux",
+            country: "France",
+            distanceKm: 500,
+            affinity: 85,
+            reason: "règle locale",
+            destinationType: "city",
+            anchorPlaces: ["Bordeaux"],
+          },
+        ],
+        [],
       );
-      const res = await discoverDestinationsWithAi(input);
-      const candidate = res.candidates[0]!;
-      expect(candidate.transport?.["Paris"]?.approxHours).toBe(18);
+      expect(merged[0]?.source).toBe("local");
     });
 
-    it("une candidate sans donnée transport Gemini continue à utiliser le fallback KREW", async () => {
-      process.env["GEMINI_API_KEY"] = "gemini";
-      vi.stubGlobal(
-        "fetch",
-        vi
-          .fn()
-          .mockResolvedValue(
-            response(
-              '{"destinations":[{"name":"Bordeaux","country":"France","destinationType":"city","anchorPlaces":["Bordeaux"],"why":"Vin","km":500}]}',
-            ),
-          ),
+    it("même destination dans Gemini et local → source = merged et sans doublon", () => {
+      const merged = mergeCandidates(
+        [
+          {
+            name: "Bordeaux",
+            country: "France",
+            distanceKm: 500,
+            affinity: 85,
+            reason: "règle locale",
+            destinationType: "city",
+            anchorPlaces: ["Bordeaux"],
+          },
+        ],
+        [
+          {
+            name: "Bordeaux",
+            country: "France",
+            affinity: 90,
+            why: "Vin et culture",
+            reason: "Gironde",
+            destinationType: "city",
+            anchorPlaces: ["Bordeaux"],
+          },
+        ],
       );
-      const res = await discoverDestinationsWithAi(input);
-      const candidate = res.candidates[0]!;
-      expect(candidate.transport).toBeUndefined();
+      expect(merged).toHaveLength(1);
+      expect(merged[0]?.source).toBe("merged");
+      expect(merged[0]?.affinity).toBe(90);
+    });
+  });
+
+  describe("Brief Fingerprint déterministe", () => {
+    it("produit le même hash peu importe l'ordre des tableaux non ordonnés", () => {
+      const fp1 = fingerprint({
+        ...input,
+        ambiances: ["fete", "detente"],
+        activityCategories: ["sport", "culture"],
+      });
+      const fp2 = fingerprint({
+        ...input,
+        ambiances: ["detente", "fete"],
+        activityCategories: ["culture", "sport"],
+      });
+      expect(fp1).toBe(fp2);
     });
 
-    it("aucun prix transport Gemini n'est réintroduit dans candidate.transport", async () => {
-      process.env["GEMINI_API_KEY"] = "gemini";
-      vi.stubGlobal(
-        "fetch",
-        vi
-          .fn()
-          .mockResolvedValue(
-            response(
-              '{"destinations":[{"name":"Nice","country":"France","destinationType":"city","anchorPlaces":["Nice"],"why":"Soleil","km":900,"transport":{"Paris":{"modes":["train"],"approxHours":5.5}}}]}',
-            ),
-          ),
-      );
-      const res = await discoverDestinationsWithAi(input);
-      const candidate = res.candidates[0]!;
-      expect((candidate.transport?.["Paris"] as any)?.price).toBeUndefined();
-      expect((candidate.transport?.["Paris"] as any)?.roundTripLow).toBeUndefined();
-      expect((candidate.transport?.["Paris"] as any)?.roundTripCentral).toBeUndefined();
+    it("modifie le fingerprint si un paramètre structurant change", () => {
+      const fp1 = fingerprint(input);
+      const fp2 = fingerprint({ ...input, budgetPerPerson: 1200 });
+      expect(fp1).not.toBe(fp2);
     });
   });
 });

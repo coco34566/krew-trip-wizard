@@ -1084,14 +1084,30 @@ export const selectRecommendation = createServerFn({ method: "POST" })
     // Synchronise desired_destination pour que « Rechercher hébergements & activités » fonctionne
     const destName = (reco as any)?.destinations?.name;
     if (typeof destName === "string" && destName.trim()) {
+      const cleanName = destName.trim();
       await supabase.from("trip_preferences").upsert(
         {
           trip_id: data.tripId,
-          desired_destination: destName.trim(),
+          desired_destination: cleanName,
           let_krew_decide: false,
         },
         { onConflict: "trip_id" },
       );
+
+      // Update destination_candidate_pool status to selected for matching destination_key
+      try {
+        const normKey = cleanName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        await supabase
+          .from("destination_candidate_pool")
+          .update({
+            status: "selected",
+            selected_at: new Date().toISOString(),
+          } as any)
+          .eq("trip_id", data.tripId)
+          .eq("destination_key", normKey);
+      } catch (poolErr) {
+        console.warn("destination_candidate_pool selected update skipped:", poolErr);
+      }
     }
 
     await supabase.from("trips").update({ status: "valide" }).eq("id", data.tripId);
