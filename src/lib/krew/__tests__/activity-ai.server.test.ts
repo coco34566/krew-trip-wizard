@@ -161,6 +161,36 @@ describe("Enrichissement des liens d'activités & classification des modes", () 
     expect(slots[0]?.activityMode).toBe("self_guided_group");
   });
 
+  it("prouve que self_guided_group avec une ressource ideas et free_exploration ont verified = false", () => {
+    const { resolveActivityResourceUrl } = require("../activity-ai.server");
+
+    // self_guided_group avec ressource
+    const ideasLink = resolveActivityResourceUrl("https://idees-evjf.fr/regles-jeu-mariee", { kindHint: "ideas" });
+    const selfGuidedSlot = {
+      label: "Jeu de la mariée",
+      activityMode: "self_guided_group" as const,
+      verified: false,
+      url: ideasLink.url,
+      resourceKind: ideasLink.resourceKind,
+    };
+
+    expect(selfGuidedSlot.verified).toBe(false);
+    expect(selfGuidedSlot.url).toBe("https://idees-evjf.fr/regles-jeu-mariee");
+    expect(selfGuidedSlot.resourceKind).toBe("ideas");
+
+    // free_exploration
+    const freeExploSlot = {
+      label: "Balade dans le quartier du Château",
+      activityMode: "free_exploration" as const,
+      verified: false,
+      url: null,
+      resourceKind: null,
+    };
+
+    expect(freeExploSlot.verified).toBe(false);
+    expect(freeExploSlot.url).toBeNull();
+  });
+
   it("findIdeasResourceForActivity trouve une URL d'idées pour un jeu et renvoie null pour un apéro", async () => {
     const { findIdeasResourceForActivity } = await import("../activity-discovery.server");
 

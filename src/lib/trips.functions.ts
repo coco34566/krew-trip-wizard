@@ -2386,7 +2386,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             detail: s.detail,
             locationContext: s.locationContext,
             activityMode: mode === "free_exploration" ? "free_exploration" : "self_guided_group",
-            verified: Boolean(ideasUrl),
+            verified: false,
             source: "krew",
             url: ideasUrl,
             resourceKind: ideasKind,
