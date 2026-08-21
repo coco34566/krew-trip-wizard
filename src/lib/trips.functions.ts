@@ -7,7 +7,39 @@ import {
   generateRecommendationsForTrip,
   tripInputSchema,
 } from "@/lib/krew/trip-service";
-import type { StayConcept } from "@/lib/krew/stay-profiles";
+import { PROFILE_LABELS, STAY_PROFILE_IDS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
+
+function normalizeStayConcepts(concepts: any[]): StayConcept[] {
+  if (!Array.isArray(concepts)) return [];
+  const result: StayConcept[] = [];
+  const seen = new Set<StayProfileId>();
+
+  for (const c of concepts) {
+    if (!c) continue;
+    const rawProfiles: string[] =
+      Array.isArray(c.profiles) && c.profiles.length > 0
+        ? c.profiles
+        : (STAY_PROFILE_IDS as readonly string[]).includes(c.id)
+          ? [c.id]
+          : [];
+
+    for (const pId of rawProfiles) {
+      if ((STAY_PROFILE_IDS as readonly string[]).includes(pId) && !seen.has(pId as StayProfileId)) {
+        const id = pId as StayProfileId;
+        seen.add(id);
+        result.push({
+          id,
+          profiles: [id],
+          title: PROFILE_LABELS[id],
+          score: typeof c.score === "number" ? c.score : 50,
+          rationale: PROFILE_LABELS[id],
+        });
+      }
+    }
+  }
+
+  return result;
+}
 import { buildTripPreparation } from "@/lib/krew/packing-list";
 import { assertNotRateLimited } from "@/lib/krew/rate-limit.server";
 import {
@@ -21,6 +53,7 @@ import {
 function computeJourneyStage(input: {
   status?: string | null;
   datesLocked: boolean;
+  profileValidated: boolean;
   destinationSelected: boolean;
   hasItinerary: boolean;
   startDate?: string | null;
@@ -31,7 +64,8 @@ function computeJourneyStage(input: {
     return "Organisation du séjour";
   }
   if (input.destinationSelected) return "Destination choisie · organisation";
-  if (input.datesLocked) return "Choix de la destination";
+  if (input.datesLocked && input.profileValidated) return "Choix de la destination";
+  if (input.datesLocked && !input.profileValidated) return "Profil du voyage";
   if (input.startDate) return "Validation des dates";
   return "Collecte des dispos & préférences";
 }
@@ -89,7 +123,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
     ];
     const uniqueIds = [...new Set(allTripIds)];
 
-    const stageByTrip: Record<string, { destinationSelected: boolean; hasItinerary: boolean }> = {};
+    const stageByTrip: Record<string, { destinationSelected: boolean; hasItinerary: boolean; hasRecommendations: boolean }> = {};
     const selectedDestinationByTrip: Record<
       string,
       { destination_name: string | null; destination_image_url: string | null }
@@ -111,12 +145,16 @@ export const listMyTrips = createServerFn({ method: "GET" })
     const teamSummaryByTrip: Record<string, TeamSummary> = {};
 
     for (const id of uniqueIds) {
-      stageByTrip[id] = { destinationSelected: false, hasItinerary: false };
+      stageByTrip[id] = { destinationSelected: false, hasItinerary: false, hasRecommendations: false };
       selectedDestinationByTrip[id] = { destination_name: null, destination_image_url: null };
     }
 
     if (uniqueIds.length) {
-      const [selRecos, tripExtras, allParticipants, allPrefs, allAvail, allStarPrefs] = await Promise.all([
+      const [allRecos, selRecos, tripExtras, allParticipants, allPrefs, allAvail, allStarPrefs] = await Promise.all([
+        supabase
+          .from("recommendations")
+          .select("trip_id")
+          .in("trip_id", uniqueIds),
         supabase
           .from("recommendations")
           .select("trip_id, destinations(name, image_url)")
@@ -124,7 +162,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .eq("is_selected", true),
         supabase
           .from("trips")
-          .select("id, dates_locked, group_itinerary, start_date, participants_count, celebrated_person, has_star, star_user_id")
+          .select("id, dates_locked, group_itinerary, start_date, participants_count, celebrated_person, has_star, star_user_id, stay_profile_validated_at, stay_concepts_selected")
           .in("id", uniqueIds),
         supabase
           .from("trip_participants")
@@ -143,6 +181,11 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .select("trip_id, user_id, wanted_activities, ambiances, wanted_env_type, desired_destination, available_dates, blocked_dates, submitted_at, updated_at")
           .in("trip_id", uniqueIds),
       ]);
+
+      for (const r of allRecos.data ?? []) {
+        const tid = (r as any).trip_id as string;
+        if (stageByTrip[tid]) stageByTrip[tid].hasRecommendations = true;
+      }
 
       for (const r of selRecos.data ?? []) {
         const tid = (r as any).trip_id as string;
@@ -252,6 +295,11 @@ export const listMyTrips = createServerFn({ method: "GET" })
       const datesLocked = Boolean((s as any).datesLocked ?? row.dates_locked);
       const destinationSelected = Boolean(s.destinationSelected);
       const hasItinerary = Boolean(s.hasItinerary);
+        const hasRecommendations = Boolean(s.hasRecommendations);
+        const profileValidated =
+          Boolean(row.stay_profile_validated_at) ||
+          destinationSelected ||
+          hasRecommendations;
       const teamSummary = teamSummaryByTrip[row.id] ?? {
         total: Math.max(Number(row.participants_count) || 1, 1),
         answered: 0,
@@ -272,6 +320,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
         journey_stage: computeJourneyStage({
           status: row.status,
           datesLocked,
+            profileValidated,
           destinationSelected,
           hasItinerary,
           startDate: row.start_date ?? (s as any).startDate,
@@ -325,11 +374,12 @@ export const getTripDetail = createServerFn({ method: "GET" })
     }
 
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
-    const calculatedConcepts = (aggregated.stayConcepts ?? []).slice(0, 3);
-    const storedCalculated = ((trip.data as any).stay_concepts_calculated ?? []) as StayConcept[];
+    const calculatedConcepts = normalizeStayConcepts((aggregated.stayConcepts ?? []).slice(0, 3));
+    const storedCalculated = normalizeStayConcepts(((trip.data as any).stay_concepts_calculated ?? []));
+    const selectedConcepts = normalizeStayConcepts(((trip.data as any).stay_concepts_selected ?? []));
     const profile = {
       calculatedConcepts: storedCalculated.length ? storedCalculated : calculatedConcepts,
-      selectedConcepts: ((trip.data as any).stay_concepts_selected ?? []) as StayConcept[],
+      selectedConcepts,
       validated: Boolean((trip.data as any).stay_profile_validated_at) || recos.length > 0,
       legacyBypass: recos.length > 0 && !(trip.data as any).stay_profile_validated_at,
     };
@@ -600,13 +650,37 @@ export function selectValidatedStayConcepts(
   calculated: StayConcept[],
   selectedConceptIds: string[],
 ): StayConcept[] {
-  if (!calculated.length) throw new Error("Aucun concept de voyage calculé");
-  if (!selectedConceptIds.length) throw new Error("Sélectionnez au moins un concept de voyage");
-  const allowed = new Set(calculated.map((concept) => concept.id));
-  if (selectedConceptIds.some((id) => !allowed.has(id))) {
-    throw new Error("Concept de voyage invalide");
+  if (!selectedConceptIds.length) throw new Error("Sélectionnez au moins un profil de voyage");
+  if (selectedConceptIds.length > 3) throw new Error("Sélectionnez au maximum 3 profils de voyage");
+
+  const normalizedCalculated = normalizeStayConcepts(calculated);
+  const allowedIds = new Set(normalizedCalculated.map((c) => c.id));
+
+  const validIds = selectedConceptIds.filter((id): id is StayProfileId =>
+    (STAY_PROFILE_IDS as readonly string[]).includes(id),
+  );
+  if (validIds.length !== selectedConceptIds.length) {
+    throw new Error("Profil de voyage invalide");
   }
-  return calculated.filter((concept) => selectedConceptIds.includes(concept.id));
+
+  const uniqueIds = [...new Set(validIds)];
+
+  for (const profileId of uniqueIds) {
+    if (!allowedIds.has(profileId)) {
+      throw new Error("Profil de voyage non proposé pour ce séjour");
+    }
+  }
+
+  return uniqueIds.map((profileId) => {
+    const matched = normalizedCalculated.find((c) => c.id === profileId);
+    return {
+      id: profileId,
+      profiles: [profileId],
+      title: PROFILE_LABELS[profileId],
+      score: matched?.score ?? 50,
+      rationale: matched?.rationale ?? PROFILE_LABELS[profileId],
+    };
+  });
 }
 
 export const validateStayProfile = createServerFn({ method: "POST" })
@@ -616,7 +690,7 @@ export const validateStayProfile = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("owner_id, co_organizer_id")
+      .select("owner_id, co_organizer_id, stay_concepts_calculated")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -625,8 +699,9 @@ export const validateStayProfile = createServerFn({ method: "POST" })
         "403 Forbidden: seul l’organisateur ou co-organisateur peut valider le profil",
       );
     }
+    const storedCalculated = normalizeStayConcepts(((trip.data as any).stay_concepts_calculated ?? []));
     const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
-    const calculated = (aggregated.stayConcepts ?? []).slice(0, 3) as StayConcept[];
+    const calculated = storedCalculated.length ? storedCalculated : normalizeStayConcepts((aggregated.stayConcepts ?? []).slice(0, 3));
     const selected = selectValidatedStayConcepts(calculated, data.selectedConceptIds);
     const { error } = await supabase
       .from("trips")
@@ -2065,13 +2140,19 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       dealBreakerAmbiances: aggregated.dealBreakerAmbiances,
       starDealBreakers: aggregated.starDealBreakers,
       validatedTripProfiles: (() => {
-        const isValidated = Boolean(trip.stay_profile_validated_at);
         const selected = (trip.stay_concepts_selected ?? []) as any[];
-        if (isValidated && Array.isArray(selected) && selected.length > 0) {
-          const titles = selected.map((c: any) => c.title).filter(Boolean);
-          if (titles.length > 0) return titles;
+        if (Array.isArray(selected) && selected.length > 0) {
+          const extractedIds = selected
+            .flatMap((c: any) => (Array.isArray(c.profiles) ? c.profiles : [c.id]))
+            .filter((id: any): id is StayProfileId =>
+              (STAY_PROFILE_IDS as readonly string[]).includes(id),
+            );
+          const uniqueIds = [...new Set(extractedIds)];
+          if (uniqueIds.length > 0) return uniqueIds;
         }
-        return [tripProfile].filter(Boolean);
+        return (STAY_PROFILE_IDS as readonly string[]).includes(tripProfile as any)
+          ? [tripProfile as StayProfileId]
+          : [];
       })(),
       localMobility: aggregated.groupLocalMobility,
       accessibilityRequired: (aggregated.individualPreferences ?? []).some(
