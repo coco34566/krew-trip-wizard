@@ -444,9 +444,15 @@ function TripDetail() {
       }
     | undefined;
   useEffect(() => {
-    if (!profile || profile.validated) return;
-    setSelectedConceptIds(profile.calculatedConcepts.slice(0, 3).map((concept) => concept.id));
-  }, [profile?.validated, JSON.stringify(profile?.calculatedConcepts ?? [])]);
+    if (!profile) return;
+    if (profile.selectedConcepts?.length > 0) {
+      setSelectedConceptIds((prev) => (prev.length > 0 ? prev : profile.selectedConcepts.map((c) => c.id)));
+    } else {
+      setSelectedConceptIds((prev) =>
+        prev.length > 0 ? prev : profile.calculatedConcepts.slice(0, 3).map((concept) => concept.id),
+      );
+    }
+  }, [profile?.validated, JSON.stringify(profile?.selectedConcepts ?? []), JSON.stringify(profile?.calculatedConcepts ?? [])]);
 
   const validateProfileMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
@@ -700,7 +706,7 @@ function TripDetail() {
     mutationFn: (payload: { start: string; end: string }) =>
       chooseDatesFn({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
     onSuccess: () => {
-      toast.success("Dates validées — les recherches destinations peuvent démarrer");
+      toast.success("Dates validées — choisis maintenant le profil du voyage");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
@@ -1616,6 +1622,9 @@ function TripDetail() {
                   ...old,
                   profile: { ...old.profile, validated: false },
                 }));
+                if (profile?.selectedConcepts?.length) {
+                  setSelectedConceptIds(profile.selectedConcepts.map((c) => c.id));
+                }
               }}
             >
               Modifier les profils

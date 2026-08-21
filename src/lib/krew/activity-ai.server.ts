@@ -1074,7 +1074,20 @@ function geographyPolicy(input: ActivityAiInput) {
     (x): x is StayProfileId => Boolean(x) && typeof x === "string",
   );
 
-  if (profiles.includes("house_together") || input.groupAccommodationRole === "centerpiece") {
+  const textSignals = norm(
+    [
+      ...input.ambiances,
+      ...(input.wantedEnvTypes ?? []),
+      ...(input.activityCategories ?? []),
+      input.groupAccommodationRole,
+    ].join(" "),
+  );
+
+  if (
+    profiles.includes("house_together") ||
+    input.groupAccommodationRole === "centerpiece" ||
+    /maison|villa|cocoon|gite/.test(textSignals)
+  ) {
     return { maxKm: 8, profile: "home" as const };
   }
 
@@ -1083,7 +1096,15 @@ function geographyPolicy(input: ActivityAiInput) {
     return { maxKm: 30, profile: "regional" as const };
   }
 
-  if (profiles.includes("outdoor_active") || profiles.includes("nature_disconnect")) {
+  if (profiles.includes("regional_explorer")) {
+    return { maxKm: 30, profile: "regional" as const };
+  }
+
+  if (
+    profiles.includes("outdoor_active") ||
+    profiles.includes("nature_disconnect") ||
+    /nature|sport|outdoor|aventure|montagne|lac|rando|canyon|kayak/.test(textSignals)
+  ) {
     return { maxKm: 30, profile: "outdoor" as const };
   }
 

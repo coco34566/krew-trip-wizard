@@ -107,6 +107,7 @@ type NextActionsPanelProps = {
   hasRecommendations: boolean;
   destinationSelected: boolean;
   datesLocked?: boolean;
+  profileReady?: boolean;
   profileValidated?: boolean;
   myHotelVoted?: boolean;
   myTransportPicked?: boolean;
@@ -129,6 +130,8 @@ function NextActionsPanel({
   hasRecommendations,
   destinationSelected,
   datesLocked = false,
+  profileReady = false,
+  profileValidated = false,
   myHotelVoted = false,
   myTransportPicked = false,
   hotelOffersReady = false,
@@ -219,7 +222,7 @@ function NextActionsPanel({
         icon: CalendarDays,
       });
     }
-    if (datesLocked && !profileValidated) {
+    if (datesLocked && !profileValidated && profileReady) {
       push({
         key: "choose-profile",
         title: "Choisir le profil du voyage",
@@ -675,6 +678,7 @@ export function TripHubDashboard({
         hasRecommendations={hasRecommendations}
         destinationSelected={destinationSelected}
         datesLocked={datesLocked}
+        profileReady={profileReady}
         profileValidated={profileValidated}
         myHotelVoted={myHotelVoted}
         myTransportPicked={myTransportPicked}

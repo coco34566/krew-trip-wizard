@@ -123,7 +123,7 @@ export const listMyTrips = createServerFn({ method: "GET" })
     ];
     const uniqueIds = [...new Set(allTripIds)];
 
-    const stageByTrip: Record<string, { destinationSelected: boolean; hasItinerary: boolean }> = {};
+    const stageByTrip: Record<string, { destinationSelected: boolean; hasItinerary: boolean; hasRecommendations: boolean }> = {};
     const selectedDestinationByTrip: Record<
       string,
       { destination_name: string | null; destination_image_url: string | null }
@@ -145,12 +145,16 @@ export const listMyTrips = createServerFn({ method: "GET" })
     const teamSummaryByTrip: Record<string, TeamSummary> = {};
 
     for (const id of uniqueIds) {
-      stageByTrip[id] = { destinationSelected: false, hasItinerary: false };
+      stageByTrip[id] = { destinationSelected: false, hasItinerary: false, hasRecommendations: false };
       selectedDestinationByTrip[id] = { destination_name: null, destination_image_url: null };
     }
 
     if (uniqueIds.length) {
-      const [selRecos, tripExtras, allParticipants, allPrefs, allAvail, allStarPrefs] = await Promise.all([
+      const [allRecos, selRecos, tripExtras, allParticipants, allPrefs, allAvail, allStarPrefs] = await Promise.all([
+        supabase
+          .from("recommendations")
+          .select("trip_id")
+          .in("trip_id", uniqueIds),
         supabase
           .from("recommendations")
           .select("trip_id, destinations(name, image_url)")
@@ -177,6 +181,11 @@ export const listMyTrips = createServerFn({ method: "GET" })
           .select("trip_id, user_id, wanted_activities, ambiances, wanted_env_type, desired_destination, available_dates, blocked_dates, submitted_at, updated_at")
           .in("trip_id", uniqueIds),
       ]);
+
+      for (const r of allRecos.data ?? []) {
+        const tid = (r as any).trip_id as string;
+        if (stageByTrip[tid]) stageByTrip[tid].hasRecommendations = true;
+      }
 
       for (const r of selRecos.data ?? []) {
         const tid = (r as any).trip_id as string;
@@ -286,10 +295,11 @@ export const listMyTrips = createServerFn({ method: "GET" })
       const datesLocked = Boolean((s as any).datesLocked ?? row.dates_locked);
       const destinationSelected = Boolean(s.destinationSelected);
       const hasItinerary = Boolean(s.hasItinerary);
+        const hasRecommendations = Boolean(s.hasRecommendations);
         const profileValidated =
           Boolean(row.stay_profile_validated_at) ||
           destinationSelected ||
-          Boolean((row.stay_concepts_selected ?? []).length > 0);
+          hasRecommendations;
       const teamSummary = teamSummaryByTrip[row.id] ?? {
         total: Math.max(Number(row.participants_count) || 1, 1),
         answered: 0,
