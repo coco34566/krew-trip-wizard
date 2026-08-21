@@ -1614,7 +1614,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
                 : "provider";
 
       if (ctx.hasBudgetVeto && ctx.vetoBudgetMax != null && totalPerPerson > ctx.vetoBudgetMax) {
-        const isLodgingVerified = ["provider", "web"].includes(priceSourceAccommodation);
+        const isLodgingVerified = priceSourceAccommodation === "provider";
         const isTransportVerified = priceSourceTransport === "provider";
         if (isLodgingVerified && isTransportVerified) {
           continue;

@@ -363,7 +363,7 @@ Mais tu ne dois jamais affirmer :
 - qu’elle a une note donnée ;
 - qu’elle respecte le budget ;
 - qu’elle est réservable.
-Ces vérifications appartiennent à l'étape HÉBERGEMENT.
+Ces vérifications appartiennent à l’étape HÉBERGEMENT.
 ────────────────────────────
 13. TRANSPORT : PLAUSIBILITÉ, PAS COTATION
 ────────────────────────────

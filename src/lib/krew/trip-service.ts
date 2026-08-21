@@ -1463,9 +1463,6 @@ export async function generateRecommendationsForTrip(
         affinity: c.affinity,
         reason: (c.why || c.reason) + (ai.cached ? " · cache" : " · IA"),
         why: c.why || c.reason,
-        dailyCost: c.dailyCost,
-        distanceKm: c.distanceKm,
-        bestMonths: c.bestMonths,
         region: c.region ?? null,
         destinationType: c.destinationType,
         anchorPlaces: c.anchorPlaces,
@@ -1554,15 +1551,15 @@ export async function generateRecommendationsForTrip(
             country: c.country ?? null,
             region: c.region ?? null,
             destination_type: c.destinationType ?? "city",
-            anchor_places: c.anchorPlaces ?? [c.name],
+            anchor_places: c.anchorPlaces?.length ? c.anchorPlaces : [c.name],
             source: c.source,
             why: c.why || c.reason,
             budget_fit: c.budgetFit ?? null,
             budget_reason: c.budgetReason ?? null,
-            transport: c.transport ?? null,
-            activity_fit: c.activityFit ?? null,
-            environment_fit: c.environmentFit ?? null,
-            accommodation_fit: c.accommodationFit ?? null,
+            transport: c.transport ?? {},
+            activity_fit: c.activityFit ?? [],
+            environment_fit: c.environmentFit ?? [],
+            accommodation_fit: c.accommodationFit ?? [],
             season_fit: c.seasonFit ?? null,
             status: existing?.status ?? "available",
             shown_batch: existing?.shown_batch ?? null,
@@ -1574,9 +1571,12 @@ export async function generateRecommendationsForTrip(
         });
 
         if (poolRowsToUpsert.length > 0) {
-          await supabase.from("destination_candidate_pool").upsert(poolRowsToUpsert as any, {
+          const upsertResult = await supabase.from("destination_candidate_pool").upsert(poolRowsToUpsert as any, {
             onConflict: "trip_id,brief_fingerprint,destination_key",
           });
+          if (upsertResult.error) {
+            throw upsertResult.error;
+          }
         }
       } catch (poolErr) {
         console.warn("destination_candidate_pool upsert skipped:", poolErr);

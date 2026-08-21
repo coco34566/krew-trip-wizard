@@ -451,4 +451,442 @@ describe("Gemini destination discovery unique provider", () => {
       expect(fp1).not.toBe(fp2);
     });
   });
+
+  describe("Hard veto budget et reliability des sources (property_web vs provider)", () => {
+    it("ne prouve jamais un veto budget si l'hébergement est property_web, estimated ou unknown", async () => {
+      const { buildProposals } = await import("../krew/engine");
+      const catalog = {
+        destinations: [
+          {
+            id: "d1",
+            slug: "nice",
+            name: "Nice",
+            country: "France",
+            description: null,
+            image_url: null,
+            avg_daily_cost: 100,
+            distance_from_paris_km: 700,
+            popularity: 0.8,
+            rating: 4.5,
+            best_months: [6, 7],
+            score_fete: 0.8,
+            score_aventure: 0.5,
+            score_detente: 0.8,
+            score_luxe: 0.7,
+            score_insolite: 0.5,
+            score_sportif: 0.5,
+            score_culturel: 0.8,
+          },
+        ],
+        activities: [],
+        accommodations: [
+          {
+            id: "acc-1",
+            destination_id: "d1",
+            name: "Hôtel Nice Web",
+            type: "hotel",
+            description: null,
+            price_per_night_per_person: 300,
+            capacity: 4,
+            rating: 4.2,
+            distance_center_km: 2,
+            image_url: null,
+            source: "property_web:booking",
+            price_verified: true,
+            availability_verified: true,
+            verification_state: "confirmed" as const,
+          },
+        ],
+      };
+
+      const context = {
+        participants: 2,
+        budgetPerPerson: 200,
+        nights: 2,
+        ambiances: ["detente"],
+        activityCategories: [],
+        maxDistanceKm: 1000,
+        excludedCountries: [],
+        letKrewDecide: true,
+        needsCityCenter: true,
+        startMonth: 6,
+        hasBudgetVeto: true,
+        vetoBudgetMax: 200,
+        transportPriceSourceByDestinationId: { d1: "provider" as const },
+        transportByDestinationId: { d1: 100 },
+      };
+
+      const proposals = buildProposals(catalog, context, 5);
+      expect(proposals.length).toBeGreaterThan(0);
+      expect(proposals[0]?.destination.name).toBe("Nice");
+    });
+
+    it("élimine la destination si logement = provider et transport = provider et total > vetoBudgetMax", async () => {
+      const { buildProposals } = await import("../krew/engine");
+      const catalog = {
+        destinations: [
+          {
+            id: "d1",
+            slug: "nice",
+            name: "Nice",
+            country: "France",
+            description: null,
+            image_url: null,
+            avg_daily_cost: 100,
+            distance_from_paris_km: 700,
+            popularity: 0.8,
+            rating: 4.5,
+            best_months: [6, 7],
+            score_fete: 0.8,
+            score_aventure: 0.5,
+            score_detente: 0.8,
+            score_luxe: 0.7,
+            score_insolite: 0.5,
+            score_sportif: 0.5,
+            score_culturel: 0.8,
+          },
+        ],
+        activities: [],
+        accommodations: [
+          {
+            id: "acc-1",
+            destination_id: "d1",
+            name: "Hôtel Nice Live",
+            type: "hotel",
+            description: null,
+            price_per_night_per_person: 300,
+            capacity: 4,
+            rating: 4.2,
+            distance_center_km: 2,
+            image_url: null,
+            source: "rapidapi",
+          },
+        ],
+      };
+
+      const context = {
+        participants: 2,
+        budgetPerPerson: 200,
+        nights: 2,
+        ambiances: ["detente"],
+        activityCategories: [],
+        maxDistanceKm: 1000,
+        excludedCountries: [],
+        letKrewDecide: true,
+        needsCityCenter: true,
+        startMonth: 6,
+        hasBudgetVeto: true,
+        vetoBudgetMax: 200,
+        transportPriceSourceByDestinationId: { d1: "provider" as const },
+        transportByDestinationId: { d1: 100 },
+      };
+
+      const proposals = buildProposals(catalog, context, 5);
+      expect(proposals.length).toBe(0);
+    });
+  });
+
+  describe("Test End-To-End de la persistance du pool et rotation des batchs", () => {
+    it("déroule Batch 1 (Gemini appelé) -> Batch 2 (Pool utilisé sans Gemini) -> Sélection -> Changement de brief", async () => {
+      process.env["GEMINI_API_KEY"] = "gemini-secret";
+      process.env["SUPABASE_URL"] = "https://mock.supabase.co";
+      process.env["SUPABASE_SERVICE_ROLE_KEY"] = "mock-service-role-key";
+      const { generateRecommendationsForTrip } = await import("../krew/trip-service");
+
+      let geminiCallCount = 0;
+      global.fetch = vi.fn().mockImplementation(async (url: any) => {
+        const urlStr = String(url || "");
+        if (urlStr.includes("generativelanguage.googleapis.com")) {
+          geminiCallCount++;
+          const cities = [
+            "Nice", "Bordeaux", "Lyon", "Marseille", "Toulouse", "Nantes", "Lille", "Strasbourg",
+            "Montpellier", "Rennes", "Dijon", "Angers", "Aix-en-Provence", "Brest", "Limoges", "Tours",
+            "Amiens", "Metz", "Besançon", "Perpignan", "Orléans", "Rouen", "Mulhouse", "Caen",
+            "Nancy", "Avignon", "Poitiers", "Cannes", "Dunkerque", "Saint-Nazaire"
+          ];
+          const candidateList = cities.map((name, i) => ({
+            name,
+            country: "France",
+            destinationType: "city",
+            anchorPlaces: [name],
+            why: `Raison ${i + 1}`,
+            budgetFit: "likely_compatible",
+          }));
+          return response(JSON.stringify({ candidates: candidateList }));
+        }
+        return response(JSON.stringify({}));
+      }) as any;
+
+      const mockPoolRows: any[] = [];
+      let currentTripBudget = 500;
+
+      const createMockSupabase = () => ({
+        from: (table: string) => {
+          if (table === "trips") {
+            const queryChain: any = {
+              select: () => queryChain,
+              eq: () => queryChain,
+              neq: () => queryChain,
+              single: async () => ({
+                data: {
+                  id: "trip-e2e",
+                  owner_id: "user-orga",
+                  duration_nights: 2,
+                  participants_count: 2,
+                  budget_per_person: currentTripBudget,
+                  departure_city: "Paris",
+                  stay_profile_validated_at: "2026-01-01",
+                  stay_concepts_selected: [{ id: "city_lively", profiles: ["city_lively"] }],
+                },
+                error: null,
+              }),
+              update: () => queryChain,
+              then: (resolve: any) => resolve({ data: [], error: null }),
+            };
+            return queryChain;
+          }
+          if (table === "trip_preferences") {
+            const queryChain: any = {
+              select: () => queryChain,
+              eq: () => queryChain,
+              maybeSingle: async () => ({
+                data: { max_distance_km: 1500, let_krew_decide: true, max_budget: currentTripBudget },
+                error: null,
+              }),
+              then: (resolve: any) =>
+                resolve({
+                  data: { max_distance_km: 1500, let_krew_decide: true, max_budget: currentTripBudget },
+                  error: null,
+                }),
+            };
+            return queryChain;
+          }
+          if (table === "trip_participants") {
+            const queryChain: any = {
+              select: () => queryChain,
+              eq: () => queryChain,
+              then: (resolve: any) =>
+                resolve({
+                  data: [{ id: "p1", user_id: "u1", status: "accepte" }],
+                  error: null,
+                }),
+            };
+            return queryChain;
+          }
+          if (table === "trip_participant_preferences") {
+            const queryChain: any = {
+              select: () => queryChain,
+              eq: () => queryChain,
+              then: (resolve: any) =>
+                resolve({
+                  data: [
+                    {
+                      user_id: "u1",
+                      ambiances: ["fete"],
+                      budget_max: currentTripBudget,
+                      departure_city: "Paris",
+                    },
+                  ],
+                  error: null,
+                }),
+            };
+            return queryChain;
+          }
+          if (table === "destination_candidate_pool") {
+            return {
+              select: (cols?: string) => ({
+                eq: (f1: string, v1: any) => ({
+                  eq: (f2: string, v2: any) => {
+                    const filtered = mockPoolRows.filter(
+                      (r) => r.trip_id === v1 && r.brief_fingerprint === v2,
+                    );
+                    return {
+                      eq: (f3: string, v3: any) => {
+                        const finalFiltered = filtered.filter((r) => r.status === v3);
+                        return Promise.resolve({
+                          data: finalFiltered,
+                          count: finalFiltered.length,
+                          error: null,
+                        });
+                      },
+                      order: () => ({
+                        limit: async () => ({
+                          data: filtered.sort((a, b) => (b.shown_batch || 0) - (a.shown_batch || 0)),
+                          error: null,
+                        }),
+                      }),
+                      data: filtered,
+                      count: filtered.length,
+                      error: null,
+                    };
+                  },
+                }),
+              }),
+              upsert: async (rows: any[]) => {
+                for (const row of rows) {
+                  const idx = mockPoolRows.findIndex(
+                    (r) =>
+                      r.trip_id === row.trip_id &&
+                      r.brief_fingerprint === row.brief_fingerprint &&
+                      r.destination_key === row.destination_key,
+                  );
+                  if (idx >= 0) {
+                    mockPoolRows[idx] = { ...mockPoolRows[idx], ...row };
+                  } else {
+                    mockPoolRows.push(row);
+                  }
+                }
+                return { data: rows, error: null };
+              },
+              update: (updateData: any) => ({
+                eq: (f1: string, v1: any) => ({
+                  eq: (f2: string, v2: any) => ({
+                    eq: async (f3: string, v3: any) => {
+                      const idx = mockPoolRows.findIndex(
+                        (r) =>
+                          r.trip_id === v1 &&
+                          r.brief_fingerprint === v2 &&
+                          r.destination_key === v3,
+                      );
+                      if (idx >= 0) {
+                        mockPoolRows[idx] = { ...mockPoolRows[idx], ...updateData };
+                      }
+                      return { data: null, error: null };
+                    },
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "destinations") {
+            const mockDests = [
+              "Nice", "Bordeaux", "Lyon", "Marseille", "Toulouse", "Nantes", "Lille", "Strasbourg",
+              "Montpellier", "Rennes", "Dijon", "Angers", "Aix-en-Provence", "Brest", "Limoges", "Tours",
+              "Amiens", "Metz", "Besançon", "Perpignan", "Orléans", "Rouen", "Mulhouse", "Caen",
+              "Nancy", "Avignon", "Poitiers", "Cannes", "Dunkerque", "Saint-Nazaire"
+            ].map((name, i) => ({
+              id: `dest-${i + 1}`,
+              slug: name.toLowerCase(),
+              name,
+              country: "France",
+              avg_daily_cost: 100,
+              distance_from_paris_km: 500,
+              popularity: 0.8,
+              rating: 4.5,
+              best_months: [5, 6, 7],
+              score_fete: 0.8,
+              score_detente: 0.8,
+              score_culturel: 0.8,
+              score_aventure: 0.5,
+              score_luxe: 0.5,
+              score_insolite: 0.5,
+              score_sportif: 0.5,
+              source: "krew_discovery",
+            }));
+            let searchedName: string | null = null;
+            let filterNames: string[] | null = null;
+            const queryChain: any = {
+              select: () => queryChain,
+              eq: () => queryChain,
+              ilike: (_col: string, val: string) => {
+                searchedName = val;
+                return queryChain;
+              },
+              lte: () => queryChain,
+              gte: () => queryChain,
+              in: (_col: string, vals: string[]) => {
+                filterNames = vals;
+                return queryChain;
+              },
+              order: () => queryChain,
+              limit: () => queryChain,
+              maybeSingle: async () => {
+                const match = searchedName
+                  ? mockDests.find((d) => d.name.toLowerCase() === searchedName?.toLowerCase())
+                  : null;
+                return { data: match || null, error: null };
+              },
+              single: async () => {
+                const match = searchedName
+                  ? mockDests.find((d) => d.name.toLowerCase() === searchedName?.toLowerCase())
+                  : mockDests[0];
+                return { data: match || null, error: null };
+              },
+              then: (resolve: any) => {
+                const resData = filterNames
+                  ? mockDests.filter((d) => filterNames?.includes(d.id) || filterNames?.includes(d.name))
+                  : mockDests;
+                return resolve({ data: resData, error: null });
+              },
+              data: mockDests,
+              error: null,
+            };
+            return queryChain;
+          }
+          if (table === "recommendations") {
+            const queryChain: any = {
+              select: () => queryChain,
+              eq: () => queryChain,
+              maybeSingle: async () => ({ data: null, error: null }),
+              insert: () => ({
+                select: async () => ({ data: [{ id: "reco-1" }], error: null }),
+              }),
+              delete: () => ({
+                in: async () => ({ data: null, error: null }),
+              }),
+              then: (resolve: any) => resolve({ data: [], error: null }),
+            };
+            return queryChain;
+          }
+          const queryChain: any = {
+            select: () => queryChain,
+            eq: () => queryChain,
+            ilike: () => queryChain,
+            lte: () => queryChain,
+            gte: () => queryChain,
+            in: () => queryChain,
+            order: () => queryChain,
+            limit: () => queryChain,
+            maybeSingle: async () => ({ data: null, error: null }),
+            single: async () => ({ data: null, error: null }),
+            then: (resolve: any) => resolve({ data: [], error: null }),
+            data: [],
+            error: null,
+          };
+          return queryChain;
+        },
+      });
+
+      // ÉTAPE 1: Premier Batch
+      const supabase1 = createMockSupabase();
+      const res1 = await generateRecommendationsForTrip(supabase1 as any, "trip-e2e");
+      expect(geminiCallCount).toBe(1);
+      expect(res1.count).toBe(4);
+      const shownBatch1 = mockPoolRows.filter((r) => r.status === "shown");
+      expect(shownBatch1).toHaveLength(4);
+      expect(shownBatch1.every((r) => r.shown_batch === 1)).toBe(true);
+
+      const batch1Names = shownBatch1.map((r) => r.name);
+
+      // ÉTAPE 2: Deuxième Batch ("Voir d'autres propositions")
+      const supabase2 = createMockSupabase();
+      const res2 = await generateRecommendationsForTrip(supabase2 as any, "trip-e2e");
+      expect(geminiCallCount).toBe(1); // Gemini non rappelé !
+      expect(res2.count).toBe(4);
+      const shownBatch2 = mockPoolRows.filter((r) => r.status === "shown" && r.shown_batch === 2);
+      expect(shownBatch2).toHaveLength(4);
+
+      const batch2Names = shownBatch2.map((r) => r.name);
+      // batch 1 ∩ batch 2 = ∅
+      const intersection = batch1Names.filter((name) => batch2Names.includes(name));
+      expect(intersection).toHaveLength(0);
+
+      // ÉTAPE 3: Changement de brief (ex: budget passe à 1200)
+      currentTripBudget = 1200;
+      const supabase3 = createMockSupabase();
+      const res3 = await generateRecommendationsForTrip(supabase3 as any, "trip-e2e");
+      expect(geminiCallCount).toBe(2); // Nouvel appel Gemini car nouveau fingerprint
+      expect(res3.count).toBe(4);
+    });
+  });
 });
