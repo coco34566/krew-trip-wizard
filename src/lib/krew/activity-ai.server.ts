@@ -2523,12 +2523,13 @@ export function validateItinerary(
           if (candidate) previousExternal = slot;
 
           const isInternal =
-            slot.source === "krew" ||
-            slot.source === "transport" ||
-            slot.activityMode === "self_guided_group" ||
-            ["transport", "libre", "moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(
-              String(slot.category),
-            );
+            (slot.source === "krew" ||
+              slot.source === "transport" ||
+              slot.activityMode === "self_guided_group" ||
+              ["transport", "libre", "moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(
+                String(slot.category),
+              )) &&
+            slot.resourceKind !== "ideas";
 
           if (isInternal) {
             slot.url = null;

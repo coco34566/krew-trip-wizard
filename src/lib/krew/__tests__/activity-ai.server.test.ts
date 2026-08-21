@@ -160,6 +160,47 @@ describe("Enrichissement des liens d'activités & classification des modes", () 
     expect(slots[1]?.url).toBeNull();
     expect(slots[0]?.activityMode).toBe("self_guided_group");
   });
+
+  it("findIdeasResourceForActivity trouve une URL d'idées pour un jeu et renvoie null pour un apéro", async () => {
+    const { findIdeasResourceForActivity } = await import("../activity-discovery.server");
+
+    // Simple apéro -> aucune recherche web
+    const aperoRes = await findIdeasResourceForActivity({
+      label: "Apéro au logement",
+      eventType: "weekend",
+    });
+    expect(aperoRes).toBeNull();
+
+    // Jeu / quiz -> recherche web déclenchée
+    const originalFetch = global.fetch;
+    const origTavily = process.env["TAVILY_API_KEY"];
+    process.env["TAVILY_API_KEY"] = "fake-key";
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [
+          { url: "https://www.google.com/search?q=jeu" }, // Filtre Google
+          { url: "https://idees-evjf.fr/regles-jeu-mariee" }, // URL d'idées valide
+        ],
+      }),
+    });
+    global.fetch = fetchMock;
+
+    try {
+      const gameRes = await findIdeasResourceForActivity({
+        label: "Jeu de la mariée",
+        searchIntent: "jeu de la mariée quiz",
+        eventType: "evjf",
+      });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(gameRes).toBe("https://idees-evjf.fr/regles-jeu-mariee");
+    } finally {
+      global.fetch = originalFetch;
+      process.env["TAVILY_API_KEY"] = origTavily;
+    }
+  });
 });
 
 describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => {

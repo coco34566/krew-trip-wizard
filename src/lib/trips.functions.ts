@@ -2357,7 +2357,24 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           label: s.label,
         });
 
-        if (s.kind === "internal" || mode === "self_guided_group") {
+        if (s.kind === "internal" || mode === "self_guided_group" || mode === "free_exploration") {
+          let ideasUrl: string | null = null;
+          let ideasKind: "ideas" | null = null;
+
+          if (mode === "self_guided_group") {
+            const { findIdeasResourceForActivity } = await import("@/lib/krew/activity-discovery.server");
+            const foundUrl = await findIdeasResourceForActivity({
+              label: s.label,
+              searchIntent: s.searchIntent,
+              eventType: trip.event_type,
+            });
+            if (foundUrl) {
+              const resLink = resolveActivityResourceUrl(foundUrl, { kindHint: "ideas" });
+              ideasUrl = resLink.url;
+              ideasKind = resLink.resourceKind === "ideas" ? "ideas" : null;
+            }
+          }
+
           slots.push({
             moment: s.moment,
             time: s.time,
@@ -2368,11 +2385,11 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             label: s.label,
             detail: s.detail,
             locationContext: s.locationContext,
-            activityMode: "self_guided_group",
-            verified: false,
+            activityMode: mode === "free_exploration" ? "free_exploration" : "self_guided_group",
+            verified: Boolean(ideasUrl),
             source: "krew",
-            url: null,
-            resourceKind: null,
+            url: ideasUrl,
+            resourceKind: ideasKind,
           });
 
           // Reset spatial reference to lodging ONLY when locationContext === "lodging"
