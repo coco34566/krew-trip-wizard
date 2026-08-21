@@ -211,19 +211,6 @@ function normalizeText(value: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-const DESCRIPTIVE_STOP_WORDS = new Set([
-  "montagne", "famille", "proximite", "proximité", "pied", "vue", "calme", "nature",
-  "lac", "mer", "campagne", "foret", "forêt", "centre", "gare", "plage", "pistes", "ski",
-  "domaine", "village", "ville", "hauteur", "hauteurs", "bord", "bords", "coeur", "cœur",
-  "cote", "côte", "baie", "vallee", "vallée", "massif", "parc", "jardin", "terrasse",
-  "piscine", "spa", "sauna", "jacuzzi", "wifi", "parking", "saison", "ete", "été", "hiver",
-  "louer", "partir", "disposition", "souhait", "volonte", "volonté", "la", "le", "les",
-  "un", "une", "des", "du", "de", "d", "en", "dans", "sur", "sous", "pres", "près",
-  "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "personnes",
-  "chambres", "lits", "groupe", "semaine", "nuit", "nuits", "seul", "privatif", "coteau",
-  "vapeur", "manger", "traiter", "venir", "savoir"
-]);
-
 function isExplicitlyOutsideDestination(
   blob: string,
   specification: AccommodationSearchSpecification,
@@ -235,10 +222,19 @@ function isExplicitlyOutsideDestination(
     return false;
   }
 
-  const locMatches = normBlob.matchAll(/\b(?:a|à|in|situe a|situee a|situé à|située à)\s+(?:la|le|les|l'|d'|du)?\s*([a-z0-9'-]{3,})/gi);
+  if (normDest === "annecy" && (normBlob.includes("haute-savoie") || normBlob.includes("haute savoie"))) {
+    return false;
+  }
+
+  const locMatches = blob.matchAll(
+    /(?:^|[\s,;:("'])(?:situé[es]?\s+à|situé[es]?\s+a|situe[es]?\s+a|located in|à|a|in)\s+(?:la|le|les|l'|d'|du)?\s*([A-ZÀ-ÖØ-ß][a-zA-Zà-öø-ÿ'-]+(?:\s+[A-ZÀ-ÖØ-ß][a-zA-Zà-öø-ÿ'-]+)*)/g,
+  );
+
   for (const match of locMatches) {
-    const locality = match[1]?.toLowerCase();
-    if (locality && !DESCRIPTIVE_STOP_WORDS.has(locality) && locality !== normDest) {
+    const rawLocality = match[1]?.trim();
+    if (!rawLocality) continue;
+    const normLocality = normalizeText(rawLocality);
+    if (normLocality && normLocality !== normDest) {
       return true;
     }
   }

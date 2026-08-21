@@ -351,13 +351,13 @@ it("CAS D — localisation inconnue", () => {
   expect(results[0]?.location.city).toBeNull();
 });
 
-it("CAS E — commune voisine autorisée (Talloires / Sevrier)", () => {
+it("CAS E — commune voisine autorisée (Talloires / Sevrier, sans le mot Annecy)", () => {
   const tavilyPayload = {
     results: [
       {
-        title: "Chalet de luxe avec spa à Talloires",
+        title: "Chalet avec spa à Talloires",
         url: "https://example.com/talloires",
-        content: "Chalet au calme à Talloires sur le lac d'Annecy",
+        content: "Grand chalet à Talloires en Haute-Savoie",
         score: 0.9,
       },
     ],
@@ -367,13 +367,13 @@ it("CAS E — commune voisine autorisée (Talloires / Sevrier)", () => {
   expect(results[0]?.location.city).toBeNull();
 });
 
-it("CAS F — code postal (non rejeté uniquement à cause du code postal)", () => {
+it("CAS F — code postal (74290, sans le mot Annecy)", () => {
   const tavilyPayload = {
     results: [
       {
-        title: "Location Chalet 74290 Talloires 8 personnes",
+        title: "Location chalet 74290 Talloires",
         url: "https://example.com/talloires-74290",
-        content: "Gîte situé à Talloires 74290 près du lac d'Annecy",
+        content: "Chalet à Talloires en Haute-Savoie",
         score: 0.9,
       },
     ],
@@ -387,9 +387,9 @@ it("CAS G — faux signal linguistique (en montagne, en famille, à proximité)"
   const tavilyPayload = {
     results: [
       {
-        title: "Chalet en montagne pour la famille à proximité des pistes",
+        title: "Chalet en montagne pour la famille",
         url: "https://example.com/chalet-famille",
-        content: "Superbe gîte à pied du village",
+        content: "À proximité des pistes, accès à pied",
         score: 0.9,
       },
     ],
