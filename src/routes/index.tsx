@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 
 import heroImage from "@/assets/hero-krew.jpg";
-import landingTripPreview from "@/assets/landing-trip-preview.jpg";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SiteHeader } from "@/components/krew/SiteHeader";
@@ -92,7 +91,7 @@ function Landing() {
                 </p>
 
                 <div className="relative inline-block">
-                  <h1 className="font-display text-[40px] sm:text-[64px] lg:text-[88px] font-normal tracking-tight text-foreground leading-[0.88]">
+                  <h1 className="font-display text-[48px] sm:text-[64px] lg:text-[88px] font-normal tracking-tight text-foreground leading-[0.88]">
                     Le voyage de groupe,{" "}
                     <span className="italic text-primary">organisé pour toi.</span>
                   </h1>
@@ -155,18 +154,13 @@ function Landing() {
 
         {/* ——— Types d'événements (Interlude) ——— */}
         <section className="bg-background border-y border-border/70 py-6">
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 flex flex-wrap items-center justify-center lg:justify-start gap-y-3 gap-x-4 text-sm">
-            <span className="mr-2 sm:mr-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
+          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 flex flex-wrap items-center justify-center lg:justify-start gap-y-3 text-sm">
+            <span className="mr-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
               Idéal pour
             </span>
-            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-0 gap-y-2">
+            <div className="flex flex-wrap items-center gap-y-2">
               {EVENT_TYPES.slice(0, 6).map((ev, index) => (
-                <div
-                  key={ev.value}
-                  className={`flex items-center ${
-                    index > 0 ? "sm:border-l sm:border-border/60 sm:pl-4 sm:ml-4" : ""
-                  }`}
-                >
+                <div key={ev.value} className={`flex items-center ${index > 0 ? "border-l border-border/60 pl-4 ml-4" : ""}`}>
                   <Link
                     to="/trips/new"
                     className="text-sm font-medium text-muted-foreground transition hover:text-primary whitespace-nowrap"
@@ -207,7 +201,7 @@ function Landing() {
               {STEPS.map((step) => {
                 const Icon = step.icon;
                 return (
-                  <div key={step.number} className="relative bg-surface/30 rounded-[24px] p-5 sm:p-8 border border-border/50 space-y-4">
+                  <div key={step.number} className="relative bg-surface/30 rounded-[24px] p-8 border border-border/50 space-y-4">
                     <span
                       aria-hidden="true"
                       className="font-display text-6xl font-normal text-sage/30 leading-none select-none block"
@@ -248,16 +242,16 @@ function Landing() {
 
             {/* Content Container */}
             <div className="space-y-10">
-              <div className="relative w-full rounded-[28px] overflow-hidden aspect-[4/3] sm:aspect-[16/9] max-h-[500px]">
+              <div className="relative w-full rounded-[28px] overflow-hidden aspect-[16/9] max-h-[500px]">
                 <img
-                  src={landingTripPreview}
+                  src="https://images.unsplash.com/photo-1555881403-64995e224d73?auto=format&fit=crop&w=1200&q=80"
                   alt=""
                   className="size-full object-cover"
                 />
               </div>
 
               {/* Title + Budget */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 bg-background rounded-2xl p-5 sm:p-8 border border-border/50">
+              <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 bg-background rounded-2xl p-6 sm:p-8 border border-border/50">
                 <div>
                   <span className="text-[10px] font-semibold uppercase tracking-wider bg-foreground/10 px-2.5 py-0.5 rounded-full text-foreground">Exemple de projet final</span>
                   <h3 className="font-display text-3xl sm:text-5xl font-normal text-foreground mt-2">

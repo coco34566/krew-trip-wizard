@@ -174,11 +174,6 @@ export function buildTripPreparation(input: PackingListInput): TripPreparation {
     `Séjour de ${days} jour(s)`,
   );
 
-  // Socle de base "Pour le groupe" (objets collectifs partagés)
-  group("speaker", "Enceinte Bluetooth", "base", "Socle collectif pour le groupe", true);
-  group("card_game", "Jeu de cartes", "base", "Socle collectif pour le groupe", true);
-  group("power_strip", "Multiprise / rallonge", "base", "Socle collectif pour le groupe", false);
-
   const cold = Boolean(input.isCold || (input.avgTemp != null && input.avgTemp < 15));
   if (cold) {
     personal(
