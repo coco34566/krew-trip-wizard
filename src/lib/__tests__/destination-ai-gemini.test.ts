@@ -230,6 +230,175 @@ describe("Gemini destination discovery unique provider", () => {
     });
   });
 
+  it("mappe plausibilité inconnue/absente à 'uncertain'", async () => {
+    process.env["GEMINI_API_KEY"] = "gemini";
+    global.fetch = vi.fn().mockResolvedValue(
+      response(
+        '{"candidates":[{"name":"Annecy","country":"France","destinationType":"city","anchorPlaces":["Annecy"],"why":"Lac","transport":{"Paris":{"plausibleModes":["train"]}}}]}',
+      ),
+    ) as any;
+    const result = await discoverDestinationsWithAi(input);
+    expect(result.candidates[0]?.transport?.["Paris"]?.plausibility).toBe("uncertain");
+  });
+
+  describe("Candidate Pool & Batching Rules (PR #119)", () => {
+    it("canServeFromCandidatePool retourne true si >= 4 candidats available dans le pool pour le fingerprint courant", async () => {
+      const { canServeFromCandidatePool } = await import("../krew/trip-service");
+      const mockSupabase = {
+        from: (table: string) => {
+          if (table === "trips") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  single: async () => ({
+                    data: {
+                      id: "trip-1",
+                      duration_nights: 3,
+                      participants_count: 4,
+                      departure_city: "Paris",
+                      stay_profile_validated_at: "2026-01-01",
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "trip_preferences") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({ data: { max_distance_km: 1500 }, error: null }),
+                }),
+              }),
+            };
+          }
+          if (table === "trip_participants") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  data: [{ id: "p1", user_id: "u1", status: "accepte" }],
+                  error: null,
+                }),
+              }),
+            };
+          }
+          if (table === "trip_participant_preferences") {
+            return {
+              select: () => ({
+                eq: async () => ({
+                  data: [
+                    {
+                      user_id: "u1",
+                      ambiances: ["detente"],
+                      budget_max: 500,
+                      budget_priority: "nice_to_have",
+                      departure_city: "Paris",
+                      transport_mode_accepted: ["train"],
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            };
+          }
+          if (table === "destination_candidate_pool") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    eq: async () => ({ count: 6, error: null }),
+                  }),
+                }),
+              }),
+            };
+          }
+          return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) };
+        },
+      };
+
+      const serveable = await canServeFromCandidatePool(mockSupabase as any, "trip-1");
+      expect(serveable).toBe(true);
+    });
+
+    it("canServeFromCandidatePool retourne false si < 4 candidats available", async () => {
+      const { canServeFromCandidatePool } = await import("../krew/trip-service");
+      const mockSupabase = {
+        from: (table: string) => {
+          if (table === "trips") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  single: async () => ({
+                    data: {
+                      id: "trip-1",
+                      duration_nights: 3,
+                      participants_count: 4,
+                      departure_city: "Paris",
+                      stay_profile_validated_at: "2026-01-01",
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            };
+          }
+          if (table === "trip_preferences") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({ data: { max_distance_km: 1500 }, error: null }),
+                }),
+              }),
+            };
+          }
+          if (table === "trip_participants") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  data: [{ id: "p1", user_id: "u1", status: "accepte" }],
+                  error: null,
+                }),
+              }),
+            };
+          }
+          if (table === "trip_participant_preferences") {
+            return {
+              select: () => ({
+                eq: async () => ({
+                  data: [
+                    {
+                      user_id: "u1",
+                      ambiances: ["detente"],
+                      budget_max: 500,
+                      departure_city: "Paris",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            };
+          }
+          if (table === "destination_candidate_pool") {
+            return {
+              select: () => ({
+                eq: () => ({
+                  eq: () => ({
+                    eq: async () => ({ count: 2, error: null }),
+                  }),
+                }),
+              }),
+            };
+          }
+          return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) };
+        },
+      };
+
+      const serveable = await canServeFromCandidatePool(mockSupabase as any, "trip-1");
+      expect(serveable).toBe(false);
+    });
+  });
+
   describe("Brief Fingerprint déterministe", () => {
     it("produit le même hash peu importe l'ordre des tableaux non ordonnés", () => {
       const fp1 = fingerprint({

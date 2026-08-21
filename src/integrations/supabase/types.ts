@@ -227,9 +227,9 @@ export type Database = {
       }
       destination_candidate_pool: {
         Row: {
-          accommodation_fit: string[] | null
-          activity_fit: string[] | null
-          anchor_places: string[] | null
+          accommodation_fit: string[]
+          activity_fit: string[]
+          anchor_places: string[]
           brief_fingerprint: string
           budget_fit: string | null
           budget_reason: string | null
@@ -237,28 +237,28 @@ export type Database = {
           created_at: string
           destination_key: string
           destination_type: string
-          environment_fit: string[] | null
+          environment_fit: string[]
           id: string
           krew_score: number | null
           name: string
           region: string | null
           rejected_at: string | null
-          score_snapshot: Json | null
+          score_snapshot: Json
           season_fit: string | null
           selected_at: string | null
           shown_at: string | null
           shown_batch: number | null
           source: string
           status: string
-          transport: Json | null
+          transport: Json
           trip_id: string
           updated_at: string
           why: string | null
         }
         Insert: {
-          accommodation_fit?: string[] | null
-          activity_fit?: string[] | null
-          anchor_places?: string[] | null
+          accommodation_fit?: string[]
+          activity_fit?: string[]
+          anchor_places?: string[]
           brief_fingerprint: string
           budget_fit?: string | null
           budget_reason?: string | null
@@ -266,28 +266,28 @@ export type Database = {
           created_at?: string
           destination_key: string
           destination_type: string
-          environment_fit?: string[] | null
+          environment_fit?: string[]
           id?: string
           krew_score?: number | null
           name: string
           region?: string | null
           rejected_at?: string | null
-          score_snapshot?: Json | null
+          score_snapshot?: Json
           season_fit?: string | null
           selected_at?: string | null
           shown_at?: string | null
           shown_batch?: number | null
           source: string
           status?: string
-          transport?: Json | null
+          transport?: Json
           trip_id: string
           updated_at?: string
           why?: string | null
         }
         Update: {
-          accommodation_fit?: string[] | null
-          activity_fit?: string[] | null
-          anchor_places?: string[] | null
+          accommodation_fit?: string[]
+          activity_fit?: string[]
+          anchor_places?: string[]
           brief_fingerprint?: string
           budget_fit?: string | null
           budget_reason?: string | null
@@ -295,20 +295,20 @@ export type Database = {
           created_at?: string
           destination_key?: string
           destination_type?: string
-          environment_fit?: string[] | null
+          environment_fit?: string[]
           id?: string
           krew_score?: number | null
           name?: string
           region?: string | null
           rejected_at?: string | null
-          score_snapshot?: Json | null
+          score_snapshot?: Json
           season_fit?: string | null
           selected_at?: string | null
           shown_at?: string | null
           shown_batch?: number | null
           source?: string
           status?: string
-          transport?: Json | null
+          transport?: Json
           trip_id?: string
           updated_at?: string
           why?: string | null

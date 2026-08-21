@@ -74,9 +74,6 @@ export type AiCandidate = {
   environmentFit?: string[];
   accommodationFit?: string[];
   seasonFit?: SeasonFit;
-  dailyCost?: number;
-  distanceKm?: number;
-  bestMonths?: number[];
 };
 
 const SYSTEM = `Tu es le moteur d’exploration de destinations de KREW.
@@ -800,14 +797,14 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
                 : Array.isArray((info as any).modes)
                   ? (info as any).modes.map(String)
                   : [];
-              const plausibilityRaw = String((info as any).plausibility ?? "likely");
+              const plausibilityRaw = (info as any).plausibility ? String((info as any).plausibility) : "";
               const plausibility: TransportPlausibility = [
                 "likely",
                 "uncertain",
                 "unlikely",
               ].includes(plausibilityRaw)
                 ? (plausibilityRaw as TransportPlausibility)
-                : "likely";
+                : "uncertain";
 
               transportMap[origin] = { plausibleModes, plausibility };
             }
@@ -836,14 +833,6 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
           out.seasonFit = seasonRaw as SeasonFit;
         } else if (seasonRaw === "acceptable") {
           out.seasonFit = "mixed";
-        }
-
-        if (Number.isFinite(Number(c.cost)) && Number(c.cost) > 0) out.dailyCost = Number(c.cost);
-        if (Number.isFinite(Number(c.km)) && Number(c.km) > 0) out.distanceKm = Number(c.km);
-        if (Array.isArray(c.months)) {
-          out.bestMonths = c.months
-            .map(Number)
-            .filter((m) => Number.isInteger(m) && m >= 1 && m <= 12);
         }
 
         return out;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { buildProposals, type DestinationRecord, type ScoringContext } from "../krew/engine";
 import { resolveRecommendationDates } from "../krew/trip-service";
 

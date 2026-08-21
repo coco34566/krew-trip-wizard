@@ -90,8 +90,8 @@ export function mergeCandidates(
         reason: existing.reason,
         why: c.why || existing.why || c.reason,
         source: "merged",
-        bestMonths: existing.bestMonths ?? c.bestMonths,
-        dailyCost: existing.dailyCost ?? c.dailyCost,
+        bestMonths: existing.bestMonths,
+        dailyCost: existing.dailyCost,
         region: existing.region ?? c.region ?? null,
         anchorPlaces: existing.anchorPlaces?.length
           ? existing.anchorPlaces
@@ -113,9 +113,6 @@ export function mergeCandidates(
       reason: c.reason,
       why: c.why || c.reason,
       source: "gemini",
-      dailyCost: c.dailyCost,
-      distanceKm: c.distanceKm,
-      bestMonths: c.bestMonths,
       region: c.region ?? null,
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces?.length ? c.anchorPlaces : [c.name],
