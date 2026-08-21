@@ -51,9 +51,11 @@ export function normCity(s: string): string {
 }
 
 /**
- * Fusionne les candidats règles + IA, dédupliqués par nom normalisé.
- * La source `catalog` gagne en cas de doublon (données réelles), mais on
- * conserve l'affinité la plus élevée des deux.
+ * Fusionne les candidats règles + IA.
+ * Gemini reste la base sémantique et territoriale d'un doublon ; les données
+ * locales déterministes complètent le candidat sans écraser la proposition IA.
+ * Un candidat IA est aussi considéré équivalent à un candidat local lorsque le
+ * nom local figure explicitement dans ses anchorPlaces.
  */
 export function mergeCandidates(
   ruleBased: CandidateDestination[],
@@ -82,20 +84,36 @@ export function mergeCandidates(
   for (const c of aiBased) {
     const key = normCity(c.name);
     if (!key) continue;
-    const existing = byKey.get(key);
+
+    const normalizedAnchors = new Set((c.anchorPlaces ?? []).map(normCity));
+    let existingKey = key;
+    let existing = byKey.get(key);
+
+    if (!existing && normalizedAnchors.size > 0) {
+      const localMatch = [...byKey.entries()].find(
+        ([candidateKey, candidate]) => candidate.source === "local" && normalizedAnchors.has(candidateKey),
+      );
+      if (localMatch) {
+        [existingKey, existing] = localMatch;
+      }
+    }
+
     if (existing) {
+      if (existingKey !== key) byKey.delete(existingKey);
       byKey.set(key, {
-        ...existing,
+        name: c.name,
+        country: c.country ?? existing.country,
         affinity: Math.max(existing.affinity, c.affinity),
-        reason: existing.reason,
-        why: c.why || existing.why || c.reason,
+        reason: c.reason || existing.reason,
+        why: c.why || c.reason || existing.why || existing.reason,
         source: "merged",
+        distanceKm: existing.distanceKm,
         bestMonths: existing.bestMonths,
         dailyCost: existing.dailyCost,
-        region: existing.region ?? c.region ?? null,
-        anchorPlaces: existing.anchorPlaces?.length
-          ? existing.anchorPlaces
-          : (c.anchorPlaces ?? []),
+        region: c.region ?? existing.region ?? null,
+        destinationType: c.destinationType ?? existing.destinationType ?? "city",
+        anchorPlaces: c.anchorPlaces?.length ? c.anchorPlaces : (existing.anchorPlaces ?? [c.name]),
+        verificationState: existing.verificationState,
         budgetFit: c.budgetFit ?? existing.budgetFit,
         budgetReason: c.budgetReason ?? existing.budgetReason,
         transport: c.transport ?? existing.transport,
@@ -106,6 +124,7 @@ export function mergeCandidates(
       });
       continue;
     }
+
     byKey.set(key, {
       name: c.name,
       country: c.country,
