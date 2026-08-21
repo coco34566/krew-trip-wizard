@@ -281,6 +281,7 @@ function TripDetail() {
       setIsEditingCount(false);
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
     onError: (err: any) => {
       toast.error(err?.message || "Erreur lors de la mise à jour");
@@ -293,7 +294,6 @@ function TripDetail() {
         data: {
           tripId,
           starMode: vars.starMode,
-          inviteStepCompleted: true,
           starPaysShare: vars.starPaysShare,
         },
       }),
@@ -1228,9 +1228,6 @@ function TripDetail() {
                 <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
                   <Users className="size-5 text-primary" /> Membres du groupe
                 </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {participants.filter((p) => !p.placeholder && p.status !== "absent").length} participant(s) rejoint(s) sur {trip.participants_count || 1} prévu(s)
-                </p>
               </div>
 
               {data.isOwner ? (
@@ -1449,17 +1446,14 @@ function TripDetail() {
                   <div>
                     <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                       <Star className="size-4 fill-amber-500 text-amber-500" />
-                      Gestion de la Star ({celebratedPerson || "Secret"})
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Définit la visibilité du voyage et la prise en charge de sa part.
+                      Rôle de la Star ({celebratedPerson || "Secret"})
                     </p>
                   </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 text-xs">
                   <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
-                    <p className="font-medium text-foreground">Mode de la Star</p>
+                    <p className="font-medium text-foreground">Visibilité</p>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -1476,7 +1470,7 @@ function TripDetail() {
                           })
                         }
                       >
-                        🤫 Secret
+                        🤫 Voyage secret
                       </Button>
                       <Button
                         type="button"
@@ -1493,33 +1487,49 @@ function TripDetail() {
                           })
                         }
                       >
-                        👀 Participant
+                        👀 Participant ordinaire
                       </Button>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Part de la Star</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Le groupe offre la part égale de la Star
-                      </p>
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                    <p className="font-medium text-foreground">Participation aux frais</p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_pays_share !== false ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: logistics?.star_mode ?? "secret",
+                            starPaysShare: true,
+                          })
+                        }
+                      >
+                        Elle paie sa part
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_pays_share === false ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: logistics?.star_mode ?? "secret",
+                            starPaysShare: false,
+                          })
+                        }
+                      >
+                        Part offerte par le groupe
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={logistics?.star_pays_share !== false ? "hero" : "outline"}
-                      className="h-7 text-xs"
-                      disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
-                      onClick={() =>
-                        finalizeInviteStepMutation.mutate({
-                          starMode: logistics?.star_mode ?? "secret",
-                          starPaysShare: logistics?.star_pays_share === false,
-                        })
-                      }
-                    >
-                      {logistics?.star_pays_share !== false ? "Offerte" : "Non offerte"}
-                    </Button>
                   </div>
                 </div>
               </div>

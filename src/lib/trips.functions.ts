@@ -797,7 +797,7 @@ export const finalizeInvitationStep = createServerFn({ method: "POST" })
       .object({
         tripId: z.string().uuid(),
         starMode: z.enum(["secret", "participant"]),
-        inviteStepCompleted: z.boolean(),
+        inviteStepCompleted: z.boolean().optional(),
         starPaysShare: z.boolean().default(true),
       })
       .parse(data),
@@ -821,7 +821,9 @@ export const finalizeInvitationStep = createServerFn({ method: "POST" })
 
     const logistics = (trip.group_logistics || {}) as any;
     logistics.star_mode = data.starMode;
-    logistics.invite_step_completed = data.inviteStepCompleted;
+    if (typeof data.inviteStepCompleted === "boolean") {
+      logistics.invite_step_completed = data.inviteStepCompleted;
+    }
     logistics.star_pays_share = data.starPaysShare;
 
     const { error } = await supabase
