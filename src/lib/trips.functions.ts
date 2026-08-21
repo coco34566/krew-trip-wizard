@@ -2349,7 +2349,15 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       const slots: import("@/lib/krew/activity-ai.server").ActivitySlot[] = [];
 
       for (const s of day.slots) {
-        if (s.kind === "internal") {
+        const mode = import("@/lib/krew/activity-ai.server").classifyActivityMode({
+          kind: s.kind,
+          category: s.category,
+          venueFamily: s.venueFamily,
+          searchIntent: s.searchIntent,
+          label: s.label,
+        });
+
+        if (s.kind === "internal" || mode === "self_guided_group") {
           slots.push({
             moment: s.moment,
             time: s.time,
@@ -2360,9 +2368,11 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             label: s.label,
             detail: s.detail,
             locationContext: s.locationContext,
+            activityMode: "self_guided_group",
             verified: false,
             source: "krew",
             url: null,
+            resourceKind: null,
           });
 
           // Reset spatial reference to lodging ONLY when locationContext === "lodging"
@@ -2465,7 +2475,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               s.detail ||
               s.searchIntent ||
               "Lieu sélectionné par KREW",
-            ...resolveActivityResourceUrl(matchedPlace.website),
+            ...resolveActivityResourceUrl(matchedPlace.website, { kindHint: "website" }),
+            activityMode: mode,
             candidateId: matchedPlace.id,
             verified: true,
             source: "geoapify",
@@ -2769,7 +2780,8 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         ...current,
         label: matchedCandidate.name,
         detail: matchedCandidate.address || current.detail || "Lieu sélectionné par KREW",
-        ...resolveActivityResourceUrl(matchedCandidate.website),
+        ...resolveActivityResourceUrl(matchedCandidate.website, { kindHint: "website" }),
+        activityMode: "bookable",
         candidateId: matchedCandidate.id,
         verified: true,
         source: "geoapify",

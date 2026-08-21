@@ -2998,8 +2998,10 @@ function TripDetail() {
                                   className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
                                 >
                                   {slot.resourceKind === "booking"
-                                    ? "Voir les disponibilités →"
-                                    : "Voir le lieu →"}
+                                    ? "Voir / réserver →"
+                                    : slot.resourceKind === "ideas"
+                                      ? "Voir les idées →"
+                                      : "Voir le lieu →"}
                                 </a>
                               ) : null}
                             </div>

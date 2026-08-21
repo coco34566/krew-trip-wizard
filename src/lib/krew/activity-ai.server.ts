@@ -32,6 +32,9 @@ export type ActivityCategory =
   | "shopping"
   | "local_experience";
 
+export type ActivityMode = "bookable" | "free_exploration" | "self_guided_group";
+export type ActivityResourceKind = "website" | "booking" | "ideas" | null;
+
 export type ActivitySlot = {
   moment: string;
   type: ActivitySlotType;
@@ -48,8 +51,8 @@ export type ActivitySlot = {
   endTime?: string | null | undefined;
   durationMinutes?: number | null | undefined;
   url?: string | null | undefined;
-  resourceUrl?: string | null | undefined;
-  resourceKind?: "official" | "booking" | null | undefined;
+  resourceKind?: ActivityResourceKind | undefined;
+  activityMode?: ActivityMode | undefined;
   candidateId?: string | null | undefined;
   verified?: boolean | undefined;
   source?: string | null | undefined;
@@ -58,20 +61,49 @@ export type ActivitySlot = {
   openingHoursVerified?: boolean | undefined;
 };
 
+export function classifyActivityMode(raw: {
+  kind?: string | null;
+  category?: string | null;
+  venueFamily?: string | null;
+  searchIntent?: string | null;
+  label?: string | null;
+  internal?: boolean | null;
+}): ActivityMode {
+  const normText = norm(`${raw.label ?? ""} ${raw.category ?? ""} ${raw.searchIntent ?? ""}`);
+
+  if (
+    raw.kind === "internal" ||
+    raw.internal === true ||
+    ["moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(String(raw.category)) ||
+    /jeu|quiz|mariée|mariee|defi|défis|blind test|apéro|apero|chasse aux/i.test(normText)
+  ) {
+    return "self_guided_group";
+  }
+
+  if (
+    /balade|promenade|flânerie|flanerie|quartier|centre historique|découverte du quartier|decouverte du quartier|plage|parc|point de vue|panorama|marché libre|marche libre|exploration/i.test(
+      normText,
+    )
+  ) {
+    return "free_exploration";
+  }
+
+  return "bookable";
+}
+
 export function resolveActivityResourceUrl(
   urlInput?: string | null,
   options?: {
-    kindHint?: "official" | "booking" | null;
+    kindHint?: ActivityResourceKind;
   },
-): { url: string | null; resourceUrl: string | null; resourceKind: "official" | "booking" | null } {
+): { url: string | null; resourceKind: ActivityResourceKind } {
   if (!urlInput || typeof urlInput !== "string" || !isSafeActivityUrl(urlInput)) {
-    return { url: null, resourceUrl: null, resourceKind: null };
+    return { url: null, resourceKind: null };
   }
 
   const cleanUrl = urlInput.trim();
   const lower = cleanUrl.toLowerCase();
 
-  // Do not expose Google Search, Google Maps, or generic directory search links (like TripAdvisor) as activity resource URLs
   if (
     lower.includes("google.com/search") ||
     lower.includes("maps.google") ||
@@ -79,27 +111,13 @@ export function resolveActivityResourceUrl(
     lower.includes("maps.apple") ||
     lower.includes("tripadvisor")
   ) {
-    return { url: null, resourceUrl: null, resourceKind: null };
+    return { url: null, resourceKind: null };
   }
 
-  let resourceKind: "official" | "booking" | null = options?.kindHint ?? null;
-
-  if (!resourceKind) {
-    if (
-      lower.includes("getyourguide") ||
-      lower.includes("viator") ||
-      lower.includes("booking.com") ||
-      lower.includes("airbnb.com/experiences")
-    ) {
-      resourceKind = "booking";
-    } else {
-      resourceKind = "official";
-    }
-  }
+  const resourceKind: ActivityResourceKind = options?.kindHint ?? "website";
 
   return {
     url: cleanUrl,
-    resourceUrl: cleanUrl,
     resourceKind,
   };
 }
@@ -2383,10 +2401,21 @@ function normalizeSlot(
           ? "flexible"
           : "external";
 
+  const mode = classifyActivityMode({
+    kind: raw.kind,
+    category: raw.category,
+    venueFamily: raw.venueFamily,
+    searchIntent: raw.searchIntent,
+    label: raw.label,
+    internal,
+  });
+
   const rawUrl = candidate ? candidate.sourceUrl : (raw.url || null);
-  const resolvedLink = internal
-    ? { url: null, resourceUrl: null, resourceKind: null }
-    : resolveActivityResourceUrl(rawUrl);
+  const resolvedLink = internal || mode === "self_guided_group"
+    ? { url: null, resourceKind: null }
+    : resolveActivityResourceUrl(rawUrl, {
+        kindHint: candidate?.sourceUrl ? "website" : null,
+      });
 
   return {
     moment: String(raw.moment ?? "Après-midi").slice(0, 24),
@@ -2402,8 +2431,8 @@ function normalizeSlot(
     locationContext: locCtx,
     dietaryCheckRequired: Array.isArray(input.dietaryConstraints) && input.dietaryConstraints.length > 0 && (category === "repas" || type === "resto"),
     url: resolvedLink.url,
-    resourceUrl: resolvedLink.resourceUrl,
     resourceKind: resolvedLink.resourceKind,
+    activityMode: mode,
     candidateId: candidate?.id ?? raw.candidateId ?? null,
     verified: candidate?.verified === true || raw.verified === true,
     source: candidate?.source ?? (internal ? "krew" : null),
@@ -2496,17 +2525,16 @@ export function validateItinerary(
           const isInternal =
             slot.source === "krew" ||
             slot.source === "transport" ||
+            slot.activityMode === "self_guided_group" ||
             ["transport", "libre", "moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(
               String(slot.category),
             );
 
           if (isInternal) {
             slot.url = null;
-            slot.resourceUrl = null;
             slot.resourceKind = null;
           } else if (slot.url && !isSafeActivityUrl(slot.url)) {
             slot.url = null;
-            slot.resourceUrl = null;
             slot.resourceKind = null;
           }
 
@@ -2845,7 +2873,7 @@ export async function regenerateSlotWithAi(
 
   if (selectedPlace) {
     usedSet.add(selectedPlace.id);
-    const resolvedLink = resolveActivityResourceUrl(selectedPlace.website);
+    const resolvedLink = resolveActivityResourceUrl(selectedPlace.website, { kindHint: "website" });
     return {
       slot: {
         ...existing,
@@ -2854,8 +2882,8 @@ export async function regenerateSlotWithAi(
         candidateId: selectedPlace.id,
         category: existing.category,
         url: resolvedLink.url,
-        resourceUrl: resolvedLink.resourceUrl,
         resourceKind: resolvedLink.resourceKind,
+        activityMode: "bookable",
         verified: true,
         source: "geoapify",
         latitude: selectedPlace.latitude,
@@ -2874,7 +2902,7 @@ export async function regenerateSlotWithAi(
 
   if (candidateAlt) {
     usedSet.add(candidateAlt.id);
-    const resolvedLink = resolveActivityResourceUrl(candidateAlt.sourceUrl);
+    const resolvedLink = resolveActivityResourceUrl(candidateAlt.sourceUrl, { kindHint: "website" });
     return {
       slot: {
         ...existing,
@@ -2882,8 +2910,8 @@ export async function regenerateSlotWithAi(
         candidateId: candidateAlt.id,
         category: (candidateAlt.category as ActivityCategory) ?? existing.category,
         url: resolvedLink.url,
-        resourceUrl: resolvedLink.resourceUrl,
         resourceKind: resolvedLink.resourceKind,
+        activityMode: "bookable",
         verified: true,
         source: candidateAlt.source,
         latitude: candidateAlt.latitude,

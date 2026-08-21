@@ -73,31 +73,52 @@ const candidate: ActivityCandidate = {
   groundingSources: [],
 };
 
-describe("Enrichissement des liens d'activités", () => {
-  it("resolveActivityResourceUrl valide et catégorise correctement les URLs", () => {
+describe("Enrichissement des liens d'activités & classification des modes", () => {
+  it("classifyActivityMode classifie correctement les 3 besoins fonctionnels", () => {
+    const { classifyActivityMode } = require("../activity-ai.server");
+
+    expect(classifyActivityMode({ kind: "internal", label: "Jeu de la mariée" })).toBe("self_guided_group");
+    expect(classifyActivityMode({ category: "jeu_groupe", label: "Quiz" })).toBe("self_guided_group");
+    expect(classifyActivityMode({ label: "Balade dans le centre historique" })).toBe("free_exploration");
+    expect(classifyActivityMode({ label: "Promenade au parc" })).toBe("free_exploration");
+    expect(classifyActivityMode({ label: "Séance de spa et massages" })).toBe("bookable");
+  });
+
+  it("resolveActivityResourceUrl n'infère pas 'official' ou 'booking' uniquement d'après le domaine", () => {
     const { resolveActivityResourceUrl } = require("../activity-ai.server");
 
+    // Sans hint explicit, par défaut website si HTTPS valide
     expect(resolveActivityResourceUrl("https://parc-national.fr/site")).toEqual({
       url: "https://parc-national.fr/site",
-      resourceUrl: "https://parc-national.fr/site",
-      resourceKind: "official",
+      resourceKind: "website",
     });
 
-    expect(resolveActivityResourceUrl("https://www.getyourguide.fr/tour")).toEqual({
-      url: "https://www.getyourguide.fr/tour",
-      resourceUrl: "https://www.getyourguide.fr/tour",
+    // TripAdvisor ou Google Search ne deviennent ni official ni booking
+    expect(resolveActivityResourceUrl("https://www.tripadvisor.fr/attraction")).toEqual({
+      url: null,
+      resourceKind: null,
+    });
+    expect(resolveActivityResourceUrl("https://google.com/search?q=test")).toEqual({
+      url: null,
+      resourceKind: null,
+    });
+
+    // Avec hint explicite "booking" ou "ideas"
+    expect(resolveActivityResourceUrl("https://partner.com/offer", { kindHint: "booking" })).toEqual({
+      url: "https://partner.com/offer",
       resourceKind: "booking",
+    });
+    expect(resolveActivityResourceUrl("https://ideas-blog.fr/article", { kindHint: "ideas" })).toEqual({
+      url: "https://ideas-blog.fr/article",
+      resourceKind: "ideas",
     });
 
     expect(resolveActivityResourceUrl("javascript:alert(1)")).toEqual({
       url: null,
-      resourceUrl: null,
       resourceKind: null,
     });
-
     expect(resolveActivityResourceUrl(null)).toEqual({
       url: null,
-      resourceUrl: null,
       resourceKind: null,
     });
   });
@@ -135,10 +156,9 @@ describe("Enrichissement des liens d'activités", () => {
     const slots = validated[0]?.slots ?? [];
 
     expect(slots).toHaveLength(2);
-    // Internal slot has url = null
     expect(slots[0]?.url).toBeNull();
-    // External slot with invalid url has url cleaned to null rather than deleting the slot
     expect(slots[1]?.url).toBeNull();
+    expect(slots[0]?.activityMode).toBe("self_guided_group");
   });
 });
 
