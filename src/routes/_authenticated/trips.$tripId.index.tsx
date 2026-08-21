@@ -63,6 +63,8 @@ import {
   reassignTask,
   setCoOrganizer,
   validateStayProfile,
+  updateTripParticipantsCount,
+  finalizeInvitationStep,
 } from "@/lib/trips.functions";
 import {
   getParticipantsProgress,
@@ -264,7 +266,45 @@ function TripDetail() {
   const generateTasksForTripFn = useServerFn(generateTasksForTrip);
   const setCoOrg = useServerFn(setCoOrganizer);
   const validateProfile = useServerFn(validateStayProfile);
+  const updateCountFn = useServerFn(updateTripParticipantsCount);
+  const finalizeInviteStepFn = useServerFn(finalizeInvitationStep);
   const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
+
+  const [isEditingCount, setIsEditingCount] = useState(false);
+  const [countInput, setCountInput] = useState<number>(2);
+
+  const updateCountMutation = useMutation({
+    mutationFn: (count: number) =>
+      updateCountFn({ data: { tripId, participantsCount: count } }),
+    onSuccess: () => {
+      toast.success("Nombre de participants mis à jour !");
+      setIsEditingCount(false);
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Erreur lors de la mise à jour");
+    },
+  });
+
+  const finalizeInviteStepMutation = useMutation({
+    mutationFn: (vars: { starMode: "secret" | "participant"; starPaysShare: boolean }) =>
+      finalizeInviteStepFn({
+        data: {
+          tripId,
+          starMode: vars.starMode,
+          starPaysShare: vars.starPaysShare,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Paramètres de la Star enregistrés");
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Erreur de mise à jour");
+    },
+  });
 
   const setCoOrgMutation = useMutation({
     mutationFn: ({ coOrganizerId }: { coOrganizerId: string | null }) =>
@@ -1069,7 +1109,17 @@ function TripDetail() {
     return [...rawParticipants, starVirtual];
   })();
 
-  const participants = combinedParticipants;
+  const placeholders = Array.from(
+    { length: Math.max(0, Number(trip.participants_count || 0) - combinedParticipants.length) },
+    (_, index) => ({
+      id: `placeholder-${index}`,
+      display_name: `Participant ${combinedParticipants.length + index + 1}`,
+      email: null,
+      status: "à inviter",
+      placeholder: true,
+    }),
+  );
+  const participants = [...combinedParticipants, ...placeholders];
   const destinationSelected = recommendations.some((r) => r.is_selected);
   const selectedReco = recommendations.find((r) => r.is_selected);
   const logistics = ((trip as any).group_logistics || {}) as any;
@@ -1122,7 +1172,7 @@ function TripDetail() {
               : "text-muted-foreground",
           )}
         >
-          À faire
+          Overview du voyage
         </Link>
         <Link
           to="/trips/$tripId"
@@ -1135,64 +1185,449 @@ function TripDetail() {
               : "text-muted-foreground",
           )}
         >
-          Voyage
-        </Link>
-        <Link
-          to="/trips/$tripId/invite"
-          params={{ tripId }}
-          className="pb-1 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Groupe
+          Détail du voyage
         </Link>
       </nav>
 
       {currentView === "todo" ? (
-        <TripHubDashboard
-          viewerUserId={data.userId}
-          tripId={tripId}
-          trip={{
-            ...trip,
-            participants: participants,
-          }}
-          isOwner={data.isOwner}
-          participantsCount={progress?.total || participants.length}
-          progressAnswered={progress?.answered ?? 0}
-          progressTotal={progress?.total || participants.length}
-          availabilityAnswered={availData?.answered ?? 0}
-          availabilityExpected={progress?.total || participants.length}
-          provisionalStart={
-            trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date
-          }
-          provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
-          myAvailabilityDone={Boolean(availData?.mine)}
-          myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
-          starDone={Boolean(starData?.preferences)}
-          hasRecommendations={recommendations.length > 0}
-          profileReady={Boolean(readiness?.profile.questionnairesReady)}
-          profileValidated={Boolean(profile?.validated)}
-          destinationSelected={recommendations.some((r) => r.is_selected)}
-          destinationName={recommendations.find((r) => r.is_selected)?.destinations?.name ?? null}
-          liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
-          totalReserved={costSplitData?.totalReserved ?? null}
-          totalEstimated={costSplitData?.totalEstimated ?? null}
-          topScores={recommendations.slice(0, 3).map((r) => ({
-            name: r.destinations?.name ?? "Destination",
-            score: r.score,
-          }))}
-          activitiesValidated={activitiesValidated}
-          tripEndDatePassed={tripEndDatePassed}
-        />
-      ) : null}
+        <div className="space-y-8">
+          <TripHubDashboard
+            viewerUserId={data.userId}
+            tripId={tripId}
+            trip={{
+              ...trip,
+              participants: participants,
+            }}
+            isOwner={data.isOwner}
+            participantsCount={progress?.total || participants.length}
+            progressAnswered={progress?.answered ?? 0}
+            progressTotal={progress?.total || participants.length}
+            availabilityAnswered={availData?.answered ?? 0}
+            availabilityExpected={progress?.total || participants.length}
+            provisionalStart={
+              trip.start_date ?? availData?.windows?.[0]?.start ?? (trip as any).provisional_start_date
+            }
+            provisionalCoverage={availData?.windows?.[0]?.coverageRatio ?? null}
+            myAvailabilityDone={Boolean(availData?.mine)}
+            myPreferencesDone={Boolean((myPrefsData as any)?.preferences)}
+            starDone={Boolean(starData?.preferences)}
+            hasRecommendations={recommendations.length > 0}
+            profileReady={Boolean(readiness?.profile.questionnairesReady)}
+            profileValidated={Boolean(profile?.validated)}
+            destinationSelected={recommendations.some((r) => r.is_selected)}
+            destinationName={recommendations.find((r) => r.is_selected)?.destinations?.name ?? null}
+            liveBudgetTotal={liveBudget.total > 0 ? liveBudget.total : null}
+            totalReserved={costSplitData?.totalReserved ?? null}
+            totalEstimated={costSplitData?.totalEstimated ?? null}
+            topScores={recommendations.slice(0, 3).map((r) => ({
+              name: r.destinations?.name ?? "Destination",
+              score: r.score,
+            }))}
+            activitiesValidated={activitiesValidated}
+            tripEndDatePassed={tripEndDatePassed}
+          />
 
-      {data.isOwner ? (
-        <div className="mt-4 flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => shareOnWhatsApp(buildWhatsAppStatusMessage())}
-          >
-            Partager l’état du voyage
-          </Button>
+          {/* GROUPE SECTION INTEGRATED IN OVERVIEW */}
+          <section id="group-section" className="space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+                  <Users className="size-5 text-primary" /> Membres du groupe
+                </h2>
+              </div>
+
+              {data.isOwner ? (
+                isEditingCount ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (countInput >= 2 && countInput <= 25) {
+                        updateCountMutation.mutate(countInput);
+                      } else {
+                        toast.error("Le nombre de participants doit être entre 2 et 25");
+                      }
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Input
+                      type="number"
+                      min={2}
+                      max={25}
+                      value={countInput}
+                      onChange={(e) => setCountInput(Number(e.target.value))}
+                      className="w-20 h-8 text-xs"
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="h-8 text-xs"
+                      disabled={updateCountMutation.isPending}
+                    >
+                      {updateCountMutation.isPending ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        "Valider"
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setIsEditingCount(false)}
+                    >
+                      Annuler
+                    </Button>
+                  </form>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => {
+                      setCountInput(Number(trip.participants_count || 2));
+                      setIsEditingCount(true);
+                    }}
+                  >
+                    Modifier le nombre ({trip.participants_count || 2})
+                  </Button>
+                )
+              ) : null}
+            </div>
+
+            <ul className="divide-y divide-border/50">
+              {participants.length === 0 ? (
+                <li className="text-sm text-muted-foreground py-4">
+                  Personne n’a encore rejoint le groupe.
+                </li>
+              ) : (
+                participants.map((p) => {
+                  const picks = (logistics.transportPicks ?? []) as any[];
+                  const userPick = p.user_id
+                    ? picks.find((pk: any) => pk.userId === p.user_id)
+                    : null;
+                  const city =
+                    progress?.participants?.find((pr: any) => pr.user_id === p.user_id)
+                      ?.departure_city ||
+                    p.departure_city ||
+                    userPick?.city ||
+                    null;
+                  const isOwner = Boolean(p.user_id && !p.placeholder && p.user_id === trip.owner_id);
+                  const isCoOrganizer = Boolean(
+                    p.user_id &&
+                      !p.placeholder &&
+                      p.user_id !== starUid &&
+                      p.user_id !== trip.owner_id &&
+                      p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId),
+                  );
+
+                  return (
+                    <li
+                      key={p.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between py-4 first:pt-0 last:pb-0 gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-foreground">
+                            {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
+                          </p>
+                          {isOwner ? (
+                            <Badge
+                              variant="sun"
+                              className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                            >
+                              Organisateur·rice
+                            </Badge>
+                          ) : isCoOrganizer ? (
+                            <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[10px]">
+                              Co-organisateur·rice
+                            </Badge>
+                          ) : null}
+                          {p.isStar ? (
+                            <Badge
+                              variant="sun"
+                              className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                            >
+                              <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
+                            </Badge>
+                          ) : null}
+                        </div>
+                        {p.email ? (
+                          <p className="text-xs text-muted-foreground mt-0.5">{p.email}</p>
+                        ) : null}
+                        {city || userPick ? (
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            {city ? (
+                              <span>
+                                📍 Départ : <strong className="text-foreground">{city}</strong>
+                              </span>
+                            ) : null}
+                            {userPick ? (
+                              <span>
+                                🚆 Trajet :{" "}
+                                <strong className="text-foreground">
+                                  {userPick.modeLabel || userPick.mode} ({userPick.label})
+                                </strong>
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
+                        <Badge
+                          variant={
+                            p.status === "accepte"
+                              ? "success"
+                              : p.status === "absent"
+                                ? "destructive"
+                                : "muted"
+                          }
+                        >
+                          {p.status === "accepte" ? "Participe" : p.status}
+                        </Badge>
+                        {p.user_id === data.userId ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7 px-2"
+                            onClick={() => {
+                              const nextStatus =
+                                (p.status as string) === "absent" ? "accepte" : "absent";
+                              declareStatusMutation.mutate(nextStatus);
+                            }}
+                          >
+                            {(p.status as string) === "absent"
+                              ? "Participer à nouveau"
+                              : "Indiquer mon absence"}
+                          </Button>
+                        ) : null}
+                        {data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id ? (
+                          p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-destructive hover:bg-destructive/5 h-7 px-2"
+                              disabled={setCoOrgMutation.isPending}
+                              onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
+                            >
+                              Retirer co-org
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 h-7 px-2 font-normal"
+                              disabled={setCoOrgMutation.isPending}
+                              onClick={() =>
+                                setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
+                              }
+                            >
+                              Nommer co-org
+                            </Button>
+                          )
+                        ) : null}
+                        {data.isOwner && !p.placeholder && !p.isStar ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Retirer ${p.email || p.display_name}`}
+                            className="size-8"
+                            onClick={() => removeMutation.mutate(p.id)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+
+            {/* PARAMÈTRES STAR SI VOYAGE STAR */}
+            {hasStar ? (
+              <div className="pt-4 border-t border-border/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <Star className="size-4 fill-amber-500 text-amber-500" />
+                      Rôle de la Star ({celebratedPerson || "Secret"})
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                    <p className="font-medium text-foreground">Visibilité</p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          (logistics?.star_mode ?? "secret") === "secret" ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: "secret",
+                            starPaysShare: logistics?.star_pays_share !== false,
+                          })
+                        }
+                      >
+                        🤫 Voyage secret
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_mode === "participant" ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: "participant",
+                            starPaysShare: logistics?.star_pays_share !== false,
+                          })
+                        }
+                      >
+                        👀 Participant ordinaire
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                    <p className="font-medium text-foreground">Participation aux frais</p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_pays_share !== false ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: logistics?.star_mode ?? "secret",
+                            starPaysShare: true,
+                          })
+                        }
+                      >
+                        Elle paie sa part
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_pays_share === false ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: logistics?.star_mode ?? "secret",
+                            starPaysShare: false,
+                          })
+                        }
+                      >
+                        Part offerte par le groupe
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* ACTION INVITATION SIMPLIFIÉE */}
+            <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    setShareCopied(true);
+                    toast.success("Lien copié");
+                    setTimeout(() => setShareCopied(false), 2000);
+                  } catch {
+                    toast.error("Impossible de copier le lien.");
+                  }
+                }}
+              >
+                {shareCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                {shareCopied ? "Copié" : "Copier le lien du voyage"}
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent rounded-xl"
+                onClick={() => {
+                  const text = buildWhatsAppInviteMessage();
+                  shareOnWhatsApp(text);
+                }}
+              >
+                Inviter via WhatsApp
+              </Button>
+              {data.isOwner ? (() => {
+                const missingParticipants =
+                  progress?.participants?.filter(
+                    (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
+                  ) || [];
+                return missingParticipants.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl bg-amber-500/10 text-amber-800 border-amber-500/30 hover:bg-amber-500/20"
+                    onClick={() => {
+                      const text = buildWhatsAppRemindMessage();
+                      shareOnWhatsApp(text);
+                    }}
+                  >
+                    🔔 Relancer sur WhatsApp
+                  </Button>
+                ) : null;
+              })() : null}
+            </div>
+          </section>
+
+          {data.isOwner && (trip.status as string) !== "annule" ? (
+            <section className="space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
+              <p className="mb-3 text-sm text-muted-foreground">Gestion du voyage</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  className="border-destructive/40 text-destructive"
+                  disabled={cancelMutation.isPending}
+                  onClick={() => {
+                    if (window.confirm("Annuler ce voyage ? Il disparaîtra de la liste active.")) {
+                      cancelMutation.mutate(false);
+                    }
+                  }}
+                >
+                  Annuler le voyage
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="text-destructive"
+                  disabled={cancelMutation.isPending}
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Supprimer définitivement ce voyage et toutes ses données ? Cette action me paraît irréversible.",
+                      )
+                    ) {
+                      cancelMutation.mutate(true);
+                    }
+                  }}
+                >
+                  Supprimer définitivement
+                </Button>
+              </div>
+            </section>
+          ) : null}
         </div>
       ) : null}
 
@@ -1321,89 +1756,189 @@ function TripDetail() {
               </div>
 
               <div className="divide-y divide-border/50 text-sm">
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId/availability"
+                  params={{ tripId }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">1. Dates</span>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Disponibilités</span>
+                    <p className="text-xs text-muted-foreground">
+                      {availData?.answered ?? 0}/{availData?.expected ?? trip.participants_count ?? 1} dispos renseignées
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
+
+                <Link
+                  to="/trips/$tripId/questionnaire"
+                  params={{ tripId }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Préférences</span>
+                    <p className="text-xs text-muted-foreground">
+                      {progress?.answered ?? 0}/{progress?.total ?? trip.participants_count ?? 1} questionnaires remplis
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
+
+                {(trip.celebrated_person ||
+                  ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) ? (
+                  <Link
+                    to="/trips/$tripId/star"
+                    params={{ tripId }}
+                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                  >
+                    <div>
+                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                        Préférences de {trip.celebrated_person || "la Star"}
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        {starData?.preferences ? "Questionnaire complété" : "À remplir"}
+                      </p>
+                    </div>
+                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                  </Link>
+                ) : null}
+
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "dates" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Dates</span>
                     <p className="text-xs text-muted-foreground">
                       {trip.start_date && trip.end_date
-                        ? trip.start_date + " → " + trip.end_date
+                        ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
                         : "À définir"}
                     </p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "dates" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "profile" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">2. Profil du voyage</span>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Profil du voyage</span>
                     <p className="text-xs text-muted-foreground">
                       {profile?.selectedConcepts?.length
-                        ? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
-                        : "À définir"}
+? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
+                        : profile?.validated
+                          ? "Profil validé"
+                          : "À définir"}
                     </p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "profile" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "destination" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">3. Destination</span>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Destination</span>
                     <p className="text-xs text-muted-foreground">{liveBudget.destinationName || "À définir"}</p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "destination" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "accommodation" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">4. Hébergement</span>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Hébergement</span>
                     <p className="text-xs text-muted-foreground">{liveBudget.topHotelName || "À définir"}</p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "accommodation" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "transport" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">5. Transport</span>
-                    <p className="text-xs text-muted-foreground">{liveBudget.transportPicksCount ? liveBudget.transportPicksCount + " trajet(s) choisi(s)" : "À définir"}</p>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Transport</span>
+                    <p className="text-xs text-muted-foreground">
+                      {liveBudget.transportPicksCount ? `${liveBudget.transportPicksCount} trajet(s) choisi(s)` : "À définir"}
+                    </p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "transport" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "planning" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">6. Planning</span>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Planning</span>
                     <p className="text-xs text-muted-foreground">{hasItinerary ? "Planning prêt" : "À définir"}</p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
                 <div className="pt-4 pb-2">
                   <span className="text-xs font-semibold uppercase text-muted-foreground">Organisation</span>
                 </div>
 
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "tasks" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">7. Tâches</span>
-                    <p className="text-xs text-muted-foreground">{tasksData?.length ? tasksData.length + " tâche(s)" : "À préparer"}</p>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Tâches</span>
+                    <p className="text-xs text-muted-foreground">
+                      {tasksData?.length ? `${tasksData.length} tâche(s)` : "À préparer"}
+                    </p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "tasks" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "packing" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">8. À emporter</span>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">À emporter</span>
                     <p className="text-xs text-muted-foreground">Checklist personnalisée</p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "packing" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                <div className="py-3 flex items-center justify-between">
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "expenses" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
                   <div>
-                    <span className="font-semibold text-foreground">9. Dépenses</span>
-                    <p className="text-xs text-muted-foreground">{liveBudget.total > 0 ? "~" + formatEuro(liveBudget.total) + " / pers." : "À définir"}</p>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Dépenses</span>
+                    <p className="text-xs text-muted-foreground">
+                      {liveBudget.total > 0 ? `~${formatEuro(liveBudget.total)} / pers.` : "À définir"}
+                    </p>
                   </div>
-                  <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "expenses" }} className="text-xs font-semibold text-primary hover:underline">Voir →</Link>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
               </div>
             </div>
           </div>
