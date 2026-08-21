@@ -760,6 +760,25 @@ Ne propose jamais :
 - activité avant le début de la journée disponible ;
 - activité après la fin disponible.
 
+## COHÉRENCE GÉOGRAPHIQUE
+
+Compose chaque journée comme un parcours géographiquement cohérent.
+
+Évite les allers-retours inutiles et les activités très éloignées les unes des autres.
+
+Adapte la distance acceptable à la mobilité du groupe :
+
+- en environnement urbain ou lorsque le groupe se déplace principalement à pied / transports en commun, privilégie fortement des moments proches les uns des autres ;
+- si le groupe dispose réellement d'une voiture, une excursion plus éloignée peut être pertinente ;
+- en contexte outdoor ou rural, accepte davantage de distance uniquement lorsqu'elle est justifiée par une expérience importante du séjour.
+
+Une activité exceptionnelle peut justifier un déplacement plus long.
+Plusieurs longs déplacements successifs dans une même journée ne sont pas acceptables.
+
+Lorsque tu proposes un \`suggestedPlace\`, tiens compte de cette cohérence géographique.
+
+Ne suppose jamais que le groupe dispose d'une voiture si cette information n'est pas présente dans GROUP_PLANNING_CONTEXT.
+
 ## 10. INTERNAL OU PLACE_REQUIRED
 
 Utilise \`internal\` lorsqu'aucun établissement/prestataire externe précis n'est nécessaire.
@@ -1050,14 +1069,29 @@ export function haversineDistanceKm(
 }
 
 function geographyPolicy(input: ActivityAiInput) {
-  const profile = norm(
-    [input.tripProfile, ...input.ambiances, ...(input.wantedEnvTypes ?? [])].join(" "),
+  const profileText = norm(
+    [
+      input.tripProfile,
+      ...input.ambiances,
+      ...(input.wantedEnvTypes ?? []),
+      input.groupAccommodationRole,
+    ].join(" "),
   );
-  if (/nature|sport|outdoor|aventure|montagne|lac/.test(profile))
-    return { maxKm: 65, profile: "outdoor" as const };
-  if (/maison|villa|chill|cocoon|logement/.test(profile))
+
+  if (/maison|villa|chill|cocoon|logement|centerpiece/.test(profileText)) {
     return { maxKm: 8, profile: "home" as const };
-  return { maxKm: 25, profile: "city" as const };
+  }
+
+  const mobility = norm(input.localMobility);
+  if (/voiture|car|driving|permis/.test(mobility)) {
+    return { maxKm: 30, profile: "regional" as const };
+  }
+
+  if (/nature|sport|outdoor|aventure|montagne|lac/.test(profileText)) {
+    return { maxKm: 30, profile: "outdoor" as const };
+  }
+
+  return { maxKm: 10, profile: "city" as const };
 }
 
 export function transferMinutes(distanceKm: number | null): number {
@@ -2366,11 +2400,8 @@ export function validateItinerary(
 
           const distance = previousExternal ? haversineDistanceKm(previousExternal, slot) : null;
           const policy = geographyPolicy(input);
-          const outdoorJustified =
-            policy.profile === "outdoor" &&
-            (slot.category === "sport_outdoor" || previousExternal?.category === "sport_outdoor");
 
-          if (distance != null && distance > policy.maxKm && !outdoorJustified) {
+          if (distance != null && distance > policy.maxKm) {
             rejectedGeography++;
             return false;
           }
@@ -2553,7 +2584,25 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
     for (const bk of rawBackups) {
       if (!bk || typeof bk !== "object" || !bk.id || !bk.label) continue;
       const bKind: SkeletonSlotKind = bk.kind === "internal" ? "internal" : "place_required";
-      const bMoment = norm(bk.momentType || bk.category || "activite");
+      const rawMoment = norm(bk.momentType || bk.category || bk.moment_type);
+
+      let resolvedMomentType: string | null = null;
+      if (ALLOWED_MOMENT_TYPES.includes(rawMoment)) {
+        resolvedMomentType = rawMoment;
+      } else if (rawMoment === "sport") {
+        resolvedMomentType = "sport_outdoor";
+      } else if (rawMoment === "gastronomie") {
+        resolvedMomentType = "repas";
+      } else if (["experiences", "experience", "insolite"].includes(rawMoment)) {
+        resolvedMomentType = "local_experience";
+      } else if (rawMoment === "soirees") {
+        resolvedMomentType = "soiree";
+      }
+
+      if (!resolvedMomentType) {
+        continue; // Ignore backup if no allowed moment type can be determined
+      }
+
       const bLocCtx: "lodging" | "external" | "flexible" =
         bk.locationContext === "lodging" || bk.locationContext === "external" || bk.locationContext === "flexible"
           ? bk.locationContext
@@ -2564,7 +2613,7 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         day: Number(bk.day) || 1,
         forSlot: String(bk.forSlot || bk.for_slot || ""),
         kind: bKind,
-        momentType: ALLOWED_MOMENT_TYPES.includes(bMoment) ? bMoment : "activite",
+        momentType: resolvedMomentType,
         label: String(bk.label).slice(0, 100),
         detail: String(bk.detail || bk.description || "").slice(0, 220),
         time: typeof bk.time === "string" && HHMM.test(bk.time.slice(0, 5)) ? bk.time.slice(0, 5) : "14:00",

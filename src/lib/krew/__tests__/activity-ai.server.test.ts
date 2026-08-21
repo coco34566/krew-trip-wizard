@@ -17,6 +17,8 @@ import {
   buildGroupPlanningContext,
   geminiEnrichSkeleton,
   regenerateSlotWithAi,
+  normalizeGeminiParsedResponse,
+  GEMINI_CONTRACTUAL_PROMPT_TEMPLATE,
   type ActivityAiInput,
 } from "../activity-ai.server";
 import {
@@ -558,7 +560,7 @@ describe("contraintes déterministes du planning", () => {
     expect(days[0]?.slots).toHaveLength(0);
   });
 
-  it("rejette un saut absurde en city trip mais l'autorise pour un profil outdoor justifié", () => {
+  it("rejette un saut absurde en city trip et applique le plafond dur 30km même outdoor", () => {
     const far = {
       ...candidate,
       id: "far",
@@ -598,7 +600,8 @@ describe("contraintes déterministes du planning", () => {
         far,
       ])[0]?.slots,
     ).toHaveLength(1);
-    expect(validateItinerary(plan, input(), [candidate, far])[0]?.slots).toHaveLength(2);
+    // Plafond dur 30 km : rejeté même outdoor si > 30 km
+    expect(validateItinerary(plan, input(), [candidate, far])[0]?.slots).toHaveLength(1);
   });
 });
 
@@ -826,5 +829,116 @@ describe("Pipeline Planning Gemini & Backups Contractuels", () => {
     expect(result.slot.candidateId).toBe("geo_1");
     expect(result.slot.verified).toBe(true);
     expect(result.updatedUsedIds).toContain("geo_1");
+  });
+});
+
+describe("Micro-corrections PR #115 — Backups, Cohérence géographique, GeographyPolicy", () => {
+  it("1. backup avec momentType='sport' -> sport_outdoor", () => {
+    const raw = {
+      days: [{ day: 1, slots: [{ id: "s1", kind: "internal", momentType: "repas", label: "Brunch", detail: "d", time: "10:00", durationMinutes: 60 }] }],
+      backups: [{ id: "b1", day: 1, forSlot: "s1", kind: "place_required", momentType: "sport", label: "Kayak", detail: "d", time: "14:00", durationMinutes: 90 }],
+    };
+    const norm = normalizeGeminiParsedResponse(raw);
+    expect(norm?.backups?.[0]?.momentType).toBe("sport_outdoor");
+  });
+
+  it("2. backup avec momentType='gastronomie' -> repas", () => {
+    const raw = {
+      days: [{ day: 1, slots: [{ id: "s1", kind: "internal", momentType: "repas", label: "Brunch", detail: "d", time: "10:00", durationMinutes: 60 }] }],
+      backups: [{ id: "b1", day: 1, forSlot: "s1", kind: "place_required", momentType: "gastronomie", label: "Dégustation", detail: "d", time: "12:00", durationMinutes: 90 }],
+    };
+    const norm = normalizeGeminiParsedResponse(raw);
+    expect(norm?.backups?.[0]?.momentType).toBe("repas");
+  });
+
+  it("3. backup avec type totalement inconnu -> backup ignoré", () => {
+    const raw = {
+      days: [{ day: 1, slots: [{ id: "s1", kind: "internal", momentType: "repas", label: "Brunch", detail: "d", time: "10:00", durationMinutes: 60 }] }],
+      backups: [{ id: "b1", day: 1, forSlot: "s1", kind: "place_required", momentType: "type_totalement_inconnu_xyz", label: "Test", detail: "d", time: "14:00", durationMinutes: 90 }],
+    };
+    const norm = normalizeGeminiParsedResponse(raw);
+    expect(norm?.backups ?? []).toHaveLength(0);
+  });
+
+  it("4. aucune sortie backup avec momentType='activite'", () => {
+    const raw = {
+      days: [{ day: 1, slots: [{ id: "s1", kind: "internal", momentType: "repas", label: "Brunch", detail: "d", time: "10:00", durationMinutes: 60 }] }],
+      backups: [
+        { id: "b1", day: 1, forSlot: "s1", kind: "place_required", momentType: "sport", label: "A", detail: "d", time: "14:00", durationMinutes: 90 },
+        { id: "b2", day: 1, forSlot: "s1", kind: "place_required", momentType: "gastronomie", label: "B", detail: "d", time: "14:00", durationMinutes: 90 },
+        { id: "b3", day: 1, forSlot: "s1", kind: "place_required", momentType: "inconnu", label: "C", detail: "d", time: "14:00", durationMinutes: 90 },
+      ],
+    };
+    const norm = normalizeGeminiParsedResponse(raw);
+    const moments = (norm?.backups ?? []).map((b) => b.momentType);
+    expect(moments).not.toContain("activite");
+  });
+
+  it("5. le prompt Gemini contient EXACTEMENT le nouveau bloc COHÉRENCE GÉOGRAPHIQUE", () => {
+    expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("## COHÉRENCE GÉOGRAPHIQUE");
+    expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("Compose chaque journée comme un parcours géographiquement cohérent.");
+    expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("Ne suppose jamais que le groupe dispose d'une voiture si cette information n'est pas présente dans GROUP_PLANNING_CONTEXT.");
+  });
+
+  it("6, 7, 8, 9, 10. règles geographyPolicy et plafond dur 30 km", () => {
+    // 6. city sans voiture -> maxKm = 10
+    const cityInput = input({ tripProfile: "Découverte urbaine", ambiances: ["culture"], localMobility: "à pied" });
+    const cityPlan = [
+      {
+        day: 2,
+        slots: [
+          { moment: "Matin", time: "10:00", durationMinutes: 60, type: "activite" as const, label: candidate.name, candidateId: candidate.id },
+          { moment: "Après-midi", time: "14:00", durationMinutes: 60, type: "activite" as const, label: "Point 12km", candidateId: "c12", latitude: 45.9, longitude: 6.25 }, // ~12 km
+        ],
+      },
+    ];
+    const c12 = { ...candidate, id: "c12", name: "Point 12km", latitude: 45.9, longitude: 6.25 };
+    expect(haversineDistanceKm(candidate, c12)).toBeGreaterThan(11);
+    expect(validateItinerary(cityPlan, cityInput, [candidate, c12])[0]?.slots).toHaveLength(1);
+
+    // 7. logement / maison -> maxKm = 8
+    const homeInput = input({ tripProfile: "Maison cocooning", ambiances: ["chill"], groupAccommodationRole: "centerpiece" });
+    const homePlan = [
+      {
+        day: 2,
+        slots: [
+          { moment: "Matin", time: "10:00", durationMinutes: 60, type: "activite" as const, label: candidate.name, candidateId: candidate.id },
+          { moment: "Après-midi", time: "14:00", durationMinutes: 60, type: "activite" as const, label: "Point 10km", candidateId: "c10", latitude: 45.9, longitude: 6.22 }, // ~10 km
+        ],
+      },
+    ];
+    const c10 = { ...candidate, id: "c10", name: "Point 10km", latitude: 45.9, longitude: 6.22 };
+    expect(haversineDistanceKm(candidate, c10)).toBeGreaterThan(8.5);
+    expect(validateItinerary(homePlan, homeInput, [candidate, c10])[0]?.slots).toHaveLength(1);
+
+    // 8. voiture explicite -> maxKm = 30
+    const carInput = input({ tripProfile: "City trip", ambiances: ["culture"], localMobility: "voiture de location" });
+    const c20 = { ...candidate, id: "c20", name: "Point 20km", latitude: 45.9, longitude: 6.35 };
+    expect(haversineDistanceKm(candidate, c20)).toBeLessThan(30);
+    const carPlan = [
+      {
+        day: 2,
+        slots: [
+          { moment: "Matin", time: "10:00", durationMinutes: 60, type: "activite" as const, label: candidate.name, candidateId: candidate.id },
+          { moment: "Après-midi", time: "14:00", durationMinutes: 60, type: "activite" as const, label: c20.name, candidateId: c20.id },
+        ],
+      },
+    ];
+    expect(validateItinerary(carPlan, carInput, [candidate, c20])[0]?.slots).toHaveLength(2);
+
+    // 9. outdoor -> maxKm = 30 & 10. candidat > 30 km rejeté même outdoor
+    const outdoorInput = input({ tripProfile: "Randonnée & aventure", ambiances: ["nature", "sportif"] });
+    const c35 = { ...candidate, id: "c35", name: "Point 35km", latitude: 46.25, longitude: 6.1 };
+    expect(haversineDistanceKm(candidate, c35)).toBeGreaterThan(30);
+    const outdoorPlan = [
+      {
+        day: 2,
+        slots: [
+          { moment: "Matin", time: "10:00", durationMinutes: 60, type: "activite" as const, label: candidate.name, candidateId: candidate.id },
+          { moment: "Après-midi", time: "14:00", durationMinutes: 60, type: "activite" as const, label: c35.name, candidateId: c35.id },
+        ],
+      },
+    ];
+    expect(validateItinerary(outdoorPlan, outdoorInput, [candidate, c35])[0]?.slots).toHaveLength(1);
   });
 });
