@@ -13,7 +13,12 @@ import {
   validateItinerary,
   adjustItineraryTransferTimes,
   buildKrewSkeleton,
+  buildPlanningBrief,
+  buildGroupPlanningContext,
   geminiEnrichSkeleton,
+  regenerateSlotWithAi,
+  normalizeGeminiParsedResponse,
+  GEMINI_CONTRACTUAL_PROMPT_TEMPLATE,
   type ActivityAiInput,
 } from "../activity-ai.server";
 import {
@@ -555,7 +560,7 @@ describe("contraintes déterministes du planning", () => {
     expect(days[0]?.slots).toHaveLength(0);
   });
 
-  it("rejette un saut absurde en city trip mais l'autorise pour un profil outdoor justifié", () => {
+  it("rejette un saut absurde en city trip et applique le plafond dur 30km même outdoor", () => {
     const far = {
       ...candidate,
       id: "far",
@@ -595,7 +600,8 @@ describe("contraintes déterministes du planning", () => {
         far,
       ])[0]?.slots,
     ).toHaveLength(1);
-    expect(validateItinerary(plan, input(), [candidate, far])[0]?.slots).toHaveLength(2);
+    // Plafond dur 30 km : rejeté même outdoor si > 30 km
+    expect(validateItinerary(plan, input(), [candidate, far])[0]?.slots).toHaveLength(1);
   });
 });
 
@@ -641,5 +647,298 @@ describe("personnalisation du fallback et de la discovery", () => {
         .flatMap((day) => day.slots)
         .some((slot) => slot.type === "transport" && slot.time === "11:00"),
     ).toBe(false);
+  });
+});
+
+describe("Pipeline Planning Gemini & Backups Contractuels", () => {
+  it("construit un GroupPlanningContext complet avec Star séparée et signaux de scoring", () => {
+    const testInput = input({
+      destinationScore: 88,
+      matchReasons: ["Proche de la nature", "Adapté au groupe"],
+      scoredActivityLabels: ["Canoë lac", "Randonnée col"],
+      activityCategoryFrequencies: { kayak: 5, rando: 3 },
+      ambianceFrequencies: { nature: 6, sportif: 4 },
+      starWanted: ["Escape Game Star"],
+      starWantedEnvType: "montagne",
+      starDealBreakers: ["pas_de_boite"],
+      dealBreakerAmbiances: ["soiree_arrosee"],
+      groupAgeRange: "25-35",
+      wantedEnvTypes: ["lac"],
+    });
+
+    const brief = buildPlanningBrief(testInput);
+    const ctx = buildGroupPlanningContext(testInput, brief);
+
+    expect(ctx.trip.destination).toBe("Annecy");
+    expect(ctx.trip.participantCount).toBe(8);
+    expect(ctx.group.activityPreferences["kayak"]?.frequency).toBe(5);
+    expect(ctx.group.ambiancePreferences["nature"]?.frequency).toBe(6);
+    expect(ctx.group.dealBreakers).toContain("soiree_arrosee");
+
+    // Star transmise séparément
+    expect(ctx.star.starWantedActivities).toContain("Escape Game Star");
+    expect(ctx.star.starWantedEnvType).toBe("montagne");
+    expect(ctx.star.starDealBreakers).toContain("pas_de_boite");
+
+    // KREW Signals & Scoring
+    expect(ctx.krewSignals.destinationScore).toBe(88);
+    expect(ctx.krewSignals.matchReasons).toContain("Proche de la nature");
+    expect(ctx.krewSignals.scoredActivityLabels).toContain("Canoë lac");
+
+    // Day windows & mandatory needs
+    expect(ctx.planning.dayWindows.length).toBeGreaterThan(0);
+    expect(ctx.planning.maxActivitiesPerDay).toBe(2);
+  });
+
+  it("parse le planning principal et les backups dans un unique appel Gemini et conserve le detail", async () => {
+    const originalFetch = global.fetch;
+    let fetchCalls = 0;
+
+    global.fetch = vi.fn().mockImplementation(async (url: string) => {
+      fetchCalls++;
+      if (String(url).includes("googleapis.com")) {
+        return {
+          ok: true,
+          text: async () =>
+            JSON.stringify({
+              candidates: [
+                {
+                  content: {
+                    parts: [
+                      {
+                        text: JSON.stringify({
+                          days: [
+                            {
+                              day: 1,
+                              slots: [
+                                {
+                                  id: "slot_1_1",
+                                  kind: "place_required",
+                                  momentType: "sport_outdoor",
+                                  label: "Kayak sur le lac",
+                                  detail: "Un moment rafraîchissant sur le lac parfait pour le groupe.",
+                                  time: "14:00",
+                                  durationMinutes: 120,
+                                  locationContext: "external",
+                                  canonicalVenueFamily: "sport",
+                                  searchIntent: "kayak lac d'Annecy",
+                                  suggestedPlace: "Club Nautique Annecy",
+                                },
+                              ],
+                            },
+                          ],
+                          backups: [
+                            {
+                              id: "backup_1_1",
+                              day: 1,
+                              forSlot: "slot_1_1",
+                              kind: "place_required",
+                              momentType: "sport_outdoor",
+                              label: "Paddle sur le lac",
+                              detail: "Une belle alternative glisse sur l'eau.",
+                              time: "14:00",
+                              durationMinutes: 120,
+                              locationContext: "external",
+                              canonicalVenueFamily: "sport",
+                              searchIntent: "paddle lac d'Annecy",
+                              suggestedPlace: "Paddle Club",
+                            },
+                          ],
+                        }),
+                      },
+                    ],
+                  },
+                },
+              ],
+            }),
+        };
+      }
+      return originalFetch(url);
+    });
+
+    try {
+      vi.stubEnv("GEMINI_API_KEY", "fake_key");
+      const testInput = input({ latestGroupArrival: "10:00" });
+      const skeleton = buildKrewSkeleton(testInput);
+      const res = await geminiEnrichSkeleton(skeleton, testInput);
+
+      expect(fetchCalls).toBe(1);
+      expect(res.usedLlm).toBe(true);
+      expect(res.enrichedSkeleton.days.length).toBeGreaterThan(0);
+
+      const day1 = res.enrichedSkeleton.days[0];
+      const kayakSlot = day1?.slots.find((s) => s.label === "Kayak sur le lac");
+      expect(kayakSlot).toBeDefined();
+      expect(kayakSlot?.detail).toBe("Un moment rafraîchissant sur le lac parfait pour le groupe.");
+
+      // Backups conservés
+      expect(res.enrichedSkeleton.backups).toBeDefined();
+      expect(res.enrichedSkeleton.backups?.length).toBe(1);
+      expect(res.enrichedSkeleton.backups?.[0]?.label).toBe("Paddle sur le lac");
+      expect(res.enrichedSkeleton.backups?.[0]?.suggestedPlace).toBe("Paddle Club");
+    } finally {
+      global.fetch = originalFetch;
+      vi.stubEnv("GEMINI_API_KEY", "");
+    }
+  });
+
+  it("regenerateSlotWithAi réutilise un candidat du pool avant toute nouvelle requête externe", async () => {
+    const poolCandidate = {
+      id: "geo_1",
+      name: "Canoë Club Annecy",
+      address: "Lac d'Annecy",
+      categories: ["sport.water"],
+      latitude: 45.9,
+      longitude: 6.1,
+      website: "https://example.com/canoe",
+    };
+
+    const existingSlot = {
+      moment: "Après-midi",
+      type: "activite" as const,
+      category: "sport_outdoor" as const,
+      label: "Kayak sur le lac",
+      detail: "Descriptif original",
+      time: "14:00",
+      durationMinutes: 90,
+      venueFamily: "sport",
+      searchIntent: "kayak lac annecy",
+    };
+
+    const { convertIntentToPlaceRequirements, buildPoolKey } = await import("../geoapify.server");
+    const req = convertIntentToPlaceRequirements("sport", "sport_outdoor", "kayak lac annecy");
+    const poolKey = buildPoolKey(req);
+
+    const placePools = {
+      [poolKey]: [poolCandidate],
+    };
+
+    const result = await regenerateSlotWithAi(
+      input(),
+      existingSlot,
+      1,
+      [],
+      [],
+      placePools,
+      [],
+      { latitude: 45.9, longitude: 6.1 },
+    );
+
+    expect(result.usedLlm).toBe(false);
+    expect(result.slot.label).toBe("Canoë Club Annecy");
+    expect(result.slot.candidateId).toBe("geo_1");
+    expect(result.slot.verified).toBe(true);
+    expect(result.updatedUsedIds).toContain("geo_1");
+  });
+});
+
+describe("Micro-corrections PR #115 — Backups, Cohérence géographique, GeographyPolicy", () => {
+  it("1. backup avec momentType='sport' -> sport_outdoor", () => {
+    const raw = {
+      days: [{ day: 1, slots: [{ id: "s1", kind: "internal", momentType: "repas", label: "Brunch", detail: "d", time: "10:00", durationMinutes: 60 }] }],
+      backups: [{ id: "b1", day: 1, forSlot: "s1", kind: "place_required", momentType: "sport", label: "Kayak", detail: "d", time: "14:00", durationMinutes: 90 }],
+    };
+    const norm = normalizeGeminiParsedResponse(raw);
+    expect(norm?.backups?.[0]?.momentType).toBe("sport_outdoor");
+  });
+
+  it("2. backup avec momentType='gastronomie' -> repas", () => {
+    const raw = {
+      days: [{ day: 1, slots: [{ id: "s1", kind: "internal", momentType: "repas", label: "Brunch", detail: "d", time: "10:00", durationMinutes: 60 }] }],
+      backups: [{ id: "b1", day: 1, forSlot: "s1", kind: "place_required", momentType: "gastronomie", label: "Dégustation", detail: "d", time: "12:00", durationMinutes: 90 }],
+    };
+    const norm = normalizeGeminiParsedResponse(raw);
+    expect(norm?.backups?.[0]?.momentType).toBe("repas");
+  });
+
+  it("3. backup avec type totalement inconnu -> backup ignoré", () => {
+    const raw = {
+      days: [{ day: 1, slots: [{ id: "s1", kind: "internal", momentType: "repas", label: "Brunch", detail: "d", time: "10:00", durationMinutes: 60 }] }],
+      backups: [{ id: "b1", day: 1, forSlot: "s1", kind: "place_required", momentType: "type_totalement_inconnu_xyz", label: "Test", detail: "d", time: "14:00", durationMinutes: 90 }],
+    };
+    const norm = normalizeGeminiParsedResponse(raw);
+    expect(norm?.backups ?? []).toHaveLength(0);
+  });
+
+  it("4. aucune sortie backup avec momentType='activite'", () => {
+    const raw = {
+      days: [{ day: 1, slots: [{ id: "s1", kind: "internal", momentType: "repas", label: "Brunch", detail: "d", time: "10:00", durationMinutes: 60 }] }],
+      backups: [
+        { id: "b1", day: 1, forSlot: "s1", kind: "place_required", momentType: "sport", label: "A", detail: "d", time: "14:00", durationMinutes: 90 },
+        { id: "b2", day: 1, forSlot: "s1", kind: "place_required", momentType: "gastronomie", label: "B", detail: "d", time: "14:00", durationMinutes: 90 },
+        { id: "b3", day: 1, forSlot: "s1", kind: "place_required", momentType: "inconnu", label: "C", detail: "d", time: "14:00", durationMinutes: 90 },
+      ],
+    };
+    const norm = normalizeGeminiParsedResponse(raw);
+    const moments = (norm?.backups ?? []).map((b) => b.momentType);
+    expect(moments).not.toContain("activite");
+  });
+
+  it("5. le prompt Gemini contient EXACTEMENT le nouveau bloc COHÉRENCE GÉOGRAPHIQUE", () => {
+    expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("## COHÉRENCE GÉOGRAPHIQUE");
+    expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("Compose chaque journée comme un parcours géographiquement cohérent.");
+    expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("Ne suppose jamais que le groupe dispose d'une voiture si cette information n'est pas présente dans GROUP_PLANNING_CONTEXT.");
+  });
+
+  it("6, 7, 8, 9, 10. règles geographyPolicy et plafond dur 30 km", () => {
+    // 6. city sans voiture -> maxKm = 10
+    const cityInput = input({ tripProfile: "Découverte urbaine", ambiances: ["culture"], localMobility: "à pied" });
+    const cityPlan = [
+      {
+        day: 2,
+        slots: [
+          { moment: "Matin", time: "10:00", durationMinutes: 60, type: "activite" as const, label: candidate.name, candidateId: candidate.id },
+          { moment: "Après-midi", time: "14:00", durationMinutes: 60, type: "activite" as const, label: "Point 12km", candidateId: "c12", latitude: 45.9, longitude: 6.25 }, // ~12 km
+        ],
+      },
+    ];
+    const c12 = { ...candidate, id: "c12", name: "Point 12km", latitude: 45.9, longitude: 6.25 };
+    expect(haversineDistanceKm(candidate, c12)).toBeGreaterThan(11);
+    expect(validateItinerary(cityPlan, cityInput, [candidate, c12])[0]?.slots).toHaveLength(1);
+
+    // 7. logement / maison -> maxKm = 8
+    const homeInput = input({ tripProfile: "Maison cocooning", ambiances: ["chill"], groupAccommodationRole: "centerpiece" });
+    const homePlan = [
+      {
+        day: 2,
+        slots: [
+          { moment: "Matin", time: "10:00", durationMinutes: 60, type: "activite" as const, label: candidate.name, candidateId: candidate.id },
+          { moment: "Après-midi", time: "14:00", durationMinutes: 60, type: "activite" as const, label: "Point 10km", candidateId: "c10", latitude: 45.9, longitude: 6.22 }, // ~10 km
+        ],
+      },
+    ];
+    const c10 = { ...candidate, id: "c10", name: "Point 10km", latitude: 45.9, longitude: 6.22 };
+    expect(haversineDistanceKm(candidate, c10)).toBeGreaterThan(8.5);
+    expect(validateItinerary(homePlan, homeInput, [candidate, c10])[0]?.slots).toHaveLength(1);
+
+    // 8. voiture explicite -> maxKm = 30
+    const carInput = input({ tripProfile: "City trip", ambiances: ["culture"], localMobility: "voiture de location" });
+    const c20 = { ...candidate, id: "c20", name: "Point 20km", latitude: 45.9, longitude: 6.35 };
+    expect(haversineDistanceKm(candidate, c20)).toBeLessThan(30);
+    const carPlan = [
+      {
+        day: 2,
+        slots: [
+          { moment: "Matin", time: "10:00", durationMinutes: 60, type: "activite" as const, label: candidate.name, candidateId: candidate.id },
+          { moment: "Après-midi", time: "14:00", durationMinutes: 60, type: "activite" as const, label: c20.name, candidateId: c20.id },
+        ],
+      },
+    ];
+    expect(validateItinerary(carPlan, carInput, [candidate, c20])[0]?.slots).toHaveLength(2);
+
+    // 9. outdoor -> maxKm = 30 & 10. candidat > 30 km rejeté même outdoor
+    const outdoorInput = input({ tripProfile: "Randonnée & aventure", ambiances: ["nature", "sportif"] });
+    const c35 = { ...candidate, id: "c35", name: "Point 35km", latitude: 46.25, longitude: 6.1 };
+    expect(haversineDistanceKm(candidate, c35)).toBeGreaterThan(30);
+    const outdoorPlan = [
+      {
+        day: 2,
+        slots: [
+          { moment: "Matin", time: "10:00", durationMinutes: 60, type: "activite" as const, label: candidate.name, candidateId: candidate.id },
+          { moment: "Après-midi", time: "14:00", durationMinutes: 60, type: "activite" as const, label: c35.name, candidateId: c35.id },
+        ],
+      },
+    ];
+    expect(validateItinerary(outdoorPlan, outdoorInput, [candidate, c35])[0]?.slots).toHaveLength(1);
   });
 });

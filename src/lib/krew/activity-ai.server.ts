@@ -90,10 +90,27 @@ export type KrewSkeletonDay = {
   slots: KrewSkeletonSlot[];
 };
 
+export type GeminiBackupSlot = {
+  id: string;
+  day: number;
+  forSlot: string;
+  kind: SkeletonSlotKind;
+  momentType: string;
+  label: string;
+  detail: string;
+  time: string;
+  durationMinutes: number;
+  locationContext: "lodging" | "external" | "flexible";
+  canonicalVenueFamily?: string | null;
+  searchIntent?: string | null;
+  suggestedPlace?: string | null;
+};
+
 export type KrewSkeleton = {
   destination: string;
   nights: number;
   days: KrewSkeletonDay[];
+  backups?: GeminiBackupSlot[] | undefined;
 };
 
 export type PlanningTelemetry = {
@@ -111,6 +128,7 @@ export type GroupItinerary = {
   destination: string;
   nights: number;
   days: ItineraryDayPlan[];
+  backups?: GeminiBackupSlot[] | undefined;
   source: "ai" | "local";
   provider?: "gemini" | "aimlapi" | "local" | "krew_geoapify";
   generatedAt: string;
@@ -126,6 +144,114 @@ export type GroupItinerary = {
   skeleton?: KrewSkeleton | undefined;
   telemetry?: PlanningTelemetry | undefined;
 };
+
+export type GroupPlanningContext = {
+  trip: {
+    destination: string;
+    dates: {
+      startDate: string | null;
+      endDate: string | null;
+    };
+    nights: number;
+    participantCount: number;
+    eventType: string | null;
+    validatedTripProfiles: string[];
+  };
+  group: {
+    activityPreferences: Record<string, { frequency: number; count?: number }>;
+    ambiancePreferences: Record<string, { frequency: number; count?: number }>;
+    travelPace: string;
+    groupAgeRange: string | null;
+    preferredTimeSlots: string[];
+    wantedEnvTypes: string[];
+    groupAccommodationRole: string;
+    localMobility: string | null;
+    dietaryConstraints: string[];
+    accessibility: boolean;
+    dealBreakers: string[];
+    usefulUserNotes: string[];
+  };
+  star: {
+    starWantedActivities: string[];
+    starWantedEnvType: string | null;
+    starDealBreakers: string[];
+    otherStarSignals?: Record<string, any>;
+  };
+  krewSignals: {
+    destinationScore: number | null;
+    matchReasons: string[];
+    scoredActivityLabels: string[];
+    validatedTripProfiles: string[];
+  };
+  planning: {
+    dayWindows: DayWindow[];
+    mandatoryNeeds: MandatoryNeed[];
+    maxActivitiesPerDay: number;
+    verifiedLodgingAmenities: string[];
+    lockedElements: any[];
+  };
+};
+
+export function buildGroupPlanningContext(
+  input: ActivityAiInput,
+  brief: PlanningBrief,
+): GroupPlanningContext {
+  const activityPrefs: Record<string, { frequency: number }> = {};
+  for (const [cat, freq] of Object.entries(brief.preferenceSignals.activityCategoryFrequencies || {})) {
+    activityPrefs[cat] = { frequency: freq };
+  }
+
+  const ambiancePrefs: Record<string, { frequency: number }> = {};
+  for (const [amb, freq] of Object.entries(brief.preferenceSignals.ambianceFrequencies || {})) {
+    ambiancePrefs[amb] = { frequency: freq };
+  }
+
+  return {
+    trip: {
+      destination: brief.destination,
+      dates: {
+        startDate: brief.startDate,
+        endDate: brief.endDate,
+      },
+      nights: brief.nights,
+      participantCount: brief.participants,
+      eventType: brief.eventType,
+      validatedTripProfiles: brief.validatedTripProfiles,
+    },
+    group: {
+      activityPreferences: activityPrefs,
+      ambiancePreferences: ambiancePrefs,
+      travelPace: brief.planningRules.travelPace,
+      groupAgeRange: input.groupAgeRange ?? null,
+      preferredTimeSlots: brief.preferredTimeSlots,
+      wantedEnvTypes: input.wantedEnvTypes ?? [],
+      groupAccommodationRole: brief.planningRules.accommodationRole,
+      localMobility: brief.localMobility,
+      dietaryConstraints: input.dietaryConstraints ?? [],
+      accessibility: brief.accessibilityRequired,
+      dealBreakers: brief.dealBreakers.ambiances,
+      usefulUserNotes: brief.usefulUserNotes,
+    },
+    star: {
+      starWantedActivities: input.starWanted ?? [],
+      starWantedEnvType: input.starWantedEnvType ?? null,
+      starDealBreakers: brief.dealBreakers.starExclusions,
+    },
+    krewSignals: {
+      destinationScore: input.destinationScore ?? null,
+      matchReasons: input.matchReasons ?? [],
+      scoredActivityLabels: input.scoredActivityLabels ?? [],
+      validatedTripProfiles: brief.validatedTripProfiles,
+    },
+    planning: {
+      dayWindows: brief.dayWindows,
+      mandatoryNeeds: brief.mandatoryNeeds,
+      maxActivitiesPerDay: brief.planningRules.maxActivitiesPerDay,
+      verifiedLodgingAmenities: brief.verifiedLodgingAmenities,
+      lockedElements: [],
+    },
+  };
+}
 
 export type TransportPickSummary = {
   city: string;
@@ -212,7 +338,6 @@ export const ALLOWED_MOMENT_TYPES = [
   "shopping",
   "local_experience",
   "moment_maison",
-  "transport",
   "temps_libre",
 ];
 
@@ -280,6 +405,622 @@ export type PlanningWindowResult = {
 const GEMINI_MODEL = process.env["GEMINI_MODEL"] || "gemini-3.6-flash";
 const HHMM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
+export const GEMINI_CONTRACTUAL_PROMPT_TEMPLATE = `Tu es le concepteur de planning de KREW.
+
+KREW aide des groupes à organiser leurs voyages. Ta mission n'est pas de remplir mécaniquement un calendrier : tu dois comprendre le groupe et concevoir un programme réaliste, vivant, cohérent et personnalisé qui donne l'impression d'avoir été pensé spécialement pour lui.
+
+Tu reçois un GROUP_PLANNING_CONTEXT structuré contenant les informations réellement connues par KREW.
+
+## 1. TA MISSION
+
+À partir de ce contexte :
+
+1. comprends le groupe, son événement, ses envies dominantes, son rythme et ses contraintes ;
+2. analyse les signaux de matching déjà calculés par KREW ;
+3. envisage silencieusement plusieurs idées pertinentes pour CE séjour ;
+4. sélectionne la meilleure combinaison plutôt que d'empiler toutes les possibilités ;
+5. compose un programme cohérent sur l'ensemble du séjour ;
+6. prépare également quelques alternatives pertinentes pour les moments principaux ;
+7. explique brièvement chaque proposition dans son champ \`detail\`.
+
+Ne renvoie jamais ton raisonnement intermédiaire.
+
+Retourne uniquement le JSON final demandé.
+
+KREW calcule ses propres scores et agrégations.
+Tu ne dois pas les recalculer.
+Tu dois les interpréter pour concevoir le meilleur séjour possible.
+
+## 2. UTILISE RÉELLEMENT LES DONNÉES DU GROUPE
+
+Analyse toutes les informations présentes lorsqu'elles existent :
+
+- destination ;
+- dates et durée ;
+- nombre de participants ;
+- type de voyage ou événement ;
+- profils de séjour validés ;
+- préférences d'activités et leur niveau d'adhésion ;
+- préférences d'ambiance et leur niveau d'adhésion ;
+- rythme ;
+- tranche d'âge ;
+- créneaux préférés ;
+- environnement recherché ;
+- rôle du logement ;
+- mobilité locale ;
+- contraintes alimentaires ;
+- accessibilité ;
+- exclusions et deal-breakers ;
+- informations pertinentes concernant la Star ;
+- destinationScore ;
+- matchReasons ;
+- idées d'activités déjà scorées par KREW ;
+- fenêtres disponibles de chaque journée ;
+- mandatoryNeeds ;
+- équipements du logement uniquement lorsqu'ils sont indiqués comme vérifiés ;
+- éléments déjà décidés ou verrouillés.
+
+Une donnée absente ne doit jamais être inventée.
+
+Les préférences ayant la plus forte adhésion doivent généralement avoir davantage d'influence.
+
+Une préférence minoritaire peut être intégrée lorsqu'elle complète naturellement le séjour.
+
+Les contraintes alimentaires sont principalement une information d'organisation. Ne rejette pas une bonne idée de restaurant simplement parce que tu ne peux pas vérifier toi-même son offre alimentaire.
+
+## 3. CE QU'EST UN EXCELLENT PLANNING KREW
+
+Construis le séjour comme un ensemble.
+
+Recherche :
+- variété ;
+- cohérence ;
+- progression ;
+- moments mémorables ;
+- équilibre entre moments forts et respiration ;
+- adéquation avec le groupe ;
+- réalisme temporel ;
+- réalisme géographique ;
+- plaisir collectif.
+
+Évite :
+- une succession mécanique d'activités ;
+- plusieurs expériences quasi identiques ;
+- un planning rempli artificiellement minute par minute ;
+- une journée entière presque vide sans raison ;
+- les répétitions inutiles ;
+- une checklist de toutes les préférences ;
+- un programme générique qui pourrait convenir à n'importe quel groupe.
+
+Une journée complète doit normalement avoir suffisamment de matière pour constituer une vraie journée.
+
+Selon le contexte, elle peut par exemple comporter :
+- petit-déjeuner ou brunch ;
+- une activité ou expérience ;
+- déjeuner ;
+- une seconde activité, découverte, détente ou temps libre ;
+- dîner ;
+- éventuellement une soirée.
+
+CE N'EST PAS UNE CHECKLIST.
+
+Adapte toujours la densité :
+- au rythme du groupe ;
+- au temps disponible ;
+- à maxActivitiesPerDay ;
+- au type de séjour.
+
+Une journée complète avec uniquement "petit-déjeuner + dîner" est insuffisante sauf justification forte dans le contexte.
+
+Pour une demi-journée, privilégie généralement un moment principal et les moments sociaux/repas pertinents.
+
+Pour une soirée d'arrivée, installation, apéro, jeu, dîner, moment au logement ou sortie peuvent être plus pertinents qu'une activité lourde.
+
+Pour une dernière journée, privilégie des moments simples et réalistes avant la fin de la fenêtre disponible.
+
+## 4. EXPLORE PLUSIEURS POSSIBILITÉS AVANT DE CHOISIR
+
+Avant de composer le planning final, envisage silencieusement plusieurs possibilités.
+
+Pour un séjour disposant de suffisamment de temps, considère typiquement 6 à 12 idées candidates pertinentes avant de sélectionner les meilleures.
+
+Ne renvoie pas cette réflexion.
+
+Les exemples suivants servent uniquement à élargir ton champ de réflexion.
+
+GASTRONOMIE :
+- petit-déjeuner ;
+- brunch ;
+- spécialités locales ;
+- déjeuner ;
+- pique-nique ;
+- restaurant convivial ;
+- dîner gastronomique ;
+- dégustation ;
+- food tour ;
+- marché ;
+- atelier cuisine ;
+- repas au logement.
+
+EXPÉRIENCES :
+- atelier cocktail ;
+- atelier culinaire ;
+- dégustation ;
+- visite de producteur ;
+- artisanat ;
+- escape game ;
+- séance photo ;
+- activité insolite ;
+- expérience typique de la destination.
+
+SPORT / OUTDOOR :
+- randonnée ;
+- vélo ;
+- paddle ;
+- kayak ;
+- bateau ;
+- canyoning ;
+- rafting ;
+- accrobranche ;
+- ski ;
+- activité nautique ;
+- balade nature ;
+- activité sportive encadrée.
+
+DÉTENTE :
+- spa ;
+- massage ;
+- thermes ;
+- plage ;
+- piscine ;
+- hammam ;
+- moment au bord de l'eau ;
+- temps calme au logement.
+
+CULTURE / DÉCOUVERTE :
+- musée ;
+- château ;
+- monument ;
+- patrimoine ;
+- vieille ville ;
+- quartier emblématique ;
+- exposition ;
+- visite guidée ;
+- balade architecturale.
+
+SOIRÉE :
+- apéro ;
+- bar à cocktails ;
+- rooftop ;
+- pub ;
+- bar dansant ;
+- concert ;
+- spectacle ;
+- club ;
+- soirée au logement.
+
+MOMENTS DE GROUPE / ÉVÉNEMENT :
+- jeu ;
+- défis ;
+- blind test ;
+- surprise ;
+- séance photo ;
+- moment consacré à la Star ;
+- apéro préparé ensemble ;
+- activité liée à l'événement.
+
+SHOPPING / FLÂNERIE :
+- marché ;
+- boutiques locales ;
+- créateurs ;
+- quartier commerçant ;
+- promenade libre.
+
+RESPIRATION :
+- repos ;
+- temps libre ;
+- préparation avant une soirée ;
+- douche/changement ;
+- temps au logement ;
+- balade sans programme précis.
+
+Cette liste n'est PAS exhaustive.
+
+Tu peux proposer une meilleure idée absente de cette liste.
+
+Ne cherche jamais à utiliser toutes les catégories.
+
+## 5. TRADUIS INTELLIGEMMENT LES PRÉFÉRENCES
+
+Les catégories KREW sont des intentions utilisateur.
+
+Interprète notamment :
+
+gastronomie
+→ repas, dégustation, food tour, marché, atelier culinaire, expérience locale.
+
+experiences / insolite
+→ local_experience, atelier, activité originale, découverte locale.
+
+sport
+→ sport_outdoor.
+
+soirees
+→ soiree.
+
+culture
+→ culture.
+
+detente
+→ detente.
+
+shopping
+→ shopping.
+
+jeu / moment collectif
+→ evenement ou moment_maison selon le contexte.
+
+Ne reproduis pas aveuglément le vocabulaire du questionnaire dans les enums techniques.
+
+## 6. LE TYPE DE VOYAGE COMPTE
+
+Le type de voyage doit influencer la composition.
+
+Un EVJF, EVG, anniversaire, week-end entre amis ou autre séjour ne doivent pas recevoir automatiquement le même programme à préférences égales.
+
+Pour un événement comme EVJF/EVG :
+- crée des occasions d'être ensemble ;
+- exploite les moments, jeux ou surprises pertinents ;
+- cherche éventuellement un ou deux moments mémorables ;
+- adapte la soirée au groupe ;
+- évite les clichés systématiques.
+
+Si le logement est un élément central du séjour :
+- exploite-le davantage lorsque ses équipements sont réellement vérifiés.
+
+S'il sert principalement de base :
+- privilégie davantage la destination et les expériences extérieures.
+
+## 7. MANDATORY NEEDS
+
+Les mandatoryNeeds doivent être respectés.
+
+MAIS :
+
+LES MANDATORY NEEDS SONT LE MINIMUM À GARANTIR.
+ILS NE CONSTITUENT PAS À EUX SEULS UN PLANNING SUFFISANT.
+
+Le cœur du programme doit venir de ton analyse :
+- du groupe ;
+- de ses préférences ;
+- de l'événement ;
+- de la destination ;
+- des signaux KREW ;
+- du temps disponible.
+
+## 8. TU PEUX PROPOSER DES IDÉES PRÉCISES
+
+Tu as le droit de proposer :
+- une activité précise ;
+- une expérience précise ;
+- un site touristique connu ;
+- un monument ;
+- un musée ;
+- un quartier ;
+- un établissement ou opérateur réel que tu connais si cela améliore réellement la recommandation.
+
+Exemples :
+- "Paddle sur le lac d'Annecy"
+- "Balade à vélo autour du lac"
+- "Visite du Château d'Annecy"
+- "Atelier cocktail"
+- "Spa et massage"
+- "Apéro au coucher du soleil"
+
+Cependant :
+
+UNE SUGGESTION N'EST PAS UNE DONNÉE VÉRIFIÉE.
+
+Sans information vérifiée fournie par KREW, ne présente jamais comme certain :
+- disponibilité ;
+- horaires d'ouverture ;
+- prix ;
+- réservation ;
+- note ;
+- accessibilité ;
+- capacité d'accueil ;
+- régime alimentaire accepté ;
+- distance exacte ;
+- durée de trajet exacte.
+
+KREW vérifiera ensuite les éléments externes lorsque nécessaire.
+
+Ne refuse pas une bonne idée uniquement parce qu'elle devra être vérifiée.
+
+## 9. CONTRAINTES TEMPORELLES
+
+Respecte strictement :
+- dayWindows ;
+- mandatoryNeeds ;
+- dealBreakers ;
+- maxActivitiesPerDay ;
+- accessibilité lorsqu'elle constitue une contrainte ;
+- éléments verrouillés.
+
+Chaque slot doit :
+- commencer après availableFrom ;
+- finir avant availableUntil ;
+- ne pas chevaucher un autre slot ;
+- être placé à un horaire réaliste ;
+- laisser une transition raisonnable lorsque nécessaire.
+
+Ne propose jamais :
+- dîner le matin ;
+- petit-déjeuner le soir ;
+- activité avant le début de la journée disponible ;
+- activité après la fin disponible.
+
+## COHÉRENCE GÉOGRAPHIQUE
+
+Compose chaque journée comme un parcours géographiquement cohérent.
+
+Évite les allers-retours inutiles et les activités très éloignées les unes des autres.
+
+Adapte la distance acceptable à la mobilité du groupe :
+
+- en environnement urbain ou lorsque le groupe se déplace principalement à pied / transports en commun, privilégie fortement des moments proches les uns des autres ;
+- si le groupe dispose réellement d'une voiture, une excursion plus éloignée peut être pertinente ;
+- en contexte outdoor ou rural, accepte davantage de distance uniquement lorsqu'elle est justifiée par une expérience importante du séjour.
+
+Une activité exceptionnelle peut justifier un déplacement plus long.
+Plusieurs longs déplacements successifs dans une même journée ne sont pas acceptables.
+
+Lorsque tu proposes un \`suggestedPlace\`, tiens compte de cette cohérence géographique.
+
+Ne suppose jamais que le groupe dispose d'une voiture si cette information n'est pas présente dans GROUP_PLANNING_CONTEXT.
+
+## 10. INTERNAL OU PLACE_REQUIRED
+
+Utilise \`internal\` lorsqu'aucun établissement/prestataire externe précis n'est nécessaire.
+
+Exemples :
+- jeu au logement ;
+- apéro maison ;
+- préparation ;
+- surprise ;
+- repos ;
+- temps libre ;
+- moment au logement.
+
+Utilise \`place_required\` lorsqu'un lieu, site, établissement ou prestataire doit ensuite être identifié ou vérifié.
+
+Exemples :
+- restaurant ;
+- brunch ;
+- bar ;
+- musée ;
+- spa ;
+- activité sportive ;
+- atelier ;
+- expérience locale.
+
+Pour \`place_required\`, fournis un \`searchIntent\` précis permettant à KREW de matérialiser ou vérifier l'idée.
+
+## 11. LABEL ET DETAIL
+
+Chaque nouveau slot doit contenir :
+
+\`label\`
+→ intitulé court, clair et attractif.
+
+\`detail\`
+→ UNE courte phrase utilisateur expliquant le moment ou pourquoi il convient au groupe.
+
+Évite :
+"Une activité parfaite pour votre groupe."
+
+Préfère :
+"Un moment sur le lac qui combine votre envie de bouger et de profiter du décor sans monopoliser toute la journée."
+
+Le detail est destiné directement aux utilisateurs KREW.
+
+Ne mentionne jamais :
+- Gemini ;
+- intelligence artificielle ;
+- scoring ;
+- algorithme ;
+- Geoapify ;
+- provider ;
+- données techniques.
+
+Si KREW fournit déjà un label/detail à préserver pour un élément existant, ne le réécris pas.
+
+## 12. VOCABULAIRE AUTORISÉ
+
+\`momentType\` doit être exactement l'une de ces valeurs :
+
+[
+  "repas",
+  "evenement",
+  "sport_outdoor",
+  "detente",
+  "culture",
+  "soiree",
+  "shopping",
+  "local_experience",
+  "moment_maison",
+  "temps_libre"
+]
+
+\`canonicalVenueFamily\` doit être null ou exactement l'une de ces valeurs :
+
+[
+  "restaurant",
+  "cafe",
+  "bar_pub",
+  "culture",
+  "sport",
+  "spa_wellness",
+  "shopping",
+  "local_experience"
+]
+
+N'invente aucune autre valeur.
+
+## 13. SEARCH INTENT ET SUGGESTED PLACE
+
+Pour chaque \`place_required\` :
+
+\`searchIntent\`
+→ décrit précisément l'expérience/lieu à rechercher ou vérifier.
+
+Exemples :
+"brunch convivial et généreux pour un groupe EVJF dans le centre d'Annecy"
+
+"activité paddle adaptée à un groupe sur le lac d'Annecy"
+
+Si tu connais une proposition précise pertinente :
+
+\`suggestedPlace\`
+→ nom suggéré.
+
+Cette valeur est une SUGGESTION À VÉRIFIER PAR KREW.
+
+N'invente pas de suggestedPlace simplement pour remplir le champ.
+
+## 14. BACKUPS
+
+Dans CE MÊME appel, prépare également des alternatives pour les moments principaux lorsque cela apporte réellement de la valeur.
+
+Maximum :
+2 backups par moment principal.
+
+Un backup doit être une VRAIE alternative, pas une reformulation de la même idée.
+
+Exemple :
+
+principal :
+paddle
+
+bons backups :
+- vélo autour du lac ;
+- canyoning adapté au groupe.
+
+mauvais backup :
+- autre séance de paddle.
+
+Les backups doivent rester cohérents avec :
+- le groupe ;
+- la journée ;
+- le créneau ;
+- les préférences ;
+- les contraintes ;
+- maxActivitiesPerDay.
+
+Les backups ne sont pas automatiquement affichés.
+KREW les conserve pour pouvoir proposer une alternative ultérieure sans refaire immédiatement appel à toi.
+
+## 15. FORMAT DE SORTIE
+
+Retourne UNIQUEMENT un JSON valide.
+
+Structure exacte :
+
+{
+  "days": [
+    {
+      "day": 1,
+      "slots": [
+        {
+          "id": "string",
+          "kind": "internal | place_required",
+          "momentType": "string",
+          "label": "string",
+          "detail": "string",
+          "time": "HH:mm",
+          "durationMinutes": 90,
+          "locationContext": "lodging | external | flexible",
+          "canonicalVenueFamily": "string | null",
+          "searchIntent": "string | null",
+          "suggestedPlace": "string | null"
+        }
+      ]
+    }
+  ],
+  "backups": [
+    {
+      "id": "string",
+      "day": 1,
+      "forSlot": "id du slot principal",
+      "kind": "internal | place_required",
+      "momentType": "string",
+      "label": "string",
+      "detail": "string",
+      "time": "HH:mm",
+      "durationMinutes": 90,
+      "locationContext": "lodging | external | flexible",
+      "canonicalVenueFamily": "string | null",
+      "searchIntent": "string | null",
+      "suggestedPlace": "string | null"
+    }
+  ]
+}
+
+Règles :
+- aucun texte hors JSON ;
+- aucun markdown ;
+- aucun commentaire ;
+- day obligatoire ;
+- slots obligatoire ;
+- id obligatoire ;
+- kind obligatoire ;
+- momentType obligatoire ;
+- label obligatoire ;
+- detail obligatoire ;
+- time obligatoire au format HH:mm ;
+- durationMinutes obligatoire.
+
+Pour \`internal\` :
+- canonicalVenueFamily = null ;
+- searchIntent = null ;
+- suggestedPlace = null sauf cas réellement justifié.
+
+Pour \`place_required\` :
+- canonicalVenueFamily obligatoire ;
+- searchIntent obligatoire ;
+- suggestedPlace facultatif.
+
+Les \`id\` doivent être uniques dans cette réponse.
+
+## 16. CONTRÔLE FINAL
+
+Avant de répondre, vérifie silencieusement :
+
+1. Ai-je réellement utilisé les données spécifiques de ce groupe ?
+2. Le programme serait-il différent pour un autre groupe dans la même destination ?
+3. Les préférences dominantes apparaissent-elles réellement ?
+4. Ai-je envisagé plusieurs possibilités avant de choisir ?
+5. Chaque journée utilise-t-elle intelligemment le temps disponible ?
+6. Une journée complète est-elle anormalement vide ?
+7. Le programme est-il au contraire trop chargé ?
+8. Les moments sont-ils suffisamment variés ?
+9. Les horaires sont-ils réalistes ?
+10. Tous les mandatoryNeeds sont-ils présents ?
+11. Tous les deal-breakers sont-ils respectés ?
+12. Ai-je présenté une suggestion non vérifiée comme un fait ?
+13. Tous les enums sont-ils strictement autorisés ?
+14. Chaque place_required possède-t-il un searchIntent exploitable ?
+15. Chaque nouveau slot possède-t-il un detail utile ?
+16. Les backups sont-ils de vraies alternatives ?
+17. Le séjour contient-il un ou deux moments mémorables lorsque le contexte s'y prête ?
+18. Le résultat ressemble-t-il réellement à un séjour conçu pour CE groupe ?
+
+Si le programme paraît générique ou trop pauvre, améliore-le avant de produire le JSON.
+
+GROUP_PLANNING_CONTEXT :
+
+{{GROUP_PLANNING_CONTEXT_JSON}}`;
+
 const norm = (v: unknown) =>
   String(v ?? "")
     .normalize("NFD")
@@ -328,14 +1069,29 @@ export function haversineDistanceKm(
 }
 
 function geographyPolicy(input: ActivityAiInput) {
-  const profile = norm(
-    [input.tripProfile, ...input.ambiances, ...(input.wantedEnvTypes ?? [])].join(" "),
+  const profileText = norm(
+    [
+      input.tripProfile,
+      ...input.ambiances,
+      ...(input.wantedEnvTypes ?? []),
+      input.groupAccommodationRole,
+    ].join(" "),
   );
-  if (/nature|sport|outdoor|aventure|montagne|lac/.test(profile))
-    return { maxKm: 65, profile: "outdoor" as const };
-  if (/maison|villa|chill|cocoon|logement/.test(profile))
+
+  if (/maison|villa|chill|cocoon|logement|centerpiece/.test(profileText)) {
     return { maxKm: 8, profile: "home" as const };
-  return { maxKm: 25, profile: "city" as const };
+  }
+
+  const mobility = norm(input.localMobility);
+  if (/voiture|car|driving|permis/.test(mobility)) {
+    return { maxKm: 30, profile: "regional" as const };
+  }
+
+  if (/nature|sport|outdoor|aventure|montagne|lac/.test(profileText)) {
+    return { maxKm: 30, profile: "outdoor" as const };
+  }
+
+  return { maxKm: 10, profile: "city" as const };
 }
 
 export function transferMinutes(distanceKm: number | null): number {
@@ -1062,6 +1818,7 @@ export function ensureMandatoryNeeds(skeleton: KrewSkeleton, brief: PlanningBrie
   }
 
   return {
+    ...skeleton,
     destination: brief.destination,
     nights: brief.nights,
     days: updatedDays,
@@ -1147,18 +1904,70 @@ export async function geminiEnrichSkeleton(
     };
   }
 
-  const prompt = `Tu es l'IA de composition de planning KREW.
-CONSIGNE STRICTE :
-Compose le planning de séjour pour ${brief.destination} en respectant impérativement le brief ci-dessous.
-- Pour chaque créneau "internal" (jeux, apéro, moments maison, surprise) : propose un intitulé (label) et un descriptif (detail). Set locationContext="lodging" pour les moments au logement, "flexible" pour un jeu libre non forcé au logement.
-- Pour chaque créneau "place_required" (repas, restaurants, bars, activités externes, visites) : choisis uniquement une canonicalVenueFamily autorisée et décris précisément l'expérience recherchée via searchIntent. Set locationContext="external".
-- Enum canonicalVenueFamily autorisées STRICTEMENT : ${JSON.stringify(CANONICAL_VENUE_FAMILIES)}
-- INTERDICTION ABSOLUE :
-  * Ne propose AUCUN nom d'établissement réel, marque, entreprise, adresse, URL, prix ou note.
-  * Ne suppose jamais qu'un équipement, service, prix, régime alimentaire, accessibilité ou horaire existe s'il n'est pas fourni comme vérifié.
-  * Respecte strictly les dealBreakers et les dayWindows.
+  const groupPlanningContext = buildGroupPlanningContext(input, brief);
+  const prompt = GEMINI_CONTRACTUAL_PROMPT_TEMPLATE.replace(
+    "{{GROUP_PLANNING_CONTEXT_JSON}}",
+    JSON.stringify(groupPlanningContext, null, 2),
+  );
 
-Brief JSON = ${JSON.stringify(brief)}`;
+  const responseSchema = {
+    type: "OBJECT",
+    properties: {
+      days: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            day: { type: "INTEGER" },
+            slots: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  id: { type: "STRING" },
+                  kind: { type: "STRING", enum: ["internal", "place_required"] },
+                  momentType: { type: "STRING", enum: ALLOWED_MOMENT_TYPES },
+                  label: { type: "STRING" },
+                  detail: { type: "STRING" },
+                  time: { type: "STRING" },
+                  durationMinutes: { type: "INTEGER" },
+                  locationContext: { type: "STRING", enum: ["lodging", "external", "flexible"] },
+                  canonicalVenueFamily: { type: "STRING", enum: CANONICAL_VENUE_FAMILIES, nullable: true },
+                  searchIntent: { type: "STRING", nullable: true },
+                  suggestedPlace: { type: "STRING", nullable: true },
+                },
+                required: ["id", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
+              },
+            },
+          },
+          required: ["day", "slots"],
+        },
+      },
+      backups: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            id: { type: "STRING" },
+            day: { type: "INTEGER" },
+            forSlot: { type: "STRING" },
+            kind: { type: "STRING", enum: ["internal", "place_required"] },
+            momentType: { type: "STRING", enum: ALLOWED_MOMENT_TYPES },
+            label: { type: "STRING" },
+            detail: { type: "STRING" },
+            time: { type: "STRING" },
+            durationMinutes: { type: "INTEGER" },
+            locationContext: { type: "STRING", enum: ["lodging", "external", "flexible"] },
+            canonicalVenueFamily: { type: "STRING", enum: CANONICAL_VENUE_FAMILIES, nullable: true },
+            searchIntent: { type: "STRING", nullable: true },
+            suggestedPlace: { type: "STRING", nullable: true },
+          },
+          required: ["id", "day", "forSlot", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
+        },
+      },
+    },
+    required: ["days", "backups"],
+  };
 
   try {
     const response = await fetch(
@@ -1168,7 +1977,11 @@ Brief JSON = ${JSON.stringify(brief)}`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.35, responseMimeType: "application/json" },
+          generationConfig: {
+            temperature: 0.35,
+            responseMimeType: "application/json",
+            responseSchema,
+          },
         }),
       },
     );
@@ -1322,6 +2135,7 @@ Brief JSON = ${JSON.stringify(brief)}`;
       destination: brief.destination,
       nights: brief.nights,
       days: Array.from(mergedDaysMap.values()).sort((a, b) => a.day - b.day),
+      backups: normalizedParsed.backups,
     };
 
     finalSkeleton = ensureMandatoryNeeds(finalSkeleton, brief);
@@ -1330,6 +2144,7 @@ Brief JSON = ${JSON.stringify(brief)}`;
     console.info("gemini-composition-telemetry", {
       status: telemetryStatus,
       daysCount: finalSkeleton.days.length,
+      backupsCount: finalSkeleton.backups?.length ?? 0,
       destination: input.destination,
     });
 
@@ -1585,11 +2400,8 @@ export function validateItinerary(
 
           const distance = previousExternal ? haversineDistanceKm(previousExternal, slot) : null;
           const policy = geographyPolicy(input);
-          const outdoorJustified =
-            policy.profile === "outdoor" &&
-            (slot.category === "sport_outdoor" || previousExternal?.category === "sport_outdoor");
 
-          if (distance != null && distance > policy.maxKm && !outdoorJustified) {
+          if (distance != null && distance > policy.maxKm) {
             rejectedGeography++;
             return false;
           }
@@ -1691,10 +2503,11 @@ function parseJson(raw: string): any {
  * Deterministically normalizes structural variations in Gemini's parsed output.
  * Does not invent missing content or weaken business constraints.
  */
-export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[] } | null {
+export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; backups?: GeminiBackupSlot[] } | null {
   if (!rawParsed) return null;
 
   let rawDays: any[] | null = null;
+  let rawBackups: any[] | null = null;
 
   if (Array.isArray(rawParsed)) {
     rawDays = rawParsed;
@@ -1706,6 +2519,10 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[] } |
     else if (Array.isArray(rawParsed.schedule)) rawDays = rawParsed.schedule;
     else if (rawParsed.data && Array.isArray(rawParsed.data.days)) rawDays = rawParsed.data.days;
     else if (rawParsed.data && Array.isArray(rawParsed.data)) rawDays = rawParsed.data;
+
+    if (Array.isArray(rawParsed.backups)) rawBackups = rawParsed.backups;
+    else if (Array.isArray(rawParsed.alternatives)) rawBackups = rawParsed.alternatives;
+    else if (rawParsed.data && Array.isArray(rawParsed.data.backups)) rawBackups = rawParsed.data.backups;
   }
 
   if (!rawDays || !Array.isArray(rawDays) || rawDays.length === 0) {
@@ -1739,6 +2556,7 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[] } |
       if (!slot || typeof slot !== "object") continue;
 
       const normalizedSlot = {
+        id: String(slot.id || `slot_parsed_${idx}_${normalizedSlots.length}`),
         kind: slot.kind ?? slot.type_kind,
         momentType: slot.momentType ?? slot.category ?? slot.type ?? slot.moment_type,
         canonicalVenueFamily: slot.canonicalVenueFamily ?? slot.venueFamily ?? slot.venue_family,
@@ -1748,6 +2566,7 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[] } |
         durationMinutes: slot.durationMinutes ?? slot.duration ?? slot.duration_minutes,
         locationContext: slot.locationContext ?? slot.location_context ?? slot.context,
         searchIntent: slot.searchIntent ?? slot.search_intent ?? slot.intent,
+        suggestedPlace: slot.suggestedPlace ?? slot.suggested_place ?? slot.place,
       };
 
       normalizedSlots.push(normalizedSlot);
@@ -1760,7 +2579,56 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[] } |
     });
   }
 
-  return normalizedDays.length > 0 ? { days: normalizedDays } : null;
+  const normalizedBackups: GeminiBackupSlot[] = [];
+  if (Array.isArray(rawBackups)) {
+    for (const bk of rawBackups) {
+      if (!bk || typeof bk !== "object" || !bk.id || !bk.label) continue;
+      const bKind: SkeletonSlotKind = bk.kind === "internal" ? "internal" : "place_required";
+      const rawMoment = norm(bk.momentType || bk.category || bk.moment_type);
+
+      let resolvedMomentType: string | null = null;
+      if (ALLOWED_MOMENT_TYPES.includes(rawMoment)) {
+        resolvedMomentType = rawMoment;
+      } else if (rawMoment === "sport") {
+        resolvedMomentType = "sport_outdoor";
+      } else if (rawMoment === "gastronomie") {
+        resolvedMomentType = "repas";
+      } else if (["experiences", "experience", "insolite"].includes(rawMoment)) {
+        resolvedMomentType = "local_experience";
+      } else if (rawMoment === "soirees") {
+        resolvedMomentType = "soiree";
+      }
+
+      if (!resolvedMomentType) {
+        continue; // Ignore backup if no allowed moment type can be determined
+      }
+
+      const bLocCtx: "lodging" | "external" | "flexible" =
+        bk.locationContext === "lodging" || bk.locationContext === "external" || bk.locationContext === "flexible"
+          ? bk.locationContext
+          : bKind === "internal" ? "flexible" : "external";
+
+      normalizedBackups.push({
+        id: String(bk.id),
+        day: Number(bk.day) || 1,
+        forSlot: String(bk.forSlot || bk.for_slot || ""),
+        kind: bKind,
+        momentType: resolvedMomentType,
+        label: String(bk.label).slice(0, 100),
+        detail: String(bk.detail || bk.description || "").slice(0, 220),
+        time: typeof bk.time === "string" && HHMM.test(bk.time.slice(0, 5)) ? bk.time.slice(0, 5) : "14:00",
+        durationMinutes: Number.isFinite(Number(bk.durationMinutes)) ? Number(bk.durationMinutes) : 90,
+        locationContext: bLocCtx,
+        canonicalVenueFamily: bk.canonicalVenueFamily ? String(bk.canonicalVenueFamily) : null,
+        searchIntent: bk.searchIntent ? String(bk.searchIntent) : null,
+        suggestedPlace: bk.suggestedPlace ? String(bk.suggestedPlace) : null,
+      });
+    }
+  }
+
+  return normalizedDays.length > 0
+    ? { days: normalizedDays, ...(normalizedBackups.length > 0 ? { backups: normalizedBackups } : {}) }
+    : null;
 }
 
 export async function generateItineraryWithAi(
@@ -1794,6 +2662,7 @@ export async function generateItineraryWithAi(
         url: null,
       })),
     })),
+    backups: enrichResult.enrichedSkeleton.backups,
     source: "ai",
     provider: "gemini",
     generatedAt: new Date().toISOString(),
