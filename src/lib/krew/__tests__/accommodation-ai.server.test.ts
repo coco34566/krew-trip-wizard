@@ -292,6 +292,14 @@ const specAnnecyNature: AccommodationSearchSpecification = {
 };
 
 it("CAS A — mauvaise destination évidente (Gérardmer pour Annecy)", () => {
+  const specAnnecyCentral = {
+    ...specAnnecyNature,
+    locationIntent: {
+      mode: "central" as const,
+      priority: "preferred" as const,
+      carAccepted: true,
+    },
+  };
   const tavilyPayload = {
     results: [
       {
@@ -302,10 +310,18 @@ it("CAS A — mauvaise destination évidente (Gérardmer pour Annecy)", () => {
       },
     ],
   };
-  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature)).toEqual([]);
+  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyCentral)).toEqual([]);
 });
 
 it("CAS B — autre destination alpine évidente (La Toussuire pour Annecy)", () => {
+  const specAnnecyCentral = {
+    ...specAnnecyNature,
+    locationIntent: {
+      mode: "central" as const,
+      priority: "preferred" as const,
+      carAccepted: true,
+    },
+  };
   const tavilyPayload = {
     results: [
       {
@@ -316,7 +332,7 @@ it("CAS B — autre destination alpine évidente (La Toussuire pour Annecy)", ()
       },
     ],
   };
-  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature)).toEqual([]);
+  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyCentral)).toEqual([]);
 });
 
 it("CAS C — destination exacte (Annecy)", () => {

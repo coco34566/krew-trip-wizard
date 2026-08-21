@@ -217,19 +217,20 @@ function isExplicitlyOutsideDestination(
 ): boolean {
   const normBlob = normalizeText(blob);
   const normDest = normalizeText(specification.destination.name);
-
   if (normBlob.includes(normDest)) {
     return false;
   }
-
-  if (normDest === "annecy" && (normBlob.includes("haute-savoie") || normBlob.includes("haute savoie"))) {
+  const regionalAllowed = [
+    "regional_flexible",
+    "near_activity_hub",
+    "remote_desired",
+  ].includes(specification.locationIntent.mode);
+  if (regionalAllowed) {
     return false;
   }
-
   const locMatches = blob.matchAll(
     /(?:^|[\s,;:("'])(?:situé[es]?\s+à|situé[es]?\s+a|situe[es]?\s+a|located in|à|a|in)\s+(?:la|le|les|l'|d'|du)?\s*([A-ZÀ-ÖØ-ß][a-zA-Zà-öø-ÿ'-]+(?:\s+[A-ZÀ-ÖØ-ß][a-zA-Zà-öø-ÿ'-]+)*)/g,
   );
-
   for (const match of locMatches) {
     const rawLocality = match[1]?.trim();
     if (!rawLocality) continue;
@@ -238,7 +239,6 @@ function isExplicitlyOutsideDestination(
       return true;
     }
   }
-
   return false;
 }
 
