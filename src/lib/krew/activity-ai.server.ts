@@ -49,7 +49,7 @@ export type ActivitySlot = {
   durationMinutes?: number | null | undefined;
   url?: string | null | undefined;
   resourceUrl?: string | null | undefined;
-  resourceKind?: "official" | "booking" | "maps" | "search" | null | undefined;
+  resourceKind?: "official" | "booking" | null | undefined;
   candidateId?: string | null | undefined;
   verified?: boolean | undefined;
   source?: string | null | undefined;
@@ -61,9 +61,9 @@ export type ActivitySlot = {
 export function resolveActivityResourceUrl(
   urlInput?: string | null,
   options?: {
-    kindHint?: "official" | "booking" | "maps" | "search" | null;
+    kindHint?: "official" | "booking" | null;
   },
-): { url: string | null; resourceUrl: string | null; resourceKind: "official" | "booking" | "maps" | "search" | null } {
+): { url: string | null; resourceUrl: string | null; resourceKind: "official" | "booking" | null } {
   if (!urlInput || typeof urlInput !== "string" || !isSafeActivityUrl(urlInput)) {
     return { url: null, resourceUrl: null, resourceKind: null };
   }
@@ -71,21 +71,27 @@ export function resolveActivityResourceUrl(
   const cleanUrl = urlInput.trim();
   const lower = cleanUrl.toLowerCase();
 
-  let resourceKind: "official" | "booking" | "maps" | "search" = options?.kindHint ?? "official";
+  // Do not expose Google Search, Google Maps, or generic directory search links (like TripAdvisor) as activity resource URLs
+  if (
+    lower.includes("google.com/search") ||
+    lower.includes("maps.google") ||
+    lower.includes("goo.gl/maps") ||
+    lower.includes("maps.apple") ||
+    lower.includes("tripadvisor")
+  ) {
+    return { url: null, resourceUrl: null, resourceKind: null };
+  }
 
-  if (!options?.kindHint) {
+  let resourceKind: "official" | "booking" | null = options?.kindHint ?? null;
+
+  if (!resourceKind) {
     if (
-      lower.includes("booking.com") ||
       lower.includes("getyourguide") ||
       lower.includes("viator") ||
-      lower.includes("airbnb") ||
-      lower.includes("tripadvisor")
+      lower.includes("booking.com") ||
+      lower.includes("airbnb.com/experiences")
     ) {
       resourceKind = "booking";
-    } else if (lower.includes("maps.google") || lower.includes("goo.gl/maps") || lower.includes("maps.apple")) {
-      resourceKind = "maps";
-    } else if (lower.includes("google.com/search")) {
-      resourceKind = "search";
     } else {
       resourceKind = "official";
     }
