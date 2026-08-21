@@ -134,8 +134,8 @@ describe("Gemini destination discovery unique provider", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("exporte REQUEST_TIMEOUT_MS égal à 60000ms", () => {
-    expect(REQUEST_TIMEOUT_MS).toBe(60_000);
+  it("exporte REQUEST_TIMEOUT_MS égal à 120000ms", () => {
+    expect(REQUEST_TIMEOUT_MS).toBe(120_000);
   });
 
   it("conserve jusqu'à 50 candidats dans mergeCandidates et parseur Gemini", async () => {

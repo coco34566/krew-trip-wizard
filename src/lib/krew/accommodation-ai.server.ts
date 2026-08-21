@@ -204,6 +204,44 @@ function words(value: string): string[] {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter((word) => word.length >= 3);
 }
 
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isExplicitlyOutsideDestination(
+  blob: string,
+  specification: AccommodationSearchSpecification,
+): boolean {
+  const normBlob = normalizeText(blob);
+  const normDest = normalizeText(specification.destination.name);
+  if (normBlob.includes(normDest)) {
+    return false;
+  }
+  const regionalAllowed = [
+    "regional_flexible",
+    "near_activity_hub",
+    "remote_desired",
+  ].includes(specification.locationIntent.mode);
+  if (regionalAllowed) {
+    return false;
+  }
+  const locMatches = blob.matchAll(
+    /(?:^|[\s,;:("'])(?:situé[es]?\s+à|situé[es]?\s+a|situe[es]?\s+a|located in|à|a|in)\s+(?:la|le|les|l'|d'|du)?\s*([A-ZÀ-ÖØ-ß][a-zA-Zà-öø-ÿ'-]+(?:\s+[A-ZÀ-ÖØ-ß][a-zA-Zà-öø-ÿ'-]+)*)/g,
+  );
+  for (const match of locMatches) {
+    const rawLocality = match[1]?.trim();
+    if (!rawLocality) continue;
+    const normLocality = normalizeText(rawLocality);
+    if (normLocality && normLocality !== normDest) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function pickStrategy(result: TavilyResult, specification: AccommodationSearchSpecification) {
   const blob = words(`${result.title ?? ""} ${result.content ?? ""}`).join(" ");
   return [...specification.searchStrategies].sort((a, b) => {
@@ -243,6 +281,7 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
       const strategy = pickStrategy(result, specification);
       if (!strategy) return [];
       const blob = `${result.title ?? ""} ${result.content ?? ""}`;
+      if (isExplicitlyOutsideDestination(blob, specification)) return [];
       const capacity = parseCapacity(blob);
       const bedrooms = parseBedrooms(blob);
       const rating = parseRating(blob);
@@ -261,7 +300,7 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
         name,
         propertyType,
         krewConcept: strategy.concept,
-        location: { city: specification.destination.name, area: null, address: null },
+        location: { city: null, area: null, address: null },
         capacity,
         bedrooms,
         roomConfiguration: null,
@@ -288,7 +327,40 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
 
 async function generateTavilyQuery(specification: AccommodationSearchSpecification, apiKey: string): Promise<string> {
   const model = process.env["GEMINI_MODEL"] || "gemini-3.6-flash";
-  const prompt = `KREW a déjà calculé/scoré la stratégie d'hébergement. Tu NE cherches PAS sur le Web et tu NE proposes PAS d'établissement. Transforme uniquement la spécification ci-dessous en UNE requête Tavily très performante, max 380 caractères. Priorise destination, dates, taille du groupe, types de logements des stratégies les mieux scorées, contraintes dures, budget et intention de localisation. Évite la prose et les opérateurs fragiles. Retourne strictement JSON {"searchQuery":"..."}. Spécification=${JSON.stringify(specification)}`;
+  const prompt = `KREW a déjà calculé/scoré la stratégie d'hébergement. Tu NE cherches PAS sur le Web et tu NE proposes PAS d'établissement.
+Transforme uniquement la spécification ci-dessous en UNE requête Tavily très performante, naturelle et concise, de maximum 380 caractères.
+RÈGLES DE PRIORITÉ ABSOLUES :
+1. GÉOGRAPHIE D'ABORD.
+La requête DOIT toujours contenir explicitement destination.name.
+Ajoute destination.country seulement si cela aide à désambiguïser.
+Ne remplace jamais une destination précise par un pays ou une zone trop large.
+Exemple :
+destination = Annecy
+BON : "Annecy lac d'Annecy Haute-Savoie chalet 5 personnes"
+MAUVAIS : "chalet nature 5 personnes France"
+MAUVAIS : "chalet Alpes françaises 5 personnes"
+2. Respecte locationIntent :
+- hyper_central : cherche dans la ville exacte, centre / centre-ville.
+- central : cherche dans la ville exacte ou son immédiate proximité urbaine.
+- near_activity_hub : garde destination.name comme ancre obligatoire et autorise seulement son bassin immédiat pertinent.
+- regional_flexible : garde destination.name comme ancre obligatoire et peux ajouter son territoire local directement associé : lac, vallée, massif, département ou communes voisines. N'élargis jamais à une autre région touristique sans lien direct.
+- remote_desired : cherche un logement plus isolé autour du territoire de destination, mais conserve toujours une ancre géographique explicite vers destination.name ou son territoire immédiat.
+regional_flexible et remote_desired ne signifient JAMAIS "n'importe où dans le pays".
+3. Ensuite, privilégie les types de logements des searchStrategies les mieux scorées.
+Utilise les propertyTypes fournies. Ne crée aucun nouveau concept.
+4. Ensuite seulement, ajoute les contraintes les plus discriminantes si elles tiennent dans la limite :
+taille du groupe, dates, chambres, mustHave, budget, note minimale et autres contraintes dures.
+5. Ne dilue jamais la destination pour ajouter des critères secondaires.
+Si tu dois raccourcir, conserve dans cet ordre :
+destination / territoire acceptable > type de logement > taille du groupe > dates > contraintes dures > critères secondaires.
+6. La requête doit ressembler à une vraie recherche Web.
+Évite la prose marketing ou conceptuelle.
+BON : "Annecy lac d'Annecy Haute-Savoie chalet gîte 5 personnes 28-30 août"
+MAUVAIS : "hébergement nature convivial parfait pour un groupe sportif"
+7. Ne mets aucun commentaire, aucune explication et aucun établissement.
+Retourne strictement :
+{"searchQuery":"..."}
+Spécification=${JSON.stringify(specification)}`;
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

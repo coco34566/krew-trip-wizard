@@ -4,6 +4,7 @@ import {
   computeAccommodationRequestHash,
   mergeAccommodationLogistics,
   normalizeAccommodationCandidates,
+  normalizeTavilyAccommodationResults,
   searchAccommodationsWithGemini,
   type AccommodationSearchSpecification,
 } from "../accommodation-ai.server";
@@ -270,4 +271,175 @@ it("préserve transports et nettoie seulement les références hôtel obsolètes
   expect(merged.transports).toEqual([{ id: "flight" }]);
   expect(merged.hotelVotes).toEqual([{ userId: "u1", hotelId: "stay-1" }]);
   expect(merged.selectedHotelId).toBeNull();
+});
+
+const specAnnecyNature: AccommodationSearchSpecification = {
+  ...spec,
+  destination: { name: "Annecy", country: "France" },
+  searchStrategies: [
+    {
+      concept: "nature_stay",
+      score: 80,
+      priority: 1,
+      resultsWanted: 5,
+      propertyTypes: ["chalet", "gite"],
+      mustHave: [],
+      preferred: [],
+    },
+  ],
+  locationIntent: { mode: "regional_flexible", priority: "preferred", carAccepted: true },
+  requiredAmenities: [],
+};
+
+it("CAS A — mauvaise destination évidente (Gérardmer pour Annecy)", () => {
+  const specAnnecyCentral = {
+    ...specAnnecyNature,
+    locationIntent: {
+      mode: "central" as const,
+      priority: "preferred" as const,
+      carAccepted: true,
+    },
+  };
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Location Chalet familial pour 10 avec sauna et jacuzzi à Gérardmer",
+        url: "https://example.com/gerardmer",
+        content: "Grand chalet à Gérardmer pour 10 personnes",
+        score: 0.9,
+      },
+    ],
+  };
+  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyCentral)).toEqual([]);
+});
+
+it("CAS B — autre destination alpine évidente (La Toussuire pour Annecy)", () => {
+  const specAnnecyCentral = {
+    ...specAnnecyNature,
+    locationIntent: {
+      mode: "central" as const,
+      priority: "preferred" as const,
+      carAccepted: true,
+    },
+  };
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Location Gîte La Toussuire 73300 8 personnes",
+        url: "https://example.com/la-toussuire",
+        content: "Gîte situé à La Toussuire en Savoie",
+        score: 0.9,
+      },
+    ],
+  };
+  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyCentral)).toEqual([]);
+});
+
+it("CAS C — destination exacte (Annecy)", () => {
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Chalet pour 8 personnes près d'Annecy",
+        url: "https://example.com/annecy-chalet",
+        content: "Chalet de groupe près du lac d'Annecy",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("CAS D — localisation inconnue", () => {
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Grand chalet nature pour 8 personnes",
+        url: "https://example.com/chalet",
+        content: "Chalet avec terrasse et vue montagne",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("CAS E — commune voisine autorisée (Talloires / Sevrier, sans le mot Annecy)", () => {
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Chalet avec spa à Talloires",
+        url: "https://example.com/talloires",
+        content: "Grand chalet à Talloires en Haute-Savoie",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("CAS F — code postal (74290, sans le mot Annecy)", () => {
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Location chalet 74290 Talloires",
+        url: "https://example.com/talloires-74290",
+        content: "Chalet à Talloires en Haute-Savoie",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("CAS G — faux signal linguistique (en montagne, en famille, à proximité)", () => {
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Chalet en montagne pour la famille",
+        url: "https://example.com/chalet-famille",
+        content: "À proximité des pistes, accès à pied",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("CAS H — le prompt Gemini conserve bien la destination", async () => {
+  process.env["GEMINI_API_KEY"] = "test";
+  process.env["TAVILY_API_KEY"] = "test-tavily-key";
+  const tavilyResult = { results: [] };
+  let capturedBody: any = null;
+  const fetchMock = vi.fn().mockImplementation((url: string, init?: any) => {
+    if (typeof url === "string" && url.includes("generativelanguage.googleapis.com")) {
+      capturedBody = JSON.parse(init?.body || "{}");
+      return Promise.resolve({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            candidates: [
+              { content: { parts: [{ text: JSON.stringify({ searchQuery: "aparthotel wifi Lisbonne" }) }] } },
+            ],
+          }),
+      });
+    }
+    return Promise.resolve({ ok: true, text: async () => JSON.stringify(tavilyResult) });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  await searchAccommodationsWithGemini(spec);
+
+  const promptText = capturedBody?.contents?.[0]?.parts?.[0]?.text ?? "";
+  expect(promptText).toContain("La requête DOIT toujours contenir explicitement destination.name.");
+  expect(promptText).toContain("Lisbonne");
 });
