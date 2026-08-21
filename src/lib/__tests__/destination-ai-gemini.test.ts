@@ -110,20 +110,20 @@ describe("Gemini destination discovery unique provider", () => {
     expect(aiCandidateToDestinationRow(merged).avg_daily_cost).toBeNull();
   });
 
-  it("supporte seasonFit = mixed (normalise acceptable en mixed)", async () => {
+  it("supporte seasonFit = mixed", async () => {
     process.env["GEMINI_API_KEY"] = "gemini";
     global.fetch = vi
       .fn()
       .mockResolvedValue(
         response(
-          '{"candidates":[{"name":"Luberon","country":"France","destinationType":"region_territory","anchorPlaces":["Gordes"],"why":"Provence","budgetFit":"uncertain","budgetReason":"Incertain en haute saison","seasonFit":"acceptable"}]}',
+          '{"candidates":[{"name":"Luberon","country":"France","destinationType":"region_territory","anchorPlaces":["Gordes"],"why":"Provence","budgetFit":"uncertain","budgetReason":"Incertain en haute saison","seasonFit":"mixed"}]}',
         ),
       ) as any;
     const result = await discoverDestinationsWithAi(input);
     const candidate = result.candidates[0]!;
     expect(candidate.budgetFit).toBe("uncertain");
     expect(candidate.seasonFit).toBe("mixed");
-    expect(candidate.dailyCost).toBeUndefined();
+    expect((candidate as any).dailyCost).toBeUndefined();
   });
 
   it("sans Gemini retourne le fallback local sans appel externe", async () => {
@@ -239,6 +239,37 @@ describe("Gemini destination discovery unique provider", () => {
     ) as any;
     const result = await discoverDestinationsWithAi(input);
     expect(result.candidates[0]?.transport?.["Paris"]?.plausibility).toBe("uncertain");
+  });
+
+  describe("Enforcement du contrat Gemini strict (Section 3)", () => {
+    it("refuse l'ancien payload avec clé 'destinations' ou 'cities'", async () => {
+      process.env["GEMINI_API_KEY"] = "gemini";
+      global.fetch = vi.fn().mockResolvedValue(
+        response(
+          '{"destinations":[{"name":"Nice","country":"France"}]}',
+        ),
+      ) as any;
+      const result = await discoverDestinationsWithAi(input);
+      expect(result.candidates).toEqual([]);
+    });
+
+    it("ignore les anciens champs quantitatifs (approxHours, cost, km, months)", async () => {
+      process.env["GEMINI_API_KEY"] = "gemini";
+      global.fetch = vi.fn().mockResolvedValue(
+        response(
+          '{"candidates":[{"name":"Chamonix","country":"France","destinationType":"outdoor_area","anchorPlaces":["Chamonix"],"why":"Montagne","cost":250,"km":600,"months":[6,7],"transport":{"Paris":{"plausibleModes":["train"],"approxHours":5.5,"plausibility":"likely"}}}]}',
+        ),
+      ) as any;
+      const result = await discoverDestinationsWithAi(input);
+      expect(result.candidates).toHaveLength(1);
+      const cand = result.candidates[0]!;
+      expect((cand as any).dailyCost).toBeUndefined();
+      expect((cand as any).distanceKm).toBeUndefined();
+      expect((cand as any).bestMonths).toBeUndefined();
+      expect((cand.transport?.["Paris"] as any)?.approxHours).toBeUndefined();
+      expect(cand.transport?.["Paris"]?.plausibleModes).toEqual(["train"]);
+      expect(cand.transport?.["Paris"]?.plausibility).toBe("likely");
+    });
   });
 
   describe("Candidate Pool & Batching Rules (PR #119)", () => {

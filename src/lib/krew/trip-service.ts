@@ -212,20 +212,136 @@ export function requiresLegacyProfileValidation(profile: GenerationReadiness["pr
   return profile.legacyBypass && profile.selectedConcepts.length === 0;
 }
 
-export async function getCurrentBriefFingerprint(
+export type DestinationBriefContext = {
+  trip: any;
+  preferences: any;
+  participants: any[];
+  readiness: GenerationReadiness;
+  aggregated: Awaited<ReturnType<typeof aggregateParticipantPreferences>>;
+  resolvedDestination: string | null;
+  letKrewDecide: boolean;
+  scoringContext: ScoringContext;
+  discoveryInput: import("./destination-ai.server").AiDiscoveryInput;
+  briefFingerprint: string;
+};
+
+export async function getDestinationBriefContext(
   supabase: SupabaseClient,
   tripId: string,
-): Promise<string> {
-  const [tripRes, preferencesRes] = await Promise.all([
+): Promise<DestinationBriefContext> {
+  const [tripRes, preferencesRes, partsRes] = await Promise.all([
     supabase.from("trips").select("*").eq("id", tripId).single(),
     supabase.from("trip_preferences").select("*").eq("trip_id", tripId).maybeSingle(),
+    supabase.from("trip_participants").select("*").eq("trip_id", tripId),
   ]);
-  if (tripRes.error || !tripRes.data) throw new Error("Trip not found");
+
+  if (tripRes.error || !tripRes.data) throw new Error("Voyage introuvable");
 
   const readiness = await assessGenerationReadiness(supabase, tripId);
   const aggregated = await aggregateParticipantPreferences(supabase, tripId);
-  const resolvedDestination = preferencesRes.data?.desired_destination || aggregated.desiredDestination || null;
+  const participants = partsRes.data ?? [];
+
+  let lockedNights: number | null = null;
+  const recommendationDates = resolveRecommendationDates(tripRes.data);
+  const sd = recommendationDates.startDate;
+  const ed = recommendationDates.endDate;
+  if (sd && ed) {
+    const ms = new Date(ed + "T12:00:00Z").getTime() - new Date(sd + "T12:00:00Z").getTime();
+    const days = Math.round(ms / (24 * 3600 * 1000));
+    if (days >= 1) lockedNights = days;
+  }
+
+  const resolvedDestination =
+    preferencesRes.data?.desired_destination || aggregated.desiredDestination || null;
   const letKrewDecide = preferencesRes.data?.let_krew_decide ?? true;
+
+  let prefsToUse = preferencesRes.data ?? null;
+  if (aggregated.participantsCount && aggregated.participantsCount > 0) {
+    prefsToUse = {
+      ...preferencesRes.data,
+      ambiances: aggregated.ambiances.length
+        ? aggregated.ambiances
+        : (preferencesRes.data?.ambiances ?? []),
+      activity_categories: aggregated.activityCategories.length
+        ? aggregated.activityCategories
+        : (preferencesRes.data?.activity_categories ?? []),
+      max_budget:
+        aggregated.aggregatedBudget ?? preferencesRes.data?.max_budget ?? tripRes.data.budget_per_person,
+      duration_nights:
+        lockedNights ?? preferencesRes.data?.duration_nights ?? tripRes.data.duration_nights ?? 2,
+      required_amenities: aggregated.requiredAmenities,
+      min_accommodation_rating: aggregated.minAccommodationRating,
+      travel_pace: aggregated.medianTravelPace,
+      date_flex_days: aggregated.dateFlexDays,
+      min_group_budget: aggregated.vetoBudgetMax ?? aggregated.minGroupBudget,
+      veto_budget_max: aggregated.vetoBudgetMax,
+      has_budget_veto: aggregated.hasBudgetVeto,
+      deal_breaker_ambiances: aggregated.dealBreakerAmbiances,
+      deal_breaker_destinations: aggregated.dealBreakerDestinations,
+      individual_preferences: aggregated.individualPreferences,
+      star_wanted_activities: aggregated.starWantedActivities,
+      star_deal_breakers: aggregated.starDealBreakers,
+      star_weight: aggregated.starWeight,
+      dietary_constraints: aggregated.dietaryConstraints,
+      dietary_constraints_ratio: aggregated.dietaryConstraintsRatio,
+      preferred_time_slots: aggregated.preferredTimeSlots,
+      accepts_shared_room: aggregated.acceptsSharedRoom,
+      room_type_preferences: aggregated.roomTypePreferences,
+      most_demanded_lodging_type: aggregated.mostDemandedLodgingType,
+      needs_accessibility: aggregated.needsAccessibility,
+      needs_city_center: aggregated.needsAccessibility
+        ? true
+        : (preferencesRes.data?.needs_city_center ?? true),
+      max_travel_duration_hours: aggregated.maxTravelDurationHours,
+      plane_refused: aggregated.planeRefused,
+      blackout_dates: aggregated.blackoutDates,
+      group_weather_preference: aggregated.groupWeatherPreference,
+      max_distance_km: aggregated.maxTravelDurationHours
+        ? Math.min(
+            Number(preferencesRes.data?.max_distance_km ?? 2000),
+            Math.round(Number(aggregated.maxTravelDurationHours) * 90),
+          )
+        : (preferencesRes.data?.max_distance_km ?? undefined),
+    } as any;
+  }
+
+  if (resolvedDestination) {
+    prefsToUse = {
+      ...prefsToUse,
+      desired_destination: resolvedDestination,
+      let_krew_decide: letKrewDecide,
+    } as any;
+  }
+
+  const scoringContext = buildScoringContext(tripRes.data, prefsToUse, participants);
+  scoringContext.groupWeatherPreference = aggregated.groupWeatherPreference ?? 1.0;
+  scoringContext.groupAgeRange = aggregated.groupAgeRange ?? null;
+  scoringContext.wantedEnvTypes = aggregated.wantedEnvTypes ?? [];
+  scoringContext.groupLocalMobility = aggregated.groupLocalMobility ?? null;
+  scoringContext.starWantedEnvType = aggregated.starWantedEnvType ?? null;
+  if (aggregated.participantsCount && aggregated.participantsCount > 0) {
+    scoringContext.participants = getEffectiveParticipantsCount(tripRes.data, participants);
+  }
+
+  const mergedExcluded = Array.from(
+    new Set([...(scoringContext.excludedCountries ?? []), ...(aggregated.dealBreakerDestinations ?? [])]),
+  );
+  scoringContext.excludedCountries = mergedExcluded;
+  if (aggregated.needsAccessibility) scoringContext.needsCityCenter = true;
+
+  scoringContext.departureOrigins = aggregated.departureOrigins ?? [];
+  scoringContext.planeRefused = Boolean(aggregated.planeRefused);
+  scoringContext.transportModes = aggregated.transportModes ?? [];
+
+  if (aggregated.planeRefused) {
+    scoringContext.maxDistanceKm = Math.min(scoringContext.maxDistanceKm, 900);
+  }
+  if (aggregated.maxTravelDurationHours && Number(aggregated.maxTravelDurationHours) > 0) {
+    scoringContext.maxDistanceKm = Math.min(
+      scoringContext.maxDistanceKm,
+      Math.round(Number(aggregated.maxTravelDurationHours) * 90),
+    );
+  }
 
   const primaryDeparture =
     (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
@@ -233,22 +349,15 @@ export async function getCurrentBriefFingerprint(
     "Paris";
 
   const discoveryInput = {
-    ambiances: aggregated.ambiances,
-    activityCategories: aggregated.activityCategories,
-    budgetPerPerson: Number(aggregated.aggregatedBudget) || 400,
-    maxDistanceKm: aggregated.maxTravelDurationHours
-      ? Math.min(
-          Number(preferencesRes.data?.max_distance_km ?? 2000),
-          Math.round(Number(aggregated.maxTravelDurationHours) * 90),
-        )
-      : (preferencesRes.data?.max_distance_km ?? 2000),
-    nights: Number(tripRes.data.duration_nights) || 2,
-    startMonth: tripRes.data.start_date
-      ? new Date(tripRes.data.start_date).getMonth() + 1
-      : new Date().getMonth() + 1,
-    startDate: tripRes.data.start_date ?? null,
-    endDate: tripRes.data.end_date ?? null,
-    excludedCountries: aggregated.dealBreakerDestinations ?? [],
+    ambiances: scoringContext.ambiances,
+    activityCategories: scoringContext.activityCategories,
+    budgetPerPerson: Number(scoringContext.budgetPerPerson) || 400,
+    maxDistanceKm: scoringContext.maxDistanceKm,
+    nights: scoringContext.nights,
+    startMonth: scoringContext.startMonth,
+    startDate: scoringContext.startDate ?? null,
+    endDate: scoringContext.endDate ?? null,
+    excludedCountries: scoringContext.excludedCountries,
     departureCity: primaryDeparture,
     departureOrigins: (aggregated.departureOrigins ?? []).map((origin) => ({
       origin: origin.city,
@@ -261,10 +370,10 @@ export async function getCurrentBriefFingerprint(
         ),
       ),
     ].filter((mode): mode is string => typeof mode === "string" && mode !== "bus"),
-    participants: aggregated.participantsCount || Number(tripRes.data.participants_count) || 1,
+    participants: scoringContext.participants,
     ...(tripRes.data.event_type ? { eventType: tripRes.data.event_type as string } : {}),
-    planeRefused: Boolean(aggregated.planeRefused),
-    maxTravelHours: aggregated.maxTravelDurationHours ?? null,
+    planeRefused: Boolean((aggregated as any).planeRefused),
+    maxTravelHours: (aggregated as any).maxTravelDurationHours ?? null,
     starWanted: aggregated.starWantedActivities ?? [],
     starDealBreakers: aggregated.starDealBreakers ?? [],
     wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
@@ -295,24 +404,45 @@ export async function getCurrentBriefFingerprint(
     scoringSignals: {
       desiredDestination: resolvedDestination,
       letKrewDecide,
-      starWeight: aggregated.starWeight ?? null,
-      scoringWeights: null,
+      starWeight: scoringContext.starWeight ?? null,
+      scoringWeights: scoringContext.scoringWeights ?? null,
       hardConstraints: {
-        hasBudgetVeto: aggregated.hasBudgetVeto,
-        vetoBudgetMax: aggregated.vetoBudgetMax,
-        minGroupBudget: aggregated.minGroupBudget,
-        excludedCountries: aggregated.dealBreakerDestinations,
-        maxDistanceKm: preferencesRes.data?.max_distance_km ?? 2000,
-        maxTravelHours: aggregated.maxTravelDurationHours,
+        hasBudgetVeto: scoringContext.hasBudgetVeto,
+        vetoBudgetMax: scoringContext.vetoBudgetMax,
+        minGroupBudget: scoringContext.minGroupBudget,
+        excludedCountries: scoringContext.excludedCountries,
+        maxDistanceKm: scoringContext.maxDistanceKm,
+        maxTravelHours: scoringContext.maxTravelDurationHours,
       },
       softPreferences: {
-        travelPace: aggregated.medianTravelPace,
-        preferredTimeSlots: aggregated.preferredTimeSlots,
+        travelPace: scoringContext.travelPace,
+        preferredTimeSlots: scoringContext.preferredTimeSlots,
       },
     },
   };
 
-  return buildBriefFingerprint(discoveryInput);
+  const briefFingerprint = buildBriefFingerprint(discoveryInput);
+
+  return {
+    trip: tripRes.data,
+    preferences: preferencesRes.data ?? null,
+    participants,
+    readiness,
+    aggregated,
+    resolvedDestination,
+    letKrewDecide,
+    scoringContext,
+    discoveryInput,
+    briefFingerprint,
+  };
+}
+
+export async function getCurrentBriefFingerprint(
+  supabase: SupabaseClient,
+  tripId: string,
+): Promise<string> {
+  const briefContext = await getDestinationBriefContext(supabase, tripId);
+  return briefContext.briefFingerprint;
 }
 
 export async function canServeFromCandidatePool(
@@ -320,115 +450,15 @@ export async function canServeFromCandidatePool(
   tripId: string,
 ): Promise<boolean> {
   try {
-    const tripRes = await supabase.from("trips").select("*").eq("id", tripId).single();
-    if (tripRes.error || !tripRes.data) return false;
-    const preferencesRes = await supabase
-      .from("trip_preferences")
-      .select("*")
-      .eq("trip_id", tripId)
-      .maybeSingle();
-    const readiness = await assessGenerationReadiness(supabase, tripId);
-    if (!readiness.profile.validated) return false;
-
-    const aggregated = await aggregateParticipantPreferences(supabase, tripId);
-    const resolvedDestination =
-      preferencesRes.data?.desired_destination || aggregated.desiredDestination || null;
-    const letKrewDecide = preferencesRes.data?.let_krew_decide ?? true;
-
-    if (resolvedDestination && !letKrewDecide) return false;
-
-    const primaryDeparture =
-      (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
-      (tripRes.data.departure_city as string) ||
-      "Paris";
-
-    const discoveryInput = {
-      ambiances: aggregated.ambiances,
-      activityCategories: aggregated.activityCategories,
-      budgetPerPerson: Number(aggregated.aggregatedBudget) || 400,
-      maxDistanceKm: aggregated.maxTravelDurationHours
-        ? Math.min(
-            Number(preferencesRes.data?.max_distance_km ?? 2000),
-            Math.round(Number(aggregated.maxTravelDurationHours) * 90),
-          )
-        : (preferencesRes.data?.max_distance_km ?? 2000),
-      nights: Number(tripRes.data.duration_nights) || 2,
-      startMonth: tripRes.data.start_date
-        ? new Date(tripRes.data.start_date).getMonth() + 1
-        : new Date().getMonth() + 1,
-      startDate: tripRes.data.start_date ?? null,
-      endDate: tripRes.data.end_date ?? null,
-      excludedCountries: aggregated.dealBreakerDestinations ?? [],
-      departureCity: primaryDeparture,
-      departureOrigins: (aggregated.departureOrigins ?? []).map((origin) => ({
-        origin: origin.city,
-        participants: origin.count,
-      })),
-      acceptedTransportModes: [
-        ...new Set(
-          aggregated.individualPreferences.flatMap(
-            (preference: any) => preference.transportModeAccepted ?? [],
-          ),
-        ),
-      ].filter((mode): mode is string => typeof mode === "string" && mode !== "bus"),
-      participants: aggregated.participantsCount || Number(tripRes.data.participants_count) || 1,
-      ...(tripRes.data.event_type ? { eventType: tripRes.data.event_type as string } : {}),
-      planeRefused: Boolean(aggregated.planeRefused),
-      maxTravelHours: aggregated.maxTravelDurationHours ?? null,
-      starWanted: aggregated.starWantedActivities ?? [],
-      starDealBreakers: aggregated.starDealBreakers ?? [],
-      wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
-      starWantedEnvType: aggregated.starWantedEnvType ?? null,
-      groupAgeRange: aggregated.groupAgeRange ?? null,
-      freeNotes: aggregated.individualPreferences.map((p: any) => p.freeText).filter(Boolean),
-      stayProfiles: aggregated.stayProfileAffinities ?? [],
-      selectedStayProfiles: Array.from(
-        new Set(
-          (readiness.profile.selectedConcepts ?? []).flatMap(
-            (c: any) => (c.profiles as StayProfileId[]) ?? [c.id as StayProfileId],
-          ),
-        ),
-      ),
-      selectedConcepts: readiness.profile.selectedConcepts,
-      discoveryBranches: routeDiscovery(readiness.profile.selectedConcepts).branches,
-      localMobility: aggregated.groupLocalMobility ?? null,
-      accommodationRole:
-        aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ??
-        null,
-      relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
-        activities: p.activityCategories,
-        environment: p.wantedEnvType,
-        mobility: p.localMobility,
-        accommodationRole: p.accommodationRole,
-        isStar: p.isStar,
-      })),
-      scoringSignals: {
-        desiredDestination: resolvedDestination,
-        letKrewDecide,
-        starWeight: aggregated.starWeight ?? null,
-        scoringWeights: null,
-        hardConstraints: {
-          hasBudgetVeto: aggregated.hasBudgetVeto,
-          vetoBudgetMax: aggregated.vetoBudgetMax,
-          minGroupBudget: aggregated.minGroupBudget,
-          excludedCountries: aggregated.dealBreakerDestinations,
-          maxDistanceKm: preferencesRes.data?.max_distance_km ?? 2000,
-          maxTravelHours: aggregated.maxTravelDurationHours,
-        },
-        softPreferences: {
-          travelPace: aggregated.medianTravelPace,
-          preferredTimeSlots: aggregated.preferredTimeSlots,
-        },
-      },
-    };
-
-    const briefFingerprint = buildBriefFingerprint(discoveryInput);
+    const briefContext = await getDestinationBriefContext(supabase, tripId);
+    if (!briefContext.readiness.profile.validated) return false;
+    if (briefContext.resolvedDestination && !briefContext.letKrewDecide) return false;
 
     const poolRes = await supabase
       .from("destination_candidate_pool")
       .select("id", { count: "exact", head: true })
       .eq("trip_id", tripId)
-      .eq("brief_fingerprint", briefFingerprint)
+      .eq("brief_fingerprint", briefContext.briefFingerprint)
       .eq("status", "available");
 
     return (poolRes.count ?? 0) >= 4;
@@ -1283,7 +1313,20 @@ export async function generateRecommendationsForTrip(
   options?: { force?: boolean },
 ) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const readiness = await assessGenerationReadiness(supabase, tripId);
+  const briefContext = await getDestinationBriefContext(supabase, tripId);
+  const {
+    trip: tripData,
+    readiness,
+    aggregated,
+    resolvedDestination,
+    letKrewDecide,
+    scoringContext: ctx,
+    discoveryInput,
+    briefFingerprint,
+  } = briefContext;
+
+  const trip = { data: tripData };
+
   if (!readiness.profile.validated || (!options?.force && !readiness.canGenerate)) {
     return {
       count: 0,
@@ -1306,14 +1349,6 @@ export async function generateRecommendationsForTrip(
       shortlist: [] as string[],
     };
   }
-
-  const [trip, preferences] = await Promise.all([
-    supabase.from("trips").select("*").eq("id", tripId).single(),
-    supabase.from("trip_preferences").select("*").eq("trip_id", tripId).maybeSingle(),
-  ]);
-  if (trip.error) throw trip.error;
-
-  const aggregated = await aggregateParticipantPreferences(supabase, tripId);
 
   // Récupère l'historique des voyages validés passés pour cet organisateur
   let pastDestinations: { country: string; dominantAmbiance: string }[] = [];
@@ -1351,116 +1386,8 @@ export async function generateRecommendationsForTrip(
     console.warn("pastDestinations fetch skipped", e);
   }
 
-  // Nuits = dates validées (start/end) si présentes, sinon durée questionnaire
-  let lockedNights: number | null = null;
-  const recommendationDates = resolveRecommendationDates(trip.data);
-  const sd = recommendationDates.startDate;
-  const ed = recommendationDates.endDate;
-  if (sd && ed) {
-    const ms = new Date(ed + "T12:00:00Z").getTime() - new Date(sd + "T12:00:00Z").getTime();
-    const days = Math.round(ms / (24 * 3600 * 1000));
-    if (days >= 1) lockedNights = days;
-  }
-  const resolvedDestination =
-    preferences.data?.desired_destination || aggregated.desiredDestination || null;
-
-  const letKrewDecide = preferences.data?.let_krew_decide ?? true;
-
-  let prefsToUse = preferences.data ?? null;
-  if (aggregated.participantsCount && aggregated.participantsCount > 0) {
-    prefsToUse = {
-      ...preferences.data,
-      ambiances: aggregated.ambiances.length
-        ? aggregated.ambiances
-        : (preferences.data?.ambiances ?? []),
-      activity_categories: aggregated.activityCategories.length
-        ? aggregated.activityCategories
-        : (preferences.data?.activity_categories ?? []),
-      max_budget:
-        aggregated.aggregatedBudget ?? preferences.data?.max_budget ?? trip.data.budget_per_person,
-      duration_nights:
-        lockedNights ?? preferences.data?.duration_nights ?? trip.data.duration_nights ?? 2,
-      required_amenities: aggregated.requiredAmenities,
-      min_accommodation_rating: aggregated.minAccommodationRating,
-      travel_pace: aggregated.medianTravelPace,
-      date_flex_days: aggregated.dateFlexDays,
-      min_group_budget: aggregated.vetoBudgetMax ?? aggregated.minGroupBudget,
-      veto_budget_max: aggregated.vetoBudgetMax,
-      has_budget_veto: aggregated.hasBudgetVeto,
-      deal_breaker_ambiances: aggregated.dealBreakerAmbiances,
-      deal_breaker_destinations: aggregated.dealBreakerDestinations,
-      individual_preferences: aggregated.individualPreferences,
-      star_wanted_activities: aggregated.starWantedActivities,
-      star_deal_breakers: aggregated.starDealBreakers,
-      star_weight: aggregated.starWeight,
-      dietary_constraints: aggregated.dietaryConstraints,
-      dietary_constraints_ratio: aggregated.dietaryConstraintsRatio,
-      preferred_time_slots: aggregated.preferredTimeSlots,
-      accepts_shared_room: aggregated.acceptsSharedRoom,
-      room_type_preferences: aggregated.roomTypePreferences,
-      most_demanded_lodging_type: aggregated.mostDemandedLodgingType,
-      needs_accessibility: aggregated.needsAccessibility,
-      needs_city_center: aggregated.needsAccessibility
-        ? true
-        : (preferences.data?.needs_city_center ?? true),
-      max_travel_duration_hours: aggregated.maxTravelDurationHours,
-      plane_refused: aggregated.planeRefused,
-      blackout_dates: aggregated.blackoutDates,
-      group_weather_preference: aggregated.groupWeatherPreference,
-      // Distance max resserrée si durée trajet max renseignée (~80 km/h équivalent)
-      max_distance_km: aggregated.maxTravelDurationHours
-        ? Math.min(
-            Number(preferences.data?.max_distance_km ?? 2000),
-            Math.round(Number(aggregated.maxTravelDurationHours) * 90),
-          )
-        : (preferences.data?.max_distance_km ?? undefined),
-    } as any;
-  }
-
-  if (resolvedDestination) {
-    prefsToUse = {
-      ...prefsToUse,
-      desired_destination: resolvedDestination,
-      let_krew_decide: letKrewDecide,
-    } as any;
-  }
-
-  const partsRes = await supabase.from("trip_participants").select("*").eq("trip_id", tripId);
-  const participants = partsRes.data ?? [];
-  const ctx = buildScoringContext(trip.data, prefsToUse, participants);
-  ctx.groupWeatherPreference = aggregated.groupWeatherPreference ?? 1.0;
-  ctx.groupAgeRange = aggregated.groupAgeRange ?? null;
-  ctx.wantedEnvTypes = aggregated.wantedEnvTypes ?? [];
-  ctx.groupLocalMobility = aggregated.groupLocalMobility ?? null;
-  ctx.starWantedEnvType = aggregated.starWantedEnvType ?? null;
-  if (aggregated.participantsCount && aggregated.participantsCount > 0) {
-    // If we have aggregated participants count from preferences, we can still use ctx.participants as calculated from the actual/effective group count since preferences represents a subset of active members.
-    ctx.participants = getEffectiveParticipantsCount(trip.data, participants);
-  }
   ctx.pastDestinations = pastDestinations;
-  // Fusion exclusions individuelles + trip-level
-  const mergedExcluded = Array.from(
-    new Set([...(ctx.excludedCountries ?? []), ...(aggregated.dealBreakerDestinations ?? [])]),
-  );
-  ctx.excludedCountries = mergedExcluded;
-  if (aggregated.needsAccessibility) ctx.needsCityCenter = true;
 
-  // ——— Phase 1 : budget + transport individuels → contrainte de destination ———
-  ctx.departureOrigins = aggregated.departureOrigins ?? [];
-  ctx.planeRefused = Boolean(aggregated.planeRefused);
-  ctx.transportModes = aggregated.transportModes ?? [];
-  // Si le groupe refuse l'avion, on resserre fortement la distance (train/covoit)
-  if (aggregated.planeRefused) {
-    ctx.maxDistanceKm = Math.min(ctx.maxDistanceKm, 900);
-  }
-  // Durée max de trajet → distance max approximative (~90 km/h équivalent)
-  if (aggregated.maxTravelDurationHours && Number(aggregated.maxTravelDurationHours) > 0) {
-    ctx.maxDistanceKm = Math.min(
-      ctx.maxDistanceKm,
-      Math.round(Number(aggregated.maxTravelDurationHours) * 90),
-    );
-  }
-  // Budget : plafond veto / médiane déjà dans prefsToUse.max_budget
   const catalogQuery = {
     maxDistanceKm: ctx.maxDistanceKm,
     excludedCountries: ctx.excludedCountries,
@@ -1477,86 +1404,6 @@ export async function generateRecommendationsForTrip(
   let discoveryMeta: { name: string; affinity: number; reason: string }[] = [];
   let discoverySource: "forced" | "ai" | "local" | "merged" | "pool" = "local";
   let mergedCandidates: MergedCandidate[] = [];
-
-  const primaryDeparture =
-    (aggregated.departureOrigins?.[0]?.city as string | undefined) ||
-    (trip.data.departure_city as string) ||
-    "Paris";
-
-  const discoveryInput = {
-    ambiances: ctx.ambiances,
-    activityCategories: ctx.activityCategories,
-    budgetPerPerson: Number(ctx.budgetPerPerson) || 400,
-    maxDistanceKm: ctx.maxDistanceKm,
-    nights: ctx.nights,
-    startMonth: ctx.startMonth,
-    startDate: ctx.startDate ?? null,
-    endDate: ctx.endDate ?? null,
-    excludedCountries: ctx.excludedCountries,
-    departureCity: primaryDeparture,
-    departureOrigins: (aggregated.departureOrigins ?? []).map((origin) => ({
-      origin: origin.city,
-      participants: origin.count,
-    })),
-    acceptedTransportModes: [
-      ...new Set(
-        aggregated.individualPreferences.flatMap(
-          (preference: any) => preference.transportModeAccepted ?? [],
-        ),
-      ),
-    ].filter((mode): mode is string => typeof mode === "string" && mode !== "bus"),
-    participants: ctx.participants,
-    ...(trip.data.event_type ? { eventType: trip.data.event_type as string } : {}),
-    planeRefused: Boolean((aggregated as any).planeRefused),
-    maxTravelHours: (aggregated as any).maxTravelDurationHours ?? null,
-    starWanted: aggregated.starWantedActivities ?? [],
-    starDealBreakers: aggregated.starDealBreakers ?? [],
-    wantedEnvTypes: aggregated.wantedEnvTypes ?? [],
-    starWantedEnvType: aggregated.starWantedEnvType ?? null,
-    groupAgeRange: aggregated.groupAgeRange ?? null,
-    freeNotes: aggregated.individualPreferences.map((p: any) => p.freeText).filter(Boolean),
-    stayProfiles: aggregated.stayProfileAffinities ?? [],
-    selectedStayProfiles: Array.from(
-      new Set(
-        (readiness.profile.selectedConcepts ?? []).flatMap(
-          (c: any) => (c.profiles as StayProfileId[]) ?? [c.id as StayProfileId],
-        ),
-      ),
-    ),
-    selectedConcepts: readiness.profile.selectedConcepts,
-    discoveryBranches: routeDiscovery(readiness.profile.selectedConcepts).branches,
-    localMobility: aggregated.groupLocalMobility ?? null,
-    accommodationRole:
-      aggregated.individualPreferences.find((p: any) => p.accommodationRole)?.accommodationRole ??
-      null,
-    relevantIndividualPreferences: aggregated.individualPreferences.map((p: any) => ({
-      activities: p.activityCategories,
-      environment: p.wantedEnvType,
-      mobility: p.localMobility,
-      accommodationRole: p.accommodationRole,
-      isStar: p.isStar,
-    })),
-    scoringSignals: {
-      desiredDestination: resolvedDestination,
-      letKrewDecide,
-      starWeight: ctx.starWeight ?? null,
-      scoringWeights: ctx.scoringWeights ?? null,
-      hardConstraints: {
-        hasBudgetVeto: ctx.hasBudgetVeto,
-        vetoBudgetMax: ctx.vetoBudgetMax,
-        minGroupBudget: ctx.minGroupBudget,
-        excludedCountries: ctx.excludedCountries,
-        maxDistanceKm: ctx.maxDistanceKm,
-        maxTravelHours: ctx.maxTravelDurationHours,
-      },
-      softPreferences: {
-        travelPace: ctx.travelPace,
-        preferredTimeSlots: ctx.preferredTimeSlots,
-      },
-    },
-  };
-
-  const briefFingerprint = buildBriefFingerprint(discoveryInput);
 
   if (resolvedDestination && !letKrewDecide) {
     shortlistNames = [resolvedDestination];

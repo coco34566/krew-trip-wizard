@@ -1071,6 +1071,15 @@ export const selectRecommendation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
+    // 1. Récupère le brief_fingerprint AVANT toute modification des préférences
+    const { getCurrentBriefFingerprint } = await import("@/lib/krew/trip-service");
+    let activeFingerprint: string | null = null;
+    try {
+      activeFingerprint = await getCurrentBriefFingerprint(supabase, data.tripId);
+    } catch (err) {
+      console.warn("Could not fetch brief Fingerprint before selection:", err);
+    }
+
     // Désélectionne les autres propositions
     await supabase
       .from("recommendations")
@@ -1099,22 +1108,22 @@ export const selectRecommendation = createServerFn({ method: "POST" })
         { onConflict: "trip_id" },
       );
 
-      // Update destination_candidate_pool status to selected for matching destination_key AND brief_fingerprint
-      try {
-        const normKey = cleanName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const { getCurrentBriefFingerprint } = await import("@/lib/krew/trip-service");
-        const fingerprint = await getCurrentBriefFingerprint(supabase, data.tripId);
-        await supabase
-          .from("destination_candidate_pool")
-          .update({
-            status: "selected",
-            selected_at: new Date().toISOString(),
-          } as any)
-          .eq("trip_id", data.tripId)
-          .eq("brief_fingerprint", fingerprint)
-          .eq("destination_key", normKey);
-      } catch (poolErr) {
-        console.warn("destination_candidate_pool selected update skipped:", poolErr);
+      // Update destination_candidate_pool status to selected using activeFingerprint captured BEFORE preference modification
+      if (activeFingerprint) {
+        try {
+          const normKey = cleanName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+          await supabase
+            .from("destination_candidate_pool")
+            .update({
+              status: "selected",
+              selected_at: new Date().toISOString(),
+            } as any)
+            .eq("trip_id", data.tripId)
+            .eq("brief_fingerprint", activeFingerprint)
+            .eq("destination_key", normKey);
+        } catch (poolErr) {
+          console.warn("destination_candidate_pool selected update skipped:", poolErr);
+        }
       }
     }
 

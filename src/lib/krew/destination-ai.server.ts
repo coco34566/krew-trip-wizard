@@ -724,29 +724,18 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
           {
             plausibleModes?: string[];
             plausibility?: TransportPlausibility;
-            modes?: string[];
-            approxHours?: number;
           }
         >;
-        activityFit?: string[] | Array<{ category?: string }>;
+        activityFit?: string[];
         environmentFit?: string[];
         accommodationFit?: string[];
-        seasonFit?: SeasonFit | "acceptable";
-        cost?: number;
-        km?: number;
-        months?: number[];
+        seasonFit?: SeasonFit;
       }>;
-      destinations?: Array<any>;
-      cities?: Array<any>;
     };
 
-    const rawList = Array.isArray(data.candidates)
-      ? data.candidates
-      : Array.isArray(data.destinations)
-        ? data.destinations
-        : (data.cities ?? []);
+    if (!Array.isArray(data.candidates)) return [];
 
-    return rawList
+    return data.candidates
       .map((c: any, i: number) => {
         const rawType = String(c.destinationType ?? c.destination_type ?? "city");
         const destinationType: DestinationType = [
@@ -794,9 +783,7 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
             if (info && typeof info === "object") {
               const plausibleModes = Array.isArray((info as any).plausibleModes)
                 ? (info as any).plausibleModes.map(String)
-                : Array.isArray((info as any).modes)
-                  ? (info as any).modes.map(String)
-                  : [];
+                : [];
               const plausibilityRaw = (info as any).plausibility ? String((info as any).plausibility) : "";
               const plausibility: TransportPlausibility = [
                 "likely",
@@ -831,8 +818,6 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
         const seasonRaw = String(c.seasonFit ?? "");
         if (seasonRaw === "good" || seasonRaw === "mixed" || seasonRaw === "poor") {
           out.seasonFit = seasonRaw as SeasonFit;
-        } else if (seasonRaw === "acceptable") {
-          out.seasonFit = "mixed";
         }
 
         return out;
