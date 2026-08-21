@@ -1227,267 +1227,369 @@ function TripDetail() {
             tripEndDatePassed={tripEndDatePassed}
           />
 
-          {/* GROUPE ET INVITATIONS - RESTAURÉ COMPLET DANS OVERVIEW */}
-          <section
-            id="invite-section"
-            className="space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
-          >
-            {/* 1. Le groupe */}
-            <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <Users className="size-5 text-primary" />
-                Le groupe
-              </h2>
+          {/* GROUPE SECTION INTEGRATED IN OVERVIEW */}
+          <section id="group-section" className="space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+                  <Users className="size-5 text-primary" /> Membres du groupe
+                </h2>
+              </div>
+
               {data.isOwner ? (
-                <form
-                  className="mt-4 flex flex-wrap gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (email.trim()) inviteMutation.mutate();
-                  }}
-                >
-                  <Input
-                    type="email"
-                    placeholder="email@ami.fr"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="max-w-xs"
-                  />
-                  <Button type="submit" variant="hero" disabled={inviteMutation.isPending}>
-                    <UserPlus /> Ajouter une adresse e-mail
-                  </Button>
-                </form>
-              ) : null}
-
-              <ul className="mt-4 space-y-2">
-                {participants.length === 0 ? (
-                  <li className="text-sm text-muted-foreground">
-                    Personne n’a encore rejoint le groupe.
-                  </li>
-                ) : (
-                  participants.map((p) => {
-                    const picks = (logistics.transportPicks ?? []) as any[];
-                    const userPick = p.user_id
-                      ? picks.find((pk: any) => pk.userId === p.user_id)
-                      : null;
-                    const city =
-                      progress?.participants?.find((pr: any) => pr.user_id === p.user_id)
-                        ?.departure_city ||
-                      p.departure_city ||
-                      userPick?.city ||
-                      null;
-                    return (
-                      <li
-                        key={p.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-border bg-card p-4 gap-3"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-medium">
-                              {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
-                            </p>
-                            {p.user_id === trip.owner_id ? (
-                              <Badge
-                                variant="sun"
-                                className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
-                              >
-                                Organisateur·rice
-                              </Badge>
-                            ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                              <Badge variant="lagoon" className="gap-1 px-1.5 py-0 text-[10px]">
-                                Co-organisateur·rice
-                              </Badge>
-                            ) : null}
-                            {p.isStar ? (
-                              <Badge
-                                variant="sun"
-                                className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
-                              >
-                                <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
-                              </Badge>
-                            ) : null}
-                          </div>
-                          {p.email ? (
-                            <p className="text-sm text-muted-foreground mt-0.5">{p.email}</p>
-                          ) : null}
-                          {city || userPick ? (
-                            <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                              {city ? (
-                                <span>
-                                  📍 Départ : <strong className="text-foreground">{city}</strong>
-                                </span>
-                              ) : null}
-                              {userPick ? (
-                                <span>
-                                  🚆 Trajet :{" "}
-                                  <strong className="text-foreground">
-                                    {userPick.modeLabel || userPick.mode} ({userPick.label})
-                                  </strong>
-                                </span>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
-                          <Badge
-                            variant={
-                              p.status === "accepte"
-                                ? "success"
-                                : p.status === "absent"
-                                  ? "destructive"
-                                  : "muted"
-                            }
-                          >
-                            {p.status === "accepte" ? "Participe" : p.status}
-                          </Badge>
-                          {p.user_id === data.userId ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs h-7 px-2"
-                              onClick={() => {
-                                const nextStatus =
-                                  (p.status as string) === "absent" ? "accepte" : "absent";
-                                declareStatusMutation.mutate(nextStatus);
-                              }}
-                            >
-                              {(p.status as string) === "absent"
-                                ? "Participer à nouveau"
-                                : "Indiquer mon absence"}
-                            </Button>
-                          ) : null}
-                          {data.isCreator && p.user_id && p.user_id !== trip.owner_id && !p.isStar ? (
-                            p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-xs text-destructive hover:bg-destructive/5 h-7 px-2"
-                                disabled={setCoOrgMutation.isPending}
-                                onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
-                              >
-                                Retirer co-org
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-xs text-primary hover:bg-primary/5 h-7 px-2"
-                                disabled={setCoOrgMutation.isPending}
-                                onClick={() =>
-                                  setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
-                                }
-                              >
-                                Nommer co-org
-                              </Button>
-                            )
-                          ) : null}
-                          {data.isOwner ? (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={`Retirer ${p.email}`}
-                              className="size-8"
-                              onClick={() => removeMutation.mutate(p.id)}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          ) : null}
-                        </div>
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-            </div>
-
-            <Separator />
-
-            {/* 2. Inviter de nouveaux participants */}
-            <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <UserPlus className="size-5 text-primary" />
-                Inviter de nouveaux participants
-              </h2>
-              <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-                <p className="text-sm text-muted-foreground">
-                  Partage ce lien pour permettre au groupe de rejoindre le voyage.
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Input readOnly value={shareUrl} className="max-w-md font-mono text-xs" />
-                  <Button
-                    type="button"
-                    variant="hero"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(shareUrl);
-                        setShareCopied(true);
-                        toast.success("Lien copié");
-                        setTimeout(() => setShareCopied(false), 2000);
-                      } catch {
-                        toast.error("Impossible de copier le lien.");
+                isEditingCount ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (countInput >= 2 && countInput <= 25) {
+                        updateCountMutation.mutate(countInput);
+                      } else {
+                        toast.error("Le nombre de participants doit être entre 2 et 25");
                       }
                     }}
+                    className="flex items-center gap-2"
                   >
-                    {shareCopied ? <Check /> : <Copy />}
-                    {shareCopied ? "Copié" : "Copier le lien"}
-                  </Button>
+                    <Input
+                      type="number"
+                      min={2}
+                      max={25}
+                      value={countInput}
+                      onChange={(e) => setCountInput(Number(e.target.value))}
+                      className="w-20 h-8 text-xs"
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="h-8 text-xs"
+                      disabled={updateCountMutation.isPending}
+                    >
+                      {updateCountMutation.isPending ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        "Valider"
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setIsEditingCount(false)}
+                    >
+                      Annuler
+                    </Button>
+                  </form>
+                ) : (
                   <Button
                     type="button"
-                    className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
                     onClick={() => {
-                      const text = buildWhatsAppInviteMessage();
+                      setCountInput(Number(trip.participants_count || 2));
+                      setIsEditingCount(true);
+                    }}
+                  >
+                    Modifier le nombre ({trip.participants_count || 2})
+                  </Button>
+                )
+              ) : null}
+            </div>
+
+            <ul className="divide-y divide-border/50">
+              {participants.length === 0 ? (
+                <li className="text-sm text-muted-foreground py-4">
+                  Personne n’a encore rejoint le groupe.
+                </li>
+              ) : (
+                participants.map((p) => {
+                  const picks = (logistics.transportPicks ?? []) as any[];
+                  const userPick = p.user_id
+                    ? picks.find((pk: any) => pk.userId === p.user_id)
+                    : null;
+                  const city =
+                    progress?.participants?.find((pr: any) => pr.user_id === p.user_id)
+                      ?.departure_city ||
+                    p.departure_city ||
+                    userPick?.city ||
+                    null;
+                  const isOwner = Boolean(p.user_id && !p.placeholder && p.user_id === trip.owner_id);
+                  const isCoOrganizer = Boolean(
+                    p.user_id &&
+                      !p.placeholder &&
+                      p.user_id !== starUid &&
+                      p.user_id !== trip.owner_id &&
+                      p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId),
+                  );
+
+                  return (
+                    <li
+                      key={p.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between py-4 first:pt-0 last:pb-0 gap-3"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-foreground">
+                            {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
+                          </p>
+                          {isOwner ? (
+                            <Badge
+                              variant="sun"
+                              className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                            >
+                              Organisateur·rice
+                            </Badge>
+                          ) : isCoOrganizer ? (
+                            <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[10px]">
+                              Co-organisateur·rice
+                            </Badge>
+                          ) : null}
+                          {p.isStar ? (
+                            <Badge
+                              variant="sun"
+                              className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                            >
+                              <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
+                            </Badge>
+                          ) : null}
+                        </div>
+                        {p.email ? (
+                          <p className="text-xs text-muted-foreground mt-0.5">{p.email}</p>
+                        ) : null}
+                        {city || userPick ? (
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                            {city ? (
+                              <span>
+                                📍 Départ : <strong className="text-foreground">{city}</strong>
+                              </span>
+                            ) : null}
+                            {userPick ? (
+                              <span>
+                                🚆 Trajet :{" "}
+                                <strong className="text-foreground">
+                                  {userPick.modeLabel || userPick.mode} ({userPick.label})
+                                </strong>
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
+                        <Badge
+                          variant={
+                            p.status === "accepte"
+                              ? "success"
+                              : p.status === "absent"
+                                ? "destructive"
+                                : "muted"
+                          }
+                        >
+                          {p.status === "accepte" ? "Participe" : p.status}
+                        </Badge>
+                        {p.user_id === data.userId ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-7 px-2"
+                            onClick={() => {
+                              const nextStatus =
+                                (p.status as string) === "absent" ? "accepte" : "absent";
+                              declareStatusMutation.mutate(nextStatus);
+                            }}
+                          >
+                            {(p.status as string) === "absent"
+                              ? "Participer à nouveau"
+                              : "Indiquer mon absence"}
+                          </Button>
+                        ) : null}
+                        {data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id ? (
+                          p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-destructive hover:bg-destructive/5 h-7 px-2"
+                              disabled={setCoOrgMutation.isPending}
+                              onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
+                            >
+                              Retirer co-org
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 h-7 px-2 font-normal"
+                              disabled={setCoOrgMutation.isPending}
+                              onClick={() =>
+                                setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
+                              }
+                            >
+                              Nommer co-org
+                            </Button>
+                          )
+                        ) : null}
+                        {data.isOwner && !p.placeholder && !p.isStar ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Retirer ${p.email || p.display_name}`}
+                            className="size-8"
+                            onClick={() => removeMutation.mutate(p.id)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+
+            {/* PARAMÈTRES STAR SI VOYAGE STAR */}
+            {hasStar ? (
+              <div className="pt-4 border-t border-border/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <Star className="size-4 fill-amber-500 text-amber-500" />
+                      Rôle de la Star ({celebratedPerson || "Secret"})
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                    <p className="font-medium text-foreground">Visibilité</p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          (logistics?.star_mode ?? "secret") === "secret" ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: "secret",
+                            starPaysShare: logistics?.star_pays_share !== false,
+                          })
+                        }
+                      >
+                        🤫 Voyage secret
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_mode === "participant" ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: "participant",
+                            starPaysShare: logistics?.star_pays_share !== false,
+                          })
+                        }
+                      >
+                        👀 Participant ordinaire
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                    <p className="font-medium text-foreground">Participation aux frais</p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_pays_share !== false ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: logistics?.star_mode ?? "secret",
+                            starPaysShare: true,
+                          })
+                        }
+                      >
+                        Elle paie sa part
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_pays_share === false ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: logistics?.star_mode ?? "secret",
+                            starPaysShare: false,
+                          })
+                        }
+                      >
+                        Part offerte par le groupe
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* ACTION INVITATION SIMPLIFIÉE */}
+            <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    setShareCopied(true);
+                    toast.success("Lien copié");
+                    setTimeout(() => setShareCopied(false), 2000);
+                  } catch {
+                    toast.error("Impossible de copier le lien.");
+                  }
+                }}
+              >
+                {shareCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                {shareCopied ? "Copié" : "Copier le lien du voyage"}
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent rounded-xl"
+                onClick={() => {
+                  const text = buildWhatsAppInviteMessage();
+                  shareOnWhatsApp(text);
+                }}
+              >
+                Inviter via WhatsApp
+              </Button>
+              {data.isOwner ? (() => {
+                const missingParticipants =
+                  progress?.participants?.filter(
+                    (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
+                  ) || [];
+                return missingParticipants.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl bg-amber-500/10 text-amber-800 border-amber-500/30 hover:bg-amber-500/20"
+                    onClick={() => {
+                      const text = buildWhatsAppRemindMessage();
                       shareOnWhatsApp(text);
                     }}
                   >
-                    WhatsApp
+                    🔔 Relancer sur WhatsApp
                   </Button>
-                  {data.isOwner
-                    ? (() => {
-                        const missingParticipants =
-                          progress?.participants?.filter(
-                            (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
-                          ) || [];
-                        return (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={missingParticipants.length === 0}
-                            className={
-                              missingParticipants.length === 0
-                                ? ""
-                                : "bg-amber-500 text-white hover:bg-amber-600 border-transparent"
-                            }
-                            onClick={() => {
-                              const text = buildWhatsAppRemindMessage();
-                              shareOnWhatsApp(text);
-                            }}
-                          >
-                            🔔{" "}
-                            {missingParticipants.length === 0
-                              ? "Tout le monde a répondu"
-                              : "Relancer le groupe"}
-                          </Button>
-                        );
-                      })()
-                    : null}
-                  {typeof navigator !== "undefined" &&
-                  typeof (navigator as any).share === "function" ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        (navigator as any).share({
-                          title: data.trip.name,
-                          text: `Rejoins mon voyage « ${data.trip.name} » sur KREW — ${shareUrl}`,
-                          url: shareUrl,
-                        })
-                      }
-                    >
-                      <Link2 /> Partager
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+                ) : null;
+              })() : null}
             </div>
           </section>
 
