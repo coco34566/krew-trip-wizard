@@ -63,6 +63,8 @@ import {
   reassignTask,
   setCoOrganizer,
   validateStayProfile,
+  updateTripParticipantsCount,
+  finalizeInvitationStep,
 } from "@/lib/trips.functions";
 import {
   getParticipantsProgress,
@@ -264,7 +266,45 @@ function TripDetail() {
   const generateTasksForTripFn = useServerFn(generateTasksForTrip);
   const setCoOrg = useServerFn(setCoOrganizer);
   const validateProfile = useServerFn(validateStayProfile);
+  const updateCountFn = useServerFn(updateTripParticipantsCount);
+  const finalizeInviteStepFn = useServerFn(finalizeInvitationStep);
   const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
+
+  const [isEditingCount, setIsEditingCount] = useState(false);
+  const [countInput, setCountInput] = useState<number>(2);
+
+  const updateCountMutation = useMutation({
+    mutationFn: (count: number) =>
+      updateCountFn({ data: { tripId, participantsCount: count } }),
+    onSuccess: () => {
+      toast.success("Nombre de participants mis à jour !");
+      setIsEditingCount(false);
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Erreur lors de la mise à jour");
+    },
+  });
+
+  const finalizeInviteStepMutation = useMutation({
+    mutationFn: (vars: { starMode: "secret" | "participant"; starPaysShare: boolean }) =>
+      finalizeInviteStepFn({
+        data: {
+          tripId,
+          starMode: vars.starMode,
+          inviteStepCompleted: true,
+          starPaysShare: vars.starPaysShare,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Paramètres de la Star enregistrés");
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Erreur de mise à jour");
+    },
+  });
 
   const setCoOrgMutation = useMutation({
     mutationFn: ({ coOrganizerId }: { coOrganizerId: string | null }) =>
@@ -1183,10 +1223,74 @@ function TripDetail() {
 
           {/* GROUPE SECTION INTEGRATED IN OVERVIEW */}
           <section id="group-section" className="space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-            <div>
-              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
-                <Users className="size-5 text-primary" /> Membres du groupe
-              </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+                  <Users className="size-5 text-primary" /> Membres du groupe
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {participants.filter((p) => !p.placeholder && p.status !== "absent").length} participant(s) rejoint(s) sur {trip.participants_count || 1} prévu(s)
+                </p>
+              </div>
+
+              {data.isOwner ? (
+                isEditingCount ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (countInput >= 2 && countInput <= 25) {
+                        updateCountMutation.mutate(countInput);
+                      } else {
+                        toast.error("Le nombre de participants doit être entre 2 et 25");
+                      }
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Input
+                      type="number"
+                      min={2}
+                      max={25}
+                      value={countInput}
+                      onChange={(e) => setCountInput(Number(e.target.value))}
+                      className="w-20 h-8 text-xs"
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      className="h-8 text-xs"
+                      disabled={updateCountMutation.isPending}
+                    >
+                      {updateCountMutation.isPending ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        "Valider"
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs"
+                      onClick={() => setIsEditingCount(false)}
+                    >
+                      Annuler
+                    </Button>
+                  </form>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => {
+                      setCountInput(Number(trip.participants_count || 2));
+                      setIsEditingCount(true);
+                    }}
+                  >
+                    Modifier le nombre ({trip.participants_count || 2})
+                  </Button>
+                )
+              ) : null}
             </div>
 
             <ul className="divide-y divide-border/50">
@@ -1338,7 +1442,90 @@ function TripDetail() {
               )}
             </ul>
 
-            {/* ACTION INVITATION SIMPLIFIÉE : 2 ACTIONS VISIBLES */}
+            {/* PARAMÈTRES STAR SI VOYAGE STAR */}
+            {hasStar ? (
+              <div className="pt-4 border-t border-border/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                      <Star className="size-4 fill-amber-500 text-amber-500" />
+                      Gestion de la Star ({celebratedPerson || "Secret"})
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Définit la visibilité du voyage et la prise en charge de sa part.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                    <p className="font-medium text-foreground">Mode de la Star</p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          (logistics?.star_mode ?? "secret") === "secret" ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: "secret",
+                            starPaysShare: logistics?.star_pays_share !== false,
+                          })
+                        }
+                      >
+                        🤫 Secret
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          logistics?.star_mode === "participant" ? "default" : "outline"
+                        }
+                        className="h-7 text-xs flex-1"
+                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                        onClick={() =>
+                          finalizeInviteStepMutation.mutate({
+                            starMode: "participant",
+                            starPaysShare: logistics?.star_pays_share !== false,
+                          })
+                        }
+                      >
+                        👀 Participant
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-foreground">Part de la Star</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        Le groupe offre la part égale de la Star
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={logistics?.star_pays_share !== false ? "hero" : "outline"}
+                      className="h-7 text-xs"
+                      disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
+                      onClick={() =>
+                        finalizeInviteStepMutation.mutate({
+                          starMode: logistics?.star_mode ?? "secret",
+                          starPaysShare: logistics?.star_pays_share === false,
+                        })
+                      }
+                    >
+                      {logistics?.star_pays_share !== false ? "Offerte" : "Non offerte"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* ACTION INVITATION SIMPLIFIÉE */}
             <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row gap-2">
               <Button
                 type="button"
@@ -1368,6 +1555,25 @@ function TripDetail() {
               >
                 Inviter via WhatsApp
               </Button>
+              {data.isOwner ? (() => {
+                const missingParticipants =
+                  progress?.participants?.filter(
+                    (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
+                  ) || [];
+                return missingParticipants.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl bg-amber-500/10 text-amber-800 border-amber-500/30 hover:bg-amber-500/20"
+                    onClick={() => {
+                      const text = buildWhatsAppRemindMessage();
+                      shareOnWhatsApp(text);
+                    }}
+                  >
+                    🔔 Relancer sur WhatsApp
+                  </Button>
+                ) : null;
+              })() : null}
             </div>
           </section>
 
