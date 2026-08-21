@@ -48,6 +48,8 @@ export type ActivitySlot = {
   endTime?: string | null | undefined;
   durationMinutes?: number | null | undefined;
   url?: string | null | undefined;
+  resourceUrl?: string | null | undefined;
+  resourceKind?: "official" | "booking" | "maps" | "search" | null | undefined;
   candidateId?: string | null | undefined;
   verified?: boolean | undefined;
   source?: string | null | undefined;
@@ -55,6 +57,46 @@ export type ActivitySlot = {
   longitude?: number | null | undefined;
   openingHoursVerified?: boolean | undefined;
 };
+
+export function resolveActivityResourceUrl(
+  urlInput?: string | null,
+  options?: {
+    kindHint?: "official" | "booking" | "maps" | "search" | null;
+  },
+): { url: string | null; resourceUrl: string | null; resourceKind: "official" | "booking" | "maps" | "search" | null } {
+  if (!urlInput || typeof urlInput !== "string" || !isSafeActivityUrl(urlInput)) {
+    return { url: null, resourceUrl: null, resourceKind: null };
+  }
+
+  const cleanUrl = urlInput.trim();
+  const lower = cleanUrl.toLowerCase();
+
+  let resourceKind: "official" | "booking" | "maps" | "search" = options?.kindHint ?? "official";
+
+  if (!options?.kindHint) {
+    if (
+      lower.includes("booking.com") ||
+      lower.includes("getyourguide") ||
+      lower.includes("viator") ||
+      lower.includes("airbnb") ||
+      lower.includes("tripadvisor")
+    ) {
+      resourceKind = "booking";
+    } else if (lower.includes("maps.google") || lower.includes("goo.gl/maps") || lower.includes("maps.apple")) {
+      resourceKind = "maps";
+    } else if (lower.includes("google.com/search")) {
+      resourceKind = "search";
+    } else {
+      resourceKind = "official";
+    }
+  }
+
+  return {
+    url: cleanUrl,
+    resourceUrl: cleanUrl,
+    resourceKind,
+  };
+}
 
 export type ItineraryDayPlan = { day: number; date?: string | null; slots: ActivitySlot[] };
 export type SkeletonSlotKind = "internal" | "place_required";
@@ -2312,6 +2354,7 @@ function normalizeSlot(
     : "activite";
   const internal =
     raw.internal === true ||
+    raw.kind === "internal" ||
     raw.source === "krew" ||
     raw.source === "transport" ||
     ["transport", "libre", "moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(
@@ -2334,6 +2377,11 @@ function normalizeSlot(
           ? "flexible"
           : "external";
 
+  const rawUrl = candidate ? candidate.sourceUrl : (raw.url || null);
+  const resolvedLink = internal
+    ? { url: null, resourceUrl: null, resourceKind: null }
+    : resolveActivityResourceUrl(rawUrl);
+
   return {
     moment: String(raw.moment ?? "Après-midi").slice(0, 24),
     type,
@@ -2347,7 +2395,9 @@ function normalizeSlot(
     durationMinutes,
     locationContext: locCtx,
     dietaryCheckRequired: Array.isArray(input.dietaryConstraints) && input.dietaryConstraints.length > 0 && (category === "repas" || type === "resto"),
-    url: candidate ? candidate.sourceUrl : (raw.url || null),
+    url: resolvedLink.url,
+    resourceUrl: resolvedLink.resourceUrl,
+    resourceKind: resolvedLink.resourceKind,
     candidateId: candidate?.id ?? raw.candidateId ?? null,
     verified: candidate?.verified === true || raw.verified === true,
     source: candidate?.source ?? (internal ? "krew" : null),
@@ -2436,7 +2486,25 @@ export function validateItinerary(
 
           previousEnd = end;
           if (candidate) previousExternal = slot;
-          return !slot.url || isSafeActivityUrl(slot.url);
+
+          const isInternal =
+            slot.source === "krew" ||
+            slot.source === "transport" ||
+            ["transport", "libre", "moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(
+              String(slot.category),
+            );
+
+          if (isInternal) {
+            slot.url = null;
+            slot.resourceUrl = null;
+            slot.resourceKind = null;
+          } else if (slot.url && !isSafeActivityUrl(slot.url)) {
+            slot.url = null;
+            slot.resourceUrl = null;
+            slot.resourceKind = null;
+          }
+
+          return true;
         });
 
       return {
@@ -2771,6 +2839,7 @@ export async function regenerateSlotWithAi(
 
   if (selectedPlace) {
     usedSet.add(selectedPlace.id);
+    const resolvedLink = resolveActivityResourceUrl(selectedPlace.website);
     return {
       slot: {
         ...existing,
@@ -2778,7 +2847,9 @@ export async function regenerateSlotWithAi(
         detail: selectedPlace.address || existing.detail || "Alternative sélectionnée par KREW",
         candidateId: selectedPlace.id,
         category: existing.category,
-        url: selectedPlace.website || null,
+        url: resolvedLink.url,
+        resourceUrl: resolvedLink.resourceUrl,
+        resourceKind: resolvedLink.resourceKind,
         verified: true,
         source: "geoapify",
         latitude: selectedPlace.latitude,
@@ -2797,13 +2868,16 @@ export async function regenerateSlotWithAi(
 
   if (candidateAlt) {
     usedSet.add(candidateAlt.id);
+    const resolvedLink = resolveActivityResourceUrl(candidateAlt.sourceUrl);
     return {
       slot: {
         ...existing,
         label: candidateAlt.name,
         candidateId: candidateAlt.id,
         category: (candidateAlt.category as ActivityCategory) ?? existing.category,
-        url: candidateAlt.sourceUrl,
+        url: resolvedLink.url,
+        resourceUrl: resolvedLink.resourceUrl,
+        resourceKind: resolvedLink.resourceKind,
         verified: true,
         source: candidateAlt.source,
         latitude: candidateAlt.latitude,

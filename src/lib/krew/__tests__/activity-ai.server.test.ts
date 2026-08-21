@@ -73,6 +73,75 @@ const candidate: ActivityCandidate = {
   groundingSources: [],
 };
 
+describe("Enrichissement des liens d'activités", () => {
+  it("resolveActivityResourceUrl valide et catégorise correctement les URLs", () => {
+    const { resolveActivityResourceUrl } = require("../activity-ai.server");
+
+    expect(resolveActivityResourceUrl("https://parc-national.fr/site")).toEqual({
+      url: "https://parc-national.fr/site",
+      resourceUrl: "https://parc-national.fr/site",
+      resourceKind: "official",
+    });
+
+    expect(resolveActivityResourceUrl("https://www.getyourguide.fr/tour")).toEqual({
+      url: "https://www.getyourguide.fr/tour",
+      resourceUrl: "https://www.getyourguide.fr/tour",
+      resourceKind: "booking",
+    });
+
+    expect(resolveActivityResourceUrl("javascript:alert(1)")).toEqual({
+      url: null,
+      resourceUrl: null,
+      resourceKind: null,
+    });
+
+    expect(resolveActivityResourceUrl(null)).toEqual({
+      url: null,
+      resourceUrl: null,
+      resourceKind: null,
+    });
+  });
+
+  it("validateItinerary conserve l'activité tout en nettoyant l'URL invalide ou interne", () => {
+    const candidateWithBadUrl = { ...candidate, sourceUrl: "javascript:alert(1)" };
+    const internalPlan = [
+      {
+        day: 2,
+        slots: [
+          {
+            moment: "Après-midi",
+            time: "15:00",
+            durationMinutes: 90,
+            type: "libre" as const,
+            category: "moment_maison" as const,
+            label: "Jeu de groupe au logement",
+            url: "https://parc-national.fr/game",
+          },
+          {
+            moment: "Soir",
+            time: "20:00",
+            durationMinutes: 90,
+            type: "activite" as const,
+            category: "culture" as const,
+            label: candidateWithBadUrl.name,
+            candidateId: candidateWithBadUrl.id,
+            url: "javascript:alert(1)",
+          },
+        ],
+      },
+    ];
+
+    const validated = validateItinerary(internalPlan, input(), [candidateWithBadUrl]);
+    const slots = validated[0]?.slots ?? [];
+
+    expect(slots).toHaveLength(2);
+    // Internal slot has url = null
+    expect(slots[0]?.url).toBeNull();
+    // External slot with invalid url has url cleaned to null rather than deleting the slot
+    expect(slots[1]?.url).toBeNull();
+  });
+});
+
 describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => {
   it("A. Arrivée à 18h -> aucune activité déplacée à 13h sur le jour 1", () => {
     const skeleton = buildKrewSkeleton(
@@ -301,17 +370,21 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
         },
       ],
     };
+    const originalFetch = global.fetch;
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(validPayload) }] } }] }),
     });
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock;
 
-    const res = await geminiEnrichSkeleton(skeleton, input());
-    process.env["GEMINI_API_KEY"] = origKey;
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(res.usedLlm).toBe(true);
+    try {
+      const res = await geminiEnrichSkeleton(skeleton, input());
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(res.usedLlm).toBe(true);
+    } finally {
+      global.fetch = originalFetch;
+      process.env["GEMINI_API_KEY"] = origKey;
+    }
   });
 
   it("O. Aucune dépendance Tavily dans la découverte d'activités pour le planning", async () => {
@@ -757,7 +830,8 @@ describe("Pipeline Planning Gemini & Backups Contractuels", () => {
     });
 
     try {
-      vi.stubEnv("GEMINI_API_KEY", "fake_key");
+      const origKey = process.env["GEMINI_API_KEY"];
+      process.env["GEMINI_API_KEY"] = "fake_key";
       const testInput = input({ latestGroupArrival: "10:00" });
       const skeleton = buildKrewSkeleton(testInput);
       const res = await geminiEnrichSkeleton(skeleton, testInput);
@@ -776,9 +850,9 @@ describe("Pipeline Planning Gemini & Backups Contractuels", () => {
       expect(res.enrichedSkeleton.backups?.length).toBe(1);
       expect(res.enrichedSkeleton.backups?.[0]?.label).toBe("Paddle sur le lac");
       expect(res.enrichedSkeleton.backups?.[0]?.suggestedPlace).toBe("Paddle Club");
+      process.env["GEMINI_API_KEY"] = origKey;
     } finally {
       global.fetch = originalFetch;
-      vi.stubEnv("GEMINI_API_KEY", "");
     }
   });
 
@@ -882,7 +956,7 @@ describe("Micro-corrections PR #115 — Backups, Cohérence géographique, Geogr
 
   it("6, 7, 8, 9, 10. règles geographyPolicy et plafond dur 30 km", () => {
     // 6. city sans voiture -> maxKm = 10
-    const cityInput = input({ tripProfile: "Découverte urbaine", ambiances: ["culture"], localMobility: "à pied" });
+    const cityInput = input({ tripProfile: "Découverte urbaine", ambiances: ["culture"], activityCategories: ["musée"], localMobility: "à pied" });
     const cityPlan = [
       {
         day: 2,
