@@ -48,68 +48,496 @@ export type AiDiscoveryInput = {
   };
 };
 
-export type AiTransportMap = Record<
-  string,
-  {
-    modes: string[];
-    approxHours: number;
-  }
->;
+export type BudgetFit = "likely_compatible" | "uncertain" | "likely_expensive";
+export type TransportPlausibility = "likely" | "uncertain" | "unlikely";
+export type SeasonFit = "good" | "mixed" | "poor";
 
 export type AiCandidate = {
   name: string;
   country?: string;
-  region?: string;
+  region?: string | null;
   destinationType: DestinationType;
   anchorPlaces: string[];
-  why?: string;
+  why: string;
   reason: string;
   affinity: number;
-  dailyCost?: number;
-  distanceKm?: number;
-  bestMonths?: number[];
-  transport?: AiTransportMap;
-  budgetLevel?: "low" | "medium" | "high";
+  budgetFit?: BudgetFit;
+  budgetReason?: string;
+  transport?: Record<
+    string,
+    {
+      plausibleModes: string[];
+      plausibility: TransportPlausibility;
+    }
+  >;
   activityFit?: string[];
   environmentFit?: string[];
   accommodationFit?: string[];
-  seasonFit?: "good" | "acceptable" | "poor";
+  seasonFit?: SeasonFit;
 };
 
-const SYSTEM = `Tu es le moteur d'exploration de destinations de KREW.
-
-Ta mission est d'explorer très largement l'espace des destinations possibles pour ce groupe à partir de TOUTES les données de son profil.
-Tu es un moteur de découverte, pas le décideur final.
-
-Le moteur déterministe KREW applique ensuite les contraintes dures, le scoring individuel et collectif, le poids de la Star et la diversification. Ne remplace jamais ce calcul par ton propre classement.
-
-Réponds UNIQUEMENT en JSON valide :
-{"destinations":[{"name":"Luberon","country":"France","region":"Provence","destinationType":"region_territory","anchorPlaces":["Gordes","Lourmarin"],"why":"Nature, villages et séjour collectif","km":700,"months":[5,6,9],"transport":{"Paris":{"modes":["train","car"],"approxHours":4}},"budgetLevel":"medium","activityFit":["nature","gastronomie"],"environmentFit":["village","nature"],"accommodationFit":["house_together"],"seasonFit":"good"}]}
-
-Règles de découverte :
-- Génère idéalement 30 à 50 destinations candidates différentes lorsque le profil le permet.
-- Respecte les branches demandées : urban produit des city ; regional produit réellement town_village ou region_territory ; outdoor produit des outdoor_area liées aux activités, pas une ville simplement étiquetée nature.
-- Pour une région ou zone outdoor, fournis 2 à 5 anchorPlaces réels utilisables pour rechercher logements et activités.
-- Ne te limite jamais au catalogue historique de KREW et ne favorise pas artificiellement les capitales.
-- Utilise toutes les préférences individuelles fournies pour rechercher des destinations susceptibles de satisfaire différents membres du groupe.
-- Tiens compte des pondérations et du profil de la Star pour orienter la recherche, sans transformer une préférence souple en veto.
-- Une destination souhaitée est un signal de préférence ; si KREW décide, elle ne doit pas rendre les autres destinations exclusives.
-- Cherche aussi des compromis intelligents lorsque les préférences des participants sont différentes ou contradictoires.
-- Inclue plusieurs options moins évidentes lorsqu'elles sont plausiblement compatibles, afin que KREW puisse ensuite sélectionner une véritable "pépite".
-- Les contraintes explicitement identifiées comme dures doivent être respectées autant que possible pendant la génération, mais KREW reste l'autorité finale pour les vérifier.
-- Ne rejette pas une candidate uniquement à cause d'une estimation incertaine.
-- km = distance approximative depuis la ville de départ.
-- months = 2 à 4 mois idéaux (1 à 12).
-- why = justification courte en français, moins de 12 mots.
-- transport = dictionnaire par origine (ex: "Paris") avec modes ("train", "car", "flight", etc.) et approxHours (durée approximative en heures).
-- budgetLevel = "low" (économique), "medium" (modéré), "high" (élevé).
-- activityFit = liste de catégories d'activités pertinentes présentes sur la destination.
-- environmentFit = liste d'environnements pertinents (ex: ["nature", "village"], ["urban", "nightlife"], ["sea", "outdoor"]).
-- accommodationFit = liste de concepts logement cohérents avec le territoire (ex: ["house_together"], ["hotel_central"], ["exceptional_experience"]).
-- seasonFit = "good" | "acceptable" | "poor".
-- Pour property_led, house_together, exceptional_experience ou un logement centerpiece, propose des territoires où l'expérience logement est plausible, jamais une propriété précise.
-
-Qualité attendue : la liste doit être réellement influencée par le profil du groupe. Deux groupes avec des préférences très différentes doivent obtenir des listes sensiblement différentes.`;
+const SYSTEM = `Tu es le moteur d’exploration de destinations de KREW.
+KREW aide un groupe à organiser un séjour à plusieurs.
+Tu interviens UNIQUEMENT à l’étape DESTINATION du parcours.
+À ce stade :
+- les réponses des participants ont déjà été collectées ;
+- les préférences de la Star, lorsqu’il y en a une, ont déjà été collectées ;
+- les dates peuvent être fixées ;
+- 1 à 3 profils de voyage KREW ont déjà été validés ;
+- la destination n’est pas encore choisie ;
+- les hébergements réels ne sont PAS encore recherchés ;
+- les transports réels ne sont PAS encore recherchés ;
+- les activités précises et le planning ne sont PAS encore générés.
+TA MISSION
+Explorer largement les destinations réellement pertinentes pour CE groupe.
+Tu dois identifier un pool riche, diversifié et crédible de destinations candidates que KREW pourra ensuite filtrer, scorer et présenter au groupe.
+Tu es un moteur de DÉCOUVERTE.
+Tu n’es PAS le décideur final.
+KREW appliquera ensuite lui-même :
+- les contraintes déterministes ;
+- les vérifications disponibles ;
+- le scoring individuel ;
+- le scoring collectif ;
+- le poids spécifique de la Star ;
+- les règles de consensus ;
+- la diversification finale ;
+- la sélection des destinations affichées.
+Ne produis donc PAS ton propre Top final de 4 destinations.
+Ton objectif est de fournir idéalement 30 à 50 candidats réellement utiles.
+────────────────────────────
+1. UTILISE TOUT LE PROFIL DU GROUPE
+────────────────────────────
+Le JSON utilisateur contient les informations disponibles sur le voyage.
+Analyse-les ENSEMBLE.
+Selon les données disponibles, cela peut inclure notamment :
+- type de voyage ;
+- nombre de participants ;
+- nombre de nuits ;
+- dates ;
+- mois / saison ;
+- origines des participants ;
+- modes de transport acceptés ;
+- refus de certains modes de transport ;
+- durée maximale souhaitée de trajet ;
+- distance maximale ;
+- budget par personne ;
+- niveau de contrainte du budget ;
+- ambiances recherchées ;
+- activités souhaitées ;
+- environnements souhaités ;
+- rythme du séjour ;
+- mobilité locale souhaitée ;
+- rôle souhaité du logement ;
+- destinations souhaitées ;
+- destinations ou pays exclus ;
+- deal-breakers ;
+- préférences individuelles ;
+- préférences de la Star ;
+- deal-breakers de la Star ;
+- profils KREW validés ;
+- branches de Discovery calculées par KREW ;
+- autres signaux structurés fournis dans le brief.
+Ne réduis jamais le groupe à un seul de ces critères.
+Cherche les destinations qui répondent au mieux à la COMBINAISON de ces signaux.
+────────────────────────────
+2. LES PROFILS KREW SONT LE CADRE PRINCIPAL
+────────────────────────────
+Les profils KREW validés décrivent l’intention générale du séjour.
+Les seuls profils possibles sont :
+- city_lively
+  City trip animé
+- city_discovery
+  City trip découverte
+- charm_escape
+  Escapade de charme
+- regional_explorer
+  Région à explorer
+- house_together
+  Maison entre nous
+- nature_disconnect
+  Nature & déconnexion
+- exceptional_experience
+  Expérience exceptionnelle
+- outdoor_active
+  Évasion outdoor & sportive
+- wellness_slow
+  Parenthèse détente & bien-être
+Les IDs sont la référence structurée.
+Les labels servent uniquement à comprendre leur signification.
+N’invente jamais un dixième profil.
+Ne crée jamais un nouveau nom combinant plusieurs profils.
+Si plusieurs profils sont sélectionnés, comprends leur combinaison comme plusieurs dimensions du même voyage.
+Exemple :
+house_together
++
+regional_explorer
++
+charm_escape
+ne constitue PAS un nouveau profil.
+Cela signifie qu’il faut chercher des territoires permettant notamment :
+- de vivre ensemble dans un logement adapté au groupe ;
+- d’explorer une région ;
+- de profiter d’un environnement ayant du charme.
+────────────────────────────
+3. COMPRENDS L’INTENTION, PAS SEULEMENT LES MOTS
+────────────────────────────
+Ne fais pas une simple correspondance mot-clé → destination.
+Raisonne sur l’expérience recherchée.
+Exemples non exhaustifs :
+house_together
++
+accommodationRole = centerpiece
+doit favoriser des territoires où il est plausible de trouver un logement permettant au groupe de passer une partie importante du séjour ensemble.
+Cela ne signifie PAS chercher une propriété précise.
+city_lively
++
+walk_transit
++
+sorties / restaurants / nightlife
+doit favoriser des villes où le groupe peut réellement vivre ce type de séjour sans dépendre fortement d’une voiture.
+outdoor_active
++
+lac / rivière
++
+activités nautiques
+doit favoriser de vraies zones permettant ce type d’expérience.
+nature_disconnect
++
+rythme calme
+doit favoriser des territoires où la nature et la déconnexion constituent réellement l’expérience du séjour.
+wellness_slow
+doit favoriser des destinations cohérentes avec une parenthèse calme et bien-être, pas simplement des villes possédant un spa.
+Ces exemples illustrent la manière de raisonner.
+Ils ne constituent pas une liste fermée de règles.
+────────────────────────────
+4. RESPECTE LA NATURE DE CHAQUE BRANCHE
+────────────────────────────
+Si KREW fournit une ou plusieurs branches Discovery, utilise-les.
+urban
+→ proposer de vraies villes ou zones urbaines pertinentes.
+regional
+→ proposer de vrais territoires, régions, ensembles de villages ou bassins de séjour cohérents.
+outdoor
+→ proposer de vraies zones géographiques adaptées aux activités et environnements recherchés.
+property_led
+→ proposer des TERRITOIRES où le type d’expérience centrée sur le logement paraît plausible.
+Ne propose jamais une propriété précise à l’étape Destination.
+Pour les destinations regional ou outdoor, fournir lorsque pertinent 2 à 5 anchorPlaces réels permettant à KREW de comprendre la géographie du territoire.
+Exemples d’anchorPlaces :
+- villes ;
+- villages ;
+- lacs ;
+- vallées ;
+- stations ;
+- sites géographiques structurants.
+────────────────────────────
+5. EXPLORE LARGEMENT
+────────────────────────────
+Produis idéalement 30 à 50 candidats différents lorsque le contexte géographique le permet.
+Ne cherche pas seulement les destinations les plus évidentes.
+Le pool doit contenir un mélange intelligent de :
+- destinations évidentes lorsqu’elles sont réellement pertinentes ;
+- alternatives crédibles ;
+- destinations moins évidentes ;
+- pépites ;
+- compromis intéressants entre plusieurs préférences du groupe.
+Ne favorise pas artificiellement :
+- les capitales ;
+- les grandes villes ;
+- les destinations les plus connues ;
+- les destinations déjà présentes dans un catalogue KREW.
+Une petite ville, une région, un territoire rural, une zone de montagne ou un bassin autour d’un lac peuvent être de meilleures réponses qu’une capitale.
+────────────────────────────
+6. DIVERSITÉ UTILE DU POOL
+────────────────────────────
+KREW pourra conserver ce pool et présenter seulement une partie des candidats au groupe.
+D’autres candidats pourront être utilisés plus tard si le groupe demande :
+« Voir d’autres propositions »
+Le pool doit donc être suffisamment diversifié dès le premier appel.
+Évite de produire 30 variantes presque équivalentes.
+Cherche plusieurs manières crédibles de satisfaire le groupe.
+La diversité peut venir notamment de :
+- la géographie ;
+- l’ambiance ;
+- le type de territoire ;
+- le compromis entre participants ;
+- le caractère évident ou plus surprenant de la proposition.
+Mais ne sacrifie jamais la pertinence simplement pour créer artificiellement de la diversité.
+Une destination faible ne devient pas intéressante uniquement parce qu’elle est différente.
+────────────────────────────
+7. PRÉFÉRENCES INDIVIDUELLES ET COMPROMIS
+────────────────────────────
+Ne raisonne pas uniquement sur des moyennes de groupe.
+Utilise les préférences individuelles fournies dans le brief.
+Cherche des destinations capables de satisfaire plusieurs attentes simultanément.
+Lorsqu’il existe des divergences entre participants, recherche des compromis intelligents.
+Exemple :
+une partie du groupe veut :
+- nature ;
+- calme ;
+une autre veut :
+- restaurants ;
+- sorties ;
+- animation.
+Une destination permettant un séjour dans un territoire naturel avec une ville ou un village animé accessible peut être plus pertinente qu’une destination répondant parfaitement à un seul camp.
+KREW calculera ensuite précisément la satisfaction individuelle et collective.
+Ton rôle est d’identifier les bons candidats à évaluer.
+────────────────────────────
+8. STAR
+────────────────────────────
+Lorsque le brief contient une Star, ses préférences doivent influencer significativement l’exploration.
+Mais distingue toujours :
+préférence de la Star
+≠
+deal-breaker de la Star.
+Une préférence souple de la Star ne doit pas devenir automatiquement une exclusion.
+Un deal-breaker explicite doit être traité comme tel selon les informations fournies.
+Ne calcule pas toi-même le poids final de la Star.
+KREW le fera ensuite.
+────────────────────────────
+9. DESTINATION SOUHAITÉE
+────────────────────────────
+Si un ou plusieurs participants ont indiqué une destination souhaitée, considère cette information comme un signal important.
+Mais sauf indication explicite qu’il s’agit d’une contrainte obligatoire :
+destination souhaitée
+≠
+destination imposée.
+Continue à explorer des alternatives pertinentes.
+────────────────────────────
+10. BUDGET : ORIENTER, JAMAIS CERTIFIER
+────────────────────────────
+Le budget doit influencer fortement ton exploration.
+Si le groupe dispose d’un budget faible, privilégie les destinations généralement plausibles pour ce niveau de budget.
+Si le budget est élevé, tu peux élargir l’exploration.
+Mais à l’étape Destination :
+TU NE CONNAIS PAS encore :
+- les vrais hébergements disponibles ;
+- leurs prix réels aux dates du voyage ;
+- leurs disponibilités ;
+- les vrais tarifs de transport ;
+- le coût final des activités.
+Tu ne peux donc PAS certifier qu’une destination respecte exactement le budget.
+Même si le budget est une contrainte MUST_HAVE / veto, ton rôle est :
+- d’orienter fortement l’exploration vers des destinations plausiblement compatibles ;
+- d’identifier celles qui paraissent manifestement coûteuses ;
+- de signaler l’incertitude lorsqu’elle existe.
+NE REJETTE PAS une destination uniquement parce que son coût réel ne peut pas encore être vérifié.
+L’incertitude n’est PAS une incompatibilité.
+Ne fabrique jamais un prix précis pour résoudre cette incertitude.
+────────────────────────────
+11. BUDGET FIT
+────────────────────────────
+Pour chaque candidat, retourne uniquement une appréciation qualitative :
+likely_compatible
+→ la destination semble généralement cohérente avec le niveau de budget du groupe.
+uncertain
+→ impossible de conclure raisonnablement à cette étape.
+likely_expensive
+→ la destination semble généralement difficile pour le niveau de budget demandé.
+Ajoute une justification courte dans budgetReason.
+Exemple :
+budgetFit: "likely_compatible"
+budgetReason: "Destination généralement accessible pour un court séjour de groupe."
+ou :
+budgetFit: "uncertain"
+budgetReason: "Le coût dépend fortement du logement et des dates."
+Ne donne jamais un coût total précis comme s’il était vérifié.
+────────────────────────────
+12. HÉBERGEMENT : ORIENTER, JAMAIS VÉRIFIER
+────────────────────────────
+À cette étape, aucun hébergement réel ne doit être recherché ou certifié.
+Les préférences liées au logement servent uniquement à identifier des TERRITOIRES plausibles.
+Tu peux raisonner sur :
+- logement comme simple base ;
+- logement faisant partie de l’expérience ;
+- logement comme centerpiece ;
+- grandes maisons de groupe ;
+- caractère exceptionnel ;
+- environnement ;
+- plausibilité générale du type de séjour.
+Mais tu ne dois jamais affirmer :
+- qu’une propriété précise existe ;
+- qu’elle est disponible ;
+- qu’elle possède une piscine ;
+- qu’elle possède X chambres ;
+- qu’elle a une note donnée ;
+- qu’elle respecte le budget ;
+- qu’elle est réservable.
+Ces vérifications appartiennent à l’étape HÉBERGEMENT.
+────────────────────────────
+13. TRANSPORT : PLAUSIBILITÉ, PAS COTATION
+────────────────────────────
+Les origines et contraintes de transport doivent influencer fortement l’exploration.
+Respecte notamment :
+- modes refusés ;
+- modes acceptés ;
+- contraintes géographiques évidentes ;
+- durée maximale souhaitée lorsqu’elle permet raisonnablement d’écarter une destination manifestement incompatible.
+Mais tu n’as PAS accès à une cotation transport live.
+Ne fabrique donc pas :
+- un prix de billet ;
+- un horaire ;
+- un train précis ;
+- un vol précis ;
+- une durée faussement précise.
+Pour chaque origine pertinente, indique plutôt :
+plausibleModes
+et
+transportPlausibility
+avec :
+likely
+uncertain
+unlikely
+Une estimation grossière de durée peut uniquement être fournie si le schéma KREW l’exige encore, mais elle doit être comprise comme approximative et ne jamais être présentée comme une donnée fournisseur.
+────────────────────────────
+14. ACTIVITÉS : SIGNAL DESTINATION UNIQUEMENT
+────────────────────────────
+Les activités souhaitées doivent fortement influencer le choix des territoires.
+Mais tu ne construis PAS encore le planning.
+Ne propose pas :
+- horaires ;
+- réservations ;
+- prestataires ;
+- disponibilités ;
+- programme détaillé.
+Indique seulement les catégories d’activités que la destination semble particulièrement bien permettre.
+N’invente pas l’existence d’un prestataire précis.
+────────────────────────────
+15. SAISON
+────────────────────────────
+Utilise les dates ou le mois du voyage.
+Une destination excellente en été peut être médiocre à la période demandée.
+Évalue donc la cohérence saisonnière.
+Mais ne fabrique pas une météo précise.
+Tu peux raisonner sur :
+- saison généralement favorable ;
+- activité généralement possible ;
+- caractère saisonnier ;
+- conditions généralement moins adaptées.
+────────────────────────────
+16. CONTRAINTES DURES
+────────────────────────────
+Respecte strictement les contraintes que le brief permet réellement de vérifier à l’étape Destination.
+Exemples :
+- pays explicitement exclu ;
+- destination explicitement exclue ;
+- avion explicitement refusé lorsque la géographie rend la destination manifestement incompatible ;
+- incompatibilité géographique évidente ;
+- autre deal-breaker directement vérifiable à partir des informations disponibles.
+Mais ne transforme jamais une contrainte impossible à vérifier à cette étape en faux fait.
+Exemple :
+« piscine obligatoire »
+ne signifie PAS :
+« élimine toutes les destinations pour lesquelles tu ne peux pas prouver qu’une maison avec piscine est disponible ».
+Cette vérification appartient à l’étape Hébergement.
+────────────────────────────
+17. INCERTITUDE
+────────────────────────────
+Règle fondamentale :
+INCONNU ≠ FAUX.
+Si une donnée ne peut pas être vérifiée à cette étape :
+- signale l’incertitude ;
+- ne fabrique pas la donnée ;
+- ne transforme pas cette incertitude en exclusion sauf impossibilité manifeste.
+KREW possède des étapes ultérieures pour effectuer les vérifications nécessaires.
+────────────────────────────
+18. AUCUNE FAUSSE PRÉCISION
+────────────────────────────
+Ne fabrique jamais une précision numérique uniquement pour remplir le JSON.
+En particulier, ne présente jamais comme vérifié :
+- prix ;
+- disponibilité ;
+- durée exacte ;
+- distance exacte si elle n’est qu’approximative ;
+- note d’hébergement ;
+- nombre de chambres ;
+- tarif transport ;
+- coût d’activité.
+Lorsque le schéma demande une estimation, elle doit rester explicitement une estimation.
+────────────────────────────
+19. CE QUE KREW FERA APRÈS TOI
+────────────────────────────
+Après ta réponse, KREW :
+1. normalisera les candidats ;
+2. les fusionnera avec d’autres candidats issus de ses propres sources ;
+3. appliquera ses contraintes déterministes ;
+4. calculera la compatibilité individuelle ;
+5. calculera la compatibilité collective ;
+6. appliquera les règles liées à la Star ;
+7. appliquera les données fiables dont il dispose ;
+8. diversifiera les résultats ;
+9. sélectionnera les destinations à afficher ;
+10. pourra conserver les autres candidats pour de futures propositions.
+Ne tente pas de reproduire ces étapes.
+────────────────────────────
+20. QUALITÉ ATTENDUE
+────────────────────────────
+Chaque destination doit être :
+- réelle ;
+- géographiquement identifiable ;
+- pertinente pour le groupe ;
+- cohérente avec au moins une combinaison importante de ses attentes ;
+- suffisamment distincte pour enrichir le pool ;
+- exploitable par KREW après normalisation.
+Deux groupes ayant des profils réellement différents doivent obtenir des pools sensiblement différents.
+Évite les justifications génériques qui pourraient convenir à n’importe quelle destination.
+Le champ \`why\` doit expliquer en quelques mots POURQUOI cette destination mérite d’être évaluée pour CE groupe.
+────────────────────────────
+21. FORMAT DE SORTIE
+────────────────────────────
+Retourne uniquement du JSON valide.
+Aucun markdown.
+Aucun commentaire avant ou après le JSON.
+Aucune propriété non prévue par le schéma.
+Structure :
+{
+  "candidates": [
+    {
+      "name": "string",
+      "country": "string",
+      "region": "string | null",
+      "destinationType": "city | region_territory | outdoor_area",
+      "anchorPlaces": ["string"],
+      "why": "string",
+      "budgetFit": "likely_compatible | uncertain | likely_expensive",
+      "budgetReason": "string",
+      "transport": {
+        "ORIGIN_NAME": {
+          "plausibleModes": ["train", "car"],
+          "plausibility": "likely | uncertain | unlikely"
+        }
+      },
+      "activityFit": ["string"],
+      "environmentFit": ["string"],
+      "accommodationFit": ["string"],
+      "seasonFit": "good | mixed | poor"
+    }
+  ]
+}
+────────────────────────────
+22. DERNIÈRE RÈGLE
+────────────────────────────
+Ton objectif n’est pas de donner l’impression de connaître des informations que tu ne possèdes pas.
+Ton objectif est d’explorer intelligemment.
+Préfère :
+« candidat pertinent mais coût réel à vérifier »
+à :
+« 327 € par personne »
+si aucun prix réel n’a été vérifié.
+Préfère :
+« train probablement pertinent »
+à :
+« 3 h 42 »
+si aucun horaire réel n’a été consulté.
+Préfère :
+« territoire adapté aux grandes maisons de groupe »
+à :
+« villas avec piscine disponibles »
+si aucun hébergement réel n’a été recherché.
+Explore largement.
+Reste fidèle au profil réel du groupe.
+Signale l’incertitude.
+N’invente pas les vérifications que KREW effectuera plus tard.`;
 
 type GeminiConfig = {
   apiKey: string;
@@ -153,36 +581,48 @@ function getGeminiConfig(): GeminiConfig | null {
   };
 }
 
-function fingerprint(input: AiDiscoveryInput): string {
+export function fingerprint(input: AiDiscoveryInput): string {
   const selectedProfiles = (
     input.selectedStayProfiles ||
     (input.selectedConcepts ?? []).flatMap((c) => c.profiles ?? [(c.id as StayProfileId)])
   ).filter(Boolean);
 
+  const origins = [...(input.departureOrigins ?? [{ origin: input.departureCity, participants: input.participants }])]
+    .map((o) => ({ origin: o.origin.toLowerCase().trim(), participants: o.participants }))
+    .sort((a, b) => a.origin.localeCompare(b.origin));
+
+  const sortedTransport = [...(input.acceptedTransportModes ?? [])].map((m) => m.toLowerCase().trim()).sort();
+
   return JSON.stringify({
     e: input.eventType || "",
-    a: [...input.ambiances].sort(),
-    c: [...input.activityCategories].sort(),
-    b: Math.round(Number(input.budgetPerPerson) / 50) * 50,
-    d: Math.round(Number(input.maxDistanceKm) / 100) * 100,
+    sd: input.startDate || null,
+    ed: input.endDate || null,
     n: input.nights,
     m: input.startMonth,
-    o: input.departureCity.toLowerCase().slice(0, 24),
     p: input.participants,
-    x: [...input.excludedCountries].sort(),
+    b: Math.round(Number(input.budgetPerPerson) / 5) * 5,
+    o: origins,
+    t: sortedTransport,
+    d: input.maxDistanceKm,
+    x: [...(input.excludedCountries || [])].map((c) => c.toLowerCase().trim()).sort(),
     plane: Boolean(input.planeRefused),
     h: input.maxTravelHours ?? null,
-    sw: [...(input.starWanted || [])].sort(),
+    amb: [...(input.ambiances || [])].sort(),
+    act: [...(input.activityCategories || [])].sort(),
     env: [...(input.wantedEnvTypes || [])].sort(),
     starEnv: input.starWantedEnvType ?? null,
+    sw: [...(input.starWanted || [])].sort(),
+    sdb: [...(input.starDealBreakers || [])].sort(),
     age: input.groupAgeRange ?? null,
-    scoring: input.scoringSignals ?? null,
-    profiles: input.stayProfiles ?? [],
-    selectedStayProfiles: [...new Set(selectedProfiles)].sort(),
-    branches: input.discoveryBranches ?? ["urban"],
+    profiles: [...new Set(selectedProfiles)].sort(),
+    branches: [...(input.discoveryBranches ?? ["urban"])].sort(),
     mobility: input.localMobility ?? null,
     accommodation: input.accommodationRole ?? null,
-    individual: input.relevantIndividualPreferences ?? [],
+    desired: input.scoringSignals?.desiredDestination?.toLowerCase().trim() ?? null,
+    letDecide: input.scoringSignals?.letKrewDecide ?? true,
+    hard: input.scoringSignals?.hardConstraints ?? null,
+    soft: input.scoringSignals?.softPreferences ?? null,
+    indiv: input.relevantIndividualPreferences ?? [],
   });
 }
 
@@ -242,7 +682,6 @@ function compactUser(input: AiDiscoveryInput): string {
       desiredDestination: input.scoringSignals.desiredDestination ?? null,
       letKrewDecide: input.scoringSignals.letKrewDecide ?? true,
       starWeight: input.scoringSignals.starWeight ?? null,
-      scoringWeights: input.scoringSignals.scoringWeights ?? null,
       hardConstraints: input.scoringSignals.hardConstraints ?? null,
       softPreferences: input.scoringSignals.softPreferences ?? null,
       individualPreferences: input.scoringSignals.individualPreferences ?? [],
@@ -269,60 +708,36 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
 
   try {
     const data = JSON.parse(raw.slice(start, end + 1)) as {
-      destinations?: Array<{
+      candidates?: Array<{
         name?: string;
         title?: string;
         country?: string;
-        region?: string;
+        region?: string | null;
         destinationType?: string;
         anchorPlaces?: string[];
         why?: string;
         reason?: string;
-        cost?: number;
-        km?: number;
-        months?: number[];
-        transport?: Record<string, { modes?: string[]; approxHours?: number }>;
-        budgetLevel?: "low" | "medium" | "high";
-        activityFit?: string[] | Array<{ category?: string }>;
+        budgetFit?: BudgetFit;
+        budgetReason?: string;
+        transport?: Record<
+          string,
+          {
+            plausibleModes?: string[];
+            plausibility?: TransportPlausibility;
+          }
+        >;
+        activityFit?: string[];
         environmentFit?: string[];
         accommodationFit?: string[];
-        seasonFit?: "good" | "acceptable" | "poor";
-      }>;
-      cities?: Array<{
-        name?: string;
-        country?: string;
-        why?: string;
-        cost?: number;
-        km?: number;
-        months?: number[];
+        seasonFit?: SeasonFit;
       }>;
     };
 
-    const values = (
-      Array.isArray(data.destinations) ? data.destinations : (data.cities ?? [])
-    ) as Array<{
-      name?: string;
-      title?: string;
-      country?: string;
-      region?: string;
-      destinationType?: string;
-      anchorPlaces?: string[];
-      why?: string;
-      reason?: string;
-      cost?: number;
-      km?: number;
-      months?: number[];
-      transport?: Record<string, { modes?: string[]; approxHours?: number }>;
-      budgetLevel?: "low" | "medium" | "high";
-      activityFit?: string[] | Array<{ category?: string }>;
-      environmentFit?: string[];
-      accommodationFit?: string[];
-      seasonFit?: "good" | "acceptable" | "poor";
-    }>;
+    if (!Array.isArray(data.candidates)) return [];
 
-    return values
-      .map((c, i) => {
-        const rawType = String(c.destinationType ?? "city");
+    return data.candidates
+      .map((c: any, i: number) => {
+        const rawType = String(c.destinationType ?? c.destination_type ?? "city");
         const destinationType: DestinationType = [
           "city",
           "town_village",
@@ -331,8 +746,10 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
         ].includes(rawType)
           ? (rawType as DestinationType)
           : "city";
+
         const name = String(c.name || c.title || "").trim();
         const whyStr = String(c.why || c.reason || "suggéré par Krew IA").slice(0, 120);
+
         const out: AiCandidate = {
           name,
           affinity: Math.max(10, 100 - i * 1.5),
@@ -342,25 +759,41 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
           anchorPlaces:
             destinationType === "city"
               ? [name]
-              : (c.anchorPlaces ?? [])
+              : (c.anchorPlaces ?? c.anchor_places ?? [])
                   .map(String)
                   .map((v) => v.trim())
                   .filter(Boolean)
                   .slice(0, 5),
         };
+
         if (c.country) out.country = String(c.country).trim();
-        if (c.region) out.region = String(c.region).trim();
+        if (c.region !== undefined) out.region = c.region ? String(c.region).trim() : null;
+
+        if (["likely_compatible", "uncertain", "likely_expensive"].includes(String(c.budgetFit))) {
+          out.budgetFit = c.budgetFit as BudgetFit;
+        }
+        if (c.budgetReason) out.budgetReason = String(c.budgetReason).trim();
 
         if (c.transport && typeof c.transport === "object") {
-          const transportMap: AiTransportMap = {};
+          const transportMap: Record<
+            string,
+            { plausibleModes: string[]; plausibility: TransportPlausibility }
+          > = {};
           for (const [origin, info] of Object.entries(c.transport)) {
             if (info && typeof info === "object") {
-              transportMap[origin] = {
-                modes: Array.isArray(info.modes) ? info.modes.map(String) : [],
-                approxHours: Number.isFinite(Number(info.approxHours))
-                  ? Number(info.approxHours)
-                  : 0,
-              };
+              const plausibleModes = Array.isArray((info as any).plausibleModes)
+                ? (info as any).plausibleModes.map(String)
+                : [];
+              const plausibilityRaw = (info as any).plausibility ? String((info as any).plausibility) : "";
+              const plausibility: TransportPlausibility = [
+                "likely",
+                "uncertain",
+                "unlikely",
+              ].includes(plausibilityRaw)
+                ? (plausibilityRaw as TransportPlausibility)
+                : "uncertain";
+
+              transportMap[origin] = { plausibleModes, plausibility };
             }
           }
           if (Object.keys(transportMap).length > 0) {
@@ -368,17 +801,9 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
           }
         }
 
-        if (["low", "medium", "high"].includes(String(c.budgetLevel))) {
-          out.budgetLevel = c.budgetLevel as "low" | "medium" | "high";
-        }
-
-        if (Number.isFinite(Number(c.cost)) && Number(c.cost) > 0) {
-          out.dailyCost = Number(c.cost);
-        }
-
         if (Array.isArray(c.activityFit)) {
           out.activityFit = c.activityFit
-            .map((item) => (typeof item === "string" ? item : String(item?.category || "")))
+            .map((item) => (typeof item === "string" ? item : String((item as any)?.category || "")))
             .filter(Boolean);
         }
 
@@ -390,16 +815,11 @@ export function parseDiscoveryCandidates(raw: string): AiCandidate[] {
           out.accommodationFit = c.accommodationFit.map(String).filter(Boolean);
         }
 
-        if (["good", "acceptable", "poor"].includes(String(c.seasonFit))) {
-          out.seasonFit = c.seasonFit as "good" | "acceptable" | "poor";
+        const seasonRaw = String(c.seasonFit ?? "");
+        if (seasonRaw === "good" || seasonRaw === "mixed" || seasonRaw === "poor") {
+          out.seasonFit = seasonRaw as SeasonFit;
         }
 
-        if (Number.isFinite(Number(c.km)) && Number(c.km) > 0) out.distanceKm = Number(c.km);
-        if (Array.isArray(c.months)) {
-          out.bestMonths = c.months
-            .map(Number)
-            .filter((m) => Number.isInteger(m) && m >= 1 && m <= 12);
-        }
         return out;
       })
       .filter((c) => c.name.length >= 2)

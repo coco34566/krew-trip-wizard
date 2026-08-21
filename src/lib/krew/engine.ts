@@ -164,6 +164,7 @@ export type ScoringContext = {
    * (moyenne pondérée si plusieurs villes de départ).
    */
   transportByDestinationId?: Record<string, number>;
+  transportPriceSourceByDestinationId?: Record<string, "provider" | "estimated" | "unknown">;
   /**
    * Coût transport total groupe par destination_id
    * (somme des cotations par ville de départ × effectif).
@@ -1482,7 +1483,6 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
 
     // Fallback de configuration neutre si aucun hébergement n'est disponible
     if (destConfigs.length === 0) {
-      if (ctx.hasBudgetVeto || reqAmenitiesClean.length > 0 || minRating > 0) continue;
       destConfigs.push({
         id: `fallback-${destination.id}`,
         name: "Hébergement estimé (hôtel ou gîte)",
@@ -1599,8 +1599,26 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       const hardCap = ctx.vetoBudgetMax ?? ctx.minGroupBudget ?? null;
       const hardBudgetFits =
         hardCap != null ? totalPerPerson <= hardCap : totalPerPerson <= ctx.budgetPerPerson;
+
+      const priceSourceTransport =
+        ctx.transportPriceSourceByDestinationId?.[destination.id] ?? "estimated";
+      const priceSourceAccommodation =
+        rawAcc == null
+          ? "unknown"
+          : String(rawAcc.source ?? "").startsWith("property_web:")
+            ? "web"
+            : rawAcc.source === "krew_seed"
+              ? "seed"
+              : rawAcc.source === "ai_estimate" || rawAcc.source === "krew_discovery"
+                ? "estimated"
+                : "provider";
+
       if (ctx.hasBudgetVeto && ctx.vetoBudgetMax != null && totalPerPerson > ctx.vetoBudgetMax) {
-        continue;
+        const isLodgingVerified = priceSourceAccommodation === "provider";
+        const isTransportVerified = priceSourceTransport === "provider";
+        if (isLodgingVerified && isTransportVerified) {
+          continue;
+        }
       }
 
       const budget: BudgetBreakdown & { configuration: AccommodationConfig } = {
@@ -1617,16 +1635,8 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
         budgetFitCount,
         budgetFitTotal: budgetFitTotal || ctx.participants,
         priceSource: {
-          transport:
-            ctx.transportByDestinationId?.[destination.id] != null ? "provider" : "estimated",
-          accommodation:
-            rawAcc == null
-              ? "unknown"
-              : String(rawAcc.source ?? "").startsWith("property_web:")
-                ? "web"
-                : rawAcc.source === "krew_seed"
-                  ? "seed"
-                  : "provider",
+          transport: priceSourceTransport,
+          accommodation: priceSourceAccommodation,
         },
         configuration: config,
         ...(transportOrigins && transportOrigins.length > 0

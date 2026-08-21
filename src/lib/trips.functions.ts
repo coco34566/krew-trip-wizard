@@ -731,28 +731,33 @@ export const generateRecommendations = createServerFn({ method: "POST" })
     if (!trip.data || !isTripAdmin(trip.data, userId))
       throw new Error("403 Forbidden: génération réservée aux organisateurs");
 
-    // Check user-level rate limit first (across all trips)
-    const userWindow = Number(process.env["RATE_LIMIT_USER_RECOMMENDATIONS_WINDOW_SEC"]) || 300;
-    const userMax = Number(process.env["RATE_LIMIT_USER_RECOMMENDATIONS_MAX"]) || 3;
-    await assertNotRateLimited(supabase, {
-      tripId: data.tripId,
-      userId,
-      kind: "recommendations",
-      windowSeconds: userWindow,
-      maxCalls: userMax,
-      isUserCheck: true,
-    });
+    const { canServeFromCandidatePool } = await import("@/lib/krew/trip-service");
+    const canServeFromPool = await canServeFromCandidatePool(supabase, data.tripId);
 
-    // Check trip-level rate limit (inserts rate limit entry if allowed)
-    const tripWindow = Number(process.env["RATE_LIMIT_RECOMMENDATIONS_WINDOW_SEC"]) || 300;
-    const tripMax = Number(process.env["RATE_LIMIT_RECOMMENDATIONS_MAX"]) || 1;
-    await assertNotRateLimited(supabase, {
-      tripId: data.tripId,
-      userId,
-      kind: "recommendations",
-      windowSeconds: tripWindow,
-      maxCalls: tripMax,
-    });
+    if (!canServeFromPool) {
+      // Check user-level rate limit first (across all trips)
+      const userWindow = Number(process.env["RATE_LIMIT_USER_RECOMMENDATIONS_WINDOW_SEC"]) || 300;
+      const userMax = Number(process.env["RATE_LIMIT_USER_RECOMMENDATIONS_MAX"]) || 3;
+      await assertNotRateLimited(supabase, {
+        tripId: data.tripId,
+        userId,
+        kind: "recommendations",
+        windowSeconds: userWindow,
+        maxCalls: userMax,
+        isUserCheck: true,
+      });
+
+      // Check trip-level rate limit (inserts rate limit entry if allowed)
+      const tripWindow = Number(process.env["RATE_LIMIT_RECOMMENDATIONS_WINDOW_SEC"]) || 300;
+      const tripMax = Number(process.env["RATE_LIMIT_RECOMMENDATIONS_MAX"]) || 1;
+      await assertNotRateLimited(supabase, {
+        tripId: data.tripId,
+        userId,
+        kind: "recommendations",
+        windowSeconds: tripWindow,
+        maxCalls: tripMax,
+      });
+    }
 
     return generateRecommendationsForTrip(supabase, data.tripId, {
       // `force` n'est accepté qu'en usage test explicite (ALLOW_FORCE_GENERATION),
@@ -1066,6 +1071,15 @@ export const selectRecommendation = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
+    // 1. Récupère le brief_fingerprint AVANT toute modification des préférences
+    const { getCurrentBriefFingerprint } = await import("@/lib/krew/trip-service");
+    let activeFingerprint: string | null = null;
+    try {
+      activeFingerprint = await getCurrentBriefFingerprint(supabase, data.tripId);
+    } catch (err) {
+      console.warn("Could not fetch brief Fingerprint before selection:", err);
+    }
+
     // Désélectionne les autres propositions
     await supabase
       .from("recommendations")
@@ -1084,14 +1098,33 @@ export const selectRecommendation = createServerFn({ method: "POST" })
     // Synchronise desired_destination pour que « Rechercher hébergements & activités » fonctionne
     const destName = (reco as any)?.destinations?.name;
     if (typeof destName === "string" && destName.trim()) {
+      const cleanName = destName.trim();
       await supabase.from("trip_preferences").upsert(
         {
           trip_id: data.tripId,
-          desired_destination: destName.trim(),
+          desired_destination: cleanName,
           let_krew_decide: false,
         },
         { onConflict: "trip_id" },
       );
+
+      // Update destination_candidate_pool status to selected using activeFingerprint captured BEFORE preference modification
+      if (activeFingerprint) {
+        try {
+          const normKey = cleanName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+          await supabase
+            .from("destination_candidate_pool")
+            .update({
+              status: "selected",
+              selected_at: new Date().toISOString(),
+            } as any)
+            .eq("trip_id", data.tripId)
+            .eq("brief_fingerprint", activeFingerprint)
+            .eq("destination_key", normKey);
+        } catch (poolErr) {
+          console.warn("destination_candidate_pool selected update skipped:", poolErr);
+        }
+      }
     }
 
     await supabase.from("trips").update({ status: "valide" }).eq("id", data.tripId);

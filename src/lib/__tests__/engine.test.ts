@@ -416,6 +416,9 @@ describe("Moteur de scoring Krew (engine.ts)", () => {
         transportByDestinationId: {
           "dest-test-1": 150, // Transport coté via l'API !
         },
+        transportPriceSourceByDestinationId: {
+          "dest-test-1": "provider",
+        },
       };
 
       const proposals = buildProposals(catalog, ctx, 1);

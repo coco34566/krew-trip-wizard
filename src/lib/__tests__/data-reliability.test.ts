@@ -65,14 +65,15 @@ describe("discovery data reliability boundary", () => {
     expect(proposal.subScores.sWeather).toBe(1);
   });
 
-  it("does not let an estimated lodging prove a budget veto", () => {
-    expect(
-      buildProposals(
-        { destinations: [destination], activities: [], accommodations: [] },
-        { ...context, hasBudgetVeto: true, vetoBudgetMax: 800 },
-        3,
-      ),
-    ).toHaveLength(0);
+  it("does not drop a destination solely because lodging is unverified when budget veto is active (Test 14 rule)", () => {
+    const proposals = buildProposals(
+      { destinations: [destination], activities: [], accommodations: [] },
+      { ...context, hasBudgetVeto: true, vetoBudgetMax: 350 },
+      1,
+    );
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.budget.priceSource?.accommodation).toBe("unknown");
+    expect(proposals[0]?.budget.priceSource?.transport).toBe("estimated");
   });
 
   it("never presents an unverified web property as the selected accommodation", () => {

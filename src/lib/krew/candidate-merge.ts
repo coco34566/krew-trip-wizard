@@ -5,31 +5,12 @@
  * codées en dur. Les deux sources sont TOUJOURS appelées puis fusionnées ici.
  */
 import type { CandidateDestination, DestinationType } from "./destination-discovery.server";
-import type { AiTransportMap } from "./destination-ai.server";
+import type { AiCandidate, BudgetFit, SeasonFit, TransportPlausibility } from "./destination-ai.server";
 
-/** Estimation compacte renvoyée par le LLM pour une ville hors catalogue. */
-export type AiEstimate = {
-  name: string;
-  country?: string | undefined;
-  affinity: number;
-  reason: string;
-  why?: string | undefined;
-  /** Coût journalier moyen €/pers estimé par le LLM ou dérivé de budgetLevel. */
-  dailyCost?: number | undefined;
-  /** Distance approximative km depuis la ville de départ. */
-  distanceKm?: number | undefined;
-  /** 2-3 mois idéaux (1-12). */
-  bestMonths?: number[] | undefined;
-  region?: string | undefined;
-  destinationType?: DestinationType | undefined;
-  anchorPlaces?: string[] | undefined;
-  transport?: AiTransportMap | undefined;
-  budgetLevel?: "low" | "medium" | "high" | undefined;
-  activityFit?: string[] | undefined;
-  environmentFit?: string[] | undefined;
-  accommodationFit?: string[] | undefined;
-  seasonFit?: "good" | "acceptable" | "poor" | undefined;
-};
+/** Candidate estimate coming from LLM or local discovery. */
+export type AiEstimate = AiCandidate;
+
+export type CandidateSource = "gemini" | "local" | "merged";
 
 export type MergedCandidate = {
   name: string;
@@ -37,21 +18,27 @@ export type MergedCandidate = {
   affinity: number;
   reason: string;
   why?: string | undefined;
-  /** `catalog` = profil connu / table destinations, `ai_estimate` = ville estimée par le LLM. */
-  source: "catalog" | "ai_estimate";
-  dailyCost?: number | undefined;
-  distanceKm?: number | undefined;
-  bestMonths?: number[] | undefined;
-  region?: string | undefined;
-  destinationType?: DestinationType;
-  anchorPlaces?: string[];
-  verificationState?: "verified" | "estimated" | "unknown";
-  transport?: AiTransportMap | undefined;
-  budgetLevel?: "low" | "medium" | "high" | undefined;
+  source: CandidateSource;
+  budgetFit?: BudgetFit | undefined;
+  budgetReason?: string | undefined;
+  transport?: Record<
+    string,
+    {
+      plausibleModes: string[];
+      plausibility: TransportPlausibility;
+    }
+  > | undefined;
   activityFit?: string[] | undefined;
   environmentFit?: string[] | undefined;
   accommodationFit?: string[] | undefined;
-  seasonFit?: "good" | "acceptable" | "poor" | undefined;
+  seasonFit?: SeasonFit | undefined;
+  dailyCost?: number | undefined;
+  distanceKm?: number | undefined;
+  bestMonths?: number[] | undefined;
+  region?: string | null | undefined;
+  destinationType?: DestinationType;
+  anchorPlaces?: string[];
+  verificationState?: "verified" | "estimated" | "unknown";
 };
 
 /** Normalisation de nom de ville (identique à `norm()` de la découverte locale). */
@@ -82,9 +69,10 @@ export function mergeCandidates(
       country: c.country,
       affinity: c.affinity,
       reason: c.reason,
-      source: "catalog",
+      why: c.reason,
+      source: "local",
       distanceKm: c.distanceKm,
-      region: c.region,
+      region: c.region ?? null,
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces ?? [c.name],
       verificationState: "verified",
@@ -100,15 +88,17 @@ export function mergeCandidates(
         ...existing,
         affinity: Math.max(existing.affinity, c.affinity),
         reason: existing.reason,
-        why: existing.why ?? c.why,
-        bestMonths: existing.bestMonths ?? c.bestMonths,
-        dailyCost: existing.dailyCost ?? c.dailyCost,
-        region: existing.region ?? c.region,
+        why: c.why || existing.why || c.reason,
+        source: "merged",
+        bestMonths: existing.bestMonths,
+        dailyCost: existing.dailyCost,
+        region: existing.region ?? c.region ?? null,
         anchorPlaces: existing.anchorPlaces?.length
           ? existing.anchorPlaces
           : (c.anchorPlaces ?? []),
+        budgetFit: c.budgetFit ?? existing.budgetFit,
+        budgetReason: c.budgetReason ?? existing.budgetReason,
         transport: c.transport ?? existing.transport,
-        budgetLevel: c.budgetLevel ?? existing.budgetLevel,
         activityFit: c.activityFit ?? existing.activityFit,
         environmentFit: c.environmentFit ?? existing.environmentFit,
         accommodationFit: c.accommodationFit ?? existing.accommodationFit,
@@ -121,17 +111,15 @@ export function mergeCandidates(
       country: c.country,
       affinity: c.affinity,
       reason: c.reason,
-      why: c.why ?? c.reason,
-      source: "ai_estimate",
-      dailyCost: c.dailyCost,
-      distanceKm: c.distanceKm,
-      bestMonths: c.bestMonths,
-      region: c.region,
+      why: c.why || c.reason,
+      source: "gemini",
+      region: c.region ?? null,
       destinationType: c.destinationType ?? "city",
       anchorPlaces: c.anchorPlaces?.length ? c.anchorPlaces : [c.name],
       verificationState: "estimated",
+      budgetFit: c.budgetFit,
+      budgetReason: c.budgetReason,
       transport: c.transport,
-      budgetLevel: c.budgetLevel,
       activityFit: c.activityFit,
       environmentFit: c.environmentFit,
       accommodationFit: c.accommodationFit,

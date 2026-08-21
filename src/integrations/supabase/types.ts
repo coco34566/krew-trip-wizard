@@ -225,6 +225,104 @@ export type Database = {
         }
         Relationships: []
       }
+      destination_candidate_pool: {
+        Row: {
+          accommodation_fit: string[]
+          activity_fit: string[]
+          anchor_places: string[]
+          brief_fingerprint: string
+          budget_fit: string | null
+          budget_reason: string | null
+          country: string | null
+          created_at: string
+          destination_key: string
+          destination_type: string
+          environment_fit: string[]
+          id: string
+          krew_score: number | null
+          name: string
+          region: string | null
+          rejected_at: string | null
+          score_snapshot: Json
+          season_fit: string | null
+          selected_at: string | null
+          shown_at: string | null
+          shown_batch: number | null
+          source: string
+          status: string
+          transport: Json
+          trip_id: string
+          updated_at: string
+          why: string | null
+        }
+        Insert: {
+          accommodation_fit?: string[]
+          activity_fit?: string[]
+          anchor_places?: string[]
+          brief_fingerprint: string
+          budget_fit?: string | null
+          budget_reason?: string | null
+          country?: string | null
+          created_at?: string
+          destination_key: string
+          destination_type: string
+          environment_fit?: string[]
+          id?: string
+          krew_score?: number | null
+          name: string
+          region?: string | null
+          rejected_at?: string | null
+          score_snapshot?: Json
+          season_fit?: string | null
+          selected_at?: string | null
+          shown_at?: string | null
+          shown_batch?: number | null
+          source: string
+          status?: string
+          transport?: Json
+          trip_id: string
+          updated_at?: string
+          why?: string | null
+        }
+        Update: {
+          accommodation_fit?: string[]
+          activity_fit?: string[]
+          anchor_places?: string[]
+          brief_fingerprint?: string
+          budget_fit?: string | null
+          budget_reason?: string | null
+          country?: string | null
+          created_at?: string
+          destination_key?: string
+          destination_type?: string
+          environment_fit?: string[]
+          id?: string
+          krew_score?: number | null
+          name?: string
+          region?: string | null
+          rejected_at?: string | null
+          score_snapshot?: Json
+          season_fit?: string | null
+          selected_at?: string | null
+          shown_at?: string | null
+          shown_batch?: number | null
+          source?: string
+          status?: string
+          transport?: Json
+          trip_id?: string
+          updated_at?: string
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "destination_candidate_pool_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       destination_feedback: {
         Row: {
           created_at: string

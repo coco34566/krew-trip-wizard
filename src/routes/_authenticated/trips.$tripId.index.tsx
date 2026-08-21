@@ -2273,19 +2273,35 @@ function TripDetail() {
                   }
                 >
                   {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                  {recommendations.length ? "Régénérer" : "Générer les propositions"}
+                  {recommendations.length ? "Voir d’autres propositions" : "Générer les propositions"}
                 </Button>
               ) : null}
             </div>
         {recommendations.length === 0 ? (
-          <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            {data.isOwner
-              ? readiness && !readiness.canGenerate
-                ? (readiness.message ??
-                  "Les questionnaires doivent être complétés avant de générer les propositions.")
-                : "Génère les premières propositions pour le groupe."
-              : "Les propositions de destinations arriveront bientôt."}
-          </p>
+          readiness && !readiness.canGenerate ? (
+            <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              {data.isOwner
+                ? (readiness.message ?? "Les questionnaires doivent être complétés avant de générer les propositions.")
+                : "Les propositions de destinations arriveront bientôt."}
+            </p>
+          ) : (trip?.group_logistics as any)?.destinationGenerationState === "no_admissible_proposals" ? (
+            <div className="rounded-3xl border border-dashed border-border p-8 text-center space-y-3 text-muted-foreground">
+              <p className="text-sm font-medium text-foreground">
+                Aucune destination ne respecte suffisamment les contraintes actuelles.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Reviens sur les préférences ou le profil du voyage pour élargir les possibilités.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-border p-8 text-center space-y-3 text-muted-foreground">
+              <p className="text-sm font-medium text-foreground">
+                {data.isOwner
+                  ? "Génère les premières propositions pour le groupe."
+                  : "Les propositions de destinations arriveront bientôt."}
+              </p>
+            </div>
+          )
         ) : (
           <>
             {destinationSelected ? (
