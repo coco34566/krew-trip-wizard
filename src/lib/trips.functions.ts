@@ -7,6 +7,7 @@ import {
   generateRecommendationsForTrip,
   tripInputSchema,
 } from "@/lib/krew/trip-service";
+import { resolveActivityResourceUrl } from "@/lib/krew/activity-ai.server";
 import { PROFILE_LABELS, STAY_PROFILE_IDS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 
 function normalizeStayConcepts(concepts: any[]): StayConcept[] {
@@ -2464,7 +2465,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               s.detail ||
               s.searchIntent ||
               "Lieu sélectionné par KREW",
-            url: matchedPlace.website || null,
+            ...resolveActivityResourceUrl(matchedPlace.website),
             candidateId: matchedPlace.id,
             verified: true,
             source: "geoapify",
@@ -2768,7 +2769,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         ...current,
         label: matchedCandidate.name,
         detail: matchedCandidate.address || current.detail || "Lieu sélectionné par KREW",
-        url: matchedCandidate.website || null,
+        ...resolveActivityResourceUrl(matchedCandidate.website),
         candidateId: matchedCandidate.id,
         verified: true,
         source: "geoapify",
