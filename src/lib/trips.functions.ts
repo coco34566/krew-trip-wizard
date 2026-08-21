@@ -2349,7 +2349,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       const slots: import("@/lib/krew/activity-ai.server").ActivitySlot[] = [];
 
       for (const s of day.slots) {
-        const mode = import("@/lib/krew/activity-ai.server").classifyActivityMode({
+        const mode = (await import("@/lib/krew/activity-ai.server")).classifyActivityMode({
           kind: s.kind,
           category: s.category,
           venueFamily: s.venueFamily,

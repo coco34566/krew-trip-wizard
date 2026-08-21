@@ -115,7 +115,7 @@ function TripCard({
       </div>
 
       {/* Content */}
-      <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between">
+      <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
         <div className="space-y-1.5">
           <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
             {eventTypeLabel(trip.event_type)}
@@ -195,7 +195,7 @@ function Dashboard() {
   const archivedTrips = (data?.archivedTrips ?? []) as Trip[];
 
   return (
-    <main className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8 sm:space-y-12">
+    <main className="space-y-8 sm:space-y-12">
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-2">

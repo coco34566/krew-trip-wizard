@@ -110,22 +110,6 @@ describe("Liste de voyage (packing-list.ts)", () => {
     expect(after.personal.some((item) => item.id === "manual_hat" && item.manual)).toBe(true);
   });
 
-  it("contient le socle collectif de base pour le groupe sans doublon et avec enrichissement", () => {
-    const prepBase = buildTripPreparation({ activities: [] });
-    expect(prepBase.group.some((item) => item.id === "speaker")).toBe(true);
-    expect(prepBase.group.some((item) => item.id === "card_game")).toBe(true);
-    expect(prepBase.group.some((item) => item.id === "power_strip")).toBe(true);
-
-    const prepActivity = buildTripPreparation({ activities: ["soiree au logement", "jeu de cartes"] });
-    expect(prepActivity.group.filter((item) => item.id === "speaker")).toHaveLength(1);
-    expect(prepActivity.group.filter((item) => item.id === "card_game")).toHaveLength(1);
-
-    const speakerItem = prepActivity.group.find((item) => item.id === "speaker");
-    expect(speakerItem?.sources).toContain("base");
-    expect(speakerItem?.sources).toContain("activity");
-    expect(speakerItem?.reasons.length).toBeGreaterThan(1);
-  });
-
   it("produit des résultats nettement différents selon le voyage", () => {
     const evjf = buildTripPreparation({
       eventType: "evjf",

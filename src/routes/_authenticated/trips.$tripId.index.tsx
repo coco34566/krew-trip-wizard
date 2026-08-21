@@ -1593,26 +1593,6 @@ function TripDetail() {
             </div>
           </section>
 
-          {costSplitData?.split ? (
-            <section
-              id="hub-cost-split"
-              className="space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
-            >
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                    <Wallet className="size-5 text-primary" />
-                    Répartition des coûts
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Une estimation de la part de chacun pour le voyage.
-                  </p>
-                </div>
-              </div>
-              <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
-            </section>
-          ) : null}
-
           {data.isOwner && (trip.status as string) !== "annule" ? (
             <section className="space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
               <p className="mb-3 text-sm text-muted-foreground">Gestion du voyage</p>
@@ -1636,7 +1616,7 @@ function TripDetail() {
                   onClick={() => {
                     if (
                       window.confirm(
-                        "Supprimer définitivement ce voyage et toutes ses données ? Cette action est irréversible.",
+                        "Supprimer définitivement ce voyage et toutes ses données ? Cette action me paraît irréversible.",
                       )
                     ) {
                       cancelMutation.mutate(true);
@@ -1760,7 +1740,7 @@ function TripDetail() {
       {/* VUE VOYAGE (SYNTHÈSE ET MODULES) */}
       {currentView === "voyage" ? (
         !currentSection ? (
-          /* RESTRUCTURED 3-GROUP LIST VIEW */
+          /* SYNTHESIS 9-ENTRY LIST VIEW */
           <div className="space-y-6">
             <div className="rounded-[28px] border border-border/60 bg-card p-6 sm:p-8 space-y-6">
               <div>
@@ -1775,193 +1755,190 @@ function TripDetail() {
                 ) : null}
               </div>
 
-              {/* GROUPE 1 — Questionnaire */}
-              <div className="space-y-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans pt-2">
-                  Questionnaire
-                </h2>
-                <div className="divide-y divide-border/50 text-sm">
+              <div className="divide-y divide-border/50 text-sm">
+                <Link
+                  to="/trips/$tripId/availability"
+                  params={{ tripId }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Disponibilités</span>
+                    <p className="text-xs text-muted-foreground">
+                      {availData?.answered ?? 0}/{availData?.expected ?? trip.participants_count ?? 1} dispos renseignées
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
+
+                <Link
+                  to="/trips/$tripId/questionnaire"
+                  params={{ tripId }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Préférences</span>
+                    <p className="text-xs text-muted-foreground">
+                      {progress?.answered ?? 0}/{progress?.total ?? trip.participants_count ?? 1} questionnaires remplis
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
+
+                {(trip.celebrated_person ||
+                  ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) ? (
                   <Link
-                    to="/trips/$tripId/availability"
+                    to="/trips/$tripId/star"
                     params={{ tripId }}
                     className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
                   >
                     <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Disponibilités</span>
+                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                        Préférences de {trip.celebrated_person || "la Star"}
+                      </span>
                       <p className="text-xs text-muted-foreground">
-                        {availData?.answered ?? 0}/{availData?.expected ?? trip.participants_count ?? 1} dispos renseignées
+                        {starData?.preferences ? "Questionnaire complété" : "À remplir"}
                       </p>
                     </div>
                     <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
                   </Link>
+                ) : null}
 
-                  <Link
-                    to="/trips/$tripId/questionnaire"
-                    params={{ tripId }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Préférences</span>
-                      <p className="text-xs text-muted-foreground">
-                        {progress?.answered ?? 0}/{progress?.total ?? trip.participants_count ?? 1} questionnaires remplis
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "dates" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Dates</span>
+                    <p className="text-xs text-muted-foreground">
+                      {trip.start_date && trip.end_date
+                        ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
+                        : "À définir"}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                  {(hasStar || celebratedPerson ||
-                    ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) ? (
-                    <Link
-                      to="/trips/$tripId/star"
-                      params={{ tripId }}
-                      className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                    >
-                      <div>
-                        <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                          Préférences de {celebratedPerson || "la Star"}
-                        </span>
-                        <p className="text-xs text-muted-foreground">
-                          {starData?.preferences ? "Questionnaire complété" : "À remplir"}
-                        </p>
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* GROUPE 2 — Préparer le voyage */}
-              <div className="space-y-2 pt-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans border-t border-border/50 pt-4">
-                  Préparer le voyage
-                </h2>
-                <div className="divide-y divide-border/50 text-sm">
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "dates" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Dates</span>
-                      <p className="text-xs text-muted-foreground">
-                        {trip.start_date && trip.end_date
-                          ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "profile" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Profil du voyage</span>
+                    <p className="text-xs text-muted-foreground">
+                      {profile?.selectedConcepts?.length
+? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
+                        : profile?.validated
+                          ? "Profil validé"
                           : "À définir"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "profile" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Profil du voyage</span>
-                      <p className="text-xs text-muted-foreground">
-                        {profile?.selectedConcepts?.length
-                          ? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
-                          : profile?.validated
-                            ? "Profil validé"
-                            : "À définir"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "destination" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Destination</span>
+                    <p className="text-xs text-muted-foreground">{liveBudget.destinationName || "À définir"}</p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "destination" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Destination</span>
-                      <p className="text-xs text-muted-foreground">{liveBudget.destinationName || "À définir"}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "accommodation" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Hébergement</span>
+                    <p className="text-xs text-muted-foreground">{liveBudget.topHotelName || "À définir"}</p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "accommodation" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Hébergement</span>
-                      <p className="text-xs text-muted-foreground">{liveBudget.topHotelName || "À définir"}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "transport" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Transport</span>
+                    <p className="text-xs text-muted-foreground">
+                      {liveBudget.transportPicksCount ? `${liveBudget.transportPicksCount} trajet(s) choisi(s)` : "À définir"}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "transport" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Transport</span>
-                      <p className="text-xs text-muted-foreground">
-                        {liveBudget.transportPicksCount ? `${liveBudget.transportPicksCount} trajet(s) choisi(s)` : "À définir"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "planning" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Planning</span>
+                    <p className="text-xs text-muted-foreground">{hasItinerary ? "Planning prêt" : "À définir"}</p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
+
+                <div className="pt-4 pb-2">
+                  <span className="text-xs font-semibold uppercase text-muted-foreground">Organisation</span>
                 </div>
-              </div>
 
-              {/* GROUPE 3 — Organisation */}
-              <div className="space-y-2 pt-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans border-t border-border/50 pt-4">
-                  Organisation
-                </h2>
-                <div className="divide-y divide-border/50 text-sm">
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "planning" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Planning</span>
-                      <p className="text-xs text-muted-foreground">{hasItinerary ? "Planning prêt" : "À définir"}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "tasks" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Tâches</span>
+                    <p className="text-xs text-muted-foreground">
+                      {tasksData?.length ? `${tasksData.length} tâche(s)` : "À préparer"}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "tasks" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Tâches</span>
-                      <p className="text-xs text-muted-foreground">
-                        {tasksData?.length ? `${tasksData.length} tâche(s)` : "À préparer"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "packing" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">À emporter</span>
+                    <p className="text-xs text-muted-foreground">Checklist personnalisée</p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
 
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "packing" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">À emporter</span>
-                      <p className="text-xs text-muted-foreground">Checklist personnalisée</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
-                </div>
+                <Link
+                  to="/trips/$tripId"
+                  params={{ tripId }}
+                  search={{ view: "voyage", section: "expenses" }}
+                  className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
+                >
+                  <div>
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Dépenses</span>
+                    <p className="text-xs text-muted-foreground">
+                      {liveBudget.total > 0 ? `~${formatEuro(liveBudget.total)} / pers.` : "À définir"}
+                    </p>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -1986,54 +1963,12 @@ function TripDetail() {
             <CalendarDays className="size-5 text-primary" />
             Dates du groupe
           </h2>
-          {datesLocked ? (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="hero" size="sm">
-                  <CalendarDays className="size-4" /> Ajouter au calendrier
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Ajouter au calendrier</DialogTitle>
-                  <DialogDescription>Choisis le calendrier que tu utilises.</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-2">
-                  <Button onClick={handleDownloadIcs} variant="outline">
-                    Apple / calendrier mobile (.ics)
-                  </Button>
-                  {googleCalendarUrl ? (
-                    <Button asChild variant="outline">
-                      <a href={googleCalendarUrl} target="_blank" rel="noreferrer">
-                        Google Calendar
-                      </a>
-                    </Button>
-                  ) : null}
-                  {outlookCalendarUrl ? (
-                    <Button asChild variant="outline">
-                      <a href={outlookCalendarUrl} target="_blank" rel="noreferrer">
-                        Outlook
-                      </a>
-                    </Button>
-                  ) : null}
-                  {office365CalendarUrl ? (
-                    <Button asChild variant="outline">
-                      <a href={office365CalendarUrl} target="_blank" rel="noreferrer">
-                        Microsoft 365
-                      </a>
-                    </Button>
-                  ) : null}
-                </div>
-              </DialogContent>
-            </Dialog>
-          ) : (
-            <a
-              href={`/trips/${tripId}/availability`}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              Voir le calendrier →
-            </a>
-          )}
+          <a
+            href={`/trips/${tripId}/availability`}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            Voir le calendrier →
+          </a>
         </div>
 
         {(availData as any)?.schemaMissing ? (
@@ -3318,8 +3253,405 @@ function TripDetail() {
         </section>
       ) : null}
 
+      {datesLocked ? (
+        <div className="mt-8">
+          <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="hero">
+                  <CalendarDays className="size-4" /> Ajouter au calendrier
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Ajouter au calendrier</DialogTitle>
+                  <DialogDescription>Choisis le calendrier que tu utilises.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2">
+                  <Button onClick={handleDownloadIcs} variant="outline">
+                    Apple / calendrier mobile (.ics)
+                  </Button>
+                  {googleCalendarUrl ? (
+                    <Button asChild variant="outline">
+                      <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
+                        Google Calendar
+                      </a>
+                    </Button>
+                  ) : null}
+                  {outlookCalendarUrl ? (
+                    <Button asChild variant="outline">
+                      <a href={outlookCalendarUrl} target="_blank" rel="noopener noreferrer">
+                        Outlook
+                      </a>
+                    </Button>
+                  ) : null}
+                  {office365CalendarUrl ? (
+                    <Button asChild variant="outline">
+                      <a href={office365CalendarUrl} target="_blank" rel="noopener noreferrer">
+                        Microsoft 365
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </section>
+        </div>
+      ) : null}
+
+      {/* Résumé + validation des dates */}
+
+      {/* 3. Planning jour par jour */}
+
+      {/* 4. Hôtels (vote groupe) */}
+
+      {/* 5. Transports — choix perso par ville */}
+
+      {(trip.celebrated_person ||
+        ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) && (
+        <section className="mt-8 space-y-4 rounded-3xl border border-amber-500/30 bg-amber-500/5 p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+              <Star className="size-5 text-amber-500 fill-amber-500" />
+              Préférences de la Star
+            </h2>
+            <a
+              href={`/trips/${tripId}/star`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {starData?.preferences ? "Modifier" : "Remplir"} →
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Les préférences de {trip.celebrated_person || "la Star"} sont prises en compte avec
+            celles du groupe.
+          </p>
+          {starData?.preferences ? (
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                <span className="font-medium text-foreground">
+                  {trip.celebrated_person || "Personne principale"}
+                </span>{" "}
+                — questionnaire enregistré
+              </p>
+              {(starData.preferences.wantedActivities?.length ?? 0) > 0 ? (
+                <p>✅ Envies : {starData.preferences.wantedActivities.join(", ")}</p>
+              ) : null}
+              {(starData.preferences.dealBreakers?.length ?? 0) > 0 ? (
+                <p>⛔ À éviter : {starData.preferences.dealBreakers.join(", ")}</p>
+              ) : null}
+              {(starData.preferences.ambiances?.length ?? 0) > 0 ? (
+                <p>✨ Ambiances : {starData.preferences.ambiances.join(", ")}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Les préférences de la Star n’ont pas encore été complétées.
+            </p>
+          )}
+        </section>
+      )}
+
+      <section
+        id="invite-section"
+        className="mt-8 space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+      >
+        {/* 1. Le groupe */}
+        <div>
+          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+            <Users className="size-5 text-primary" />
+            Le groupe
+          </h2>
+          {data.isOwner ? (
+            <form
+              className="mt-4 flex flex-wrap gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (email.trim()) inviteMutation.mutate();
+              }}
+            >
+              <Input
+                type="email"
+                placeholder="email@ami.fr"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="max-w-xs"
+              />
+              <Button type="submit" variant="hero" disabled={inviteMutation.isPending}>
+                <UserPlus /> Ajouter une adresse e-mail
+              </Button>
+            </form>
+          ) : null}
+
+          <ul className="mt-4 space-y-2">
+            {participants.length === 0 ? (
+              <li className="text-sm text-muted-foreground">
+                Personne n’a encore rejoint le groupe.
+              </li>
+            ) : (
+              participants.map((p) => {
+                const picks = (logistics.transportPicks ?? []) as any[];
+                const userPick = p.user_id
+                  ? picks.find((pk: any) => pk.userId === p.user_id)
+                  : null;
+                const city =
+                  progress?.participants?.find((pr: any) => pr.user_id === p.user_id)
+                    ?.departure_city ||
+                  p.departure_city ||
+                  userPick?.city ||
+                  null;
+                return (
+                  <li
+                    key={p.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between rounded-2xl border border-border bg-card p-4 gap-3"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium">
+                          {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
+                        </p>
+                        {p.user_id === trip.owner_id ? (
+                          <Badge
+                            variant="sun"
+                            className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                          >
+                            Organisateur·rice
+                          </Badge>
+                        ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                          <Badge variant="lagoon" className="gap-1 px-1.5 py-0 text-[10px]">
+                            Co-organisateur·rice
+                          </Badge>
+                        ) : null}
+                        {p.isStar ? (
+                          <Badge
+                            variant="sun"
+                            className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                          >
+                            <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
+                          </Badge>
+                        ) : null}
+                      </div>
+                      {p.email ? (
+                        <p className="text-sm text-muted-foreground mt-0.5">{p.email}</p>
+                      ) : null}
+                      {city || userPick ? (
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          {city ? (
+                            <span>
+                              📍 Départ : <strong className="text-foreground">{city}</strong>
+                            </span>
+                          ) : null}
+                          {userPick ? (
+                            <span>
+                              🚆 Trajet :{" "}
+                              <strong className="text-foreground">
+                                {userPick.modeLabel || userPick.mode} ({userPick.label})
+                              </strong>
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
+                      <Badge
+                        variant={
+                          p.status === "accepte"
+                            ? "success"
+                            : p.status === "absent"
+                              ? "destructive"
+                              : "muted"
+                        }
+                      >
+                        {p.status === "accepte" ? "Participe" : p.status}
+                      </Badge>
+                      {p.user_id === data.userId ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7 px-2"
+                          onClick={() => {
+                            const nextStatus =
+                              (p.status as string) === "absent" ? "accepte" : "absent";
+                            declareStatusMutation.mutate(nextStatus);
+                          }}
+                        >
+                          {(p.status as string) === "absent"
+                            ? "Participer à nouveau"
+                            : "Indiquer mon absence"}
+                        </Button>
+                      ) : null}
+                      {data.isCreator && p.user_id && p.user_id !== trip.owner_id && !p.isStar ? (
+                        p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-destructive hover:bg-destructive/5 h-7 px-2"
+                            disabled={setCoOrgMutation.isPending}
+                            onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
+                          >
+                            Retirer co-org
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-primary hover:bg-primary/5 h-7 px-2"
+                            disabled={setCoOrgMutation.isPending}
+                            onClick={() =>
+                              setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
+                            }
+                          >
+                            Nommer co-org
+                          </Button>
+                        )
+                      ) : null}
+                      {data.isOwner ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Retirer ${p.email}`}
+                          className="size-8"
+                          onClick={() => removeMutation.mutate(p.id)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </div>
+
+        <Separator />
+
+        {/* 2. Inviter de nouveaux participants */}
+        <div>
+          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+            <UserPlus className="size-5 text-primary" />
+            Inviter de nouveaux participants
+          </h2>
+          <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">
+              Partage ce lien pour permettre au groupe de rejoindre le voyage.
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Input readOnly value={shareUrl} className="max-w-md font-mono text-xs" />
+              <Button
+                type="button"
+                variant="hero"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    setShareCopied(true);
+                    toast.success("Lien copié");
+                    setTimeout(() => setShareCopied(false), 2000);
+                  } catch {
+                    toast.error("Impossible de copier le lien.");
+                  }
+                }}
+              >
+                {shareCopied ? <Check /> : <Copy />}
+                {shareCopied ? "Copié" : "Copier le lien"}
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+                onClick={() => {
+                  const text = buildWhatsAppInviteMessage();
+                  shareOnWhatsApp(text);
+                }}
+              >
+                WhatsApp
+              </Button>
+              {data.isOwner
+                ? (() => {
+                    const missingParticipants =
+                      progress?.participants?.filter(
+                        (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
+                      ) || [];
+                    return (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={missingParticipants.length === 0}
+                        className={
+                          missingParticipants.length === 0
+                            ? ""
+                            : "bg-amber-500 text-white hover:bg-amber-600 border-transparent"
+                        }
+                        onClick={() => {
+                          const text = buildWhatsAppRemindMessage();
+                          shareOnWhatsApp(text);
+                        }}
+                      >
+                        🔔{" "}
+                        {missingParticipants.length === 0
+                          ? "Tout le monde a répondu"
+                          : "Relancer le groupe"}
+                      </Button>
+                    );
+                  })()
+                : null}
+              {typeof navigator !== "undefined" &&
+              typeof (navigator as any).share === "function" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    (navigator as any).share({
+                      title: data.trip.name,
+                      text: `Rejoins mon voyage « ${data.trip.name} » sur KREW — ${shareUrl}`,
+                      url: shareUrl,
+                    })
+                  }
+                >
+                  <Link2 /> Partager
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </section>
           </div>
         )
+      ) : null}
+
+      {data.isOwner && (trip.status as string) !== "annule" ? (
+        <section className="mt-10 space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
+          <p className="mb-3 text-sm text-muted-foreground">Gestion du voyage</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="border-destructive/40 text-destructive"
+              disabled={cancelMutation.isPending}
+              onClick={() => {
+                if (window.confirm("Annuler ce voyage ? Il disparaîtra de la liste active.")) {
+                  cancelMutation.mutate(false);
+                }
+              }}
+            >
+              Annuler le voyage
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-destructive"
+              disabled={cancelMutation.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Supprimer définitivement ce voyage et toutes ses données ? Cette action est irréversible.",
+                  )
+                ) {
+                  cancelMutation.mutate(true);
+                }
+              }}
+            >
+              Supprimer définitivement
+            </Button>
+          </div>
+        </section>
       ) : null}
     </main>
   );
