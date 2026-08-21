@@ -319,7 +319,7 @@ function NextActionsPanel({
 
   if (actions.length === 0 && participantCaughtUp) {
     return (
-      <section className="rounded-3xl border border-sage/25 bg-sage/10 p-5 sm:p-6">
+      <section className="rounded-3xl border border-sage/25 bg-sage/12 p-5 sm:p-6 shadow-xs">
         <div className="flex gap-3.5 items-start">
           <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 size-6 shrink-0" />
           <div>
@@ -347,91 +347,94 @@ function NextActionsPanel({
   const secondaryActions = actions.filter((a) => a !== primaryAction);
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
-            Tes prochaines actions
-          </h2>
-          <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-80" />
+    <div className="rounded-3xl border border-sage/25 bg-sage/12 overflow-hidden shadow-xs">
+      <KrewSectionWave position="top" tone="sage" className="text-sage/25" />
+      <section className="p-5 sm:p-7 space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/70 font-sans">
+              Tes prochaines actions
+            </h2>
+            <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-90" />
+          </div>
         </div>
-      </div>
 
-      {waitingOnOthers ? (
-        <div className="rounded-2xl border border-border/80 bg-muted/40 px-4 py-3 text-sm text-foreground/90 font-sans">
-          De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
-          l&apos;organisateur·rice.
-        </div>
-      ) : null}
-
-      <div className="space-y-3">
-        {primaryAction ? (
-          (() => {
-            const Tag = primaryAction.href ? "a" : "div";
-            return (
-              <Tag
-                key={primaryAction.key}
-                {...(primaryAction.href ? { href: primaryAction.href } : {})}
-                className={cn(
-                  "group flex items-center justify-between gap-4 rounded-2xl border border-sage/35 bg-sage/10 p-4 sm:p-5 transition hover:border-primary/50 shadow-xs",
-                  primaryAction.href && "cursor-pointer",
-                )}
-              >
-                <div className="flex items-start gap-3.5 min-w-0">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-                    <primaryAction.icon className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-sans font-semibold text-foreground group-hover:text-primary transition-colors">
-                      {primaryAction.title}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
-                      {primaryAction.desc}
-                    </p>
-                  </div>
-                </div>
-                {primaryAction.href ? (
-                  <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
-                ) : null}
-              </Tag>
-            );
-          })()
+        {waitingOnOthers ? (
+          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
+            De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
+            l&apos;organisateur·rice.
+          </div>
         ) : null}
 
-        {secondaryActions.length > 0 ? (
-          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-3">
-            {secondaryActions.map((a) => {
-              const Tag = a.href ? "a" : "div";
+        <div className="space-y-3">
+          {primaryAction ? (
+            (() => {
+              const Tag = primaryAction.href ? "a" : "div";
               return (
                 <Tag
-                  key={a.key}
-                  {...(a.href ? { href: a.href } : {})}
+                  key={primaryAction.key}
+                  {...(primaryAction.href ? { href: primaryAction.href } : {})}
                   className={cn(
-                    "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
-                    a.href && "cursor-pointer",
+                    "group flex items-center justify-between gap-4 rounded-2xl border border-sage/40 bg-card p-4 sm:p-5 transition hover:border-primary/50 shadow-xs",
+                    primaryAction.href && "cursor-pointer",
                   )}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
-                      <a.icon className="size-4" />
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                      <primaryAction.icon className="size-5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {a.title}
+                      <p className="font-sans font-semibold text-foreground group-hover:text-primary transition-colors">
+                        {primaryAction.title}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                        {primaryAction.desc}
+                      </p>
                     </div>
                   </div>
-                  {a.href ? (
-                    <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  {primaryAction.href ? (
+                    <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
                   ) : null}
                 </Tag>
               );
-            })}
-          </div>
-        ) : null}
-      </div>
-    </section>
+            })()
+          ) : null}
+
+          {secondaryActions.length > 0 ? (
+            <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-3 shadow-2xs">
+              {secondaryActions.map((a) => {
+                const Tag = a.href ? "a" : "div";
+                return (
+                  <Tag
+                    key={a.key}
+                    {...(a.href ? { href: a.href } : {})}
+                    className={cn(
+                      "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
+                      a.href && "cursor-pointer",
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
+                        <a.icon className="size-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                          {a.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
+                      </div>
+                    </div>
+                    {a.href ? (
+                      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                    ) : null}
+                  </Tag>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -478,20 +481,20 @@ export function TripHubDashboard({
   const theme = eventTypeLabel(trip.event_type);
 
   return (
-    <div className="space-y-6">
-      {/* TRIP CONTEXT / HERO COVER */}
+    <div className="space-y-7 sm:space-y-8">
+      {/* TRIP CONTEXT / HERO COVER IMMERSIF */}
       <header className="relative overflow-hidden rounded-[28px] sm:rounded-[32px] bg-surface border border-border/60 shadow-xs">
         <KrewMark
           type="circle"
           tone="sage"
           size="lg"
           rotation={4}
-          className="absolute -top-5 -right-5 w-[110px] sm:w-[130px] opacity-40 pointer-events-none z-10"
+          className="absolute -top-6 -right-6 w-[130px] sm:w-[150px] opacity-40 pointer-events-none z-10"
         />
 
         <div className="grid lg:grid-cols-12 gap-0">
-          {/* Cover Photo Block - prominent on Desktop, full width top on Mobile */}
-          <div className="lg:col-span-5 order-first lg:order-last relative h-52 sm:h-64 lg:h-auto min-h-[200px] overflow-hidden border-b lg:border-b-0 lg:border-l border-border/50">
+          {/* Cover Photo Block — Immersive sur Mobile (full width top, h-60/72) & Desktop (col-5) */}
+          <div className="lg:col-span-5 order-first lg:order-last relative h-60 sm:h-72 lg:h-auto min-h-[240px] sm:min-h-[280px] overflow-hidden border-b lg:border-b-0 lg:border-l border-border/50">
             <img
               src={heroImageForEvent(trip.event_type)}
               alt=""
@@ -506,7 +509,7 @@ export function TripHubDashboard({
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
                 {theme}
               </p>
-              <h1 className="font-display text-[36px] sm:text-[44px] lg:text-[48px] font-normal leading-[0.98] tracking-tight text-foreground">
+              <h1 className="font-display text-[38px] sm:text-[46px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
                 {trip.name}
               </h1>
 
@@ -537,19 +540,20 @@ export function TripHubDashboard({
               ) : null}
             </div>
 
+            {/* Barre de métadonnées secondaires : icônes neutres (text-muted-foreground) pour sélectivité du Prune */}
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-3 border-t border-border/40">
               <span className="inline-flex items-center gap-1.5 font-sans">
-                <Users className="size-3.5 text-primary shrink-0" />
+                <Users className="size-3.5 text-muted-foreground shrink-0" />
                 <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
               </span>
 
               {totalReserved != null && totalEstimated != null ? (
                 <span className="inline-flex items-center gap-1.5 font-mono">
-                  <Wallet className="size-3.5 text-primary shrink-0" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
+                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
                 </span>
               ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
                 <span className="inline-flex items-center gap-1.5 font-mono">
-                  <Wallet className="size-3.5 text-primary shrink-0" /> ~{formatEuro(liveBudgetTotal)} / pers.
+                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> ~{formatEuro(liveBudgetTotal)} / pers.
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5">
@@ -559,7 +563,7 @@ export function TripHubDashboard({
 
               {datesLocked && (trip.start_date || provisionalStart) ? (
                 <span className="inline-flex items-center gap-1.5 font-mono text-foreground font-medium">
-                  <CalendarDays className="size-3.5 text-primary shrink-0" />
+                  <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
                   <span className="text-primary font-sans font-medium">Dates validées</span> · {trip.start_date
                     ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
                         day: "numeric",
@@ -586,7 +590,7 @@ export function TripHubDashboard({
         </div>
       </header>
 
-      {/* Prochaines actions prioritaires */}
+      {/* Zone Sauge "Tes prochaines actions" avec Vague de surface */}
       <NextActionsPanel
         tripId={tripId}
         isOwner={isOwner}
@@ -609,9 +613,6 @@ export function TripHubDashboard({
         transportOffersReady={transportOffersReady}
         hasItinerary={hasItinerary}
       />
-
-      {/* Transition visuelle entre la zone hero+actions et le contenu inférieur */}
-      <KrewSectionWave tone="sage" className="my-4 sm:my-6" />
 
       {children}
     </div>
