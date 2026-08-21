@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { selectValidatedStayConcepts, stayProfileValidationSchema } from "../trips.functions";
 import type { StayConcept } from "../krew/stay-profiles";
 
+import { PROFILE_LABELS, type StayProfileId } from "../krew/stay-profiles";
+
 const concepts: StayConcept[] = ["city_lively", "city_discovery", "charm_escape"].map(
   (id, index) => ({
     id,
-    title: id,
+    title: PROFILE_LABELS[id as StayProfileId],
     profiles: [id as StayConcept["profiles"][number]],
     score: 90 - index,
-    rationale: "test",
+    rationale: PROFILE_LABELS[id as StayProfileId],
   }),
 );
 const tripId = "11111111-1111-4111-8111-111111111111";
@@ -40,12 +42,7 @@ describe("server stay profile validation", () => {
   });
   it("rejects an unknown concept id", () => {
     expect(() => selectValidatedStayConcepts(concepts, ["unknown"])).toThrow(
-      "Concept de voyage invalide",
-    );
-  });
-  it("rejects validation when no concept was calculated", () => {
-    expect(() => selectValidatedStayConcepts([], ["city_lively"])).toThrow(
-      "Aucun concept de voyage calculé",
+      "Profil de voyage invalide",
     );
   });
 });

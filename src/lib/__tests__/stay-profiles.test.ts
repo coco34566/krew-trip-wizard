@@ -40,7 +40,7 @@ describe("stay profile discovery", () => {
         "city_discovery",
       ),
     ).toBeGreaterThan(65));
-  it("combines house, region and charm instead of taking three raw scores", () => {
+  it("selects top canonical profiles without composite titles", () => {
     const concepts = buildStayConcepts(
       calculateStayProfileAffinities({
         wantedEnvType: "Village de charme, Nature",
@@ -51,9 +51,11 @@ describe("stay profile discovery", () => {
         accommodationRole: "centerpiece",
       }),
     );
+    expect(concepts.length).toBeGreaterThan(0);
+    expect(concepts.every((c) => c.profiles.length === 1)).toBe(true);
     expect(
       concepts.some(
-        (c) => c.profiles.includes("house_together") && c.profiles.includes("regional_explorer"),
+        (c) => c.profiles[0] === "house_together" || c.profiles[0] === "regional_explorer" || c.profiles[0] === "charm_escape",
       ),
     ).toBe(true);
   });
@@ -171,7 +173,7 @@ describe("stay profile discovery", () => {
             "wellness_slow",
           ] as const
         ).map((id) => ({ id, score: 0, evidence: [] })),
-      ]),
+      ], 1),
     ).toHaveLength(1));
   it("continues cleanly when property search is unavailable", async () => {
     const previous = process.env["SERPER_API_KEY"];

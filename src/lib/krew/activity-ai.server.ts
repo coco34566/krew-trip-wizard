@@ -3,6 +3,7 @@ import {
   isSafeActivityUrl,
   type ActivityCandidate,
 } from "@/lib/krew/activity-discovery.server";
+import type { StayProfileId } from "@/lib/krew/stay-profiles";
 import { reportServerError } from "@/lib/server-error-reporting.server";
 import {
   type GeoapifyPlace,
@@ -302,7 +303,7 @@ export type ActivityAiInput = {
   ambianceFrequencies?: Record<string, number> | undefined;
   dealBreakerAmbiances?: string[] | undefined;
   starDealBreakers?: string[] | undefined;
-  validatedTripProfiles?: string[] | undefined;
+  validatedTripProfiles?: StayProfileId[] | undefined;
   verifiedLodgingAmenities?: string[] | undefined;
   localMobility?: string | null | undefined;
 };
@@ -370,7 +371,7 @@ export type PlanningBrief = {
   nights: number;
   participants: number;
   eventType?: string | null;
-  validatedTripProfiles: string[];
+  validatedTripProfiles: StayProfileId[];
   dayWindows: DayWindow[];
   mandatoryNeeds: MandatoryNeed[];
   preferenceSignals: {
@@ -1069,16 +1070,11 @@ export function haversineDistanceKm(
 }
 
 function geographyPolicy(input: ActivityAiInput) {
-  const profileText = norm(
-    [
-      input.tripProfile,
-      ...input.ambiances,
-      ...(input.wantedEnvTypes ?? []),
-      input.groupAccommodationRole,
-    ].join(" "),
+  const profiles = (input.validatedTripProfiles ?? [input.tripProfile]).filter(
+    (x): x is StayProfileId => Boolean(x) && typeof x === "string",
   );
 
-  if (/maison|villa|chill|cocoon|logement|centerpiece/.test(profileText)) {
+  if (profiles.includes("house_together") || input.groupAccommodationRole === "centerpiece") {
     return { maxKm: 8, profile: "home" as const };
   }
 
@@ -1087,7 +1083,7 @@ function geographyPolicy(input: ActivityAiInput) {
     return { maxKm: 30, profile: "regional" as const };
   }
 
-  if (/nature|sport|outdoor|aventure|montagne|lac/.test(profileText)) {
+  if (profiles.includes("outdoor_active") || profiles.includes("nature_disconnect")) {
     return { maxKm: 30, profile: "outdoor" as const };
   }
 
@@ -1417,10 +1413,10 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
 
   const maxActivitiesPerDay = travelPace === "leger" ? 1 : travelPace === "intense" ? 3 : 2;
 
-  const validatedTripProfiles =
+  const validatedTripProfiles: StayProfileId[] =
     input.validatedTripProfiles?.length
       ? input.validatedTripProfiles
-      : [input.tripProfile].filter((x): x is string => Boolean(x));
+      : [input.tripProfile].filter((x): x is StayProfileId => Boolean(x));
 
   return {
     destination: input.destination,
@@ -1570,12 +1566,14 @@ export function buildMinimalFallbackFromBrief(brief: PlanningBrief): KrewSkeleto
     }
 
     const maxActs = brief.planningRules.maxActivitiesPerDay;
-    const isHomeProfile = /maison|cocoon|chill|logement/.test(
-      norm([brief.destination, ...brief.validatedTripProfiles].join(" "))
-    );
+    const isHomeProfile =
+      brief.validatedTripProfiles.includes("house_together") ||
+      brief.planningRules.accommodationRole === "centerpiece";
 
     const categories = Object.keys(brief.preferenceSignals.activityCategoryFrequencies || {}).map(norm);
-    const wantsSport = /sport|outdoor|montagne|rando|kayak|randonnee/.test(categories.join(" "));
+    const wantsSport =
+      brief.validatedTripProfiles.includes("outdoor_active") ||
+      /sport|outdoor|montagne|rando|kayak|randonnee/.test(categories.join(" "));
 
     if (isHomeProfile) {
       if (dw.day === 1) {

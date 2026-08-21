@@ -211,9 +211,7 @@ export function buildTripSteps(input: {
   let availDone = input.availabilityAnswered >= minAnswers;
   let questDone = input.questionnaireAnswered >= minAnswers;
   let datesDone = Boolean(input.datesLocked);
-  let profileDone = Boolean(
-    input.profileValidated || input.hasRecommendations || input.destinationSelected,
-  );
+  let profileDone = Boolean(input.profileValidated);
   let destDone = Boolean(input.destinationSelected);
   let hotelDone = Boolean(input.hotelVoted);
   let transportDone = Boolean(input.transportPicked);
@@ -239,6 +237,12 @@ export function buildTripSteps(input: {
   }
   if (hotelDone) destDone = true;
   if (destDone) {
+    profileDone = true;
+    datesDone = true;
+    questDone = true;
+    availDone = true;
+  }
+  if (input.hasRecommendations) {
     profileDone = true;
     datesDone = true;
     questDone = true;

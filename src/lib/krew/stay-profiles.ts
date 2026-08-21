@@ -36,7 +36,7 @@ export type StayConcept = {
 };
 export type DiscoveryBranch = "urban" | "regional" | "property_led" | "outdoor";
 
-const PROFILE_LABELS: Record<StayProfileId, string> = {
+export const PROFILE_LABELS: Record<StayProfileId, string> = {
   city_lively: "City trip animé",
   city_discovery: "City trip découverte",
   charm_escape: "Escapade de charme",
@@ -197,51 +197,14 @@ export function aggregateStayProfiles(preferences: StayProfilePreference[]): Pro
   }).sort((a, b) => b.score - a.score);
 }
 
-const COMBINATIONS: Array<{ profiles: StayProfileId[]; title: string }> = [
-  {
-    profiles: ["house_together", "regional_explorer", "charm_escape"],
-    title: "Une grande maison dans une belle région à explorer",
-  },
-  { profiles: ["nature_disconnect", "outdoor_active"], title: "Nature, activités & déconnexion" },
-  {
-    profiles: ["city_lively", "city_discovery"],
-    title: "Une ville vivante à découvrir de jour comme de nuit",
-  },
-  {
-    profiles: ["exceptional_experience", "house_together", "wellness_slow"],
-    title: "Un lieu exceptionnel rien que pour vous",
-  },
-  { profiles: ["wellness_slow", "nature_disconnect"], title: "Une parenthèse douce au vert" },
-];
-
 export function buildStayConcepts(affinities: ProfileAffinity[], max = 3): StayConcept[] {
-  const byId = new Map(affinities.map((a) => [a.id, a.score]));
-  const combinations = COMBINATIONS.map((c) => ({
-    ...c,
-    score: Math.round(c.profiles.reduce((s, id) => s + (byId.get(id) ?? 0), 0) / c.profiles.length),
-    id: c.profiles.join("+"),
-  })).filter((c) => c.score >= 48);
-  const singles = affinities
-    .filter((a) => a.score >= 58)
-    .map((a) => ({ id: a.id, profiles: [a.id], title: PROFILE_LABELS[a.id], score: a.score }));
-  const candidates = [...combinations, ...singles].sort((a, b) => b.score - a.score);
-  const selected: typeof candidates = [];
-  for (const candidate of candidates) {
-    if (
-      selected.some(
-        (s) =>
-          s.profiles.length === candidate.profiles.length &&
-          s.profiles.every((p) => candidate.profiles.includes(p)),
-      )
-    )
-      continue;
-    if (selected.length && candidate.score < selected[0]!.score - 24) continue;
-    selected.push(candidate);
-    if (selected.length === max) break;
-  }
-  return selected.map((c) => ({
-    ...c,
-    rationale: c.profiles.map((id) => PROFILE_LABELS[id]).join(" + "),
+  const sorted = [...affinities].sort((a, b) => b.score - a.score);
+  return sorted.slice(0, max).map((a) => ({
+    id: a.id,
+    profiles: [a.id],
+    title: PROFILE_LABELS[a.id],
+    score: a.score,
+    rationale: a.evidence.join(" · ") || PROFILE_LABELS[a.id],
   }));
 }
 
