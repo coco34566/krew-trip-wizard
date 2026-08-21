@@ -263,3 +263,71 @@ export async function discoverActivities(input: ActivityDiscoveryInput): Promise
     return { candidates: [], days: [], cached: false, error: String(error).slice(0, 180) };
   }
 }
+
+export async function findIdeasResourceForActivity(options: {
+  label: string;
+  searchIntent?: string | null;
+  eventType?: string | null;
+}): Promise<string | null> {
+  const { label, searchIntent, eventType } = options;
+  const textNorm = norm(`${label} ${searchIntent ?? ""}`);
+
+  // Do not perform web search for simple apéro / rest / generic house moments
+  if (!/jeu|quiz|mariée|mariee|marié|marie|défi|defi|blind test|chasse aux/i.test(textNorm)) {
+    return null;
+  }
+
+  const tavilyKey = process.env["TAVILY_API_KEY"];
+  if (!tavilyKey) return null;
+
+  const eventLabel = norm(eventType || "").includes("evjf")
+    ? "EVJF"
+    : norm(eventType || "").includes("evg")
+      ? "EVG"
+      : norm(eventType || "").includes("anniversaire")
+        ? "anniversaire"
+        : "groupe";
+
+  const query = `${label} règles idées animations ${eventLabel}`.trim();
+
+  try {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilyKey}` },
+      body: JSON.stringify({
+        query,
+        search_depth: "basic",
+        auto_parameters: false,
+        topic: "general",
+        max_results: 5,
+        include_answer: false,
+        include_raw_content: false,
+        include_images: false,
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const payload = await response.json();
+    const results = Array.isArray(payload?.results) ? (payload.results as TavilyResult[]) : [];
+
+    for (const res of results) {
+      if (!res?.url || !isSafeActivityUrl(res.url)) continue;
+      const lower = res.url.toLowerCase();
+      if (
+        lower.includes("google.com") ||
+        lower.includes("tripadvisor") ||
+        lower.includes("facebook.com") ||
+        lower.includes("instagram.com")
+      ) {
+        continue;
+      }
+      return res.url;
+    }
+
+    return null;
+  } catch (error) {
+    reportServerError(error, { provider: "tavily", kind: "ideas-resource-search", label });
+    return null;
+  }
+}

@@ -7,6 +7,7 @@ import {
   generateRecommendationsForTrip,
   tripInputSchema,
 } from "@/lib/krew/trip-service";
+import { resolveActivityResourceUrl } from "@/lib/krew/activity-ai.server";
 import { PROFILE_LABELS, STAY_PROFILE_IDS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 
 function normalizeStayConcepts(concepts: any[]): StayConcept[] {
@@ -2348,7 +2349,32 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       const slots: import("@/lib/krew/activity-ai.server").ActivitySlot[] = [];
 
       for (const s of day.slots) {
-        if (s.kind === "internal") {
+        const mode = import("@/lib/krew/activity-ai.server").classifyActivityMode({
+          kind: s.kind,
+          category: s.category,
+          venueFamily: s.venueFamily,
+          searchIntent: s.searchIntent,
+          label: s.label,
+        });
+
+        if (s.kind === "internal" || mode === "self_guided_group" || mode === "free_exploration") {
+          let ideasUrl: string | null = null;
+          let ideasKind: "ideas" | null = null;
+
+          if (mode === "self_guided_group") {
+            const { findIdeasResourceForActivity } = await import("@/lib/krew/activity-discovery.server");
+            const foundUrl = await findIdeasResourceForActivity({
+              label: s.label,
+              searchIntent: s.searchIntent,
+              eventType: trip.event_type,
+            });
+            if (foundUrl) {
+              const resLink = resolveActivityResourceUrl(foundUrl, { kindHint: "ideas" });
+              ideasUrl = resLink.url;
+              ideasKind = resLink.resourceKind === "ideas" ? "ideas" : null;
+            }
+          }
+
           slots.push({
             moment: s.moment,
             time: s.time,
@@ -2359,9 +2385,11 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             label: s.label,
             detail: s.detail,
             locationContext: s.locationContext,
+            activityMode: mode === "free_exploration" ? "free_exploration" : "self_guided_group",
             verified: false,
             source: "krew",
-            url: null,
+            url: ideasUrl,
+            resourceKind: ideasKind,
           });
 
           // Reset spatial reference to lodging ONLY when locationContext === "lodging"
@@ -2464,7 +2492,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               s.detail ||
               s.searchIntent ||
               "Lieu sélectionné par KREW",
-            url: matchedPlace.website || null,
+            ...resolveActivityResourceUrl(matchedPlace.website, { kindHint: "website" }),
+            activityMode: mode,
             candidateId: matchedPlace.id,
             verified: true,
             source: "geoapify",
@@ -2768,7 +2797,8 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         ...current,
         label: matchedCandidate.name,
         detail: matchedCandidate.address || current.detail || "Lieu sélectionné par KREW",
-        url: matchedCandidate.website || null,
+        ...resolveActivityResourceUrl(matchedCandidate.website, { kindHint: "website" }),
+        activityMode: "bookable",
         candidateId: matchedCandidate.id,
         verified: true,
         source: "geoapify",

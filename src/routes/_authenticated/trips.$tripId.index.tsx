@@ -2994,10 +2994,14 @@ function TripDetail() {
                                 <a
                                   href={slot.url}
                                   target="_blank"
-                                  rel="noreferrer"
+                                  rel="noopener noreferrer"
                                   className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
                                 >
-                                  Voir ou réserver →
+                                  {slot.resourceKind === "booking"
+                                    ? "Voir / réserver →"
+                                    : slot.resourceKind === "ideas"
+                                      ? "Voir les idées →"
+                                      : "Voir le lieu →"}
                                 </a>
                               ) : null}
                             </div>
