@@ -211,6 +211,19 @@ function normalizeText(value: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+const DESCRIPTIVE_STOP_WORDS = new Set([
+  "montagne", "famille", "proximite", "proximité", "pied", "vue", "calme", "nature",
+  "lac", "mer", "campagne", "foret", "forêt", "centre", "gare", "plage", "pistes", "ski",
+  "domaine", "village", "ville", "hauteur", "hauteurs", "bord", "bords", "coeur", "cœur",
+  "cote", "côte", "baie", "vallee", "vallée", "massif", "parc", "jardin", "terrasse",
+  "piscine", "spa", "sauna", "jacuzzi", "wifi", "parking", "saison", "ete", "été", "hiver",
+  "louer", "partir", "disposition", "souhait", "volonte", "volonté", "la", "le", "les",
+  "un", "une", "des", "du", "de", "d", "en", "dans", "sur", "sous", "pres", "près",
+  "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix", "personnes",
+  "chambres", "lits", "groupe", "semaine", "nuit", "nuits", "seul", "privatif", "coteau",
+  "vapeur", "manger", "traiter", "venir", "savoir"
+]);
+
 function isExplicitlyOutsideDestination(
   blob: string,
   specification: AccommodationSearchSpecification,
@@ -222,29 +235,10 @@ function isExplicitlyOutsideDestination(
     return false;
   }
 
-  const stopWords = new Set([
-    "louer", "partir", "proximite", "cote", "coteau", "la", "le", "les", "des", "du",
-    "un", "une", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix",
-    "pied", "vapeur", "manger", "traiter", "venir", "savoir", "privatif", "seul",
-    "partager", "plusieurs", "moins", "disposition", "souhait", "volonte"
-  ]);
-
-  if (/\b\d{5}\b/.test(normBlob)) {
-    return true;
-  }
-
-  const locMatches = normBlob.matchAll(/\b(?:a|à|in|en|situe a|situee a|situé à|située à)\s+([a-z0-9'-]{3,})/gi);
+  const locMatches = normBlob.matchAll(/\b(?:a|à|in|situe a|situee a|situé à|située à)\s+(?:la|le|les|l'|d'|du)?\s*([a-z0-9'-]{3,})/gi);
   for (const match of locMatches) {
     const locality = match[1]?.toLowerCase();
-    if (locality && !stopWords.has(locality) && locality !== normDest) {
-      return true;
-    }
-  }
-
-  const locWithArticleMatches = normBlob.matchAll(/\b(?:a|à|in|en)\s+(?:la|le|les|l'|d'|du)\s+([a-z0-9'-]{3,})/gi);
-  for (const match of locWithArticleMatches) {
-    const locality = match[1]?.toLowerCase();
-    if (locality && !stopWords.has(locality) && locality !== normDest) {
+    if (locality && !DESCRIPTIVE_STOP_WORDS.has(locality) && locality !== normDest) {
       return true;
     }
   }

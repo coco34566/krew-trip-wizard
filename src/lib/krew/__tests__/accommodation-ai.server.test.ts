@@ -273,23 +273,25 @@ it("préserve transports et nettoie seulement les références hôtel obsolètes
   expect(merged.selectedHotelId).toBeNull();
 });
 
-it("TEST A — Gérardmer rejeté pour Annecy", () => {
-  const specAnnecy: AccommodationSearchSpecification = {
-    ...spec,
-    destination: { name: "Annecy", country: "France" },
-    searchStrategies: [
-      {
-        concept: "chalet",
-        score: 80,
-        priority: 1,
-        resultsWanted: 5,
-        propertyTypes: ["chalet"],
-        mustHave: [],
-        preferred: [],
-      },
-    ],
-    requiredAmenities: [],
-  };
+const specAnnecyNature: AccommodationSearchSpecification = {
+  ...spec,
+  destination: { name: "Annecy", country: "France" },
+  searchStrategies: [
+    {
+      concept: "nature_stay",
+      score: 80,
+      priority: 1,
+      resultsWanted: 5,
+      propertyTypes: ["chalet", "gite"],
+      mustHave: [],
+      preferred: [],
+    },
+  ],
+  locationIntent: { mode: "regional_flexible", priority: "preferred", carAccepted: true },
+  requiredAmenities: [],
+};
+
+it("CAS A — mauvaise destination évidente (Gérardmer pour Annecy)", () => {
   const tavilyPayload = {
     results: [
       {
@@ -300,26 +302,10 @@ it("TEST A — Gérardmer rejeté pour Annecy", () => {
       },
     ],
   };
-  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecy)).toEqual([]);
+  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature)).toEqual([]);
 });
 
-it("TEST B — La Toussuire rejetée pour Annecy", () => {
-  const specAnnecy: AccommodationSearchSpecification = {
-    ...spec,
-    destination: { name: "Annecy", country: "France" },
-    searchStrategies: [
-      {
-        concept: "gite",
-        score: 80,
-        priority: 1,
-        resultsWanted: 5,
-        propertyTypes: ["gite"],
-        mustHave: [],
-        preferred: [],
-      },
-    ],
-    requiredAmenities: [],
-  };
+it("CAS B — autre destination alpine évidente (La Toussuire pour Annecy)", () => {
   const tavilyPayload = {
     results: [
       {
@@ -330,26 +316,10 @@ it("TEST B — La Toussuire rejetée pour Annecy", () => {
       },
     ],
   };
-  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecy)).toEqual([]);
+  expect(normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature)).toEqual([]);
 });
 
-it("TEST C — un résultat qui mentionne Annecy reste accepté", () => {
-  const specAnnecy: AccommodationSearchSpecification = {
-    ...spec,
-    destination: { name: "Annecy", country: "France" },
-    searchStrategies: [
-      {
-        concept: "chalet",
-        score: 80,
-        priority: 1,
-        resultsWanted: 5,
-        propertyTypes: ["chalet"],
-        mustHave: [],
-        preferred: [],
-      },
-    ],
-    requiredAmenities: [],
-  };
+it("CAS C — destination exacte (Annecy)", () => {
   const tavilyPayload = {
     results: [
       {
@@ -360,28 +330,12 @@ it("TEST C — un résultat qui mentionne Annecy reste accepté", () => {
       },
     ],
   };
-  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecy);
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
   expect(results).toHaveLength(1);
   expect(results[0]?.location.city).toBeNull();
 });
 
-it("TEST D — résultat sans localisation explicite", () => {
-  const specAnnecy: AccommodationSearchSpecification = {
-    ...spec,
-    destination: { name: "Annecy", country: "France" },
-    searchStrategies: [
-      {
-        concept: "chalet",
-        score: 80,
-        priority: 1,
-        resultsWanted: 5,
-        propertyTypes: ["chalet"],
-        mustHave: [],
-        preferred: [],
-      },
-    ],
-    requiredAmenities: [],
-  };
+it("CAS D — localisation inconnue", () => {
   const tavilyPayload = {
     results: [
       {
@@ -392,12 +346,60 @@ it("TEST D — résultat sans localisation explicite", () => {
       },
     ],
   };
-  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecy);
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
   expect(results).toHaveLength(1);
   expect(results[0]?.location.city).toBeNull();
 });
 
-it("TEST E — le prompt Gemini conserve bien la destination", async () => {
+it("CAS E — commune voisine autorisée (Talloires / Sevrier)", () => {
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Chalet de luxe avec spa à Talloires",
+        url: "https://example.com/talloires",
+        content: "Chalet au calme à Talloires sur le lac d'Annecy",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("CAS F — code postal (non rejeté uniquement à cause du code postal)", () => {
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Location Chalet 74290 Talloires 8 personnes",
+        url: "https://example.com/talloires-74290",
+        content: "Gîte situé à Talloires 74290 près du lac d'Annecy",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("CAS G — faux signal linguistique (en montagne, en famille, à proximité)", () => {
+  const tavilyPayload = {
+    results: [
+      {
+        title: "Chalet en montagne pour la famille à proximité des pistes",
+        url: "https://example.com/chalet-famille",
+        content: "Superbe gîte à pied du village",
+        score: 0.9,
+      },
+    ],
+  };
+  const results = normalizeTavilyAccommodationResults(tavilyPayload, specAnnecyNature);
+  expect(results).toHaveLength(1);
+  expect(results[0]?.location.city).toBeNull();
+});
+
+it("CAS H — le prompt Gemini conserve bien la destination", async () => {
   process.env["GEMINI_API_KEY"] = "test";
   process.env["TAVILY_API_KEY"] = "test-tavily-key";
   const tavilyResult = { results: [] };
