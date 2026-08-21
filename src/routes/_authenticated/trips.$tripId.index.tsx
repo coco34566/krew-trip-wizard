@@ -79,7 +79,7 @@ import {
   TRIP_STATUS_LABELS,
 } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
-import type { StayConcept } from "@/lib/krew/stay-profiles";
+import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
@@ -484,9 +484,15 @@ function TripDetail() {
       }
     | undefined;
   useEffect(() => {
-    if (!profile || profile.validated) return;
-    setSelectedConceptIds(profile.calculatedConcepts.slice(0, 3).map((concept) => concept.id));
-  }, [profile?.validated, JSON.stringify(profile?.calculatedConcepts ?? [])]);
+    if (!profile) return;
+    if (profile.selectedConcepts?.length > 0) {
+      setSelectedConceptIds((prev) => (prev.length > 0 ? prev : profile.selectedConcepts.map((c) => c.id)));
+    } else {
+      setSelectedConceptIds((prev) =>
+        prev.length > 0 ? prev : profile.calculatedConcepts.slice(0, 3).map((concept) => concept.id),
+      );
+    }
+  }, [profile?.validated, JSON.stringify(profile?.selectedConcepts ?? []), JSON.stringify(profile?.calculatedConcepts ?? [])]);
 
   const validateProfileMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
@@ -740,7 +746,7 @@ function TripDetail() {
     mutationFn: (payload: { start: string; end: string }) =>
       chooseDatesFn({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
     onSuccess: () => {
-      toast.success("Dates validées — les recherches destinations peuvent démarrer");
+      toast.success("Dates validées — choisis maintenant le profil du voyage");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
@@ -1824,7 +1830,7 @@ function TripDetail() {
                     <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Profil du voyage</span>
                     <p className="text-xs text-muted-foreground">
                       {profile?.selectedConcepts?.length
-                        ? profile.selectedConcepts.map((c) => c.title).join(" · ")
+? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
                         : profile?.validated
                           ? "Profil validé"
                           : "À définir"}
@@ -2131,14 +2137,34 @@ function TripDetail() {
         id="hub-profile"
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
       >
-        <div>
-          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-            <Sparkles className="size-5 text-primary" />
-            Profil du voyage
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            KREW rassemble les préférences du groupe pour préparer les prochaines propositions.
-          </p>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+              <Sparkles className="size-5 text-primary" />
+              Profil du voyage
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sélectionne 1 à 3 profils KREW qui correspondent au séjour du groupe.
+            </p>
+          </div>
+          {profile?.validated && data.isOwner && !destinationSelected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Re-open profile selection
+                queryClient.setQueryData(queryKey, (old: any) => ({
+                  ...old,
+                  profile: { ...old.profile, validated: false },
+                }));
+                if (profile?.selectedConcepts?.length) {
+                  setSelectedConceptIds(profile.selectedConcepts.map((c) => c.id));
+                }
+              }}
+            >
+              Modifier les profils
+            </Button>
+          ) : null}
         </div>
         {!readiness?.profile.questionnairesReady && !profile?.legacyBypass ? (
           <p className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
@@ -2149,6 +2175,8 @@ function TripDetail() {
             {(profile?.calculatedConcepts ?? readiness?.profile.calculatedConcepts ?? [])
               .slice(0, 3)
               .map((concept: StayConcept) => {
+                const profileId = concept.id as StayProfileId;
+                const label = PROFILE_LABELS[profileId] || concept.title;
                 const selected = profile?.validated
                   ? profile.selectedConcepts.some((item) => item.id === concept.id)
                   : selectedConceptIds.includes(concept.id);
@@ -2162,7 +2190,9 @@ function TripDetail() {
                       setSelectedConceptIds((ids) =>
                         ids.includes(concept.id)
                           ? ids.filter((id) => id !== concept.id)
-                          : [...ids, concept.id],
+                          : ids.length < 3
+                            ? [...ids, concept.id]
+                            : ids,
                       )
                     }
                     className={cn(
@@ -2173,7 +2203,7 @@ function TripDetail() {
                   >
                     <p className="font-semibold">
                       {selected ? "✓ " : ""}
-                      {concept.title}
+                      {label}
                     </p>
                     <p className="mt-2 text-xs text-muted-foreground">{concept.rationale}</p>
                   </button>
@@ -2185,10 +2215,10 @@ function TripDetail() {
           <p className="text-sm font-medium text-emerald-700">
             Profil validé — les destinations sont disponibles.
           </p>
-        ) : data.isOwner && readiness?.profile.questionnairesReady ? (
+        ) : data.isOwner && (readiness?.profile.questionnairesReady || profile?.legacyBypass) ? (
           <Button
             variant="hero"
-            disabled={validateProfileMutation.isPending}
+            disabled={validateProfileMutation.isPending || selectedConceptIds.length < 1}
             onClick={() => validateProfileMutation.mutate()}
           >
             {validateProfileMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}
@@ -2203,34 +2233,50 @@ function TripDetail() {
         id="hub-destination"
         className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
       >
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-              <MapPin className="size-5 text-primary" />
-              Destinations proposées
+        {!profile?.validated && !profile?.legacyBypass ? (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center space-y-3">
+            <h2 className="font-display text-xl font-semibold text-amber-900 dark:text-amber-200">
+              Choisis d’abord le profil du voyage.
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Des destinations sélectionnées pour correspondre aux envies du groupe.
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              Sélectionne 1 à 3 profils avant de chercher des destinations.
             </p>
-          </div>
-          {data.isOwner ? (
-            <Button
-              variant="hero"
-              onClick={() => regenerateMutation.mutate(undefined)}
-              disabled={
-                regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
-              }
-              title={
-                readiness && !readiness.canGenerate
-                  ? (readiness.message ?? "Questionnaires incomplets")
-                  : undefined
-              }
-            >
-              {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
-              {recommendations.length ? "Régénérer" : "Générer les propositions"}
+            <Button asChild variant="hero">
+              <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "profile" }}>
+                Choisir le profil du voyage
+              </Link>
             </Button>
-          ) : null}
-        </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+                  <MapPin className="size-5 text-primary" />
+                  Destinations proposées
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Des destinations sélectionnées pour correspondre aux envies du groupe.
+                </p>
+              </div>
+              {data.isOwner ? (
+                <Button
+                  variant="hero"
+                  onClick={() => regenerateMutation.mutate(undefined)}
+                  disabled={
+                    regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
+                  }
+                  title={
+                    readiness && !readiness.canGenerate
+                      ? (readiness.message ?? "Questionnaires incomplets")
+                      : undefined
+                  }
+                >
+                  {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {recommendations.length ? "Régénérer" : "Générer les propositions"}
+                </Button>
+              ) : null}
+            </div>
         {recommendations.length === 0 ? (
           <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {data.isOwner
@@ -2396,6 +2442,8 @@ function TripDetail() {
                   );
                 })}
             </div>
+          </>
+        )}
           </>
         )}
       </section>

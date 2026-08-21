@@ -1,6 +1,6 @@
 import { reportServerError } from "@/lib/server-error-reporting.server";
 import type { DestinationType } from "./destination-discovery.server";
-import type { ProfileAffinity, StayConcept } from "./stay-profiles";
+import { PROFILE_LABELS, type ProfileAffinity, type StayConcept, type StayProfileId } from "./stay-profiles";
 
 /**
  * IA de découverte : Gemini uniquement.
@@ -31,6 +31,7 @@ export type AiDiscoveryInput = {
   groupAgeRange?: string | null;
   freeNotes?: string[];
   stayProfiles?: ProfileAffinity[];
+  selectedStayProfiles?: StayProfileId[];
   selectedConcepts?: StayConcept[];
   discoveryBranches?: Array<"urban" | "regional" | "outdoor" | "property_led">;
   localMobility?: string | null;
@@ -153,6 +154,11 @@ function getGeminiConfig(): GeminiConfig | null {
 }
 
 function fingerprint(input: AiDiscoveryInput): string {
+  const selectedProfiles = (
+    input.selectedStayProfiles ||
+    (input.selectedConcepts ?? []).flatMap((c) => c.profiles ?? [(c.id as StayProfileId)])
+  ).filter(Boolean);
+
   return JSON.stringify({
     e: input.eventType || "",
     a: [...input.ambiances].sort(),
@@ -172,7 +178,7 @@ function fingerprint(input: AiDiscoveryInput): string {
     age: input.groupAgeRange ?? null,
     scoring: input.scoringSignals ?? null,
     profiles: input.stayProfiles ?? [],
-    concepts: input.selectedConcepts ?? [],
+    selectedStayProfiles: [...new Set(selectedProfiles)].sort(),
     branches: input.discoveryBranches ?? ["urban"],
     mobility: input.localMobility ?? null,
     accommodation: input.accommodationRole ?? null,
@@ -189,6 +195,16 @@ export function clearDestinationAiCacheForTests() {
 }
 
 function compactUser(input: AiDiscoveryInput): string {
+  const rawProfiles = (
+    input.selectedStayProfiles ||
+    (input.selectedConcepts ?? []).flatMap((c) => c.profiles ?? [(c.id as StayProfileId)])
+  ).filter(Boolean);
+
+  const selectedStayProfiles = [...new Set(rawProfiles)].map((id) => ({
+    id,
+    label: PROFILE_LABELS[id as StayProfileId] || id,
+  }));
+
   const o: Record<string, unknown> = {
     event: input.eventType || "groupe",
     participants: input.participants,
@@ -214,7 +230,7 @@ function compactUser(input: AiDiscoveryInput): string {
     groupAgeRange: input.groupAgeRange ?? null,
     freeNotes: input.freeNotes || [],
     stayProfiles: input.stayProfiles || [],
-    selectedConcepts: input.selectedConcepts || [],
+    selectedStayProfiles,
     discoveryBranches: input.discoveryBranches || ["urban"],
     localMobility: input.localMobility ?? null,
     accommodationRole: input.accommodationRole ?? null,

@@ -31,7 +31,7 @@ import {
   fetchClimate,
   geocodeDestination,
 } from "@/integrations/external/geo-weather.server";
-import { aggregateStayProfiles, buildStayConcepts, routeDiscovery } from "./stay-profiles";
+import { aggregateStayProfiles, buildStayConcepts, routeDiscovery, type StayProfileId } from "./stay-profiles";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
 export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {
@@ -1294,6 +1294,13 @@ export async function generateRecommendationsForTrip(
       groupAgeRange: aggregated.groupAgeRange ?? null,
       freeNotes: aggregated.individualPreferences.map((p: any) => p.freeText).filter(Boolean),
       stayProfiles: aggregated.stayProfileAffinities ?? [],
+      selectedStayProfiles: Array.from(
+        new Set(
+          (readiness.profile.selectedConcepts ?? []).flatMap(
+            (c: any) => (c.profiles as StayProfileId[]) ?? [c.id as StayProfileId],
+          ),
+        ),
+      ),
       selectedConcepts: readiness.profile.selectedConcepts,
       discoveryBranches: routeDiscovery(readiness.profile.selectedConcepts).branches,
       localMobility: aggregated.groupLocalMobility ?? null,

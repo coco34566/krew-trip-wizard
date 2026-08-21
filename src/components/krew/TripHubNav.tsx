@@ -32,6 +32,7 @@ export function TripHubNav({
   const progressPct = total ? Math.round((doneCount / total) * 100) : 0;
 
   function stepHref(step: TripStep): string | null {
+    if (step.status === "soon") return null;
     if (step.id === "invite") return `/trips/${tripId}/invite`;
     if (step.id === "dates") return `/trips/${tripId}?view=voyage&section=dates`;
     if (step.id === "profile") return `/trips/${tripId}?view=voyage&section=profile`;
