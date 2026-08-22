@@ -27,6 +27,12 @@ export type GeoapifySearchOptions = {
   conditions?: string[];
 };
 
+export type IntentLocationResult = {
+  latitude: number;
+  longitude: number;
+  label: string;
+};
+
 export type PlaceRequirements = {
   canonicalFamily: string;
   categories: string[];
@@ -36,9 +42,182 @@ export type PlaceRequirements = {
   experienceTags?: string[];
   searchIntent?: string | null;
   momentType?: string | null;
+  intentCenter?: IntentLocationResult | null;
 };
 
+const intentLocationCacheMap = new Map<string, IntentLocationResult | null>();
+
+export function clearIntentLocationCache(): void {
+  intentLocationCacheMap.clear();
+}
+
+export function extractGeographicSignalFromIntent(searchIntent?: string | null): string | null {
+  if (!searchIntent || typeof searchIntent !== "string") return null;
+  const normIntent = searchIntent
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  if (normIntent.length < 4) return null;
+
+  const genericPatterns = [
+    /^(restaurant|resto|diner|dejeuner|brunch|petit[- ]dejeuner|bar|pub|soiree|apero)\s*(convivial|sympa|de groupe|groupe|traditionnel|local)?$/i,
+    /^(activite|visite|decouverte|balade|promenade)\s*(culturelle|nature|outdoor|douce|de groupe|groupe|libre)?$/i,
+    /^(moment|temps)\s*(libre|maison|logement|detente)?$/i,
+  ];
+
+  if (genericPatterns.some((p) => p.test(normIntent))) {
+    return null;
+  }
+
+  const geoKeywords = [
+    "quartier", "district", "place", "rue", "avenue", "boulevard", "quai", "pont",
+    "chateau", "bastion", "thermes", "bains", "palais", "cathedrale", "eglise", "monument",
+    "lac", "parc", "jardin", "ile", "presqu'ile", "presquile", "colline", "mont",
+    "centre historique", "vieille ville", "marche central", "halles", "ruin bar", "ruinbar",
+    "buda", "pest", "szechenyi", "gellert", "rudas",
+  ];
+
+  const hasGeoKeyword = geoKeywords.some((kw) => normIntent.includes(kw));
+  const words = searchIntent.trim().split(/\s+/);
+
+  if (hasGeoKeyword || words.length >= 3) {
+    return searchIntent.trim();
+  }
+
+  return null;
+}
+
+export async function resolveSearchIntentLocation(
+  searchIntent: string | null | undefined,
+  destination: string,
+  refLat?: number | null,
+  refLon?: number | null,
+  telemetryCounter?: { intentResolutionCalls?: number; intentResolutionHits?: number },
+): Promise<IntentLocationResult | null> {
+  const signal = extractGeographicSignalFromIntent(searchIntent);
+  if (!signal) return null;
+
+  const normSignal = signal.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const normDest = destination.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const cacheKey = `${normSignal}::${normDest}`;
+
+  if (intentLocationCacheMap.has(cacheKey)) {
+    return intentLocationCacheMap.get(cacheKey) ?? null;
+  }
+
+  const apiKey = process.env["GEOAPIFY_API_KEY"];
+  if (!apiKey) {
+    intentLocationCacheMap.set(cacheKey, null);
+    return null;
+  }
+
+  if (telemetryCounter && telemetryCounter.intentResolutionCalls != null) {
+    telemetryCounter.intentResolutionCalls++;
+  }
+
+  try {
+    const url = new URL("https://api.geoapify.com/v1/geocode/search");
+    url.searchParams.set("text", `${signal} ${destination}`);
+    if (refLon != null && refLat != null) {
+      url.searchParams.set("bias", `proximity:${refLon},${refLat}`);
+      url.searchParams.set("filter", `circle:${refLon},${refLat},35000`);
+    }
+    url.searchParams.set("limit", "1");
+    url.searchParams.set("apiKey", apiKey);
+
+    const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+    if (!res.ok) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    const payload = await res.json();
+    const hit = payload?.features?.[0];
+    if (!hit) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    const lat =
+      typeof hit.properties?.lat === "number"
+        ? hit.properties.lat
+        : typeof hit.geometry?.coordinates?.[1] === "number"
+          ? hit.geometry.coordinates[1]
+          : null;
+    const lon =
+      typeof hit.properties?.lon === "number"
+        ? hit.properties.lon
+        : typeof hit.geometry?.coordinates?.[0] === "number"
+          ? hit.geometry.coordinates[0]
+          : null;
+
+    if (lat == null || lon == null) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    if (refLat != null && refLon != null) {
+      const rad = (deg: number) => (deg * Math.PI) / 180;
+      const dLat = rad(lat - refLat);
+      const dLon = rad(lon - refLon);
+      const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(refLat)) * Math.cos(rad(lat)) * Math.sin(dLon / 2) ** 2;
+      const distKm = 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+      if (distKm > 35) {
+        intentLocationCacheMap.set(cacheKey, null);
+        return null;
+      }
+    }
+
+    const result: IntentLocationResult = {
+      latitude: lat,
+      longitude: lon,
+      label: signal,
+    };
+
+    if (telemetryCounter && telemetryCounter.intentResolutionHits != null) {
+      telemetryCounter.intentResolutionHits++;
+    }
+
+    intentLocationCacheMap.set(cacheKey, result);
+    return result;
+  } catch {
+    intentLocationCacheMap.set(cacheKey, null);
+    return null;
+  }
+}
+
 const placeDetailsCache = new Map<string, any>();
+
+export function buildVerifiedPlaceFallbackUrl(
+  place: { name?: string | null; address?: string | null; latitude?: number | null; longitude?: number | null } | null | undefined,
+  destination?: string | null,
+): string | null {
+  if (!place) return null;
+  const name = String(place.name || "").trim();
+  const address = String(place.address || "").trim();
+  const dest = String(destination || "").trim();
+
+  let query = "";
+  if (name && address) {
+    query = `${name}, ${address}`;
+  } else if (name && dest) {
+    query = `${name}, ${dest}`;
+  } else if (name) {
+    query = name;
+  } else if (address) {
+    query = address;
+  } else if (place.latitude != null && place.longitude != null) {
+    query = `${place.latitude},${place.longitude}`;
+  }
+
+  if (!query) return null;
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
 
 export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: string): string[] {
   const norm = String(family || type || "").toLowerCase().trim();
@@ -81,18 +260,32 @@ export function convertIntentToPlaceRequirements(
   dietaryConstraints: string[] = [],
   accessibilityRequired = false,
   userNotes: string[] = [],
+  intentCenter?: IntentLocationResult | null,
 ): PlaceRequirements {
-  const normIntent = String(searchIntent || "").toLowerCase();
-  const categories = mapVenueFamilyToGeoapifyCategories(family, momentType);
+  const normIntent = String(searchIntent || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  let categories = mapVenueFamilyToGeoapifyCategories(family, momentType);
   let subtype: string | null = null;
 
-  if (normIntent.includes("winery") || normIntent.includes("dégustation") || normIntent.includes("cave") || normIntent.includes("vin")) {
+  if (normIntent.includes("thermes") || normIntent.includes("bains thermaux") || normIntent.includes("bains") || normIntent.includes("thermal bath")) {
+    subtype = "leisure.spa";
+    categories = Array.from(new Set(["leisure.spa", "service.beauty.spa", "tourism.attraction"]));
+  } else if (normIntent.includes("ruin bar") || normIntent.includes("ruinbar")) {
+    subtype = "catering.bar";
+    categories = Array.from(new Set(["catering.bar", "catering.pub", "entertainment.nightlife"]));
+  } else if (normIntent.includes("chateau") || normIntent.includes("bastion") || normIntent.includes("monument") || normIntent.includes("sight")) {
+    subtype = "tourism.sights";
+    categories = Array.from(new Set(["tourism.sights", "tourism.attraction", "entertainment.culture"]));
+  } else if (normIntent.includes("winery") || normIntent.includes("degustation") || normIntent.includes("cave") || normIntent.includes("vin")) {
     subtype = "production.winery";
-  } else if (normIntent.includes("market") || normIntent.includes("marché")) {
+  } else if (normIntent.includes("market") || normIntent.includes("marche")) {
     subtype = "commercial.marketplace";
-  } else if (normIntent.includes("cafe") || normIntent.includes("brunch") || normIntent.includes("petit-déjeuner")) {
+  } else if (normIntent.includes("cafe") || normIntent.includes("brunch") || normIntent.includes("petit-dejeuner")) {
     subtype = "catering.cafe";
-  } else if (normIntent.includes("restaurant") || normIntent.includes("dîner") || normIntent.includes("déjeuner")) {
+  } else if (normIntent.includes("restaurant") || normIntent.includes("diner") || normIntent.includes("dejeuner")) {
     subtype = "catering.restaurant";
   } else if (normIntent.includes("bar") || normIntent.includes("pub")) {
     subtype = "catering.bar";
@@ -112,16 +305,21 @@ export function convertIntentToPlaceRequirements(
     accessibility: accessibility.length ? accessibility : null,
     searchIntent: searchIntent ?? null,
     momentType: momentType ?? null,
+    intentCenter: intentCenter ?? null,
   };
 }
 
 export function buildPoolKey(req: PlaceRequirements): string {
+  const intentPart = req.intentCenter
+    ? `${req.intentCenter.latitude.toFixed(3)},${req.intentCenter.longitude.toFixed(3)}`
+    : "";
   const parts = [
     req.canonicalFamily,
     ...req.categories.slice().sort(),
     req.subtype || "",
     (req.dietary || []).slice().sort().join(","),
     (req.accessibility || []).slice().sort().join(","),
+    intentPart,
   ];
   return parts.filter(Boolean).join("::");
 }
@@ -672,6 +870,20 @@ export function rankGeoapifyCandidates(
         }
       }
 
+      // ruin bar / pub / nightlife
+      if (/ruin|ruinbar|pub|nightlife/.test(normIntent)) {
+        if (/ruin|ruinbar|pub/.test(candName) || candCats.some((c) => c.includes("catering.pub") || c.includes("catering.bar") || c.includes("entertainment.nightlife"))) {
+          score += 300;
+        }
+      }
+
+      // monument / château / bastion / sight
+      if (/chateau|bastion|monument|fort|castle|citadel|palais|bastion des pecheurs|fishermans bastion/.test(normIntent)) {
+        if (/chateau|bastion|monument|castle|citadel|palais|fishermans/.test(candName) || candCats.some((c) => c.includes("tourism.sights") || c.includes("tourism.attraction") || c.includes("entertainment.culture"))) {
+          score += 300;
+        }
+      }
+
       // rooftop / panoramique / vue / terrasse
       if (/rooftop|panoramique|vue|terrace|terrasse|skybar|panorama/.test(normIntent)) {
         if (/rooftop|terrace|terrasse|viewpoint|panoramique|panorama|skybar/.test(candName) || candCats.some((c) => c.includes("rooftop") || c.includes("viewpoint"))) {
@@ -711,6 +923,16 @@ export function rankGeoapifyCandidates(
         if (candName.includes(w) || candAddr.includes(w)) {
           score += 30;
         }
+      }
+    }
+
+    // D. Proximité avec intentCenter s'il existe
+    if (req.intentCenter?.latitude != null && req.intentCenter?.longitude != null && cand.latitude != null && cand.longitude != null) {
+      const distToIntent = haversineKm({ latitude: req.intentCenter.latitude, longitude: req.intentCenter.longitude }, cand);
+      if (distToIntent <= 1.5) {
+        score += 200;
+      } else if (distToIntent <= 4) {
+        score += 100;
       }
     }
 

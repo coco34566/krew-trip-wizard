@@ -15,6 +15,8 @@ import {
   rankGeoapifyCandidates,
   selectGeoapifyCandidate,
   mergeUniquePlacesById,
+  buildVerifiedPlaceFallbackUrl,
+  resolveSearchIntentLocation,
 } from "@/lib/krew/geoapify.server";
 
 export type ActivitySlotType = "resto" | "activite" | "bar" | "transport" | "libre";
@@ -107,6 +109,7 @@ export function resolveActivityResourceUrl(
   urlInput?: string | null,
   options?: {
     kindHint?: ActivityResourceKind;
+    allowVerifiedGoogleMaps?: boolean;
   },
 ): { url: string | null; resourceKind: ActivityResourceKind } {
   if (!urlInput || typeof urlInput !== "string" || !isSafeActivityUrl(urlInput)) {
@@ -116,14 +119,22 @@ export function resolveActivityResourceUrl(
   const cleanUrl = urlInput.trim();
   const lower = cleanUrl.toLowerCase();
 
-  if (
-    lower.includes("google.com/search") ||
-    lower.includes("maps.google") ||
-    lower.includes("goo.gl/maps") ||
-    lower.includes("maps.apple") ||
-    lower.includes("tripadvisor")
-  ) {
-    return { url: null, resourceKind: null };
+  const isVerifiedGoogleMap =
+    options?.allowVerifiedGoogleMaps === true &&
+    (lower.startsWith("https://www.google.com/maps/search/?api=1&query=") ||
+      lower.startsWith("https://google.com/maps/search/?api=1&query="));
+
+  if (!isVerifiedGoogleMap) {
+    if (
+      lower.includes("google.com/search") ||
+      lower.includes("google.com/maps") ||
+      lower.includes("maps.google") ||
+      lower.includes("goo.gl/maps") ||
+      lower.includes("maps.apple") ||
+      lower.includes("tripadvisor")
+    ) {
+      return { url: null, resourceKind: null };
+    }
   }
 
   const resourceKind: ActivityResourceKind = options?.kindHint ?? "website";
@@ -132,6 +143,33 @@ export function resolveActivityResourceUrl(
     url: cleanUrl,
     resourceKind,
   };
+}
+
+export function resolveActivityResourceForPlace(
+  place: { name?: string | null; website?: string | null; address?: string | null; latitude?: number | null; longitude?: number | null } | null | undefined,
+  destination?: string | null,
+  options?: { kindHint?: ActivityResourceKind; telemetry?: { fallbackMapLinks?: number } },
+): { url: string | null; resourceKind: ActivityResourceKind } {
+  if (!place) return { url: null, resourceKind: null };
+
+  if (place.website) {
+    const res = resolveActivityResourceUrl(place.website, options);
+    if (res.url) return res;
+  }
+
+  const fallbackUrl = buildVerifiedPlaceFallbackUrl(place, destination);
+  if (fallbackUrl) {
+    const res = resolveActivityResourceUrl(fallbackUrl, {
+      kindHint: options?.kindHint ?? "website",
+      allowVerifiedGoogleMaps: true,
+    });
+    if (res.url && options?.telemetry?.fallbackMapLinks != null) {
+      options.telemetry.fallbackMapLinks++;
+    }
+    return res;
+  }
+
+  return { url: null, resourceKind: null };
 }
 
 export type ItineraryDayPlan = { day: number; date?: string | null; slots: ActivitySlot[] };
@@ -201,6 +239,10 @@ export type PlanningTelemetry = {
   candidatesRejectedOpeningHours: number;
   candidatesRejectedGeography: number;
   candidatesRejectedRequirements: number;
+  intentResolutionCalls?: number;
+  intentResolutionHits?: number;
+  intentCenteredSearches?: number;
+  fallbackMapLinks?: number;
 };
 
 export type GroupItinerary = {
@@ -2831,6 +2873,13 @@ export async function regenerateSlotWithAi(
   const usedSet = new Set(usedCandidateIds);
   const avoidNorms = avoid.map(norm);
 
+  const intentCenter = await resolveSearchIntentLocation(
+    existing.searchIntent || existing.label,
+    input.destination,
+    refCoords?.latitude,
+    refCoords?.longitude,
+  );
+
   const req = convertIntentToPlaceRequirements(
     existing.venueFamily || "local_experience",
     existing.category || "culture",
@@ -2838,6 +2887,7 @@ export async function regenerateSlotWithAi(
     input.dietaryConstraints,
     Boolean(input.accessibilityRequired),
     input.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
+    intentCenter,
   );
 
   const poolKey = buildPoolKey(req);
@@ -2886,7 +2936,7 @@ export async function regenerateSlotWithAi(
 
   if (selectedPlace) {
     usedSet.add(selectedPlace.id);
-    const resolvedLink = resolveActivityResourceUrl(selectedPlace.website, { kindHint: "website" });
+    const resolvedLink = resolveActivityResourceForPlace(selectedPlace, input.destination);
     return {
       slot: {
         ...existing,
@@ -2915,7 +2965,10 @@ export async function regenerateSlotWithAi(
 
   if (candidateAlt) {
     usedSet.add(candidateAlt.id);
-    const resolvedLink = resolveActivityResourceUrl(candidateAlt.sourceUrl, { kindHint: "website" });
+    const resolvedLink = resolveActivityResourceForPlace(
+      { name: candidateAlt.name, website: candidateAlt.sourceUrl, address: candidateAlt.address, latitude: candidateAlt.latitude, longitude: candidateAlt.longitude },
+      input.destination,
+    );
     return {
       slot: {
         ...existing,

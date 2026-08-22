@@ -7,7 +7,7 @@ import {
   generateRecommendationsForTrip,
   tripInputSchema,
 } from "@/lib/krew/trip-service";
-import { resolveActivityResourceUrl } from "@/lib/krew/activity-ai.server";
+import { resolveActivityResourceUrl, resolveActivityResourceForPlace } from "@/lib/krew/activity-ai.server";
 import { PROFILE_LABELS, STAY_PROFILE_IDS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 
 function normalizeStayConcepts(concepts: any[]): StayConcept[] {
@@ -2290,12 +2290,30 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       rankGeoapifyCandidates,
       mergeUniquePlacesById,
       fetchPlaceDetails,
+      resolveSearchIntentLocation,
     } = await import("@/lib/krew/geoapify.server");
+
+    let intentResolutionCalls = 0;
+    let intentResolutionHits = 0;
+    let intentCenteredSearches = 0;
 
     const poolReqMap = new Map<string, any>();
     for (const day of enrichedSkeleton.days) {
       for (const slot of day.slots) {
         if (slot.kind === "place_required") {
+          const intentCenter = await resolveSearchIntentLocation(
+            slot.searchIntent,
+            trip.destination,
+            refLat,
+            refLon,
+            {
+              get intentResolutionCalls() { return intentResolutionCalls; },
+              set intentResolutionCalls(v) { intentResolutionCalls = v; },
+              get intentResolutionHits() { return intentResolutionHits; },
+              set intentResolutionHits(v) { intentResolutionHits = v; },
+            },
+          );
+
           const req = convertIntentToPlaceRequirements(
             slot.venueFamily || "local_experience",
             slot.category,
@@ -2303,6 +2321,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             aggregated.dietaryConstraints,
             Boolean(activityInput.accessibilityRequired),
             activityInput.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
+            intentCenter,
           );
           const poolKey = buildPoolKey(req);
           if (!poolReqMap.has(poolKey)) {
@@ -2320,7 +2339,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     if (refLat != null && refLon != null) {
       for (const [poolKey, req] of poolReqMap.entries()) {
         geoapifyPlacesCalls++;
-        const places = await searchGeoapifyPlaces({
+        const destPlaces = await searchGeoapifyPlaces({
           categories: req.categories,
           latitude: refLat,
           longitude: refLon,
@@ -2328,7 +2347,24 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           limit: 15,
           conditions: req.accessibility || [],
         });
-        placePools[poolKey] = places;
+
+        let mergedPlaces = destPlaces;
+
+        if (req.intentCenter) {
+          intentCenteredSearches++;
+          geoapifyPlacesCalls++;
+          const intentPlaces = await searchGeoapifyPlaces({
+            categories: req.categories,
+            latitude: req.intentCenter.latitude,
+            longitude: req.intentCenter.longitude,
+            radiusMeters: Math.min(radiusMeters, 8000),
+            limit: 15,
+            conditions: req.accessibility || [],
+          });
+          mergedPlaces = mergeUniquePlacesById(destPlaces, intentPlaces);
+        }
+
+        placePools[poolKey] = mergedPlaces;
       }
     }
 
@@ -2344,6 +2380,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     let placeRequiredResolved = 0;
     let placeRequiredUnresolved = 0;
     let placeRequiredBypassed = 0;
+    let fallbackMapLinks = 0;
 
     for (const day of enrichedSkeleton.days) {
       let lastSlotCoords: { latitude?: number | null; longitude?: number | null } | null =
@@ -2418,6 +2455,19 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           continue;
         }
 
+        const intentCenter = await resolveSearchIntentLocation(
+          s.searchIntent,
+          trip.destination,
+          refLat,
+          refLon,
+          {
+            get intentResolutionCalls() { return intentResolutionCalls; },
+            set intentResolutionCalls(v) { intentResolutionCalls = v; },
+            get intentResolutionHits() { return intentResolutionHits; },
+            set intentResolutionHits(v) { intentResolutionHits = v; },
+          },
+        );
+
         const req = convertIntentToPlaceRequirements(
           s.venueFamily || "local_experience",
           s.category,
@@ -2425,6 +2475,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           aggregated.dietaryConstraints,
           Boolean(activityInput.accessibilityRequired),
           activityInput.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
+          intentCenter,
         );
         const poolKey = buildPoolKey(req);
         let pool = placePools[poolKey] || [];
@@ -2434,6 +2485,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           candidatesRejectedGeography: 0,
           candidatesRejectedOpeningHours: 0,
           detailsCalls: geoapifyDetailsCalls,
+          fallbackMapLinks: 0,
         };
 
         const { selectGeoapifyCandidate } = await import("@/lib/krew/geoapify.server");
@@ -2486,6 +2538,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         candidatesRejectedGeography += telemetryObj.candidatesRejectedGeography;
         candidatesRejectedOpeningHours += telemetryObj.candidatesRejectedOpeningHours;
         geoapifyDetailsCalls = telemetryObj.detailsCalls;
+        fallbackMapLinks += telemetryObj.fallbackMapLinks;
 
         if (s.kind === "place_required") {
           if (matchedPlace) {
@@ -2519,7 +2572,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               s.detail ||
               s.searchIntent ||
               "Lieu sélectionné par KREW",
-            ...resolveActivityResourceUrl(matchedPlace.website, { kindHint: "website" }),
+            ...resolveActivityResourceForPlace(matchedPlace, trip.destination, { telemetry: telemetryObj }),
             activityMode: mode,
             candidateId: matchedPlace.id,
             verified: true,
@@ -2574,6 +2627,10 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       placeRequiredResolved,
       placeRequiredUnresolved,
       placeRequiredBypassed,
+      intentResolutionCalls,
+      intentResolutionHits,
+      intentCenteredSearches,
+      fallbackMapLinks,
     };
 
     console.info("krew-planning-telemetry", telemetry);
@@ -2827,7 +2884,7 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
         ...current,
         label: matchedCandidate.name,
         detail: matchedCandidate.address || current.detail || "Lieu sélectionné par KREW",
-        ...resolveActivityResourceUrl(matchedCandidate.website, { kindHint: "website" }),
+        ...resolveActivityResourceForPlace(matchedCandidate, itinerary.destination),
         activityMode: "bookable",
         candidateId: matchedCandidate.id,
         verified: true,
