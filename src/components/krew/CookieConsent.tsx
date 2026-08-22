@@ -161,7 +161,7 @@ export function CookieConsent() {
               <Button variant="outline" size="sm" className="w-1/2 text-xs" onClick={() => setShowCustomize(false)}>
                 Retour
               </Button>
-              <Button variant="hero" size="sm" className="w-1/2 text-xs" onClick={() => saveConsent(consent)}>
+              <Button size="sm" className="w-1/2 text-xs font-medium" onClick={() => saveConsent(consent)}>
                 Enregistrer mes choix
               </Button>
             </div>
@@ -172,9 +172,8 @@ export function CookieConsent() {
                   Tout refuser
                 </Button>
                 <Button
-                  variant="hero"
                   size="sm"
-                  className="w-1/2 text-xs"
+                  className="w-1/2 text-xs font-medium"
                   onClick={() => saveConsent({
                     analytics: true,
                     personalization: true,
