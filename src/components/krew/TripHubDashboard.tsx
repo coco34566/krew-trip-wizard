@@ -14,7 +14,13 @@ import {
 import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/krew/Logo";
-import { KrewMark, KrewSectionWave, KrewProgressRing } from "@/components/krew/visual-language";
+import {
+  KrewMark,
+  KrewSectionWave,
+  KrewProgressRing,
+  KrewOrganicBlob,
+  KrewHighlight,
+} from "@/components/krew/visual-language";
 
 type Props = {
   tripId: string;
@@ -378,11 +384,6 @@ function NextActionsPanel({
 
   return (
     <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden relative">
-      {/* Signature Officielle Loutre KREW */}
-      <div className="absolute top-2 right-6 z-20 pointer-events-none">
-        <Logo variant="icon" size="sm" className="size-12 sm:size-14 object-contain filter drop-shadow-xs" />
-      </div>
-
       {/* Vague supérieure ouvrant la grande nappe sauge */}
       <KrewSectionWave position="top" tone="sage" className="text-sage/18" />
 
@@ -533,69 +534,84 @@ export function TripHubDashboard({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* HERO COVER ÉDITORIAL & IMMERSIF */}
-      <header className="relative overflow-hidden -mx-4 sm:mx-0 sm:rounded-[32px] bg-background border-b sm:border border-border/50">
-        {/* Circle KrewMark expressif en filigrane d'angle */}
-        <KrewMark
-          type="circle"
+      {/* COMPOSITION 5 LAYERS : HERO COVER ÉDITORIAL & ARCHITECTURE UNBOXED */}
+      <header className="relative overflow-visible -mx-4 sm:mx-0 pt-2 pb-6">
+        {/* LAYER 1 : Grande Forme Sauge d'Arrière-Plan */}
+        <KrewOrganicBlob
           tone="sage"
-          size="lg"
-          rotation={4}
-          className="absolute -top-7 -right-7 w-[140px] sm:w-[160px] opacity-40 pointer-events-none z-10"
+          variant="soft"
+          className="absolute -top-10 -right-8 w-[88%] h-[380px] z-0 opacity-80 pointer-events-none"
         />
 
-        <div className="grid lg:grid-cols-12 gap-0">
-          {/* Photographie Dominante — Couverture éditoriale mobile (~280-320px tall) & Desktop (col-5) */}
-          <div className="lg:col-span-5 order-first lg:order-last relative h-72 sm:h-80 lg:h-auto min-h-[280px] overflow-hidden border-b lg:border-b-0 lg:border-l border-border/40">
+        {/* CONTAINER COMPONENT DE LA COUVERTURE */}
+        <div className="relative z-10 space-y-0">
+          {/* LAYER 2 : Photographie Immersive du Voyage */}
+          <div className="relative z-10 w-[92%] sm:w-[95%] h-[280px] sm:h-[340px] ml-auto sm:ml-0 rounded-tl-[36px] rounded-tr-[48px] rounded-bl-[18px] rounded-br-[32px] overflow-hidden shadow-xs border border-border/30">
             <img
               src={heroImageForEvent(trip.event_type)}
               alt=""
               className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
               loading="eager"
             />
+            {/* LAYER 5a : Circle KrewMark sur la Photo */}
+            <KrewMark
+              type="circle"
+              tone="sage"
+              size="lg"
+              rotation={3}
+              className="absolute top-4 left-4 w-[90px] sm:w-[110px] opacity-70 pointer-events-none z-20"
+            />
           </div>
 
-          {/* Bloc Titre & Informations Voyage */}
-          <div className="lg:col-span-7 p-5 sm:p-8 flex flex-col justify-between space-y-4 min-w-0 relative">
-            <div className="space-y-2 min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
-                {theme}
-              </p>
-              <h1 className="font-display text-[36px] sm:text-[44px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
-                {trip.name}
-              </h1>
+          {/* LAYER 3 : Forme Prune Organique chevauchant le bas de la photo */}
+          <div className="relative z-20 -mt-18 sm:-mt-22 w-[92%] sm:w-[88%] bg-primary rounded-[28px] sm:rounded-[36px] p-6 sm:p-8 text-primary-foreground shadow-md space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/75 font-sans">
+              {theme}
+            </p>
+            <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.98] tracking-tight text-white break-words">
+              {trip.name}
+            </h1>
 
-              {destinationName ? (
-                <div className="pt-1">
-                  <p className="font-display text-2xl sm:text-3xl text-primary font-normal flex items-center gap-2">
-                    <MapPin className="size-5 text-primary shrink-0" />
+            {destinationName ? (
+              <div className="pt-1">
+                <p className="font-display text-2xl sm:text-3xl text-sage font-normal relative inline-block">
+                  <span className="relative z-10 flex items-center gap-2">
+                    <MapPin className="size-5 text-sage shrink-0" />
                     <span>{destinationName}</span>
-                  </p>
-                </div>
-              ) : null}
-
-              {trip.celebrated_person ? (
-                <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80 pt-0.5">
-                  <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
-                  <span className="font-semibold">{trip.celebrated_person}</span>
+                  </span>
+                  <KrewMark
+                    type="underline"
+                    tone="sage"
+                    size="md"
+                    className="absolute inset-x-0 -bottom-2 h-4 w-full opacity-80 pointer-events-none"
+                  />
                 </p>
-              ) : null}
+              </div>
+            ) : null}
 
-              {trip.participants &&
-              Array.isArray(trip.participants) &&
-              trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
-                <p className="text-xs text-muted-foreground leading-relaxed pt-0.5">
-                  Avec{" "}
-                  {trip.participants
-                    .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
-              ) : null}
-            </div>
+            {trip.celebrated_person ? (
+              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-white/90 pt-1">
+                <Star className="size-4 fill-amber-300 text-amber-300 shrink-0" /> Pour{" "}
+                <span className="font-semibold text-white">{trip.celebrated_person}</span>
+              </p>
+            ) : null}
 
-            {/* Ligne de métadonnées compactes */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground font-sans pt-3 border-t border-border/40">
+            {trip.participants &&
+            Array.isArray(trip.participants) &&
+            trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
+              <p className="text-xs text-primary-foreground/80 leading-relaxed pt-0.5">
+                Avec{" "}
+                {trip.participants
+                  .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
+                  .filter(Boolean)
+                  .join(", ")}
+              </p>
+            ) : null}
+          </div>
+
+          {/* LAYER 4 & 5b : Métadonnées Éditoriales + Signature Loutre Officielle & Flèche Guidage */}
+          <div className="relative z-30 pt-4 px-2 sm:px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans">
               <span className="inline-flex items-center gap-1.5 font-sans">
                 <Users className="size-3.5 text-muted-foreground shrink-0" />
                 <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
@@ -616,7 +632,7 @@ export function TripHubDashboard({
               )}
 
               {datesLocked && (trip.start_date || provisionalStart) ? (
-                <span className="inline-flex items-center gap-1.5 font-mono text-foreground font-medium">
+                <KrewHighlight tone="sage" className="inline-flex items-center gap-1.5 font-mono text-foreground font-medium">
                   <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
                   <span className="text-primary font-sans font-medium">Dates validées</span> · {trip.start_date
                     ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
@@ -633,18 +649,24 @@ export function TripHubDashboard({
                         month: "short",
                       })}`
                     : ""}
-                </span>
+                </KrewHighlight>
               ) : (
                 <span className="inline-flex items-center gap-1.5">
                   <CalendarDays className="size-3.5 text-muted-foreground shrink-0" /> Date à définir
                 </span>
               )}
             </div>
+
+            {/* Signature Loutre Officielle & Flèche de guidage vers la suite */}
+            <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+              <Logo variant="icon" size="sm" className="size-12 sm:size-14 object-contain pointer-events-none filter drop-shadow-xs" />
+              <KrewMark type="arrow" tone="sage" size="md" className="w-14 h-8 text-sage opacity-90 pointer-events-none" />
+            </div>
           </div>
         </div>
       </header>
 
-      {/* ÉTAT DU KREW — Visualisation chiffrée compacte sans card */}
+      {/* ÉTAT DU KREW — Visualisation chiffrée compacte */}
       {(availabilityExpected > 0 || progressTotal > 0) && (
         <div className="flex items-center justify-center gap-6 py-2 px-4">
           {availabilityExpected > 0 ? (
