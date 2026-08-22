@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { KrewIcon } from "@/components/krew/visual-language";
+import { KrewIcon, KrewHighlight } from "@/components/krew/visual-language";
 import { formatEuro } from "@/lib/krew/constants";
 import { formatCostSplitText, type CostSplitResult } from "@/lib/krew/cost-split";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
@@ -107,15 +107,15 @@ export function CostSplitCard({ split, tripName }: Props) {
           ))}
         </div>
 
-        {/* Total groupe : point visuel principal avec highlight sauge poudré */}
+        {/* Total groupe : point visuel principal avec KrewHighlight sauge */}
         <div className="pt-3 border-t border-border/40 flex items-center justify-between">
           <span className="flex items-center gap-2 font-display text-xl font-normal text-foreground">
             <KrewIcon name="budget" tone="plum" size="sm" className="size-5 shrink-0" />
             Total groupe :
           </span>
-          <span className="bg-sage/20 text-primary font-mono font-bold text-xl px-3 py-1 rounded-xl">
+          <KrewHighlight tone="sage" className="font-mono font-bold text-xl text-primary px-1.5 py-0.5">
             {formatEuro(split.totalGroup)}
-          </span>
+          </KrewHighlight>
         </div>
       </div>
     </div>

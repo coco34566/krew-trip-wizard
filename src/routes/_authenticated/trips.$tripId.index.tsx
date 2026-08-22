@@ -1231,18 +1231,18 @@ function TripDetail() {
 
           {/* ZONE 5 — MEMBRES DU GROUPE (EXACT BLUEPRINT) */}
           <section id="group-section" className="mt-12 space-y-4 scroll-mt-24 relative">
-            {/* Loutre trip-progress positionnée en haut à droite */}
-            <div className="absolute top-0 right-0 z-10 pointer-events-none hidden sm:block">
+            {/* Loutre trip-progress positionnée en haut à droite (visible mobile à 54px & desktop à 60px) */}
+            <div className="absolute top-0 right-0 z-10 pointer-events-none">
               <img
                 src="/brand/otter-states/trip-progress.png"
                 alt=""
-                className="w-[60px] h-auto object-contain filter drop-shadow-2xs opacity-90"
+                className="w-[52px] sm:w-[60px] h-auto object-contain filter drop-shadow-2xs opacity-90"
                 loading="lazy"
               />
             </div>
 
             <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-12 sm:pr-16">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-14 sm:pr-16">
                 <div className="flex items-center gap-2">
                   <KrewIcon name="group" tone="plum" size="sm" className="size-[22px] shrink-0" />
                   <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground">
@@ -1460,17 +1460,18 @@ function TripDetail() {
                               {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
                             </p>
                             {isOwner ? (
-                              <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full leading-none">
+                            <span className="text-[11px] font-medium text-primary">
                                 Organisateur·rice
                               </span>
                             ) : isCoOrganizer ? (
-                              <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full leading-none">
+                            <span className="text-[11px] font-medium text-muted-foreground">
                                 Co-organisateur·rice
                               </span>
                             ) : null}
                             {p.isStar ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-sage/16 px-2 py-0.5 rounded-full leading-none">
-                                <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" /> Star
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                              <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" />
+                              <span>Star</span>
                               </span>
                             ) : null}
                           </div>

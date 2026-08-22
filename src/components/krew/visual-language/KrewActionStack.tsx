@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { KrewIcon, type KrewIconName } from "./KrewIcon";
 import { KrewMark } from "./KrewMark";
+import { KrewOrganicBlob } from "./KrewOrganicBlob";
 import { KrewProgressRing } from "./KrewProgressRing";
 
 export type KrewActionItem = {
@@ -64,9 +65,15 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
         </div>
       ) : null}
 
-      {/* ZONE 2 — PROCHAINE ACTION (SURFACE SAUGE SANS CARD BORDER/SHADOW) */}
-      <div className="relative overflow-hidden bg-sage/16 p-6 sm:p-7 rounded-[2rem]">
-        <div className="flex flex-col gap-2 max-w-[calc(100%-80px)] pr-2">
+      {/* ZONE 2 — PROCHAINE ACTION (VRAIE SURFACE ORGANIQUE KREWORGANICBLOB) */}
+      <div className="relative p-6 sm:p-7 overflow-visible">
+        <KrewOrganicBlob
+          tone="sage"
+          variant="soft"
+          className="absolute inset-0 w-full h-full z-0 opacity-85 pointer-events-none"
+        />
+
+        <div className="relative z-10 flex flex-col gap-2 max-w-[calc(100%-80px)] pr-2">
           {/* Label */}
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/70">
             Prochaine action
