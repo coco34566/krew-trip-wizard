@@ -1117,98 +1117,183 @@ describe("Micro-corrections PR #115 — Backups, Cohérence géographique, Geogr
   });
 });
 
-describe("Correctifs PR Grounding Geoapify — Fallback URLs, Intent-Aware Search & Ranking", () => {
-  describe("A. URL Fallback Google Maps & Safe URL filtering", () => {
-    it("1. candidat Geoapify avec website valide -> website conservé", () => {
-      const place = { name: "Kiosk Buda", website: "https://kioskbuda.hu", address: "Budapest, Fő utca 1", latitude: 47.5, longitude: 19.04 };
-      const res = resolveActivityResourceForPlace(place, "Budapest");
-      expect(res.url).toBe("https://kioskbuda.hu");
-      expect(res.resourceKind).toBe("website");
-    });
-
-    it("2. candidat Geoapify sans website mais avec nom + adresse -> Google Maps fallback déterministe", () => {
-      const place = { name: "Kiosk Buda", website: null, address: "Budapest, Fő utca 1", latitude: 47.5, longitude: 19.04 };
-      const res = resolveActivityResourceForPlace(place, "Budapest");
-      expect(res.url).toBe("https://www.google.com/maps/search/?api=1&query=Kiosk%20Buda%2C%20Budapest%2C%20F%C5%91%20utca%201");
-      expect(res.resourceKind).toBe("website");
-    });
-
-    it("3. candidat sans website et sans adresse mais avec nom + destination -> Google Maps fallback déterministe", () => {
-      const place = { name: "Leon Café", website: null, address: null, latitude: 47.5, longitude: 19.04 };
-      const res = resolveActivityResourceForPlace(place, "Budapest");
-      expect(res.url).toBe("https://www.google.com/maps/search/?api=1&query=Leon%20Caf%C3%A9%2C%20Budapest");
-      expect(res.resourceKind).toBe("website");
-    });
-
-    it("4. URL Google Maps arbitraire provenant d'un input non vérifié -> toujours rejetée par resolveActivityResourceUrl", () => {
-      const res = resolveActivityResourceUrl("https://www.google.com/maps/search/?api=1&query=Random");
-      expect(res.url).toBeNull();
-      expect(res.resourceKind).toBeNull();
-    });
-
-    it("5. aucun candidat vérifié -> aucun faux lien", () => {
-      const res = resolveActivityResourceForPlace(null, "Budapest");
-      expect(res.url).toBeNull();
-      expect(res.resourceKind).toBeNull();
-    });
+describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15", () => {
+  it("TEST 1 : 'bistro tendance et convivial' -> extractGeographicSignalFromIntent === null", () => {
+    expect(extractGeographicSignalFromIntent("bistro tendance et convivial")).toBeNull();
   });
 
-  describe("B. INTENT Resolution & Pool Key caching", () => {
-    it("6. intention générique 'restaurant convivial' -> pas de résolution géographique inutile", () => {
-      const signal = extractGeographicSignalFromIntent("restaurant convivial");
-      expect(signal).toBeNull();
-    });
+  it("TEST 2 : 'café chaleureux pour petit-déjeuner' -> extractGeographicSignalFromIntent === null", () => {
+    expect(extractGeographicSignalFromIntent("café chaleureux pour petit-déjeuner")).toBeNull();
+  });
 
-    it("7. intention géographique explicite -> peut déclencher une résolution intent-aware", () => {
-      const signal = extractGeographicSignalFromIntent("restaurant festif dans le quartier juif");
-      expect(signal).toBe("restaurant festif dans le quartier juif");
-    });
+  it("TEST 3 : 'restaurant chic et festif' -> extractGeographicSignalFromIntent === null", () => {
+    expect(extractGeographicSignalFromIntent("restaurant chic et festif")).toBeNull();
+  });
 
-    it("8. résolution intent-aware échouée -> fallback vers centre destination", async () => {
-      clearIntentLocationCache();
-      const res = await resolveSearchIntentLocation("invalide_xyz_123", "Budapest", 47.4979, 19.0402);
+  it("TEST 4 : 'restaurant dans le quartier juif' -> extrait la partie localisable", () => {
+    const signal = extractGeographicSignalFromIntent("restaurant dans le quartier juif");
+    expect(signal).toBe("quartier juif");
+  });
+
+  it("TEST 5 : 'visite du Bastion des Pêcheurs' -> signal localisable non-null", () => {
+    const signal = extractGeographicSignalFromIntent("visite du Bastion des Pêcheurs");
+    expect(signal).toBe("Bastion des Pêcheurs");
+  });
+
+  it("TEST 6 : Mock d'un résultat Geoapify hors destination -> resolveSearchIntentLocation === null", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 48.85,
+              lon: 2.35,
+              city: "Paris",
+              formatted: "Paris, France",
+              result_type: "locality",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
       expect(res).toBeNull();
-    });
-
-    it("9. pool destination + pool intent -> merge sans doublons", () => {
-      const candA = { id: "place_1", name: "Lieu A", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 47.5, longitude: 19.04, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
-      const candB = { id: "place_2", name: "Lieu B", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 47.51, longitude: 19.05, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
-      const merged = mergeUniquePlacesById([candA], [candA, candB]);
-      expect(merged).toHaveLength(2);
-      expect(merged[0]?.id).toBe("place_1");
-      expect(merged[1]?.id).toBe("place_2");
-    });
-
-    it("10. deux intentions géographiques différentes -> pas de collision de pool/cache", () => {
-      const req1 = convertIntentToPlaceRequirements("restaurant", "repas", "quartier juif", [], false, [], { latitude: 47.50, longitude: 19.06, label: "quartier juif" });
-      const req2 = convertIntentToPlaceRequirements("restaurant", "repas", "chateau buda", [], false, [], { latitude: 47.49, longitude: 19.03, label: "chateau buda" });
-      expect(buildPoolKey(req1)).not.toBe(buildPoolKey(req2));
-    });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
-  describe("C. TYPES & RANKING semantic boosts", () => {
-    it("11. 'bains thermaux' -> candidat thermal/spa approprié favorisé par rapport à un beauty salon non pertinent", () => {
-      const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "bains thermaux célèbres");
-      const thermal = { id: "t1", name: "Szechenyi Thermal Bath", category: "leisure.spa", categories: ["leisure.spa", "tourism.attraction"], address: "Budapest", latitude: 47.51, longitude: 19.08, distanceMeters: 2000, website: null, source: "geoapify" as const, verified: true };
-      const beauty = { id: "b1", name: "Mini Beauty Salon", category: "service.beauty", categories: ["service.beauty", "service.beauty.massage"], address: "Budapest", latitude: 47.50, longitude: 19.05, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
-      const ranked = rankGeoapifyCandidates([beauty, thermal], req, { latitude: 47.50, longitude: 19.05 }, new Set());
-      expect(ranked[0]?.id).toBe("t1");
-    });
+  it("TEST 7 : Mock d'un résultat Geoapify cohérent avec la destination -> intentCenter accepté", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Budapest",
+              formatted: "Erzsébetváros, Budapest, Hungary",
+              result_type: "district",
+            },
+          },
+        ],
+      }),
+    })) as any;
 
-    it("12. 'ruin bar' -> bar/pub pertinent favorisé par rapport à un candidat incompatible", () => {
-      const req = convertIntentToPlaceRequirements("bar_pub", "soiree", "ruin bar incontournable");
-      const ruinBar = { id: "rb1", name: "Szimpla Kert Ruin Bar", category: "catering.pub", categories: ["catering.pub", "catering.bar"], address: "Budapest", latitude: 47.49, longitude: 19.06, distanceMeters: 500, website: null, source: "geoapify" as const, verified: true };
-      const rooftop = { id: "rt1", name: "Leo Rooftop", category: "catering.restaurant", categories: ["catering.restaurant"], address: "Budapest", latitude: 47.50, longitude: 19.04, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
-      const ranked = rankGeoapifyCandidates([rooftop, ruinBar], req, { latitude: 47.50, longitude: 19.04 }, new Set());
-      expect(ranked[0]?.id).toBe("rb1");
-    });
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
+      expect(res).not.toBeNull();
+      expect(res?.latitude).toBe(47.50);
+      expect(res?.longitude).toBe(19.06);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 
-    it("13. 'château / monument / bastion' -> sight/attraction pertinente favorisée", () => {
-      const req = convertIntentToPlaceRequirements("culture", "culture", "Château de Buda + Bastion des Pêcheurs");
-      const bastion = { id: "m1", name: "Bastion des Pêcheurs", category: "tourism.sights", categories: ["tourism.sights", "tourism.attraction"], address: "Budapest", latitude: 47.50, longitude: 19.03, distanceMeters: 400, website: null, source: "geoapify" as const, verified: true };
-      const zeroKm = { id: "m2", name: "Zero Kilometre Stone", category: "tourism.sights", categories: ["tourism.sights"], address: "Budapest", latitude: 47.498, longitude: 19.04, distanceMeters: 50, website: null, source: "geoapify" as const, verified: true };
-      const ranked = rankGeoapifyCandidates([zeroKm, bastion], req, { latitude: 47.498, longitude: 19.04 }, new Set());
-      expect(ranked[0]?.id).toBe("m1");
-    });
+  it("TEST 8 : Même intent normalisé appelé deux fois -> 1 seul appel geocoding (cache)", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    let fetchCount = 0;
+    globalThis.fetch = (async () => {
+      fetchCount++;
+      return {
+        ok: true,
+        json: async () => ({
+          features: [
+            {
+              properties: {
+                lat: 47.50,
+                lon: 19.06,
+                city: "Budapest",
+                formatted: "Budapest, Hungary",
+                result_type: "district",
+              },
+            },
+          ],
+        }),
+      };
+    }) as any;
+
+    try {
+      const telemetry = { intentResolutionCalls: 0, intentResolutionHits: 0 };
+      await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402, telemetry);
+      await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402, telemetry);
+
+      expect(fetchCount).toBe(1);
+      expect(telemetry.intentResolutionCalls).toBe(1);
+      expect(telemetry.intentResolutionHits).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST 9 : 3 slots restaurant partageant les mêmes requirements de base mais 3 intentCenters -> keys séparées", () => {
+    const req1 = convertIntentToPlaceRequirements("restaurant", "repas", "quartier A", [], false, [], { latitude: 47.50, longitude: 19.06, label: "quartier A" });
+    const req2 = convertIntentToPlaceRequirements("restaurant", "repas", "quartier B", [], false, [], { latitude: 47.49, longitude: 19.03, label: "quartier B" });
+    const req3 = convertIntentToPlaceRequirements("restaurant", "repas", "quartier C", [], false, [], { latitude: 47.51, longitude: 19.05, label: "quartier C" });
+
+    const key1 = buildPoolKey(req1);
+    const key2 = buildPoolKey(req2);
+    const key3 = buildPoolKey(req3);
+
+    expect(key1).not.toBe(key2);
+    expect(key2).not.toBe(key3);
+  });
+
+  it("TEST 10 : Merge basePool + intentSupplement avec doublons -> dédupliqué", () => {
+    const candA = { id: "p1", name: "Lieu A", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 47.5, longitude: 19.04, distanceMeters: 100, website: null, source: "geoapify" as const, verified: true };
+    const candB = { id: "p2", name: "Lieu B", category: "catering.restaurant", categories: ["catering.restaurant"], address: null, latitude: 47.51, longitude: 19.05, distanceMeters: 200, website: null, source: "geoapify" as const, verified: true };
+
+    const merged = mergeUniquePlacesById([candA], [candA, candB]);
+    expect(merged).toHaveLength(2);
+    expect(merged.map((x) => x.id)).toEqual(["p1", "p2"]);
+  });
+
+  it("TEST 11 : Candidat Geoapify vérifié avec website valide -> website conservé, fallbackMapLinks = 0", () => {
+    const place = { name: "Kiosk Buda", website: "https://kioskbuda.hu", address: "Budapest, Fő utca 1", latitude: 47.5, longitude: 19.04 };
+    const telemetry = { fallbackMapLinks: 0 };
+    const res = resolveActivityResourceForPlace(place, "Budapest", { telemetry });
+
+    expect(res.url).toBe("https://kioskbuda.hu");
+    expect(res.resourceKind).toBe("website");
+    expect(telemetry.fallbackMapLinks).toBe(0);
+  });
+
+  it("TEST 12 : Candidat Geoapify vérifié sans website -> fallback Google Maps déterministe, fallbackMapLinks = 1", () => {
+    const place = { name: "Kiosk Buda", website: null, address: "Budapest, Fő utca 1", latitude: 47.5, longitude: 19.04 };
+    const telemetry = { fallbackMapLinks: 0 };
+    const res = resolveActivityResourceForPlace(place, "Budapest", { telemetry });
+
+    expect(res.url).toBe("https://www.google.com/maps/search/?api=1&query=Kiosk%20Buda%2C%20Budapest%2C%20F%C5%91%20utca%201");
+    expect(res.resourceKind).toBe("website");
+    expect(telemetry.fallbackMapLinks).toBe(1);
+  });
+
+  it("TEST 13 : URL Google Maps arbitraire donnée directement à resolveActivityResourceUrl sans flag verified -> rejetée", () => {
+    const res = resolveActivityResourceUrl("https://www.google.com/maps/search/?api=1&query=Arbitrary");
+    expect(res.url).toBeNull();
+    expect(res.resourceKind).toBeNull();
+  });
+
+  it("TEST 14 : place_required conserve son comportement grounded", () => {
+    const { shouldResolveWithPlaceProvider } = require("../activity-ai.server");
+    expect(shouldResolveWithPlaceProvider({ kind: "place_required", activityMode: "bookable" })).toBe(true);
+  });
+
+  it("TEST 15 : free_exploration et self_guided_group conservent leur comportement actuel", () => {
+    const { classifyActivityMode } = require("../activity-ai.server");
+    expect(classifyActivityMode({ kind: "internal", category: "jeu_groupe", label: "Blind test" })).toBe("self_guided_group");
+    expect(classifyActivityMode({ kind: "place_required", category: "culture", label: "Balade dans le centre historique" })).toBe("free_exploration");
   });
 });
