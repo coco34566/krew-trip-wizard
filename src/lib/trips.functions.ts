@@ -4392,9 +4392,34 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
       }),
     );
 
-    if (tasksToUpsert.length > 0) {
-      const { error: upsertErr } = await supabase.from("trip_tasks" as any).upsert(tasksToUpsert, { onConflict: "trip_id,slot_id" });
-      if (upsertErr) throw upsertErr;
+    const nowIso = new Date().toISOString();
+    const existingTasksToUpdate: any[] = [];
+    const newTasksToInsert: any[] = [];
+
+    for (const task of tasksToUpsert) {
+      if (task.id) {
+        existingTasksToUpdate.push({
+          ...task,
+          updated_at: nowIso,
+        });
+      } else {
+        const { id, ...newTask } = task;
+        newTasksToInsert.push(newTask);
+      }
+    }
+
+    if (existingTasksToUpdate.length > 0) {
+      const { error: updateErr } = await supabase
+        .from("trip_tasks" as any)
+        .upsert(existingTasksToUpdate, { onConflict: "trip_id,slot_id" });
+      if (updateErr) throw updateErr;
+    }
+
+    if (newTasksToInsert.length > 0) {
+      const { error: insertErr } = await supabase
+        .from("trip_tasks" as any)
+        .insert(newTasksToInsert);
+      if (insertErr) throw insertErr;
     }
 
     // Clean up orphan tasks that no longer exist in the new itinerary slots

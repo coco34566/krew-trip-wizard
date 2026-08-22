@@ -3148,6 +3148,30 @@ function TripDetail() {
                   </div>
                 </article>
               ))}
+
+              <div className="pt-4 border-t border-border/50">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-muted/30">
+                  <div className="space-y-0.5">
+                    <h4 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                      <KrewIcon name="tasks" tone="plum" size="sm" className="size-4 shrink-0" />
+                      Répartissez les tâches entre vous
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Clique ici pour répartir la to-do entre les membres du groupe.
+                    </p>
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
+                    <Link
+                      to="/trips/$tripId"
+                      params={{ tripId }}
+                      search={{ view: "voyage", section: "tasks" }}
+                    >
+                      <KrewIcon name="tasks" size="sm" className="size-3.5" />
+                      Répartir les tâches
+                    </Link>
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </section>
