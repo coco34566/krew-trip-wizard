@@ -1,7 +1,7 @@
-import { Lock, ArrowRight } from "lucide-react";
+import { Lock, ArrowRight, Users, CalendarDays, ClipboardList, Sparkles, MapPin, Hotel, Plane } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TripStep } from "@/lib/krew/availability";
-import { KrewHighlight, KrewMark } from "@/components/krew/visual-language";
+import { KrewHighlight, KrewMark, KrewProgressRing } from "@/components/krew/visual-language";
 
 const STEP_ROUTE: Record<string, string> = {
   availability: "/trips/$tripId/availability",
@@ -9,6 +9,30 @@ const STEP_ROUTE: Record<string, string> = {
   star: "/trips/$tripId/star",
   memories: "/trips/$tripId/memories",
 };
+
+function getStepIcon(stepId: string) {
+  switch (stepId) {
+    case "invite":
+      return Users;
+    case "availability":
+    case "dates":
+      return CalendarDays;
+    case "questionnaire":
+      return ClipboardList;
+    case "profile":
+      return Sparkles;
+    case "destination":
+      return MapPin;
+    case "hotels":
+      return Hotel;
+    case "transport":
+      return Plane;
+    case "organize":
+      return ClipboardList;
+    default:
+      return Sparkles;
+  }
+}
 
 export function TripHubNav({
   tripId,
@@ -29,7 +53,6 @@ export function TripHubNav({
 }) {
   const doneCount = steps.filter((s) => s.status === "done").length;
   const total = steps.length;
-  const progressPct = total ? Math.round((doneCount / total) * 100) : 0;
 
   function stepHref(step: TripStep): string | null {
     if (step.status === "soon") return null;
@@ -65,14 +88,20 @@ export function TripHubNav({
 
   return (
     <nav aria-label="Parcours du groupe" className="py-4 sm:py-6 space-y-6 sm:rounded-3xl sm:border sm:border-border/60 sm:bg-surface/80 sm:p-6">
-      {/* En-tête éditorial du parcours */}
-      <div className="flex items-center justify-between border-b border-border/40 pb-4">
+      {/* En-tête éditorial du parcours avec dataviz globale */}
+      <div className="flex items-center justify-between border-b border-border/40 pb-4 gap-4">
         <h3 className="font-display text-xl sm:text-2xl font-normal text-foreground">
           Parcours du <KrewHighlight tone="sage"><span className="text-foreground">groupe</span></KrewHighlight>
         </h3>
-        <span className="text-xs text-muted-foreground font-mono bg-surface-strong/60 px-3 py-1 rounded-full">
-          {doneCount} / {total} étapes
-        </span>
+        {total > 0 ? (
+          <KrewProgressRing
+            value={doneCount}
+            total={total}
+            tone="plum"
+            size="sm"
+            label="Avancement"
+          />
+        ) : null}
       </div>
 
       {/* Horizontale sur Desktop avec Connecteurs Organiques */}
@@ -84,18 +113,19 @@ export function TripHubNav({
           const href = stepHref(step);
           const isLast = i === steps.length - 1;
           const metric = renderMetric(step.id);
+          const StepIcon = getStepIcon(step.id);
 
           const StepLabel = (
-            <div className="flex flex-col items-center text-center gap-0.5 mt-2.5 max-w-[90px] sm:max-w-[105px]">
+            <div className="flex flex-col items-center text-center gap-1 mt-2.5 max-w-[90px] sm:max-w-[105px]">
               <span
                 className={cn(
-                  "font-sans text-xs font-medium leading-tight transition-colors",
-                  isActive && "text-primary font-semibold",
+                  "font-sans text-xs font-medium leading-tight transition-colors flex items-center gap-1",
+                  isActive && "text-primary font-semibold text-sm",
                   isDone && "text-foreground font-medium",
                   !isDone && !isActive && "text-muted-foreground/80",
                 )}
               >
-                {step.label}
+                <span>{step.label}</span>
               </span>
               {metric ? <span className="mt-0.5">{metric}</span> : null}
             </div>
@@ -104,12 +134,14 @@ export function TripHubNav({
           return (
             <li key={step.id} className="flex-1 flex flex-col items-center relative group min-w-[75px] sm:min-w-[90px]">
               <div className="flex items-center w-full">
-                {/* Badge circulaire */}
+                {/* Badge circulaire avec pictogramme sémantique */}
                 <span
                   className={cn(
-                    "flex size-7 items-center justify-center rounded-full border text-[11px] font-semibold transition-all shrink-0 mx-auto z-10",
+                    "flex items-center justify-center rounded-full border transition-all shrink-0 mx-auto z-10",
+                    isActive
+                      ? "size-9 border-primary bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/20"
+                      : "size-7 text-[11px]",
                     isDone && "border-sage/60 bg-sage/15 text-sage shadow-2xs",
-                    isActive && !isDone && "border-primary bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/20",
                     !isDone && !isActive && !isSoon && "border-border bg-background text-muted-foreground",
                     isSoon && "border-dashed border-border bg-muted/20 text-muted-foreground opacity-60",
                   )}
@@ -119,7 +151,7 @@ export function TripHubNav({
                   ) : isSoon ? (
                     <Lock className="size-2.5" />
                   ) : (
-                    <span className="font-mono text-[11px]">{i + 1}</span>
+                    <StepIcon className={cn(isActive ? "size-4.5" : "size-3.5")} />
                   )}
                 </span>
 
@@ -171,9 +203,15 @@ export function TripHubNav({
           const isLast = i === steps.length - 1;
           const metric = renderMetric(step.id);
           const isEven = i % 2 === 0;
+          const StepIcon = getStepIcon(step.id);
 
           const StepContent = (
-            <div className="flex flex-1 items-center justify-between gap-3 py-1.5 px-3 rounded-2xl bg-surface/50 border border-border/30">
+            <div className={cn(
+              "flex flex-1 items-center justify-between gap-3 py-2 px-3.5 rounded-2xl transition-all",
+              isActive
+                ? "bg-primary/8 border border-primary/30 shadow-xs"
+                : "bg-surface/50 border border-border/30"
+            )}>
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 {isActive ? (
                   <span className="font-sans text-base font-semibold text-primary">
@@ -206,11 +244,11 @@ export function TripHubNav({
 
           return (
             <li key={step.id} className="relative">
-              <div className="flex items-center gap-3">
-                {/* Colonne du nœud avec léger décalage X alterné pour tracé organique */}
+              <div className="flex items-center gap-3.5">
+                {/* Colonne du nœud avec décalage X alterné & picto sémantique */}
                 <div
                   className={cn(
-                    "flex w-8 flex-col items-center shrink-0 transition-transform",
+                    "flex w-9 flex-col items-center shrink-0 transition-transform",
                     isEven ? "translate-x-0" : "translate-x-1",
                   )}
                 >
@@ -218,7 +256,7 @@ export function TripHubNav({
                     className={cn(
                       "flex items-center justify-center rounded-full border font-semibold transition-all z-10",
                       isActive
-                        ? "size-8 border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/15"
+                        ? "size-9 border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/15"
                         : "size-7 text-[11px]",
                       isDone && "border-sage/60 bg-sage/15 text-sage shadow-2xs",
                       !isDone && !isActive && !isSoon && "border-border bg-background text-muted-foreground",
@@ -230,7 +268,7 @@ export function TripHubNav({
                     ) : isSoon ? (
                       <Lock className="size-3" />
                     ) : (
-                      <span className="font-mono">{i + 1}</span>
+                      <StepIcon className={cn(isActive ? "size-4.5" : "size-3.5")} />
                     )}
                   </span>
 

@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
-import { KrewMark, KrewSectionWave } from "@/components/krew/visual-language";
+import { Logo } from "@/components/krew/Logo";
+import { KrewMark, KrewSectionWave, KrewProgressRing } from "@/components/krew/visual-language";
 
 type Props = {
   tripId: string;
@@ -78,6 +79,31 @@ function heroImageForEvent(eventType?: string | null) {
   if (key === "week_end") key = "weekend";
 
   return map[key] || map["autre"];
+}
+
+function getKrewMarkForAction(key: string): { type: "circle" | "arrow" | "check" | "connector" | "highlight"; tone: "plum" | "sage" } {
+  switch (key) {
+    case "avail":
+      return { type: "circle", tone: "sage" };
+    case "prefs":
+    case "star":
+      return { type: "highlight", tone: "plum" };
+    case "lock-dates":
+      return { type: "check", tone: "sage" };
+    case "choose-profile":
+    case "gen":
+    case "pick-dest":
+      return { type: "circle", tone: "plum" };
+    case "search-hotels":
+    case "search-transport":
+      return { type: "arrow", tone: "sage" };
+    case "plan":
+      return { type: "connector", tone: "plum" };
+    case "refine":
+      return { type: "check", tone: "sage" };
+    default:
+      return { type: "arrow", tone: "sage" };
+  }
 }
 
 type NextActionsPanelProps = {
@@ -317,121 +343,144 @@ function NextActionsPanel({
       !destinationSelected ||
       (destinationSelected && !hasItinerary));
 
+  if (actions.length === 0 && participantCaughtUp) {
+    return (
+      <section className="-mx-4 sm:mx-0 rounded-3xl border border-sage/25 bg-sage/12 p-6 sm:p-7 relative overflow-hidden shadow-xs">
+        <div className="flex items-start gap-4">
+          <Logo variant="icon" size="sm" className="size-12 sm:size-14 shrink-0 pointer-events-none" />
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h2 className="font-display text-xl sm:text-2xl font-normal tracking-tight text-foreground">
+                Tout est à jour de ton côté
+              </h2>
+              <KrewMark type="check" tone="sage" size="sm" className="size-5 shrink-0" />
+            </div>
+            <p className="text-sm leading-relaxed text-foreground/80 font-sans pt-0.5">
+              {isOwner
+                ? hasItinerary
+                  ? "Le planning est en place. Les choix restent modifiables si nécessaire."
+                  : destinationSelected
+                    ? "L’hébergement, le transport et le planning restent à finaliser."
+                    : "Dès que le groupe a assez répondu, valide dates et destination."
+                : !destinationSelected
+                  ? "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."
+                  : "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   const primaryAction = actions.find((a) => a.primary) ?? actions[0];
   const secondaryActions = actions.filter((a) => a !== primaryAction);
+  const primaryMark = primaryAction ? getKrewMarkForAction(primaryAction.key) : null;
 
   return (
-    <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden">
+    <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden relative">
+      {/* Signature Officielle Loutre KREW */}
+      <div className="absolute top-2 right-6 z-20 pointer-events-none">
+        <Logo variant="icon" size="sm" className="size-12 sm:size-14 object-contain filter drop-shadow-xs" />
+      </div>
+
       {/* Vague supérieure ouvrant la grande nappe sauge */}
       <KrewSectionWave position="top" tone="sage" className="text-sage/18" />
 
       {/* GRANDE NAPPE SAUGE PLEINE LARGEUR */}
       <div className="bg-sage/18 px-5 sm:px-8 py-6 sm:py-8 space-y-4">
-        {actions.length === 0 && participantCaughtUp ? (
-          <div className="flex gap-3.5 items-start py-2">
-            <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 size-6 shrink-0" />
-            <div>
-              <h2 className="font-display text-xl sm:text-2xl font-normal tracking-tight text-foreground">
-                Tout est à jour de ton côté
-              </h2>
-              <p className="mt-1 text-sm leading-relaxed text-foreground/80 font-sans">
-                {isOwner
-                  ? hasItinerary
-                    ? "Le planning est en place. Les choix restent modifiables si nécessaire."
-                    : destinationSelected
-                      ? "L’hébergement, le transport et le planning restent à finaliser."
-                      : "Dès que le groupe a assez répondu, valide dates et destination."
-                  : !destinationSelected
-                    ? "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."
-                    : "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."}
-              </p>
-            </div>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/75 font-sans">
+              Tes prochaines actions
+            </h2>
+            <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-90" />
           </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/75 font-sans">
-                Tes prochaines actions
-              </h2>
-              <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-90" />
-            </div>
+        </div>
 
-            {waitingOnOthers ? (
-              <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
-                De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
-                l&apos;organisateur·rice.
-              </div>
-            ) : null}
+        {waitingOnOthers ? (
+          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
+            De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
+            l&apos;organisateur·rice.
+          </div>
+        ) : null}
 
-            <div className="space-y-3">
-              {primaryAction ? (
-                (() => {
-                  const Tag = primaryAction.href ? "a" : "div";
-                  return (
-                    <Tag
-                      key={primaryAction.key}
-                      {...(primaryAction.href ? { href: primaryAction.href } : {})}
-                      className={cn(
-                        "group flex items-center justify-between gap-4 rounded-2xl border border-sage/40 bg-card p-4 sm:p-5 transition hover:border-primary/50 shadow-sm",
-                        primaryAction.href && "cursor-pointer",
-                      )}
-                    >
-                      <div className="flex items-start gap-3.5 min-w-0">
-                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-                          <primaryAction.icon className="size-5" />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-sans text-base font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {primaryAction.title}
-                          </p>
-                          <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
-                            {primaryAction.desc}
-                          </p>
-                        </div>
-                      </div>
-                      {primaryAction.href ? (
-                        <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
-                      ) : null}
-                    </Tag>
-                  );
-                })()
-              ) : null}
-
-              {secondaryActions.length > 0 ? (
-                <div className="rounded-2xl border border-border/70 bg-card/95 p-4 space-y-3 shadow-2xs">
-                  {secondaryActions.map((a) => {
-                    const Tag = a.href ? "a" : "div";
-                    return (
-                      <Tag
-                        key={a.key}
-                        {...(a.href ? { href: a.href } : {})}
-                        className={cn(
-                          "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
-                          a.href && "cursor-pointer",
-                        )}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
-                            <a.icon className="size-4" />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                              {a.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
-                          </div>
-                        </div>
-                        {a.href ? (
-                          <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        <div className="space-y-3">
+          {primaryAction ? (
+            (() => {
+              const Tag = primaryAction.href ? "a" : "div";
+              return (
+                <Tag
+                  key={primaryAction.key}
+                  {...(primaryAction.href ? { href: primaryAction.href } : {})}
+                  className={cn(
+                    "group relative flex items-center justify-between gap-4 rounded-2xl border border-sage/40 bg-card p-4 sm:p-5 transition hover:border-primary/50 shadow-sm",
+                    primaryAction.href && "cursor-pointer",
+                  )}
+                >
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                      <primaryAction.icon className="size-5" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-sans text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                          {primaryAction.title}
+                        </p>
+                        {primaryMark ? (
+                          <KrewMark
+                            type={primaryMark.type}
+                            tone={primaryMark.tone}
+                            size="sm"
+                            className="w-8 h-4 shrink-0 pointer-events-none"
+                          />
                         ) : null}
-                      </Tag>
-                    );
-                  })}
-                </div>
-              ) : null}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                        {primaryAction.desc}
+                      </p>
+                    </div>
+                  </div>
+                  {primaryAction.href ? (
+                    <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
+                  ) : null}
+                </Tag>
+              );
+            })()
+          ) : null}
+
+          {secondaryActions.length > 0 ? (
+            <div className="rounded-2xl border border-border/70 bg-card/95 p-4 space-y-3 shadow-2xs">
+              {secondaryActions.map((a) => {
+                const Tag = a.href ? "a" : "div";
+                return (
+                  <Tag
+                    key={a.key}
+                    {...(a.href ? { href: a.href } : {})}
+                    className={cn(
+                      "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
+                      a.href && "cursor-pointer",
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
+                        <a.icon className="size-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                          {a.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
+                      </div>
+                    </div>
+                    {a.href ? (
+                      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                    ) : null}
+                  </Tag>
+                );
+              })}
             </div>
-          </>
-        )}
+          ) : null}
+        </div>
       </div>
 
       {/* Vague inférieure refermant la grande nappe sauge */}
@@ -517,10 +566,12 @@ export function TripHubDashboard({
               </h1>
 
               {destinationName ? (
-                <p className="font-display text-2xl sm:text-3xl text-primary font-normal flex items-center gap-2 pt-1">
-                  <MapPin className="size-5 text-primary shrink-0" />
-                  <span>{destinationName}</span>
-                </p>
+                <div className="pt-1">
+                  <p className="font-display text-2xl sm:text-3xl text-primary font-normal flex items-center gap-2">
+                    <MapPin className="size-5 text-primary shrink-0" />
+                    <span>{destinationName}</span>
+                  </p>
+                </div>
               ) : null}
 
               {trip.celebrated_person ? (
@@ -592,6 +643,33 @@ export function TripHubDashboard({
           </div>
         </div>
       </header>
+
+      {/* ÉTAT DU KREW — Visualisation chiffrée compacte sans card */}
+      {(availabilityExpected > 0 || progressTotal > 0) && (
+        <div className="flex items-center justify-center gap-6 py-2 px-4">
+          {availabilityExpected > 0 ? (
+            <KrewProgressRing
+              value={availabilityAnswered}
+              total={availabilityExpected}
+              tone="sage"
+              label="Disponibilités"
+            />
+          ) : null}
+
+          {availabilityExpected > 0 && progressTotal > 0 ? (
+            <KrewMark type="connector" tone="sage" size="sm" className="w-8 h-4 opacity-50 hidden sm:block" />
+          ) : null}
+
+          {progressTotal > 0 ? (
+            <KrewProgressRing
+              value={progressAnswered}
+              total={progressTotal}
+              tone="plum"
+              label="Préférences"
+            />
+          ) : null}
+        </div>
+      )}
 
       {/* GRANDE NAPPE SAUGE "TES PROCHAINES ACTIONS" ENCADRÉE PAR DEUX VAGUES */}
       <NextActionsPanel
