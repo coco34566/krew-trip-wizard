@@ -108,7 +108,7 @@ export function CostSplitCard({ split, tripName }: Props) {
 
         <div className="pt-2 border-t border-border/60 flex items-center justify-between">
           <span className="flex items-center gap-2 font-display text-lg font-semibold">
-            <Wallet className="size-5 text-primary" />
+            <KrewIcon name="budget" tone="plum" size="sm" className="size-5 shrink-0" />
             Total groupe :
           </span>
           <span className="font-mono font-bold text-xl text-primary">{formatEuro(split.totalGroup)}</span>
