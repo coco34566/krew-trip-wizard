@@ -47,7 +47,7 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
       ok: true,
       text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ searchQuery: "aparthotel Lisbonne" }) }] } }], results: [] }),
     });
-    global.fetch = fetchMock;
+    vi.stubGlobal("fetch", fetchMock);
 
     await searchAccommodationsWithGemini(spec);
 
@@ -66,7 +66,7 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
       ok: true,
       text: async () => JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ searchQuery: "activites Paris" }) }] } }], results: [] }),
     });
-    global.fetch = fetchMock;
+    vi.stubGlobal("fetch", fetchMock);
 
     await discoverActivities({
       destination: "Paris",
@@ -97,7 +97,7 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
       ok: true,
       json: async () => ({ steps: [] }),
     });
-    global.fetch = fetchMock;
+    vi.stubGlobal("fetch", fetchMock);
 
     await discoverDestinationsWithAi({
       ambiances: ["soleil"],
@@ -121,7 +121,7 @@ describe("Modèles Gemini - Grounded vs Standard GEMINI_MODEL", () => {
       ok: true,
       text: async () => JSON.stringify({ candidates: [] }),
     });
-    global.fetch = fetchMock;
+    vi.stubGlobal("fetch", fetchMock);
 
     const mockSlot = {
       moment: "Soir",

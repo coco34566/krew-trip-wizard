@@ -943,5 +943,77 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
 
       expect(mode).toBe("self_guided_group");
     });
+
+    // Test non-régression routing : shouldResolveWithPlaceProvider pour place_required + "quartier"
+    it("Test non-régression routing — place_required avec 'quartier' utilise TOUJOURS la résolution de lieu Geoapify", () => {
+      const { classifyActivityMode, shouldResolveWithPlaceProvider } = require("../activity-ai.server");
+      const slot = {
+        kind: "place_required",
+        type: "resto",
+        category: "repas",
+        venueFamily: "restaurant",
+        locationContext: "external",
+        searchIntent: "restaurant convivial dans le quartier juif de Budapest",
+        label: "Dîner dans le quartier juif",
+      };
+
+      const classifiedMode = classifyActivityMode(slot);
+      // Mode classification might return free_exploration based on text "quartier"
+      expect(classifiedMode).toBe("free_exploration");
+
+      // But shouldResolveWithPlaceProvider must guarantee kind === "place_required" resolves via Geoapify!
+      const mustResolve = shouldResolveWithPlaceProvider({
+        kind: slot.kind,
+        activityMode: classifiedMode,
+      });
+
+      expect(mustResolve).toBe(true);
+    });
+
+    // Test 9 — Nouveau
+    it("Test 9 — candidate.categories = ['service', 'service.beauty'] est INCOMPATIBLE avec canonicalFamily = 'spa_wellness'", () => {
+      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
+      const candidate = {
+        id: "nail-salon-generic",
+        name: "Generic Nail Salon",
+        category: "service.beauty",
+        categories: ["service", "service.beauty"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "bains thermaux");
+      const compatible = isCandidateCompatibleWithRequirements(candidate, req);
+
+      expect(compatible).toBe(false);
+    });
+
+    // Test 10 — Nouveau
+    it("Test 10 — candidate.categories = ['commercial'] est INCOMPATIBLE avec canonicalFamily = 'shopping'", () => {
+      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
+      const candidate = {
+        id: "generic-shop",
+        name: "Generic Commercial Place",
+        category: "commercial",
+        categories: ["commercial"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("shopping", "shopping", "boutiques de créateurs");
+      const compatible = isCandidateCompatibleWithRequirements(candidate, req);
+
+      expect(compatible).toBe(false);
+    });
   });
 });

@@ -558,38 +558,48 @@ export function isCandidateCompatibleWithRequirements(
   if (!candidate || !Array.isArray(candidate.categories) || candidate.categories.length === 0) {
     return false;
   }
-  const candCats = candidate.categories.map((c) => String(c).toLowerCase());
+  const candCats = candidate.categories.map((c) => String(c).toLowerCase().trim());
   const normFamily = String(req.canonicalFamily || "").toLowerCase().trim();
 
-  let allowedPrefixes: string[] = [];
+  let allowedCategories: string[] = [];
 
   if (normFamily.includes("cafe") || normFamily.includes("brunch")) {
-    allowedPrefixes = ["catering.cafe", "catering.restaurant"];
+    allowedCategories = ["catering.cafe", "catering.restaurant"];
   } else if (normFamily.includes("restaurant") || normFamily === "resto") {
-    allowedPrefixes = ["catering.restaurant"];
+    allowedCategories = ["catering.restaurant"];
   } else if (normFamily.includes("bar") || normFamily.includes("pub")) {
-    allowedPrefixes = ["catering.bar", "catering.pub", "entertainment.nightclub"];
+    allowedCategories = ["catering.bar", "catering.pub"];
   } else if (normFamily.includes("spa") || normFamily.includes("wellness")) {
-    allowedPrefixes = ["leisure.spa", "service.beauty.spa", "service.beauty.massage", "service.beauty"];
+    allowedCategories = ["leisure.spa", "service.beauty.spa", "service.beauty.massage"];
   } else if (normFamily.includes("shopping")) {
-    allowedPrefixes = ["commercial.marketplace", "commercial.shopping_mall", "commercial.clothing", "commercial"];
+    allowedCategories = ["commercial.marketplace", "commercial.shopping_mall", "commercial.clothing"];
   } else if (normFamily.includes("culture")) {
-    allowedPrefixes = ["tourism.sights", "tourism.attraction", "entertainment.museum", "entertainment.culture", "tourism", "entertainment"];
+    allowedCategories = ["tourism.sights", "tourism.attraction", "entertainment.museum", "entertainment.culture"];
   } else if (normFamily.includes("sport")) {
-    allowedPrefixes = ["sport", "entertainment.activity_park", "tourism.attraction", "leisure"];
-  } else {
-    allowedPrefixes = (req.categories || []).map((c) => String(c).toLowerCase());
+    allowedCategories = ["sport", "entertainment.activity_park", "tourism.attraction"];
   }
 
+  const genericParents = new Set([
+    "commercial",
+    "tourism",
+    "entertainment",
+    "service",
+    "service.beauty",
+    "catering",
+    "leisure",
+  ]);
+
   for (const cat of req.categories || []) {
-    const normC = String(cat).toLowerCase();
-    if (!allowedPrefixes.includes(normC)) {
-      allowedPrefixes.push(normC);
+    const normC = String(cat).toLowerCase().trim();
+    if (normC && !genericParents.has(normC) && !allowedCategories.includes(normC)) {
+      allowedCategories.push(normC);
     }
   }
 
   return candCats.some((candCat) =>
-    allowedPrefixes.some((prefix) => candCat.includes(prefix) || prefix.includes(candCat))
+    allowedCategories.some(
+      (allowed) => candCat === allowed || candCat.startsWith(`${allowed}.`)
+    )
   );
 }
 
