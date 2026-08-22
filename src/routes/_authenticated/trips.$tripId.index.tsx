@@ -98,6 +98,7 @@ import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
   destinationBudgetTotal,
