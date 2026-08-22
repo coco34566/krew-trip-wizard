@@ -15,6 +15,7 @@ export type KrewActionItem = {
 type Progress = {
   label: string;
   value: number;
+  tone?: "sage" | "plum";
 };
 
 type Props = {
@@ -56,7 +57,7 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
               {progress.slice(0, 2).map((item) => (
                 <div key={item.label} className="flex flex-col items-center gap-1">
                   <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-foreground/65">{item.label}</span>
-                  <KrewProgressRing value={item.value} size={62} />
+                  <KrewProgressRing value={item.value} tone={item.tone ?? "sage"} size={62} />
                 </div>
               ))}
             </div>

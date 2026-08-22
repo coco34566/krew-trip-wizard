@@ -2,8 +2,8 @@ import { cn } from "@/lib/utils";
 
 type KrewProgressRingProps = {
   value: number;
-  total: number;
-  size?: "sm" | "md";
+  total?: number;
+  size?: "sm" | "md" | number;
   tone?: "sage" | "plum";
   label?: string;
   className?: string;
@@ -15,7 +15,7 @@ type KrewProgressRingProps = {
  */
 export function KrewProgressRing({
   value,
-  total,
+  total = 100,
   size = "md",
   tone = "sage",
   label,
@@ -24,8 +24,8 @@ export function KrewProgressRing({
   if (total <= 0) return null;
 
   const pct = Math.min(1, Math.max(0, value / total));
-  const dimension = size === "sm" ? 52 : 64;
-  const strokeWidth = size === "sm" ? 4 : 5;
+  const dimension = typeof size === "number" ? size : size === "sm" ? 52 : 64;
+  const strokeWidth = typeof size === "number" ? Math.max(3, Math.round(size / 13)) : size === "sm" ? 4 : 5;
   const radius = (dimension - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - pct);
@@ -68,7 +68,7 @@ export function KrewProgressRing({
           />
         </svg>
         <span className="absolute font-mono text-xs font-bold text-foreground">
-          {value}/{total}
+          {total === 100 ? `${Math.round(value)}%` : `${value}/${total}`}
         </span>
       </div>
       {label ? (

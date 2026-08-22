@@ -16,10 +16,10 @@ import { cn } from "@/lib/utils";
 import { Logo } from "@/components/krew/Logo";
 import {
   KrewMark,
-  KrewSectionWave,
-  KrewProgressRing,
   KrewOrganicBlob,
   KrewHighlight,
+  KrewActionStack,
+  type KrewActionItem,
 } from "@/components/krew/visual-language";
 
 type Props = {
@@ -87,31 +87,6 @@ function heroImageForEvent(eventType?: string | null) {
   return map[key] || map["autre"];
 }
 
-function getKrewMarkForAction(key: string): { type: "circle" | "arrow" | "check" | "connector" | "highlight"; tone: "plum" | "sage" } {
-  switch (key) {
-    case "avail":
-      return { type: "circle", tone: "sage" };
-    case "prefs":
-    case "star":
-      return { type: "highlight", tone: "plum" };
-    case "lock-dates":
-      return { type: "check", tone: "sage" };
-    case "choose-profile":
-    case "gen":
-    case "pick-dest":
-      return { type: "circle", tone: "plum" };
-    case "search-hotels":
-    case "search-transport":
-      return { type: "arrow", tone: "sage" };
-    case "plan":
-      return { type: "connector", tone: "plum" };
-    case "refine":
-      return { type: "check", tone: "sage" };
-    default:
-      return { type: "arrow", tone: "sage" };
-  }
-}
-
 type NextActionsPanelProps = {
   tripId: string;
   isOwner: boolean;
@@ -161,19 +136,8 @@ function NextActionsPanel({
     Boolean(trip.celebrated_person) ||
     ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type));
 
-  type Action = {
-    key: string;
-    title: string;
-    desc: string;
-    href?: string;
-    icon: typeof CalendarDays;
-    primary?: boolean;
-  };
-
-  const actions: Action[] = [];
-  const push = (a: Action) => {
-    if (actions.length === 0) a.primary = true;
-    else if (a.primary == null) a.primary = false;
+  const actions: KrewActionItem[] = [];
+  const push = (a: KrewActionItem) => {
     actions.push(a);
   };
 
@@ -182,7 +146,7 @@ function NextActionsPanel({
     push({
       key: "avail",
       title: "Indiquer mes disponibilités",
-      desc: "Indispensable pour trouver une date commune.",
+      description: "Indispensable pour trouver une date commune.",
       href: `/trips/${tripId}/availability`,
       icon: CalendarDays,
     });
@@ -191,7 +155,7 @@ function NextActionsPanel({
     push({
       key: "prefs",
       title: "Renseigner mes préférences",
-      desc: "Budget, envies et transports pour trouver les destinations qui correspondent au groupe.",
+      description: "Budget, envies et transports pour trouver les destinations qui correspondent au groupe.",
       href: `/trips/${tripId}/questionnaire`,
       icon: ClipboardList,
     });
@@ -202,7 +166,7 @@ function NextActionsPanel({
       title: trip.celebrated_person
         ? `Renseigner les préférences de ${trip.celebrated_person}`
         : "Renseigner les préférences de la Star",
-      desc: "Compléter ses préférences pour le voyage.",
+      description: "Compléter ses préférences pour le voyage.",
       href: `/trips/${tripId}/star`,
       icon: Star,
     });
@@ -214,7 +178,7 @@ function NextActionsPanel({
       push({
         key: "hotel",
         title: "Voter pour un hébergement",
-        desc: "Un vote par personne — l’organisateur·rice finalise le choix.",
+        description: "Un vote par personne — l’organisateur·rice finalise le choix.",
         href: `/trips/${tripId}?view=voyage&section=accommodation`,
         icon: Hotel,
       });
@@ -223,7 +187,7 @@ function NextActionsPanel({
       push({
         key: "transport",
         title: "Choisir mon trajet",
-        desc: "Selon la ville de départ et les contraintes horaires.",
+        description: "Selon la ville de départ et les contraintes horaires.",
         href: `/trips/${tripId}?view=voyage&section=transport`,
         icon: Plane,
       });
@@ -236,7 +200,7 @@ function NextActionsPanel({
       push({
         key: "lock-dates",
         title: "Valider les dates du groupe",
-        desc: "Cette validation débloque la suite du voyage.",
+        description: "Cette validation débloque la suite du voyage.",
         href: `/trips/${tripId}?view=voyage&section=dates`,
         icon: CalendarDays,
       });
@@ -245,7 +209,7 @@ function NextActionsPanel({
       push({
         key: "choose-profile",
         title: "Choisir le profil du voyage",
-        desc: "Choisis 1 à 3 profils qui correspondent au séjour du groupe.",
+        description: "Choisis 1 à 3 profils qui correspondent au séjour du groupe.",
         href: `/trips/${tripId}?view=voyage&section=profile`,
         icon: Sparkles,
       });
@@ -255,7 +219,7 @@ function NextActionsPanel({
         push({
           key: "gen",
           title: "Trouver des destinations",
-          desc: "Des propositions adaptées aux préférences du groupe.",
+          description: "Des propositions adaptées aux préférences du groupe.",
           href: `/trips/${tripId}?view=voyage&section=destination`,
           icon: Sparkles,
         });
@@ -263,7 +227,7 @@ function NextActionsPanel({
         push({
           key: "pick-dest",
           title: "Valider une destination",
-          desc: "Cette validation débloque les hébergements, les trajets et le planning.",
+          description: "Cette validation débloque les hébergements, les trajets et le planning.",
           href: `/trips/${tripId}?view=voyage&section=destination`,
           icon: MapPin,
         });
@@ -273,7 +237,7 @@ function NextActionsPanel({
       push({
         key: "search-hotels",
         title: "Rechercher des hébergements",
-        desc: "Proposer des hébergements au groupe pour le vote.",
+        description: "Proposer des hébergements au groupe pour le vote.",
         href: `/trips/${tripId}?view=voyage&section=accommodation`,
         icon: Hotel,
       });
@@ -282,7 +246,7 @@ function NextActionsPanel({
       push({
         key: "search-transport",
         title: "Proposer des trajets A/R",
-        desc: "Des options adaptées aux villes de départ du groupe.",
+        description: "Des options adaptées aux villes de départ du groupe.",
         href: `/trips/${tripId}?view=voyage&section=transport`,
         icon: Plane,
       });
@@ -296,7 +260,7 @@ function NextActionsPanel({
       push({
         key: "plan",
         title: "Créer le planning",
-        desc: "Construire le séjour jour par jour en tenant compte des horaires d’arrivée et de départ.",
+        description: "Construire le séjour jour par jour en tenant compte des horaires d’arrivée et de départ.",
         href: `/trips/${tripId}?view=voyage&section=planning`,
         icon: Sparkles,
       });
@@ -305,7 +269,7 @@ function NextActionsPanel({
       push({
         key: "refine",
         title: "Affiner l’organisation",
-        desc: "Ajuster un créneau, vérifier les choix du groupe ou partager le résumé.",
+        description: "Ajuster un créneau, vérifier les choix du groupe ou partager le résumé.",
         href: `/trips/${tripId}?view=voyage&section=planning`,
         icon: ClipboardList,
       });
@@ -317,7 +281,7 @@ function NextActionsPanel({
       push({
         key: "nudge",
         title: "Relancer le groupe",
-        desc: [
+        description: [
           missingAvail > 0
             ? `${missingAvail} dispo${missingAvail > 1 ? "s" : ""} manquante${missingAvail > 1 ? "s" : ""}`
             : null,
@@ -329,7 +293,6 @@ function NextActionsPanel({
           .join(" · "),
         href: `/trips/${tripId}#group-section`,
         icon: Users,
-        primary: false,
       });
     }
   }
@@ -378,114 +341,41 @@ function NextActionsPanel({
     );
   }
 
-  const primaryAction = actions.find((a) => a.primary) ?? actions[0];
-  const secondaryActions = actions.filter((a) => a !== primaryAction);
-  const primaryMark = primaryAction ? getKrewMarkForAction(primaryAction.key) : null;
+  const primaryAction = actions[0];
+  if (!primaryAction) return null;
+
+  const secondaryActions = actions.slice(1, 4);
+
+  const progressItems = [];
+  if (availabilityExpected > 0) {
+    progressItems.push({
+      label: "Disponibilités",
+      value: Math.round((availabilityAnswered / availabilityExpected) * 100),
+      tone: "sage" as const,
+    });
+  }
+  if (progressTotal > 0) {
+    progressItems.push({
+      label: "Préférences",
+      value: Math.round((progressAnswered / progressTotal) * 100),
+      tone: "plum" as const,
+    });
+  }
 
   return (
-    <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden relative">
-      {/* Vague supérieure ouvrant la grande nappe sauge */}
-      <KrewSectionWave position="top" tone="sage" className="text-sage/18" />
-
-      {/* GRANDE NAPPE SAUGE PLEINE LARGEUR */}
-      <div className="bg-sage/18 px-5 sm:px-8 py-6 sm:py-8 space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/75 font-sans">
-              Tes prochaines actions
-            </h2>
-            <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-90" />
-          </div>
+    <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden relative space-y-3">
+      {waitingOnOthers ? (
+        <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
+          De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
+          l&apos;organisateur·rice.
         </div>
+      ) : null}
 
-        {waitingOnOthers ? (
-          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
-            De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
-            l&apos;organisateur·rice.
-          </div>
-        ) : null}
-
-        <div className="space-y-3">
-          {primaryAction ? (
-            (() => {
-              const Tag = primaryAction.href ? "a" : "div";
-              return (
-                <Tag
-                  key={primaryAction.key}
-                  {...(primaryAction.href ? { href: primaryAction.href } : {})}
-                  className={cn(
-                    "group relative flex items-center justify-between gap-4 rounded-2xl border border-sage/40 bg-card p-4 sm:p-5 transition hover:border-primary/50 shadow-sm",
-                    primaryAction.href && "cursor-pointer",
-                  )}
-                >
-                  <div className="flex items-start gap-3.5 min-w-0">
-                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-                      <primaryAction.icon className="size-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-sans text-base font-semibold text-foreground group-hover:text-primary transition-colors">
-                          {primaryAction.title}
-                        </p>
-                        {primaryMark ? (
-                          <KrewMark
-                            type={primaryMark.type}
-                            tone={primaryMark.tone}
-                            size="sm"
-                            className="w-8 h-4 shrink-0 pointer-events-none"
-                          />
-                        ) : null}
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
-                        {primaryAction.desc}
-                      </p>
-                    </div>
-                  </div>
-                  {primaryAction.href ? (
-                    <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
-                  ) : null}
-                </Tag>
-              );
-            })()
-          ) : null}
-
-          {secondaryActions.length > 0 ? (
-            <div className="rounded-2xl border border-border/70 bg-card/95 p-4 space-y-3 shadow-2xs">
-              {secondaryActions.map((a) => {
-                const Tag = a.href ? "a" : "div";
-                return (
-                  <Tag
-                    key={a.key}
-                    {...(a.href ? { href: a.href } : {})}
-                    className={cn(
-                      "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
-                      a.href && "cursor-pointer",
-                    )}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
-                        <a.icon className="size-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                          {a.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
-                      </div>
-                    </div>
-                    {a.href ? (
-                      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                    ) : null}
-                  </Tag>
-                );
-              })}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Vague inférieure refermant la grande nappe sauge */}
-      <KrewSectionWave position="bottom" tone="sage" className="text-sage/18" />
+      <KrewActionStack
+        primary={primaryAction}
+        secondary={secondaryActions}
+        progress={progressItems}
+      />
     </div>
   );
 }
@@ -689,34 +579,7 @@ export function TripHubDashboard({
         </div>
       </header>
 
-      {/* ÉTAT DU KREW — Visualisation chiffrée compacte */}
-      {(availabilityExpected > 0 || progressTotal > 0) && (
-        <div className="flex items-center justify-center gap-6 py-2 px-4">
-          {availabilityExpected > 0 ? (
-            <KrewProgressRing
-              value={availabilityAnswered}
-              total={availabilityExpected}
-              tone="sage"
-              label="Disponibilités"
-            />
-          ) : null}
-
-          {availabilityExpected > 0 && progressTotal > 0 ? (
-            <KrewMark type="connector" tone="sage" size="sm" className="w-8 h-4 opacity-50 hidden sm:block" />
-          ) : null}
-
-          {progressTotal > 0 ? (
-            <KrewProgressRing
-              value={progressAnswered}
-              total={progressTotal}
-              tone="plum"
-              label="Préférences"
-            />
-          ) : null}
-        </div>
-      )}
-
-      {/* GRANDE NAPPE SAUGE "TES PROCHAINES ACTIONS" ENCADRÉE PAR DEUX VAGUES */}
+      {/* PROCHAINES ACTIONS VIA KREW ACTION STACK */}
       <NextActionsPanel
         tripId={tripId}
         isOwner={isOwner}
