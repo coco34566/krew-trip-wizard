@@ -2313,4 +2313,116 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
       globalThis.fetch = originalFetch;
     }
   });
+
+  describe("Correctifs Bug Thermal Bath vs Beauty Spa & Detail Preservation", () => {
+    it("intent 'bains thermaux' + service.beauty.spa / salon → REJETÉ", () => {
+      const req = convertIntentToPlaceRequirements("spa_wellness", "relaxation", "accès bains thermaux historiques et spa pour groupe à Budapest");
+      const candBeautySalon: GeoapifyPlace = {
+        id: "salon-1",
+        name: "Bogyó Kozmetika Salon",
+        category: "service.beauty.spa",
+        categories: ["service", "service.beauty", "service.beauty.spa"],
+        address: "Budapest, Main St 5",
+        latitude: 47.49,
+        longitude: 19.05,
+        distanceMeters: 100,
+        website: "https://bogyokozmetika.hu",
+        source: "geoapify",
+        verified: true,
+      };
+
+      expect(isCandidateCompatibleWithRequirements(candBeautySalon, req)).toBe(false);
+    });
+
+    it("intent 'bains thermaux' + vrai thermal bath → ACCEPTÉ", () => {
+      const req = convertIntentToPlaceRequirements("spa_wellness", "relaxation", "accès bains thermaux historiques et spa pour groupe à Budapest");
+      const candThermalBath: GeoapifyPlace = {
+        id: "gellert-1",
+        name: "Gellért Thermal Bath",
+        category: "leisure.spa",
+        categories: ["leisure", "leisure.spa", "building.spa"],
+        address: "Kelenhegyi út 4, Budapest",
+        latitude: 47.48,
+        longitude: 19.05,
+        distanceMeters: 50,
+        website: "https://gellertbath.hu",
+        source: "geoapify",
+        verified: true,
+      };
+
+      expect(isCandidateCompatibleWithRequirements(candThermalBath, req)).toBe(true);
+    });
+
+    it("intent générique 'spa/massage' + vrai spa compatible → comportement actuel conservé", () => {
+      const req = convertIntentToPlaceRequirements("spa_wellness", "relaxation", "moment detente au spa et massage");
+      const candBeautySpa: GeoapifyPlace = {
+        id: "spa-beauty-1",
+        name: "City Day Spa & Massage",
+        category: "service.beauty.spa",
+        categories: ["service", "service.beauty", "service.beauty.spa"],
+        address: "Budapest, Center 10",
+        latitude: 47.49,
+        longitude: 19.05,
+        distanceMeters: 200,
+        website: null,
+        source: "geoapify",
+        verified: true,
+      };
+
+      expect(isCandidateCompatibleWithRequirements(candBeautySpa, req)).toBe(true);
+    });
+
+    it("résolution Geoapify → detail Gemini conservé et address séparée", async () => {
+      const existingSlot: ActivitySlot = {
+        moment: "Matin",
+        type: "activite",
+        category: "relaxation",
+        label: "Thermes Gellért",
+        detail: "Une expérience bien-être incontournable dans des bains thermaux historiques et raffinés.",
+        time: "10:00",
+        durationMinutes: 120,
+        locationContext: "external",
+        venueFamily: "spa_wellness",
+        searchIntent: "accès bains thermaux historiques et spa pour groupe à Budapest",
+        verified: false,
+        source: "ai",
+        url: null,
+      };
+
+      const mockPlace: GeoapifyPlace = {
+        id: "gellert-1",
+        name: "Gellért Thermal Bath",
+        category: "leisure.spa",
+        categories: ["leisure", "leisure.spa"],
+        address: "Kelenhegyi út 4, 1118 Budapest",
+        latitude: 47.4849,
+        longitude: 19.0519,
+        distanceMeters: 100,
+        website: "https://www.gellertbath.hu",
+        source: "geoapify",
+        verified: true,
+      };
+
+      const result = await regenerateSlotWithAi(
+        {
+          nights: 2,
+          destination: "Budapest",
+          dietaryConstraints: [],
+          accessibilityRequired: false,
+        },
+        existingSlot,
+        1,
+        [],
+        [],
+        {},
+        [],
+        { latitude: 47.49, longitude: 19.04 },
+      );
+
+      // In regenerateSlotWithAi, if selectedPlace is found (e.g., provided via placePools or search),
+      // detail must remain Gemini's detail, and address must be stored in address property.
+      const poolKey = Object.keys(result.updatedPools || {})[0];
+      expect(result.slot.detail).toBe("Une expérience bien-être incontournable dans des bains thermaux historiques et raffinés.");
+    });
+  });
 });

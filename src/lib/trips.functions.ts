@@ -2947,7 +2947,8 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       updatedSlot = {
         ...current,
         label: matchedCandidate.name,
-        detail: matchedCandidate.address || current.detail || "Lieu sélectionné par KREW",
+        detail: current.detail || current.searchIntent || "Lieu sélectionné par KREW",
+        address: matchedCandidate.address || current.address || null,
         ...resolveActivityResourceForPlace(matchedCandidate, itinerary.destination),
         activityMode: "bookable",
         candidateId: matchedCandidate.id,

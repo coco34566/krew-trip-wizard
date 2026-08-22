@@ -544,9 +544,17 @@ export function convertIntentToPlaceRequirements(
   let categories = mapVenueFamilyToGeoapifyCategories(family, momentType);
   let subtype: string | null = null;
 
-  if (normIntent.includes("thermes") || normIntent.includes("bains thermaux") || normIntent.includes("bains") || normIntent.includes("thermal bath")) {
+  const isThermalIntentInReq =
+    normIntent.includes("therme") ||
+    normIntent.includes("thermal") ||
+    normIntent.includes("bains thermaux") ||
+    normIntent.includes("bain thermal") ||
+    normIntent.includes("bains historiques") ||
+    normIntent.includes("bain historique");
+
+  if (isThermalIntentInReq) {
     subtype = "leisure.spa";
-    categories = Array.from(new Set(["leisure.spa", "service.beauty.spa"]));
+    categories = ["leisure.spa"];
   } else if (normIntent.includes("ruin bar") || normIntent.includes("ruinbar")) {
     subtype = "catering.bar";
     categories = Array.from(new Set(["catering.bar", "catering.pub", "entertainment.nightlife"]));
@@ -1160,6 +1168,14 @@ export function isCandidateCompatibleWithRequirements(
   }
 
   // 3. Spa / Thermes / Wellness Strict Rules
+  const isThermalIntent =
+    normIntent.includes("therme") ||
+    normIntent.includes("thermal") ||
+    normIntent.includes("bains thermaux") ||
+    normIntent.includes("bain thermal") ||
+    normIntent.includes("bains historiques") ||
+    normIntent.includes("bain historique");
+
   const isSpaIntent =
     normFamily.includes("spa") ||
     normFamily.includes("wellness") ||
@@ -1168,7 +1184,28 @@ export function isCandidateCompatibleWithRequirements(
     normIntent.includes("spa") ||
     normIntent.includes("bain");
 
-  if (isSpaIntent) {
+  if (isThermalIntent) {
+    const isBeautySalon = candCats.some(
+      (c) =>
+        c.startsWith("service.beauty") ||
+        c.includes("hairdresser") ||
+        c.includes("barber") ||
+        c.includes("nail") ||
+        c.includes("lashes") ||
+        c.includes("cosmetic") ||
+        c.includes("beauty"),
+    );
+    if (isBeautySalon) return false;
+
+    const isRealThermal = candCats.some(
+      (c) =>
+        c === "leisure.spa" ||
+        c.startsWith("leisure.spa.") ||
+        c === "building.spa" ||
+        c.startsWith("building.spa."),
+    );
+    if (!isRealThermal) return false;
+  } else if (isSpaIntent) {
     const isRealSpa = candCats.some(
       (c) =>
         c === "leisure.spa" ||
