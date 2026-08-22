@@ -33,9 +33,10 @@ case"nature":return <><P d="M12 20V9M12 14c-4 0-7-2-7-6 4 0 7 2 7 6ZM12 11c4 0 7
 case"beach":return <><P d="M12 20V9M5 9c2-5 11-6 15-1-3-1-6 0-8 2-2-2-4-2-7-1ZM7 20h11"/></>;
 case"party":return <><P d="m6 19 3-10 7 7-10 3ZM14 5l1-2M18 8l3-1M17 12l3 2"/><D cx={10} cy={6}/></>;
 case"time":return <><circle {...S} cx="12" cy="12" r="8"/><P d="M12 7v5l3.5 2"/></>;
-case"vote":return <><P d="M5 10h14l1 10H4l1-10ZM8 10l4-6 4 6M9 15h6"/></>;
+case"vote":return <><P d="M4 11h16v9H4v-9Z"/><P d="M8 11 6.8 7.2l5.2-3 5.2 3-1.2 3.8"/><P d="m9.4 7.6 1.7 1.7 3.6-3.5"/><P soft d="M8 15h8"/></>;
 case"favorite":return <P d="M12 20C8 17 4 14 4 9c0-4 5-5 8-1 3-4 8-3 8 1 0 5-4 8-8 11Z"/>;
-case"booked":case"check":return <P d="M4 12l5 5L20 6"/>;
+case"booked":return <><P d="M6 5.5c3.8-.5 8.2-.5 12 0v14c-3.8.5-8.2.5-12 0v-14Z"/><P soft d="M9 9h6"/><P d="m8.5 14 2.1 2.1 5-5"/></>;
+case"check":return <P d="M4 12l5 5L20 6"/>;
 case"attention":return <><P d="M12 4 21 20H3L12 4Z"/><P d="M12 9v5"/><D cx={12} cy={17}/></>;
 case"message":return <><P d="M4 5h16v12H9l-5 3V5Z"/><P soft d="M8 9h8M8 13h5"/></>;
 case"search":return <><circle {...S} cx="10.5" cy="10.5" r="6"/><P d="m15 15 5 5"/></>;
