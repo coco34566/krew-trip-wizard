@@ -34,6 +34,8 @@ export type PlaceRequirements = {
   dietary?: string[] | null;
   accessibility?: string[] | null;
   experienceTags?: string[];
+  searchIntent?: string | null;
+  momentType?: string | null;
 };
 
 const placeDetailsCache = new Map<string, any>();
@@ -108,6 +110,8 @@ export function convertIntentToPlaceRequirements(
     subtype,
     dietary,
     accessibility: accessibility.length ? accessibility : null,
+    searchIntent: searchIntent ?? null,
+    momentType: momentType ?? null,
   };
 }
 
@@ -505,14 +509,9 @@ export async function selectGeoapifyCandidate(
     const normName = candidate.name.toLowerCase().trim();
     if (avoidSet.has(normName) || avoidSet.has(candidate.id.toLowerCase())) continue;
 
-    if (req.subtype) {
-      const normSubtype = String(req.subtype).toLowerCase();
-      const candCategories = (candidate.categories || []).map((c) => String(c).toLowerCase());
-      const hasSubtype = candCategories.some((c) => c.includes(normSubtype));
-      if (!hasSubtype) {
-        if (telemetry?.candidatesRejectedRequirements != null) telemetry.candidatesRejectedRequirements++;
-        continue;
-      }
+    if (!isCandidateCompatibleWithRequirements(candidate, req)) {
+      if (telemetry?.candidatesRejectedRequirements != null) telemetry.candidatesRejectedRequirements++;
+      continue;
     }
 
     if (accessibilityRequired && candidate.wheelchair === false) {
@@ -552,6 +551,48 @@ export async function selectGeoapifyCandidate(
   return null;
 }
 
+export function isCandidateCompatibleWithRequirements(
+  candidate: GeoapifyPlace,
+  req: PlaceRequirements,
+): boolean {
+  if (!candidate || !Array.isArray(candidate.categories) || candidate.categories.length === 0) {
+    return false;
+  }
+  const candCats = candidate.categories.map((c) => String(c).toLowerCase());
+  const normFamily = String(req.canonicalFamily || "").toLowerCase().trim();
+
+  let allowedPrefixes: string[] = [];
+
+  if (normFamily.includes("cafe") || normFamily.includes("brunch")) {
+    allowedPrefixes = ["catering.cafe", "catering.restaurant"];
+  } else if (normFamily.includes("restaurant") || normFamily === "resto") {
+    allowedPrefixes = ["catering.restaurant"];
+  } else if (normFamily.includes("bar") || normFamily.includes("pub")) {
+    allowedPrefixes = ["catering.bar", "catering.pub", "entertainment.nightclub"];
+  } else if (normFamily.includes("spa") || normFamily.includes("wellness")) {
+    allowedPrefixes = ["leisure.spa", "service.beauty.spa", "service.beauty.massage", "service.beauty"];
+  } else if (normFamily.includes("shopping")) {
+    allowedPrefixes = ["commercial.marketplace", "commercial.shopping_mall", "commercial.clothing", "commercial"];
+  } else if (normFamily.includes("culture")) {
+    allowedPrefixes = ["tourism.sights", "tourism.attraction", "entertainment.museum", "entertainment.culture", "tourism", "entertainment"];
+  } else if (normFamily.includes("sport")) {
+    allowedPrefixes = ["sport", "entertainment.activity_park", "tourism.attraction", "leisure"];
+  } else {
+    allowedPrefixes = (req.categories || []).map((c) => String(c).toLowerCase());
+  }
+
+  for (const cat of req.categories || []) {
+    const normC = String(cat).toLowerCase();
+    if (!allowedPrefixes.includes(normC)) {
+      allowedPrefixes.push(normC);
+    }
+  }
+
+  return candCats.some((candCat) =>
+    allowedPrefixes.some((prefix) => candCat.includes(prefix) || prefix.includes(candCat))
+  );
+}
+
 export function rankGeoapifyCandidates(
   candidates: GeoapifyPlace[],
   req: PlaceRequirements,
@@ -559,8 +600,12 @@ export function rankGeoapifyCandidates(
   usedCandidateIdsSet: Set<string>,
 ): GeoapifyPlace[] {
   const normSubtype = String(req.subtype || "").toLowerCase();
+  const normIntent = String(req.searchIntent || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
-  const haversine = (
+  const haversineKm = (
     a: { latitude?: number | null; longitude?: number | null },
     b: { latitude?: number | null; longitude?: number | null },
   ) => {
@@ -574,23 +619,103 @@ export function rankGeoapifyCandidates(
     return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   };
 
+  const calculateScore = (cand: GeoapifyPlace): number => {
+    let score = 0;
+
+    if (usedCandidateIdsSet.has(cand.id)) {
+      score -= 10000;
+    }
+
+    const candCats = (cand.categories || []).map((c) => String(c).toLowerCase());
+    const candName = String(cand.name || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    const candAddr = String(cand.address || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    // A. Compatibilité famille métier
+    if (isCandidateCompatibleWithRequirements(cand, req)) {
+      score += 300;
+    }
+
+    // B. Compatibilité subtype exact
+    if (normSubtype && candCats.some((c) => c.includes(normSubtype))) {
+      score += 150;
+    }
+
+    // C. Correspondance sémantique searchIntent
+    if (normIntent) {
+      // restaurant local / traditionnel
+      if (
+        /local|locales|hongrois|hongroise|hungarian|traditionnel|traditionnelle|specialite|specialites|regional|typique/.test(
+          normIntent,
+        )
+      ) {
+        if (
+          candCats.some((c) => c.includes("hungarian") || c.includes("regional")) ||
+          /hungarian|hongrois|traditionnel|local|specialite|typique/.test(candName)
+        ) {
+          score += 200;
+        }
+      }
+
+      // rooftop / panoramique / vue / terrasse
+      if (/rooftop|panoramique|vue|terrace|terrasse|skybar|panorama/.test(normIntent)) {
+        if (/rooftop|terrace|terrasse|viewpoint|panoramique|panorama|skybar/.test(candName) || candCats.some((c) => c.includes("rooftop") || c.includes("viewpoint"))) {
+          score += 300;
+        }
+      }
+
+      // brunch / café
+      if (/brunch|petit-dejeuner|cafe|coffee/.test(normIntent)) {
+        if (candCats.some((c) => c.includes("catering.cafe")) || /cafe|coffee|brunch/.test(candName)) {
+          score += 200;
+        }
+      }
+
+      // marché
+      if (/marche|market|hall|couvert/.test(normIntent)) {
+        if (candCats.some((c) => c.includes("commercial.marketplace")) || /marche|market|hall/.test(candName)) {
+          score += 200;
+        }
+      }
+
+      // thermes / bains
+      if (/thermes|thermal|bains|bath/.test(normIntent)) {
+        if (/therme|thermes|thermal|bain|bains|bath|baths|szechenyi|gellert|rudas|lukacs/.test(candName) || candCats.some((c) => c.includes("thermal"))) {
+          score += 300;
+        } else if (candCats.some((c) => c.includes("leisure.spa"))) {
+          score += 100;
+        } else if (candCats.some((c) => c.includes("service.beauty"))) {
+          // Penalty for pure nail/beauty salon without thermal bath signals
+          score -= 250;
+        }
+      }
+
+      // Mot-clés significatifs de searchIntent
+      const words = normIntent.split(/[^a-z0-9]+/).filter((w) => w.length >= 4 && !["restaurant", "groupe", "budapest", "centre", "dans", "avec", "pour"].includes(w));
+      for (const w of words) {
+        if (candName.includes(w) || candAddr.includes(w)) {
+          score += 30;
+        }
+      }
+    }
+
+    // E. Distance (critère secondaire)
+    if (lastCoords?.latitude != null && lastCoords?.longitude != null && cand.latitude != null && cand.longitude != null) {
+      const dist = haversineKm(lastCoords, cand);
+      score -= dist * 5;
+    }
+
+    return score;
+  };
+
   return candidates.slice().sort((a, b) => {
-    const usedA = usedCandidateIdsSet.has(a.id) ? 1 : 0;
-    const usedB = usedCandidateIdsSet.has(b.id) ? 1 : 0;
-    if (usedA !== usedB) return usedA - usedB;
-
-    if (normSubtype) {
-      const matchA = (a.categories || []).some((c) => c.toLowerCase().includes(normSubtype)) ? 0 : 1;
-      const matchB = (b.categories || []).some((c) => c.toLowerCase().includes(normSubtype)) ? 0 : 1;
-      if (matchA !== matchB) return matchA - matchB;
-    }
-
-    if (lastCoords?.latitude != null && lastCoords?.longitude != null) {
-      const distA = haversine(lastCoords, a);
-      const distB = haversine(lastCoords, b);
-      return distA - distB;
-    }
-
-    return 0;
+    const scoreA = calculateScore(a);
+    const scoreB = calculateScore(b);
+    return scoreB - scoreA;
   });
 }

@@ -294,7 +294,7 @@ describe("PR 107 — Tests Gemini & Density", () => {
           ],
         }),
     });
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock;
     process.env["GEMINI_API_KEY"] = "test-key";
 
     const res = await geminiEnrichSkeleton(skeleton, baseInput());
@@ -327,7 +327,7 @@ describe("PR 107 — Tests Gemini & Density", () => {
           ],
         }),
     });
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock;
     process.env["GEMINI_API_KEY"] = "test-key";
 
     const res = await geminiEnrichSkeleton(skeleton, baseInput());
@@ -359,7 +359,7 @@ describe("PR 107 — Tests Gemini & Density", () => {
           ],
         }),
     });
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock;
     process.env["GEMINI_API_KEY"] = "test-key";
 
     const res = await geminiEnrichSkeleton(skeleton, baseInput());
@@ -391,7 +391,7 @@ describe("PR 107 — Tests Gemini & Density", () => {
           ],
         }),
     });
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock;
     process.env["GEMINI_API_KEY"] = "test-key";
 
     const res = await geminiEnrichSkeleton(skeleton, baseInput());
@@ -470,7 +470,7 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
       ok: true,
       json: async () => ({ features: [{ properties: { formatted: "10 Rue du Vin", website: "https://wine.example" } }] }),
     });
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock;
 
     const d1 = await fetchPlaceDetails("place-123");
     const d2 = await fetchPlaceDetails("place-123");
@@ -491,7 +491,7 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
   // AL. autre proposition -> 0 Gemini
   it("AL. regenerateSlotWithAi -> 0 appel Gemini", async () => {
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    global.fetch = fetchMock;
 
     const mockSlot = { moment: "Soir", type: "activite" as const, label: "Visite", time: "20:00" };
     const res = await regenerateSlotWithAi(baseInput(), mockSlot, 1, [], []);
@@ -603,7 +603,7 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
     // TEST 8 — 0 Gemini sur regenerateSlotWithAi
     it("8. regenerateSlotWithAi effectue 0 appel Gemini", async () => {
       const fetchMock = vi.fn();
-      vi.stubGlobal("fetch", fetchMock);
+      global.fetch = fetchMock;
 
       const mockSlot = { moment: "Midi", type: "resto" as const, label: "Déjeuner", time: "12:30" };
       const res = await regenerateSlotWithAi(baseInput(), mockSlot, 1, [], []);
@@ -713,6 +713,235 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
       const invalidPayload = { invalidKey: "broken" };
       const normalized = normalizeGeminiParsedResponse(invalidPayload);
       expect(normalized).toBeNull();
+    });
+  });
+
+  describe("Tests ciblés — Résolution lieux, compatibilité Geoapify & ranking", () => {
+    // Test 1 — restaurant contenant "quartier"
+    it("Test 1 — restaurant contenant 'quartier' conserve kind: place_required et ne devient pas free_exploration", () => {
+      const slot = {
+        kind: "place_required" as const,
+        type: "resto" as const,
+        category: "repas" as const,
+        venueFamily: "restaurant",
+        searchIntent: "restaurant convivial dans le quartier juif de Budapest",
+        label: "Dîner dans le quartier juif",
+      };
+
+      // classifyActivityMode alone might return free_exploration based on text "quartier"
+      // but in generateGroupItinerary kind === "place_required" overrides heuristics
+      expect(slot.kind).toBe("place_required");
+      const req = convertIntentToPlaceRequirements(
+        slot.venueFamily,
+        slot.category,
+        slot.searchIntent,
+      );
+      expect(req.canonicalFamily).toBe("restaurant");
+      expect(req.categories).toContain("catering.restaurant");
+    });
+
+    // Test 2 — déjeuner externe
+    it("Test 2 — déjeuner externe : aucun appel à findIdeasResourceForActivity et aucune URL ideas", async () => {
+      const { findIdeasResourceForActivity } = await import("../activity-discovery.server");
+      const ideasUrl = await findIdeasResourceForActivity({
+        label: "Déjeuner de groupe",
+        searchIntent: "déjeuner restaurant centre ville",
+        eventType: "evjf",
+        kind: "place_required",
+        type: "resto",
+        category: "repas",
+        locationContext: "external",
+      });
+
+      expect(ideasUrl).toBeNull();
+    });
+
+    // Test 3 — spa family compatibility
+    it("Test 3 — spa family compatibility : service.beauty.spa non rejeté pour subtype leisure.spa", () => {
+      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
+      const candidate = {
+        id: "spa-1",
+        name: "Beauty & Spa Salon",
+        category: "service.beauty.spa",
+        categories: ["service", "service.beauty", "service.beauty.spa"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 300,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "moment spa relaxation");
+      req.subtype = "leisure.spa";
+
+      const compatible = isCandidateCompatibleWithRequirements(candidate, req);
+      expect(compatible).toBe(true);
+    });
+
+    // Test 4 — bar family compatibility
+    it("Test 4 — bar family compatibility : catering.bar est compatible avec bar_pub", () => {
+      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
+      const candidate = {
+        id: "bar-1",
+        name: "Local Pub",
+        category: "catering.bar",
+        categories: ["catering", "catering.bar"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("bar_pub", "soiree", "bar à cocktails convivial");
+      const compatible = isCandidateCompatibleWithRequirements(candidate, req);
+      expect(compatible).toBe(true);
+    });
+
+    // Test 5 — ranking restaurant
+    it("Test 5 — ranking restaurant : restaurant hongrois préféré au restaurant coréen plus proche", () => {
+      const candA = {
+        id: "resto-a",
+        name: "Seoul House koreai étterem",
+        category: "catering.restaurant",
+        categories: ["catering", "catering.restaurant", "catering.restaurant.korean"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 50,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const candB = {
+        id: "resto-b",
+        name: "Magyar Vendéglő - Spécialités hongroises",
+        category: "catering.restaurant",
+        categories: ["catering", "catering.restaurant", "catering.restaurant.hungarian"],
+        address: null,
+        latitude: 47.4990,
+        longitude: 19.0420,
+        distanceMeters: 300,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements(
+        "restaurant",
+        "repas",
+        "restaurant élégant avec spécialités locales hongroises",
+      );
+
+      const ranked = rankGeoapifyCandidates(
+        [candA, candB],
+        req,
+        { latitude: 47.4983, longitude: 19.0404 },
+        new Set(),
+      );
+
+      expect(ranked[0]?.id).toBe("resto-b");
+    });
+
+    // Test 6 — rooftop
+    it("Test 6 — rooftop : Leo Rooftop mieux classé que pub générique plus proche", () => {
+      const candA = {
+        id: "pub-a",
+        name: "Pub Irlandais",
+        category: "catering.pub",
+        categories: ["catering", "catering.pub"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 50,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const candB = {
+        id: "rooftop-b",
+        name: "Leo Rooftop Bar Budapest",
+        category: "catering.bar",
+        categories: ["catering", "catering.bar"],
+        address: null,
+        latitude: 47.4995,
+        longitude: 19.0425,
+        distanceMeters: 200,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("bar_pub", "soiree", "rooftop panoramique élégant");
+
+      const ranked = rankGeoapifyCandidates(
+        [candA, candB],
+        req,
+        { latitude: 47.4983, longitude: 19.0404 },
+        new Set(),
+      );
+
+      expect(ranked[0]?.id).toBe("rooftop-b");
+    });
+
+    // Test 7 — thermes vs salon beauté
+    it("Test 7 — thermes vs salon beauté : Thermal Bath nettement mieux classé que Nail Salon", () => {
+      const candA = {
+        id: "beauty-a",
+        name: "Nail & Beauty Salon",
+        category: "service.beauty.spa",
+        categories: ["service", "service.beauty", "service.beauty.spa"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const candB = {
+        id: "thermal-b",
+        name: "Széchenyi Thermal Bath / Bains Thermaux",
+        category: "leisure.spa",
+        categories: ["leisure", "leisure.spa", "tourism", "tourism.attraction"],
+        address: null,
+        latitude: 47.5188,
+        longitude: 19.0814,
+        distanceMeters: 1500,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "bains thermaux emblématiques");
+
+      const ranked = rankGeoapifyCandidates(
+        [candA, candB],
+        req,
+        { latitude: 47.4983, longitude: 19.0404 },
+        new Set(),
+      );
+
+      expect(ranked[0]?.id).toBe("thermal-b");
+    });
+
+    // Test 8 — aucun changement pour activité interne
+    it("Test 8 — activité interne : Jeu de la mariée au logement reste self_guided_group sans Geoapify", () => {
+      const { classifyActivityMode } = require("../activity-ai.server");
+      const mode = classifyActivityMode({
+        kind: "internal",
+        category: "jeu_groupe",
+        label: "Jeu de la mariée au logement",
+      });
+
+      expect(mode).toBe("self_guided_group");
     });
   });
 });

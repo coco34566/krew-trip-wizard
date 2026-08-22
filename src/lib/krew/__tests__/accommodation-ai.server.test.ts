@@ -120,7 +120,7 @@ it("effectue exactement un Gemini", async () => {
     }
     return Promise.resolve({ ok: true, text: async () => JSON.stringify(tavilyResult) });
   });
-  vi.stubGlobal("fetch", fetchMock);
+  global.fetch = fetchMock;
   expect(await searchAccommodationsWithGemini(spec)).toHaveLength(1);
 });
 
@@ -150,7 +150,7 @@ it("buildCanonicalAccommodationExternalId nettoie les liens de tracking et gén�
 it("prouve qu'un échec RPC bloque immédiatement l'appel Gemini (fail-closed)", async () => {
   process.env["GEMINI_API_KEY"] = "test";
   const fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  global.fetch = fetchMock;
 
   // Simulation d'une erreur RPC
   const mockRpcError = vi.fn().mockRejectedValue(new Error("RPC database failure"));
@@ -188,7 +188,7 @@ it("simule la concurrence réelle via RPC avec Promise.all : un seul appel Gemin
     }
     return Promise.resolve({ ok: true, text: async () => JSON.stringify(tavilyResult) });
   });
-  vi.stubGlobal("fetch", fetchMock);
+  global.fetch = fetchMock;
 
   let rpcCallCount = 0;
   const mockRpc = vi.fn().mockImplementation(() => {
@@ -435,7 +435,7 @@ it("CAS H — le prompt Gemini conserve bien la destination", async () => {
     }
     return Promise.resolve({ ok: true, text: async () => JSON.stringify(tavilyResult) });
   });
-  vi.stubGlobal("fetch", fetchMock);
+  global.fetch = fetchMock;
 
   await searchAccommodationsWithGemini(spec);
 

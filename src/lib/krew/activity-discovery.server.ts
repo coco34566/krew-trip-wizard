@@ -268,8 +268,23 @@ export async function findIdeasResourceForActivity(options: {
   label: string;
   searchIntent?: string | null;
   eventType?: string | null;
+  kind?: string | null;
+  type?: string | null;
+  category?: string | null;
+  locationContext?: string | null;
 }): Promise<string | null> {
-  const { label, searchIntent, eventType } = options;
+  const { label, searchIntent, eventType, kind, type, category, locationContext } = options;
+
+  // Strict guard-rail: Never search ideas for meals, place_required, or external venues
+  if (
+    kind === "place_required" ||
+    type === "resto" ||
+    category === "repas" ||
+    locationContext === "external"
+  ) {
+    return null;
+  }
+
   const textNorm = norm(`${label} ${searchIntent ?? ""}`);
 
   // Do not perform web search for simple apéro / rest / generic house moments

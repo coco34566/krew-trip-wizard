@@ -2341,6 +2341,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     let candidatesRejectedOpeningHours = 0;
     let candidatesRejectedGeography = 0;
     let candidatesRejectedRequirements = 0;
+    let placeRequiredResolved = 0;
+    let placeRequiredUnresolved = 0;
+    let placeRequiredBypassed = 0;
 
     for (const day of enrichedSkeleton.days) {
       let lastSlotCoords: { latitude?: number | null; longitude?: number | null } | null =
@@ -2357,16 +2360,25 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           label: s.label,
         });
 
-        if (s.kind === "internal" || mode === "self_guided_group" || mode === "free_exploration") {
+        if (s.kind === "internal") {
           let ideasUrl: string | null = null;
           let ideasKind: "ideas" | null = null;
 
-          if (mode === "self_guided_group") {
+          if (
+            mode === "self_guided_group" &&
+            s.type !== "resto" &&
+            s.category !== "repas" &&
+            s.locationContext !== "external"
+          ) {
             const { findIdeasResourceForActivity } = await import("@/lib/krew/activity-discovery.server");
             const foundUrl = await findIdeasResourceForActivity({
               label: s.label,
               searchIntent: s.searchIntent,
               eventType: trip.event_type,
+              kind: s.kind,
+              type: s.type,
+              category: s.category,
+              locationContext: s.locationContext,
             });
             if (foundUrl) {
               const resLink = resolveActivityResourceUrl(foundUrl, { kindHint: "ideas" });
@@ -2393,6 +2405,56 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           });
 
           // Reset spatial reference to lodging ONLY when locationContext === "lodging"
+          if (accLat != null && accLon != null && s.locationContext === "lodging") {
+            lastSlotCoords = { latitude: accLat, longitude: accLon };
+          }
+          continue;
+        } else if (s.kind !== "place_required" && (mode === "self_guided_group" || mode === "free_exploration")) {
+          // Non place_required slot reclassified by heuristics
+          placeRequiredBypassed++;
+          let ideasUrl: string | null = null;
+          let ideasKind: "ideas" | null = null;
+
+          if (
+            mode === "self_guided_group" &&
+            s.type !== "resto" &&
+            s.category !== "repas" &&
+            s.locationContext !== "external"
+          ) {
+            const { findIdeasResourceForActivity } = await import("@/lib/krew/activity-discovery.server");
+            const foundUrl = await findIdeasResourceForActivity({
+              label: s.label,
+              searchIntent: s.searchIntent,
+              eventType: trip.event_type,
+              kind: s.kind,
+              type: s.type,
+              category: s.category,
+              locationContext: s.locationContext,
+            });
+            if (foundUrl) {
+              const resLink = resolveActivityResourceUrl(foundUrl, { kindHint: "ideas" });
+              ideasUrl = resLink.url;
+              ideasKind = resLink.resourceKind === "ideas" ? "ideas" : null;
+            }
+          }
+
+          slots.push({
+            moment: s.moment,
+            time: s.time,
+            endTime: s.endTime,
+            durationMinutes: s.durationMinutes,
+            type: s.type,
+            category: s.category,
+            label: s.label,
+            detail: s.detail,
+            locationContext: s.locationContext,
+            activityMode: mode === "free_exploration" ? "free_exploration" : "self_guided_group",
+            verified: false,
+            source: "krew",
+            url: ideasUrl,
+            resourceKind: ideasKind,
+          });
+
           if (accLat != null && accLon != null && s.locationContext === "lodging") {
             lastSlotCoords = { latitude: accLat, longitude: accLon };
           }
@@ -2469,10 +2531,13 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         geoapifyDetailsCalls = telemetryObj.detailsCalls;
 
         if (matchedPlace) {
+          placeRequiredResolved++;
           usedCandidateIdsSet.add(matchedPlace.id);
           if (matchedPlace.latitude != null && matchedPlace.longitude != null) {
             lastSlotCoords = { latitude: matchedPlace.latitude, longitude: matchedPlace.longitude };
           }
+        } else {
+          placeRequiredUnresolved++;
         }
 
         if (matchedPlace) {
@@ -2544,6 +2609,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       candidatesRejectedOpeningHours,
       candidatesRejectedGeography,
       candidatesRejectedRequirements,
+      placeRequiredResolved,
+      placeRequiredUnresolved,
+      placeRequiredBypassed,
     };
 
     console.info("krew-planning-telemetry", telemetry);
