@@ -1,11 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Loader2, Users, Calendar, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/krew/Logo";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { getJoinPreview, joinTrip, checkJoinStatus } from "@/lib/join.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { eventTypeLabel } from "@/lib/krew/constants";
@@ -154,8 +157,13 @@ function JoinTripPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="flex w-full max-w-md flex-col items-center">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12 relative overflow-hidden">
+      <KrewOrganicBlob
+        tone="sage"
+        variant="soft"
+        className="absolute -top-10 -left-10 w-[260px] h-[200px] opacity-40 pointer-events-none"
+      />
+      <div className="flex w-full max-w-md flex-col items-center relative z-10">
         <Link to="/" className="mb-8">
           <Logo size="lg" withTagline />
         </Link>
@@ -181,24 +189,32 @@ function JoinTripPage() {
             </div>
           ) : preview ? (
             <div className="space-y-6">
-              <div className="text-center">
-                <p className="text-xs font-medium uppercase tracking-wider text-primary">
+              <div className="text-center space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wider text-primary font-mono">
                   Invitation KREW
                 </p>
-                <h1 className="mt-2 font-display text-2xl font-bold">{preview.name}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <div className="relative inline-block">
+                  <h1 className="font-display text-3xl font-normal text-foreground">{preview.name}</h1>
+                  <KrewMark
+                    type="underline-wave"
+                    tone="sage"
+                    size="sm"
+                    className="absolute left-0 -bottom-1.5 w-[100px] pointer-events-none"
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground pt-1">
                   {eventTypeLabel(preview.eventType)}
                 </p>
               </div>
 
               <ul className="space-y-2 border-y border-border/40 py-3.5 my-2 text-sm">
                 <li className="flex items-center gap-2">
-                  <Users className="size-4 shrink-0 text-primary" />
-                  Groupe prévu : ~{preview.participantsCount || "?"} personnes
+                  <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
+                  Groupe prévu : <span className="font-mono">~{preview.participantsCount || "?"} personnes</span>
                 </li>
                 {preview.startDate ? (
                   <li className="flex items-center gap-2">
-                    <Calendar className="size-4 shrink-0 text-primary" />
+                    <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0" />
                     À partir du <span className="font-mono">{new Date(preview.startDate + "T12:00:00").toLocaleDateString("fr-FR")}</span>
                   </li>
                 ) : null}

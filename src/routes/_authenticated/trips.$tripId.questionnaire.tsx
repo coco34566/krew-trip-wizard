@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import {
   getMyParticipantPreferences,
   submitParticipantPreferences,
@@ -340,10 +342,25 @@ function ParticipantQuestionnaire() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Button>
 
-      <div className="space-y-2">
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
-        </h1>
+      <div className="space-y-2 relative">
+        <div className="absolute top-0 right-0 pointer-events-none hidden sm:block">
+          <img
+            src="/brand/otter-states/preferences.png"
+            alt=""
+            className="w-16 h-auto object-contain"
+          />
+        </div>
+        <div className="relative inline-block">
+          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+            {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
+          </h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="md"
+            className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+          />
+        </div>
         {isEditing ? (
           <p className="text-sm text-muted-foreground pt-1">
             Tu as déjà répondu
@@ -742,7 +759,7 @@ function ParticipantQuestionnaire() {
             {submitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
+              <KrewIcon name="preferences" tone="plum" size="sm" className="mr-2 size-4" />
             )}
             {isEditing ? "Enregistrer mes modifications" : "Envoyer mes réponses"}
           </Button>

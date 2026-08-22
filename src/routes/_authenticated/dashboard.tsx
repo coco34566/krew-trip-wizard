@@ -2,13 +2,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarDays, Plus, Trash2, Users, ArrowRight } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMyTrips, listMyPriceWatches, cancelTrip } from "@/lib/trips.functions";
 import { eventTypeLabel } from "@/lib/krew/constants";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -128,19 +130,22 @@ function TripCard({
           </h3>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
             {trip.destination_name ? (
-              <span className="font-medium text-foreground">{trip.destination_name}</span>
+              <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                <KrewIcon name="destination" tone="muted" size="sm" className="size-3.5" />
+                {trip.destination_name}
+              </span>
             ) : null}
             {trip.start_date ? (
-              <span className="inline-flex items-center gap-1">
-                <CalendarDays className="size-3.5 text-muted-foreground/70" />
+              <span className="inline-flex items-center gap-1 font-mono">
+                <KrewIcon name="calendar" tone="muted" size="sm" className="size-3.5" />
                 {new Date(trip.start_date).toLocaleDateString("fr-FR", {
                   day: "numeric",
                   month: "short",
                 })}
               </span>
             ) : null}
-            <span className="inline-flex items-center gap-1">
-              <Users className="size-3.5 text-muted-foreground/70" />
+            <span className="inline-flex items-center gap-1 font-mono">
+              <KrewIcon name="group" tone="muted" size="sm" className="size-3.5" />
               {trip.participants_count} pers.
             </span>
           </div>
@@ -149,7 +154,7 @@ function TripCard({
         {/* Action Link */}
         <div className="pt-2 flex items-center justify-between border-t border-border/40">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary transition-transform group-hover:translate-x-0.5">
-            {ctaLabel} <ArrowRight className="size-3.5" />
+            {ctaLabel} <KrewMark type="arrow-right" tone="plum" size="sm" className="size-3.5" />
           </span>
         </div>
       </div>
@@ -197,27 +202,31 @@ function Dashboard() {
   return (
     <main className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8 sm:space-y-12">
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-2">
-          <div className="relative inline-block">
-            <h1 className="font-display text-[38px] lg:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 relative">
+        <div className="space-y-2 relative">
+          <KrewOrganicBlob
+            tone="sage"
+            variant="soft"
+            className="absolute -top-4 -left-4 w-[160px] h-[60px] opacity-40 pointer-events-none z-0"
+          />
+          <div className="relative inline-block z-10">
+            <h1 className="font-display text-[40px] sm:text-[44px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
               Mes voyages
             </h1>
             <KrewMark
-              type="underline"
+              type="underline-wave"
               tone="sage"
               size="md"
-              rotation={-2}
               className="absolute left-0 -bottom-2 w-[120px] lg:w-[180px] pointer-events-none"
             />
           </div>
-          <p className="text-sm text-muted-foreground pt-1">
+          <p className="text-sm text-muted-foreground pt-1 font-sans">
             Tes projets en cours et tes invitations reçues.
           </p>
         </div>
         <Button asChild className="self-start sm:self-auto rounded-xl">
           <Link to="/trips/new">
-            <Plus className="size-4" /> Nouveau voyage
+            <KrewIcon name="plus" size="sm" className="size-4" /> Nouveau voyage
           </Link>
         </Button>
       </div>
@@ -267,15 +276,25 @@ function Dashboard() {
           <Skeleton className="h-64 rounded-[24px]" />
         </div>
       ) : trips.length === 0 && invitations.length === 0 ? (
-        <div className="rounded-[28px] border border-dashed border-border bg-surface/40 p-10 text-center sm:p-16 relative">
+        <div className="rounded-[28px] border border-dashed border-border bg-surface/40 p-10 text-center sm:p-16 relative overflow-hidden">
+          <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
+            <img
+              src="/brand/otter-states/trip-progress.png"
+              alt=""
+              className="w-14 h-auto object-contain"
+            />
+          </div>
           <h2 className="font-display text-2xl font-normal text-foreground">Aucun voyage pour l'instant</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground font-sans">
             Lance le questionnaire KREW : en quelques minutes tu obtiens destination, hébergement,
             activités et budget détaillé.
           </p>
           <div className="mt-6 inline-flex flex-col items-center gap-2 relative">
             <Button asChild size="lg" className="rounded-xl">
-              <Link to="/trips/new">Créer mon premier voyage</Link>
+              <Link to="/trips/new">
+                <KrewIcon name="plus" size="sm" className="size-4 mr-1.5" />
+                Créer mon premier voyage
+              </Link>
             </Button>
           </div>
         </div>

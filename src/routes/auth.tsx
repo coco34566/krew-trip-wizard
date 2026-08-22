@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/krew/Logo";
+import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -117,8 +119,13 @@ function AuthPage() {
 
   if (showConfirmationSent) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-        <div className="w-full max-w-md">
+      <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12 relative overflow-hidden">
+        <KrewOrganicBlob
+          tone="sage"
+          variant="soft"
+          className="absolute -top-10 -left-10 w-[240px] h-[180px] opacity-40 pointer-events-none"
+        />
+        <div className="w-full max-w-md relative z-10">
           <Link to="/" className="mb-8 flex justify-center">
             <Logo size="lg" withTagline />
           </Link>
@@ -127,8 +134,8 @@ function AuthPage() {
               <Mail className="h-6 w-6" />
             </div>
             <div className="space-y-2">
-              <h2 className="font-display text-3xl font-bold text-foreground">Compte créé !</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="font-display text-3xl font-normal text-foreground">Compte créé !</h2>
+              <p className="text-sm text-muted-foreground font-sans">
                 Vérifie ta boîte mail pour confirmer ton adresse e-mail.
               </p>
             </div>
@@ -160,9 +167,25 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-md">
-        <Link to="/" className="mb-8 flex justify-center"><Logo size="lg" withTagline /></Link>
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12 relative overflow-hidden">
+      <KrewOrganicBlob
+        tone="sage"
+        variant="soft"
+        className="absolute -top-10 -left-10 w-[260px] h-[200px] opacity-40 pointer-events-none"
+      />
+      <div className="w-full max-w-md relative z-10 space-y-6">
+        <Link to="/" className="flex justify-center"><Logo size="lg" withTagline /></Link>
+        <div className="text-center space-y-1">
+          <h1 className="font-display text-[32px] font-normal leading-tight text-foreground relative inline-block">
+            Bienvenue sur KREW
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="sm"
+              className="absolute left-0 -bottom-1.5 w-[110px] pointer-events-none"
+            />
+          </h1>
+        </div>
         <div className="rounded-xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2 bg-muted/40 p-1"><TabsTrigger value="signin">Connexion</TabsTrigger><TabsTrigger value="signup">Créer un compte</TabsTrigger></TabsList>
@@ -170,7 +193,7 @@ function AuthPage() {
               <form onSubmit={signIn} className="space-y-4">
                 <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" size="lg" className="w-full" disabled={busy}>Se connecter</Button>
+                <Button type="submit" size="lg" className="w-full font-medium" disabled={busy}>Se connecter</Button>
               </form>
             </TabsContent>
             <TabsContent value="signup" className="mt-6">
@@ -178,7 +201,7 @@ function AuthPage() {
                 <div className="space-y-2"><Label htmlFor="name">Prénom / pseudo</Label><Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="email2">Email</Label><Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
                 <div className="space-y-2"><Label htmlFor="password2">Mot de passe</Label><Input id="password2" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" size="lg" className="w-full" disabled={busy}>Créer mon compte</Button>
+                <Button type="submit" size="lg" className="w-full font-medium" disabled={busy}>Créer mon compte</Button>
               </form>
             </TabsContent>
           </Tabs>

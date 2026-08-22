@@ -1,13 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  Sparkles,
-  Wallet,
-  CalendarCheck,
-  Users,
-  MapPinned,
-  Vote,
-  Check,
-} from "lucide-react";
+import { Check } from "lucide-react";
 
 import heroImage from "@/assets/hero-krew.jpg";
 import landingTripPreview from "@/assets/landing-trip-preview.jpg";
@@ -15,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SiteHeader } from "@/components/krew/SiteHeader";
 import { Logo } from "@/components/krew/Logo";
-import { EVENT_TYPES } from "@/lib/krew/constants";
+import { KrewIcon, type KrewIconName } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { EVENT_TYPES } from "@/lib/krew/constants";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,21 +33,21 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
-const STEPS = [
+const STEPS: { iconName: KrewIconName; number: string; title: string; text: string }[] = [
   {
-    icon: Users,
+    iconName: "group",
     number: "01",
     title: "Crée ton voyage",
     text: "Renseigne l’essentiel et invite le groupe.",
   },
   {
-    icon: CalendarCheck,
+    iconName: "calendar",
     number: "02",
     title: "Chacun répond",
     text: "Disponibilités et préférences : chacun complète ses informations.",
   },
   {
-    icon: Sparkles,
+    iconName: "planning",
     number: "03",
     title: "KREW propose",
     text: "Dates, destinations, hébergements et trajets adaptés au groupe.",
@@ -204,29 +197,26 @@ function Landing() {
 
             {/* Grid 3 Colonnes Desktop / Stack Mobile */}
             <div className="grid gap-8 lg:grid-cols-3 relative">
-              {STEPS.map((step) => {
-                const Icon = step.icon;
-                return (
-                  <div key={step.number} className="relative bg-surface/30 rounded-[24px] p-5 sm:p-8 border border-border/50 space-y-4">
-                    <span
-                      aria-hidden="true"
-                      className="font-display text-6xl font-normal text-sage/30 leading-none select-none block"
-                    >
-                      {step.number}
-                    </span>
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Icon className="size-5" />
-                      </div>
-                      <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
-                        Étape {step.number}
-                      </span>
+              {STEPS.map((step) => (
+                <div key={step.number} className="relative bg-surface/30 rounded-[24px] p-5 sm:p-8 border border-border/50 space-y-4">
+                  <span
+                    aria-hidden="true"
+                    className="font-display text-6xl font-normal text-sage/30 leading-none select-none block"
+                  >
+                    {step.number}
+                  </span>
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <KrewIcon name={step.iconName} tone="plum" size="sm" className="size-5" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{step.text}</p>
+                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                      Étape {step.number}
+                    </span>
                   </div>
-                );
-              })}
+                  <h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{step.text}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -284,14 +274,14 @@ function Landing() {
                     <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">État des réponses</p>
                     <div className="flex flex-wrap gap-4 text-xs pt-1">
                       <span className="inline-flex items-center gap-1.5">
-                        <CalendarCheck className="size-4 text-sage" />
+                        <KrewIcon name="availability" tone="sage" size="sm" className="size-4" />
                         <span>Disponibilités : </span>
-                        <span className="font-mono font-semibold text-emerald-600">8/8</span>
+                        <span className="font-mono font-semibold text-primary">8/8</span>
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <Vote className="size-4 text-sage" />
+                        <KrewIcon name="preferences" tone="sage" size="sm" className="size-4" />
                         <span>Préférences : </span>
-                        <span className="font-mono font-semibold text-emerald-600">8/8</span>
+                        <span className="font-mono font-semibold text-primary">8/8</span>
                       </span>
                     </div>
                   </div>
@@ -370,22 +360,22 @@ function Landing() {
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <FeatureCard
-                icon={MapPinned}
+                iconName="destination"
                 title="Destinations adaptées"
                 text="Des propositions qui tiennent compte des envies, du budget et des contraintes du groupe."
               />
               <FeatureCard
-                icon={Wallet}
+                iconName="budget"
                 title="Budget transparent"
                 text="Transport, hébergement, activités — estimés par personne."
               />
               <FeatureCard
-                icon={Vote}
+                iconName="vote"
                 title="Décision collective"
                 text="Chacun partage ses préférences, puis le groupe avance ensemble."
               />
               <FeatureCard
-                icon={CalendarCheck}
+                iconName="planning"
                 title="Planning jour par jour"
                 text="Restaurants, activités et temps forts réunis dans un programme clair."
               />
@@ -435,18 +425,18 @@ function Landing() {
 }
 
 function FeatureCard({
-  icon: Icon,
+  iconName,
   title,
   text,
 }: {
-  icon: typeof MapPinned;
+  iconName: KrewIconName;
   title: string;
   text: string;
 }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:border-primary/40">
       <span className="grid size-11 place-items-center rounded-xl bg-secondary/30 text-foreground mb-4">
-        <Icon className="size-5" />
+        <KrewIcon name={iconName} tone="plum" size="sm" className="size-5" />
       </span>
       <h3 className="font-semibold text-foreground text-base">{title}</h3>
       <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{text}</p>

@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Plus } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { KrewIcon } from "./visual-language";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,7 +58,7 @@ export function SiteHeader() {
               </Button>
               <Button asChild size="sm" className="rounded-xl font-medium">
                 <Link to="/trips/new">
-                  <Plus className="size-4" /> Nouveau voyage
+                  <KrewIcon name="plus" size="sm" className="size-4" /> Nouveau voyage
                 </Link>
               </Button>
               <DropdownMenu>
