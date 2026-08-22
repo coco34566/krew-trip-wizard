@@ -1808,50 +1808,68 @@ function TripDetail() {
       {currentView === "voyage" ? (
         !currentSection ? (
           (() => {
-            const availDone = Boolean(availData?.mine);
-            const prefsDone = Boolean((myPrefsData as any)?.preferences);
+            const totalParts = progress?.total || trip.participants_count || 1;
+            const availGroupDone = (availData?.answered ?? 0) >= totalParts && totalParts > 0;
+            const prefsGroupDone = (progress?.answered ?? 0) >= totalParts && totalParts > 0;
+            const myAvailDone = Boolean(availData?.mine);
+            const myPrefsDone = Boolean((myPrefsData as any)?.preferences);
             const starDone = Boolean(starData?.preferences);
+
             const datesReady = datesLocked || Boolean(trip.start_date);
             const profileDone = Boolean(profile?.validated);
+            const profileReady = Boolean(readiness?.profile.questionnairesReady || profile?.legacyBypass);
             const destDone = destinationSelected;
-            const hotelDone = Boolean(logistics.selectedHotelId || logistics.hotels?.length);
-            const transportDone = Boolean(liveBudget.transportPicksCount && liveBudget.transportPicksCount > 0);
+            const hotelDone = Boolean(logistics.selectedHotelId);
+            const hotelOffersReady = Boolean(logistics.hotels?.length);
+            const transportDone = Boolean(liveBudget.transportPicksCount && liveBudget.transportPicksCount >= totalParts);
             const planDone = hasItinerary;
 
-            // Determine single next action strictly from real readiness
+            // Single next action matching Dashboard NextActionsPanel
             let nextActionId: string | null = null;
-            if (!availDone) nextActionId = "availability";
-            else if (!prefsDone) nextActionId = "preferences";
+            if (!myAvailDone) nextActionId = "availability";
+            else if (!myPrefsDone) nextActionId = "preferences";
             else if (hasStar && !starDone) nextActionId = "star";
             else if (!datesReady && data.isOwner) nextActionId = "dates";
-            else if (datesReady && !profileDone && data.isOwner) nextActionId = "profile";
+            else if (datesReady && !profileDone && profileReady && data.isOwner) nextActionId = "profile";
             else if (datesReady && profileDone && !destDone && data.isOwner) nextActionId = "destination";
-            else if (destDone && !hotelDone && data.isOwner) nextActionId = "accommodation";
+            else if (destDone && hotelOffersReady && !hotelDone && data.isOwner) nextActionId = "accommodation";
             else if (destDone && !transportDone) nextActionId = "transport";
             else if (destDone && !planDone && data.isOwner) nextActionId = "planning";
 
-            const getStepStatus = (id: string, isDone: boolean): "done" | "next_action" | "available" | "upcoming" => {
-              if (isDone) return "done";
+            // Step accessibility gating
+            const isStepAvailable = (id: string): boolean => {
+              if (id === "availability" || id === "preferences" || id === "star") return true;
+              if (id === "dates") return true; // Always accessible to view/lock dates
+              if (id === "profile") return datesReady;
+              if (id === "destination") return datesReady && (profileDone || Boolean(profile?.legacyBypass));
+              if (id === "accommodation" || id === "transport") return destDone;
+              if (id === "planning" || id === "tasks" || id === "packing") return destDone;
+              return false;
+            };
+
+            const getStepStatus = (id: string, isGroupDone: boolean): "done" | "next_action" | "available" | "upcoming" => {
+              if (isGroupDone) return "done";
               if (id === nextActionId) return "next_action";
-              return "available";
+              if (isStepAvailable(id)) return "available";
+              return "upcoming";
             };
 
             const timelineSteps: TimelineStep[] = [
               {
                 id: "availability",
                 title: "Disponibilités",
-                subtitle: `${availData?.answered ?? 0}/${availData?.expected ?? trip.participants_count ?? 1} indiquées`,
+                subtitle: `${availData?.answered ?? 0}/${totalParts} indiquées`,
                 iconName: "availability",
-                status: getStepStatus("availability", availDone),
+                status: getStepStatus("availability", availGroupDone),
                 category: "questionnaire",
                 href: `/trips/${tripId}/availability`,
               },
               {
                 id: "preferences",
                 title: "Préférences",
-                subtitle: `${progress?.answered ?? 0}/${progress?.total ?? trip.participants_count ?? 1} questionnaires`,
+                subtitle: `${progress?.answered ?? 0}/${totalParts} questionnaires`,
                 iconName: "preferences",
-                status: getStepStatus("preferences", prefsDone),
+                status: getStepStatus("preferences", prefsGroupDone),
                 category: "questionnaire",
                 href: `/trips/${tripId}/questionnaire`,
               },
@@ -1892,25 +1910,25 @@ function TripDetail() {
                 iconName: "profile",
                 status: getStepStatus("profile", profileDone),
                 category: "prepare",
-                href: `/trips/${tripId}?view=voyage&section=profile`,
+                href: isStepAvailable("profile") ? `/trips/${tripId}?view=voyage&section=profile` : null,
               },
               {
                 id: "destination",
                 title: "Destination",
-                subtitle: liveBudget.destinationName || "En attente de choix",
+                subtitle: liveBudget.destinationName || (recommendations.length > 0 ? "Propositions prêtes" : "En attente de choix"),
                 iconName: "destination",
                 status: getStepStatus("destination", destDone),
                 category: "prepare",
-                href: `/trips/${tripId}?view=voyage&section=destination`,
+                href: isStepAvailable("destination") ? `/trips/${tripId}?view=voyage&section=destination` : null,
               },
               {
                 id: "accommodation",
                 title: "Hébergement",
-                subtitle: liveBudget.topHotelName || "Options à voter",
+                subtitle: liveBudget.topHotelName || (hotelOffersReady ? "Options à voter" : "En attente"),
                 iconName: "accommodation",
                 status: getStepStatus("accommodation", hotelDone),
                 category: "prepare",
-                href: `/trips/${tripId}?view=voyage&section=accommodation`,
+                href: isStepAvailable("accommodation") ? `/trips/${tripId}?view=voyage&section=accommodation` : null,
               },
               {
                 id: "transport",
@@ -1919,7 +1937,7 @@ function TripDetail() {
                 iconName: "transport",
                 status: getStepStatus("transport", transportDone),
                 category: "prepare",
-                href: `/trips/${tripId}?view=voyage&section=transport`,
+                href: isStepAvailable("transport") ? `/trips/${tripId}?view=voyage&section=transport` : null,
               },
               {
                 id: "planning",
@@ -1928,16 +1946,16 @@ function TripDetail() {
                 iconName: "planning",
                 status: getStepStatus("planning", planDone),
                 category: "organisation",
-                href: `/trips/${tripId}?view=voyage&section=planning`,
+                href: isStepAvailable("planning") ? `/trips/${tripId}?view=voyage&section=planning` : null,
               },
               {
                 id: "tasks",
                 title: "Tâches",
                 subtitle: tasksData?.length ? `${tasksData.length} tâche(s)` : "Répartition du groupe",
                 iconName: "tasks",
-                status: getStepStatus("tasks", Boolean(tasksData?.length)),
+                status: getStepStatus("tasks", Boolean(tasksData?.length && planDone)),
                 category: "organisation",
-                href: `/trips/${tripId}?view=voyage&section=tasks`,
+                href: isStepAvailable("tasks") ? `/trips/${tripId}?view=voyage&section=tasks` : null,
               },
               {
                 id: "packing",
@@ -1946,7 +1964,7 @@ function TripDetail() {
                 iconName: "packing",
                 status: getStepStatus("packing", false),
                 category: "organisation",
-                href: `/trips/${tripId}?view=voyage&section=packing`,
+                href: isStepAvailable("packing") ? `/trips/${tripId}?view=voyage&section=packing` : null,
               },
             );
 
