@@ -80,28 +80,26 @@ export function CostSplitCard({ split, tripName }: Props) {
   }
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 sm:p-6 shadow-sm">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-primary">
-            Répartition des coûts
-          </p>
-          <h3 className="mt-1 font-display text-2xl font-semibold">{split.destinationName}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h3 className="font-display text-xl font-semibold">{split.destinationName}</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground font-sans">
             Chacun paie son transport depuis sa ville + une part égale du reste.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
           <Button
             type="button"
-            className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent"
+            variant="ghost"
+            className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-8 text-xs font-semibold gap-1.5 shadow-none"
             size="sm"
             onClick={handleWhatsApp}
           >
             Partager sur WhatsApp
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={exportImage}>
-            <ImageDown className="size-4" /> Image
+          <Button type="button" variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={exportImage}>
+            <ImageDown className="size-3.5" /> Image
           </Button>
         </div>
       </div>

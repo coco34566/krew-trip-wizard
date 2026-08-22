@@ -31,8 +31,8 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
 
   return (
     <section className={cn("space-y-6", className)}>
-      {/* ZONE 2 — PROCHAINE ACTION (NAPPE SAUGE) */}
-      <div className="relative overflow-hidden bg-sage/18 p-6 rounded-3xl">
+      {/* ZONE 2 — PROCHAINE ACTION (SURFACE SAUGE SANS CARD BORDER/SHADOW) */}
+      <div className="relative overflow-hidden bg-sage/16 p-6 sm:p-7 rounded-[2rem]">
         <div className="flex flex-col gap-2 max-w-[calc(100%-80px)] pr-2">
           {/* Label */}
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/70">
@@ -56,10 +56,9 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
             <div className="pt-3">
               <PrimaryTag
                 href={primary.href}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-primary px-5 sm:px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 active:scale-[0.99]"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 active:scale-[0.99]"
               >
-                <span>Continuer</span>
-                <KrewMark type="arrow-right" tone="plum" size="sm" className="w-5 h-3 text-white shrink-0" />
+                Continuer
               </PrimaryTag>
             </div>
           ) : null}
@@ -113,12 +112,25 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
       {/* ZONE 4 — LES 3 ACTIONS SUIVANTES */}
       {secondary.slice(0, 3).length > 0 ? (
         <div className="relative pt-2 space-y-1">
-          {/* Connector curve qui passe derrière les icônes si applicable */}
-          <KrewMark type="connector-curve" tone="sage" size="sm" className="absolute left-[12px] top-[16px] h-[120px] w-[20px] z-0 opacity-40 pointer-events-none" />
-
           {secondary.slice(0, 3).map((action, index) => {
             const Tag = action.href ? "a" : "div";
-            const iconName = action.iconName || (action.key === "avail" ? "availability" : action.key === "prefs" ? "preferences" : action.key === "star" ? "favorite" : action.key === "hotel" || action.key === "search-hotels" ? "accommodation" : action.key === "transport" || action.key === "search-transport" ? "transport" : action.key === "lock-dates" ? "calendar" : action.key === "choose-profile" ? "profile" : action.key === "gen" || action.key === "pick-dest" ? "destination" : action.key === "plan" ? "planning" : action.key === "refine" ? "tasks" : "group");
+            const knownIcons: Record<string, KrewIconName> = {
+              avail: "availability",
+              prefs: "preferences",
+              star: "favorite",
+              hotel: "accommodation",
+              "search-hotels": "accommodation",
+              transport: "transport",
+              "search-transport": "transport",
+              "lock-dates": "calendar",
+              "choose-profile": "profile",
+              gen: "destination",
+              "pick-dest": "destination",
+              plan: "planning",
+              refine: "tasks",
+              nudge: "group",
+            };
+            const iconName = action.iconName || knownIcons[action.key] || null;
 
             return (
               <Tag
@@ -133,7 +145,9 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
               >
                 {/* COLONNE 1 : KrewIcon 20px directement sur fond (pas de cercle) */}
                 <div className="relative z-10 flex items-center justify-center">
-                  <KrewIcon name={iconName} tone="plum" size="sm" className="size-[20px]" />
+                  {iconName ? (
+                    <KrewIcon name={iconName} tone="plum" size="sm" className="size-[20px]" />
+                  ) : null}
                 </div>
 
                 {/* COLONNE 2 : Titre + Description */}

@@ -1232,7 +1232,7 @@ function TripDetail() {
           {/* ZONE 5 — MEMBRES DU GROUPE (EXACT BLUEPRINT) */}
           <section id="group-section" className="mt-12 space-y-6 scroll-mt-24">
             <div className="space-y-1">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <KrewIcon name="group" tone="plum" size="sm" className="size-[22px] shrink-0" />
                   <h2 className="font-display text-[28px] sm:text-[30px] font-normal text-foreground leading-none">
@@ -1240,71 +1240,69 @@ function TripDetail() {
                   </h2>
                 </div>
 
-              {data.isOwner ? (
-                isEditingCount ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (countInput >= 2 && countInput <= 25) {
-                        updateCountMutation.mutate(countInput);
-                      } else {
-                        toast.error("Le nombre de participants doit être entre 2 et 25");
-                      }
-                    }}
-                    className="flex items-center gap-2"
-                  >
-                    <Input
-                      type="number"
-                      min={2}
-                      max={25}
-                      value={countInput}
-                      onChange={(e) => setCountInput(Number(e.target.value))}
-                      className="w-20 h-8 text-xs"
-                    />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      className="h-8 text-xs"
-                      disabled={updateCountMutation.isPending}
-                    >
-                      {updateCountMutation.isPending ? (
-                        <Loader2 className="size-3 animate-spin" />
-                      ) : (
-                        "Valider"
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs"
-                      onClick={() => setIsEditingCount(false)}
-                    >
-                      Annuler
-                    </Button>
-                  </form>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-xs h-8"
-                    onClick={() => {
-                      setCountInput(Number(trip.participants_count || 2));
-                      setIsEditingCount(true);
-                    }}
-                  >
-                    Modifier le nombre ({trip.participants_count || 2})
-                  </Button>
-                )
-              ) : null}
+                {/* Sub-line on mobile / right-aligned on desktop for participant count + edit */}
+                <div className="flex items-center gap-2 text-xs font-sans text-muted-foreground pt-1 sm:pt-0">
+                  <span className="font-mono text-foreground font-semibold">
+                    {trip.participants_count || 2}
+                  </span>{" "}
+                  participants
+                  {data.isOwner ? (
+                    isEditingCount ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (countInput >= 2 && countInput <= 25) {
+                            updateCountMutation.mutate(countInput);
+                          } else {
+                            toast.error("Le nombre de participants doit être entre 2 et 25");
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 ml-2"
+                      >
+                        <Input
+                          type="number"
+                          min={2}
+                          max={25}
+                          value={countInput}
+                          onChange={(e) => setCountInput(Number(e.target.value))}
+                          className="w-16 h-7 text-xs font-mono"
+                        />
+                        <button
+                          type="submit"
+                          className="text-xs font-semibold text-primary hover:underline"
+                          disabled={updateCountMutation.isPending}
+                        >
+                          OK
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:underline"
+                          onClick={() => setIsEditingCount(false)}
+                        >
+                          Annuler
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-xs text-primary font-medium hover:underline ml-1"
+                        onClick={() => {
+                          setCountInput(Number(trip.participants_count || 2));
+                          setIsEditingCount(true);
+                        }}
+                      >
+                        Modifier
+                      </button>
+                    )
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Underline wave KrewMark sous le titre */}
+              <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[10px] opacity-85 pointer-events-none" />
             </div>
 
-            {/* Underline wave KrewMark sous le titre */}
-            <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[10px] -mt-1 opacity-85 pointer-events-none" />
-            </div>
-
-            <ul className="divide-y divide-border/40 pt-2">
+            <ul className="divide-y divide-border/40 pt-1">
               {participants.length === 0 ? (
                 <li className="text-sm text-muted-foreground py-4">
                   Personne n’a encore rejoint le groupe.
@@ -1330,75 +1328,78 @@ function TripDetail() {
                       p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId),
                   );
 
+                  const transportMode = userPick?.mode ? String(userPick.mode).toLowerCase() : "";
+                  const transportIconName: "plane" | "train" | "car" | "transport" =
+                    transportMode.includes("flight") || transportMode.includes("plane") || transportMode.includes("avion")
+                      ? "plane"
+                      : transportMode.includes("train")
+                        ? "train"
+                        : transportMode.includes("car") || transportMode.includes("voiture")
+                          ? "car"
+                          : "transport";
+
                   return (
                     <li
                       key={p.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between min-h-[56px] py-3.5 gap-3"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between min-h-[56px] py-3.5 gap-2.5"
                     >
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-foreground">
+                          <p className="font-medium text-foreground text-sm">
                             {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
                           </p>
                           {isOwner ? (
-                            <Badge
-                              variant="sun"
-                              className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
-                            >
+                            <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                               Organisateur·rice
-                            </Badge>
+                            </span>
                           ) : isCoOrganizer ? (
-                            <Badge variant="secondary" className="gap-1 px-1.5 py-0 text-[10px]">
+                            <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                               Co-organisateur·rice
-                            </Badge>
+                            </span>
                           ) : null}
                           {p.isStar ? (
-                            <Badge
-                              variant="secondary"
-                              className="gap-1 px-1.5 py-0 text-[10px]"
-                            >
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-sage/16 px-2 py-0.5 rounded-full">
                               <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" /> Star
-                            </Badge>
+                            </span>
                           ) : null}
                         </div>
                         {p.email ? (
                           <p className="text-xs text-muted-foreground mt-0.5">{p.email}</p>
                         ) : null}
                         {city || userPick ? (
-                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                             {city ? (
-                              <span>
-                                📍 Départ : <strong className="text-foreground">{city}</strong>
+                              <span className="inline-flex items-center gap-1">
+                                <KrewIcon name="destination" tone="muted" size="sm" className="size-3.5" />
+                                <span>Départ : <strong className="text-foreground font-normal">{city}</strong></span>
                               </span>
                             ) : null}
                             {userPick ? (
-                              <span>
-                                🚆 Trajet :{" "}
-                                <strong className="text-foreground">
-                                  {userPick.modeLabel || userPick.mode} ({userPick.label})
-                                </strong>
+                              <span className="inline-flex items-center gap-1">
+                                <KrewIcon name={transportIconName} tone="muted" size="sm" className="size-3.5" />
+                                <span>Trajet : <strong className="text-foreground font-normal">{userPick.modeLabel || userPick.mode} ({userPick.label})</strong></span>
                               </span>
                             ) : null}
                           </div>
                         ) : null}
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto">
-                        <Badge
-                          variant={
-                            p.status === "accepte"
-                              ? "success"
-                              : p.status === "absent"
-                                ? "destructive"
-                                : "muted"
-                          }
-                        >
-                          {p.status === "accepte" ? "Participe" : p.status}
-                        </Badge>
+
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto text-xs">
+                        {p.status === "accepte" ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-primary">
+                            <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" />
+                            <span>Participe</span>
+                          </span>
+                        ) : p.status === "absent" ? (
+                          <span className="text-muted-foreground italic">Absent</span>
+                        ) : (
+                          <span className="text-muted-foreground">{p.status}</span>
+                        )}
+
                         {p.user_id === data.userId ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-7 px-2"
+                          <button
+                            type="button"
+                            className="text-xs text-primary font-medium hover:underline ml-2"
                             onClick={() => {
                               const nextStatus =
                                 (p.status as string) === "absent" ? "accepte" : "absent";
@@ -1408,43 +1409,42 @@ function TripDetail() {
                             {(p.status as string) === "absent"
                               ? "Participer à nouveau"
                               : "Indiquer mon absence"}
-                          </Button>
+                          </button>
                         ) : null}
+
                         {data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id ? (
                           p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs text-destructive hover:bg-destructive/5 h-7 px-2"
+                            <button
+                              type="button"
+                              className="text-xs text-destructive/80 hover:underline"
                               disabled={setCoOrgMutation.isPending}
                               onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
                             >
                               Retirer co-org
-                            </Button>
+                            </button>
                           ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 h-7 px-2 font-normal"
+                            <button
+                              type="button"
+                              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
                               disabled={setCoOrgMutation.isPending}
                               onClick={() =>
                                 setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
                               }
                             >
                               Nommer co-org
-                            </Button>
+                            </button>
                           )
                         ) : null}
+
                         {data.isOwner && !p.placeholder && !p.isStar ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
+                          <button
+                            type="button"
                             aria-label={`Retirer ${p.email || p.display_name}`}
-                            className="size-8"
+                            className="text-muted-foreground/70 hover:text-destructive p-1"
                             onClick={() => removeMutation.mutate(p.id)}
                           >
-                            <Trash2 className="size-4" />
-                          </Button>
+                            <Trash2 className="size-3.5" />
+                          </button>
                         ) : null}
                       </div>
                     </li>
@@ -1453,20 +1453,16 @@ function TripDetail() {
               )}
             </ul>
 
-            {/* PARAMÈTRES STAR SI VOYAGE STAR */}
+            {/* PARAMÈTRES STAR SI VOYAGE STAR (RÔLE DE LA STAR) */}
             {hasStar ? (
               <div className="pt-4 border-t border-border/40 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                      <Star className="size-4 fill-amber-500 text-amber-500" />
-                      Rôle de la Star ({celebratedPerson || "Secret"})
-                    </p>
-                  </div>
+                <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                  <KrewIcon name="favorite" tone="sage" size="sm" className="size-4 shrink-0" />
+                  <span>Rôle de la Star ({celebratedPerson || "Secret"})</span>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 text-xs">
-                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                  <div className="space-y-1.5">
                     <p className="font-medium text-foreground">Visibilité</p>
                     <div className="flex gap-2">
                       <Button
@@ -1475,7 +1471,7 @@ function TripDetail() {
                         variant={
                           (logistics?.star_mode ?? "secret") === "secret" ? "default" : "outline"
                         }
-                        className="h-7 text-xs flex-1"
+                        className="h-8 text-xs flex-1 rounded-lg"
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1484,7 +1480,7 @@ function TripDetail() {
                           })
                         }
                       >
-                        🤫 Voyage secret
+                        Voyage secret
                       </Button>
                       <Button
                         type="button"
@@ -1492,7 +1488,7 @@ function TripDetail() {
                         variant={
                           logistics?.star_mode === "participant" ? "default" : "outline"
                         }
-                        className="h-7 text-xs flex-1"
+                        className="h-8 text-xs flex-1 rounded-lg"
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1501,12 +1497,12 @@ function TripDetail() {
                           })
                         }
                       >
-                        👀 Participant ordinaire
+                        Participant ordinaire
                       </Button>
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
+                  <div className="space-y-1.5">
                     <p className="font-medium text-foreground">Participation aux frais</p>
                     <div className="flex gap-2">
                       <Button
@@ -1515,7 +1511,7 @@ function TripDetail() {
                         variant={
                           logistics?.star_pays_share !== false ? "default" : "outline"
                         }
-                        className="h-7 text-xs flex-1"
+                        className="h-8 text-xs flex-1 rounded-lg"
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1532,7 +1528,7 @@ function TripDetail() {
                         variant={
                           logistics?.star_pays_share === false ? "default" : "outline"
                         }
-                        className="h-7 text-xs flex-1"
+                        className="h-8 text-xs flex-1 rounded-lg"
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1549,12 +1545,12 @@ function TripDetail() {
               </div>
             ) : null}
 
-            {/* ACTION INVITATION SIMPLIFIÉE */}
-            <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row gap-2">
+            {/* ACTION INVITATION / PARTAGE SANS VERT WHATSAPP NI AMBER */}
+            <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               <Button
                 type="button"
-                variant="outline"
-                className="rounded-xl gap-2"
+                variant="ghost"
+                className="rounded-xl gap-2 border border-border/60 hover:bg-muted/30 h-10 text-xs font-semibold"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(shareUrl);
@@ -1567,18 +1563,21 @@ function TripDetail() {
                 }}
               >
                 <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
-                {shareCopied ? "Copié" : "Copier le lien du voyage"}
+                <span>{shareCopied ? "Copié" : "Copier le lien du voyage"}</span>
               </Button>
+
               <Button
                 type="button"
-                className="bg-[#25D366] text-white hover:bg-[#1ebe57] border-transparent rounded-xl"
+                className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-10 text-xs font-semibold gap-2 shadow-none"
                 onClick={() => {
                   const text = buildWhatsAppInviteMessage();
                   shareOnWhatsApp(text);
                 }}
               >
-                Inviter via WhatsApp
+                <KrewIcon name="message" tone="plum" size="sm" className="size-4" />
+                <span>Inviter via WhatsApp</span>
               </Button>
+
               {data.isOwner ? (() => {
                 const missingParticipants =
                   progress?.participants?.filter(
@@ -1587,14 +1586,15 @@ function TripDetail() {
                 return missingParticipants.length > 0 ? (
                   <Button
                     type="button"
-                    variant="outline"
-                    className="rounded-xl bg-amber-500/10 text-amber-800 border-amber-500/30 hover:bg-amber-500/20"
+                    variant="ghost"
+                    className="rounded-xl bg-sage/12 text-primary hover:bg-sage/20 border border-sage/25 h-10 text-xs font-semibold gap-2"
                     onClick={() => {
                       const text = buildWhatsAppRemindMessage();
                       shareOnWhatsApp(text);
                     }}
                   >
-                    🔔 Relancer sur WhatsApp
+                    <KrewIcon name="attention" tone="plum" size="sm" className="size-4" />
+                    <span>Relancer sur WhatsApp</span>
                   </Button>
                 ) : null;
               })() : null}
@@ -1604,30 +1604,28 @@ function TripDetail() {
           {costSplitData?.split ? (
             <section
               id="hub-cost-split"
-              className="space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+              className="mt-12 space-y-4 scroll-mt-24"
             >
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                    <Wallet className="size-5 text-primary" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <KrewIcon name="budget" tone="plum" size="sm" className="size-[22px] shrink-0" />
+                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal text-foreground leading-none">
                     Répartition des coûts
                   </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Une estimation de la part de chacun pour le voyage.
-                  </p>
                 </div>
+                <KrewMark type="underline" tone="sage" size="sm" className="w-[110px] h-[8px] opacity-85 pointer-events-none" />
               </div>
               <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
             </section>
           ) : null}
 
           {data.isOwner && (trip.status as string) !== "annule" ? (
-            <section className="space-y-3 rounded-3xl border border-border/60 bg-surface/30 p-5 sm:p-6">
-              <p className="mb-3 text-sm text-muted-foreground">Gestion du voyage</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  className="border-destructive/40 text-destructive"
+            <footer className="mt-16 pt-6 border-t border-border/30 space-y-2 text-xs">
+              <p className="text-[12px] text-muted-foreground">Gestion du voyage</p>
+              <div className="flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  className="text-destructive/80 hover:text-destructive hover:underline font-normal text-xs"
                   disabled={cancelMutation.isPending}
                   onClick={() => {
                     if (window.confirm("Annuler ce voyage ? Il disparaîtra de la liste active.")) {
@@ -1636,10 +1634,11 @@ function TripDetail() {
                   }}
                 >
                   Annuler le voyage
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="text-destructive"
+                </button>
+
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 text-destructive/70 hover:text-destructive hover:underline font-normal text-xs"
                   disabled={cancelMutation.isPending}
                   onClick={() => {
                     if (
@@ -1651,10 +1650,11 @@ function TripDetail() {
                     }
                   }}
                 >
-                  Supprimer définitivement
-                </Button>
+                  <Trash2 className="size-3" />
+                  <span>Supprimer définitivement</span>
+                </button>
               </div>
-            </section>
+            </footer>
           ) : null}
         </div>
       ) : null}

@@ -437,16 +437,6 @@ export function TripHubDashboard({
             />
           </div>
 
-          {/* C3. KREWMARK CIRCLE (z40) : coin supérieur droit photo */}
-          <div className="absolute top-[20px] right-0 z-40 pointer-events-none transform translate-x-2">
-            <KrewMark
-              type="circle"
-              tone="sage"
-              size="lg"
-              rotation={2}
-              className="w-[80px] sm:w-[84px] opacity-80"
-            />
-          </div>
 
           {/* C4. BLOB PRUNE (z20) : chevauche le bas de la photo de 64-76px */}
           <div className="relative z-20 -mt-[70px] w-[90%] sm:w-[88%] min-h-[180px]">
