@@ -175,33 +175,43 @@ function AuthPage() {
       />
       <div className="w-full max-w-md relative z-10 space-y-6">
         <Link to="/" className="flex justify-center"><Logo size="lg" withTagline /></Link>
-        <div className="text-center space-y-1">
-          <h1 className="font-display text-[32px] font-normal leading-tight text-foreground relative inline-block">
-            Bienvenue sur KREW
+        <div className="text-center space-y-1 relative">
+          <div className="relative inline-block">
+            <h1 className="font-display text-[32px] font-normal leading-tight text-foreground">
+              Bienvenue sur KREW
+            </h1>
             <KrewMark
               type="underline-wave"
               tone="sage"
               size="sm"
               className="absolute left-0 -bottom-1.5 w-[110px] pointer-events-none"
             />
-          </h1>
+          </div>
+          <div className="absolute top-0 right-0 sm:-right-8 pointer-events-none">
+            <img
+              src="/brand/otter-states/lets-go.png"
+              alt=""
+              className="w-11 sm:w-13 h-auto object-contain filter drop-shadow-2xs opacity-90"
+            />
+          </div>
         </div>
-        <div className="rounded-xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
+
+        <div className="rounded-[24px] border border-border/40 bg-card p-6 sm:p-8 shadow-2xs">
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2 bg-muted/40 p-1"><TabsTrigger value="signin">Connexion</TabsTrigger><TabsTrigger value="signup">Créer un compte</TabsTrigger></TabsList>
             <TabsContent value="signin" className="mt-6">
               <form onSubmit={signIn} className="space-y-4">
-                <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" size="lg" className="w-full font-medium" disabled={busy}>Se connecter</Button>
+                <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" required className="h-11 rounded-xl border-border" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+                <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" required className="h-11 rounded-xl border-border" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+                <Button type="submit" size="lg" className="w-full h-11 rounded-xl font-medium" disabled={busy}>Se connecter</Button>
               </form>
             </TabsContent>
             <TabsContent value="signup" className="mt-6">
               <form onSubmit={signUp} className="space-y-4">
-                <div className="space-y-2"><Label htmlFor="name">Prénom / pseudo</Label><Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="email2">Email</Label><Input id="email2" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="password2">Mot de passe</Label><Input id="password2" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" size="lg" className="w-full font-medium" disabled={busy}>Créer mon compte</Button>
+                <div className="space-y-2"><Label htmlFor="name">Prénom / pseudo</Label><Input id="name" className="h-11 rounded-xl border-border" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
+                <div className="space-y-2"><Label htmlFor="email2">Email</Label><Input id="email2" type="email" required className="h-11 rounded-xl border-border" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+                <div className="space-y-2"><Label htmlFor="password2">Mot de passe</Label><Input id="password2" type="password" required minLength={6} className="h-11 rounded-xl border-border" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+                <Button type="submit" size="lg" className="w-full h-11 rounded-xl font-medium" disabled={busy}>Créer mon compte</Button>
               </form>
             </TabsContent>
           </Tabs>

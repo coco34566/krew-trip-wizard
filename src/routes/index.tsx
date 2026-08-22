@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/krew/SiteHeader";
 import { Logo } from "@/components/krew/Logo";
 import { KrewIcon, type KrewIconName } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewHighlight, KrewOrganicBlob } from "@/components/krew/visual-language";
 import { EVENT_TYPES } from "@/lib/krew/constants";
 
 export const Route = createFileRoute("/")({
@@ -193,28 +194,45 @@ function Landing() {
               </h2>
             </div>
 
-            {/* Grid 3 Colonnes Desktop / Stack Mobile */}
-            <div className="grid gap-8 lg:grid-cols-3 relative">
-              {STEPS.map((step) => (
-                <div key={step.number} className="relative bg-surface/30 rounded-[24px] p-5 sm:p-8 border border-border/50 space-y-4">
-                  <span
-                    aria-hidden="true"
-                    className="font-display text-6xl font-normal text-sage/30 leading-none select-none block"
-                  >
-                    {step.number}
-                  </span>
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <KrewIcon name={step.iconName} tone="plum" size="sm" className="size-5" />
+            {/* Horizontal Flow Desktop / Vertical Stack Mobile without SaaS cards */}
+            <div className="relative pt-4">
+              {/* Connecting line on desktop */}
+              <div className="hidden lg:block absolute top-16 left-[10%] right-[10%] h-0.5 border-t-2 border-dashed border-secondary/40 z-0" />
+
+              <div className="grid gap-10 lg:grid-cols-3 relative z-10">
+                {STEPS.map((step, idx) => (
+                  <div key={step.number} className="relative space-y-3">
+                    <div className="flex items-baseline justify-between">
+                      <span
+                        aria-hidden="true"
+                        className="font-display text-5xl sm:text-6xl font-normal text-secondary/40 leading-none select-none"
+                      >
+                        {step.number}
+                      </span>
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <KrewIcon name={step.iconName} tone="plum" size="sm" className="size-5" />
+                      </div>
                     </div>
-                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
-                      Étape {step.number}
-                    </span>
+                    <div>
+                      <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary block mb-1">
+                        Étape {step.number}
+                      </span>
+                      <h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed font-sans">{step.text}</p>
+                    </div>
+
+                    {idx === STEPS.length - 1 ? (
+                      <div className="pt-2 flex justify-end">
+                        <img
+                          src="/brand/otter-states/trip-progress.png"
+                          alt=""
+                          className="w-12 sm:w-14 h-auto object-contain filter drop-shadow-2xs opacity-90"
+                        />
+                      </div>
+                    ) : null}
                   </div>
-                  <h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{step.text}</p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -244,19 +262,21 @@ function Landing() {
                 />
               </div>
 
-              {/* Title + Budget */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 bg-background rounded-2xl p-5 sm:p-8 border border-border/50">
+              {/* Title + Budget (Integrated without separate SaaS card) */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6 pt-2">
                 <div>
-                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-foreground/10 px-2.5 py-0.5 rounded-full text-foreground">Exemple de projet final</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 px-2.5 py-0.5 rounded-full text-primary font-mono">Exemple de projet final</span>
                   <h3 className="font-display text-3xl sm:text-5xl font-normal text-foreground mt-2">
                     Week-end Retrouvailles à Lisbonne
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1">Organisé par Thomas · 8 personnes</p>
+                  <p className="text-xs text-muted-foreground mt-1 font-sans">Organisé par Thomas · 8 personnes</p>
                 </div>
 
                 <div className="shrink-0 text-left sm:text-right">
-                  <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Budget estimé par personne</p>
-                  <p className="font-mono text-4xl sm:text-6xl font-bold text-primary mt-1">~360 €</p>
+                  <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider font-mono">Budget estimé par personne</p>
+                  <KrewHighlight tone="sage" className="font-mono text-3xl sm:text-5xl font-bold text-primary mt-1 inline-block px-3 py-1">
+                    ~360 €
+                  </KrewHighlight>
                 </div>
               </div>
 
@@ -343,36 +363,48 @@ function Landing() {
         </section>
 
         {/* ——— Features (LA TEAM) ——— */}
-        <section className="border-y border-border bg-background py-16 sm:py-24">
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10">
+        <section className="border-y border-border bg-background py-16 sm:py-24 relative overflow-hidden">
+          <KrewOrganicBlob
+            tone="sage"
+            variant="soft"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] opacity-25 pointer-events-none z-0"
+          />
+
+          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative z-10">
             <div className="max-w-2xl text-center mx-auto mb-12">
               <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide mb-1">
                 LA TEAM
               </span>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono">
                 Ce que KREW fait pour toi
               </p>
-              <h2 className="mt-2 font-display text-3xl sm:text-4xl font-normal text-foreground">
+              <h2 className="mt-2 font-display text-3xl sm:text-4xl font-normal text-foreground relative inline-block">
                 Moins de débats, plus de départ
+                <KrewMark
+                  type="underline-wave"
+                  tone="sage"
+                  size="md"
+                  className="absolute left-1/2 -translate-x-1/2 -bottom-2 w-[160px] pointer-events-none"
+                />
               </h2>
             </div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              <FeatureCard
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+              <FeatureBlock
                 iconName="destination"
                 title="Destinations adaptées"
                 text="Des propositions qui tiennent compte des envies, du budget et des contraintes du groupe."
               />
-              <FeatureCard
+              <FeatureBlock
                 iconName="budget"
                 title="Budget transparent"
                 text="Transport, hébergement, activités — estimés par personne."
               />
-              <FeatureCard
+              <FeatureBlock
                 iconName="vote"
                 title="Décision collective"
                 text="Chacun partage ses préférences, puis le groupe avance ensemble."
               />
-              <FeatureCard
+              <FeatureBlock
                 iconName="planning"
                 title="Planning jour par jour"
                 text="Restaurants, activités et temps forts réunis dans un programme clair."
@@ -383,17 +415,27 @@ function Landing() {
 
         {/* ——— CTA final ——— */}
         <section className="relative bg-surface/60 border-b border-border py-20 sm:py-28">
-          <div className="max-w-3xl mx-auto px-5 sm:px-6 text-center">
+          <div className="max-w-3xl mx-auto px-5 sm:px-6 text-center relative">
+            <div className="absolute top-0 right-6 sm:right-16 pointer-events-none">
+              <img
+                src="/brand/otter-states/lets-go.png"
+                alt=""
+                className="w-12 sm:w-14 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              />
+            </div>
+
             <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground">
               Ta prochaine légende commence ici
             </h2>
-            <p className="mx-auto mt-4 max-w-lg text-muted-foreground leading-relaxed">
+            <p className="mx-auto mt-4 max-w-lg text-muted-foreground leading-relaxed font-sans">
               Crée le voyage, invite le groupe et avancez ensemble, étape par étape.
             </p>
-            <Button asChild size="xl" className="mt-8 rounded-xl px-8 text-base font-medium shadow-none">
-              <Link to="/trips/new">Créer mon voyage</Link>
-            </Button>
-            <p className="mt-4 text-xs text-muted-foreground">Gratuit pour démarrer · sans carte bancaire</p>
+            <div className="mt-8 relative inline-block">
+              <Button asChild size="xl" className="rounded-xl px-8 text-base font-medium shadow-none">
+                <Link to="/trips/new">Créer mon voyage</Link>
+              </Button>
+            </div>
+            <p className="mt-4 text-xs text-muted-foreground font-mono">Gratuit pour démarrer · sans carte bancaire</p>
           </div>
         </section>
       </main>
@@ -422,7 +464,7 @@ function Landing() {
   );
 }
 
-function FeatureCard({
+function FeatureBlock({
   iconName,
   title,
   text,
@@ -432,12 +474,12 @@ function FeatureCard({
   text: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:border-primary/40">
-      <span className="grid size-11 place-items-center rounded-xl bg-secondary/30 text-foreground mb-4">
+    <div className="space-y-3">
+      <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <KrewIcon name={iconName} tone="plum" size="sm" className="size-5" />
-      </span>
+      </div>
       <h3 className="font-semibold text-foreground text-base">{title}</h3>
-      <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{text}</p>
+      <p className="text-sm text-muted-foreground leading-relaxed font-sans">{text}</p>
     </div>
   );
 }

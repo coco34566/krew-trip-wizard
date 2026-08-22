@@ -270,12 +270,12 @@ export function KrewJourneyTimeline({
 
                       {/* MAX 1 HANDWRITTEN CAVEAT ANNOTATION ON NEXT ACTION */}
                       {isNextAction && annotationText ? (
-                        <div className="absolute -top-5 right-1 sm:right-3 z-30 pointer-events-none hidden sm:block">
+                        <div className="absolute -top-5 right-1 sm:right-3 z-30 pointer-events-none">
                           <KrewNote
                             variant="label"
                             tone="cream"
                             rotation={-2}
-                            className="text-[11px] py-0.5 px-2"
+                            className="text-[10px] sm:text-[11px] py-0.5 px-1.5 sm:px-2"
                           >
                             {annotationText} ✦
                           </KrewNote>
