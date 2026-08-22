@@ -1232,13 +1232,6 @@ function TripDetail() {
 
           {/* ZONE 5 — MEMBRES DU GROUPE (EXACT BLUEPRINT) */}
           <section id="group-section" className="mt-12 space-y-4 scroll-mt-24 relative">
-            {/* Forme prune partielle en arrière-plan du header uniquement */}
-            <KrewOrganicBlob
-              tone="plum"
-              variant="sweep"
-              className="absolute -top-3 -left-4 w-[60%] sm:w-[55%] h-[82px] pointer-events-none text-primary/18 z-0"
-            />
-
             {/* Loutre trip-progress positionnée en haut à droite (visible mobile à 52px & desktop à 60px) */}
             <div className="absolute top-0 right-0 z-10 pointer-events-none">
               <img
@@ -1249,11 +1242,17 @@ function TripDetail() {
               />
             </div>
 
-            <div className="relative z-10">
+            <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-14 sm:pr-16">
-                <div className="flex items-center gap-2">
-                  <KrewIcon name="group" tone="plum" size="sm" className="size-[22px] shrink-0" />
-                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground">
+                <div className="relative inline-flex items-center gap-2 py-0.5 px-1">
+                  {/* Forme prune ciblée uniquement derrière le titre de section */}
+                  <KrewOrganicBlob
+                    tone="plum"
+                    variant="sweep"
+                    className="absolute -top-2 -left-3 w-[220px] sm:w-[250px] h-[46px] sm:h-[48px] pointer-events-none text-primary opacity-25 z-0"
+                  />
+                  <KrewIcon name="group" tone="plum" size="sm" className="size-[22px] shrink-0 relative z-10" />
+                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground relative z-10">
                     Membres du groupe
                   </h2>
                 </div>
@@ -1637,19 +1636,18 @@ function TripDetail() {
           {costSplitData?.split ? (
             <section
               id="hub-cost-split"
-              className="mt-12 space-y-4 scroll-mt-24 relative"
+              className="mt-12 space-y-4 scroll-mt-24"
             >
-              {/* Forme prune partielle en arrière-plan du header Répartition des coûts */}
-              <KrewOrganicBlob
-                tone="plum"
-                variant="soft"
-                className="absolute -top-3 right-2 sm:right-10 w-[55%] sm:w-[50%] h-[78px] pointer-events-none text-primary/18 z-0"
-              />
-
-              <div className="relative z-10">
-                <div className="flex items-center gap-2">
-                  <KrewIcon name="budget" tone="plum" size="sm" className="size-[22px] shrink-0" />
-                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground">
+              <div>
+                <div className="relative inline-flex items-center gap-2 py-0.5 px-1">
+                  {/* Forme prune ciblée uniquement derrière le titre de section */}
+                  <KrewOrganicBlob
+                    tone="plum"
+                    variant="soft"
+                    className="absolute -top-2 -left-3 w-[230px] sm:w-[270px] h-[46px] sm:h-[48px] pointer-events-none text-primary opacity-25 z-0"
+                  />
+                  <KrewIcon name="budget" tone="plum" size="sm" className="size-[22px] shrink-0 relative z-10" />
+                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground relative z-10">
                     Répartition des coûts
                   </h2>
                 </div>
