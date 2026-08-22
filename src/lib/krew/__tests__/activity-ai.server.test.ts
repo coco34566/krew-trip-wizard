@@ -1788,4 +1788,54 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     expect(searchPlacesMock).toHaveBeenCalledTimes(1);
     expect(Object.keys(pools)).toHaveLength(1);
   });
+
+  it("Non-régression — trip.destination absent/undefined et destName = 'Budapest' -> intent-aware utilise Budapest sans crash sur normalize()", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+
+    const trip: { destination?: string; desired_destination?: string } = {
+      destination: undefined,
+      desired_destination: "Budapest",
+    };
+    const destName = trip.destination || trip.desired_destination || "Destination";
+    expect(destName).toBe("Budapest");
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Budapest",
+              formatted: "Budapest, Erzsébetváros",
+              result_type: "district",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      // Passer destName ("Budapest") à resolveSearchIntentLocation et resolveActivityResourceForPlace au lieu de trip.destination (undefined)
+      const intentCenter = await resolveSearchIntentLocation("quartier juif", destName, 47.4979, 19.0402);
+      expect(intentCenter).not.toBeNull();
+      expect(intentCenter?.kind).toBe("area");
+
+      const matchedPlace = {
+        id: "place-1",
+        name: "Mazel Tov",
+        address: "Akácfa u. 47, Budapest",
+        latitude: 47.50,
+        longitude: 19.06,
+        website: "https://mazeltov.hu",
+      };
+      const resource = resolveActivityResourceForPlace(matchedPlace, destName);
+      expect(resource.url).toBe("https://mazeltov.hu");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

@@ -2310,7 +2310,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         if (slot.kind === "place_required") {
           const intentCenter = await resolveSearchIntentLocation(
             slot.searchIntent,
-            trip.destination,
+            destName,
             refLat,
             refLon,
             {
@@ -2443,7 +2443,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
         const intentCenter = await resolveSearchIntentLocation(
           s.searchIntent,
-          trip.destination,
+          destName,
           refLat,
           refLon,
           {
@@ -2540,7 +2540,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             lastSlotCoords = { latitude: matchedPlace.latitude, longitude: matchedPlace.longitude };
           }
 
-          const resolvedResource = resolveActivityResourceForPlace(matchedPlace, trip.destination, { telemetry: telemetryObj });
+          const resolvedResource = resolveActivityResourceForPlace(matchedPlace, destName, { telemetry: telemetryObj });
           fallbackMapLinks += telemetryObj.fallbackMapLinks;
 
           slots.push({
