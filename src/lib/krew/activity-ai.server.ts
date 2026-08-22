@@ -2964,8 +2964,8 @@ export async function regenerateSlotWithAi(
       slot: {
         ...existing,
         label: selectedPlace.name,
-        detail: existing.detail || "Alternative sélectionnée par KREW",
-        address: selectedPlace.address || null,
+        detail: existing.detail || existing.searchIntent || "Alternative sélectionnée par KREW",
+        address: selectedPlace.address || existing.address || null,
         candidateId: selectedPlace.id,
         category: existing.category,
         url: resolvedLink.url,
@@ -2997,6 +2997,8 @@ export async function regenerateSlotWithAi(
       slot: {
         ...existing,
         label: candidateAlt.name,
+        detail: existing.detail || existing.searchIntent || "Alternative sélectionnée par KREW",
+        address: candidateAlt.address || existing.address || null,
         candidateId: candidateAlt.id,
         category: (candidateAlt.category as ActivityCategory) ?? existing.category,
         url: resolvedLink.url,
@@ -3016,7 +3018,7 @@ export async function regenerateSlotWithAi(
     slot: {
       ...existing,
       label: `${existing.label} — lieu à choisir`,
-      detail: "Choix de l'alternative à préciser",
+      detail: existing.detail || existing.searchIntent || "Choix de l'alternative à préciser",
       url: null,
       candidateId: null,
       verified: false,
