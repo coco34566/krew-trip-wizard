@@ -126,8 +126,8 @@
   .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
 }
 
-/* Kalam is intentionally scoped to KrewNote/KrewCallout annotations only. */
-.font-handwriting { font-family: "Kalam", cursive; }
+/* Caveat is intentionally scoped to KrewNote/KrewCallout annotations only. */
+.font-handwriting { font-family: "Caveat", cursive; }
 
 @utility bg-hero-gradient { background-image: var(--gradient-hero); }
 @utility bg-brand-gradient { background-image: var(--gradient-brand); }
