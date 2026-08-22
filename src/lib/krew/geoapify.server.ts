@@ -206,42 +206,17 @@ export async function resolveSearchIntentLocation(
       return null; // Refuse result if not explicitly destination-compatible!
     }
 
-    // 2. Result Type Validation (STRICT POSITIVE WHITELIST FOR POI)
-    const resultType = String(props.result_type || props.category || "").toLowerCase();
+    // 2. Result Type Validation (STRICT DOCUMENTED GEOAPIFY GEOCODING TYPES)
+    const resultType = String(props.result_type || "").toLowerCase();
     let resultTypeCompatible = false;
 
     if (signalObj.kind === "area") {
-      const validAreaTypes = ["district", "suburb", "neighbourhood", "locality", "street", "square", "road", "quarter"];
-      resultTypeCompatible = validAreaTypes.includes(resultType) || props.category?.includes("administrative");
+      const validAreaTypes = ["street", "suburb", "district"];
+      resultTypeCompatible = validAreaTypes.includes(resultType);
     } else {
-      // POI: positive whitelist only
-      const validPoiTypes = [
-        "amenity",
-        "building",
-        "tourism",
-        "attraction",
-        "poi",
-        "heritage",
-        "leisure",
-        "catering",
-        "sport",
-        "entertainment",
-      ];
-      const categories = Array.isArray(props.categories)
-        ? props.categories.map((c: any) => String(c).toLowerCase())
-        : [String(props.category || "").toLowerCase()];
-
-      const hasPoiCategory = categories.some((c) =>
-        /catering|tourism|entertainment|leisure|sport|service|heritage|commercial|building/.test(c)
-      );
-
-      resultTypeCompatible = validPoiTypes.includes(resultType) || hasPoiCategory;
-
-      // Explicitly reject area / administrative types for POI intents
-      const areaTypes = ["street", "district", "suburb", "neighbourhood", "road", "locality", "city", "country", "state", "postcode", "quarter"];
-      if (areaTypes.includes(resultType)) {
-        resultTypeCompatible = false;
-      }
+      // POI: amenity or building only (street, suburb, district, city, etc. are strictly rejected)
+      const validPoiTypes = ["amenity", "building"];
+      resultTypeCompatible = validPoiTypes.includes(resultType);
     }
 
     if (!resultTypeCompatible) {

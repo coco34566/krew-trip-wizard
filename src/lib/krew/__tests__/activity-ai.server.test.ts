@@ -1385,7 +1385,7 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     }
   });
 
-  it("TEST POI 1 : Signal kind = poi + bon type POI -> intentCenter accepté", async () => {
+  it("TEST 1 : POI + result_type = amenity -> accepté", async () => {
     clearIntentLocationCache();
     process.env["GEOAPIFY_API_KEY"] = "test-key";
     const originalFetch = globalThis.fetch;
@@ -1399,7 +1399,7 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
               lon: 19.03,
               city: "Budapest",
               formatted: "Budapest, Bastion des Pêcheurs",
-              result_type: "attraction",
+              result_type: "amenity",
             },
           },
         ],
@@ -1415,7 +1415,37 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     }
   });
 
-  it("TEST POI 2 : Signal kind = poi + result_type = 'street' -> null", async () => {
+  it("TEST 2 : POI + result_type = building -> accepté", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.03,
+              city: "Budapest",
+              formatted: "Budapest, Château de Buda",
+              result_type: "building",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("Château de Buda", "Budapest", 47.4979, 19.0402);
+      expect(res).not.toBeNull();
+      expect(res?.kind).toBe("poi");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST 3 : POI + result_type = street -> null", async () => {
     clearIntentLocationCache();
     process.env["GEOAPIFY_API_KEY"] = "test-key";
     const originalFetch = globalThis.fetch;
@@ -1444,7 +1474,7 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     }
   });
 
-  it("TEST POI 3 : Signal kind = poi + result_type = 'district' -> null", async () => {
+  it("TEST 4 : POI + result_type = district -> null", async () => {
     clearIntentLocationCache();
     process.env["GEOAPIFY_API_KEY"] = "test-key";
     const originalFetch = globalThis.fetch;
@@ -1473,7 +1503,7 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     }
   });
 
-  it("TEST POI 4 : Signal kind = poi + result_type = 'suburb' -> null", async () => {
+  it("TEST 5 : POI + result_type = suburb -> null", async () => {
     clearIntentLocationCache();
     process.env["GEOAPIFY_API_KEY"] = "test-key";
     const originalFetch = globalThis.fetch;
@@ -1502,7 +1532,7 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     }
   });
 
-  it("TEST POI 5 : Signal kind = poi + résultat géographique générique proche -> null", async () => {
+  it("TEST 6 : POI + result_type = city -> null", async () => {
     clearIntentLocationCache();
     process.env["GEOAPIFY_API_KEY"] = "test-key";
     const originalFetch = globalThis.fetch;
@@ -1512,11 +1542,11 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         features: [
           {
             properties: {
-              lat: 47.498,
-              lon: 19.041,
+              lat: 47.50,
+              lon: 19.04,
               city: "Budapest",
               formatted: "Budapest, Hungary",
-              result_type: "locality",
+              result_type: "city",
             },
           },
         ],
@@ -1525,6 +1555,125 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
 
     try {
       const res = await resolveSearchIntentLocation("Thermes Gellért", "Budapest", 47.4979, 19.0402);
+      expect(res).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST 7 : AREA + result_type = district -> accepté", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Budapest",
+              formatted: "Erzsébetváros, Budapest, Hungary",
+              result_type: "district",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
+      expect(res).not.toBeNull();
+      expect(res?.kind).toBe("area");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST 8 : AREA + result_type = suburb -> accepté", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Budapest",
+              formatted: "Budapest, Suburb Juif",
+              result_type: "suburb",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
+      expect(res).not.toBeNull();
+      expect(res?.kind).toBe("area");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST 9 : AREA + result_type = street -> accepté", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Budapest",
+              formatted: "Budapest, Rue du Quartier",
+              result_type: "street",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
+      expect(res).not.toBeNull();
+      expect(res?.kind).toBe("area");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST 10 : AREA + result_type = city -> null", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Budapest",
+              formatted: "Budapest, Hungary",
+              result_type: "city",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
       expect(res).toBeNull();
     } finally {
       globalThis.fetch = originalFetch;
