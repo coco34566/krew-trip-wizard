@@ -4,3 +4,5 @@ export { KrewAnnotation, KrewConnector, KrewHighlight, KrewPhotoOverlay } from "
 export { KrewSectionWave } from "./KrewSectionWave";
 export { KrewProgressRing } from "./KrewProgressRing";
 export { KrewOrganicBlob } from "./KrewOrganicBlob";
+export { KrewActionStack } from "./KrewActionStack";
+export type { KrewActionItem } from "./KrewActionStack";
