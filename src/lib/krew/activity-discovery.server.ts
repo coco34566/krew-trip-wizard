@@ -346,3 +346,153 @@ export async function findIdeasResourceForActivity(options: {
     return null;
   }
 }
+
+export function isTavilyResultRelevantForActivity(
+  result: TavilyResult,
+  options: {
+    label: string;
+    searchIntent?: string | null;
+    destination: string;
+    category?: string | null;
+    venueFamily?: string | null;
+  },
+): boolean {
+  if (!result || !result.url || !isSafeActivityUrl(result.url)) {
+    return false;
+  }
+
+  const title = String(result.title || "").toLowerCase();
+  const content = String(result.content || "").toLowerCase();
+  const url = String(result.url).toLowerCase();
+  const textPayload = `${title} ${content} ${url}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const normLabel = options.label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const normIntent = String(options.searchIntent || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const normDest = options.destination
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const combinedIntent = `${normLabel} ${normIntent}`;
+
+  // 1. Destination check
+  if (normDest && normDest.length >= 3 && !textPayload.includes(normDest)) {
+    return false;
+  }
+
+  // 2. Off-topic Category Check
+  const isCruise = /croisiere|cruise|bateau|boat/i.test(combinedIntent);
+  const isSpa = /therme|thermal|spa|bain|bath|wellness/i.test(combinedIntent);
+
+  if (isCruise) {
+    const isRestoOrArt = /restaurant|pizzeria|osteria|trattoria|hotel|artwork|statue/i.test(title);
+    const hasCruiseTerm = /croisiere|cruise|boat|ship|danube|legenda|marina|nautic|tour/i.test(textPayload);
+    if (isRestoOrArt || !hasCruiseTerm) {
+      return false;
+    }
+  }
+
+  if (isSpa) {
+    const isRestoOrArt = /restaurant|pizzeria|osteria|hotel|artwork/i.test(title);
+    const hasSpaTerm = /therme|thermal|spa|bath|bain|massage|wellness/i.test(textPayload);
+    if (isRestoOrArt || !hasSpaTerm) {
+      return false;
+    }
+  }
+
+  // 3. Keyword Match
+  const genericWords = new Set([
+    "le", "la", "les", "un", "une", "des", "du", "de", "d", "a", "au", "aux",
+    "en", "et", "ou", "pour", "sur", "dans", "par", "avec", "sans",
+    "top", "best", "guide", "guidee", "visite", "activite", "budapest", "paris",
+  ]);
+
+  const intentTokens = combinedIntent
+    .split(/[\s,.'’\-–_]+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 4 && !genericWords.has(w));
+
+  if (intentTokens.length === 0) {
+    return true;
+  }
+
+  return intentTokens.some((token) => textPayload.includes(token));
+}
+
+export async function findWebResourceForComplexActivity(options: {
+  label: string;
+  searchIntent?: string | null;
+  destination: string;
+  category?: string | null;
+  venueFamily?: string | null;
+  eventType?: string | null;
+}): Promise<string | null> {
+  const { label, searchIntent, destination, category, venueFamily } = options;
+  const textNorm = norm(`${label} ${searchIntent ?? ""} ${category ?? ""} ${venueFamily ?? ""}`);
+
+  const isComplexPattern =
+    /croisiere|cruise|bateau|boat|therme|thermal|spa|bain|evjf|evg|atelier|workshop|visite guidee|guided tour|degustation|tasting|cave|winery|escape game|karting|quad|canyoning|rafting|paddle|kayak|activite|experience/i.test(
+      textNorm,
+    );
+
+  if (!isComplexPattern) {
+    return null;
+  }
+
+  const tavilyKey = process.env["TAVILY_API_KEY"];
+  if (!tavilyKey) return null;
+
+  const searchQuery = `${label} ${searchIntent ?? ""} ${destination}`.trim();
+
+  try {
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilyKey}` },
+      body: JSON.stringify({
+        query: searchQuery,
+        search_depth: "basic",
+        auto_parameters: false,
+        topic: "general",
+        max_results: 5,
+        include_answer: false,
+        include_raw_content: false,
+        include_images: false,
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const payload = await response.json();
+    const results = Array.isArray(payload?.results) ? (payload.results as TavilyResult[]) : [];
+
+    for (const res of results) {
+      if (!res?.url || !isSafeActivityUrl(res.url)) continue;
+      const lower = res.url.toLowerCase();
+      if (
+        lower.includes("google.com") ||
+        lower.includes("facebook.com") ||
+        lower.includes("instagram.com")
+      ) {
+        continue;
+      }
+      if (isTavilyResultRelevantForActivity(res, { label, searchIntent, destination, category, venueFamily })) {
+        return res.url;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    reportServerError(error, { provider: "tavily", kind: "complex-activity-web-search", label, destination });
+    return null;
+  }
+}
