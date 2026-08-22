@@ -33,8 +33,11 @@ import {
   buildPoolKey,
   rankGeoapifyCandidates,
   mergeUniquePlacesById,
+  tryResolveGeminiProposedPlace,
+  isCandidateCompatibleWithRequirements,
+  selectGeoapifyCandidate,
 } from "../geoapify.server";
-import { resolveActivityResourceForPlace, resolveActivityResourceUrl } from "../activity-ai.server";
+import { resolveActivityResourceForPlace, resolveActivityResourceUrl, classifyActivityMode, shouldResolveWithPlaceProvider } from "../activity-ai.server";
 import { isTripAdmin } from "../engine";
 
 const input = (overrides: Partial<ActivityAiInput> = {}): ActivityAiInput => ({
@@ -239,6 +242,169 @@ describe("Enrichissement des liens d'activités & classification des modes", () 
       global.fetch = originalFetch;
       process.env["TAVILY_API_KEY"] = origTavily;
     }
+  });
+});
+
+describe("Correctifs Résolution Lieux Réels Planning — Tests Obligatoires 1 à 9", () => {
+  // 1. Intent = thermes/spa + Candidate = artwork/sculpture => rejet.
+  it("TEST 1 : Intent = thermes/spa + Candidate = artwork/sculpture => rejet", () => {
+    const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "thermes emblématiques et espace spa relaxation Budapest");
+    const candidateArtwork = {
+      id: "sculpture-1",
+      name: "Kavics",
+      address: "Budapest, Kavics u. 1",
+      categories: ["tourism.attraction.artwork", "tourism.attraction"],
+    };
+    expect(isCandidateCompatibleWithRequirements(candidateArtwork, req)).toBe(false);
+  });
+
+  // 2. Intent = croisière Danube + Candidate = restaurant => rejet.
+  it("TEST 2 : Intent = croisière Danube + Candidate = restaurant => rejet", () => {
+    const req = convertIntentToPlaceRequirements("local_experience", "local_experience", "croisière apéritive privative ou semi-privative Danube Budapest sunset");
+    const candidateResto = {
+      id: "resto-1",
+      name: "Leon Osteria",
+      address: "Budapest, Danube quay 5",
+      categories: ["catering.restaurant"],
+    };
+    expect(isCandidateCompatibleWithRequirements(candidateResto, req)).toBe(false);
+  });
+
+  // 3. Intent = promenade Île Marguerite + Candidate = artwork près du logement => rejet.
+  it("TEST 3 : Intent = promenade Île Marguerite + Candidate = artwork => rejet", () => {
+    const req = convertIntentToPlaceRequirements("culture", "culture", "parc promenade balade au vert Île Marguerite Budapest");
+    const candidateArtwork = {
+      id: "artwork-2",
+      name: "Bizalom címer",
+      address: "Budapest, Main St 10",
+      categories: ["tourism.attraction.artwork"],
+    };
+    expect(isCandidateCompatibleWithRequirements(candidateArtwork, req)).toBe(false);
+  });
+
+  // 4. Intent = restaurant + Candidate Geoapify réellement restaurant => accepté.
+  it("TEST 4 : Intent = restaurant + Candidate Geoapify réellement restaurant => accepté", () => {
+    const req = convertIntentToPlaceRequirements("restaurant", "repas", "dîner hongrois convivial");
+    const candidateResto = {
+      id: "resto-2",
+      name: "Kiosk Buda",
+      address: "Március 15. tér 1, Budapest",
+      categories: ["catering.restaurant"],
+    };
+    expect(isCandidateCompatibleWithRequirements(candidateResto, req)).toBe(true);
+  });
+
+  // 5. Gemini fournit un lieu concret cohérent + URL exploitable => la proposition n'est PAS écrasée arbitrairement par Geoapify.
+  it("TEST 5 : Gemini fournit un lieu concret cohérent => proposition non écrasée arbitrairement par Geoapify", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              place_id: "geo-szechenyi",
+              name: "Thermes Széchenyi",
+              formatted: "Budapest, Állatkerti krt. 9-11, 1146",
+              lat: 47.5186,
+              lon: 19.0825,
+              categories: ["leisure.spa"],
+              website: "https://szechenyibath.hu",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const resolved = await tryResolveGeminiProposedPlace({
+        suggestedPlace: "Thermes Széchenyi",
+        label: "Matinée détente aux thermes",
+        searchIntent: "thermes emblématiques et espace spa relaxation Budapest",
+        venueFamily: "spa_wellness",
+        destination: "Budapest",
+      });
+      expect(resolved).not.toBeNull();
+      expect(resolved?.name).toBe("Thermes Széchenyi");
+      expect(resolved?.categories).toContain("leisure.spa");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  // 6. Gemini ne fournit rien d'exploitable => fallback Geoapify fonctionne.
+  it("TEST 6 : Gemini ne fournit rien d'exploitable => fallback Geoapify fonctionne", async () => {
+    const req = convertIntentToPlaceRequirements("restaurant", "repas", "restaurant convivial");
+    const candidates = [
+      {
+        id: "resto-3",
+        name: "Ybl Bistro",
+        address: "Ybl Miklós tér 2, Budapest",
+        categories: ["catering.restaurant"],
+      },
+    ];
+
+    const selected = await selectGeoapifyCandidate({
+      candidates,
+      req,
+      usedCandidateIdsSet: new Set(),
+    });
+    expect(selected?.id).toBe("resto-3");
+    expect(selected?.name).toBe("Ybl Bistro");
+  });
+
+  // 7. Geoapify ne trouve aucun candidat compatible => ne sélectionne PAS un candidat incompatible juste pour remplir le slot.
+  it("TEST 7 : Geoapify ne trouve aucun candidat compatible => ne sélectionne PAS un candidat incompatible", async () => {
+    const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "thermes emblématiques et espace spa relaxation Budapest");
+    const candidates = [
+      {
+        id: "resto-wrong",
+        name: "Leon Osteria",
+        address: "Budapest, St 1",
+        categories: ["catering.restaurant"],
+      },
+      {
+        id: "art-wrong",
+        name: "Kavics",
+        address: "Budapest, St 2",
+        categories: ["tourism.attraction.artwork"],
+      },
+    ];
+
+    const selected = await selectGeoapifyCandidate({
+      candidates,
+      req,
+      usedCandidateIdsSet: new Set(),
+    });
+    expect(selected).toBeNull();
+  });
+
+  // 8. `detail` final conserve une description utilisateur et n'est pas remplacé par l'adresse brute.
+  it("TEST 8 : detail final conserve la description utilisateur et n'est pas remplacé par l'adresse brute", () => {
+    const userDetail = "Un rooftop élégant pour prendre un cocktail avec vue sur le Danube et Budapest illuminée.";
+    const placeAddress = "Budapest, Clark Ádám tér 1, 1013";
+
+    const slot = {
+      label: "Leo Rooftop",
+      detail: userDetail,
+      address: placeAddress,
+    };
+
+    expect(slot.detail).toBe(userDetail);
+    expect(slot.detail).not.toBe(placeAddress);
+    expect(slot.address).toBe(placeAddress);
+  });
+
+  // 9. Activité self_guided_group => fonctionnement actuel conservé.
+  it("TEST 9 : activité self_guided_group => fonctionnement actuel conservé", () => {
+    const mode = classifyActivityMode({
+      kind: "internal",
+      category: "detente",
+      label: "Jeu de la mariée & Apéro d'accueil",
+    });
+
+    expect(mode).toBe("self_guided_group");
+    expect(shouldResolveWithPlaceProvider({ kind: "internal", activityMode: mode })).toBe(false);
   });
 });
 
