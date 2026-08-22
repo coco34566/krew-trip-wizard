@@ -127,7 +127,14 @@ function NewTripPage() {
         <ArrowLeft className="size-4" /> Dashboard
       </Link>
 
-      <div className="space-y-2 relative">
+      <div className="space-y-2 relative pr-20 sm:pr-28">
+        <div className="absolute top-0 right-0 pointer-events-none">
+          <img
+            src="/brand/otter-states/lets-go.png"
+            alt=""
+            className="w-16 sm:w-20 h-auto object-contain filter drop-shadow-2xs opacity-90"
+          />
+        </div>
         <div className="relative inline-block">
           <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
             Créer un voyage

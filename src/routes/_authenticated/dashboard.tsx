@@ -128,16 +128,16 @@ function TripCard({
               {trip.name}
             </Link>
           </h3>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-muted-foreground pt-1">
             {trip.destination_name ? (
               <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                <KrewIcon name="destination" tone="muted" size="sm" className="size-3.5" />
+                <KrewIcon name="destination" tone="muted" size="sm" className="size-4" />
                 {trip.destination_name}
               </span>
             ) : null}
             {trip.start_date ? (
               <span className="inline-flex items-center gap-1 font-mono">
-                <KrewIcon name="calendar" tone="muted" size="sm" className="size-3.5" />
+                <KrewIcon name="calendar" tone="muted" size="sm" className="size-4" />
                 {new Date(trip.start_date).toLocaleDateString("fr-FR", {
                   day: "numeric",
                   month: "short",
@@ -145,7 +145,7 @@ function TripCard({
               </span>
             ) : null}
             <span className="inline-flex items-center gap-1 font-mono">
-              <KrewIcon name="group" tone="muted" size="sm" className="size-3.5" />
+              <KrewIcon name="group" tone="muted" size="sm" className="size-4" />
               {trip.participants_count} pers.
             </span>
           </div>
@@ -207,7 +207,7 @@ function Dashboard() {
           <KrewOrganicBlob
             tone="sage"
             variant="soft"
-            className="absolute -top-4 -left-4 w-[160px] h-[60px] opacity-40 pointer-events-none z-0"
+            className="absolute -top-4 -left-4 w-[180px] sm:w-[260px] h-[80px] opacity-40 pointer-events-none z-0"
           />
           <div className="relative inline-block z-10">
             <h1 className="font-display text-[40px] sm:text-[44px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
@@ -220,7 +220,7 @@ function Dashboard() {
               className="absolute left-0 -bottom-2 w-[120px] lg:w-[180px] pointer-events-none"
             />
           </div>
-          <p className="text-sm text-muted-foreground pt-1 font-sans">
+          <p className="text-sm sm:text-base text-muted-foreground pt-1 font-sans">
             Tes projets en cours et tes invitations reçues.
           </p>
         </div>
@@ -277,11 +277,11 @@ function Dashboard() {
         </div>
       ) : trips.length === 0 && invitations.length === 0 ? (
         <div className="rounded-[28px] border border-dashed border-border bg-surface/40 p-10 text-center sm:p-16 relative overflow-hidden">
-          <div className="mx-auto mb-4 w-16 h-16 flex items-center justify-center">
+          <div className="mx-auto mb-4 w-20 h-20 flex items-center justify-center">
             <img
               src="/brand/otter-states/trip-progress.png"
               alt=""
-              className="w-14 h-auto object-contain"
+              className="w-[72px] sm:w-[80px] h-auto object-contain"
             />
           </div>
           <h2 className="font-display text-2xl font-normal text-foreground">Aucun voyage pour l'instant</h2>

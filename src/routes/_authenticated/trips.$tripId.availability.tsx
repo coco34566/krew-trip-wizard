@@ -23,8 +23,7 @@ import {
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
-import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
-import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewIcon, KrewMark, KrewNote, KrewProgressRing } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/availability")({
@@ -296,19 +295,19 @@ function AvailabilityPage() {
         <ArrowLeft className="size-4" /> Retour à Mon Voyage
       </a>
 
-      <div className="space-y-2 relative pr-12 sm:pr-20">
+      <div className="space-y-3 relative pr-20 sm:pr-28">
         <div className="absolute top-0 right-0 pointer-events-none">
           <img
             src="/brand/otter-states/availability.png"
             alt=""
-            className="w-11 sm:w-16 h-auto object-contain"
+            className="w-16 sm:w-20 h-auto object-contain"
           />
         </div>
-        <p className="text-xs font-medium uppercase tracking-wider text-primary font-mono">
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
           Disponibilités · résumé live
         </p>
         <div className="relative inline-block">
-          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
             {data.trip.name}
           </h1>
           <KrewMark
@@ -318,9 +317,26 @@ function AvailabilityPage() {
             className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
           />
         </div>
-        <p className="text-sm text-muted-foreground font-mono pt-1">
-          {data.answered}/{data.expected} ont indiqué leurs dates
-        </p>
+        <div className="flex items-center gap-3 pt-2">
+          <KrewProgressRing
+            value={data.answered}
+            total={data.expected || 1}
+            size={56}
+            tone="sage"
+          />
+          <div className="space-y-0.5">
+            <p className="text-base sm:text-lg font-medium text-foreground font-sans">
+              <span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates
+            </p>
+            {data.expected - data.answered > 0 ? (
+              <KrewNote variant="label" tone="cream" rotation={-1} className="text-[11px] py-0.5 px-2 inline-block">
+                {data.expected - data.answered === 1
+                  ? "1 réponse manque"
+                  : `${data.expected - data.answered} réponses manquent`} ✦
+              </KrewNote>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {/* CALENDRIER DEVENU L'OBJET PRINCIPAL */}
@@ -330,7 +346,7 @@ function AvailabilityPage() {
             <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
             Mes disponibilités
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground font-sans">
+          <p className="mt-1.5 text-sm sm:text-base text-muted-foreground font-sans leading-relaxed">
             Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes
             réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les
             modifier.

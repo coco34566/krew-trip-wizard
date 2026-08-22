@@ -211,7 +211,14 @@ function TripRecapPage() {
           </div>
         ) : null}
 
-        <div className="space-y-2 relative">
+        <div className="space-y-2 relative pr-20 sm:pr-28">
+          <div className="absolute top-0 right-0 pointer-events-none">
+            <img
+              src="/brand/otter-states/lets-go.png"
+              alt=""
+              className="w-[72px] sm:w-[96px] h-auto object-contain filter drop-shadow-2xs opacity-90"
+            />
+          </div>
           <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Récap du groupe</p>
           <div className="relative inline-block">
             <h1 className="font-display text-[36px] sm:text-[48px] font-normal leading-tight text-foreground">
@@ -224,7 +231,7 @@ function TripRecapPage() {
               className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
             />
           </div>
-          <div className="pt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground font-sans">
+          <div className="pt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:text-base text-muted-foreground font-sans">
             <span className="inline-flex items-center gap-1.5 font-mono">
               <KrewIcon name="calendar" tone="plum" size="sm" className="size-4" /> {dateLabel}
             </span>
@@ -232,12 +239,12 @@ function TripRecapPage() {
               <KrewIcon name="group" tone="plum" size="sm" className="size-4" /> {trip.participantsCount} pers.
             </span>
             {progress ? (
-              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-primary font-medium">
-                <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" /> Réponses {progress.answered}/{progress.total}
+              <span className="inline-flex items-center gap-1.5 font-mono text-xs sm:text-sm text-primary font-medium">
+                <KrewIcon name="check" tone="sage" size="sm" className="size-4" /> Réponses {progress.answered}/{progress.total}
               </span>
             ) : null}
           </div>
-          <p className="text-xs text-muted-foreground font-sans pt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground font-sans pt-1">
             Départs : {departureOrigins.map((o) => `${o.city} (${o.count})`).join(" · ")}
           </p>
         </div>
@@ -340,19 +347,26 @@ function TripRecapPage() {
                             : ""}
                         </p>
 
-                        {/* Fraîcheur des prix */}
-                        <div className="mt-2 flex justify-end gap-1 flex-wrap">
+                        {/* Fraîcheur des prix : integrated icon + text */}
+                        <div className="mt-2.5 flex items-center justify-end gap-2 text-xs font-mono text-muted-foreground">
                           {budget.priceSource?.transport === "provider" ? (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">Transport réel</Badge>
+                            <span className="inline-flex items-center gap-1 text-primary font-medium">
+                              <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" /> Transport réel
+                            </span>
                           ) : (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono text-muted-foreground">Transport estimé</Badge>
+                            <span className="inline-flex items-center gap-1 opacity-70">
+                              Transport estimé
+                            </span>
                           )}
-                          {budget.priceSource?.accommodation === "provider" ? (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">Logement réel</Badge>
-                          ) : budget.priceSource?.accommodation === "web" ? (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">Hébergement vérifié</Badge>
+                          <span>·</span>
+                          {budget.priceSource?.accommodation === "provider" || budget.priceSource?.accommodation === "web" ? (
+                            <span className="inline-flex items-center gap-1 text-primary font-medium">
+                              <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" /> Logement vérifié
+                            </span>
                           ) : (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono text-muted-foreground">Logement estimé</Badge>
+                            <span className="inline-flex items-center gap-1 opacity-70">
+                              Logement estimé
+                            </span>
                           )}
                         </div>
                       </div>

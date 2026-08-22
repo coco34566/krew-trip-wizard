@@ -31,6 +31,17 @@ const CATEGORY_LABELS: Record<string, string> = {
   organisation: "Organisation",
 };
 
+function parseStepHref(href: string) {
+  const [path, queryString] = href.split("?");
+  if (!queryString) return { to: path, search: undefined };
+  const search: Record<string, string> = {};
+  for (const pair of queryString.split("&")) {
+    const [k, v] = pair.split("=");
+    if (k) search[k] = decodeURIComponent(v || "");
+  }
+  return { to: path, search };
+}
+
 export function KrewJourneyTimeline({
   tripName,
   steps,
@@ -207,12 +218,18 @@ export function KrewJourneyTimeline({
                       <div className="col-span-5 flex justify-end">
                         {isEven ? (
                           step.href ? (
-                            <a
-                              href={step.href}
-                              className="w-full hover:opacity-90 transition-opacity"
-                            >
-                              {cardContent}
-                            </a>
+                            (() => {
+                              const parsed = parseStepHref(step.href);
+                              return (
+                                <Link
+                                  to={parsed.to as any}
+                                  search={parsed.search as any}
+                                  className="w-full hover:opacity-90 transition-opacity"
+                                >
+                                  {cardContent}
+                                </Link>
+                              );
+                            })()
                           ) : (
                             <div className="w-full">{cardContent}</div>
                           )
@@ -256,12 +273,18 @@ export function KrewJourneyTimeline({
                       <div className="col-span-5 flex justify-start">
                         {!isEven ? (
                           step.href ? (
-                            <a
-                              href={step.href}
-                              className="w-full hover:opacity-90 transition-opacity"
-                            >
-                              {cardContent}
-                            </a>
+                            (() => {
+                              const parsed = parseStepHref(step.href);
+                              return (
+                                <Link
+                                  to={parsed.to as any}
+                                  search={parsed.search as any}
+                                  className="w-full hover:opacity-90 transition-opacity"
+                                >
+                                  {cardContent}
+                                </Link>
+                              );
+                            })()
                           ) : (
                             <div className="w-full">{cardContent}</div>
                           )

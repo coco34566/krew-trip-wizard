@@ -191,7 +191,7 @@ function AuthPage() {
             <img
               src="/brand/otter-states/lets-go.png"
               alt=""
-              className="w-11 sm:w-13 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
             />
           </div>
         </div>

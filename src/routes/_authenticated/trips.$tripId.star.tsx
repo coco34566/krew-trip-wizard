@@ -12,8 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
 import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
-import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
-import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewIcon, KrewMark, KrewHighlight } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
 import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
@@ -145,7 +144,7 @@ function SelectableOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-[14px] border p-4 text-left text-sm font-medium transition-colors select-none",
+        "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
         active
           ? "border-primary bg-primary/5 text-foreground"
           : "border-border bg-background text-foreground/80 hover:border-primary/40",
@@ -371,7 +370,10 @@ function StarQuestionnaire() {
       <div className="space-y-2 relative">
         <div className="relative inline-block">
           <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-            Préférences de {starName}
+            Préférences de{" "}
+            <KrewHighlight tone="plum" className="px-2 py-0.5 font-normal">
+              {starName}
+            </KrewHighlight>
           </h1>
           <KrewMark
             type="underline-wave"
@@ -380,7 +382,7 @@ function StarQuestionnaire() {
             className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
           />
         </div>
-        <p className="text-sm text-muted-foreground font-sans pt-1">
+        <p className="text-sm sm:text-base text-muted-foreground font-sans pt-1">
           Complète les réponses au nom de <strong>{starName}</strong> pour ce voyage.
         </p>
       </div>

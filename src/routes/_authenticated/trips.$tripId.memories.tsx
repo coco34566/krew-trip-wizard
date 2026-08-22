@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { sha256File } from "@/lib/souvenirs-photo-upload";
 import { createPhotosZip } from "@/lib/souvenirs-download";
-import { KrewIcon, KrewMark, KrewOrganicBlob } from "@/components/krew/visual-language";
+import { KrewIcon, KrewMark, KrewNote, KrewOrganicBlob } from "@/components/krew/visual-language";
 
 const PHOTO_BOOK_PARTNER = { name: "CEWE", url: "https://www.cewe.fr/livres-photo-cewe.html", affiliateDisclosure: "KREW peut percevoir une rémunération si tu effectues un achat via un lien partenaire. Cela ne modifie pas le prix payé." };
 export const Route = createFileRoute("/_authenticated/trips/$tripId/memories")({ head: () => ({ meta: [{ title: "Souvenirs du voyage — KREW" }] }), component: MemoriesPage });
@@ -61,6 +61,13 @@ function MemoriesPage(){
           <p className="text-sm text-muted-foreground font-sans">
             Retrouve les meilleurs moments partagés avec le groupe.
           </p>
+          {selection.length > 0 ? (
+            <div className="pt-1">
+              <KrewNote variant="label" tone="cream" rotation={-1} className="text-[11px] py-0.5 px-2 inline-block">
+                {selection.length} souvenir{selection.length > 1 ? "s" : ""} sélectionné{selection.length > 1 ? "s" : ""} ✦
+              </KrewNote>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -118,8 +125,8 @@ function MemoriesPage(){
         </div>
       ) : !photos.length ? (
         <div className="py-12 text-center border border-dashed border-border rounded-[24px] p-8 space-y-3">
-          <div className="mx-auto w-12 h-12 flex items-center justify-center">
-            <img src="/brand/otter-states/trip-progress.png" alt="" className="w-10 h-auto object-contain" />
+          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
+            <img src="/brand/otter-states/trip-progress.png" alt="" className="w-[72px] sm:w-[80px] h-auto object-contain" />
           </div>
           <h2 className="font-display text-xl font-normal text-foreground">L&apos;album est encore vide</h2>
           <p className="text-xs text-muted-foreground font-sans max-w-sm mx-auto">Importe les premières photos pour constituer l'album du voyage.</p>

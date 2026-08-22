@@ -226,7 +226,7 @@ function Landing() {
                         <img
                           src="/brand/otter-states/trip-progress.png"
                           alt=""
-                          className="w-12 sm:w-14 h-auto object-contain filter drop-shadow-2xs opacity-90"
+                          className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
                         />
                       </div>
                     ) : null}
@@ -420,7 +420,7 @@ function Landing() {
               <img
                 src="/brand/otter-states/lets-go.png"
                 alt=""
-                className="w-12 sm:w-14 h-auto object-contain filter drop-shadow-2xs opacity-90"
+                className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
               />
             </div>
 

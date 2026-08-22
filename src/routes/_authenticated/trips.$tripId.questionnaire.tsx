@@ -9,8 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
-import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
 import {
   getMyParticipantPreferences,
   submitParticipantPreferences,
@@ -65,7 +64,7 @@ function SelectableOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-[14px] border p-4 text-left text-sm font-medium transition-colors select-none",
+        "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
         active
           ? "border-primary bg-primary/5 text-foreground"
           : "border-border bg-background text-foreground/80 hover:border-primary/40",
@@ -80,17 +79,19 @@ function SelectableOption({
 function Section({
   title,
   hint,
+  bgClass,
   children,
 }: {
   title: string;
   hint?: string;
+  bgClass?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
+    <section className={cn("pb-8 mb-8 space-y-4", bgClass ? `${bgClass} border border-border/40` : "border-b border-border/50")}>
       <div>
-        <h2 className="font-display text-2xl font-normal text-foreground">{title}</h2>
-        {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+        <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">{title}</h2>
+        {hint ? <p className="mt-1 text-xs sm:text-sm text-muted-foreground font-sans">{hint}</p> : null}
       </div>
       {children}
     </section>
@@ -342,16 +343,16 @@ function ParticipantQuestionnaire() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Button>
 
-      <div className="space-y-2 relative pr-12 sm:pr-20">
+      <div className="space-y-2 relative pr-20 sm:pr-28">
         <div className="absolute top-0 right-0 pointer-events-none">
           <img
             src="/brand/otter-states/preferences.png"
             alt=""
-            className="w-11 sm:w-16 h-auto object-contain"
+            className="w-[68px] sm:w-[84px] h-auto object-contain"
           />
         </div>
         <div className="relative inline-block">
-          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
             {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
           </h1>
           <KrewMark
@@ -362,25 +363,30 @@ function ParticipantQuestionnaire() {
           />
         </div>
         {isEditing ? (
-          <p className="text-sm text-muted-foreground pt-1">
-            Tu as déjà répondu
-            {lastSavedAt
-              ? ` (dernière enreg. ${new Date(lastSavedAt).toLocaleString("fr-FR", {
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })})`
-              : ""}
-            . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton
-            compte.
-          </p>
+          <div className="space-y-1.5 pt-1">
+            <KrewNote variant="label" tone="cream" rotation={-1} className="text-[11px] py-0.5 px-2 inline-block">
+              Réponses enregistrées ✦
+            </KrewNote>
+            <p className="text-sm text-muted-foreground">
+              Tu as déjà répondu
+              {lastSavedAt
+                ? ` (dernière enreg. ${new Date(lastSavedAt).toLocaleString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })})`
+                : ""}
+              . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton
+              compte.
+            </p>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground pt-1">
             Tes réponses individuelles ne sont pas visibles par les autres participants.
           </p>
         )}
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground font-sans">
           Ces infos permettent à KREW de comprendre tes envies pour vous proposer le voyage qui
           correspond le mieux au groupe.
         </p>
@@ -480,6 +486,7 @@ function ParticipantQuestionnaire() {
         <Section
           title="Destination & cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
+          bgClass="bg-sage/12 rounded-[24px] p-5 sm:p-7"
         >
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Destination rêvée (optionnel)</Label>
@@ -560,7 +567,11 @@ function ParticipantQuestionnaire() {
         >
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">
-              Budget max par personne : <span className="font-mono text-primary">{formatEuro(budgetMax)}</span> *
+              Budget max par personne :{" "}
+              <KrewHighlight tone="sage" className="font-mono text-primary px-2 py-0.5">
+                {formatEuro(budgetMax)}
+              </KrewHighlight>{" "}
+              *
             </Label>
             <Slider
               min={150}
@@ -597,6 +608,7 @@ function ParticipantQuestionnaire() {
         <Section
           title="Hébergement"
           hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
+          bgClass="bg-surface/50 rounded-[24px] p-5 sm:p-7"
         >
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Type de logement</Label>
@@ -651,7 +663,11 @@ function ParticipantQuestionnaire() {
           </div>
         </Section>
 
-        <Section title="Transport" hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation.">
+        <Section
+          title="Transport"
+          hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation."
+          bgClass="bg-sage/12 rounded-[24px] p-5 sm:p-7"
+        >
           <div className="space-y-2">
             <Label htmlFor="departure" className="font-semibold block text-base text-foreground">Ville de départ * (ou code postal)</Label>
             <CityAutocomplete

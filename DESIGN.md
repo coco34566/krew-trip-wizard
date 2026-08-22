@@ -32,7 +32,7 @@ Le vocabulaire de marque à préserver :
 
 ## 2. TERRITOIRE VISUEL
 
-KREW doit fonctionner aussi naturally pour un city trip européen que pour la campagne, les villages, la montagne, les restaurants, cafés, l’architecture, les trains, hôtels, la culture, la nature et la nightlife.
+KREW doit fonctionner aussi naturellement pour un city trip européen que pour la campagne, les villages, la montagne, les restaurants, cafés, l’architecture, les trains, hôtels, la culture, la nature et la nightlife.
 
 Éviter comme territoire principal : plages tropicales, palmiers, infinity pools, resorts, turquoise tropical, sunset orange et clichés de luxe-vacances.
 
@@ -628,7 +628,7 @@ Ne pas modifier les activités ou leur logique.
 
 ### Logements
 
-Conserver strictly les catégories générées existantes, notamment Budget, Luxe, Bon rapport qualité-prix, Conviviale et autres catégories déjà présentes.
+Conserver strictement les catégories générées existantes, notamment Budget, Luxe, Bon rapport qualité-prix, Conviviale et autres catégories déjà présentes.
 
 Ne pas créer une nouvelle taxonomie.
 
