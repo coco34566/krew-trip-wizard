@@ -503,9 +503,9 @@ export function TripHubDashboard({
         </div>
 
         {/* LAYER 4 & 5b (z-30 / z-40) : Métadonnées Éditoriales Asymétriques + Scène Loutre & Flèche */}
-        <div className="relative z-30 pt-4 px-2 sm:px-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          {/* Métadonnées en Disposition Flex Asymétrique & Robuste sans risque de chevauchement */}
-          <div className="flex flex-col gap-2 min-w-0 pr-16 sm:pr-0 max-w-md">
+        <div className="relative z-30 pt-4 px-4 sm:px-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          {/* Métadonnées en Disposition Flex Asymétrique & Robuste sur la grille 16px */}
+          <div className="flex flex-col gap-2 min-w-0 max-w-md">
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
               {/* Dates : Côté gauche avec Highlight Sauge */}
               <div className="shrink-0">
@@ -563,7 +563,7 @@ export function TripHubDashboard({
           </div>
 
           {/* LAYER 5c (z-40) : Petite Scène Graphique Loutre + Flèche Directionnelle */}
-          <div className="self-end sm:self-auto shrink-0 flex items-center gap-1 pointer-events-none -mt-4 sm:mt-0">
+          <div className="self-end sm:self-auto shrink-0 flex items-center gap-1 pointer-events-none pt-1 sm:pt-0">
             <Logo variant="icon" size="sm" className="size-12 sm:size-14 object-contain filter drop-shadow-xs" />
             <KrewMark type="arrow-down-right" tone="sage" size="md" className="w-10 h-7 text-sage opacity-85" />
           </div>
