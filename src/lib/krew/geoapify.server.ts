@@ -323,7 +323,136 @@ export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: strin
   if (norm.includes("shopping") || norm.includes("boutique") || norm.includes("marché") || norm.includes("market")) {
     return ["commercial.shopping_mall", "commercial.marketplace", "commercial.clothing"];
   }
-  return ["catering.restaurant", "tourism.attraction", "entertainment"];
+  return ["catering.restaurant", "entertainment"];
+}
+
+export function isConcretePlaceProposal(name: string | null | undefined): boolean {
+  if (!name || typeof name !== "string") return false;
+  const normName = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  if (normName.length < 3) return false;
+
+  const genericTerms = [
+    "lieu a choisir",
+    "a determiner",
+    "au choix",
+    "restaurant local",
+    "brunch local",
+    "bar local",
+    "diner local",
+    "dejeuner local",
+    "temps libre",
+    "balade",
+    "croisiere",
+    "thermes",
+    "spa",
+    "visite",
+    "musee",
+    "activite",
+    "degustation",
+    "apero",
+    "soiree",
+    "shopping",
+    "boutiques",
+    "marche local",
+    "pause cafe",
+    "petit-dejeuner local",
+  ];
+
+  if (genericTerms.includes(normName)) return false;
+  return true;
+}
+
+export async function tryResolveGeminiProposedPlace(options: {
+  suggestedPlace?: string | null;
+  label?: string | null;
+  searchIntent?: string | null;
+  venueFamily?: string | null;
+  destination: string;
+  refLat?: number | null;
+  refLon?: number | null;
+  telemetry?: any;
+}): Promise<GeoapifyPlace | null> {
+  const { suggestedPlace, label, searchIntent, venueFamily, destination, refLat, refLon } = options;
+
+  const candidateName = suggestedPlace && isConcretePlaceProposal(suggestedPlace)
+    ? suggestedPlace
+    : label && isConcretePlaceProposal(label)
+      ? label
+      : null;
+
+  if (!candidateName) return null;
+
+  const req = convertIntentToPlaceRequirements(
+    venueFamily || "local_experience",
+    "culture",
+    searchIntent || candidateName,
+  );
+
+  const apiKey = process.env["GEOAPIFY_API_KEY"];
+  if (!apiKey) return null;
+
+  try {
+    const url = new URL("https://api.geoapify.com/v1/geocode/search");
+    url.searchParams.set("text", `${candidateName} ${destination}`);
+    if (refLon != null && refLat != null) {
+      url.searchParams.set("bias", `proximity:${refLon},${refLat}`);
+      url.searchParams.set("filter", `circle:${refLon},${refLat},35000`);
+    }
+    url.searchParams.set("limit", "3");
+    url.searchParams.set("apiKey", apiKey);
+
+    const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+    if (!res.ok) return null;
+
+    const payload = await res.json();
+    const hits = payload?.features || [];
+
+    const normCandidate = candidateName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    for (const hit of hits) {
+      const props = hit.properties || {};
+      const name = String(props.name || props.address_line1 || "").trim();
+      if (!name) continue;
+
+      const normName = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+      const isNameMatch =
+        normName.includes(normCandidate) ||
+        normCandidate.includes(normName) ||
+        normCandidate.split(" ").filter((w) => w.length > 3).some((w) => normName.includes(w));
+
+      if (!isNameMatch) continue;
+
+      const lat = typeof props.lat === "number" ? props.lat : hit.geometry?.coordinates?.[1] ?? null;
+      const lon = typeof props.lon === "number" ? props.lon : hit.geometry?.coordinates?.[0] ?? null;
+
+      const rawCategories: string[] = Array.isArray(props.categories)
+        ? props.categories.map(String)
+        : [String(props.category || "tourism.attraction")];
+
+      const cand: GeoapifyPlace = {
+        id: String(props.place_id || `gemini_${normName}`),
+        name,
+        address: String(props.formatted || props.address_line2 || "").trim() || null,
+        latitude: lat,
+        longitude: lon,
+        categories: rawCategories,
+        website: String(props.website || props.url || "").trim() || null,
+      };
+
+      if (isCandidateCompatibleWithRequirements(cand, req)) {
+        return cand;
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }
 
 export function convertIntentToPlaceRequirements(
@@ -345,13 +474,13 @@ export function convertIntentToPlaceRequirements(
 
   if (normIntent.includes("thermes") || normIntent.includes("bains thermaux") || normIntent.includes("bains") || normIntent.includes("thermal bath")) {
     subtype = "leisure.spa";
-    categories = Array.from(new Set(["leisure.spa", "service.beauty.spa", "tourism.attraction"]));
+    categories = Array.from(new Set(["leisure.spa", "service.beauty.spa"]));
   } else if (normIntent.includes("ruin bar") || normIntent.includes("ruinbar")) {
     subtype = "catering.bar";
     categories = Array.from(new Set(["catering.bar", "catering.pub", "entertainment.nightlife"]));
   } else if (normIntent.includes("chateau") || normIntent.includes("bastion") || normIntent.includes("monument") || normIntent.includes("sight")) {
     subtype = "tourism.sights";
-    categories = Array.from(new Set(["tourism.sights", "tourism.attraction", "entertainment.culture"]));
+    categories = Array.from(new Set(["tourism.sights", "entertainment.culture"]));
   } else if (normIntent.includes("winery") || normIntent.includes("degustation") || normIntent.includes("cave") || normIntent.includes("vin")) {
     subtype = "production.winery";
   } else if (normIntent.includes("market") || normIntent.includes("marche")) {
@@ -926,6 +1055,151 @@ export function isCandidateCompatibleWithRequirements(
   }
   const candCats = candidate.categories.map((c) => String(c).toLowerCase().trim());
   const normFamily = String(req.canonicalFamily || "").toLowerCase().trim();
+  const normIntent = String(req.searchIntent || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  // 1. Universal Exclusion: Artwork / Sculpture / Statue / Memorial for non-artwork intents
+  const isArtwork = candCats.some(
+    (c) =>
+      c.includes("artwork") ||
+      c.includes("sculpture") ||
+      c.includes("statue") ||
+      c.includes("memorial"),
+  );
+  const wantsArtwork =
+    normIntent.includes("sculpture") ||
+    normIntent.includes("statue") ||
+    normIntent.includes("oeuvre") ||
+    normIntent.includes("oeuvres") ||
+    normIntent.includes("artwork");
+  if (isArtwork && !wantsArtwork) {
+    return false;
+  }
+
+  // 2. Exact Subtype Priority Match
+  if (req.subtype) {
+    const normSub = req.subtype.toLowerCase().trim();
+    if (candCats.some((c) => c === normSub || c.startsWith(`${normSub}.`))) {
+      return true;
+    }
+  }
+
+  // 3. Spa / Thermes / Wellness Strict Rules
+  const isSpaIntent =
+    normFamily.includes("spa") ||
+    normFamily.includes("wellness") ||
+    req.subtype === "leisure.spa" ||
+    normIntent.includes("therme") ||
+    normIntent.includes("spa") ||
+    normIntent.includes("bain");
+
+  if (isSpaIntent) {
+    const isRealSpa = candCats.some(
+      (c) =>
+        c === "leisure.spa" ||
+        c.startsWith("leisure.spa.") ||
+        c === "service.beauty.spa" ||
+        c.startsWith("service.beauty.spa.") ||
+        c === "service.beauty.massage" ||
+        c.startsWith("service.beauty.massage."),
+    );
+    if (!isRealSpa) return false;
+  }
+
+  // 3. Restaurant Strict Rules
+  const isRestoIntent =
+    normFamily.includes("restaurant") ||
+    normFamily === "resto" ||
+    req.subtype === "catering.restaurant" ||
+    normIntent.includes("restaurant") ||
+    normIntent.includes("diner") ||
+    normIntent.includes("dejeuner");
+
+  if (isRestoIntent) {
+    const isRealResto = candCats.some(
+      (c) =>
+        c === "catering.restaurant" ||
+        c.startsWith("catering.restaurant.") ||
+        c === "catering.cafe" ||
+        c.startsWith("catering.cafe.") ||
+        c === "catering.bistro",
+    );
+    if (!isRealResto) return false;
+  }
+
+  // 4. Bar / Pub Strict Rules
+  const isBarIntent =
+    normFamily.includes("bar") ||
+    normFamily.includes("pub") ||
+    req.subtype === "catering.bar" ||
+    normIntent.includes("bar") ||
+    normIntent.includes("pub") ||
+    normIntent.includes("cocktail");
+
+  if (isBarIntent) {
+    const isRealBar = candCats.some(
+      (c) =>
+        c === "catering.bar" ||
+        c.startsWith("catering.bar.") ||
+        c === "catering.pub" ||
+        c.startsWith("catering.pub.") ||
+        c === "entertainment.nightlife" ||
+        c.startsWith("entertainment.nightlife."),
+    );
+    if (!isRealBar) return false;
+  }
+
+  // 5. Cruise / Boat Tour Strict Rules
+  const isCruiseIntent =
+    normIntent.includes("croisiere") ||
+    normIntent.includes("cruise") ||
+    normIntent.includes("bateau");
+
+  if (isCruiseIntent) {
+    const isForbiddenForCruise = candCats.some(
+      (c) =>
+        c.startsWith("catering") ||
+        c.includes("artwork") ||
+        c.includes("sculpture") ||
+        c.startsWith("building"),
+    );
+    if (isForbiddenForCruise) return false;
+  }
+
+  // 6. Park / Outdoor / Promenade Strict Rules
+  const isParkIntent =
+    normIntent.includes("parc") ||
+    normIntent.includes("promenade") ||
+    normIntent.includes("balade au vert") ||
+    normIntent.includes("jardin");
+
+  if (isParkIntent) {
+    const isRealPark = candCats.some(
+      (c) =>
+        c.startsWith("leisure.park") ||
+        c.startsWith("leisure.garden") ||
+        c.startsWith("landuse.forest") ||
+        c.startsWith("natural") ||
+        c === "tourism.sights",
+    );
+    if (!isRealPark) return false;
+  }
+
+  // 7. Local Experience Strict Rules
+  const isLocalExpIntent = normFamily.includes("local_experience");
+  if (isLocalExpIntent) {
+    const isPureResto = candCats.every((c) => c.startsWith("catering"));
+    const wantsFood =
+      normIntent.includes("diner") ||
+      normIntent.includes("dejeuner") ||
+      normIntent.includes("degustation") ||
+      normIntent.includes("food") ||
+      normIntent.includes("repas");
+    if (isPureResto && !wantsFood) return false;
+  }
 
   let allowedCategories: string[] = [];
 
@@ -942,7 +1216,7 @@ export function isCandidateCompatibleWithRequirements(
   } else if (normFamily.includes("culture")) {
     allowedCategories = ["tourism.sights", "tourism.attraction", "entertainment.museum", "entertainment.culture"];
   } else if (normFamily.includes("sport")) {
-    allowedCategories = ["sport", "entertainment.activity_park", "tourism.attraction"];
+    allowedCategories = ["sport", "entertainment.activity_park"];
   }
 
   const genericParents = new Set([
@@ -964,8 +1238,8 @@ export function isCandidateCompatibleWithRequirements(
 
   return candCats.some((candCat) =>
     allowedCategories.some(
-      (allowed) => candCat === allowed || candCat.startsWith(`${allowed}.`)
-    )
+      (allowed) => candCat === allowed || candCat.startsWith(`${allowed}.`),
+    ),
   );
 }
 

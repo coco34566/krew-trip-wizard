@@ -2293,6 +2293,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       mergeUniquePlacesById,
       fetchPlaceDetails,
       resolveSearchIntentLocation,
+      tryResolveGeminiProposedPlace,
+      buildVerifiedPlaceFallbackUrl,
     } = await import("@/lib/krew/geoapify.server");
 
     let intentResolutionCalls = 0;
@@ -2476,47 +2478,74 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
         const { selectGeoapifyCandidate } = await import("@/lib/krew/geoapify.server");
 
-        let matchedPlace = await selectGeoapifyCandidate({
-          candidates: pool,
-          req,
-          usedCandidateIdsSet,
-          refCoords: lastSlotCoords,
-          maxKm: 50,
-          date: day.date,
-          time: s.time,
-          durationMinutes: s.durationMinutes ?? 90,
-          accessibilityRequired: Boolean(activityInput.accessibilityRequired),
-          telemetry: telemetryObj,
-        });
+        let matchedPlace = null;
+        let matchedSource: string = "geoapify";
 
-        if (matchedPlace) {
-          poolHits++;
-        } else if (refLat != null && refLon != null) {
-          poolMisses++;
-          geoapifyPlacesCalls++;
-          const newPlaces = await searchGeoapifyPlaces({
-            categories: req.categories,
-            latitude: refLat,
-            longitude: refLon,
-            radiusMeters: radiusMeters * 1.5,
-            limit: 15,
-            conditions: req.accessibility || [],
+        // Step A & B: Try resolving Gemini's proposed place first if provided and concrete
+        if (s.kind === "place_required") {
+          matchedPlace = await tryResolveGeminiProposedPlace({
+            suggestedPlace: (s as any).suggestedPlace,
+            label: s.label,
+            searchIntent: s.searchIntent,
+            venueFamily: s.venueFamily,
+            destination: destName,
+            refLat: intentCenter?.latitude ?? refLat,
+            refLon: intentCenter?.longitude ?? refLon,
           });
-          if (newPlaces.length > 0) {
-            placePools[poolKey] = mergeUniquePlacesById(pool, newPlaces);
-            pool = placePools[poolKey]!;
-            matchedPlace = await selectGeoapifyCandidate({
-              candidates: pool,
-              req,
-              usedCandidateIdsSet,
-              refCoords: lastSlotCoords,
-              maxKm: 50,
-              date: day.date,
-              time: s.time,
-              durationMinutes: s.durationMinutes ?? 90,
-              accessibilityRequired: Boolean(activityInput.accessibilityRequired),
-              telemetry: telemetryObj,
+          if (matchedPlace) {
+            matchedSource = "gemini_geoapify";
+            poolHits++;
+          }
+        }
+
+        // Step C: Fallback to Geoapify candidate pool
+        if (!matchedPlace && s.kind === "place_required") {
+          matchedPlace = await selectGeoapifyCandidate({
+            candidates: pool,
+            req,
+            usedCandidateIdsSet,
+            refCoords: lastSlotCoords,
+            maxKm: 50,
+            date: day.date,
+            time: s.time,
+            durationMinutes: s.durationMinutes ?? 90,
+            accessibilityRequired: Boolean(activityInput.accessibilityRequired),
+            telemetry: telemetryObj,
+          });
+
+          if (matchedPlace) {
+            poolHits++;
+            matchedSource = "geoapify";
+          } else if (refLat != null && refLon != null) {
+            poolMisses++;
+            geoapifyPlacesCalls++;
+            const newPlaces = await searchGeoapifyPlaces({
+              categories: req.categories,
+              latitude: refLat,
+              longitude: refLon,
+              radiusMeters: radiusMeters * 1.5,
+              limit: 15,
+              conditions: req.accessibility || [],
             });
+            if (newPlaces.length > 0) {
+              placePools[poolKey] = mergeUniquePlacesById(pool, newPlaces);
+              pool = placePools[poolKey]!;
+              matchedPlace = await selectGeoapifyCandidate({
+                candidates: pool,
+                req,
+                usedCandidateIdsSet,
+                refCoords: lastSlotCoords,
+                maxKm: 50,
+                date: day.date,
+                time: s.time,
+                durationMinutes: s.durationMinutes ?? 90,
+                accessibilityRequired: Boolean(activityInput.accessibilityRequired),
+                telemetry: telemetryObj,
+              });
+              if (matchedPlace) {
+                matchedSource = "geoapify";
+              }
+            }
           }
         }
 
@@ -2555,19 +2584,24 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             locationContext: s.locationContext ?? "external",
             label: matchedPlace.name,
             detail:
-              matchedPlace.address ||
               s.detail ||
               s.searchIntent ||
               "Lieu sélectionné par KREW",
+            address: matchedPlace.address || null,
             ...resolvedResource,
             activityMode: mode,
             candidateId: matchedPlace.id,
             verified: true,
-            source: "geoapify",
+            source: matchedSource,
             latitude: matchedPlace.latitude,
             longitude: matchedPlace.longitude,
           });
         } else {
+          const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
+            { name: s.label, address: destName },
+            destName,
+          );
+
           slots.push({
             moment: s.moment,
             time: s.time,
@@ -2578,14 +2612,16 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             venueFamily: s.venueFamily,
             searchIntent: s.searchIntent,
             locationContext: s.locationContext ?? "external",
-            label: `${s.label} — lieu à choisir`,
+            label: s.label,
             detail:
               s.detail ||
               s.searchIntent ||
               "Réservation ou choix du lieu à préciser",
+            address: null,
             verified: false,
             source: "krew",
-            url: null,
+            url: fallbackMapUrl,
+            resourceKind: fallbackMapUrl ? "maps" : null,
           });
         }
       }

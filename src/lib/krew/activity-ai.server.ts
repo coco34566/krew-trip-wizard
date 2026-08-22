@@ -44,6 +44,7 @@ export type ActivitySlot = {
   tags?: string[] | undefined;
   label: string;
   detail?: string | undefined;
+  address?: string | null | undefined;
   venueFamily?: string | undefined;
   searchIntent?: string | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
@@ -187,6 +188,7 @@ export type KrewSkeletonSlot = {
   category: ActivityCategory;
   label: string;
   detail?: string | undefined;
+  address?: string | null | undefined;
   importance: "high" | "medium" | "low";
   flexibility: "rigid" | "flexible";
   venueFamily?: string | undefined;
@@ -2941,7 +2943,8 @@ export async function regenerateSlotWithAi(
       slot: {
         ...existing,
         label: selectedPlace.name,
-        detail: selectedPlace.address || existing.detail || "Alternative sélectionnée par KREW",
+        detail: existing.detail || "Alternative sélectionnée par KREW",
+        address: selectedPlace.address || null,
         candidateId: selectedPlace.id,
         category: existing.category,
         url: resolvedLink.url,
