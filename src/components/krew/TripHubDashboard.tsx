@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import {
   CalendarDays,
   ClipboardList,
-  CheckCircle2,
   ArrowRight,
   MapPin,
   Sparkles,
@@ -14,7 +13,14 @@ import {
 } from "lucide-react";
 import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
-import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { Logo } from "@/components/krew/Logo";
+import {
+  KrewMark,
+  KrewSectionWave,
+  KrewProgressRing,
+  KrewOrganicBlob,
+  KrewHighlight,
+} from "@/components/krew/visual-language";
 
 type Props = {
   tripId: string;
@@ -79,6 +85,31 @@ function heroImageForEvent(eventType?: string | null) {
   if (key === "week_end") key = "weekend";
 
   return map[key] || map["autre"];
+}
+
+function getKrewMarkForAction(key: string): { type: "circle" | "arrow" | "check" | "connector" | "highlight"; tone: "plum" | "sage" } {
+  switch (key) {
+    case "avail":
+      return { type: "circle", tone: "sage" };
+    case "prefs":
+    case "star":
+      return { type: "highlight", tone: "plum" };
+    case "lock-dates":
+      return { type: "check", tone: "sage" };
+    case "choose-profile":
+    case "gen":
+    case "pick-dest":
+      return { type: "circle", tone: "plum" };
+    case "search-hotels":
+    case "search-transport":
+      return { type: "arrow", tone: "sage" };
+    case "plan":
+      return { type: "connector", tone: "plum" };
+    case "refine":
+      return { type: "check", tone: "sage" };
+    default:
+      return { type: "arrow", tone: "sage" };
+  }
 }
 
 type NextActionsPanelProps = {
@@ -320,14 +351,17 @@ function NextActionsPanel({
 
   if (actions.length === 0 && participantCaughtUp) {
     return (
-      <section className="rounded-2xl border border-sage/20 bg-sage/8 p-5">
-        <div className="flex gap-3">
-          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-sage" />
-          <div>
-            <h2 className="font-display text-lg font-normal tracking-tight text-foreground">
-              Tout est à jour de ton côté
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-foreground/80">
+      <section className="-mx-4 sm:mx-0 rounded-3xl border border-sage/25 bg-sage/12 p-6 sm:p-7 relative overflow-hidden shadow-xs">
+        <div className="flex items-start gap-4">
+          <Logo variant="icon" size="sm" className="size-12 sm:size-14 shrink-0 pointer-events-none" />
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <h2 className="font-display text-xl sm:text-2xl font-normal tracking-tight text-foreground">
+                Tout est à jour de ton côté
+              </h2>
+              <KrewMark type="check" tone="sage" size="sm" className="size-5 shrink-0" />
+            </div>
+            <p className="text-sm leading-relaxed text-foreground/80 font-sans pt-0.5">
               {isOwner
                 ? hasItinerary
                   ? "Le planning est en place. Les choix restent modifiables si nécessaire."
@@ -346,93 +380,113 @@ function NextActionsPanel({
 
   const primaryAction = actions.find((a) => a.primary) ?? actions[0];
   const secondaryActions = actions.filter((a) => a !== primaryAction);
+  const primaryMark = primaryAction ? getKrewMarkForAction(primaryAction.key) : null;
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
-            Tes prochaines actions
-          </h2>
-          <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-80" />
-        </div>
-      </div>
+    <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden relative">
+      {/* Vague supérieure ouvrant la grande nappe sauge */}
+      <KrewSectionWave position="top" tone="sage" className="text-sage/18" />
 
-      {waitingOnOthers ? (
-        <div className="rounded-2xl border border-border/80 bg-muted/40 px-4 py-3 text-sm text-foreground/90">
-          De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
-          l&apos;organisateur·rice.
+      {/* GRANDE NAPPE SAUGE PLEINE LARGEUR */}
+      <div className="bg-sage/18 px-5 sm:px-8 py-6 sm:py-8 space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/75 font-sans">
+              Tes prochaines actions
+            </h2>
+            <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-90" />
+          </div>
         </div>
-      ) : null}
 
-      <div className="space-y-3">
-        {primaryAction ? (
-          (() => {
-            const Tag = primaryAction.href ? "a" : "div";
-            return (
-              <Tag
-                key={primaryAction.key}
-                {...(primaryAction.href ? { href: primaryAction.href } : {})}
-                className={cn(
-                  "group flex items-center justify-between gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 sm:p-5 transition hover:border-primary/50",
-                  primaryAction.href && "cursor-pointer",
-                )}
-              >
-                <div className="flex items-start gap-3.5 min-w-0">
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                    <primaryAction.icon className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-sans font-semibold text-foreground group-hover:text-primary transition-colors">
-                      {primaryAction.title}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
-                      {primaryAction.desc}
-                    </p>
-                  </div>
-                </div>
-                {primaryAction.href ? (
-                  <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
-                ) : null}
-              </Tag>
-            );
-          })()
+        {waitingOnOthers ? (
+          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
+            De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
+            l&apos;organisateur·rice.
+          </div>
         ) : null}
 
-        {secondaryActions.length > 0 ? (
-          <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3">
-            {secondaryActions.map((a) => {
-              const Tag = a.href ? "a" : "div";
+        <div className="space-y-3">
+          {primaryAction ? (
+            (() => {
+              const Tag = primaryAction.href ? "a" : "div";
               return (
                 <Tag
-                  key={a.key}
-                  {...(a.href ? { href: a.href } : {})}
+                  key={primaryAction.key}
+                  {...(primaryAction.href ? { href: primaryAction.href } : {})}
                   className={cn(
-                    "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
-                    a.href && "cursor-pointer",
+                    "group relative flex items-center justify-between gap-4 rounded-2xl border border-sage/40 bg-card p-4 sm:p-5 transition hover:border-primary/50 shadow-sm",
+                    primaryAction.href && "cursor-pointer",
                   )}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:text-primary transition-colors">
-                      <a.icon className="size-4" />
+                  <div className="flex items-start gap-3.5 min-w-0">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                      <primaryAction.icon className="size-5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {a.title}
+                      <div className="flex items-center gap-2">
+                        <p className="font-sans text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                          {primaryAction.title}
+                        </p>
+                        {primaryMark ? (
+                          <KrewMark
+                            type={primaryMark.type}
+                            tone={primaryMark.tone}
+                            size="sm"
+                            className="w-8 h-4 shrink-0 pointer-events-none"
+                          />
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                        {primaryAction.desc}
                       </p>
-                      <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
                     </div>
                   </div>
-                  {a.href ? (
-                    <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                  {primaryAction.href ? (
+                    <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
                   ) : null}
                 </Tag>
               );
-            })}
-          </div>
-        ) : null}
+            })()
+          ) : null}
+
+          {secondaryActions.length > 0 ? (
+            <div className="rounded-2xl border border-border/70 bg-card/95 p-4 space-y-3 shadow-2xs">
+              {secondaryActions.map((a) => {
+                const Tag = a.href ? "a" : "div";
+                return (
+                  <Tag
+                    key={a.key}
+                    {...(a.href ? { href: a.href } : {})}
+                    className={cn(
+                      "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
+                      a.href && "cursor-pointer",
+                    )}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
+                        <a.icon className="size-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                          {a.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
+                      </div>
+                    </div>
+                    {a.href ? (
+                      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                    ) : null}
+                  </Tag>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
       </div>
-    </section>
+
+      {/* Vague inférieure refermant la grande nappe sauge */}
+      <KrewSectionWave position="bottom" tone="sage" className="text-sage/18" />
+    </div>
   );
 }
 
@@ -479,40 +533,86 @@ export function TripHubDashboard({
   const theme = eventTypeLabel(trip.event_type);
 
   return (
-    <div className="space-y-8">
-      {/* TRIP CONTEXT */}
-      <header className="relative overflow-hidden rounded-[30px] bg-sage/8 border border-border/50 p-6 sm:p-8">
-        <KrewMark
-          type="circle"
+    <div className="space-y-6 sm:space-y-8">
+      {/* COMPOSITION V5.1 INTEGRÉE (5 LAYERS, Z-INDEX STRUCTURÉS, ZÉRO CARD WRAPPER) */}
+      <header className="relative overflow-visible -mx-4 sm:mx-0 pt-2 pb-8 min-h-[560px] sm:min-h-[600px]">
+        {/* LAYER 1 (z-0) : Grande Forme Sauge Arrière-Plan */}
+        <KrewOrganicBlob
           tone="sage"
-          size="lg"
-          rotation={4}
-          className="absolute -top-6 -right-6 w-[120px] opacity-60 pointer-events-none"
+          variant="soft"
+          className="absolute -top-8 -right-6 w-[88%] h-[380px] z-0 opacity-80 pointer-events-none"
         />
 
-        <div className="grid lg:grid-cols-[1fr_180px] gap-6 items-center">
-          <div className="space-y-3 min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
+        {/* LAYER 2 (z-10) : Photographie du Voyage avec Clip-Path Asymétrique Déterministe */}
+        <div
+          className="relative z-10 w-[92%] sm:w-[94%] h-[280px] sm:h-[340px] ml-auto sm:ml-0 overflow-hidden shadow-xs border border-border/20"
+          style={{ clipPath: "polygon(0% 0%, 100% 0%, 100% 88%, 86% 100%, 0% 92%)" }}
+        >
+          <img
+            src={heroImageForEvent(trip.event_type)}
+            alt=""
+            className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+            loading="eager"
+          />
+        </div>
+
+        {/* LAYER 5a (z-40) : Circle KrewMark Ancré au Quart Supérieur Droit de la Photo */}
+        <div className="absolute top-4 right-1 sm:right-6 z-40 pointer-events-none">
+          <KrewMark
+            type="circle"
+            tone="sage"
+            size="lg"
+            rotation={2}
+            className="w-[85px] sm:w-[105px] opacity-75"
+          />
+        </div>
+
+        {/* LAYER 3 (z-20) : Surface Prune Organique Sweep chevauchant la Photo */}
+        <div className="relative z-20 -mt-20 sm:-mt-24 w-[90%] sm:w-[85%] min-h-[190px] sm:min-h-[220px]">
+          <KrewOrganicBlob
+            tone="plum"
+            variant="sweep"
+            className="w-full h-full text-primary filter drop-shadow-md"
+          />
+
+          {/* LAYER 4 (z-30) : Titre & Destination positionnés SUR la Forme Prune */}
+          <div className="absolute inset-0 z-30 p-6 sm:p-8 flex flex-col justify-center space-y-2 text-primary-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/80 font-sans">
               {theme}
             </p>
-            <h1 className="font-display text-[38px] lg:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+
+            <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.98] tracking-tight text-white break-words">
               {trip.name}
             </h1>
+
             {destinationName ? (
-              <p className="font-display text-xl sm:text-2xl text-primary font-normal">
-                {destinationName}
-              </p>
+              <div className="pt-1">
+                <p className="font-display text-2xl sm:text-3xl text-sage font-normal relative inline-block">
+                  <span className="relative z-10 flex items-center gap-2">
+                    <MapPin className="size-5 text-sage shrink-0" />
+                    <span>{destinationName}</span>
+                  </span>
+                  <KrewMark
+                    type="underline"
+                    tone="sage"
+                    size="md"
+                    className="absolute inset-x-0 -bottom-2 h-4 w-full opacity-85 pointer-events-none"
+                  />
+                </p>
+              </div>
             ) : null}
+
             {trip.celebrated_person ? (
-              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/80">
-                <Star className="size-4 fill-amber-400 text-amber-400 shrink-0" /> Pour{" "}
-                {trip.celebrated_person}
+              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-white/90 pt-0.5">
+                <Star className="size-4 fill-amber-300 text-amber-300 shrink-0" /> Pour{" "}
+                <span className="font-semibold text-white">{trip.celebrated_person}</span>
               </p>
             ) : null}
+
             {trip.participants &&
             Array.isArray(trip.participants) &&
             trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-primary-foreground/80 leading-relaxed pt-0.5 truncate">
                 Avec{" "}
                 {trip.participants
                   .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
@@ -520,31 +620,19 @@ export function TripHubDashboard({
                   .join(", ")}
               </p>
             ) : null}
+          </div>
+        </div>
 
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-1">
-              <span className="inline-flex items-center gap-1.5 font-sans">
-                <Users className="size-3.5 text-muted-foreground" />
-                <span className="font-mono">{trip.participants_count}</span> pers.
-              </span>
-
-              {totalReserved != null && totalEstimated != null ? (
-                <span className="inline-flex items-center gap-1.5 font-mono">
-                  <Wallet className="size-3.5 text-muted-foreground" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
-                </span>
-              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
-                <span className="inline-flex items-center gap-1.5 font-mono">
-                  <Wallet className="size-3.5 text-muted-foreground" /> ~{formatEuro(liveBudgetTotal)} / pers.
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5">
-                  <Wallet className="size-3.5 text-muted-foreground" /> Budget à définir
-                </span>
-              )}
-
+        {/* LAYER 4 & 5b (z-30 / z-40) : Métadonnées Éditoriales Asymétriques + Scène Loutre & Flèche */}
+        <div className="relative z-30 pt-5 px-3 sm:px-6 min-h-[90px]">
+          {/* Métadonnées en Disposition Asymétrique (Dates bas-gauche, Participants bas-droite, Budget bas-gauche-centre) */}
+          <div className="relative min-h-[70px]">
+            {/* Dates : Côté gauche avec Highlight Sauge */}
+            <div className="absolute top-0 left-0">
               {datesLocked && (trip.start_date || provisionalStart) ? (
-                <span className="inline-flex items-center gap-1.5 font-mono">
-                  <CalendarDays className="size-3.5 text-muted-foreground" />
-                  Dates validées · {trip.start_date
+                <KrewHighlight tone="sage" className="inline-flex items-center gap-1.5 font-mono text-xs text-foreground font-medium">
+                  <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-primary font-sans font-medium">Dates validées</span> · {trip.start_date
                     ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
                         day: "numeric",
                         month: "short",
@@ -559,27 +647,76 @@ export function TripHubDashboard({
                         month: "short",
                       })}`
                     : ""}
+                </KrewHighlight>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CalendarDays className="size-3.5 text-muted-foreground shrink-0" /> Date à définir
+                </span>
+              )}
+            </div>
+
+            {/* Participants : Décalés à droite et légèrement plus bas (~24px) */}
+            <div className="absolute top-6 right-2 sm:right-24">
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
+                <Users className="size-3.5 text-muted-foreground shrink-0" />
+                <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
+              </span>
+            </div>
+
+            {/* Budget : Décalé plus bas vers le centre/gauche (~48px) */}
+            <div className="absolute top-12 left-2">
+              {totalReserved != null && totalEstimated != null ? (
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
+                </span>
+              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> ~{formatEuro(liveBudgetTotal)} / pers.
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays className="size-3.5 text-muted-foreground" /> Date à définir
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> Budget à définir
                 </span>
               )}
             </div>
           </div>
 
-          <div className="w-full lg:w-[180px] h-[140px] lg:h-[120px] overflow-hidden rounded-[20px] shrink-0 border border-border/60">
-            <img
-              src={heroImageForEvent(trip.event_type)}
-              alt=""
-              className="h-full w-full object-cover"
-              loading="eager"
-            />
+          {/* LAYER 5c (z-40) : Petite Scène Graphique Loutre + Flèche de Guidage vers le bas */}
+          <div className="absolute bottom-0 right-2 z-40 flex items-center gap-2 pointer-events-none">
+            <Logo variant="icon" size="sm" className="size-14 sm:size-16 object-contain filter drop-shadow-xs" />
+            <KrewMark type="arrow" tone="sage" size="md" className="w-14 h-8 text-sage opacity-90 transform rotate-12" />
           </div>
         </div>
       </header>
 
-      {/* Prochaines actions prioritaires */}
+      {/* ÉTAT DU KREW — Visualisation chiffrée compacte */}
+      {(availabilityExpected > 0 || progressTotal > 0) && (
+        <div className="flex items-center justify-center gap-6 py-2 px-4">
+          {availabilityExpected > 0 ? (
+            <KrewProgressRing
+              value={availabilityAnswered}
+              total={availabilityExpected}
+              tone="sage"
+              label="Disponibilités"
+            />
+          ) : null}
+
+          {availabilityExpected > 0 && progressTotal > 0 ? (
+            <KrewMark type="connector" tone="sage" size="sm" className="w-8 h-4 opacity-50 hidden sm:block" />
+          ) : null}
+
+          {progressTotal > 0 ? (
+            <KrewProgressRing
+              value={progressAnswered}
+              total={progressTotal}
+              tone="plum"
+              label="Préférences"
+            />
+          ) : null}
+        </div>
+      )}
+
+      {/* GRANDE NAPPE SAUGE "TES PROCHAINES ACTIONS" ENCADRÉE PAR DEUX VAGUES */}
       <NextActionsPanel
         tripId={tripId}
         isOwner={isOwner}
