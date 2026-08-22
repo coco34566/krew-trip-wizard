@@ -327,20 +327,20 @@ function TripRecapPage() {
                           </span>
                         ) : null}
                       </h3>
-                      <p className="mt-1 text-xs text-muted-foreground font-mono">{dateLabel}</p>
+                      <p className="mt-1 text-[13px] text-muted-foreground font-mono">{dateLabel}</p>
                     </div>
                     {budget ? (
                       <div className="rounded-2xl border border-border/60 bg-background p-4 text-right">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
+                        <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
                           Budget estimé
                         </p>
                         <KrewHighlight tone="sage" className="font-mono text-2xl sm:text-3xl font-bold text-primary inline-block my-1 px-2 py-0.5">
                           {formatEuro(budget.totalPerPerson)} / pers.
                         </KrewHighlight>
-                        <p className="text-xs sm:text-sm text-muted-foreground font-mono">
+                        <p className="text-[13px] sm:text-sm text-muted-foreground font-mono">
                           soit {formatEuro(budget.totalGroup)} pour le groupe
                         </p>
-                        <p className="mt-1 text-xs text-muted-foreground font-mono">
+                        <p className="mt-1 text-[13px] text-muted-foreground font-mono">
                           Transport moy. {formatEuro(budget.transport)}
                           {typeof budget.transportGroup === "number"
                             ? ` · groupe ${formatEuro(budget.transportGroup)}`
@@ -380,7 +380,7 @@ function TripRecapPage() {
                       <KrewIcon name="transport" tone="plum" size="sm" className="size-4" />
                       Vérifier les transports en temps réel
                     </h4>
-                    <p className="mt-0.5 text-xs text-muted-foreground font-sans">
+                    <p className="mt-0.5 text-[13px] text-muted-foreground font-sans">
                       Un bloc par ville de départ — les tarifs vols/trains dépendent de l&apos;origine.
                     </p>
                   </div>
@@ -399,7 +399,7 @@ function TripRecapPage() {
                         key={origin.originCity}
                         className="rounded-xl border border-border/60 bg-surface/30 p-3.5 font-sans"
                       >
-                        <p className="text-xs font-semibold text-foreground">
+                        <p className="text-[13px] font-semibold text-foreground">
                           Depuis {origin.originCity}{" "}
                           <span className="text-muted-foreground font-mono font-normal">
                             ({origin.adults} pers.)
@@ -443,7 +443,7 @@ function TripRecapPage() {
                   <Separator />
 
                   <div className="flex flex-wrap items-center gap-2 font-sans">
-                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <span className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
                       <KrewIcon name="accommodation" tone="plum" size="sm" className="size-4" /> Hébergement (groupe) :
                     </span>
                     {reco.accommodation?.bookingUrl ? (
@@ -516,7 +516,7 @@ function TripRecapPage() {
             <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
             <h2 className="font-display text-xl font-normal text-foreground">Exporter mon calendrier</h2>
           </div>
-          <p className="text-xs text-muted-foreground font-sans">
+          <p className="text-[13px] text-muted-foreground font-sans">
             Télécharge le fichier de l'itinéraire ou ajoute le séjour complet à ton agenda.
           </p>
           <div className="flex flex-wrap gap-2.5">

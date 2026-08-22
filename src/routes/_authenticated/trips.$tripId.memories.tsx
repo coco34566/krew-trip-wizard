@@ -105,7 +105,7 @@ function MemoriesPage(){
       </header>
 
       {photos.length > 0 && (
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-xs sm:text-sm text-foreground/90 font-sans">
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-[13px] sm:text-sm text-foreground/90 font-sans">
           <strong>KREW a sélectionné {selection.length} photos</strong> parmi {photos.length} photos du voyage. La sélection répartit les photos sur les différentes journées et tient compte des appréciations du groupe.
         </div>
       )}
@@ -117,7 +117,7 @@ function MemoriesPage(){
         </div>
         <div>
           <p className="font-semibold text-sm text-foreground">Ajoute tes photos de voyage</p>
-          <p className="text-xs text-muted-foreground font-sans mt-0.5">Stockage privé, accessible uniquement aux participants autorisés.</p>
+          <p className="text-[13px] text-muted-foreground font-sans mt-0.5">Stockage privé, accessible uniquement aux participants autorisés.</p>
         </div>
         <div className="pt-1">
           <Button size="sm" className="rounded-xl font-medium" disabled={uploading} onClick={() => permission === "granted" ? fileInputRef.current?.click() : setShowModal(true)}>
@@ -152,7 +152,7 @@ function MemoriesPage(){
                     </div>
                   ) : null}
                 </div>
-                <div className="p-3.5 flex items-center justify-between text-xs sm:text-sm text-muted-foreground font-sans">
+                <div className="p-3.5 flex items-center justify-between text-[13px] sm:text-sm text-muted-foreground font-sans">
                   <span>Par <strong className="text-foreground font-semibold">{p.author}</strong></span>
                   <div className="flex items-center gap-3">
                     <button type="button" onClick={() => like.mutate(p.id)} className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer">
@@ -179,7 +179,7 @@ function MemoriesPage(){
               <h3 className="font-display text-xl font-normal text-foreground">Autorisation d&apos;import</h3>
               <button type="button" onClick={() => setShowModal(false)} aria-label="Fermer"><X className="size-4" /></button>
             </div>
-            <p className="text-xs text-muted-foreground font-sans leading-relaxed">
+            <p className="text-[13px] text-muted-foreground font-sans leading-relaxed">
               Les photos sont stockées dans un espace privé et accessibles uniquement aux participants autorisés.
             </p>
             <div className="flex gap-2 pt-2">
@@ -201,7 +201,7 @@ function MemoriesPage(){
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Souvenirs KREW</p>
                 <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">Notre voyage en images</h2>
-                <p className="text-xs text-muted-foreground font-sans mt-0.5">{selection.length} moments sélectionnés · {daysMap.size} journée(s)</p>
+                <p className="text-[13px] text-muted-foreground font-sans mt-0.5">{selection.length} moments sélectionnés · {daysMap.size} journée(s)</p>
               </div>
               <button type="button" onClick={() => setShowAlbum(false)} aria-label="Fermer"><X className="size-5" /></button>
             </div>
@@ -252,16 +252,16 @@ function MemoriesPage(){
               </div>
               <button type="button" onClick={() => setShowPartner(false)} aria-label="Fermer"><X className="size-4" /></button>
             </div>
-            <p className="text-xs text-muted-foreground font-sans leading-relaxed">
+            <p className="text-[13px] text-muted-foreground font-sans leading-relaxed">
               KREW ne vend ni n&apos;imprime l&apos;album. Tu vas être redirigé·e vers <strong>{PHOTO_BOOK_PARTNER.name}</strong>, un prestataire externe, pour créer et commander ton album.
             </p>
-            <div className="rounded-2xl border border-border/60 bg-muted/40 p-4 text-xs font-sans space-y-1">
+            <div className="rounded-2xl border border-border/60 bg-muted/40 p-4 text-[13px] font-sans space-y-1">
               <p className="font-semibold text-foreground">Ta sélection KREW : {selection.length} photos</p>
               <p className="text-muted-foreground leading-relaxed">
                 Pour des raisons de confidentialité, KREW ne transmet pas automatiquement tes photos au prestataire. Télécharge d&apos;abord la sélection puis importe-la chez le prestataire.
               </p>
             </div>
-            <p className="text-[10px] text-muted-foreground leading-relaxed font-sans">{PHOTO_BOOK_PARTNER.affiliateDisclosure}</p>
+            <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed font-sans">{PHOTO_BOOK_PARTNER.affiliateDisclosure}</p>
             <div className="flex gap-2 justify-end pt-1">
               <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setShowPartner(false)}>Annuler</Button>
               <Button size="sm" className="rounded-xl font-medium" asChild>

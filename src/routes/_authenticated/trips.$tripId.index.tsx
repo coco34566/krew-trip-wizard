@@ -2301,7 +2301,7 @@ function TripDetail() {
           </div>
         )}
         {profile?.validated ? (
-          <p className="text-xs sm:text-sm font-semibold text-primary inline-flex items-center gap-1.5 pt-2">
+          <p className="text-[13px] sm:text-sm font-semibold text-primary inline-flex items-center gap-1.5 pt-2">
             <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
             Profil validé — les destinations sont disponibles.
           </p>
@@ -2847,7 +2847,7 @@ function TripDetail() {
           </div>
           <Button
             variant="outline"
-            className="rounded-xl text-xs font-medium"
+              className="rounded-xl text-sm font-medium"
             disabled={!destinationSelected || logisticsMutation.isPending}
             onClick={() => logisticsMutation.mutate()}
           >

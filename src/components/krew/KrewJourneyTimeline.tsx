@@ -193,7 +193,7 @@ export function KrewJourneyTimeline({
                         {step.subtitle ? (
                           <p
                             className={cn(
-                              "text-xs sm:text-[13px] font-sans leading-snug",
+                              "text-[13px] font-sans leading-snug",
                               isNextAction
                                 ? "text-foreground/90 font-medium"
                                 : isDone
