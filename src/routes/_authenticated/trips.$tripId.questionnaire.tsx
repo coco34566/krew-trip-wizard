@@ -326,14 +326,14 @@ function ParticipantQuestionnaire() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
+      <div className="mx-auto max-w-[820px] px-4 sm:px-6 py-20 flex justify-center">
         <Loader2 className="animate-spin text-primary size-6" />
       </div>
     );
   }
 
   return (
-    <main className="mx-auto max-w-[820px] space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
       <Button
         variant="ghost"
         size="sm"
@@ -348,11 +348,11 @@ function ParticipantQuestionnaire() {
           <img
             src="/brand/otter-states/preferences.png"
             alt=""
-            className="w-[68px] sm:w-[84px] h-auto object-contain"
+            className="w-[72px] sm:w-[88px] h-auto object-contain"
           />
         </div>
         <div className="relative inline-block">
-          <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          <h1 className="font-display text-[32px] sm:text-[44px] font-normal leading-[0.95] tracking-tight text-foreground">
             {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
           </h1>
           <KrewMark
@@ -364,8 +364,8 @@ function ParticipantQuestionnaire() {
         </div>
         {isEditing ? (
           <div className="space-y-1.5 pt-1">
-            <KrewNote variant="label" tone="cream" rotation={-1} className="text-[11px] py-0.5 px-2 inline-block">
-              Réponses enregistrées ✦
+            <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
+              Réponses enregistrées
             </KrewNote>
             <p className="text-sm text-muted-foreground">
               Tu as déjà répondu

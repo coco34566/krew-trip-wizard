@@ -193,6 +193,7 @@ Mapping officiel :
 
 ### Tailles de référence
 
+- loutre de grand chapitre (Disponibilités, Questionnaire, Destination, Hébergement, Transport, Planning, Tâches, À emporter) : **72px mobile**, **84–88px desktop**
 - micro exceptionnel : **40–48px**
 - petite : **48–56px**
 - moyenne : **64–84px**
@@ -306,7 +307,13 @@ Densité :
 - écran court : **0 à 1**
 - écran long : **1 à 2 visibles simultanément maximum**
 
-Rotation maximum : **±2°**.
+Taille & style :
+
+- police : **Caveat**
+- taille : **14–15px minimum**
+- padding généreux (`py-1.5 px-3`)
+- rotation maximum : **±2°**
+- ne jamais ajouter de `✦` décoratif automatique
 
 Un post-it doit être physiquement proche de l’élément qu’il commente.
 

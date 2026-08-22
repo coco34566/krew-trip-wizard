@@ -119,7 +119,7 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[820px] space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
       <Link
         to="/dashboard"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -132,11 +132,11 @@ function NewTripPage() {
           <img
             src="/brand/otter-states/lets-go.png"
             alt=""
-            className="w-16 sm:w-20 h-auto object-contain filter drop-shadow-2xs opacity-90"
+            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
           />
         </div>
         <div className="relative inline-block">
-          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          <h1 className="font-display text-[32px] sm:text-[44px] font-normal leading-[0.95] tracking-tight text-foreground">
             Créer un voyage
           </h1>
           <KrewMark

@@ -2212,15 +2212,25 @@ function TripDetail() {
       {currentSection === "profile" ? (
       <section
         id="hub-profile"
-        className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24"
+        className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        {/* Otter profile asset */}
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
+          <img
+            src="/brand/otter-states/trip-progress.png"
+            alt=""
+            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
+            loading="lazy"
+          />
+        </div>
+
+        <div className="flex items-center justify-between flex-wrap gap-2 pr-0 sm:pr-20">
           <div>
-            <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+            <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
               <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
               Profil du voyage
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground font-sans">
+            <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
               Sélectionne 1 à 3 profils KREW qui correspondent au séjour du groupe.
             </p>
           </div>
@@ -2324,7 +2334,7 @@ function TripDetail() {
           <img
             src="/brand/otter-states/destination.png"
             alt=""
-            className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
             loading="lazy"
           />
         </div>
@@ -2334,7 +2344,7 @@ function TripDetail() {
             <h2 className="font-display text-2xl font-normal text-foreground">
               Choisis d’abord le profil du voyage
             </h2>
-            <p className="text-sm text-muted-foreground font-sans">
+            <p className="text-sm sm:text-base text-muted-foreground font-sans">
               Sélectionne 1 à 3 profils avant de chercher des destinations.
             </p>
             <Button asChild className="rounded-xl font-medium">
@@ -2347,11 +2357,11 @@ function TripDetail() {
           <>
             <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
               <div>
-                <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+                <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
                   <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
                   Destinations proposées
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground font-sans">
+                <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
                   Des destinations sélectionnées pour correspondre aux envies du groupe.
                 </p>
               </div>
@@ -2577,18 +2587,18 @@ function TripDetail() {
             <img
               src="/brand/otter-states/accommodation.png"
               alt=""
-              className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
               loading="lazy"
             />
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
             <div>
-              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
                 <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
                 Hébergement
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground font-sans">
+              <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
                 Des options d’hébergement adaptées au groupe et au séjour.
               </p>
             </div>
@@ -2824,18 +2834,18 @@ function TripDetail() {
           <img
             src="/brand/otter-states/transport.png"
             alt=""
-            className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
             loading="lazy"
           />
         </div>
 
         <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
           <div>
-            <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+            <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
               <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
               Transport
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground font-sans">
+            <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
               Des trajets adaptés au point de départ et aux contraintes de chacun.
             </p>
           </div>
@@ -3040,18 +3050,18 @@ function TripDetail() {
             <img
               src="/brand/otter-states/planning.png"
               alt=""
-              className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
               loading="lazy"
             />
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
             <div>
-              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
                 <KrewIcon name="planning" tone="plum" size="sm" className="size-5" />
                 Planning
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground font-sans">
+              <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
                 Le programme du séjour, jour par jour.
               </p>
             </div>
@@ -3191,18 +3201,18 @@ function TripDetail() {
             <img
               src="/brand/otter-states/trip-preparation.png"
               alt=""
-              className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
               loading="lazy"
             />
           </div>
 
           <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/40 pb-4 pr-0 sm:pr-20">
             <div>
-              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
                 <KrewIcon name="tasks" tone="plum" size="sm" className="size-5" />
                 Organisation du groupe
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground font-sans">
+              <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
                 Les tâches à répartir pour préparer le voyage.
               </p>
             </div>

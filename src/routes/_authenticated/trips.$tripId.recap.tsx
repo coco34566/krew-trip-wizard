@@ -261,7 +261,7 @@ function TripRecapPage() {
       {/* PROPOSITIONS SHORTLISTÉES */}
       <section className="space-y-6 pt-4">
         <div className="border-b border-border/50 pb-3">
-          <h2 className="font-display text-2xl font-normal text-foreground">
+          <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground">
             {recommendations.length} proposition{recommendations.length > 1 ? "s" : ""} shortlistée
             {recommendations.length > 1 ? "s" : ""}
           </h2>
@@ -334,13 +334,13 @@ function TripRecapPage() {
                         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
                           Budget estimé
                         </p>
-                        <KrewHighlight tone="sage" className="font-mono text-xl sm:text-2xl font-bold text-primary inline-block my-1 px-2 py-0.5">
+                        <KrewHighlight tone="sage" className="font-mono text-2xl sm:text-3xl font-bold text-primary inline-block my-1 px-2 py-0.5">
                           {formatEuro(budget.totalPerPerson)} / pers.
                         </KrewHighlight>
-                        <p className="text-xs text-muted-foreground font-mono">
+                        <p className="text-xs sm:text-sm text-muted-foreground font-mono">
                           soit {formatEuro(budget.totalGroup)} pour le groupe
                         </p>
-                        <p className="mt-1 text-[11px] text-muted-foreground font-mono">
+                        <p className="mt-1 text-xs text-muted-foreground font-mono">
                           Transport moy. {formatEuro(budget.transport)}
                           {typeof budget.transportGroup === "number"
                             ? ` · groupe ${formatEuro(budget.transportGroup)}`

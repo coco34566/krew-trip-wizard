@@ -20,7 +20,14 @@ function buildKrewSelection(photos:Photo[]){if(photos.length<=12)return [...phot
 function MemoriesPage(){
  const {tripId}=Route.useParams();const fileInputRef=useRef<HTMLInputElement>(null);const qc=useQueryClient();const [userId,setUserId]=useState<string|null>(null);const [userName,setUserName]=useState("Moi");const [uploading,setUploading]=useState(false);const [downloading,setDownloading]=useState(false);const [showAlbum,setShowAlbum]=useState(false);const [showPartner,setShowPartner]=useState(false);const [permission,setPermission]=useState<"granted"|"denied"|"prompt">("prompt");const [showModal,setShowModal]=useState(false);
  useEffect(()=>{const saved=localStorage.getItem("krew_photo_permission");if(saved==="granted"||saved==="denied")setPermission(saved);supabase.auth.getUser().then(({data:{user}})=>{if(!user)return;setUserId(user.id);supabase.from("trip_participants").select("display_name").eq("trip_id",tripId).eq("user_id",user.id).maybeSingle().then(({data})=>{if(data?.display_name)setUserName(data.display_name);});});},[tripId]);
- const {data:photos=[],isLoading}=useQuery<Photo[]>({queryKey:["trip-photos",tripId],queryFn:async()=>{const {data,error}=await supabase.from("trip_photos" as any).select("*").eq("trip_id",tripId).is("deleted_at",null).order("created_at",{ascending:false});if(error)throw error;return signPhotoUrls(data||[]);}});const selection=buildKrewSelection(photos);const days=selection.reduce((map,p)=>{const key=new Date(p.created_at).toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});const list=map.get(key)||[];list.push(p);map.set(key,list);return map;},new Map<string,Photo[]>());
+ const {data:photos=[],isLoading}=useQuery<Photo[]>({queryKey:["trip-photos",tripId],queryFn:async()=>{const {data,error}=await supabase.from("trip_photos" as any).select("*").eq("trip_id",tripId).is("deleted_at",null).order("created_at",{ascending:false});if(error)throw error;return signPhotoUrls(data||[]);}});const selection=buildKrewSelection(photos);
+ const daysMap = new Map<string, Photo[]>();
+ for (const p of selection) {
+   const key = new Date(p.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+   const list = daysMap.get(key) || [];
+   list.push(p);
+   daysMap.set(key, list);
+ }
  const like=useMutation({mutationFn:async(id:string)=>{const {error}=await supabase.rpc("increment_trip_photo_likes",{p_photo_id:id});if(error)throw error;},onSuccess:()=>qc.invalidateQueries({queryKey:["trip-photos",tripId]}),onError:()=>toast.error("Impossible d'enregistrer le like.")});
  const remove=useMutation({mutationFn:async(p:Photo)=>{if(p.storage_path){const {error}=await supabase.storage.from("trip-photos").remove([p.storage_path]);if(error)throw error;}const {error}=await supabase.from("trip_photos" as any).update({deleted_at:new Date().toISOString()}).eq("id",p.id);if(error)throw error;},onSuccess:()=>{qc.invalidateQueries({queryKey:["trip-photos",tripId]});toast.success("Photo supprimée.");},onError:e=>toast.error(`Impossible de supprimer la photo : ${err(e)}`)});
  const download=async(isSelection=false)=>{const source=isSelection?selection:photos;if(!source.length)return;setDownloading(true);try{const used=new Set<string>();const files=source.filter((p,i)=>{const n=fileName(p,i);if(used.has(n))return false;used.add(n);return true;}).map((p,i)=>({name:fileName(p,i),url:p.url}));const blob=await createPhotosZip(files);const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=`krew-${isSelection?"selection":"photos"}-${tripId}.zip`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);toast.success(`${files.length} photo(s) préparée(s) dans le ZIP.`);}catch(e){toast.error(`Impossible de préparer le téléchargement : ${err(e)}`);}finally{setDownloading(false);}};
@@ -63,8 +70,8 @@ function MemoriesPage(){
           </p>
           {selection.length > 0 ? (
             <div className="pt-1">
-              <KrewNote variant="label" tone="cream" rotation={-1} className="text-[11px] py-0.5 px-2 inline-block">
-                {selection.length} souvenir{selection.length > 1 ? "s" : ""} sélectionné{selection.length > 1 ? "s" : ""} ✦
+              <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
+                {selection.length} souvenir{selection.length > 1 ? "s" : ""} sélectionné{selection.length > 1 ? "s" : ""}
               </KrewNote>
             </div>
           ) : null}
@@ -191,7 +198,7 @@ function MemoriesPage(){
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Souvenirs KREW</p>
                 <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">Notre voyage en images</h2>
-                <p className="text-xs text-muted-foreground font-sans mt-0.5">{selection.length} moments sélectionnés · {days.size} journée(s)</p>
+                <p className="text-xs text-muted-foreground font-sans mt-0.5">{selection.length} moments sélectionnés · {daysMap.size} journée(s)</p>
               </div>
               <button type="button" onClick={() => setShowAlbum(false)} aria-label="Fermer"><X className="size-5" /></button>
             </div>
@@ -206,7 +213,7 @@ function MemoriesPage(){
                   </div>
                 </div>
               </div>
-              {[...days.entries()].map(([day, items]) => (
+              {[...daysMap.entries()].map(([day, items]) => (
                 <section key={day} className="space-y-3">
                   <h4 className="font-display text-xl font-normal text-foreground">{day}</h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -215,7 +222,7 @@ function MemoriesPage(){
                         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-muted border border-border/40">
                           <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
                         </div>
-                        <figcaption className="text-[11px] text-muted-foreground truncate font-sans">{p.original_filename || `Souvenir ${i + 1}`}</figcaption>
+                        <figcaption className="text-xs text-muted-foreground truncate font-sans">{p.original_filename || `Souvenir ${i + 1}`}</figcaption>
                       </figure>
                     ))}
                   </div>

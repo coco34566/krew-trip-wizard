@@ -333,8 +333,8 @@ function StarQuestionnaire() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-[820px] space-y-4">
-        <Skeleton className="h-8 w-48" />
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-4">
+        <Skeleton className="h-8 w-48 rounded-xl" />
         <Skeleton className="h-40 w-full rounded-[24px]" />
       </main>
     );
@@ -342,7 +342,7 @@ function StarQuestionnaire() {
 
   if (!data?.trip.hasStar) {
     return (
-      <main className="mx-auto max-w-[820px] text-center space-y-4 pt-8">
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 text-center space-y-4">
         <p className="text-muted-foreground">
           Ce type de voyage n’a pas de personne principale (star).
         </p>
@@ -358,7 +358,7 @@ function StarQuestionnaire() {
   const starName = data.trip.celebratedPerson || "la personne principale";
 
   return (
-    <main className="mx-auto max-w-[820px] space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
