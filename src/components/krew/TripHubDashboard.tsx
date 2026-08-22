@@ -1,20 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import {
-  CalendarDays,
-  ClipboardList,
-  ArrowRight,
-  MapPin,
-  Sparkles,
-  Star,
-  Users,
-  Wallet,
-  Hotel,
-  Plane,
-} from "lucide-react";
 import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/krew/Logo";
 import {
+  KrewIcon,
   KrewMark,
   KrewOrganicBlob,
   KrewHighlight,
@@ -148,7 +137,7 @@ function NextActionsPanel({
       title: "Indiquer mes disponibilités",
       description: "Indispensable pour trouver une date commune.",
       href: `/trips/${tripId}/availability`,
-      icon: CalendarDays,
+      iconName: "availability",
     });
   }
   if (!myPreferencesDone) {
@@ -157,7 +146,7 @@ function NextActionsPanel({
       title: "Renseigner mes préférences",
       description: "Budget, envies et transports pour trouver les destinations qui correspondent au groupe.",
       href: `/trips/${tripId}/questionnaire`,
-      icon: ClipboardList,
+      iconName: "preferences",
     });
   }
   if (hasStar && !starDone) {
@@ -168,7 +157,7 @@ function NextActionsPanel({
         : "Renseigner les préférences de la Star",
       description: "Compléter ses préférences pour le voyage.",
       href: `/trips/${tripId}/star`,
-      icon: Star,
+      iconName: "favorite",
     });
   }
 
@@ -180,7 +169,7 @@ function NextActionsPanel({
         title: "Voter pour un hébergement",
         description: "Un vote par personne — l’organisateur·rice finalise le choix.",
         href: `/trips/${tripId}?view=voyage&section=accommodation`,
-        icon: Hotel,
+        iconName: "accommodation",
       });
     }
     if (transportOffersReady && !myTransportPicked) {
@@ -189,7 +178,7 @@ function NextActionsPanel({
         title: "Choisir mon trajet",
         description: "Selon la ville de départ et les contraintes horaires.",
         href: `/trips/${tripId}?view=voyage&section=transport`,
-        icon: Plane,
+        iconName: "transport",
       });
     }
   }
@@ -202,7 +191,7 @@ function NextActionsPanel({
         title: "Valider les dates du groupe",
         description: "Cette validation débloque la suite du voyage.",
         href: `/trips/${tripId}?view=voyage&section=dates`,
-        icon: CalendarDays,
+        iconName: "calendar",
       });
     }
     if (datesLocked && !profileValidated && profileReady) {
@@ -211,7 +200,7 @@ function NextActionsPanel({
         title: "Choisir le profil du voyage",
         description: "Choisis 1 à 3 profils qui correspondent au séjour du groupe.",
         href: `/trips/${tripId}?view=voyage&section=profile`,
-        icon: Sparkles,
+        iconName: "profile",
       });
     }
     if (datesLocked && profileValidated && !destinationSelected) {
@@ -221,7 +210,7 @@ function NextActionsPanel({
           title: "Trouver des destinations",
           description: "Des propositions adaptées aux préférences du groupe.",
           href: `/trips/${tripId}?view=voyage&section=destination`,
-          icon: Sparkles,
+          iconName: "destination",
         });
       } else {
         push({
@@ -229,7 +218,7 @@ function NextActionsPanel({
           title: "Valider une destination",
           description: "Cette validation débloque les hébergements, les trajets et le planning.",
           href: `/trips/${tripId}?view=voyage&section=destination`,
-          icon: MapPin,
+          iconName: "destination",
         });
       }
     }
@@ -239,7 +228,7 @@ function NextActionsPanel({
         title: "Rechercher des hébergements",
         description: "Proposer des hébergements au groupe pour le vote.",
         href: `/trips/${tripId}?view=voyage&section=accommodation`,
-        icon: Hotel,
+        iconName: "accommodation",
       });
     }
     if (destinationSelected && !transportOffersReady) {
@@ -248,7 +237,7 @@ function NextActionsPanel({
         title: "Proposer des trajets A/R",
         description: "Des options adaptées aux villes de départ du groupe.",
         href: `/trips/${tripId}?view=voyage&section=transport`,
-        icon: Plane,
+        iconName: "transport",
       });
     }
     if (
@@ -262,7 +251,7 @@ function NextActionsPanel({
         title: "Créer le planning",
         description: "Construire le séjour jour par jour en tenant compte des horaires d’arrivée et de départ.",
         href: `/trips/${tripId}?view=voyage&section=planning`,
-        icon: Sparkles,
+        iconName: "planning",
       });
     }
     if (hasItinerary) {
@@ -271,7 +260,7 @@ function NextActionsPanel({
         title: "Affiner l’organisation",
         description: "Ajuster un créneau, vérifier les choix du groupe ou partager le résumé.",
         href: `/trips/${tripId}?view=voyage&section=planning`,
-        icon: ClipboardList,
+        iconName: "tasks",
       });
     }
 
@@ -292,7 +281,7 @@ function NextActionsPanel({
           .filter(Boolean)
           .join(" · "),
         href: `/trips/${tripId}#group-section`,
-        icon: Users,
+        iconName: "group",
       });
     }
   }
@@ -424,105 +413,79 @@ export function TripHubDashboard({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* COMPOSITION V5.1 INTEGRÉE (5 LAYERS, Z-INDEX STRUCTURÉS, ZÉRO CARD WRAPPER) */}
-      <header className="relative overflow-visible -mx-4 sm:mx-0 pt-2 pb-8 min-h-[560px] sm:min-h-[600px]">
-        {/* LAYER 1 (z-0) : Grande Forme Sauge Arrière-Plan */}
-        <KrewOrganicBlob
-          tone="sage"
-          variant="soft"
-          className="absolute -top-8 -right-6 w-[88%] h-[380px] z-0 opacity-80 pointer-events-none"
-        />
-
-        {/* LAYER 2 (z-10) : Photographie du Voyage avec Clip-Path Asymétrique Déterministe */}
-        <div
-          className="relative z-10 w-[92%] sm:w-[94%] h-[280px] sm:h-[340px] ml-auto sm:ml-0 overflow-hidden shadow-xs border border-border/20"
-          style={{ clipPath: "polygon(0% 0%, 100% 0%, 100% 88%, 86% 100%, 0% 92%)" }}
-        >
-          <img
-            src={heroImageForEvent(trip.event_type)}
-            alt=""
-            className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
-            loading="eager"
-          />
-        </div>
-
-        {/* LAYER 5a (z-40) : Circle KrewMark Ancré au Quart Supérieur Droit de la Photo */}
-        <div className="absolute top-4 right-1 sm:right-6 z-40 pointer-events-none">
-          <KrewMark
-            type="circle"
-            tone="sage"
-            size="lg"
-            rotation={2}
-            className="w-[85px] sm:w-[105px] opacity-75"
-          />
-        </div>
-
-        {/* LAYER 3 (z-20) : Surface Prune Organique Sweep chevauchant la Photo */}
-        <div className="relative z-20 -mt-20 sm:-mt-24 w-[90%] sm:w-[85%] min-h-[190px] sm:min-h-[220px]">
+      {/* ZONE 1 — COVER DU VOYAGE (EXACT BLUEPRINT) */}
+      <header className="relative overflow-visible -mx-4 sm:mx-0 pb-2">
+        {/* Conteneur photo & blob positioning */}
+        <div className="relative w-full">
+          {/* C2. BLOB SAUGE (z0) : derrière le haut/droite de la photo */}
           <KrewOrganicBlob
-            tone="plum"
-            variant="sweep"
-            className="w-full h-full text-primary filter drop-shadow-md"
+            tone="sage"
+            variant="soft"
+            className="absolute -top-5 right-0 w-[80%] h-[200px] sm:h-[240px] z-0 opacity-70 pointer-events-none"
           />
 
-          {/* LAYER 4 (z-30) : Titre & Destination positionnés SUR la Forme Prune */}
-          <div className="absolute inset-0 z-30 p-6 sm:p-8 flex flex-col justify-center space-y-2 text-primary-foreground">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/80 font-sans">
-              {theme}
+          {/* C1. PHOTO (z10) : largeur ~calc(100% - 8px), hauteur 260-280px, alignée gauche */}
+          <div
+            className="relative z-10 w-[calc(100%-8px)] h-[260px] sm:h-[280px] overflow-hidden"
+            style={{ clipPath: "polygon(0% 0%, 100% 0%, 100% 88%, 88% 100%, 0% 93%)" }}
+          >
+            <img
+              src={heroImageForEvent(trip.event_type)}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="eager"
+            />
+          </div>
+
+
+          {/* ZONE DE TITRE ÉDITORIAL SANS BLOB ENFERMANT */}
+          <div className="relative z-20 -mt-10 px-4 pt-2">
+            {/* LEVEL 1 — NOM DU VOYAGE (EYEBROW SECONDAIRE) */}
+            <p className="font-sans text-[12px] sm:text-[13px] font-semibold tracking-wider text-primary uppercase">
+              {trip.name}
             </p>
 
-            <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.98] tracking-tight text-white break-words">
-              {trip.name}
-            </h1>
+            {/* LEVEL 2 — DESTINATION / PROMESSE (GRAND TITRE INSTRUMENT SERIF) */}
+            <div className="relative mt-1 text-left inline-block max-w-full">
+              {/* Forme prune organique en accent sous le tiers droit / bas du titre */}
+              <KrewOrganicBlob
+                tone="plum"
+                variant="soft"
+                className="absolute right-0 bottom-0 w-[130px] sm:w-[160px] h-[65px] sm:h-[75px] text-primary opacity-20 pointer-events-none z-0"
+              />
 
-            {destinationName ? (
-              <div className="pt-1">
-                <p className="font-display text-2xl sm:text-3xl text-sage font-normal relative inline-block">
-                  <span className="relative z-10 flex items-center gap-2">
-                    <MapPin className="size-5 text-sage shrink-0" />
-                    <span>{destinationName}</span>
+              <h1 className="relative z-10 font-display text-[42px] sm:text-[56px] font-normal leading-[0.94] tracking-tight text-foreground">
+                <span className="relative inline-block">
+                  {destinationName || "Destination à définir"}
+                  {destinationName ? (
+                    <KrewMark
+                      type="underline-wave"
+                      tone="sage"
+                      size="sm"
+                      className="absolute left-0 -bottom-1.5 w-[90px] sm:w-[110px] h-[8px] opacity-90 pointer-events-none"
+                    />
+                  ) : null}
+                </span>
+                {trip.celebrated_person ? (
+                  <span className="block sm:inline sm:ml-3 text-foreground/90">
+                    pour {trip.celebrated_person}
                   </span>
-                  <KrewMark
-                    type="underline"
-                    tone="sage"
-                    size="md"
-                    className="absolute inset-x-0 -bottom-2 h-4 w-full opacity-85 pointer-events-none"
-                  />
-                </p>
-              </div>
-            ) : null}
-
-            {trip.celebrated_person ? (
-              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-white/90 pt-0.5">
-                <Star className="size-4 fill-amber-300 text-amber-300 shrink-0" /> Pour{" "}
-                <span className="font-semibold text-white">{trip.celebrated_person}</span>
-              </p>
-            ) : null}
-
-            {trip.participants &&
-            Array.isArray(trip.participants) &&
-            trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
-              <p className="text-xs text-primary-foreground/80 leading-relaxed pt-0.5 truncate">
-                Avec{" "}
-                {trip.participants
-                  .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
-            ) : null}
+                ) : null}
+              </h1>
+            </div>
           </div>
         </div>
 
-        {/* LAYER 4 & 5b (z-30 / z-40) : Métadonnées Éditoriales Asymétriques + Scène Loutre & Flèche */}
-        <div className="relative z-30 pt-5 px-3 sm:px-6 min-h-[90px]">
-          {/* Métadonnées en Disposition Asymétrique (Dates bas-gauche, Participants bas-droite, Budget bas-gauche-centre) */}
-          <div className="relative min-h-[70px]">
-            {/* Dates : Côté gauche avec Highlight Sauge */}
-            <div className="absolute top-0 left-0">
-              {datesLocked && (trip.start_date || provisionalStart) ? (
-                <KrewHighlight tone="sage" className="inline-flex items-center gap-1.5 font-mono text-xs text-foreground font-medium">
-                  <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-primary font-sans font-medium">Dates validées</span> · {trip.start_date
+        {/* D. MÉTADONNÉES SOUS LE HERO (3 LIGNES SANS WRAP A 390PX) */}
+        <div className="mt-6 space-y-2.5 px-4 font-sans text-[13px] font-medium leading-[1.2] whitespace-nowrap text-foreground">
+          {/* D1. DATES (accent sauge sur les dates uniquement) */}
+          <div className="flex items-center gap-2 text-foreground">
+            <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0" />
+            {datesLocked && (trip.start_date || provisionalStart) ? (
+              <p className="whitespace-nowrap">
+                <span className="text-foreground">Dates validées · </span>
+                <KrewHighlight tone="sage" className="px-1 py-0.5 font-medium">
+                  {trip.start_date
                     ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
                         day: "numeric",
                         month: "short",
@@ -538,45 +501,37 @@ export function TripHubDashboard({
                       })}`
                     : ""}
                 </KrewHighlight>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CalendarDays className="size-3.5 text-muted-foreground shrink-0" /> Date à définir
-                </span>
-              )}
-            </div>
-
-            {/* Participants : Décalés à droite et légèrement plus bas (~24px) */}
-            <div className="absolute top-6 right-2 sm:right-24">
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-                <Users className="size-3.5 text-muted-foreground shrink-0" />
-                <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
-              </span>
-            </div>
-
-            {/* Budget : Décalé plus bas vers le centre/gauche (~48px) */}
-            <div className="absolute top-12 left-2">
-              {totalReserved != null && totalEstimated != null ? (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
-                </span>
-              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> ~{formatEuro(liveBudgetTotal)} / pers.
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> Budget à définir
-                </span>
-              )}
-            </div>
+              </p>
+            ) : (
+              <span className="text-muted-foreground">Date à définir</span>
+            )}
           </div>
 
-          {/* LAYER 5c (z-40) : Petite Scène Graphique Loutre + Flèche de Guidage vers le bas */}
-          <div className="absolute bottom-0 right-2 z-40 flex items-center gap-2 pointer-events-none">
-            <Logo variant="icon" size="sm" className="size-14 sm:size-16 object-contain filter drop-shadow-xs" />
-            <KrewMark type="arrow" tone="sage" size="md" className="w-14 h-8 text-sage opacity-90 transform rotate-12" />
+          {/* D2. PARTICIPANTS */}
+          <div className="flex items-center gap-2 text-foreground/90">
+            <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
+            <p className="whitespace-nowrap">
+              <span>{trip.participants_count || 1} participants</span>
+            </p>
+          </div>
+
+          {/* D3. BUDGET (WORDING RACCOURCI POUR ÉVITER TOUT WRAP) */}
+          <div className="flex items-center gap-2 text-primary font-semibold text-[12.5px]">
+            <KrewIcon name="budget" tone="plum" size="sm" className="size-4 shrink-0" />
+            <div className="whitespace-nowrap">
+              {totalReserved != null && totalEstimated != null ? (
+                <span>Réservé {formatEuro(totalReserved)} · Reste estimé {formatEuro(totalEstimated)}</span>
+              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
+                <span>~{formatEuro(liveBudgetTotal)} / pers.</span>
+              ) : (
+                <span className="text-muted-foreground font-medium">Budget à définir</span>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* E. 32px RESPIRATION APRES METADATAS (PAS DE LOUTRE, PAS DE FLÈCHE, PAS DE DIVIDER) */}
+        <div className="h-8" />
       </header>
 
       {/* PROCHAINES ACTIONS VIA KREW ACTION STACK */}

@@ -1,7 +1,8 @@
 import type { ComponentType } from "react";
-import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { KrewIcon, type KrewIconName } from "./KrewIcon";
 import { KrewMark } from "./KrewMark";
+import { KrewOrganicBlob } from "./KrewOrganicBlob";
 import { KrewProgressRing } from "./KrewProgressRing";
 
 export type KrewActionItem = {
@@ -9,7 +10,8 @@ export type KrewActionItem = {
   title: string;
   description?: string;
   href?: string;
-  icon: ComponentType<{ className?: string }>;
+  iconName?: KrewIconName;
+  icon?: ComponentType<{ className?: string }>;
 };
 
 type Progress = {
@@ -29,67 +31,153 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
   const PrimaryTag = primary.href ? "a" : "div";
 
   return (
-    <section className={cn("space-y-3", className)}>
-      <div className="relative overflow-hidden rounded-[2.25rem] bg-sage/22 px-5 py-6 sm:px-7 sm:py-7">
-        <KrewMark type="sparkle" tone="plum" size="sm" className="absolute left-4 top-5 opacity-90" />
-        <div className={cn("grid gap-5", progress.length > 0 && "sm:grid-cols-[minmax(0,1fr)_auto]")}>
-          <div className="min-w-0 pl-7 sm:pl-8">
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/70">Prochaine action</p>
-            <h2 className="mt-1 max-w-xl font-display text-[2rem] font-normal leading-[0.98] tracking-tight text-primary sm:text-[2.5rem]">
-              {primary.title}
-            </h2>
-            {primary.description ? (
-              <p className="mt-3 max-w-lg text-sm leading-relaxed text-foreground/75">{primary.description}</p>
+    <section className={cn("space-y-6", className)}>
+      {/* ZONE 3 — ÉTAT DU GROUPE (DISPONIBILITÉS / PRÉFÉRENCES) : AVANT LA PROCHAINE ACTION */}
+      {progress.length > 0 ? (
+        <div className="pt-1 pb-2">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Disponibilités (GAUCHE) */}
+            {progress[0] ? (
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <KrewIcon name="availability" tone="plum" size="sm" className="size-4 shrink-0" />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-foreground/75 font-medium">
+                    {progress[0].label}
+                  </span>
+                </div>
+                <KrewProgressRing value={progress[0].value} tone={progress[0].tone ?? "sage"} size={72} />
+              </div>
             ) : null}
-            {primary.href ? (
-              <PrimaryTag
-                href={primary.href}
-                className="mt-5 inline-flex min-h-11 items-center gap-3 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
-              >
-                Continuer
-                <ArrowRight className="size-4" />
-              </PrimaryTag>
+
+            {/* Préférences (DROITE) */}
+            {progress[1] ? (
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-foreground/75 font-medium">
+                    {progress[1].label}
+                  </span>
+                </div>
+                <KrewProgressRing value={progress[1].value} tone={progress[1].tone ?? "plum"} size={72} />
+              </div>
             ) : null}
           </div>
+        </div>
+      ) : null}
 
-          {progress.length > 0 ? (
-            <div className="flex items-center gap-4 border-t border-primary/15 pt-4 sm:flex-col sm:justify-center sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-              {progress.slice(0, 2).map((item) => (
-                <div key={item.label} className="flex flex-col items-center gap-1">
-                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-foreground/65">{item.label}</span>
-                  <KrewProgressRing value={item.value} tone={item.tone ?? "sage"} size={62} />
-                </div>
-              ))}
+      {/* ZONE 2 — PROCHAINE ACTION (VRAIE SURFACE ORGANIQUE KREWORGANICBLOB) */}
+      <div className="relative p-6 sm:p-7 overflow-visible">
+        <KrewOrganicBlob
+          tone="sage"
+          variant="soft"
+          className="absolute inset-0 w-full h-full z-0 opacity-85 pointer-events-none"
+        />
+
+        <div className="relative z-10 flex flex-col gap-2 max-w-[calc(100%-80px)] pr-2">
+          {/* Label */}
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/70">
+            Prochaine action
+          </p>
+
+          {/* Titre */}
+          <h2 className="font-display text-[32px] sm:text-[36px] font-normal leading-[0.98] tracking-tight text-primary">
+            {primary.title}
+          </h2>
+
+          {/* Description */}
+          {primary.description ? (
+            <p className="text-sm leading-relaxed text-foreground/80 font-sans mt-1">
+              {primary.description}
+            </p>
+          ) : null}
+
+          {/* CTA */}
+          {primary.href ? (
+            <div className="pt-3">
+              <PrimaryTag
+                href={primary.href}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 active:scale-[0.99]"
+              >
+                Continuer
+              </PrimaryTag>
             </div>
           ) : null}
         </div>
+
+        {/* F3. LOUTRE NEXT-ACTION + F4. KREWMARK ARROW */}
+        <div className="absolute bottom-3 right-2.5 z-20 flex items-end gap-1 pointer-events-none">
+          <KrewMark type="arrow-down-right" tone="plum" size="sm" className="w-[30px] h-[20px] text-primary opacity-85 mb-2" />
+          <img
+            src="/brand/otter-states/next-action.png"
+            alt=""
+            className="w-[64px] h-auto object-contain filter drop-shadow-2xs"
+            loading="lazy"
+          />
+        </div>
       </div>
 
+      {/* ZONE 4 — LES 3 ACTIONS SUIVANTES : STRICTEMENT ALIGNÉES SANS DÉCALAGES MARGE */}
       {secondary.slice(0, 3).length > 0 ? (
-        <div className="relative ml-2 space-y-0 sm:ml-5">
-          <KrewMark type="connector" tone="sage" size="sm" className="absolute -left-4 -top-4 h-10 w-8 opacity-70" />
+        <div className="relative pt-2 space-y-1">
           {secondary.slice(0, 3).map((action, index) => {
             const Tag = action.href ? "a" : "div";
-            const Icon = action.icon;
+            const knownIcons: Record<string, KrewIconName> = {
+              avail: "availability",
+              prefs: "preferences",
+              star: "favorite",
+              hotel: "accommodation",
+              "search-hotels": "accommodation",
+              transport: "transport",
+              "search-transport": "transport",
+              "lock-dates": "calendar",
+              "choose-profile": "profile",
+              gen: "destination",
+              "pick-dest": "destination",
+              plan: "planning",
+              refine: "tasks",
+              nudge: "group",
+            };
+            const iconName = action.iconName || knownIcons[action.key] || null;
+
             return (
               <Tag
                 key={action.key}
                 {...(action.href ? { href: action.href } : {})}
                 className={cn(
-                  "group flex min-h-[76px] items-center gap-3 border-b border-primary/10 px-2 py-3 last:border-b-0 sm:px-3",
-                  index === 1 && "sm:ml-3",
-                  index === 2 && "sm:ml-1",
+                  "grid grid-cols-[40px_1fr_24px] items-center min-h-[68px] border-b border-primary/10 py-2.5 transition-colors group",
                   action.href && "cursor-pointer",
                 )}
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sage/14 text-primary/75">
-                  <Icon className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold leading-tight text-foreground/90 transition group-hover:text-primary">{action.title}</p>
-                  {action.description ? <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{action.description}</p> : null}
+                {/* COLONNE 1 : KrewIcon 20px directement sur fond (pas de cercle) */}
+                <div className="relative z-10 flex items-center justify-center">
+                  {iconName ? (
+                    <KrewIcon name={iconName} tone="plum" size="sm" className="size-[20px]" />
+                  ) : null}
                 </div>
-                {action.href ? <ArrowRight className="size-4 shrink-0 text-primary/65 transition-transform group-hover:translate-x-0.5" /> : null}
+
+                {/* COLONNE 2 : Titre + Description */}
+                <div className="min-w-0 pr-2">
+                  <p className="text-sm font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors">
+                    {action.title}
+                  </p>
+                  {action.description ? (
+                    <p className="mt-0.5 line-clamp-1 text-xs leading-snug text-muted-foreground font-sans">
+                      {action.description}
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* COLONNE 3 : Arrow-right */}
+                <div className="flex items-center justify-end">
+                  {action.href ? (
+                    <KrewMark
+                      type="arrow-right"
+                      tone="plum"
+                      size="sm"
+                      className="w-[20px] h-[12px] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100"
+                    />
+                  ) : null}
+                </div>
               </Tag>
             );
           })}

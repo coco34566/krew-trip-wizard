@@ -64,6 +64,7 @@ export function KrewProgressRing({
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
+            stroke="currentColor"
             fill="none"
           />
         </svg>
