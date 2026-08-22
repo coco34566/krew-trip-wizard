@@ -2246,15 +2246,15 @@ function TripDetail() {
       {currentSection === "profile" ? (
       <section
         id="hub-profile"
-        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24"
       >
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-              <Sparkles className="size-5 text-primary" />
+            <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+              <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
               Profil du voyage
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground font-sans">
               Sélectionne 1 à 3 profils KREW qui correspondent au séjour du groupe.
             </p>
           </div>
@@ -2262,8 +2262,8 @@ function TripDetail() {
             <Button
               variant="outline"
               size="sm"
+              className="rounded-xl text-xs"
               onClick={() => {
-                // Re-open profile selection
                 queryClient.setQueryData(queryKey, (old: any) => ({
                   ...old,
                   profile: { ...old.profile, validated: false },
@@ -2278,11 +2278,11 @@ function TripDetail() {
           ) : null}
         </div>
         {!readiness?.profile.questionnairesReady && !profile?.legacyBypass ? (
-          <p className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed border-border/70 p-6 text-sm text-muted-foreground font-sans text-center">
             Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3 pt-2">
             {(profile?.calculatedConcepts ?? readiness?.profile.calculatedConcepts ?? [])
               .slice(0, 3)
               .map((concept: StayConcept) => {
@@ -2307,34 +2307,43 @@ function TripDetail() {
                       )
                     }
                     className={cn(
-                      "rounded-2xl border p-4 text-left transition",
-                      selected ? "border-primary bg-primary/5" : "border-border opacity-65",
+                      "relative rounded-2xl border p-4 text-left transition-all cursor-pointer font-sans",
+                      selected
+                        ? "border-primary bg-primary/5 text-foreground ring-2 ring-primary/20"
+                        : "border-border/60 bg-background text-foreground/80 hover:border-primary/40",
                       (!data.isOwner || profile?.validated) && "cursor-default",
                     )}
                   >
-                    <p className="font-semibold">
-                      {selected ? "✓ " : ""}
-                      {label}
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">{concept.rationale}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-display text-lg font-normal text-foreground">
+                        {label}
+                      </p>
+                      {selected ? (
+                        <KrewMark type="check" tone="plum" size="sm" className="size-4 shrink-0" />
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground leading-relaxed font-sans">{concept.rationale}</p>
                   </button>
                 );
               })}
           </div>
         )}
         {profile?.validated ? (
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-semibold text-primary inline-flex items-center gap-1.5 pt-2">
+            <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
             Profil validé — les destinations sont disponibles.
           </p>
         ) : data.isOwner && (readiness?.profile.questionnairesReady || profile?.legacyBypass) ? (
-          <Button
-            variant="hero"
-            disabled={validateProfileMutation.isPending || selectedConceptIds.length < 1}
-            onClick={() => validateProfileMutation.mutate()}
-          >
-            {validateProfileMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}
-            Valider notre profil de voyage
-          </Button>
+          <div className="pt-2">
+            <Button
+              className="rounded-xl font-medium"
+              disabled={validateProfileMutation.isPending || selectedConceptIds.length < 1}
+              onClick={() => validateProfileMutation.mutate()}
+            >
+              {validateProfileMutation.isPending ? <Loader2 className="animate-spin size-4 mr-1.5" /> : <KrewIcon name="check" tone="plum" size="sm" className="size-4 mr-1.5" />}
+              Valider notre profil de voyage
+            </Button>
+          </div>
         ) : null}
       </section>
       ) : null}
@@ -2342,17 +2351,27 @@ function TripDetail() {
       {currentSection === "destination" ? (
       <section
         id="hub-destination"
-        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
+        {/* Otter destination asset (top right) */}
+        <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+          <img
+            src="/brand/otter-states/destination.png"
+            alt=""
+            className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+            loading="lazy"
+          />
+        </div>
+
         {!profile?.validated && !profile?.legacyBypass ? (
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center space-y-3">
-            <h2 className="font-display text-xl font-semibold text-amber-900 dark:text-amber-200">
-              Choisis d’abord le profil du voyage.
+          <div className="rounded-2xl border border-sage/30 bg-sage/12 p-6 text-center space-y-3">
+            <h2 className="font-display text-2xl font-normal text-foreground">
+              Choisis d’abord le profil du voyage
             </h2>
-            <p className="text-sm text-amber-800 dark:text-amber-300">
+            <p className="text-sm text-muted-foreground font-sans">
               Sélectionne 1 à 3 profils avant de chercher des destinations.
             </p>
-            <Button asChild variant="hero">
+            <Button asChild className="rounded-xl font-medium">
               <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "profile" }}>
                 Choisir le profil du voyage
               </Link>
@@ -2360,19 +2379,19 @@ function TripDetail() {
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
               <div>
-                <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                  <MapPin className="size-5 text-primary" />
+                <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+                  <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
                   Destinations proposées
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground font-sans">
                   Des destinations sélectionnées pour correspondre aux envies du groupe.
                 </p>
               </div>
               {data.isOwner ? (
                 <Button
-                  variant="hero"
+                  className="rounded-xl font-medium"
                   onClick={() => regenerateMutation.mutate(undefined)}
                   disabled={
                     regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
@@ -2383,7 +2402,11 @@ function TripDetail() {
                       : undefined
                   }
                 >
-                  {regenerateMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                  {regenerateMutation.isPending ? (
+                    <Loader2 className="animate-spin size-4 mr-1.5" />
+                  ) : (
+                    <KrewIcon name="destination" tone="plum" size="sm" className="size-4 mr-1.5" />
+                  )}
                   {recommendations.length ? "Voir d’autres propositions" : "Générer les propositions"}
                 </Button>
               ) : null}
@@ -2581,28 +2604,38 @@ function TripDetail() {
       {currentSection === "accommodation" && destinationSelected ? (
         <section
           id="hub-logistics"
-          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+          className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          {/* Otter accommodation asset (top right) */}
+          <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+            <img
+              src="/brand/otter-states/accommodation.png"
+              alt=""
+              className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              loading="lazy"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <Hotel className="size-5 text-primary" />
+              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+                <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
                 Hébergement
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground font-sans">
                 Des options d’hébergement adaptées au groupe et au séjour.
               </p>
             </div>
             {data.isOwner ? (
               <Button
-                variant="hero"
+                className="rounded-xl font-medium"
                 disabled={hotelLogisticsMutation.isPending}
                 onClick={() => hotelLogisticsMutation.mutate()}
               >
                 {hotelLogisticsMutation.isPending ? (
-                  <Loader2 className="animate-spin" />
+                  <Loader2 className="animate-spin size-4 mr-1.5" />
                 ) : (
-                  <Hotel />
+                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-4 mr-1.5" />
                 )}
                 {(trip as any).group_logistics?.hotels?.length
                   ? "Actualiser les offres"
@@ -2818,24 +2851,39 @@ function TripDetail() {
       {currentSection === "transport" ? (
       <section
         id="hub-transports"
-        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
-        <div className="flex flex-wrap items-end justify-between gap-3">
+        {/* Otter transport asset (top right) */}
+        <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+          <img
+            src="/brand/otter-states/transport.png"
+            alt=""
+            className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+            loading="lazy"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
           <div>
-            <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-              <Plane className="size-5 text-primary" />
+            <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+              <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
               Transport
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground font-sans">
               Des trajets adaptés au point de départ et aux contraintes de chacun.
             </p>
           </div>
           <Button
             variant="outline"
+            className="rounded-xl text-xs font-medium"
             disabled={!destinationSelected || logisticsMutation.isPending}
             onClick={() => logisticsMutation.mutate()}
           >
-            {logisticsMutation.isPending ? <Loader2 className="animate-spin" /> : <Plane />}
+            {logisticsMutation.isPending ? (
+              <Loader2 className="animate-spin size-4 mr-1.5" />
+            ) : (
+              <KrewIcon name="transport" tone="plum" size="sm" className="size-4 mr-1.5" />
+            )}
             {logisticsMutation.isPending ? "Recherche en cours…" : "Générer des propositions"}
           </Button>
         </div>
@@ -3019,25 +3067,39 @@ function TripDetail() {
       {currentSection === "planning" && destinationSelected ? (
         <section
           id="hub-activities-plan"
-          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+          className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
-          <div className="flex flex-wrap items-end justify-between gap-3">
+          {/* Otter planning asset (top right) */}
+          <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+            <img
+              src="/brand/otter-states/planning.png"
+              alt=""
+              className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              loading="lazy"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <CalendarDays className="size-5 text-primary" />
+              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+                <KrewIcon name="planning" tone="plum" size="sm" className="size-5" />
                 Planning
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground font-sans">
                 Le programme du séjour, jour par jour.
               </p>
             </div>
             {data.isOwner ? (
               <Button
-                variant="hero"
+                className="rounded-xl font-medium"
                 disabled={itineraryMutation.isPending}
                 onClick={() => itineraryMutation.mutate()}
               >
-                {itineraryMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                {itineraryMutation.isPending ? (
+                  <Loader2 className="animate-spin size-4 mr-1.5" />
+                ) : (
+                  <KrewIcon name="planning" tone="plum" size="sm" className="size-4 mr-1.5" />
+                )}
                 {(trip as any).group_itinerary?.days?.length
                   ? "Régénérer tout le planning"
                   : "Générer le planning"}
@@ -3156,30 +3218,39 @@ function TripDetail() {
       {currentSection === "tasks" && destinationSelected ? (
         <section
           id="hub-tasks-org"
-          className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+          className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
-          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-4">
+          {/* Otter trip-preparation asset (top right) */}
+          <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+            <img
+              src="/brand/otter-states/trip-preparation.png"
+              alt=""
+              className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              loading="lazy"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/40 pb-4 pr-0 sm:pr-20">
             <div>
-              <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
-                <ClipboardList className="size-5 text-primary" />
+              <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+                <KrewIcon name="tasks" tone="plum" size="sm" className="size-5" />
                 Organisation du groupe
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-muted-foreground font-sans">
                 Les tâches à répartir pour préparer le voyage.
               </p>
             </div>
             {hasItinerary ? (
               <Button
-                variant="hero"
                 size="sm"
                 disabled={generateTasksMutation.isPending}
                 onClick={() => generateTasksMutation.mutate()}
-                className="gap-1.5"
+                className="rounded-xl font-medium gap-1.5"
               >
                 {generateTasksMutation.isPending ? (
                   <Loader2 className="animate-spin size-4" />
                 ) : (
-                  <Sparkles className="size-4" />
+                  <KrewIcon name="tasks" tone="plum" size="sm" className="size-4" />
                 )}
                 Préparer les tâches
               </Button>
