@@ -2598,24 +2598,18 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             longitude: matchedPlace.longitude,
           });
         } else {
-          const { isSafeActivityUrl, findWebResourceForComplexActivity } = await import(
+          const { findWebResourceForComplexActivity } = await import(
             "@/lib/krew/activity-discovery.server"
           );
 
-          let webUrl: string | null = null;
-
-          if ((s as any).suggestedUrl && isSafeActivityUrl((s as any).suggestedUrl)) {
-            webUrl = (s as any).suggestedUrl;
-          } else {
-            webUrl = await findWebResourceForComplexActivity({
-              label: (s as any).suggestedPlace || s.label,
-              searchIntent: s.searchIntent,
-              destination: destName,
-              category: s.category,
-              venueFamily: s.venueFamily,
-              eventType: trip.event_type,
-            });
-          }
+          const webUrl = await findWebResourceForComplexActivity({
+            label: (s as any).suggestedPlace || s.label,
+            searchIntent: s.searchIntent,
+            destination: destName,
+            category: s.category,
+            venueFamily: s.venueFamily,
+            eventType: trip.event_type,
+          });
 
           if (webUrl) {
             const resLink = resolveActivityResourceUrl(webUrl);

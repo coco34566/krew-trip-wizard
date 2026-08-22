@@ -347,6 +347,88 @@ export async function findIdeasResourceForActivity(options: {
   }
 }
 
+export function isTavilyResultRelevantForActivity(
+  result: TavilyResult,
+  options: {
+    label: string;
+    searchIntent?: string | null;
+    destination: string;
+    category?: string | null;
+    venueFamily?: string | null;
+  },
+): boolean {
+  if (!result || !result.url || !isSafeActivityUrl(result.url)) {
+    return false;
+  }
+
+  const title = String(result.title || "").toLowerCase();
+  const content = String(result.content || "").toLowerCase();
+  const url = String(result.url).toLowerCase();
+  const textPayload = `${title} ${content} ${url}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  const normLabel = options.label
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const normIntent = String(options.searchIntent || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const normDest = options.destination
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const combinedIntent = `${normLabel} ${normIntent}`;
+
+  // 1. Destination check
+  if (normDest && normDest.length >= 3 && !textPayload.includes(normDest)) {
+    return false;
+  }
+
+  // 2. Off-topic Category Check
+  const isCruise = /croisiere|cruise|bateau|boat/i.test(combinedIntent);
+  const isSpa = /therme|thermal|spa|bain|bath|wellness/i.test(combinedIntent);
+
+  if (isCruise) {
+    const isRestoOrArt = /restaurant|pizzeria|osteria|trattoria|hotel|artwork|statue/i.test(title);
+    const hasCruiseTerm = /croisiere|cruise|boat|ship|danube|legenda|marina|nautic|tour/i.test(textPayload);
+    if (isRestoOrArt || !hasCruiseTerm) {
+      return false;
+    }
+  }
+
+  if (isSpa) {
+    const isRestoOrArt = /restaurant|pizzeria|osteria|hotel|artwork/i.test(title);
+    const hasSpaTerm = /therme|thermal|spa|bath|bain|massage|wellness/i.test(textPayload);
+    if (isRestoOrArt || !hasSpaTerm) {
+      return false;
+    }
+  }
+
+  // 3. Keyword Match
+  const genericWords = new Set([
+    "le", "la", "les", "un", "une", "des", "du", "de", "d", "a", "au", "aux",
+    "en", "et", "ou", "pour", "sur", "dans", "par", "avec", "sans",
+    "top", "best", "guide", "guidee", "visite", "activite", "budapest", "paris",
+  ]);
+
+  const intentTokens = combinedIntent
+    .split(/[\s,.'’\-–_]+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 4 && !genericWords.has(w));
+
+  if (intentTokens.length === 0) {
+    return true;
+  }
+
+  return intentTokens.some((token) => textPayload.includes(token));
+}
+
 export async function findWebResourceForComplexActivity(options: {
   label: string;
   searchIntent?: string | null;
@@ -403,7 +485,9 @@ export async function findWebResourceForComplexActivity(options: {
       ) {
         continue;
       }
-      return res.url;
+      if (isTavilyResultRelevantForActivity(res, { label, searchIntent, destination, category, venueFamily })) {
+        return res.url;
+      }
     }
 
     return null;

@@ -298,6 +298,9 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Obligatoires 1 
   // 5. Gemini fournit un lieu concret cohérent + URL exploitable => la proposition n'est PAS écrasée arbitrairement par Geoapify.
   it("TEST 5 : Gemini fournit un lieu concret cohérent => proposition non écrasée arbitrairement par Geoapify", async () => {
     const originalFetch = globalThis.fetch;
+    const oldApiKey = process.env["GEOAPIFY_API_KEY"];
+    process.env["GEOAPIFY_API_KEY"] = "test-geo-key";
+
     globalThis.fetch = (async () => ({
       ok: true,
       json: async () => ({
@@ -330,6 +333,7 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Obligatoires 1 
       expect(resolved?.categories).toContain("leisure.spa");
     } finally {
       globalThis.fetch = originalFetch;
+      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
     }
   });
 
@@ -413,6 +417,9 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Complémentaire
   // A. Gemini renvoie : suggestedPlace = lieu valide, suggestedUrl = URL valide => URL Gemini conservée.
   it("TEST A : Gemini renvoie suggestedPlace valide + suggestedUrl valide => URL Gemini conservée", async () => {
     const originalFetch = globalThis.fetch;
+    const oldApiKey = process.env["GEOAPIFY_API_KEY"];
+    process.env["GEOAPIFY_API_KEY"] = "test-geo-key";
+
     globalThis.fetch = (async () => ({
       ok: true,
       json: async () => ({
@@ -425,7 +432,7 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Complémentaire
               lat: 47.5186,
               lon: 19.0825,
               categories: ["leisure.spa"],
-              website: "https://geoapify-default-site.com",
+              website: "https://szechenyibath.hu/",
             },
           },
         ],
@@ -445,12 +452,16 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Complémentaire
       expect(resolved?.website).toBe("https://szechenyibath.hu/official-booking");
     } finally {
       globalThis.fetch = originalFetch;
+      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
     }
   });
 
   // B. Gemini renvoie une URL invalide/suspecte => URL rejetée, fallback Geoapify/site officiel utilisé.
   it("TEST B : Gemini renvoie une URL invalide/suspecte => URL rejetée, fallback site Geoapify utilisé", async () => {
     const originalFetch = globalThis.fetch;
+    const oldApiKey = process.env["GEOAPIFY_API_KEY"];
+    process.env["GEOAPIFY_API_KEY"] = "test-geo-key";
+
     globalThis.fetch = (async () => ({
       ok: true,
       json: async () => ({
@@ -483,6 +494,7 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Complémentaire
       expect(resolved?.website).toBe("https://szechenyibath.hu/real-site");
     } finally {
       globalThis.fetch = originalFetch;
+      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
     }
   });
 
@@ -540,6 +552,168 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Complémentaire
     expect(slot.verified).toBe(false);
     expect(slot.source).toBe("krew");
     expect(slot.url).toContain("google.com/maps");
+  });
+});
+
+describe("Durcissement URLs Gemini & Fallback Tavily — Tests Obligatoires E, F, G, H", () => {
+  // E. Lieu Geoapify confirmé + suggestedUrl Gemini sur le même domaine officiel => URL Gemini acceptée.
+  it("TEST E : Lieu Geoapify confirmé + suggestedUrl Gemini sur le même domaine officiel => URL Gemini acceptée", async () => {
+    const originalFetch = globalThis.fetch;
+    const oldApiKey = process.env["GEOAPIFY_API_KEY"];
+    process.env["GEOAPIFY_API_KEY"] = "test-geo-key";
+
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              place_id: "geo-szechenyi",
+              name: "Thermes Széchenyi",
+              formatted: "Budapest, Állatkerti krt. 9-11",
+              lat: 47.5186,
+              lon: 19.0825,
+              categories: ["leisure.spa"],
+              website: "https://szechenyibath.hu/",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const resolved = await tryResolveGeminiProposedPlace({
+        suggestedPlace: "Thermes Széchenyi",
+        suggestedUrl: "https://szechenyibath.hu/official-booking",
+        label: "Matinée détente aux thermes",
+        searchIntent: "thermes emblématiques et espace spa relaxation Budapest",
+        venueFamily: "spa_wellness",
+        destination: "Budapest",
+      });
+      expect(resolved).not.toBeNull();
+      expect(resolved?.website).toBe("https://szechenyibath.hu/official-booking");
+    } finally {
+      globalThis.fetch = originalFetch;
+      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+    }
+  });
+
+  // F. Lieu Geoapify confirmé + suggestedUrl Gemini HTTPS mais domaine manifestement différent => URL Gemini rejetée et website Geoapify conservé.
+  it("TEST F : Lieu Geoapify confirmé + suggestedUrl Gemini domaine différent => URL Gemini rejetée et website Geoapify conservé", async () => {
+    const originalFetch = globalThis.fetch;
+    const oldApiKey = process.env["GEOAPIFY_API_KEY"];
+    process.env["GEOAPIFY_API_KEY"] = "test-geo-key";
+
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              place_id: "geo-szechenyi",
+              name: "Thermes Széchenyi",
+              formatted: "Budapest, Állatkerti krt. 9-11",
+              lat: 47.5186,
+              lon: 19.0825,
+              categories: ["leisure.spa"],
+              website: "https://szechenyibath.hu/",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const resolved = await tryResolveGeminiProposedPlace({
+        suggestedPlace: "Thermes Széchenyi",
+        suggestedUrl: "https://un-autre-spa-budapest.com/booking",
+        label: "Matinée détente aux thermes",
+        searchIntent: "thermes emblématiques et espace spa relaxation Budapest",
+        venueFamily: "spa_wellness",
+        destination: "Budapest",
+      });
+      expect(resolved).not.toBeNull();
+      expect(resolved?.website).toBe("https://szechenyibath.hu/");
+    } finally {
+      globalThis.fetch = originalFetch;
+      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+    }
+  });
+
+  // G. Tavily retourne en premier un résultat HTTPS hors sujet puis une vraie activité correspondant à l'intention => premier rejeté, deuxième sélectionné.
+  it("TEST G : Tavily retourne en premier un résultat HTTPS hors sujet puis une vraie activité => premier rejeté, deuxième sélectionné", async () => {
+    const originalFetch = globalThis.fetch;
+    const oldTavilyKey = process.env["TAVILY_API_KEY"];
+    process.env["TAVILY_API_KEY"] = "test-tavily-key";
+
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            title: "Best Italian restaurants Budapest",
+            url: "https://best-italian-budapest.com",
+            content: "Top Italian trattoria in Budapest",
+          },
+          {
+            title: "Legenda City Cruises Budapest",
+            url: "https://legenda.hu/fr/croisiere-danube",
+            content: "Croisière apéritive au coucher du soleil sur le Danube",
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const foundUrl = await findWebResourceForComplexActivity({
+        label: "Croisière sunset sur le Danube",
+        searchIntent: "croisière apéritive privative Danube Budapest sunset",
+        destination: "Budapest",
+        venueFamily: "local_experience",
+      });
+      expect(foundUrl).toBe("https://legenda.hu/fr/croisiere-danube");
+    } finally {
+      globalThis.fetch = originalFetch;
+      process.env["TAVILY_API_KEY"] = oldTavilyKey;
+    }
+  });
+
+  // H. Tavily ne retourne que des résultats hors sujet => null, permettant le fallback Maps.
+  it("TEST H : Tavily ne retourne que des résultats hors sujet => null", async () => {
+    const originalFetch = globalThis.fetch;
+    const oldTavilyKey = process.env["TAVILY_API_KEY"];
+    process.env["TAVILY_API_KEY"] = "test-tavily-key";
+
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        results: [
+          {
+            title: "Best Italian restaurants Budapest",
+            url: "https://best-italian-budapest.com",
+            content: "Top Italian trattoria in Budapest",
+          },
+          {
+            title: "Budapest Shoe Repair Shop",
+            url: "https://shoe-repair-budapest.hu",
+            content: "Fix your shoes in Budapest",
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const foundUrl = await findWebResourceForComplexActivity({
+        label: "Croisière sunset sur le Danube",
+        searchIntent: "croisière apéritive privative Danube Budapest sunset",
+        destination: "Budapest",
+        venueFamily: "local_experience",
+      });
+      expect(foundUrl).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+      process.env["TAVILY_API_KEY"] = oldTavilyKey;
+    }
   });
 });
 

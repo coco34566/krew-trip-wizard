@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- external API payloads are normalized at boundary */
 import { reportServerError } from "@/lib/server-error-reporting.server";
+import { isSafeActivityUrl } from "@/lib/krew/activity-discovery.server";
 
 export type GeoapifyPlace = {
   id: string;
@@ -366,6 +367,64 @@ export function isConcretePlaceProposal(name: string | null | undefined): boolea
   return true;
 }
 
+export function extractApexDomain(urlInput: string): string | null {
+  try {
+    const parsed = new URL(urlInput);
+    let host = parsed.hostname.toLowerCase().trim();
+    if (host.startsWith("www.")) host = host.slice(4);
+    if (host.startsWith("m.")) host = host.slice(2);
+    if (host.startsWith("en.")) host = host.slice(3);
+    if (host.startsWith("fr.")) host = host.slice(3);
+    return host || null;
+  } catch {
+    return null;
+  }
+}
+
+export function isGeminiUrlMatchingVerifiedPlace(
+  geminiUrl: string,
+  geoapifyWebsite: string | null,
+  placeName: string,
+): boolean {
+  if (!isSafeActivityUrl(geminiUrl)) return false;
+
+  const geminiApex = extractApexDomain(geminiUrl);
+  if (!geminiApex) return false;
+
+  if (geoapifyWebsite && isSafeActivityUrl(geoapifyWebsite)) {
+    const geoapifyApex = extractApexDomain(geoapifyWebsite);
+    if (geoapifyApex) {
+      return (
+        geminiApex === geoapifyApex ||
+        geminiApex.endsWith(`.${geoapifyApex}`) ||
+        geoapifyApex.endsWith(`.${geminiApex}`)
+      );
+    }
+  }
+
+  const normName = placeName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const genericTokens = new Set([
+    "thermes", "therme", "bains", "bain", "spa", "wellness", "relaxation",
+    "restaurant", "resto", "bistro", "brasserie", "cafe", "bar", "pub",
+    "hotel", "hostel", "parc", "park", "jardin", "chateau", "bastion",
+    "musee", "museum", "centre", "tour", "tourisme", "budapest", "paris",
+    "annecy", "beaune", "lyon", "bordeaux", "nice", "marseille",
+  ]);
+
+  const brandTokens = normName
+    .split(/[\s,.'’\-–_]+/)
+    .filter((w) => w.length >= 4 && !genericTokens.has(w));
+
+  if (brandTokens.length === 0) return false;
+
+  const geminiFull = geminiUrl.toLowerCase();
+  return brandTokens.some((token) => geminiFull.includes(token));
+}
+
 export async function tryResolveGeminiProposedPlace(options: {
   suggestedPlace?: string | null;
   label?: string | null;
@@ -435,20 +494,26 @@ export async function tryResolveGeminiProposedPlace(options: {
         ? props.categories.map(String)
         : [String(props.category || "tourism.attraction")];
 
-      const { isSafeActivityUrl } = await import("@/lib/krew/activity-discovery.server");
       let effectiveWebsite = String(props.website || props.url || "").trim() || null;
-      if (suggestedUrl && isSafeActivityUrl(suggestedUrl)) {
+      if (
+        suggestedUrl &&
+        isGeminiUrlMatchingVerifiedPlace(suggestedUrl, effectiveWebsite, name)
+      ) {
         effectiveWebsite = suggestedUrl;
       }
 
       const cand: GeoapifyPlace = {
         id: String(props.place_id || `gemini_${normName}`),
         name,
+        category: rawCategories[0] || "tourism.attraction",
+        categories: rawCategories,
         address: String(props.formatted || props.address_line2 || "").trim() || null,
         latitude: lat,
         longitude: lon,
-        categories: rawCategories,
+        distanceMeters: null,
         website: effectiveWebsite,
+        source: "geoapify",
+        verified: true,
       };
 
       if (isCandidateCompatibleWithRequirements(cand, req)) {
