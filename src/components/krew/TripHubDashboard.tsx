@@ -438,52 +438,40 @@ export function TripHubDashboard({
           </div>
 
 
-          {/* C4. BLOB PRUNE (z20) : chevauche le bas de la photo de 64-76px */}
-          <div className="relative z-20 -mt-[70px] w-[90%] sm:w-[88%] min-h-[180px]">
-            <KrewOrganicBlob
-              tone="plum"
-              variant="sweep"
-              className="w-full h-full text-primary filter drop-shadow-sm"
-            />
+          {/* ZONE DE TITRE ÉDITORIAL SANS BLOB ENFERMANT */}
+          <div className="relative z-20 -mt-10 px-4 pt-2">
+            {/* LEVEL 1 — NOM DU VOYAGE (EYEBROW SECONDAIRE) */}
+            <p className="font-sans text-[12px] sm:text-[13px] font-semibold tracking-wider text-primary uppercase">
+              {trip.name}
+            </p>
 
-            {/* C5. CONTENU DU BLOB PRUNE (z30) */}
-            <div className="absolute inset-0 z-30 p-6 flex flex-col justify-center gap-2 text-primary-foreground">
-              {/* Type de voyage */}
-              <p className="font-sans text-[11px] font-semibold uppercase tracking-wider text-white/70">
-                {theme}
-              </p>
+            {/* LEVEL 2 — DESTINATION / PROMESSE (GRAND TITRE INSTRUMENT SERIF) */}
+            <div className="relative mt-1 text-left inline-block max-w-full">
+              {/* Forme prune organique en accent sous le tiers droit / bas du titre */}
+              <KrewOrganicBlob
+                tone="plum"
+                variant="soft"
+                className="absolute right-0 bottom-0 w-[130px] sm:w-[160px] h-[65px] sm:h-[75px] text-primary opacity-20 pointer-events-none z-0"
+              />
 
-              {/* Nom du voyage */}
-              <h1 className="font-display text-[40px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-white break-words max-h-[90px] line-clamp-2">
-                {trip.name}
-              </h1>
-
-              {/* Destination */}
-              {destinationName ? (
-                <div className="pt-1 flex items-center gap-2">
-                  <KrewIcon name="destination" tone="sage" size="sm" className="size-5 shrink-0" />
-                  <div className="relative inline-block">
-                    <span className="font-display text-[24px] text-sage font-normal leading-none">
-                      {destinationName}
-                    </span>
-                    {/* C6. UNDERLINE DESTINATION */}
+              <h1 className="relative z-10 font-display text-[42px] sm:text-[56px] font-normal leading-[0.94] tracking-tight text-foreground">
+                <span className="relative inline-block">
+                  {destinationName || "Destination à définir"}
+                  {destinationName ? (
                     <KrewMark
-                      type="underline"
+                      type="underline-wave"
                       tone="sage"
                       size="sm"
-                      className="absolute left-0 -bottom-1 h-[8px] w-full opacity-90 pointer-events-none"
+                      className="absolute left-0 -bottom-1.5 w-[90px] sm:w-[110px] h-[8px] opacity-90 pointer-events-none"
                     />
-                  </div>
-                </div>
-              ) : null}
-
-              {/* C7. PERSONNE CÉLÉBRÉE */}
-              {trip.celebrated_person ? (
-                <p className="inline-flex items-center gap-2 text-sm font-medium text-white/90 pt-0.5">
-                  <KrewIcon name="favorite" tone="sage" size="sm" className="size-4 shrink-0" />
-                  <span>Pour <strong className="font-semibold text-white">{trip.celebrated_person}</strong></span>
-                </p>
-              ) : null}
+                  ) : null}
+                </span>
+                {trip.celebrated_person ? (
+                  <span className="block sm:inline sm:ml-3 text-foreground/90">
+                    pour {trip.celebrated_person}
+                  </span>
+                ) : null}
+              </h1>
             </div>
           </div>
         </div>
