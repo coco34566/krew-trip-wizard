@@ -432,8 +432,8 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-        {/* 2. Destination & cadre */}
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
+        {/* 2. Destination & cadre (FOND SAUGE LÉGER) */}
+        <section className="bg-sage/12 rounded-[20px] p-5 sm:p-7 pb-8 mb-8 space-y-4 font-sans">
           <h2 className="font-display text-2xl font-normal text-foreground">Les lieux qui plairaient à {starName}</h2>
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label>
@@ -505,8 +505,8 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-        {/* 3. Hébergement */}
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
+        {/* 3. Hébergement (FOND CRÈME LÉGER) */}
+        <section className="bg-surface/50 rounded-[20px] p-5 sm:p-7 pb-8 mb-8 space-y-4 font-sans">
           <h2 className="font-display text-2xl font-normal text-foreground">Hébergement</h2>
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label>

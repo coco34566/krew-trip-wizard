@@ -128,7 +128,7 @@ function TripCard({
               {trip.name}
             </Link>
           </h3>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-muted-foreground pt-1">
+          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] sm:text-sm text-muted-foreground pt-1">
             {trip.destination_name ? (
               <span className="inline-flex items-center gap-1 font-medium text-foreground">
                 <KrewIcon name="destination" tone="muted" size="sm" className="size-4" />

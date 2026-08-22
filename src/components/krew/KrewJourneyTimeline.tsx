@@ -69,21 +69,21 @@ export function KrewJourneyTimeline({
   let globalStepCounter = 0;
 
   return (
-    <div className="w-full max-w-[740px] mx-auto px-2 sm:px-4 py-2 space-y-4 font-sans">
+    <div className="w-full max-w-[740px] mx-auto px-0 py-2 space-y-4 font-sans">
       {/* HEADER SECTION */}
       <header className="space-y-1 relative">
         <div className="relative inline-block">
-          <h1 className="font-display text-[28px] sm:text-[32px] font-normal leading-tight text-foreground">
+          <h1 className="font-display text-[30px] sm:text-[36px] font-normal leading-tight text-foreground">
             Parcours du groupe
           </h1>
           <KrewMark
             type="underline-wave"
             tone="sage"
             size="md"
-            className="absolute left-0 -bottom-1.5 w-[130px] pointer-events-none opacity-85"
+            className="absolute left-0 -bottom-1.5 w-[140px] pointer-events-none opacity-85"
           />
         </div>
-        <p className="text-xs sm:text-sm text-muted-foreground font-sans pt-1">
+        <p className="text-sm sm:text-base text-muted-foreground font-sans pt-1">
           L&apos;avancement du séjour pour <strong className="text-foreground font-semibold">{tripName}</strong>
         </p>
       </header>
@@ -125,20 +125,14 @@ export function KrewJourneyTimeline({
         </div>
 
         {/* CATEGORIES & STEPS */}
-        <div className="relative z-10 space-y-5">
+        <div className="relative z-10 space-y-6">
           {categories.map((cat) => (
-            <div key={cat.key} className="space-y-2">
-              {/* CATEGORY CHAPTER INTERTITLE */}
+            <div key={cat.key} className="space-y-3">
+              {/* CATEGORY CHAPTER INTERTITLE - CLEAN LABEL WITHOUT FLOATING MARK */}
               <div className="relative flex items-center gap-2 py-1 z-10">
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-primary/90 bg-background/80 px-2 py-0.5 rounded-md border border-primary/10">
+                <span className="font-mono text-[13px] font-semibold uppercase tracking-wider text-primary bg-sage/12 px-2.5 py-1 rounded-md border border-sage/25">
                   {cat.label}
                 </span>
-                <KrewMark
-                  type="underline-wave"
-                  tone="sage"
-                  size="sm"
-                  className="w-16 h-1.5 opacity-60 pointer-events-none"
-                />
               </div>
 
               {/* STEPS IN CATEGORY */}
@@ -154,9 +148,9 @@ export function KrewJourneyTimeline({
                   const cardContent = (
                     <div
                       className={cn(
-                        "relative transition-all duration-150 py-1.5 px-2.5 sm:px-3 rounded-xl",
+                        "relative transition-all duration-150 py-2 px-2.5 sm:px-3.5 rounded-xl",
                         isNextAction
-                          ? "p-3 sm:p-4 text-left"
+                          ? "p-3.5 sm:p-4 text-left"
                           : isEven
                             ? "text-right sm:text-right"
                             : "text-left sm:text-left",
@@ -175,24 +169,31 @@ export function KrewJourneyTimeline({
                         {/* STEP TITLE */}
                         <h3
                           className={cn(
-                            "font-display leading-tight transition-colors",
+                            "font-display leading-tight transition-colors inline-flex items-center gap-1.5",
                             isNextAction
-                              ? "text-[20px] sm:text-[24px] font-normal text-foreground"
-                              : isDone
-                                ? "text-[14px] sm:text-[15px] font-normal text-foreground/80"
-                                : isAvailable
-                                  ? "text-[14px] sm:text-[15px] font-normal text-foreground"
-                                  : "text-[14px] sm:text-[15px] font-normal text-muted-foreground/80",
+                              ? "text-[22px] sm:text-[24px] font-normal text-foreground"
+                              : "text-[16px] font-normal",
+                            isDone && "text-foreground/85",
+                            isAvailable && "text-foreground",
+                            isUpcoming && "text-muted-foreground/80",
                           )}
                         >
                           {step.title}
+                          {step.href && !isUpcoming ? (
+                            <KrewMark
+                              type="arrow-right"
+                              tone={isNextAction ? "plum" : "sage"}
+                              size="sm"
+                              className="size-3.5 inline-block shrink-0 opacity-80"
+                            />
+                          ) : null}
                         </h3>
 
-                        {/* INFORMATIVE SUBTITLE ONLY (NO REPETITIVE BADGES) */}
+                        {/* INFORMATIVE SUBTITLE */}
                         {step.subtitle ? (
                           <p
                             className={cn(
-                              "text-[11px] sm:text-xs font-sans leading-snug",
+                              "text-xs sm:text-[13px] font-sans leading-snug",
                               isNextAction
                                 ? "text-foreground/90 font-medium"
                                 : isDone
@@ -211,7 +212,7 @@ export function KrewJourneyTimeline({
                     <div
                       key={step.id}
                       className={cn(
-                        "grid grid-cols-12 items-center gap-1.5 sm:gap-3 relative group min-h-[48px]",
+                        "grid grid-cols-12 items-center gap-1.5 sm:gap-3 relative group min-h-[52px]",
                       )}
                     >
                       {/* LEFT COLUMN */}
@@ -298,9 +299,9 @@ export function KrewJourneyTimeline({
                             variant="label"
                             tone="cream"
                             rotation={-2}
-                            className="text-[10px] sm:text-[11px] py-0.5 px-1.5 sm:px-2"
+                            className="text-[14px] sm:text-[15px] py-1.5 px-3"
                           >
-                            {annotationText} ✦
+                            {annotationText}
                           </KrewNote>
                         </div>
                       ) : null}

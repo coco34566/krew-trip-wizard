@@ -88,10 +88,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn("pb-8 mb-8 space-y-4", bgClass ? `${bgClass} border border-border/40` : "border-b border-border/50")}>
+    <section className={cn("pb-8 mb-8 space-y-4", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-7` : "border-b border-border/50")}>
       <div>
         <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">{title}</h2>
-        {hint ? <p className="mt-1 text-xs sm:text-sm text-muted-foreground font-sans">{hint}</p> : null}
+        {hint ? <p className="mt-1 text-sm text-muted-foreground font-sans">{hint}</p> : null}
       </div>
       {children}
     </section>
@@ -343,23 +343,23 @@ function ParticipantQuestionnaire() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Button>
 
-      <div className="space-y-2 relative pr-20 sm:pr-28">
-        <div className="absolute top-0 right-0 pointer-events-none">
+      <div className="space-y-3 relative">
+        <div className="flex items-start justify-between gap-4">
+          <div className="relative inline-block flex-1">
+            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+              {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+            />
+          </div>
           <img
             src="/brand/otter-states/preferences.png"
             alt=""
-            className="w-[72px] sm:w-[88px] h-auto object-contain"
-          />
-        </div>
-        <div className="relative inline-block">
-          <h1 className="font-display text-[32px] sm:text-[44px] font-normal leading-[0.95] tracking-tight text-foreground">
-            {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
-          </h1>
-          <KrewMark
-            type="underline-wave"
-            tone="sage"
-            size="md"
-            className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+            className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 pointer-events-none"
           />
         </div>
         {isEditing ? (
@@ -486,7 +486,7 @@ function ParticipantQuestionnaire() {
         <Section
           title="Destination & cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
-          bgClass="bg-sage/12 rounded-[24px] p-5 sm:p-7"
+          bgClass="bg-sage/12"
         >
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Destination rêvée (optionnel)</Label>
@@ -608,7 +608,7 @@ function ParticipantQuestionnaire() {
         <Section
           title="Hébergement"
           hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
-          bgClass="bg-surface/50 rounded-[24px] p-5 sm:p-7"
+          bgClass="bg-surface/50"
         >
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Type de logement</Label>
@@ -666,7 +666,7 @@ function ParticipantQuestionnaire() {
         <Section
           title="Transport"
           hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation."
-          bgClass="bg-sage/12 rounded-[24px] p-5 sm:p-7"
+          bgClass="bg-sage/12"
         >
           <div className="space-y-2">
             <Label htmlFor="departure" className="font-semibold block text-base text-foreground">Ville de départ * (ou code postal)</Label>

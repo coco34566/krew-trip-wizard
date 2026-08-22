@@ -211,24 +211,24 @@ function TripRecapPage() {
           </div>
         ) : null}
 
-        <div className="space-y-2 relative pr-20 sm:pr-28">
-          <div className="absolute top-0 right-0 pointer-events-none">
+        <div className="space-y-3 relative">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Récap du groupe</p>
+          <div className="flex items-start justify-between gap-4">
+            <div className="relative inline-block flex-1">
+              <h1 className="font-display text-[30px] sm:text-[48px] font-normal leading-tight text-foreground">
+                {trip.name}
+              </h1>
+              <KrewMark
+                type="underline-wave"
+                tone="sage"
+                size="md"
+                className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+              />
+            </div>
             <img
               src="/brand/otter-states/lets-go.png"
               alt=""
-              className="w-[72px] sm:w-[96px] h-auto object-contain filter drop-shadow-2xs opacity-90"
-            />
-          </div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Récap du groupe</p>
-          <div className="relative inline-block">
-            <h1 className="font-display text-[36px] sm:text-[48px] font-normal leading-tight text-foreground">
-              {trip.name}
-            </h1>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="md"
-              className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+              className="w-[72px] sm:w-[96px] h-auto object-contain filter drop-shadow-2xs opacity-90 shrink-0 pointer-events-none"
             />
           </div>
           <div className="pt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:text-base text-muted-foreground font-sans">
@@ -302,19 +302,19 @@ function TripRecapPage() {
                           <Button
                             size="sm"
                             variant={(reco as any).myReaction === "like" ? "default" : "outline"}
-                            className="h-6 px-2 text-[11px] gap-1 rounded-full cursor-pointer"
+                            className="h-8 px-3 text-xs gap-1.5 rounded-full cursor-pointer"
                             onClick={() => handleReact(reco.id, (reco as any).myReaction === "like" ? null : "like")}
                           >
-                            <KrewIcon name="vote" tone={(reco as any).myReaction === "like" ? "cream" : "plum"} size="sm" className="size-3" />
-                            <span className="font-mono">{(reco as any).likesCount ?? 0}</span>
+                            <KrewIcon name="vote" tone={(reco as any).myReaction === "like" ? "cream" : "plum"} size="sm" className="size-3.5" />
+                            <span className="font-mono text-xs font-semibold">{(reco as any).likesCount ?? 0}</span>
                           </Button>
                           <Button
                             size="sm"
                             variant={(reco as any).myReaction === "dislike" ? "destructive" : "outline"}
-                            className="h-6 px-2 text-[11px] gap-1 rounded-full cursor-pointer"
+                            className="h-8 px-3 text-xs gap-1.5 rounded-full cursor-pointer"
                             onClick={() => handleReact(reco.id, (reco as any).myReaction === "dislike" ? null : "dislike")}
                           >
-                            <span className="font-mono">✕ {(reco as any).dislikesCount ?? 0}</span>
+                            <span className="font-mono text-xs font-semibold">✕ {(reco as any).dislikesCount ?? 0}</span>
                           </Button>
                         </div>
                       </div>

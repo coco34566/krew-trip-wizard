@@ -397,6 +397,44 @@ Les cards sont des composants, pas le langage visuel complet.
 
 Privilégier grandes images, compositions ouvertes, whitespace, hiérarchie forte, asymétrie lorsque pertinente, variations de rythme et informations révélées progressivement.
 
+### Headers de grandes sections produit
+
+Pour les grands chapitres produit :
+
+- mobile : **28–30px**
+- desktop : **30–34px**
+- Instrument Serif
+- description : **15–16px**
+
+### Placement loutre + texte
+
+Une loutre ne doit jamais imposer un `padding-right` massif au texte pour exister.
+
+Sur mobile, le titre conserve sa largeur fonctionnelle.
+La loutre est repositionnée, décalée ou placée sur une ligne adjacente si nécessaire.
+
+### Liens d’action
+
+Une action importante doit être visible sans hover.
+
+Taille : **14–15px minimum**.
+
+Utiliser lorsque pertinent : `KrewIcon + libellé + arrow/external indicator`.
+
+### Micro-textes
+
+- 10px : exception extrêmement secondaire uniquement
+- 11px : micro-label rare
+- 12–13px : vrai micro-label
+- 13–14px : texte secondaire normal
+- 15–16px : corps principal
+
+### Surfaces ouvertes
+
+Les grands chapitres ne doivent pas systématiquement utiliser : `rounded + border + bg-card`.
+
+Les surfaces sauge/crème/prune clair peuvent structurer un chapitre sans border ni card fermée.
+
 ### Containers officiels
 
 KREW utilise trois familles de containers.

@@ -2212,19 +2212,9 @@ function TripDetail() {
       {currentSection === "profile" ? (
       <section
         id="hub-profile"
-        className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-8 space-y-4 bg-surface/50 rounded-[20px] p-5 sm:p-7 scroll-mt-24"
       >
-        {/* Otter profile asset */}
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
-          <img
-            src="/brand/otter-states/trip-progress.png"
-            alt=""
-            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
-            loading="lazy"
-          />
-        </div>
-
-        <div className="flex items-center justify-between flex-wrap gap-2 pr-0 sm:pr-20">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
               <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
@@ -2238,7 +2228,7 @@ function TripDetail() {
             <Button
               variant="outline"
               size="sm"
-              className="rounded-xl text-xs"
+              className="rounded-xl text-xs sm:text-sm font-medium"
               onClick={() => {
                 queryClient.setQueryData(queryKey, (old: any) => ({
                   ...old,
@@ -2283,40 +2273,46 @@ function TripDetail() {
                       )
                     }
                     className={cn(
-                      "relative rounded-2xl border p-4 text-left transition-all cursor-pointer font-sans",
+                      "relative rounded-2xl border p-4.5 text-left transition-all cursor-pointer font-sans bg-background",
                       selected
-                        ? "border-primary bg-primary/5 text-foreground ring-2 ring-primary/20"
-                        : "border-border/60 bg-background text-foreground/80 hover:border-primary/40",
+                        ? "border-primary/60 shadow-xs"
+                        : "border-border/60 text-foreground/80 hover:border-primary/40",
                       (!data.isOwner || profile?.validated) && "cursor-default",
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-display text-lg font-normal text-foreground">
-                        {label}
+                      <p className="font-display text-[18px] sm:text-[20px] font-normal text-foreground">
+                        {selected ? (
+                          <KrewHighlight tone="sage" className="px-1.5 py-0.5 font-normal">
+                            {label}
+                          </KrewHighlight>
+                        ) : (
+                          label
+                        )}
                       </p>
                       {selected ? (
                         <KrewMark type="check" tone="plum" size="sm" className="size-4 shrink-0" />
                       ) : null}
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground leading-relaxed font-sans">{concept.rationale}</p>
+                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed font-sans">{concept.rationale}</p>
                   </button>
                 );
               })}
           </div>
         )}
         {profile?.validated ? (
-          <p className="text-xs font-semibold text-primary inline-flex items-center gap-1.5 pt-2">
+          <p className="text-xs sm:text-sm font-semibold text-primary inline-flex items-center gap-1.5 pt-2">
             <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
             Profil validé — les destinations sont disponibles.
           </p>
         ) : data.isOwner && (readiness?.profile.questionnairesReady || profile?.legacyBypass) ? (
           <div className="pt-2">
             <Button
-              className="rounded-xl font-medium"
+              className="rounded-xl font-medium h-11 text-sm sm:text-base"
               disabled={validateProfileMutation.isPending || selectedConceptIds.length < 1}
               onClick={() => validateProfileMutation.mutate()}
             >
-              {validateProfileMutation.isPending ? <Loader2 className="animate-spin size-4 mr-1.5" /> : <KrewIcon name="check" tone="plum" size="sm" className="size-4 mr-1.5" />}
+              {validateProfileMutation.isPending ? <Loader2 className="animate-spin size-4 mr-1.5" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4 mr-1.5" />}
               Valider notre profil de voyage
             </Button>
           </div>
@@ -2327,7 +2323,7 @@ function TripDetail() {
       {currentSection === "destination" ? (
       <section
         id="hub-destination"
-        className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter destination asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -2580,7 +2576,7 @@ function TripDetail() {
       {currentSection === "accommodation" && destinationSelected ? (
         <section
           id="hub-logistics"
-          className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+          className="mt-8 space-y-4 bg-background border-b border-border/40 pb-8 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter accommodation asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -2827,7 +2823,7 @@ function TripDetail() {
       {currentSection === "transport" ? (
       <section
         id="hub-transports"
-        className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-8 space-y-4 bg-surface/50 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter transport asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -3043,7 +3039,7 @@ function TripDetail() {
       {currentSection === "planning" && destinationSelected ? (
         <section
           id="hub-activities-plan"
-          className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+          className="mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter planning asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -3194,7 +3190,7 @@ function TripDetail() {
       {currentSection === "tasks" && destinationSelected ? (
         <section
           id="hub-tasks-org"
-          className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+          className="mt-8 space-y-4 bg-background border-b border-border/40 pb-8 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter trip-preparation asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">

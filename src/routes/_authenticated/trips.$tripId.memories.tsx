@@ -135,37 +135,40 @@ function MemoriesPage(){
           <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
             <img src="/brand/otter-states/trip-progress.png" alt="" className="w-[72px] sm:w-[80px] h-auto object-contain" />
           </div>
-          <h2 className="font-display text-xl font-normal text-foreground">L&apos;album est encore vide</h2>
-          <p className="text-xs text-muted-foreground font-sans max-w-sm mx-auto">Importe les premières photos pour constituer l'album du voyage.</p>
+          <h2 className="font-display text-2xl font-normal text-foreground">L&apos;album est encore vide</h2>
+          <p className="text-sm text-muted-foreground font-sans max-w-sm mx-auto">Importe les premières photos pour constituer l'album du voyage.</p>
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-          {photos.map((p) => (
-            <article key={p.id} className="group overflow-hidden rounded-[20px] border border-border/60 bg-background transition-transform duration-200 hover:-translate-y-0.5">
-              <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-                <img src={p.url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
-                {p.likes > 0 ? (
-                  <div className="absolute top-2.5 right-2.5 z-10">
-                    <KrewMark type="heart" tone="plum" size="sm" className="size-5" />
-                  </div>
-                ) : null}
-              </div>
-              <div className="p-3 flex items-center justify-between text-xs text-muted-foreground font-sans">
-                <span>Par <strong className="text-foreground font-medium">{p.author}</strong></span>
-                <div className="flex items-center gap-3">
-                  <button type="button" onClick={() => like.mutate(p.id)} className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer">
-                    <KrewIcon name="favorite" tone={p.likes > 0 ? "plum" : "muted"} size="sm" className="size-3.5" />
-                    <span className="font-mono text-[11px] font-semibold">{p.likes}</span>
-                  </button>
-                  {p.owner_user_id === userId && (
-                    <button type="button" onClick={() => remove.mutate(p)} className="hover:text-destructive transition-colors cursor-pointer" aria-label="Supprimer photo">
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  )}
+          {photos.map((p, idx) => {
+            const hasRotation = idx % 5 === 1 ? "rotate-[1deg]" : idx % 5 === 3 ? "-rotate-[1deg]" : "";
+            return (
+              <article key={p.id} className={cn("group overflow-hidden rounded-[18px] border border-border/40 bg-background transition-transform duration-200 hover:-translate-y-0.5 shadow-2xs", hasRotation)}>
+                <div className="aspect-[4/3] bg-muted relative overflow-hidden">
+                  <img src={p.url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                  {p.likes > 0 ? (
+                    <div className="absolute top-2.5 right-2.5 z-10">
+                      <KrewMark type="heart" tone="plum" size="sm" className="size-5" />
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            </article>
-          ))}
+                <div className="p-3.5 flex items-center justify-between text-xs sm:text-sm text-muted-foreground font-sans">
+                  <span>Par <strong className="text-foreground font-semibold">{p.author}</strong></span>
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => like.mutate(p.id)} className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer">
+                      <KrewIcon name="favorite" tone={p.likes > 0 ? "plum" : "muted"} size="sm" className="size-3.5" />
+                      <span className="font-mono text-xs font-semibold">{p.likes}</span>
+                    </button>
+                    {p.owner_user_id === userId && (
+                      <button type="button" onClick={() => remove.mutate(p)} className="hover:text-destructive transition-colors cursor-pointer" aria-label="Supprimer photo">
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 

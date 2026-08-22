@@ -127,23 +127,23 @@ function NewTripPage() {
         <ArrowLeft className="size-4" /> Dashboard
       </Link>
 
-      <div className="space-y-2 relative pr-20 sm:pr-28">
-        <div className="absolute top-0 right-0 pointer-events-none">
+      <div className="space-y-2 relative">
+        <div className="flex items-start justify-between gap-4">
+          <div className="relative inline-block flex-1">
+            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+              Créer un voyage
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+            />
+          </div>
           <img
             src="/brand/otter-states/lets-go.png"
             alt=""
-            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
-          />
-        </div>
-        <div className="relative inline-block">
-          <h1 className="font-display text-[32px] sm:text-[44px] font-normal leading-[0.95] tracking-tight text-foreground">
-            Créer un voyage
-          </h1>
-          <KrewMark
-            type="underline-wave"
-            tone="sage"
-            size="md"
-            className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90 shrink-0 pointer-events-none"
           />
         </div>
         <p className="text-sm text-muted-foreground font-sans pt-1">Juste l'essentiel pour démarrer.</p>

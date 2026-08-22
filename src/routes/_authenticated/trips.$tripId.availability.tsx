@@ -295,26 +295,26 @@ function AvailabilityPage() {
         <ArrowLeft className="size-4" /> Retour à Mon Voyage
       </a>
 
-      <div className="space-y-3 relative pr-20 sm:pr-28">
-        <div className="absolute top-0 right-0 pointer-events-none">
-          <img
-            src="/brand/otter-states/availability.png"
-            alt=""
-            className="w-[72px] sm:w-[88px] h-auto object-contain"
-          />
-        </div>
+      <div className="space-y-3 relative">
         <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
           Disponibilités · résumé live
         </p>
-        <div className="relative inline-block">
-          <h1 className="font-display text-[32px] sm:text-[44px] font-normal leading-[0.95] tracking-tight text-foreground">
-            {data.trip.name}
-          </h1>
-          <KrewMark
-            type="underline-wave"
-            tone="sage"
-            size="md"
-            className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+        <div className="flex items-start justify-between gap-4">
+          <div className="relative inline-block flex-1">
+            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+              {data.trip.name}
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+            />
+          </div>
+          <img
+            src="/brand/otter-states/availability.png"
+            alt=""
+            className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 pointer-events-none"
           />
         </div>
         <div className="flex items-center gap-3 pt-2">
