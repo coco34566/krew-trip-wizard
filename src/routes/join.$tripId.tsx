@@ -179,7 +179,7 @@ function JoinTripPage() {
               <h1 className="text-xl font-semibold">Impossible d&apos;ouvrir l&apos;invitation</h1>
               <p className="text-sm text-muted-foreground">{error}</p>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                <Button asChild variant="hero">
+                <Button asChild>
                   <Link to="/">Retour à l&apos;accueil</Link>
                 </Button>
                 <Button asChild variant="outline">
@@ -243,9 +243,8 @@ function JoinTripPage() {
               </div>
 
               <Button
-                variant="hero"
                 size="lg"
-                className="w-full"
+                className="w-full font-medium"
                 disabled={joining}
                 onClick={handleJoin}
               >
@@ -266,7 +265,7 @@ function JoinTripPage() {
           ) : (
             <div className="space-y-4 text-center py-8">
               <h1 className="text-xl font-semibold">Invitation introuvable</h1>
-              <Button asChild variant="hero">
+              <Button asChild>
                 <Link to="/">Retour à l&apos;accueil</Link>
               </Button>
             </div>

@@ -1,6 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check } from "lucide-react";
-
 import heroImage from "@/assets/hero-krew.jpg";
 import landingTripPreview from "@/assets/landing-trip-preview.jpg";
 import { Button } from "@/components/ui/button";
@@ -118,7 +116,7 @@ function Landing() {
                       key={t}
                       className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-foreground"
                     >
-                      <Check className="size-4 text-primary shrink-0" />
+                      <KrewMark type="check" tone="plum" size="sm" className="size-4 shrink-0" />
                       {t}
                     </li>
                   ))}
@@ -290,7 +288,7 @@ function Landing() {
                 <div className="lg:col-span-8 space-y-6">
                   <div className="border-t border-border/50 pt-4 space-y-2">
                     <h4 className="font-semibold text-sm flex items-center gap-2 text-foreground">
-                      <Check className="size-4 text-emerald-600" />
+                      <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
                       Hébergement retenu par le groupe
                     </h4>
                     <div className="flex justify-between items-start gap-2">
@@ -305,7 +303,7 @@ function Landing() {
 
                   <div className="border-t border-border/50 pt-4 space-y-2 text-xs">
                     <h4 className="font-semibold text-sm flex items-center gap-2 text-foreground">
-                      <Check className="size-4 text-emerald-600" />
+                      <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
                       Transports par ville de départ
                     </h4>
                     <div className="flex justify-between border-b border-border/40 pb-2 text-muted-foreground">
@@ -320,7 +318,7 @@ function Landing() {
 
                   <div className="border-t border-border/50 pt-4 space-y-3">
                     <h4 className="font-semibold text-sm flex items-center gap-2 text-foreground">
-                      <Check className="size-4 text-emerald-600" />
+                      <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
                       Extrait du planning jour par jour
                     </h4>
                     <div className="space-y-3 pt-1">

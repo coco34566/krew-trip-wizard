@@ -207,12 +207,12 @@ export function KrewJourneyTimeline({
                       <div className="col-span-5 flex justify-end">
                         {isEven ? (
                           step.href ? (
-                            <Link
-                              to={step.href as any}
+                            <a
+                              href={step.href}
                               className="w-full hover:opacity-90 transition-opacity"
                             >
                               {cardContent}
-                            </Link>
+                            </a>
                           ) : (
                             <div className="w-full">{cardContent}</div>
                           )
@@ -256,12 +256,12 @@ export function KrewJourneyTimeline({
                       <div className="col-span-5 flex justify-start">
                         {!isEven ? (
                           step.href ? (
-                            <Link
-                              to={step.href as any}
+                            <a
+                              href={step.href}
                               className="w-full hover:opacity-90 transition-opacity"
                             >
                               {cardContent}
-                            </Link>
+                            </a>
                           ) : (
                             <div className="w-full">{cardContent}</div>
                           )
