@@ -30,78 +30,115 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
   const PrimaryTag = primary.href ? "a" : "div";
 
   return (
-    <section className={cn("space-y-4", className)}>
-      {/* Action principale dans une grande nappe sauge organique */}
-      <div className="relative overflow-hidden rounded-[2.25rem] bg-sage/18 p-5 sm:p-7 shadow-2xs border border-sage/30">
-        <KrewMark type="sparkle" tone="plum" size="sm" className="absolute left-3 top-4 opacity-80" />
+    <section className={cn("space-y-6", className)}>
+      {/* ZONE 2 — PROCHAINE ACTION (NAPPE SAUGE) */}
+      <div className="relative overflow-hidden bg-sage/18 p-6 rounded-3xl">
+        <div className="flex flex-col gap-2 max-w-[calc(100%-80px)] pr-2">
+          {/* Label */}
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/70">
+            Prochaine action
+          </p>
 
-        <div className={cn("grid gap-5", progress.length > 0 && "sm:grid-cols-[minmax(0,1fr)_auto]")}>
-          <div className="min-w-0 pl-6 sm:pl-7">
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/70">
-              Prochaine action
+          {/* Titre */}
+          <h2 className="font-display text-[32px] sm:text-[36px] font-normal leading-[0.98] tracking-tight text-primary">
+            {primary.title}
+          </h2>
+
+          {/* Description */}
+          {primary.description ? (
+            <p className="text-sm leading-relaxed text-foreground/80 font-sans mt-1">
+              {primary.description}
             </p>
-            <h2 className="mt-1 max-w-xl font-display text-[2rem] sm:text-[2.5rem] font-normal leading-[0.98] tracking-tight text-primary">
-              {primary.title}
-            </h2>
-            {primary.description ? (
-              <p className="mt-2.5 max-w-lg text-sm leading-relaxed text-foreground/80 font-sans">
-                {primary.description}
-              </p>
-            ) : null}
-            {primary.href ? (
+          ) : null}
+
+          {/* CTA */}
+          {primary.href ? (
+            <div className="pt-3">
               <PrimaryTag
                 href={primary.href}
-                className="mt-5 inline-flex min-h-11 items-center gap-2.5 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 active:scale-[0.99] shadow-xs"
+                className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-primary px-5 sm:px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 active:scale-[0.99]"
               >
                 <span>Continuer</span>
-                <KrewMark type="arrow-right" tone="plum" size="sm" className="w-5 h-3 text-white" />
+                <KrewMark type="arrow-right" tone="plum" size="sm" className="w-5 h-3 text-white shrink-0" />
               </PrimaryTag>
-            ) : null}
-          </div>
-
-          {progress.length > 0 ? (
-            <div className="flex items-center justify-around gap-4 border-t border-primary/12 pt-4 sm:flex-col sm:justify-center sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
-              {progress.slice(0, 2).map((item) => (
-                <div key={item.label} className="flex flex-col items-center gap-1.5">
-                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-foreground/70">
-                    {item.label}
-                  </span>
-                  <KrewProgressRing value={item.value} tone={item.tone ?? "sage"} size={60} />
-                </div>
-              ))}
             </div>
           ) : null}
         </div>
+
+        {/* F3. LOUTRE NEXT-ACTION + F4. KREWMARK ARROW */}
+        <div className="absolute bottom-3 right-2.5 z-20 flex items-end gap-1 pointer-events-none">
+          <KrewMark type="arrow-down-right" tone="plum" size="sm" className="w-[30px] h-[20px] text-primary opacity-85 mb-2" />
+          <img
+            src="/brand/otter-states/next-action.png"
+            alt=""
+            className="w-[64px] h-auto object-contain filter drop-shadow-2xs"
+            loading="lazy"
+          />
+        </div>
       </div>
 
-      {/* Séquence des actions suivantes */}
+      {/* ZONE 3 — ÉTAT DU GROUPE (DISPONIBILITÉS / PRÉFÉRENCES) */}
+      {progress.length > 0 ? (
+        <div className="pt-2">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Disponibilités (GAUCHE) */}
+            {progress[0] ? (
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <KrewIcon name="availability" tone="plum" size="sm" className="size-4 shrink-0" />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-foreground/75 font-medium">
+                    {progress[0].label}
+                  </span>
+                </div>
+                <KrewProgressRing value={progress[0].value} tone={progress[0].tone ?? "sage"} size={64} />
+              </div>
+            ) : null}
+
+            {/* Préférences (DROITE) */}
+            {progress[1] ? (
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-foreground/75 font-medium">
+                    {progress[1].label}
+                  </span>
+                </div>
+                <KrewProgressRing value={progress[1].value} tone={progress[1].tone ?? "plum"} size={64} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {/* ZONE 4 — LES 3 ACTIONS SUIVANTES */}
       {secondary.slice(0, 3).length > 0 ? (
-        <div className="relative ml-2 space-y-1 sm:ml-5 pt-1">
-          <KrewMark type="connector-curve" tone="sage" size="sm" className="absolute -left-3 -top-2 h-8 w-6 opacity-60 pointer-events-none" />
+        <div className="relative pt-2 space-y-1">
+          {/* Connector curve qui passe derrière les icônes si applicable */}
+          <KrewMark type="connector-curve" tone="sage" size="sm" className="absolute left-[12px] top-[16px] h-[120px] w-[20px] z-0 opacity-40 pointer-events-none" />
+
           {secondary.slice(0, 3).map((action, index) => {
             const Tag = action.href ? "a" : "div";
-            const Icon = action.icon;
+            const iconName = action.iconName || (action.key === "avail" ? "availability" : action.key === "prefs" ? "preferences" : action.key === "star" ? "favorite" : action.key === "hotel" || action.key === "search-hotels" ? "accommodation" : action.key === "transport" || action.key === "search-transport" ? "transport" : action.key === "lock-dates" ? "calendar" : action.key === "choose-profile" ? "profile" : action.key === "gen" || action.key === "pick-dest" ? "destination" : action.key === "plan" ? "planning" : action.key === "refine" ? "tasks" : "group");
+
             return (
               <Tag
                 key={action.key}
                 {...(action.href ? { href: action.href } : {})}
                 className={cn(
-                  "group flex min-h-[68px] items-center gap-3.5 border-b border-primary/10 px-3 py-2.5 transition-all rounded-xl hover:bg-muted/30",
-                  index === 1 && "ml-2.5 sm:ml-3",
-                  index === 2 && "ml-1 sm:ml-1.5",
+                  "grid grid-cols-[40px_1fr_24px] items-center min-h-[68px] border-b border-primary/10 py-2.5 transition-colors group",
+                  index === 1 && "ml-[8px]",
+                  index === 2 && "ml-[4px]",
                   action.href && "cursor-pointer",
                 )}
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-sage/16 text-primary">
-                  {action.iconName ? (
-                    <KrewIcon name={action.iconName} tone="plum" size="sm" className="size-5" />
-                  ) : Icon ? (
-                    <Icon className="size-4" />
-                  ) : null}
-                </span>
+                {/* COLONNE 1 : KrewIcon 20px directement sur fond (pas de cercle) */}
+                <div className="relative z-10 flex items-center justify-center">
+                  <KrewIcon name={iconName} tone="plum" size="sm" className="size-[20px]" />
+                </div>
 
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold leading-tight text-foreground/90 transition group-hover:text-primary">
+                {/* COLONNE 2 : Titre + Description */}
+                <div className="min-w-0 pr-2">
+                  <p className="text-sm font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors">
                     {action.title}
                   </p>
                   {action.description ? (
@@ -111,14 +148,17 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                   ) : null}
                 </div>
 
-                {action.href ? (
-                  <KrewMark
-                    type="arrow-right"
-                    tone="plum"
-                    size="sm"
-                    className="w-5 h-3 opacity-60 transition-transform group-hover:translate-x-1 group-hover:opacity-100 shrink-0"
-                  />
-                ) : null}
+                {/* COLONNE 3 : Arrow-right */}
+                <div className="flex items-center justify-end">
+                  {action.href ? (
+                    <KrewMark
+                      type="arrow-right"
+                      tone="plum"
+                      size="sm"
+                      className="w-[20px] h-[12px] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100"
+                    />
+                  ) : null}
+                </div>
               </Tag>
             );
           })}

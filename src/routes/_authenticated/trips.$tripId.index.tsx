@@ -1228,14 +1228,16 @@ function TripDetail() {
             tripEndDatePassed={tripEndDatePassed}
           />
 
-          {/* GROUPE SECTION INTEGRATED IN OVERVIEW */}
-          <section id="group-section" className="space-y-6 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
-                  <Users className="size-5 text-primary" /> Membres du groupe
-                </h2>
-              </div>
+          {/* ZONE 5 — MEMBRES DU GROUPE (EXACT BLUEPRINT) */}
+          <section id="group-section" className="mt-12 space-y-6 scroll-mt-24">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <KrewIcon name="group" tone="plum" size="sm" className="size-[22px] shrink-0" />
+                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal text-foreground leading-none">
+                    Membres du groupe
+                  </h2>
+                </div>
 
               {data.isOwner ? (
                 isEditingCount ? (
@@ -1297,7 +1299,10 @@ function TripDetail() {
               ) : null}
             </div>
 
-            <ul className="divide-y divide-border/50">
+            {/* Underline wave KrewMark sous le titre */}
+            <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[10px] -mt-1 opacity-85 pointer-events-none" />
+
+            <ul className="divide-y divide-border/40 pt-2">
               {participants.length === 0 ? (
                 <li className="text-sm text-muted-foreground py-4">
                   Personne n’a encore rejoint le groupe.
@@ -1326,7 +1331,7 @@ function TripDetail() {
                   return (
                     <li
                       key={p.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between py-4 first:pt-0 last:pb-0 gap-3"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between min-h-[56px] py-3.5 gap-3"
                     >
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -1347,10 +1352,10 @@ function TripDetail() {
                           ) : null}
                           {p.isStar ? (
                             <Badge
-                              variant="sun"
-                              className="gap-1 px-1.5 py-0 text-[10px] bg-amber-500/10 text-amber-700 border-amber-500/20"
+                              variant="secondary"
+                              className="gap-1 px-1.5 py-0 text-[10px]"
                             >
-                              <Star className="size-2.5 fill-amber-500 text-amber-500" /> Star
+                              <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" /> Star
                             </Badge>
                           ) : null}
                         </div>
@@ -1547,7 +1552,7 @@ function TripDetail() {
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-xl"
+                className="rounded-xl gap-2"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(shareUrl);
@@ -1559,7 +1564,7 @@ function TripDetail() {
                   }
                 }}
               >
-                {shareCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
+                <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
                 {shareCopied ? "Copié" : "Copier le lien du voyage"}
               </Button>
               <Button

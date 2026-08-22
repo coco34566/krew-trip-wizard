@@ -413,106 +413,102 @@ export function TripHubDashboard({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* COMPOSITION V5.1 INTEGRÉE (5 LAYERS, Z-INDEX STRUCTURÉS, ZÉRO CARD WRAPPER) */}
-      <header className="relative overflow-visible -mx-4 sm:mx-0 pt-2 pb-8 min-h-[560px] sm:min-h-[600px]">
-        {/* LAYER 1 (z-0) : Grande Forme Sauge Arrière-Plan */}
-        <KrewOrganicBlob
-          tone="sage"
-          variant="soft"
-          className="absolute -top-8 -right-6 w-[88%] h-[380px] z-0 opacity-80 pointer-events-none"
-        />
-
-        {/* LAYER 2 (z-10) : Photographie du Voyage avec Clip-Path Asymétrique Déterministe */}
-        <div
-          className="relative z-10 w-[92%] sm:w-[94%] h-[280px] sm:h-[340px] ml-auto sm:ml-0 overflow-hidden shadow-xs border border-border/20"
-          style={{ clipPath: "polygon(0% 0%, 100% 0%, 100% 88%, 86% 100%, 0% 92%)" }}
-        >
-          <img
-            src={heroImageForEvent(trip.event_type)}
-            alt=""
-            className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
-            loading="eager"
-          />
-        </div>
-
-        {/* LAYER 5a (z-40) : Circle KrewMark Ancré au Quart Supérieur Droit de la Photo */}
-        <div className="absolute top-4 right-1 sm:right-6 z-40 pointer-events-none">
-          <KrewMark
-            type="circle"
-            tone="sage"
-            size="lg"
-            rotation={2}
-            className="w-[85px] sm:w-[105px] opacity-75"
-          />
-        </div>
-
-        {/* LAYER 3 (z-20) : Surface Prune Organique Sweep chevauchant la Photo */}
-        <div className="relative z-20 -mt-20 sm:-mt-24 w-[90%] sm:w-[85%] min-h-[190px] sm:min-h-[220px]">
+      {/* ZONE 1 — COVER DU VOYAGE (EXACT BLUEPRINT) */}
+      <header className="relative overflow-visible -mx-4 sm:mx-0 pb-2">
+        {/* Conteneur photo & blob positioning */}
+        <div className="relative w-full">
+          {/* C2. BLOB SAUGE (z0) : derrière le haut/droite de la photo */}
           <KrewOrganicBlob
-            tone="plum"
-            variant="sweep"
-            className="w-full h-full text-primary filter drop-shadow-md"
+            tone="sage"
+            variant="soft"
+            className="absolute -top-5 right-0 w-[80%] h-[200px] sm:h-[240px] z-0 opacity-70 pointer-events-none"
           />
 
-          {/* LAYER 4 (z-30) : Titre & Destination positionnés SUR la Forme Prune */}
-          <div className="absolute inset-0 z-30 p-6 sm:p-8 flex flex-col justify-center space-y-2 text-primary-foreground">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary-foreground/80 font-sans">
-              {theme}
-            </p>
+          {/* C1. PHOTO (z10) : largeur ~calc(100% - 8px), hauteur 260-280px, alignée gauche */}
+          <div
+            className="relative z-10 w-[calc(100%-8px)] h-[260px] sm:h-[280px] overflow-hidden"
+            style={{ clipPath: "polygon(0% 0%, 100% 0%, 100% 88%, 88% 100%, 0% 93%)" }}
+          >
+            <img
+              src={heroImageForEvent(trip.event_type)}
+              alt=""
+              className="h-full w-full object-cover"
+              loading="eager"
+            />
+          </div>
 
-            <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.98] tracking-tight text-white break-words">
-              {trip.name}
-            </h1>
+          {/* C3. KREWMARK CIRCLE (z40) : coin supérieur droit photo */}
+          <div className="absolute top-[20px] right-0 z-40 pointer-events-none transform translate-x-2">
+            <KrewMark
+              type="circle"
+              tone="sage"
+              size="lg"
+              rotation={2}
+              className="w-[80px] sm:w-[84px] opacity-80"
+            />
+          </div>
 
-            {destinationName ? (
-              <div className="pt-1">
-                <p className="font-display text-2xl sm:text-3xl text-sage font-normal relative inline-block">
-                  <span className="relative z-10 flex items-center gap-1.5">
-                    <KrewIcon name="destination" tone="sage" size="sm" />
-                    <span>{destinationName}</span>
-                  </span>
-                  <KrewMark
-                    type="underline"
-                    tone="sage"
-                    size="md"
-                    className="absolute inset-x-0 -bottom-1 h-3.5 w-full opacity-90 pointer-events-none"
-                  />
+          {/* C4. BLOB PRUNE (z20) : chevauche le bas de la photo de 64-76px */}
+          <div className="relative z-20 -mt-[70px] w-[90%] sm:w-[88%] min-h-[180px]">
+            <KrewOrganicBlob
+              tone="plum"
+              variant="sweep"
+              className="w-full h-full text-primary filter drop-shadow-sm"
+            />
+
+            {/* C5. CONTENU DU BLOB PRUNE (z30) */}
+            <div className="absolute inset-0 z-30 p-6 flex flex-col justify-center gap-2 text-primary-foreground">
+              {/* Type de voyage */}
+              <p className="font-sans text-[11px] font-semibold uppercase tracking-wider text-white/70">
+                {theme}
+              </p>
+
+              {/* Nom du voyage */}
+              <h1 className="font-display text-[40px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-white break-words max-h-[90px] line-clamp-2">
+                {trip.name}
+              </h1>
+
+              {/* Destination */}
+              {destinationName ? (
+                <div className="pt-1 flex items-center gap-2">
+                  <KrewIcon name="destination" tone="sage" size="sm" className="size-5 shrink-0" />
+                  <div className="relative inline-block">
+                    <span className="font-display text-[24px] text-sage font-normal leading-none">
+                      {destinationName}
+                    </span>
+                    {/* C6. UNDERLINE DESTINATION */}
+                    <KrewMark
+                      type="underline"
+                      tone="sage"
+                      size="sm"
+                      className="absolute left-0 -bottom-1 h-[8px] w-full opacity-90 pointer-events-none"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {/* C7. PERSONNE CÉLÉBRÉE */}
+              {trip.celebrated_person ? (
+                <p className="inline-flex items-center gap-2 text-sm font-medium text-white/90 pt-0.5">
+                  <KrewIcon name="favorite" tone="sage" size="sm" className="size-4 shrink-0" />
+                  <span>Pour <strong className="font-semibold text-white">{trip.celebrated_person}</strong></span>
                 </p>
-              </div>
-            ) : null}
-
-            {trip.celebrated_person ? (
-              <p className="inline-flex items-center gap-1.5 text-sm font-medium text-white/90 pt-0.5">
-                <KrewIcon name="favorite" tone="sage" size="sm" /> Pour{" "}
-                <span className="font-semibold text-white">{trip.celebrated_person}</span>
-              </p>
-            ) : null}
-
-            {trip.participants &&
-            Array.isArray(trip.participants) &&
-            trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
-              <p className="text-xs text-primary-foreground/80 leading-relaxed pt-0.5 truncate">
-                Avec{" "}
-                {trip.participants
-                  .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
-                  .filter(Boolean)
-                  .join(", ")}
-              </p>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         </div>
 
-        {/* LAYER 4 & 5b (z-30 / z-40) : Métadonnées Éditoriales Asymétriques + Scène Loutre & Flèche */}
-        <div className="relative z-30 pt-4 px-4 sm:px-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          {/* Métadonnées en Disposition Flex Asymétrique & Robuste sur la grille 16px */}
-          <div className="flex flex-col gap-2 min-w-0 max-w-md">
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
-              {/* Dates : Côté gauche avec Highlight Sauge */}
-              <div className="shrink-0">
-                {datesLocked && (trip.start_date || provisionalStart) ? (
-                  <KrewHighlight tone="sage" className="inline-flex items-center gap-1.5 font-mono text-xs text-foreground font-medium">
-                    <KrewIcon name="calendar" tone="muted" size="sm" className="size-4" />
-                    <span className="text-primary font-sans font-medium">Dates validées</span> · {trip.start_date
+        {/* D. MÉTADONNÉES SOUS LE HERO (margin-top 20-24px, 3 lignes éditoriales) */}
+        <div className="mt-6 space-y-2.5 px-4 text-xs">
+          {/* D1. DATES (axe 16px) */}
+          <div className="flex items-center gap-2">
+            <KrewIcon name="calendar" tone="plum" size="sm" className="size-4 shrink-0" />
+            <div className="font-mono text-foreground font-medium">
+              {datesLocked && (trip.start_date || provisionalStart) ? (
+                <div className="inline-flex items-center gap-1.5">
+                  <span className="text-primary font-sans font-medium">Dates validées ·</span>
+                  <KrewHighlight tone="sage" className="px-1 py-0.5">
+                    {trip.start_date
                       ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
                           day: "numeric",
                           month: "short",
@@ -528,46 +524,38 @@ export function TripHubDashboard({
                         })}`
                       : ""}
                   </KrewHighlight>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <KrewIcon name="calendar" tone="muted" size="sm" className="size-4" /> Date à définir
-                  </span>
-                )}
-              </div>
-
-              {/* Participants */}
-              <div className="shrink-0">
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-                  <KrewIcon name="group" tone="muted" size="sm" className="size-4" />
-                  <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
-                </span>
-              </div>
-            </div>
-
-            {/* Budget */}
-            <div className="pt-0.5">
-              {totalReserved != null && totalEstimated != null ? (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                  <KrewIcon name="budget" tone="muted" size="sm" className="size-4" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
-                </span>
-              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                  <KrewIcon name="budget" tone="muted" size="sm" className="size-4" /> ~{formatEuro(liveBudgetTotal)} / pers.
-                </span>
+                </div>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <KrewIcon name="budget" tone="muted" size="sm" className="size-4" /> Budget à définir
-                </span>
+                <span className="text-muted-foreground font-sans">Date à définir</span>
               )}
             </div>
           </div>
 
-          {/* LAYER 5c (z-40) : Petite Scène Graphique Loutre + Flèche Directionnelle */}
-          <div className="self-end sm:self-auto shrink-0 flex items-center gap-1 pointer-events-none pt-1 sm:pt-0">
-            <Logo variant="icon" size="sm" className="size-12 sm:size-14 object-contain filter drop-shadow-xs" />
-            <KrewMark type="arrow-down-right" tone="sage" size="md" className="w-10 h-7 text-sage opacity-85" />
+          {/* D2. PARTICIPANTS (margin-left 8px relative aux dates) */}
+          <div className="flex items-center gap-2 ml-2">
+            <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
+            <span className="font-sans text-muted-foreground">
+              <strong className="font-mono text-foreground font-medium">{trip.participants_count}</strong> pers.
+            </span>
+          </div>
+
+          {/* D3. BUDGET (retour axe 16px) */}
+          <div className="flex items-start gap-2">
+            <KrewIcon name="budget" tone="plum" size="sm" className="size-4 shrink-0 mt-0.5" />
+            <div className="font-mono text-muted-foreground flex-1">
+              {totalReserved != null && totalEstimated != null ? (
+                <span>Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}</span>
+              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
+                <span>~{formatEuro(liveBudgetTotal)} / pers.</span>
+              ) : (
+                <span className="font-sans">Budget à définir</span>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* E. 32px RESPIRATION APRES METADATAS (PAS DE LOUTRE, PAS DE FLÈCHE, PAS DE DIVIDER) */}
+        <div className="h-8" />
       </header>
 
       {/* PROCHAINES ACTIONS VIA KREW ACTION STACK */}
