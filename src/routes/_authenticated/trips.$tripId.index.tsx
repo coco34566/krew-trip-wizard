@@ -1230,9 +1230,19 @@ function TripDetail() {
           />
 
           {/* ZONE 5 — MEMBRES DU GROUPE (EXACT BLUEPRINT) */}
-          <section id="group-section" className="mt-12 space-y-4 scroll-mt-24">
+          <section id="group-section" className="mt-12 space-y-4 scroll-mt-24 relative">
+            {/* Loutre trip-progress positionnée en haut à droite */}
+            <div className="absolute top-0 right-0 z-10 pointer-events-none hidden sm:block">
+              <img
+                src="/brand/otter-states/trip-progress.png"
+                alt=""
+                className="w-[60px] h-auto object-contain filter drop-shadow-2xs opacity-90"
+                loading="lazy"
+              />
+            </div>
+
             <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pr-12 sm:pr-16">
                 <div className="flex items-center gap-2">
                   <KrewIcon name="group" tone="plum" size="sm" className="size-[22px] shrink-0" />
                   <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground">
@@ -1240,7 +1250,7 @@ function TripDetail() {
                   </h2>
                 </div>
 
-                {/* Sub-line on mobile / right-aligned on desktop for participant count + edit */}
+                {/* Participant count + Modifier directly below or aligned right */}
                 <div className="flex items-center gap-2 text-xs font-sans text-muted-foreground pt-1 sm:pt-0">
                   <span className="font-mono text-foreground font-semibold">
                     {trip.participants_count || 2}
@@ -1302,160 +1312,9 @@ function TripDetail() {
               <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[8px] mt-1 opacity-85 pointer-events-none" />
             </div>
 
-            <ul className="divide-y divide-border/40 pt-1">
-              {participants.length === 0 ? (
-                <li className="text-sm text-muted-foreground py-4">
-                  Personne n’a encore rejoint le groupe.
-                </li>
-              ) : (
-                participants.map((p) => {
-                  const picks = (logistics.transportPicks ?? []) as any[];
-                  const userPick = p.user_id
-                    ? picks.find((pk: any) => pk.userId === p.user_id)
-                    : null;
-                  const city =
-                    progress?.participants?.find((pr: any) => pr.user_id === p.user_id)
-                      ?.departure_city ||
-                    p.departure_city ||
-                    userPick?.city ||
-                    null;
-                  const isOwner = Boolean(p.user_id && !p.placeholder && p.user_id === trip.owner_id);
-                  const isCoOrganizer = Boolean(
-                    p.user_id &&
-                      !p.placeholder &&
-                      p.user_id !== starUid &&
-                      p.user_id !== trip.owner_id &&
-                      p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId),
-                  );
-
-                  const transportMode = userPick?.mode ? String(userPick.mode).toLowerCase() : "";
-                  const transportIconName: "plane" | "train" | "car" | "transport" =
-                    transportMode.includes("flight") || transportMode.includes("plane") || transportMode.includes("avion")
-                      ? "plane"
-                      : transportMode.includes("train")
-                        ? "train"
-                        : transportMode.includes("car") || transportMode.includes("voiture")
-                          ? "car"
-                          : "transport";
-
-                  return (
-                    <li
-                      key={p.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between min-h-[56px] py-3.5 gap-2.5"
-                    >
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-foreground text-sm">
-                            {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
-                          </p>
-                          {isOwner ? (
-                            <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full leading-none">
-                              Organisateur·rice
-                            </span>
-                          ) : isCoOrganizer ? (
-                            <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full leading-none">
-                              Co-organisateur·rice
-                            </span>
-                          ) : null}
-                          {p.isStar ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-sage/16 px-2 py-0.5 rounded-full leading-none">
-                              <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" /> Star
-                            </span>
-                          ) : null}
-                        </div>
-                        {p.email ? (
-                          <p className="text-xs text-muted-foreground mt-0.5">{p.email}</p>
-                        ) : null}
-                        {city || userPick ? (
-                          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                            {city ? (
-                              <span className="inline-flex items-center gap-1">
-                                <KrewIcon name="destination" tone="muted" size="sm" className="size-3.5" />
-                                <span>Départ : <strong className="text-foreground font-normal">{city}</strong></span>
-                              </span>
-                            ) : null}
-                            {userPick ? (
-                              <span className="inline-flex items-center gap-1">
-                                <KrewIcon name={transportIconName} tone="muted" size="sm" className="size-3.5" />
-                                <span>Trajet : <strong className="text-foreground font-normal">{userPick.modeLabel || userPick.mode} ({userPick.label})</strong></span>
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto text-xs">
-                        {p.status === "accepte" ? (
-                          <span className="inline-flex items-center gap-1 font-medium text-primary">
-                            <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" />
-                            <span>Participe</span>
-                          </span>
-                        ) : p.status === "absent" ? (
-                          <span className="text-muted-foreground italic">Absent</span>
-                        ) : (
-                          <span className="text-muted-foreground">{p.status}</span>
-                        )}
-
-                        {p.user_id === data.userId ? (
-                          <button
-                            type="button"
-                            className="text-xs text-primary font-medium hover:underline ml-2"
-                            onClick={() => {
-                              const nextStatus =
-                                (p.status as string) === "absent" ? "accepte" : "absent";
-                              declareStatusMutation.mutate(nextStatus);
-                            }}
-                          >
-                            {(p.status as string) === "absent"
-                              ? "Participer à nouveau"
-                              : "Indiquer mon absence"}
-                          </button>
-                        ) : null}
-
-                        {data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id ? (
-                          p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                            <button
-                              type="button"
-                              className="text-xs text-destructive/80 hover:underline"
-                              disabled={setCoOrgMutation.isPending}
-                              onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
-                            >
-                              Retirer co-org
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                              disabled={setCoOrgMutation.isPending}
-                              onClick={() =>
-                                setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
-                              }
-                            >
-                              Nommer co-org
-                            </button>
-                          )
-                        ) : null}
-
-                        {data.isOwner && !p.placeholder && !p.isStar ? (
-                          <button
-                            type="button"
-                            aria-label={`Retirer ${p.email || p.display_name}`}
-                            className="text-muted-foreground/70 hover:text-destructive p-1"
-                            onClick={() => removeMutation.mutate(p.id)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-
-            {/* PARAMÈTRES STAR SI VOYAGE STAR (RÔLE DE LA STAR) */}
+            {/* PARAMÈTRES STAR SI VOYAGE STAR (POSITIONNÉS DÉCISIONNELLEMENT AVANT LA LISTE) */}
             {hasStar ? (
-              <div className="pt-4 border-t border-border/40 space-y-3">
+              <div className="bg-sage/12 p-4 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <KrewIcon name="favorite" tone="sage" size="sm" className="size-4 shrink-0" />
                   <span>Rôle de la Star ({celebratedPerson || "Secret"})</span>
@@ -1544,6 +1403,167 @@ function TripDetail() {
                 </div>
               </div>
             ) : null}
+
+            {/* LISTE DES MEMBRES */}
+            <ul className="divide-y divide-border/40 pt-1">
+              {participants.length === 0 ? (
+                <li className="text-sm text-muted-foreground py-4">
+                  Personne n’a encore rejoint le groupe.
+                </li>
+              ) : (
+                participants.map((p) => {
+                  const picks = (logistics.transportPicks ?? []) as any[];
+                  const userPick = p.user_id
+                    ? picks.find((pk: any) => pk.userId === p.user_id)
+                    : null;
+                  const city =
+                    progress?.participants?.find((pr: any) => pr.user_id === p.user_id)
+                      ?.departure_city ||
+                    p.departure_city ||
+                    userPick?.city ||
+                    null;
+                  const isOwner = Boolean(p.user_id && !p.placeholder && p.user_id === trip.owner_id);
+                  const isCoOrganizer = Boolean(
+                    p.user_id &&
+                      !p.placeholder &&
+                      p.user_id !== starUid &&
+                      p.user_id !== trip.owner_id &&
+                      p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId),
+                  );
+
+                  const transportMode = userPick?.mode ? String(userPick.mode).toLowerCase() : "";
+                  const transportIconName: "plane" | "train" | "car" | "transport" =
+                    transportMode.includes("flight") || transportMode.includes("plane") || transportMode.includes("avion")
+                      ? "plane"
+                      : transportMode.includes("train")
+                        ? "train"
+                        : transportMode.includes("car") || transportMode.includes("voiture")
+                          ? "car"
+                          : "transport";
+
+                  const initial = String(p.display_name || p.email || "P").trim().charAt(0).toUpperCase();
+
+                  return (
+                    <li
+                      key={p.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between min-h-[56px] py-3.5 gap-2.5"
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Petit repère graphique initial */}
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sage/16 text-primary font-mono text-xs font-semibold mt-0.5">
+                          {initial}
+                        </span>
+
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-foreground text-sm">
+                              {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
+                            </p>
+                            {isOwner ? (
+                              <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full leading-none">
+                                Organisateur·rice
+                              </span>
+                            ) : isCoOrganizer ? (
+                              <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full leading-none">
+                                Co-organisateur·rice
+                              </span>
+                            ) : null}
+                            {p.isStar ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-sage/16 px-2 py-0.5 rounded-full leading-none">
+                                <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" /> Star
+                              </span>
+                            ) : null}
+                          </div>
+                          {p.email ? (
+                            <p className="text-xs text-muted-foreground mt-0.5">{p.email}</p>
+                          ) : null}
+                          {city || userPick ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                              {city ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <KrewIcon name="destination" tone="muted" size="sm" className="size-3.5" />
+                                  <span>Départ : <strong className="text-foreground font-normal">{city}</strong></span>
+                                </span>
+                              ) : null}
+                              {userPick ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <KrewIcon name={transportIconName} tone="muted" size="sm" className="size-3.5" />
+                                  <span>Trajet : <strong className="text-foreground font-normal">{userPick.modeLabel || userPick.mode} ({userPick.label})</strong></span>
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto text-xs">
+                        {p.status === "accepte" ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-primary">
+                            <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" />
+                            <span>Participe</span>
+                          </span>
+                        ) : p.status === "absent" ? (
+                          <span className="text-muted-foreground italic">Absent</span>
+                        ) : (
+                          <span className="text-muted-foreground">{p.status}</span>
+                        )}
+
+                        {p.user_id === data.userId ? (
+                          <button
+                            type="button"
+                            className="text-xs text-primary font-medium hover:underline ml-2"
+                            onClick={() => {
+                              const nextStatus =
+                                (p.status as string) === "absent" ? "accepte" : "absent";
+                              declareStatusMutation.mutate(nextStatus);
+                            }}
+                          >
+                            {(p.status as string) === "absent"
+                              ? "Participer à nouveau"
+                              : "Indiquer mon absence"}
+                          </button>
+                        ) : null}
+
+                        {data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id ? (
+                          p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
+                            <button
+                              type="button"
+                              className="text-xs text-destructive/80 hover:underline"
+                              disabled={setCoOrgMutation.isPending}
+                              onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
+                            >
+                              Retirer co-org
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                              disabled={setCoOrgMutation.isPending}
+                              onClick={() =>
+                                setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })
+                              }
+                            >
+                              Nommer co-org
+                            </button>
+                          )
+                        ) : null}
+
+                        {data.isOwner && !p.placeholder && !p.isStar ? (
+                          <button
+                            type="button"
+                            aria-label={`Retirer ${p.email || p.display_name}`}
+                            className="text-muted-foreground/70 hover:text-destructive p-1"
+                            onClick={() => removeMutation.mutate(p.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })
+              )}
+            </ul>
 
             {/* ACTION INVITATION / PARTAGE SANS VERT WHATSAPP NI AMBER (UNIFIED 40px/12px/600/12px) */}
             <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">

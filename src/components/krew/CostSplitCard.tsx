@@ -39,22 +39,23 @@ export function CostSplitCard({ split, tripName }: Props) {
       </div>
 
       <div className="mt-5 space-y-4">
-        <div className="grid gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm sm:grid-cols-3">
+        {/* Nappe sauge pâle pour les postes principaux */}
+        <div className="bg-sage/12 rounded-2xl p-4 text-xs font-sans space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
           <p>
             <span className="text-muted-foreground">Hébergement : </span>
-            <span className="font-mono font-semibold">{formatEuro(split.accommodation)}</span>
+            <span className="font-mono font-semibold text-foreground">{formatEuro(split.accommodation)}</span>
           </p>
           <p>
             <span className="text-muted-foreground">Activités : </span>
-            <span className="font-mono font-semibold">{formatEuro(split.activities)}</span>
+            <span className="font-mono font-semibold text-foreground">{formatEuro(split.activities)}</span>
           </p>
           <p>
             <span className="text-muted-foreground">Repas : </span>
-            <span className="font-mono font-semibold">{formatEuro(split.food)}</span>
+            <span className="font-mono font-semibold text-foreground">{formatEuro(split.food)}</span>
           </p>
         </div>
 
-        <p className="text-sm font-medium">
+        <p className="text-xs font-medium text-foreground">
           Part égale : <span className="font-mono font-semibold text-primary">{formatEuro(split.sharedPerPerson)}</span> / pers.
         </p>
 
@@ -106,12 +107,15 @@ export function CostSplitCard({ split, tripName }: Props) {
           ))}
         </div>
 
-        <div className="pt-2 border-t border-border/60 flex items-center justify-between">
-          <span className="flex items-center gap-2 font-display text-lg font-semibold">
+        {/* Total groupe : point visuel principal avec highlight sauge poudré */}
+        <div className="pt-3 border-t border-border/40 flex items-center justify-between">
+          <span className="flex items-center gap-2 font-display text-xl font-normal text-foreground">
             <KrewIcon name="budget" tone="plum" size="sm" className="size-5 shrink-0" />
             Total groupe :
           </span>
-          <span className="font-mono font-bold text-xl text-primary">{formatEuro(split.totalGroup)}</span>
+          <span className="bg-sage/20 text-primary font-mono font-bold text-xl px-3 py-1 rounded-xl">
+            {formatEuro(split.totalGroup)}
+          </span>
         </div>
       </div>
     </div>

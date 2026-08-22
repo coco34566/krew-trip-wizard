@@ -31,6 +31,39 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
 
   return (
     <section className={cn("space-y-6", className)}>
+      {/* ZONE 3 — ÉTAT DU GROUPE (DISPONIBILITÉS / PRÉFÉRENCES) : AVANT LA PROCHAINE ACTION */}
+      {progress.length > 0 ? (
+        <div className="pt-1 pb-2">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Disponibilités (GAUCHE) */}
+            {progress[0] ? (
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <KrewIcon name="availability" tone="plum" size="sm" className="size-4 shrink-0" />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-foreground/75 font-medium">
+                    {progress[0].label}
+                  </span>
+                </div>
+                <KrewProgressRing value={progress[0].value} tone={progress[0].tone ?? "sage"} size={72} />
+              </div>
+            ) : null}
+
+            {/* Préférences (DROITE) */}
+            {progress[1] ? (
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-foreground/75 font-medium">
+                    {progress[1].label}
+                  </span>
+                </div>
+                <KrewProgressRing value={progress[1].value} tone={progress[1].tone ?? "plum"} size={72} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {/* ZONE 2 — PROCHAINE ACTION (SURFACE SAUGE SANS CARD BORDER/SHADOW) */}
       <div className="relative overflow-hidden bg-sage/16 p-6 sm:p-7 rounded-[2rem]">
         <div className="flex flex-col gap-2 max-w-[calc(100%-80px)] pr-2">
@@ -76,40 +109,7 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
         </div>
       </div>
 
-      {/* ZONE 3 — ÉTAT DU GROUPE (DISPONIBILITÉS / PRÉFÉRENCES) */}
-      {progress.length > 0 ? (
-        <div className="pt-2">
-          <div className="grid grid-cols-2 gap-4">
-            {/* Disponibilités (GAUCHE) */}
-            {progress[0] ? (
-              <div className="flex flex-col items-center text-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <KrewIcon name="availability" tone="plum" size="sm" className="size-4 shrink-0" />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-foreground/75 font-medium">
-                    {progress[0].label}
-                  </span>
-                </div>
-                <KrewProgressRing value={progress[0].value} tone={progress[0].tone ?? "sage"} size={64} />
-              </div>
-            ) : null}
-
-            {/* Préférences (DROITE) */}
-            {progress[1] ? (
-              <div className="flex flex-col items-center text-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
-                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-foreground/75 font-medium">
-                    {progress[1].label}
-                  </span>
-                </div>
-                <KrewProgressRing value={progress[1].value} tone={progress[1].tone ?? "plum"} size={64} />
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {/* ZONE 4 — LES 3 ACTIONS SUIVANTES */}
+      {/* ZONE 4 — LES 3 ACTIONS SUIVANTES : STRICTEMENT ALIGNÉES SANS DÉCALAGES MARGE */}
       {secondary.slice(0, 3).length > 0 ? (
         <div className="relative pt-2 space-y-1">
           {secondary.slice(0, 3).map((action, index) => {
@@ -138,8 +138,6 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                 {...(action.href ? { href: action.href } : {})}
                 className={cn(
                   "grid grid-cols-[40px_1fr_24px] items-center min-h-[68px] border-b border-primary/10 py-2.5 transition-colors group",
-                  index === 1 && "ml-[8px]",
-                  index === 2 && "ml-[4px]",
                   action.href && "cursor-pointer",
                 )}
               >
