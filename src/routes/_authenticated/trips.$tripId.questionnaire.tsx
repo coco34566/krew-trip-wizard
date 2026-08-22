@@ -342,12 +342,12 @@ function ParticipantQuestionnaire() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Button>
 
-      <div className="space-y-2 relative">
-        <div className="absolute top-0 right-0 pointer-events-none hidden sm:block">
+      <div className="space-y-2 relative pr-12 sm:pr-20">
+        <div className="absolute top-0 right-0 pointer-events-none">
           <img
             src="/brand/otter-states/preferences.png"
             alt=""
-            className="w-16 h-auto object-contain"
+            className="w-11 sm:w-16 h-auto object-contain"
           />
         </div>
         <div className="relative inline-block">

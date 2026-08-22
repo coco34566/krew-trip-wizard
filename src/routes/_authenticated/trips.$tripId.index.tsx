@@ -2320,11 +2320,11 @@ function TripDetail() {
         className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter destination asset (top right) */}
-        <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
           <img
             src="/brand/otter-states/destination.png"
             alt=""
-            className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+            className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
             loading="lazy"
           />
         </div>
@@ -2573,11 +2573,11 @@ function TripDetail() {
           className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter accommodation asset (top right) */}
-          <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
             <img
               src="/brand/otter-states/accommodation.png"
               alt=""
-              className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
               loading="lazy"
             />
           </div>
@@ -2820,11 +2820,11 @@ function TripDetail() {
         className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter transport asset (top right) */}
-        <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
           <img
             src="/brand/otter-states/transport.png"
             alt=""
-            className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+            className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
             loading="lazy"
           />
         </div>
@@ -3036,11 +3036,11 @@ function TripDetail() {
           className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter planning asset (top right) */}
-          <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
             <img
               src="/brand/otter-states/planning.png"
               alt=""
-              className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
               loading="lazy"
             />
           </div>
@@ -3187,11 +3187,11 @@ function TripDetail() {
           className="mt-8 space-y-4 rounded-3xl border border-border/60 bg-card p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter trip-preparation asset (top right) */}
-          <div className="absolute top-4 right-4 pointer-events-none hidden sm:block">
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
             <img
               src="/brand/otter-states/trip-preparation.png"
               alt=""
-              className="w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              className="w-11 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
               loading="lazy"
             />
           </div>

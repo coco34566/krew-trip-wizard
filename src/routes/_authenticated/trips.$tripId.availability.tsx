@@ -296,12 +296,12 @@ function AvailabilityPage() {
         <ArrowLeft className="size-4" /> Retour à Mon Voyage
       </a>
 
-      <div className="space-y-2 relative">
-        <div className="absolute top-0 right-0 pointer-events-none hidden sm:block">
+      <div className="space-y-2 relative pr-12 sm:pr-20">
+        <div className="absolute top-0 right-0 pointer-events-none">
           <img
             src="/brand/otter-states/availability.png"
             alt=""
-            className="w-16 h-auto object-contain"
+            className="w-11 sm:w-16 h-auto object-contain"
           />
         </div>
         <p className="text-xs font-medium uppercase tracking-wider text-primary font-mono">
