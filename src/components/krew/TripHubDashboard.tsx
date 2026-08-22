@@ -1,20 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import {
-  CalendarDays,
-  ClipboardList,
-  ArrowRight,
-  MapPin,
-  Sparkles,
-  Star,
-  Users,
-  Wallet,
-  Hotel,
-  Plane,
-} from "lucide-react";
 import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/krew/Logo";
 import {
+  KrewIcon,
   KrewMark,
   KrewOrganicBlob,
   KrewHighlight,
@@ -148,7 +137,7 @@ function NextActionsPanel({
       title: "Indiquer mes disponibilités",
       description: "Indispensable pour trouver une date commune.",
       href: `/trips/${tripId}/availability`,
-      icon: CalendarDays,
+      iconName: "availability",
     });
   }
   if (!myPreferencesDone) {
@@ -157,7 +146,7 @@ function NextActionsPanel({
       title: "Renseigner mes préférences",
       description: "Budget, envies et transports pour trouver les destinations qui correspondent au groupe.",
       href: `/trips/${tripId}/questionnaire`,
-      icon: ClipboardList,
+      iconName: "preferences",
     });
   }
   if (hasStar && !starDone) {
@@ -168,7 +157,7 @@ function NextActionsPanel({
         : "Renseigner les préférences de la Star",
       description: "Compléter ses préférences pour le voyage.",
       href: `/trips/${tripId}/star`,
-      icon: Star,
+      iconName: "favorite",
     });
   }
 
@@ -180,7 +169,7 @@ function NextActionsPanel({
         title: "Voter pour un hébergement",
         description: "Un vote par personne — l’organisateur·rice finalise le choix.",
         href: `/trips/${tripId}?view=voyage&section=accommodation`,
-        icon: Hotel,
+        iconName: "accommodation",
       });
     }
     if (transportOffersReady && !myTransportPicked) {
@@ -189,7 +178,7 @@ function NextActionsPanel({
         title: "Choisir mon trajet",
         description: "Selon la ville de départ et les contraintes horaires.",
         href: `/trips/${tripId}?view=voyage&section=transport`,
-        icon: Plane,
+        iconName: "transport",
       });
     }
   }
@@ -202,7 +191,7 @@ function NextActionsPanel({
         title: "Valider les dates du groupe",
         description: "Cette validation débloque la suite du voyage.",
         href: `/trips/${tripId}?view=voyage&section=dates`,
-        icon: CalendarDays,
+        iconName: "calendar",
       });
     }
     if (datesLocked && !profileValidated && profileReady) {
@@ -211,7 +200,7 @@ function NextActionsPanel({
         title: "Choisir le profil du voyage",
         description: "Choisis 1 à 3 profils qui correspondent au séjour du groupe.",
         href: `/trips/${tripId}?view=voyage&section=profile`,
-        icon: Sparkles,
+        iconName: "profile",
       });
     }
     if (datesLocked && profileValidated && !destinationSelected) {
@@ -221,7 +210,7 @@ function NextActionsPanel({
           title: "Trouver des destinations",
           description: "Des propositions adaptées aux préférences du groupe.",
           href: `/trips/${tripId}?view=voyage&section=destination`,
-          icon: Sparkles,
+          iconName: "destination",
         });
       } else {
         push({
@@ -229,7 +218,7 @@ function NextActionsPanel({
           title: "Valider une destination",
           description: "Cette validation débloque les hébergements, les trajets et le planning.",
           href: `/trips/${tripId}?view=voyage&section=destination`,
-          icon: MapPin,
+          iconName: "destination",
         });
       }
     }
@@ -239,7 +228,7 @@ function NextActionsPanel({
         title: "Rechercher des hébergements",
         description: "Proposer des hébergements au groupe pour le vote.",
         href: `/trips/${tripId}?view=voyage&section=accommodation`,
-        icon: Hotel,
+        iconName: "accommodation",
       });
     }
     if (destinationSelected && !transportOffersReady) {
@@ -248,7 +237,7 @@ function NextActionsPanel({
         title: "Proposer des trajets A/R",
         description: "Des options adaptées aux villes de départ du groupe.",
         href: `/trips/${tripId}?view=voyage&section=transport`,
-        icon: Plane,
+        iconName: "transport",
       });
     }
     if (
@@ -262,7 +251,7 @@ function NextActionsPanel({
         title: "Créer le planning",
         description: "Construire le séjour jour par jour en tenant compte des horaires d’arrivée et de départ.",
         href: `/trips/${tripId}?view=voyage&section=planning`,
-        icon: Sparkles,
+        iconName: "planning",
       });
     }
     if (hasItinerary) {
@@ -271,7 +260,7 @@ function NextActionsPanel({
         title: "Affiner l’organisation",
         description: "Ajuster un créneau, vérifier les choix du groupe ou partager le résumé.",
         href: `/trips/${tripId}?view=voyage&section=planning`,
-        icon: ClipboardList,
+        iconName: "tasks",
       });
     }
 
@@ -292,7 +281,7 @@ function NextActionsPanel({
           .filter(Boolean)
           .join(" · "),
         href: `/trips/${tripId}#group-section`,
-        icon: Users,
+        iconName: "group",
       });
     }
   }
@@ -478,15 +467,15 @@ export function TripHubDashboard({
             {destinationName ? (
               <div className="pt-1">
                 <p className="font-display text-2xl sm:text-3xl text-sage font-normal relative inline-block">
-                  <span className="relative z-10 flex items-center gap-2">
-                    <MapPin className="size-5 text-sage shrink-0" />
+                  <span className="relative z-10 flex items-center gap-1.5">
+                    <KrewIcon name="destination" tone="sage" size="sm" />
                     <span>{destinationName}</span>
                   </span>
                   <KrewMark
                     type="underline"
                     tone="sage"
                     size="md"
-                    className="absolute inset-x-0 -bottom-2 h-4 w-full opacity-85 pointer-events-none"
+                    className="absolute inset-x-0 -bottom-1 h-3.5 w-full opacity-90 pointer-events-none"
                   />
                 </p>
               </div>
@@ -494,7 +483,7 @@ export function TripHubDashboard({
 
             {trip.celebrated_person ? (
               <p className="inline-flex items-center gap-1.5 text-sm font-medium text-white/90 pt-0.5">
-                <Star className="size-4 fill-amber-300 text-amber-300 shrink-0" /> Pour{" "}
+                <KrewIcon name="favorite" tone="sage" size="sm" /> Pour{" "}
                 <span className="font-semibold text-white">{trip.celebrated_person}</span>
               </p>
             ) : null}
@@ -514,67 +503,69 @@ export function TripHubDashboard({
         </div>
 
         {/* LAYER 4 & 5b (z-30 / z-40) : Métadonnées Éditoriales Asymétriques + Scène Loutre & Flèche */}
-        <div className="relative z-30 pt-5 px-3 sm:px-6 min-h-[90px]">
-          {/* Métadonnées en Disposition Asymétrique (Dates bas-gauche, Participants bas-droite, Budget bas-gauche-centre) */}
-          <div className="relative min-h-[70px]">
-            {/* Dates : Côté gauche avec Highlight Sauge */}
-            <div className="absolute top-0 left-0">
-              {datesLocked && (trip.start_date || provisionalStart) ? (
-                <KrewHighlight tone="sage" className="inline-flex items-center gap-1.5 font-mono text-xs text-foreground font-medium">
-                  <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-primary font-sans font-medium">Dates validées</span> · {trip.start_date
-                    ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                      })
-                    : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                  {trip.end_date
-                    ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                      })}`
-                    : ""}
-                </KrewHighlight>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CalendarDays className="size-3.5 text-muted-foreground shrink-0" /> Date à définir
+        <div className="relative z-30 pt-4 px-2 sm:px-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          {/* Métadonnées en Disposition Flex Asymétrique & Robuste sans risque de chevauchement */}
+          <div className="flex flex-col gap-2 min-w-0 pr-16 sm:pr-0 max-w-md">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
+              {/* Dates : Côté gauche avec Highlight Sauge */}
+              <div className="shrink-0">
+                {datesLocked && (trip.start_date || provisionalStart) ? (
+                  <KrewHighlight tone="sage" className="inline-flex items-center gap-1.5 font-mono text-xs text-foreground font-medium">
+                    <KrewIcon name="calendar" tone="muted" size="sm" className="size-4" />
+                    <span className="text-primary font-sans font-medium">Dates validées</span> · {trip.start_date
+                      ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                    {trip.end_date
+                      ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })}`
+                      : ""}
+                  </KrewHighlight>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <KrewIcon name="calendar" tone="muted" size="sm" className="size-4" /> Date à définir
+                  </span>
+                )}
+              </div>
+
+              {/* Participants */}
+              <div className="shrink-0">
+                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
+                  <KrewIcon name="group" tone="muted" size="sm" className="size-4" />
+                  <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
                 </span>
-              )}
+              </div>
             </div>
 
-            {/* Participants : Décalés à droite et légèrement plus bas (~24px) */}
-            <div className="absolute top-6 right-2 sm:right-24">
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-                <Users className="size-3.5 text-muted-foreground shrink-0" />
-                <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
-              </span>
-            </div>
-
-            {/* Budget : Décalé plus bas vers le centre/gauche (~48px) */}
-            <div className="absolute top-12 left-2">
+            {/* Budget */}
+            <div className="pt-0.5">
               {totalReserved != null && totalEstimated != null ? (
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
+                  <KrewIcon name="budget" tone="muted" size="sm" className="size-4" /> Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}
                 </span>
               ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> ~{formatEuro(liveBudgetTotal)} / pers.
+                  <KrewIcon name="budget" tone="muted" size="sm" className="size-4" /> ~{formatEuro(liveBudgetTotal)} / pers.
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Wallet className="size-3.5 text-muted-foreground shrink-0" /> Budget à définir
+                  <KrewIcon name="budget" tone="muted" size="sm" className="size-4" /> Budget à définir
                 </span>
               )}
             </div>
           </div>
 
-          {/* LAYER 5c (z-40) : Petite Scène Graphique Loutre + Flèche de Guidage vers le bas */}
-          <div className="absolute bottom-0 right-2 z-40 flex items-center gap-2 pointer-events-none">
-            <Logo variant="icon" size="sm" className="size-14 sm:size-16 object-contain filter drop-shadow-xs" />
-            <KrewMark type="arrow" tone="sage" size="md" className="w-14 h-8 text-sage opacity-90 transform rotate-12" />
+          {/* LAYER 5c (z-40) : Petite Scène Graphique Loutre + Flèche Directionnelle */}
+          <div className="self-end sm:self-auto shrink-0 flex items-center gap-1 pointer-events-none -mt-4 sm:mt-0">
+            <Logo variant="icon" size="sm" className="size-12 sm:size-14 object-contain filter drop-shadow-xs" />
+            <KrewMark type="arrow-down-right" tone="sage" size="md" className="w-10 h-7 text-sage opacity-85" />
           </div>
         </div>
       </header>
