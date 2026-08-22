@@ -2565,6 +2565,12 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           }
         }
 
+        // Rejection counters and details calls are ALWAYS accumulated after selection attempt regardless of matchedPlace
+        candidatesRejectedRequirements += telemetryObj.candidatesRejectedRequirements;
+        candidatesRejectedGeography += telemetryObj.candidatesRejectedGeography;
+        candidatesRejectedOpeningHours += telemetryObj.candidatesRejectedOpeningHours;
+        geoapifyDetailsCalls = telemetryObj.detailsCalls;
+
         if (matchedPlace) {
           usedCandidateIdsSet.add(matchedPlace.id);
           if (matchedPlace.latitude != null && matchedPlace.longitude != null) {
@@ -2572,11 +2578,6 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           }
 
           const resolvedResource = resolveActivityResourceForPlace(matchedPlace, trip.destination, { telemetry: telemetryObj });
-
-          candidatesRejectedRequirements += telemetryObj.candidatesRejectedRequirements;
-          candidatesRejectedGeography += telemetryObj.candidatesRejectedGeography;
-          candidatesRejectedOpeningHours += telemetryObj.candidatesRejectedOpeningHours;
-          geoapifyDetailsCalls = telemetryObj.detailsCalls;
           fallbackMapLinks += telemetryObj.fallbackMapLinks;
 
           slots.push({

@@ -27,10 +27,16 @@ export type GeoapifySearchOptions = {
   conditions?: string[];
 };
 
+export type GeographicSignal = {
+  query: string;
+  kind: "area" | "poi";
+};
+
 export type IntentLocationResult = {
   latitude: number;
   longitude: number;
   label: string;
+  kind?: "area" | "poi";
 };
 
 export type PlaceRequirements = {
@@ -51,7 +57,7 @@ export function clearIntentLocationCache(): void {
   intentLocationCacheMap.clear();
 }
 
-export function extractGeographicSignalFromIntent(searchIntent?: string | null): string | null {
+export function extractGeographicSignalFromIntentDetails(searchIntent?: string | null): GeographicSignal | null {
   if (!searchIntent || typeof searchIntent !== "string") return null;
   const text = searchIntent.trim();
   if (text.length < 4) return null;
@@ -61,40 +67,61 @@ export function extractGeographicSignalFromIntent(searchIntent?: string | null):
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 
-  // 1. Explicit extraction after prepositions: "dans/au/du/des/vers/a/autour du/près de/dans le"
+  const areaKeywords = [
+    "quartier", "district", "centre historique", "vieille ville", "rue", "avenue", "boulevard",
+    "quai", "place", "zone", "secteur",
+  ];
+
+  const poiKeywords = [
+    "chateau", "bastion", "fort", "citadelle", "palais", "cathedrale", "eglise", "monument",
+    "lac", "parc", "jardin", "ile", "presqu'ile", "presquile", "colline", "montagne",
+    "marche central", "halles", "ruin bar", "ruinbar", "thermes", "bains",
+  ];
+
+  // 1. Preposition extraction
   const prepMatch = text.match(
     /(?:dans\s+(?:le\s+|la\s+|l'|les\s+)?|au\s+|aux\s+|autour\s+du\s+|autour\s+de\s+|pres\s+du\s+|pres\s+de\s+|du\s+|des\s+|a\s+la\s+|a\s+l'|a\s+)(quartier\s+[\w\s-]+|centre\s+historique|vieille\s+ville|marche\s+[\w\s-]+|[\w\s-]+(?:district|place|rue|avenue|boulevard|quai|pont|chateau|bastion|palais|cathedrale|eglise|monument|lac|parc|jardin|ile|colline|mont)[\w\s-]*)/i,
   );
 
   if (prepMatch && prepMatch[1]) {
     const extracted = prepMatch[1].trim();
-    if (extracted.length >= 3) return extracted;
+    if (extracted.length >= 3) {
+      const normExtracted = extracted.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const isArea = areaKeywords.some((kw) => normExtracted.includes(kw));
+      return { query: extracted, kind: isArea ? "area" : "poi" };
+    }
   }
 
-  // 2. Direct keyword extraction
-  const keywords = [
-    "quartier", "district", "place", "rue", "avenue", "boulevard", "quai", "pont",
-    "chateau", "bastion", "fort", "citadelle", "palais", "cathedrale", "eglise", "monument",
-    "lac", "parc", "jardin", "ile", "presqu'ile", "presquile", "colline", "montagne",
-    "centre historique", "vieille ville", "marche central", "halles", "ruin bar", "ruinbar",
-    "thermes", "bains",
-  ];
-
-  for (const kw of keywords) {
+  // 2. Direct Area match
+  for (const kw of areaKeywords) {
     if (normText.includes(kw)) {
-      // Find position in raw text
       const idx = normText.indexOf(kw);
       if (idx >= 0) {
-        // Extract phrase starting at keyword or matching proper noun before it
         const slice = text.slice(idx).trim();
-        // Clean trailing generic words
         const cleaned = slice.replace(/\s+(convivial|sympa|de groupe|groupe|traditionnel|chic|festif|animé|chaleureux|relaxant).*$/i, "");
-        if (cleaned.length >= 3) return cleaned;
+        if (cleaned.length >= 3) return { query: cleaned, kind: "area" };
+      }
+    }
+  }
+
+  // 3. Direct POI match
+  for (const kw of poiKeywords) {
+    if (normText.includes(kw)) {
+      const idx = normText.indexOf(kw);
+      if (idx >= 0) {
+        const slice = text.slice(idx).trim();
+        const cleaned = slice.replace(/\s+(convivial|sympa|de groupe|groupe|traditionnel|chic|festif|animé|chaleureux|relaxant).*$/i, "");
+        if (cleaned.length >= 3) return { query: cleaned, kind: "poi" };
       }
     }
   }
 
   return null;
+}
+
+export function extractGeographicSignalFromIntent(searchIntent?: string | null): string | null {
+  const signal = extractGeographicSignalFromIntentDetails(searchIntent);
+  return signal ? signal.query : null;
 }
 
 export async function resolveSearchIntentLocation(
@@ -104,10 +131,10 @@ export async function resolveSearchIntentLocation(
   refLon?: number | null,
   telemetryCounter?: { intentResolutionCalls?: number; intentResolutionHits?: number },
 ): Promise<IntentLocationResult | null> {
-  const signal = extractGeographicSignalFromIntent(searchIntent);
-  if (!signal) return null;
+  const signalObj = extractGeographicSignalFromIntentDetails(searchIntent);
+  if (!signalObj) return null;
 
-  const normSignal = signal.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const normSignal = signalObj.query.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const normDest = destination.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const cacheKey = `${normSignal}::${normDest}`;
 
@@ -127,7 +154,7 @@ export async function resolveSearchIntentLocation(
 
   try {
     const url = new URL("https://api.geoapify.com/v1/geocode/search");
-    url.searchParams.set("text", `${signal} ${destination}`);
+    url.searchParams.set("text", `${signalObj.query} ${destination}`);
     if (refLon != null && refLat != null) {
       url.searchParams.set("bias", `proximity:${refLon},${refLat}`);
       url.searchParams.set("filter", `circle:${refLon},${refLat},35000`);
@@ -168,17 +195,38 @@ export async function resolveSearchIntentLocation(
 
     const props = hit.properties || {};
 
-    // A. COHÉRENCE AVEC LA DESTINATION
-    const city = String(props.city || props.county || props.municipality || props.state || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const country = String(props.country || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    // 1. Destination Coherence Check (STRICT)
+    const city = String(props.city || props.municipality || props.county || props.state || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const formatted = String(props.formatted || props.address_line2 || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-    const matchesDestination =
-      city.includes(normDest) ||
-      formatted.includes(normDest) ||
-      (props.result_type === "country" ? false : normDest.length >= 3 && formatted.includes(normDest.slice(0, 4)));
+    const destinationCompatible = city.includes(normDest) || formatted.includes(normDest);
 
-    if (!matchesDestination && refLat != null && refLon != null) {
+    if (!destinationCompatible) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null; // Refuse result if not explicitly destination-compatible!
+    }
+
+    // 2. Result Type Validation (STRICT)
+    const resultType = String(props.result_type || props.category || "").toLowerCase();
+    let resultTypeCompatible = false;
+
+    if (signalObj.kind === "area") {
+      const validAreaTypes = ["district", "suburb", "neighbourhood", "locality", "street", "square", "road", "quarter"];
+      resultTypeCompatible = validAreaTypes.includes(resultType) || props.category?.includes("administrative");
+    } else {
+      // POI
+      const invalidPoiTypes = ["country", "state", "postcode", "unknown", "locality", "city"];
+      resultTypeCompatible = !invalidPoiTypes.includes(resultType);
+    }
+
+    if (!resultTypeCompatible) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    // 3. Distance Guard (Secondary Guard)
+    let distanceGuardSatisfied = true;
+    if (refLat != null && refLon != null) {
       const rad = (deg: number) => (deg * Math.PI) / 180;
       const dLat = rad(lat - refLat);
       const dLon = rad(lon - refLon);
@@ -187,14 +235,11 @@ export async function resolveSearchIntentLocation(
         Math.cos(rad(refLat)) * Math.cos(rad(lat)) * Math.sin(dLon / 2) ** 2;
       const distKm = 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
       if (distKm > 25) {
-        intentLocationCacheMap.set(cacheKey, null);
-        return null;
+        distanceGuardSatisfied = false;
       }
     }
 
-    // B. TYPE DU RÉSULTAT
-    const resultType = String(props.result_type || props.category || "").toLowerCase();
-    if (["country", "state", "postcode", "unknown"].includes(resultType)) {
+    if (!distanceGuardSatisfied) {
       intentLocationCacheMap.set(cacheKey, null);
       return null;
     }
@@ -202,7 +247,8 @@ export async function resolveSearchIntentLocation(
     const result: IntentLocationResult = {
       latitude: lat,
       longitude: lon,
-      label: signal,
+      label: signalObj.query,
+      kind: signalObj.kind,
     };
 
     if (telemetryCounter && telemetryCounter.intentResolutionHits != null) {

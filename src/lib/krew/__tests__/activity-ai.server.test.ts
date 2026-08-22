@@ -1296,4 +1296,257 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     expect(classifyActivityMode({ kind: "internal", category: "jeu_groupe", label: "Blind test" })).toBe("self_guided_group");
     expect(classifyActivityMode({ kind: "place_required", category: "culture", label: "Balade dans le centre historique" })).toBe("free_exploration");
   });
+
+  it("TEST A — destination incompatible mais proche -> null", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Szentendre",
+              formatted: "Szentendre, Hungary",
+              result_type: "district",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
+      expect(res).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST B — destination compatible + bon type AREA -> intentCenter accepté", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Budapest",
+              formatted: "Budapest, Erzsébetváros",
+              result_type: "district",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
+      expect(res).not.toBeNull();
+      expect(res?.kind).toBe("area");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST C — destination compatible mais mauvais type AREA (e.g. amenity) -> null", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.06,
+              city: "Budapest",
+              formatted: "Budapest, Hungary",
+              result_type: "amenity",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("quartier juif", "Budapest", 47.4979, 19.0402);
+      expect(res).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST D — destination compatible + bon type POI -> intentCenter accepté", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.03,
+              city: "Budapest",
+              formatted: "Budapest, Bastion des Pêcheurs",
+              result_type: "attraction",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("Bastion des Pêcheurs", "Budapest", 47.4979, 19.0402);
+      expect(res).not.toBeNull();
+      expect(res?.kind).toBe("poi");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST E — destination compatible mais type trop générique pour POI (e.g. city) -> null", async () => {
+    clearIntentLocationCache();
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              lat: 47.50,
+              lon: 19.04,
+              city: "Budapest",
+              formatted: "Budapest, Hungary",
+              result_type: "city",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const res = await resolveSearchIntentLocation("Château de Buda", "Budapest", 47.4979, 19.0402);
+      expect(res).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("TEST F — fallback sécurisé : intentCenter = null permet de conserver le base pool destination", () => {
+    const { buildBasePoolKey } = require("../geoapify.server");
+    const req = convertIntentToPlaceRequirements("restaurant", "repas", "dîner festif", [], false, [], null);
+    expect(req.intentCenter).toBeNull();
+    const baseKey = buildBasePoolKey(req);
+    const fullKey = buildPoolKey(req);
+    expect(baseKey).toBe(fullKey);
+  });
+
+  it("VRAI TEST BUDGET API — 3 slots restaurant partageant la même base et 3 intentCenters -> 1 base search + 3 intent searches", async () => {
+    process.env["GEOAPIFY_API_KEY"] = "test-key";
+    const originalFetch = globalThis.fetch;
+
+    let placesSearchCalls = 0;
+
+    globalThis.fetch = (async (urlInput: string) => {
+      const urlStr = String(urlInput);
+      if (urlStr.includes("/v2/places")) {
+        placesSearchCalls++;
+        return {
+          ok: true,
+          json: async () => ({
+            features: [
+              {
+                properties: {
+                  id: `p_${placesSearchCalls}`,
+                  name: `Restaurant ${placesSearchCalls}`,
+                  categories: ["catering.restaurant"],
+                  lat: 47.5,
+                  lon: 19.04,
+                },
+              },
+            ],
+          }),
+        };
+      }
+      return { ok: false };
+    }) as any;
+
+    try {
+      const { buildBasePoolKey, buildPoolKey, searchGeoapifyPlaces, mergeUniquePlacesById } = await import("../geoapify.server");
+
+      const reqs = [
+        convertIntentToPlaceRequirements("restaurant", "repas", "quartier A", [], false, [], { latitude: 47.50, longitude: 19.06, label: "quartier A" }),
+        convertIntentToPlaceRequirements("restaurant", "repas", "quartier B", [], false, [], { latitude: 47.49, longitude: 19.03, label: "quartier B" }),
+        convertIntentToPlaceRequirements("restaurant", "repas", "quartier C", [], false, [], { latitude: 47.51, longitude: 19.05, label: "quartier C" }),
+      ];
+
+      const baseReqMap = new Map<string, any>();
+      const fullReqMap = new Map<string, any>();
+
+      for (const req of reqs) {
+        const baseKey = buildBasePoolKey(req);
+        const fullKey = buildPoolKey(req);
+        if (!baseReqMap.has(baseKey)) baseReqMap.set(baseKey, req);
+        if (!fullReqMap.has(fullKey)) fullReqMap.set(fullKey, req);
+      }
+
+      expect(baseReqMap.size).toBe(1);
+      expect(fullReqMap.size).toBe(3);
+
+      const basePools: Record<string, any[]> = {};
+      const placePools: Record<string, any[]> = {};
+
+      const refLat = 47.4979;
+      const refLon = 19.0402;
+      const radiusMeters = 10000;
+
+      let baseSearches = 0;
+      let supplementSearches = 0;
+
+      for (const [baseKey, req] of baseReqMap.entries()) {
+        baseSearches++;
+        basePools[baseKey] = await searchGeoapifyPlaces({
+          categories: req.categories,
+          latitude: refLat,
+          longitude: refLon,
+          radiusMeters,
+        });
+      }
+
+      for (const [fullKey, req] of fullReqMap.entries()) {
+        const baseKey = buildBasePoolKey(req);
+        const basePlaces = basePools[baseKey] || [];
+        if (req.intentCenter) {
+          supplementSearches++;
+          const intentPlaces = await searchGeoapifyPlaces({
+            categories: req.categories,
+            latitude: req.intentCenter.latitude,
+            longitude: req.intentCenter.longitude,
+            radiusMeters: 8000,
+          });
+          placePools[fullKey] = mergeUniquePlacesById(basePlaces, intentPlaces);
+        } else {
+          placePools[fullKey] = basePlaces;
+        }
+      }
+
+      expect(baseSearches).toBe(1);
+      expect(supplementSearches).toBe(3);
+      expect(placesSearchCalls).toBe(4);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
