@@ -2282,12 +2282,13 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       tripProfile,
     );
 
-    // 3. Collect place_required needs and group into base & intent category pools
+    // 3. Collect place_required needs and build Geoapify place pools via buildGeoapifyPlacePools
     const {
       searchGeoapifyPlaces,
       convertIntentToPlaceRequirements,
       buildBasePoolKey,
       buildPoolKey,
+      buildGeoapifyPlacePools,
       rankGeoapifyCandidates,
       mergeUniquePlacesById,
       fetchPlaceDetails,
@@ -2299,9 +2300,10 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     let intentCenteredSearches = 0;
     let basePoolSearches = 0;
     let intentSupplementSearches = 0;
+    let geoapifyPlacesCalls = 0;
+    let geoapifyDetailsCalls = 0;
 
-    const baseReqMap = new Map<string, any>();
-    const fullReqMap = new Map<string, any>();
+    const requirementsList: import("@/lib/krew/geoapify.server").PlaceRequirements[] = [];
 
     for (const day of enrichedSkeleton.days) {
       for (const slot of day.slots) {
@@ -2329,67 +2331,28 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             intentCenter,
           );
 
-          const baseKey = buildBasePoolKey(req);
-          const fullKey = buildPoolKey(req);
-
-          if (!baseReqMap.has(baseKey)) {
-            baseReqMap.set(baseKey, req);
-          }
-          if (!fullReqMap.has(fullKey)) {
-            fullReqMap.set(fullKey, req);
-          }
+          requirementsList.push(req);
         }
       }
     }
 
-    // 4. Fetch Geoapify place pools efficiently: base pools once per base requirement, intent supplements once per intent
-    const basePools: Record<string, any[]> = {};
-    const intentSupplementPools: Record<string, any[]> = {};
-    const placePools: Record<string, any[]> = {};
+    const placePoolsTelemetry = {
+      get basePoolSearches() { return basePoolSearches; },
+      set basePoolSearches(v) { basePoolSearches = v; },
+      get intentSupplementSearches() { return intentSupplementSearches; },
+      set intentSupplementSearches(v) { intentSupplementSearches = v; },
+      get intentCenteredSearches() { return intentCenteredSearches; },
+      set intentCenteredSearches(v) { intentCenteredSearches = v; },
+      get geoapifyPlacesCalls() { return geoapifyPlacesCalls; },
+      set geoapifyPlacesCalls(v) { geoapifyPlacesCalls = v; },
+    };
 
-    let geoapifyPlacesCalls = 0;
-    let geoapifyDetailsCalls = 0;
-
-    if (refLat != null && refLon != null) {
-      // 4a. Fetch base pools for destination center
-      for (const [baseKey, req] of baseReqMap.entries()) {
-        basePoolSearches++;
-        geoapifyPlacesCalls++;
-        const destPlaces = await searchGeoapifyPlaces({
-          categories: req.categories,
-          latitude: refLat,
-          longitude: refLon,
-          radiusMeters,
-          limit: 15,
-          conditions: req.accessibility || [],
-        });
-        basePools[baseKey] = destPlaces;
-      }
-
-      // 4b. Fetch intent supplement pools for intent centers
-      for (const [fullKey, req] of fullReqMap.entries()) {
-        const baseKey = buildBasePoolKey(req);
-        const basePlaces = basePools[baseKey] || [];
-
-        if (req.intentCenter) {
-          intentSupplementSearches++;
-          intentCenteredSearches++;
-          geoapifyPlacesCalls++;
-          const intentPlaces = await searchGeoapifyPlaces({
-            categories: req.categories,
-            latitude: req.intentCenter.latitude,
-            longitude: req.intentCenter.longitude,
-            radiusMeters: Math.min(radiusMeters, 8000),
-            limit: 15,
-            conditions: req.accessibility || [],
-          });
-          intentSupplementPools[fullKey] = intentPlaces;
-          placePools[fullKey] = mergeUniquePlacesById(basePlaces, intentPlaces);
-        } else {
-          placePools[fullKey] = basePlaces;
-        }
-      }
-    }
+    const placePools = await buildGeoapifyPlacePools({
+      requirementsList,
+      destinationCenter: refLat != null && refLon != null ? { latitude: refLat, longitude: refLon } : null,
+      radiusMeters,
+      telemetry: placePoolsTelemetry,
+    });
 
     // 5. Match Geoapify places to place_required slots from persisted pools
     const usedCandidateIdsSet = new Set<string>();

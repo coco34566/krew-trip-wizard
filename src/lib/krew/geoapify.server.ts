@@ -206,7 +206,7 @@ export async function resolveSearchIntentLocation(
       return null; // Refuse result if not explicitly destination-compatible!
     }
 
-    // 2. Result Type Validation (STRICT)
+    // 2. Result Type Validation (STRICT POSITIVE WHITELIST FOR POI)
     const resultType = String(props.result_type || props.category || "").toLowerCase();
     let resultTypeCompatible = false;
 
@@ -214,9 +214,34 @@ export async function resolveSearchIntentLocation(
       const validAreaTypes = ["district", "suburb", "neighbourhood", "locality", "street", "square", "road", "quarter"];
       resultTypeCompatible = validAreaTypes.includes(resultType) || props.category?.includes("administrative");
     } else {
-      // POI
-      const invalidPoiTypes = ["country", "state", "postcode", "unknown", "locality", "city"];
-      resultTypeCompatible = !invalidPoiTypes.includes(resultType);
+      // POI: positive whitelist only
+      const validPoiTypes = [
+        "amenity",
+        "building",
+        "tourism",
+        "attraction",
+        "poi",
+        "heritage",
+        "leisure",
+        "catering",
+        "sport",
+        "entertainment",
+      ];
+      const categories = Array.isArray(props.categories)
+        ? props.categories.map((c: any) => String(c).toLowerCase())
+        : [String(props.category || "").toLowerCase()];
+
+      const hasPoiCategory = categories.some((c) =>
+        /catering|tourism|entertainment|leisure|sport|service|heritage|commercial|building/.test(c)
+      );
+
+      resultTypeCompatible = validPoiTypes.includes(resultType) || hasPoiCategory;
+
+      // Explicitly reject area / administrative types for POI intents
+      const areaTypes = ["street", "district", "suburb", "neighbourhood", "road", "locality", "city", "country", "state", "postcode", "quarter"];
+      if (areaTypes.includes(resultType)) {
+        resultTypeCompatible = false;
+      }
     }
 
     if (!resultTypeCompatible) {
@@ -429,6 +454,95 @@ export function determineSearchRadiusMeters(mobility?: string | null, profile?: 
     return 25000;
   }
   return 10000;
+}
+
+export type BuildPlacePoolsInput = {
+  requirementsList: PlaceRequirements[];
+  destinationCenter: { latitude: number; longitude: number } | null;
+  radiusMeters?: number;
+  searchPlacesFn?: (options: GeoapifySearchOptions) => Promise<GeoapifyPlace[]>;
+  telemetry?: {
+    basePoolSearches?: number;
+    intentSupplementSearches?: number;
+    intentCenteredSearches?: number;
+    geoapifyPlacesCalls?: number;
+  };
+};
+
+export async function buildGeoapifyPlacePools(
+  input: BuildPlacePoolsInput,
+): Promise<Record<string, GeoapifyPlace[]>> {
+  const {
+    requirementsList,
+    destinationCenter,
+    radiusMeters = 10000,
+    searchPlacesFn = searchGeoapifyPlaces,
+    telemetry,
+  } = input;
+
+  const baseReqMap = new Map<string, PlaceRequirements>();
+  const fullReqMap = new Map<string, PlaceRequirements>();
+
+  for (const req of requirementsList) {
+    const baseKey = buildBasePoolKey(req);
+    const fullKey = buildPoolKey(req);
+
+    if (!baseReqMap.has(baseKey)) {
+      baseReqMap.set(baseKey, req);
+    }
+    if (!fullReqMap.has(fullKey)) {
+      fullReqMap.set(fullKey, req);
+    }
+  }
+
+  const basePools: Record<string, GeoapifyPlace[]> = {};
+  const placePools: Record<string, GeoapifyPlace[]> = {};
+
+  if (destinationCenter?.latitude != null && destinationCenter?.longitude != null) {
+    // 1. Base pools: destination center search (once per base key)
+    for (const [baseKey, req] of baseReqMap.entries()) {
+      if (telemetry) {
+        if (telemetry.basePoolSearches != null) telemetry.basePoolSearches++;
+        if (telemetry.geoapifyPlacesCalls != null) telemetry.geoapifyPlacesCalls++;
+      }
+      const destPlaces = await searchPlacesFn({
+        categories: req.categories,
+        latitude: destinationCenter.latitude,
+        longitude: destinationCenter.longitude,
+        radiusMeters,
+        limit: 15,
+        conditions: req.accessibility || [],
+      });
+      basePools[baseKey] = destPlaces;
+    }
+
+    // 2. Intent supplement pools: intent center search (once per intent key)
+    for (const [fullKey, req] of fullReqMap.entries()) {
+      const baseKey = buildBasePoolKey(req);
+      const basePlaces = basePools[baseKey] || [];
+
+      if (req.intentCenter) {
+        if (telemetry) {
+          if (telemetry.intentSupplementSearches != null) telemetry.intentSupplementSearches++;
+          if (telemetry.intentCenteredSearches != null) telemetry.intentCenteredSearches++;
+          if (telemetry.geoapifyPlacesCalls != null) telemetry.geoapifyPlacesCalls++;
+        }
+        const intentPlaces = await searchPlacesFn({
+          categories: req.categories,
+          latitude: req.intentCenter.latitude,
+          longitude: req.intentCenter.longitude,
+          radiusMeters: Math.min(radiusMeters, 8000),
+          limit: 15,
+          conditions: req.accessibility || [],
+        });
+        placePools[fullKey] = mergeUniquePlacesById(basePlaces, intentPlaces);
+      } else {
+        placePools[fullKey] = basePlaces;
+      }
+    }
+  }
+
+  return placePools;
 }
 
 export function mergeUniquePlacesById(existing: GeoapifyPlace[] = [], incoming: GeoapifyPlace[] = []): GeoapifyPlace[] {
