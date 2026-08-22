@@ -2,6 +2,8 @@ export { KrewMark } from "./KrewMark";
 export type { KrewMarkSize, KrewMarkTone, KrewMarkType } from "./KrewMark";
 export { KrewIcon } from "./KrewIcon";
 export type { KrewIconName } from "./KrewIcon";
+export { KrewNote, KrewCallout } from "./KrewNote";
+export type { KrewNoteVariant, KrewNoteTone } from "./KrewNote";
 export { KrewAnnotation, KrewConnector, KrewHighlight, KrewPhotoOverlay } from "./KrewPrimitives";
 export { KrewSectionWave } from "./KrewSectionWave";
 export { KrewProgressRing } from "./KrewProgressRing";
