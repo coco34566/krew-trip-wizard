@@ -27,6 +27,18 @@ export type GeoapifySearchOptions = {
   conditions?: string[];
 };
 
+export type GeographicSignal = {
+  query: string;
+  kind: "area" | "poi";
+};
+
+export type IntentLocationResult = {
+  latitude: number;
+  longitude: number;
+  label: string;
+  kind?: "area" | "poi";
+};
+
 export type PlaceRequirements = {
   canonicalFamily: string;
   categories: string[];
@@ -36,9 +48,249 @@ export type PlaceRequirements = {
   experienceTags?: string[];
   searchIntent?: string | null;
   momentType?: string | null;
+  intentCenter?: IntentLocationResult | null;
 };
 
+const intentLocationCacheMap = new Map<string, IntentLocationResult | null>();
+
+export function clearIntentLocationCache(): void {
+  intentLocationCacheMap.clear();
+}
+
+export function extractGeographicSignalFromIntentDetails(searchIntent?: string | null): GeographicSignal | null {
+  if (!searchIntent || typeof searchIntent !== "string") return null;
+  const text = searchIntent.trim();
+  if (text.length < 4) return null;
+
+  const normText = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  const areaKeywords = [
+    "quartier", "district", "centre historique", "vieille ville", "rue", "avenue", "boulevard",
+    "quai", "place", "zone", "secteur",
+  ];
+
+  const poiKeywords = [
+    "chateau", "bastion", "fort", "citadelle", "palais", "cathedrale", "eglise", "monument",
+    "lac", "parc", "jardin", "ile", "presqu'ile", "presquile", "colline", "montagne",
+    "marche central", "halles", "ruin bar", "ruinbar", "thermes", "bains",
+  ];
+
+  // 1. Preposition extraction
+  const prepMatch = text.match(
+    /(?:dans\s+(?:le\s+|la\s+|l'|les\s+)?|au\s+|aux\s+|autour\s+du\s+|autour\s+de\s+|pres\s+du\s+|pres\s+de\s+|du\s+|des\s+|a\s+la\s+|a\s+l'|a\s+)(quartier\s+[\w\s-]+|centre\s+historique|vieille\s+ville|marche\s+[\w\s-]+|[\w\s-]+(?:district|place|rue|avenue|boulevard|quai|pont|chateau|bastion|palais|cathedrale|eglise|monument|lac|parc|jardin|ile|colline|mont)[\w\s-]*)/i,
+  );
+
+  if (prepMatch && prepMatch[1]) {
+    const extracted = prepMatch[1].trim();
+    if (extracted.length >= 3) {
+      const normExtracted = extracted.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const isArea = areaKeywords.some((kw) => normExtracted.includes(kw));
+      return { query: extracted, kind: isArea ? "area" : "poi" };
+    }
+  }
+
+  // 2. Direct Area match
+  for (const kw of areaKeywords) {
+    if (normText.includes(kw)) {
+      const idx = normText.indexOf(kw);
+      if (idx >= 0) {
+        const slice = text.slice(idx).trim();
+        const cleaned = slice.replace(/\s+(convivial|sympa|de groupe|groupe|traditionnel|chic|festif|animé|chaleureux|relaxant).*$/i, "");
+        if (cleaned.length >= 3) return { query: cleaned, kind: "area" };
+      }
+    }
+  }
+
+  // 3. Direct POI match
+  for (const kw of poiKeywords) {
+    if (normText.includes(kw)) {
+      const idx = normText.indexOf(kw);
+      if (idx >= 0) {
+        const slice = text.slice(idx).trim();
+        const cleaned = slice.replace(/\s+(convivial|sympa|de groupe|groupe|traditionnel|chic|festif|animé|chaleureux|relaxant).*$/i, "");
+        if (cleaned.length >= 3) return { query: cleaned, kind: "poi" };
+      }
+    }
+  }
+
+  return null;
+}
+
+export function extractGeographicSignalFromIntent(searchIntent?: string | null): string | null {
+  const signal = extractGeographicSignalFromIntentDetails(searchIntent);
+  return signal ? signal.query : null;
+}
+
+export async function resolveSearchIntentLocation(
+  searchIntent: string | null | undefined,
+  destination: string,
+  refLat?: number | null,
+  refLon?: number | null,
+  telemetryCounter?: { intentResolutionCalls?: number; intentResolutionHits?: number },
+): Promise<IntentLocationResult | null> {
+  const signalObj = extractGeographicSignalFromIntentDetails(searchIntent);
+  if (!signalObj) return null;
+
+  const normSignal = signalObj.query.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const normDest = destination.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const cacheKey = `${normSignal}::${normDest}`;
+
+  if (intentLocationCacheMap.has(cacheKey)) {
+    return intentLocationCacheMap.get(cacheKey) ?? null;
+  }
+
+  const apiKey = process.env["GEOAPIFY_API_KEY"];
+  if (!apiKey) {
+    intentLocationCacheMap.set(cacheKey, null);
+    return null;
+  }
+
+  if (telemetryCounter && telemetryCounter.intentResolutionCalls != null) {
+    telemetryCounter.intentResolutionCalls++;
+  }
+
+  try {
+    const url = new URL("https://api.geoapify.com/v1/geocode/search");
+    url.searchParams.set("text", `${signalObj.query} ${destination}`);
+    if (refLon != null && refLat != null) {
+      url.searchParams.set("bias", `proximity:${refLon},${refLat}`);
+      url.searchParams.set("filter", `circle:${refLon},${refLat},35000`);
+    }
+    url.searchParams.set("limit", "1");
+    url.searchParams.set("apiKey", apiKey);
+
+    const res = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+    if (!res.ok) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    const payload = await res.json();
+    const hit = payload?.features?.[0];
+    if (!hit) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    const lat =
+      typeof hit.properties?.lat === "number"
+        ? hit.properties.lat
+        : typeof hit.geometry?.coordinates?.[1] === "number"
+          ? hit.geometry.coordinates[1]
+          : null;
+    const lon =
+      typeof hit.properties?.lon === "number"
+        ? hit.properties.lon
+        : typeof hit.geometry?.coordinates?.[0] === "number"
+          ? hit.geometry.coordinates[0]
+          : null;
+
+    if (lat == null || lon == null) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    const props = hit.properties || {};
+
+    // 1. Destination Coherence Check (STRICT)
+    const city = String(props.city || props.municipality || props.county || props.state || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const formatted = String(props.formatted || props.address_line2 || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const destinationCompatible = city.includes(normDest) || formatted.includes(normDest);
+
+    if (!destinationCompatible) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null; // Refuse result if not explicitly destination-compatible!
+    }
+
+    // 2. Result Type Validation (STRICT DOCUMENTED GEOAPIFY GEOCODING TYPES)
+    const resultType = String(props.result_type || "").toLowerCase();
+    let resultTypeCompatible = false;
+
+    if (signalObj.kind === "area") {
+      const validAreaTypes = ["street", "suburb", "district"];
+      resultTypeCompatible = validAreaTypes.includes(resultType);
+    } else {
+      // POI: amenity or building only (street, suburb, district, city, etc. are strictly rejected)
+      const validPoiTypes = ["amenity", "building"];
+      resultTypeCompatible = validPoiTypes.includes(resultType);
+    }
+
+    if (!resultTypeCompatible) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    // 3. Distance Guard (Secondary Guard)
+    let distanceGuardSatisfied = true;
+    if (refLat != null && refLon != null) {
+      const rad = (deg: number) => (deg * Math.PI) / 180;
+      const dLat = rad(lat - refLat);
+      const dLon = rad(lon - refLon);
+      const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(rad(refLat)) * Math.cos(rad(lat)) * Math.sin(dLon / 2) ** 2;
+      const distKm = 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+      if (distKm > 25) {
+        distanceGuardSatisfied = false;
+      }
+    }
+
+    if (!distanceGuardSatisfied) {
+      intentLocationCacheMap.set(cacheKey, null);
+      return null;
+    }
+
+    const result: IntentLocationResult = {
+      latitude: lat,
+      longitude: lon,
+      label: signalObj.query,
+      kind: signalObj.kind,
+    };
+
+    if (telemetryCounter && telemetryCounter.intentResolutionHits != null) {
+      telemetryCounter.intentResolutionHits++;
+    }
+
+    intentLocationCacheMap.set(cacheKey, result);
+    return result;
+  } catch {
+    intentLocationCacheMap.set(cacheKey, null);
+    return null;
+  }
+}
+
 const placeDetailsCache = new Map<string, any>();
+
+export function buildVerifiedPlaceFallbackUrl(
+  place: { name?: string | null; address?: string | null; latitude?: number | null; longitude?: number | null } | null | undefined,
+  destination?: string | null,
+): string | null {
+  if (!place) return null;
+  const name = String(place.name || "").trim();
+  const address = String(place.address || "").trim();
+  const dest = String(destination || "").trim();
+
+  let query = "";
+  if (name && address) {
+    query = `${name}, ${address}`;
+  } else if (name && dest) {
+    query = `${name}, ${dest}`;
+  } else if (name) {
+    query = name;
+  } else if (address) {
+    query = address;
+  } else if (place.latitude != null && place.longitude != null) {
+    query = `${place.latitude},${place.longitude}`;
+  }
+
+  if (!query) return null;
+
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
 
 export function mapVenueFamilyToGeoapifyCategories(family?: string, type?: string): string[] {
   const norm = String(family || type || "").toLowerCase().trim();
@@ -81,18 +333,32 @@ export function convertIntentToPlaceRequirements(
   dietaryConstraints: string[] = [],
   accessibilityRequired = false,
   userNotes: string[] = [],
+  intentCenter?: IntentLocationResult | null,
 ): PlaceRequirements {
-  const normIntent = String(searchIntent || "").toLowerCase();
-  const categories = mapVenueFamilyToGeoapifyCategories(family, momentType);
+  const normIntent = String(searchIntent || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  let categories = mapVenueFamilyToGeoapifyCategories(family, momentType);
   let subtype: string | null = null;
 
-  if (normIntent.includes("winery") || normIntent.includes("dégustation") || normIntent.includes("cave") || normIntent.includes("vin")) {
+  if (normIntent.includes("thermes") || normIntent.includes("bains thermaux") || normIntent.includes("bains") || normIntent.includes("thermal bath")) {
+    subtype = "leisure.spa";
+    categories = Array.from(new Set(["leisure.spa", "service.beauty.spa", "tourism.attraction"]));
+  } else if (normIntent.includes("ruin bar") || normIntent.includes("ruinbar")) {
+    subtype = "catering.bar";
+    categories = Array.from(new Set(["catering.bar", "catering.pub", "entertainment.nightlife"]));
+  } else if (normIntent.includes("chateau") || normIntent.includes("bastion") || normIntent.includes("monument") || normIntent.includes("sight")) {
+    subtype = "tourism.sights";
+    categories = Array.from(new Set(["tourism.sights", "tourism.attraction", "entertainment.culture"]));
+  } else if (normIntent.includes("winery") || normIntent.includes("degustation") || normIntent.includes("cave") || normIntent.includes("vin")) {
     subtype = "production.winery";
-  } else if (normIntent.includes("market") || normIntent.includes("marché")) {
+  } else if (normIntent.includes("market") || normIntent.includes("marche")) {
     subtype = "commercial.marketplace";
-  } else if (normIntent.includes("cafe") || normIntent.includes("brunch") || normIntent.includes("petit-déjeuner")) {
+  } else if (normIntent.includes("cafe") || normIntent.includes("brunch") || normIntent.includes("petit-dejeuner")) {
     subtype = "catering.cafe";
-  } else if (normIntent.includes("restaurant") || normIntent.includes("dîner") || normIntent.includes("déjeuner")) {
+  } else if (normIntent.includes("restaurant") || normIntent.includes("diner") || normIntent.includes("dejeuner")) {
     subtype = "catering.restaurant";
   } else if (normIntent.includes("bar") || normIntent.includes("pub")) {
     subtype = "catering.bar";
@@ -112,10 +378,11 @@ export function convertIntentToPlaceRequirements(
     accessibility: accessibility.length ? accessibility : null,
     searchIntent: searchIntent ?? null,
     momentType: momentType ?? null,
+    intentCenter: intentCenter ?? null,
   };
 }
 
-export function buildPoolKey(req: PlaceRequirements): string {
+export function buildBasePoolKey(req: PlaceRequirements): string {
   const parts = [
     req.canonicalFamily,
     ...req.categories.slice().sort(),
@@ -124,6 +391,16 @@ export function buildPoolKey(req: PlaceRequirements): string {
     (req.accessibility || []).slice().sort().join(","),
   ];
   return parts.filter(Boolean).join("::");
+}
+
+export function buildIntentPoolKey(baseKey: string, intentCenter?: IntentLocationResult | null): string {
+  if (!intentCenter) return baseKey;
+  return `${baseKey}::intent_${intentCenter.latitude.toFixed(3)},${intentCenter.longitude.toFixed(3)}`;
+}
+
+export function buildPoolKey(req: PlaceRequirements): string {
+  const baseKey = buildBasePoolKey(req);
+  return buildIntentPoolKey(baseKey, req.intentCenter);
 }
 
 export function mapAccessibilityToGeoapifyConditions(accessibilityRequired?: boolean, userNotes?: string[]): string[] {
@@ -152,6 +429,95 @@ export function determineSearchRadiusMeters(mobility?: string | null, profile?: 
     return 25000;
   }
   return 10000;
+}
+
+export type BuildPlacePoolsInput = {
+  requirementsList: PlaceRequirements[];
+  destinationCenter: { latitude: number; longitude: number } | null;
+  radiusMeters?: number;
+  searchPlacesFn?: (options: GeoapifySearchOptions) => Promise<GeoapifyPlace[]>;
+  telemetry?: {
+    basePoolSearches?: number;
+    intentSupplementSearches?: number;
+    intentCenteredSearches?: number;
+    geoapifyPlacesCalls?: number;
+  };
+};
+
+export async function buildGeoapifyPlacePools(
+  input: BuildPlacePoolsInput,
+): Promise<Record<string, GeoapifyPlace[]>> {
+  const {
+    requirementsList,
+    destinationCenter,
+    radiusMeters = 10000,
+    searchPlacesFn = searchGeoapifyPlaces,
+    telemetry,
+  } = input;
+
+  const baseReqMap = new Map<string, PlaceRequirements>();
+  const fullReqMap = new Map<string, PlaceRequirements>();
+
+  for (const req of requirementsList) {
+    const baseKey = buildBasePoolKey(req);
+    const fullKey = buildPoolKey(req);
+
+    if (!baseReqMap.has(baseKey)) {
+      baseReqMap.set(baseKey, req);
+    }
+    if (!fullReqMap.has(fullKey)) {
+      fullReqMap.set(fullKey, req);
+    }
+  }
+
+  const basePools: Record<string, GeoapifyPlace[]> = {};
+  const placePools: Record<string, GeoapifyPlace[]> = {};
+
+  if (destinationCenter?.latitude != null && destinationCenter?.longitude != null) {
+    // 1. Base pools: destination center search (once per base key)
+    for (const [baseKey, req] of baseReqMap.entries()) {
+      if (telemetry) {
+        if (telemetry.basePoolSearches != null) telemetry.basePoolSearches++;
+        if (telemetry.geoapifyPlacesCalls != null) telemetry.geoapifyPlacesCalls++;
+      }
+      const destPlaces = await searchPlacesFn({
+        categories: req.categories,
+        latitude: destinationCenter.latitude,
+        longitude: destinationCenter.longitude,
+        radiusMeters,
+        limit: 15,
+        conditions: req.accessibility || [],
+      });
+      basePools[baseKey] = destPlaces;
+    }
+
+    // 2. Intent supplement pools: intent center search (once per intent key)
+    for (const [fullKey, req] of fullReqMap.entries()) {
+      const baseKey = buildBasePoolKey(req);
+      const basePlaces = basePools[baseKey] || [];
+
+      if (req.intentCenter) {
+        if (telemetry) {
+          if (telemetry.intentSupplementSearches != null) telemetry.intentSupplementSearches++;
+          if (telemetry.intentCenteredSearches != null) telemetry.intentCenteredSearches++;
+          if (telemetry.geoapifyPlacesCalls != null) telemetry.geoapifyPlacesCalls++;
+        }
+        const intentPlaces = await searchPlacesFn({
+          categories: req.categories,
+          latitude: req.intentCenter.latitude,
+          longitude: req.intentCenter.longitude,
+          radiusMeters: Math.min(radiusMeters, 8000),
+          limit: 15,
+          conditions: req.accessibility || [],
+        });
+        placePools[fullKey] = mergeUniquePlacesById(basePlaces, intentPlaces);
+      } else {
+        placePools[fullKey] = basePlaces;
+      }
+    }
+  }
+
+  return placePools;
 }
 
 export function mergeUniquePlacesById(existing: GeoapifyPlace[] = [], incoming: GeoapifyPlace[] = []): GeoapifyPlace[] {
@@ -672,6 +1038,20 @@ export function rankGeoapifyCandidates(
         }
       }
 
+      // ruin bar / pub / nightlife
+      if (/ruin|ruinbar|pub|nightlife/.test(normIntent)) {
+        if (/ruin|ruinbar|pub/.test(candName) || candCats.some((c) => c.includes("catering.pub") || c.includes("catering.bar") || c.includes("entertainment.nightlife"))) {
+          score += 300;
+        }
+      }
+
+      // monument / château / bastion / sight
+      if (/chateau|bastion|monument|fort|castle|citadel|palais|bastion des pecheurs|fishermans bastion/.test(normIntent)) {
+        if (/chateau|bastion|monument|castle|citadel|palais|fishermans/.test(candName) || candCats.some((c) => c.includes("tourism.sights") || c.includes("tourism.attraction") || c.includes("entertainment.culture"))) {
+          score += 300;
+        }
+      }
+
       // rooftop / panoramique / vue / terrasse
       if (/rooftop|panoramique|vue|terrace|terrasse|skybar|panorama/.test(normIntent)) {
         if (/rooftop|terrace|terrasse|viewpoint|panoramique|panorama|skybar/.test(candName) || candCats.some((c) => c.includes("rooftop") || c.includes("viewpoint"))) {
@@ -711,6 +1091,16 @@ export function rankGeoapifyCandidates(
         if (candName.includes(w) || candAddr.includes(w)) {
           score += 30;
         }
+      }
+    }
+
+    // D. Proximité avec intentCenter s'il existe
+    if (req.intentCenter?.latitude != null && req.intentCenter?.longitude != null && cand.latitude != null && cand.longitude != null) {
+      const distToIntent = haversineKm({ latitude: req.intentCenter.latitude, longitude: req.intentCenter.longitude }, cand);
+      if (distToIntent <= 1.5) {
+        score += 200;
+      } else if (distToIntent <= 4) {
+        score += 100;
       }
     }
 
