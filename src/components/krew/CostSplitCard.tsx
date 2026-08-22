@@ -1,8 +1,5 @@
-import { useRef } from "react";
-import { ImageDown, Wallet } from "lucide-react";
-import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
+import { KrewIcon } from "@/components/krew/visual-language";
 import { formatEuro } from "@/lib/krew/constants";
 import { formatCostSplitText, type CostSplitResult } from "@/lib/krew/cost-split";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
@@ -14,97 +11,34 @@ type Props = {
 };
 
 export function CostSplitCard({ split, tripName }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
-
   const handleWhatsApp = () => {
     const text = formatCostSplitText(split, tripName);
     shareOnWhatsApp(text);
   };
 
-  async function exportImage() {
-    const el = ref.current;
-    if (!el) return;
-    try {
-      const width = el.scrollWidth;
-      const height = el.scrollHeight;
-      const scale = 2;
-      const canvas = document.createElement("canvas");
-      canvas.width = width * scale;
-      canvas.height = height * scale;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("canvas");
-      ctx.scale(scale, scale);
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.fillStyle = "#1C151B";
-      ctx.font = "bold 20px system-ui, sans-serif";
-      let y = 32;
-      ctx.fillText(tripName ? `KREW — ${tripName}` : "KREW — répartition", 24, y);
-      y += 28;
-      ctx.font = "16px system-ui, sans-serif";
-      ctx.fillText(`📍 ${split.destinationName}`, 24, y);
-      y += 28;
-      ctx.fillText(
-        `Part égale (héberg. + act. + repas) : ${split.sharedPerPerson} € / pers.`,
-        24,
-        y,
-      );
-      y += 24;
-      for (const l of split.lines) {
-        ctx.font = "bold 15px system-ui, sans-serif";
-        ctx.fillText(`${l.city}`, 24, y);
-        y += 22;
-        ctx.font = "14px system-ui, sans-serif";
-        ctx.fillText(
-          `Transport ${l.transport} € + part ${l.shared} € = ${l.totalPerPerson} €`,
-          32,
-          y,
-        );
-        y += 26;
-      }
-      ctx.fillStyle = "#6B3A5D";
-      ctx.font = "bold 16px system-ui, sans-serif";
-      ctx.fillText(`Total groupe : ${split.totalGroup} €`, 24, y);
-
-      const url = canvas.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `krew-repartition-${split.destinationName.replace(/\s+/g, "-").toLowerCase()}.png`;
-      a.click();
-      toast.success("Image téléchargée");
-    } catch (e) {
-      console.error(e);
-      toast.error("Export image impossible — utilise la copie texte");
-    }
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-xl font-semibold">{split.destinationName}</h3>
+          <h3 className="font-display text-[18px] sm:text-[20px] font-normal text-foreground leading-tight">
+            {split.destinationName}
+          </h3>
           <p className="mt-0.5 text-xs text-muted-foreground font-sans">
             Chacun paie son transport depuis sa ville + une part égale du reste.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <Button
-            type="button"
-            variant="ghost"
-            className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-8 text-xs font-semibold gap-1.5 shadow-none"
-            size="sm"
-            onClick={handleWhatsApp}
-          >
-            Partager sur WhatsApp
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={exportImage}>
-            <ImageDown className="size-3.5" /> Image
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-10 px-4 text-xs font-semibold gap-2 shadow-none"
+          onClick={handleWhatsApp}
+        >
+          <KrewIcon name="message" tone="plum" size="sm" className="size-4" />
+          <span>Partager sur WhatsApp</span>
+        </Button>
       </div>
 
-      <div ref={ref} className="mt-5 space-y-4">
+      <div className="mt-5 space-y-4">
         <div className="grid gap-3 rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm sm:grid-cols-3">
           <p>
             <span className="text-muted-foreground">Hébergement : </span>

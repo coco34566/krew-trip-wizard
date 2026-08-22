@@ -1230,12 +1230,12 @@ function TripDetail() {
           />
 
           {/* ZONE 5 — MEMBRES DU GROUPE (EXACT BLUEPRINT) */}
-          <section id="group-section" className="mt-12 space-y-6 scroll-mt-24">
-            <div className="space-y-1">
+          <section id="group-section" className="mt-12 space-y-4 scroll-mt-24">
+            <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <KrewIcon name="group" tone="plum" size="sm" className="size-[22px] shrink-0" />
-                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal text-foreground leading-none">
+                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground">
                     Membres du groupe
                   </h2>
                 </div>
@@ -1299,7 +1299,7 @@ function TripDetail() {
               </div>
 
               {/* Underline wave KrewMark sous le titre */}
-              <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[10px] opacity-85 pointer-events-none" />
+              <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[8px] mt-1 opacity-85 pointer-events-none" />
             </div>
 
             <ul className="divide-y divide-border/40 pt-1">
@@ -1349,16 +1349,16 @@ function TripDetail() {
                             {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
                           </p>
                           {isOwner ? (
-                            <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                            <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full leading-none">
                               Organisateur·rice
                             </span>
                           ) : isCoOrganizer ? (
-                            <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                            <span className="text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full leading-none">
                               Co-organisateur·rice
                             </span>
                           ) : null}
                           {p.isStar ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-sage/16 px-2 py-0.5 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-sage/16 px-2 py-0.5 rounded-full leading-none">
                               <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" /> Star
                             </span>
                           ) : null}
@@ -1456,14 +1456,14 @@ function TripDetail() {
             {/* PARAMÈTRES STAR SI VOYAGE STAR (RÔLE DE LA STAR) */}
             {hasStar ? (
               <div className="pt-4 border-t border-border/40 space-y-3">
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <KrewIcon name="favorite" tone="sage" size="sm" className="size-4 shrink-0" />
                   <span>Rôle de la Star ({celebratedPerson || "Secret"})</span>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                <div className="grid gap-3 sm:grid-cols-2 text-xs font-sans">
                   <div className="space-y-1.5">
-                    <p className="font-medium text-foreground">Visibilité</p>
+                    <p className="font-semibold text-foreground text-xs">Visibilité</p>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -1471,7 +1471,7 @@ function TripDetail() {
                         variant={
                           (logistics?.star_mode ?? "secret") === "secret" ? "default" : "outline"
                         }
-                        className="h-8 text-xs flex-1 rounded-lg"
+                        className="h-8 text-xs font-medium flex-1 rounded-lg"
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1488,7 +1488,7 @@ function TripDetail() {
                         variant={
                           logistics?.star_mode === "participant" ? "default" : "outline"
                         }
-                        className="h-8 text-xs flex-1 rounded-lg"
+                        className="h-8 text-xs font-medium flex-1 rounded-lg"
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1503,7 +1503,7 @@ function TripDetail() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <p className="font-medium text-foreground">Participation aux frais</p>
+                    <p className="font-semibold text-foreground text-xs">Participation aux frais</p>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -1511,7 +1511,7 @@ function TripDetail() {
                         variant={
                           logistics?.star_pays_share !== false ? "default" : "outline"
                         }
-                        className="h-8 text-xs flex-1 rounded-lg"
+                        className="h-8 text-xs font-medium flex-1 rounded-lg"
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1528,7 +1528,7 @@ function TripDetail() {
                         variant={
                           logistics?.star_pays_share === false ? "default" : "outline"
                         }
-                        className="h-8 text-xs flex-1 rounded-lg"
+                        className="h-8 text-xs font-medium flex-1 rounded-lg"
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1545,12 +1545,12 @@ function TripDetail() {
               </div>
             ) : null}
 
-            {/* ACTION INVITATION / PARTAGE SANS VERT WHATSAPP NI AMBER */}
+            {/* ACTION INVITATION / PARTAGE SANS VERT WHATSAPP NI AMBER (UNIFIED 40px/12px/600/12px) */}
             <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               <Button
                 type="button"
                 variant="ghost"
-                className="rounded-xl gap-2 border border-border/60 hover:bg-muted/30 h-10 text-xs font-semibold"
+                className="rounded-xl gap-2 border border-border/60 hover:bg-muted/30 h-10 px-4 text-xs font-semibold"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(shareUrl);
@@ -1562,19 +1562,19 @@ function TripDetail() {
                   }
                 }}
               >
-                <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
+                <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
                 <span>{shareCopied ? "Copié" : "Copier le lien du voyage"}</span>
               </Button>
 
               <Button
                 type="button"
-                className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-10 text-xs font-semibold gap-2 shadow-none"
+                className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-10 px-4 text-xs font-semibold gap-2 shadow-none"
                 onClick={() => {
                   const text = buildWhatsAppInviteMessage();
                   shareOnWhatsApp(text);
                 }}
               >
-                <KrewIcon name="message" tone="plum" size="sm" className="size-4" />
+                <KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />
                 <span>Inviter via WhatsApp</span>
               </Button>
 
@@ -1587,13 +1587,13 @@ function TripDetail() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="rounded-xl bg-sage/12 text-primary hover:bg-sage/20 border border-sage/25 h-10 text-xs font-semibold gap-2"
+                    className="rounded-xl bg-sage/12 text-primary hover:bg-sage/20 border border-sage/25 h-10 px-4 text-xs font-semibold gap-2"
                     onClick={() => {
                       const text = buildWhatsAppRemindMessage();
                       shareOnWhatsApp(text);
                     }}
                   >
-                    <KrewIcon name="attention" tone="plum" size="sm" className="size-4" />
+                    <KrewIcon name="attention" tone="plum" size="sm" className="size-4 shrink-0" />
                     <span>Relancer sur WhatsApp</span>
                   </Button>
                 ) : null;
@@ -1606,14 +1606,14 @@ function TripDetail() {
               id="hub-cost-split"
               className="mt-12 space-y-4 scroll-mt-24"
             >
-              <div className="space-y-1">
+              <div>
                 <div className="flex items-center gap-2">
                   <KrewIcon name="budget" tone="plum" size="sm" className="size-[22px] shrink-0" />
-                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal text-foreground leading-none">
+                  <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground">
                     Répartition des coûts
                   </h2>
                 </div>
-                <KrewMark type="underline" tone="sage" size="sm" className="w-[110px] h-[8px] opacity-85 pointer-events-none" />
+                <KrewMark type="underline" tone="sage" size="sm" className="w-[100px] h-[8px] mt-1 opacity-85 pointer-events-none" />
               </div>
               <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
             </section>
