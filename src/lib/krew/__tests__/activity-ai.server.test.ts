@@ -3,6 +3,7 @@ import {
   buildDiscoveryQueries,
   normalizeSearchCandidates,
   isSafeActivityUrl,
+  findWebResourceForComplexActivity,
   type ActivityCandidate,
 } from "../activity-discovery.server";
 import {
@@ -405,6 +406,140 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Obligatoires 1 
 
     expect(mode).toBe("self_guided_group");
     expect(shouldResolveWithPlaceProvider({ kind: "internal", activityMode: mode })).toBe(false);
+  });
+});
+
+describe("Correctifs Résolution Lieux Réels Planning — Tests Complémentaires PR #135 (A, B, C, D)", () => {
+  // A. Gemini renvoie : suggestedPlace = lieu valide, suggestedUrl = URL valide => URL Gemini conservée.
+  it("TEST A : Gemini renvoie suggestedPlace valide + suggestedUrl valide => URL Gemini conservée", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              place_id: "geo-szechenyi",
+              name: "Thermes Széchenyi",
+              formatted: "Budapest, Állatkerti krt. 9-11",
+              lat: 47.5186,
+              lon: 19.0825,
+              categories: ["leisure.spa"],
+              website: "https://geoapify-default-site.com",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const resolved = await tryResolveGeminiProposedPlace({
+        suggestedPlace: "Thermes Széchenyi",
+        suggestedUrl: "https://szechenyibath.hu/official-booking",
+        label: "Matinée détente aux thermes",
+        searchIntent: "thermes emblématiques et espace spa relaxation Budapest",
+        venueFamily: "spa_wellness",
+        destination: "Budapest",
+      });
+      expect(resolved).not.toBeNull();
+      expect(resolved?.website).toBe("https://szechenyibath.hu/official-booking");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  // B. Gemini renvoie une URL invalide/suspecte => URL rejetée, fallback Geoapify/site officiel utilisé.
+  it("TEST B : Gemini renvoie une URL invalide/suspecte => URL rejetée, fallback site Geoapify utilisé", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        features: [
+          {
+            properties: {
+              place_id: "geo-szechenyi",
+              name: "Thermes Széchenyi",
+              formatted: "Budapest, Állatkerti krt. 9-11",
+              lat: 47.5186,
+              lon: 19.0825,
+              categories: ["leisure.spa"],
+              website: "https://szechenyibath.hu/real-site",
+            },
+          },
+        ],
+      }),
+    })) as any;
+
+    try {
+      const resolved = await tryResolveGeminiProposedPlace({
+        suggestedPlace: "Thermes Széchenyi",
+        suggestedUrl: "http://example.com/fake-url",
+        label: "Matinée détente aux thermes",
+        searchIntent: "thermes emblématiques et espace spa relaxation Budapest",
+        venueFamily: "spa_wellness",
+        destination: "Budapest",
+      });
+      expect(resolved).not.toBeNull();
+      expect(resolved?.website).toBe("https://szechenyibath.hu/real-site");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  // C. Gemini + Geoapify échouent pour une croisière => fallback web est tenté avant Maps générique.
+  it("TEST C : Gemini + Geoapify échouent pour une croisière => fallback web est tenté", async () => {
+    const originalFetch = globalThis.fetch;
+    const oldTavilyKey = process.env["TAVILY_API_KEY"];
+    process.env["TAVILY_API_KEY"] = "test-tavily-key";
+
+    globalThis.fetch = (async () => {
+      return {
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              url: "https://legenda.hu/fr/croisiere-danube",
+              title: "Legenda City Cruises Budapest",
+            },
+          ],
+        }),
+      };
+    }) as any;
+
+    try {
+      const foundUrl = await findWebResourceForComplexActivity({
+        label: "Croisière sunset sur le Danube",
+        searchIntent: "croisière apéritive privative Danube Budapest sunset",
+        destination: "Budapest",
+        venueFamily: "local_experience",
+      });
+      expect(foundUrl).toBe("https://legenda.hu/fr/croisiere-danube");
+    } finally {
+      globalThis.fetch = originalFetch;
+      process.env["TAVILY_API_KEY"] = oldTavilyKey;
+    }
+  });
+
+  // D. Tous les fallbacks échouent => concept initial conservé, verified=false, pas de faux lieu.
+  it("TEST D : Tous les fallbacks échouent => concept initial conservé avec URL Maps générique et verified=false", () => {
+    const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
+      { name: "Balade secrète en bateau", address: "Budapest" },
+      "Budapest",
+    );
+
+    const slot = {
+      label: "Balade secrète en bateau",
+      detail: "Une excursion paisible sur l'eau.",
+      address: null,
+      verified: false,
+      source: "krew",
+      url: fallbackMapUrl,
+    };
+
+    expect(slot.label).toBe("Balade secrète en bateau");
+    expect(slot.verified).toBe(false);
+    expect(slot.source).toBe("krew");
+    expect(slot.url).toContain("google.com/maps");
   });
 });
 

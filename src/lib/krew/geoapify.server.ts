@@ -369,6 +369,7 @@ export function isConcretePlaceProposal(name: string | null | undefined): boolea
 export async function tryResolveGeminiProposedPlace(options: {
   suggestedPlace?: string | null;
   label?: string | null;
+  suggestedUrl?: string | null;
   searchIntent?: string | null;
   venueFamily?: string | null;
   destination: string;
@@ -376,7 +377,7 @@ export async function tryResolveGeminiProposedPlace(options: {
   refLon?: number | null;
   telemetry?: any;
 }): Promise<GeoapifyPlace | null> {
-  const { suggestedPlace, label, searchIntent, venueFamily, destination, refLat, refLon } = options;
+  const { suggestedPlace, label, suggestedUrl, searchIntent, venueFamily, destination, refLat, refLon } = options;
 
   const candidateName = suggestedPlace && isConcretePlaceProposal(suggestedPlace)
     ? suggestedPlace
@@ -434,6 +435,12 @@ export async function tryResolveGeminiProposedPlace(options: {
         ? props.categories.map(String)
         : [String(props.category || "tourism.attraction")];
 
+      const { isSafeActivityUrl } = await import("@/lib/krew/activity-discovery.server");
+      let effectiveWebsite = String(props.website || props.url || "").trim() || null;
+      if (suggestedUrl && isSafeActivityUrl(suggestedUrl)) {
+        effectiveWebsite = suggestedUrl;
+      }
+
       const cand: GeoapifyPlace = {
         id: String(props.place_id || `gemini_${normName}`),
         name,
@@ -441,7 +448,7 @@ export async function tryResolveGeminiProposedPlace(options: {
         latitude: lat,
         longitude: lon,
         categories: rawCategories,
-        website: String(props.website || props.url || "").trim() || null,
+        website: effectiveWebsite,
       };
 
       if (isCandidateCompatibleWithRequirements(cand, req)) {

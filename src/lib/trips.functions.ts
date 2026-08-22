@@ -2486,6 +2486,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           matchedPlace = await tryResolveGeminiProposedPlace({
             suggestedPlace: (s as any).suggestedPlace,
             label: s.label,
+            suggestedUrl: (s as any).suggestedUrl,
             searchIntent: s.searchIntent,
             venueFamily: s.venueFamily,
             destination: destName,
@@ -2597,32 +2598,76 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             longitude: matchedPlace.longitude,
           });
         } else {
-          const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
-            { name: s.label, address: destName },
-            destName,
+          const { isSafeActivityUrl, findWebResourceForComplexActivity } = await import(
+            "@/lib/krew/activity-discovery.server"
           );
 
-          slots.push({
-            moment: s.moment,
-            time: s.time,
-            endTime: s.endTime,
-            durationMinutes: s.durationMinutes,
-            type: s.type,
-            category: s.category,
-            venueFamily: s.venueFamily,
-            searchIntent: s.searchIntent,
-            locationContext: s.locationContext ?? "external",
-            label: s.label,
-            detail:
-              s.detail ||
-              s.searchIntent ||
-              "Réservation ou choix du lieu à préciser",
-            address: null,
-            verified: false,
-            source: "krew",
-            url: fallbackMapUrl,
-            resourceKind: fallbackMapUrl ? "maps" : null,
-          });
+          let webUrl: string | null = null;
+
+          if ((s as any).suggestedUrl && isSafeActivityUrl((s as any).suggestedUrl)) {
+            webUrl = (s as any).suggestedUrl;
+          } else {
+            webUrl = await findWebResourceForComplexActivity({
+              label: (s as any).suggestedPlace || s.label,
+              searchIntent: s.searchIntent,
+              destination: destName,
+              category: s.category,
+              venueFamily: s.venueFamily,
+              eventType: trip.event_type,
+            });
+          }
+
+          if (webUrl) {
+            const resLink = resolveActivityResourceUrl(webUrl);
+            slots.push({
+              moment: s.moment,
+              time: s.time,
+              endTime: s.endTime,
+              durationMinutes: s.durationMinutes,
+              type: s.type,
+              category: s.category,
+              venueFamily: s.venueFamily,
+              searchIntent: s.searchIntent,
+              locationContext: s.locationContext ?? "external",
+              label: (s as any).suggestedPlace || s.label,
+              detail:
+                s.detail ||
+                s.searchIntent ||
+                "Réservation ou choix du lieu à préciser",
+              address: null,
+              verified: false,
+              source: "krew_web",
+              url: resLink.url,
+              resourceKind: resLink.resourceKind ?? "website",
+            });
+          } else {
+            const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
+              { name: s.label, address: destName },
+              destName,
+            );
+
+            slots.push({
+              moment: s.moment,
+              time: s.time,
+              endTime: s.endTime,
+              durationMinutes: s.durationMinutes,
+              type: s.type,
+              category: s.category,
+              venueFamily: s.venueFamily,
+              searchIntent: s.searchIntent,
+              locationContext: s.locationContext ?? "external",
+              label: s.label,
+              detail:
+                s.detail ||
+                s.searchIntent ||
+                "Réservation ou choix du lieu à préciser",
+              address: null,
+              verified: false,
+              source: "krew",
+              url: fallbackMapUrl,
+              resourceKind: fallbackMapUrl ? "maps" : null,
+            });
+          }
         }
       }
 

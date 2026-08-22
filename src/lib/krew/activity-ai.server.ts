@@ -47,6 +47,8 @@ export type ActivitySlot = {
   address?: string | null | undefined;
   venueFamily?: string | undefined;
   searchIntent?: string | undefined;
+  suggestedPlace?: string | null | undefined;
+  suggestedUrl?: string | null | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
   dietaryCheckRequired?: boolean | undefined;
   priceHint?: number | undefined;
@@ -193,6 +195,8 @@ export type KrewSkeletonSlot = {
   flexibility: "rigid" | "flexible";
   venueFamily?: string | undefined;
   searchIntent?: string | undefined;
+  suggestedPlace?: string | null | undefined;
+  suggestedUrl?: string | null | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
   dietaryCheckRequired?: boolean | undefined;
   candidateId?: string | null | undefined;
@@ -223,6 +227,7 @@ export type GeminiBackupSlot = {
   canonicalVenueFamily?: string | null;
   searchIntent?: string | null;
   suggestedPlace?: string | null;
+  suggestedUrl?: string | null;
 };
 
 export type KrewSkeleton = {
@@ -990,7 +995,7 @@ Si KREW fournit déjà un label/detail à préserver pour un élément existant,
 
 N'invente aucune autre valeur.
 
-## 13. SEARCH INTENT ET SUGGESTED PLACE
+## 13. SEARCH INTENT ET SUGGESTED PLACE / URL
 
 Pour chaque \`place_required\` :
 
@@ -1007,9 +1012,17 @@ Si tu connais une proposition précise pertinente :
 \`suggestedPlace\`
 → nom suggéré.
 
+\`suggestedUrl\`
+→ URL officielle ou réellement pertinente du lieu ou de l'activité, SI TU LA CONNAIS AVEC CERTITUDE.
+
+Règles impératives pour \`suggestedUrl\` :
+- Fournis une URL UNIQUEMENT si tu connais une URL réelle et plausible.
+- NE JAMAIS inventer, deviner ou reconstruire une URL.
+- En cas de doute ou d'incertitude, définis strictement \`suggestedUrl = null\`.
+
 Cette valeur est une SUGGESTION À VÉRIFIER PAR KREW.
 
-N'invente pas de suggestedPlace simplement pour remplir le champ.
+N'invente pas de suggestedPlace ou suggestedUrl simplement pour remplir le champ.
 
 ## 14. BACKUPS
 
@@ -1065,7 +1078,8 @@ Structure exacte :
           "locationContext": "lodging | external | flexible",
           "canonicalVenueFamily": "string | null",
           "searchIntent": "string | null",
-          "suggestedPlace": "string | null"
+          "suggestedPlace": "string | null",
+          "suggestedUrl": "string | null"
         }
       ]
     }
@@ -1084,7 +1098,8 @@ Structure exacte :
       "locationContext": "lodging | external | flexible",
       "canonicalVenueFamily": "string | null",
       "searchIntent": "string | null",
-      "suggestedPlace": "string | null"
+      "suggestedPlace": "string | null",
+      "suggestedUrl": "string | null"
     }
   ]
 }
@@ -2079,6 +2094,7 @@ export async function geminiEnrichSkeleton(
                   canonicalVenueFamily: { type: "STRING", enum: CANONICAL_VENUE_FAMILIES, nullable: true },
                   searchIntent: { type: "STRING", nullable: true },
                   suggestedPlace: { type: "STRING", nullable: true },
+                  suggestedUrl: { type: "STRING", nullable: true },
                 },
                 required: ["id", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
               },
@@ -2105,6 +2121,7 @@ export async function geminiEnrichSkeleton(
             canonicalVenueFamily: { type: "STRING", enum: CANONICAL_VENUE_FAMILIES, nullable: true },
             searchIntent: { type: "STRING", nullable: true },
             suggestedPlace: { type: "STRING", nullable: true },
+            suggestedUrl: { type: "STRING", nullable: true },
           },
           required: ["id", "day", "forSlot", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
         },
@@ -2258,6 +2275,8 @@ export async function geminiEnrichSkeleton(
           locationContext: locCtx,
           venueFamily: kind === "place_required" ? venueFamily : undefined,
           searchIntent: kind === "place_required" ? String(rawSlot.searchIntent || rawSlot.label || "").slice(0, 200) : undefined,
+          suggestedPlace: kind === "place_required" && rawSlot.suggestedPlace ? String(rawSlot.suggestedPlace).slice(0, 150) : undefined,
+          suggestedUrl: kind === "place_required" && rawSlot.suggestedUrl ? String(rawSlot.suggestedUrl).slice(0, 500) : undefined,
         });
       }
 
@@ -2748,6 +2767,7 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         locationContext: slot.locationContext ?? slot.location_context ?? slot.context,
         searchIntent: slot.searchIntent ?? slot.search_intent ?? slot.intent,
         suggestedPlace: slot.suggestedPlace ?? slot.suggested_place ?? slot.place,
+        suggestedUrl: slot.suggestedUrl ?? slot.suggested_url ?? slot.url,
       };
 
       normalizedSlots.push(normalizedSlot);
@@ -2803,6 +2823,7 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         canonicalVenueFamily: bk.canonicalVenueFamily ? String(bk.canonicalVenueFamily) : null,
         searchIntent: bk.searchIntent ? String(bk.searchIntent) : null,
         suggestedPlace: bk.suggestedPlace ? String(bk.suggestedPlace) : null,
+        suggestedUrl: bk.suggestedUrl ? String(bk.suggestedUrl) : null,
       });
     }
   }
