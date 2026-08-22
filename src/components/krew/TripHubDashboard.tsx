@@ -317,123 +317,125 @@ function NextActionsPanel({
       !destinationSelected ||
       (destinationSelected && !hasItinerary));
 
-  if (actions.length === 0 && participantCaughtUp) {
-    return (
-      <section className="rounded-3xl border border-sage/25 bg-sage/12 p-5 sm:p-6 shadow-xs">
-        <div className="flex gap-3.5 items-start">
-          <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 size-6 shrink-0" />
-          <div>
-            <h2 className="font-display text-xl sm:text-2xl font-normal tracking-tight text-foreground">
-              Tout est à jour de ton côté
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-foreground/80 font-sans">
-              {isOwner
-                ? hasItinerary
-                  ? "Le planning est en place. Les choix restent modifiables si nécessaire."
-                  : destinationSelected
-                    ? "L’hébergement, le transport et le planning restent à finaliser."
-                    : "Dès que le groupe a assez répondu, valide dates et destination."
-                : !destinationSelected
-                  ? "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."
-                  : "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."}
-            </p>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   const primaryAction = actions.find((a) => a.primary) ?? actions[0];
   const secondaryActions = actions.filter((a) => a !== primaryAction);
 
   return (
-    <div className="rounded-3xl border border-sage/25 bg-sage/12 overflow-hidden shadow-xs">
-      <KrewSectionWave position="top" tone="sage" className="text-sage/25" />
-      <section className="p-5 sm:p-7 space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/70 font-sans">
-              Tes prochaines actions
-            </h2>
-            <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-90" />
-          </div>
-        </div>
+    <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden">
+      {/* Vague supérieure ouvrant la grande nappe sauge */}
+      <KrewSectionWave position="top" tone="sage" className="text-sage/18" />
 
-        {waitingOnOthers ? (
-          <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
-            De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
-            l&apos;organisateur·rice.
-          </div>
-        ) : null}
-
-        <div className="space-y-3">
-          {primaryAction ? (
-            (() => {
-              const Tag = primaryAction.href ? "a" : "div";
-              return (
-                <Tag
-                  key={primaryAction.key}
-                  {...(primaryAction.href ? { href: primaryAction.href } : {})}
-                  className={cn(
-                    "group flex items-center justify-between gap-4 rounded-2xl border border-sage/40 bg-card p-4 sm:p-5 transition hover:border-primary/50 shadow-xs",
-                    primaryAction.href && "cursor-pointer",
-                  )}
-                >
-                  <div className="flex items-start gap-3.5 min-w-0">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-                      <primaryAction.icon className="size-5" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-sans font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {primaryAction.title}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
-                        {primaryAction.desc}
-                      </p>
-                    </div>
-                  </div>
-                  {primaryAction.href ? (
-                    <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
-                  ) : null}
-                </Tag>
-              );
-            })()
-          ) : null}
-
-          {secondaryActions.length > 0 ? (
-            <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-3 shadow-2xs">
-              {secondaryActions.map((a) => {
-                const Tag = a.href ? "a" : "div";
-                return (
-                  <Tag
-                    key={a.key}
-                    {...(a.href ? { href: a.href } : {})}
-                    className={cn(
-                      "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
-                      a.href && "cursor-pointer",
-                    )}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
-                        <a.icon className="size-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                          {a.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
-                      </div>
-                    </div>
-                    {a.href ? (
-                      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                    ) : null}
-                  </Tag>
-                );
-              })}
+      {/* GRANDE NAPPE SAUGE PLEINE LARGEUR */}
+      <div className="bg-sage/18 px-5 sm:px-8 py-6 sm:py-8 space-y-4">
+        {actions.length === 0 && participantCaughtUp ? (
+          <div className="flex gap-3.5 items-start py-2">
+            <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 size-6 shrink-0" />
+            <div>
+              <h2 className="font-display text-xl sm:text-2xl font-normal tracking-tight text-foreground">
+                Tout est à jour de ton côté
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-foreground/80 font-sans">
+                {isOwner
+                  ? hasItinerary
+                    ? "Le planning est en place. Les choix restent modifiables si nécessaire."
+                    : destinationSelected
+                      ? "L’hébergement, le transport et le planning restent à finaliser."
+                      : "Dès que le groupe a assez répondu, valide dates et destination."
+                  : !destinationSelected
+                    ? "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."
+                    : "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."}
+              </p>
             </div>
-          ) : null}
-        </div>
-      </section>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-foreground/75 font-sans">
+                Tes prochaines actions
+              </h2>
+              <KrewMark type="arrow" tone="sage" size="sm" rotation={2} className="pointer-events-none opacity-90" />
+            </div>
+
+            {waitingOnOthers ? (
+              <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
+                De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
+                l&apos;organisateur·rice.
+              </div>
+            ) : null}
+
+            <div className="space-y-3">
+              {primaryAction ? (
+                (() => {
+                  const Tag = primaryAction.href ? "a" : "div";
+                  return (
+                    <Tag
+                      key={primaryAction.key}
+                      {...(primaryAction.href ? { href: primaryAction.href } : {})}
+                      className={cn(
+                        "group flex items-center justify-between gap-4 rounded-2xl border border-sage/40 bg-card p-4 sm:p-5 transition hover:border-primary/50 shadow-sm",
+                        primaryAction.href && "cursor-pointer",
+                      )}
+                    >
+                      <div className="flex items-start gap-3.5 min-w-0">
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+                          <primaryAction.icon className="size-5" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-sans text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {primaryAction.title}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                            {primaryAction.desc}
+                          </p>
+                        </div>
+                      </div>
+                      {primaryAction.href ? (
+                        <ArrowRight className="size-5 shrink-0 text-primary transition-transform group-hover:translate-x-1" />
+                      ) : null}
+                    </Tag>
+                  );
+                })()
+              ) : null}
+
+              {secondaryActions.length > 0 ? (
+                <div className="rounded-2xl border border-border/70 bg-card/95 p-4 space-y-3 shadow-2xs">
+                  {secondaryActions.map((a) => {
+                    const Tag = a.href ? "a" : "div";
+                    return (
+                      <Tag
+                        key={a.key}
+                        {...(a.href ? { href: a.href } : {})}
+                        className={cn(
+                          "group flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0 transition",
+                          a.href && "cursor-pointer",
+                        )}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground group-hover:text-primary transition-colors">
+                            <a.icon className="size-4" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-sans text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                              {a.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{a.desc}</p>
+                          </div>
+                        </div>
+                        {a.href ? (
+                          <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                        ) : null}
+                      </Tag>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Vague inférieure refermant la grande nappe sauge */}
+      <KrewSectionWave position="bottom" tone="sage" className="text-sage/18" />
     </div>
   );
 }
@@ -481,40 +483,41 @@ export function TripHubDashboard({
   const theme = eventTypeLabel(trip.event_type);
 
   return (
-    <div className="space-y-7 sm:space-y-8">
-      {/* TRIP CONTEXT / HERO COVER IMMERSIF */}
-      <header className="relative overflow-hidden rounded-[28px] sm:rounded-[32px] bg-surface border border-border/60 shadow-xs">
+    <div className="space-y-6 sm:space-y-8">
+      {/* HERO COVER ÉDITORIAL & IMMERSIF */}
+      <header className="relative overflow-hidden -mx-4 sm:mx-0 sm:rounded-[32px] bg-background border-b sm:border border-border/50">
+        {/* Circle KrewMark expressif en filigrane d'angle */}
         <KrewMark
           type="circle"
           tone="sage"
           size="lg"
           rotation={4}
-          className="absolute -top-6 -right-6 w-[130px] sm:w-[150px] opacity-40 pointer-events-none z-10"
+          className="absolute -top-7 -right-7 w-[140px] sm:w-[160px] opacity-40 pointer-events-none z-10"
         />
 
         <div className="grid lg:grid-cols-12 gap-0">
-          {/* Cover Photo Block — Immersive sur Mobile (full width top, h-60/72) & Desktop (col-5) */}
-          <div className="lg:col-span-5 order-first lg:order-last relative h-60 sm:h-72 lg:h-auto min-h-[240px] sm:min-h-[280px] overflow-hidden border-b lg:border-b-0 lg:border-l border-border/50">
+          {/* Photographie Dominante — Couverture éditoriale mobile (~280-320px tall) & Desktop (col-5) */}
+          <div className="lg:col-span-5 order-first lg:order-last relative h-72 sm:h-80 lg:h-auto min-h-[280px] overflow-hidden border-b lg:border-b-0 lg:border-l border-border/40">
             <img
               src={heroImageForEvent(trip.event_type)}
               alt=""
-              className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+              className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
               loading="eager"
             />
           </div>
 
-          {/* Text Content Block */}
-          <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-4 min-w-0 relative">
-            <div className="space-y-2.5 min-w-0">
+          {/* Bloc Titre & Informations Voyage */}
+          <div className="lg:col-span-7 p-5 sm:p-8 flex flex-col justify-between space-y-4 min-w-0 relative">
+            <div className="space-y-2 min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans">
                 {theme}
               </p>
-              <h1 className="font-display text-[38px] sm:text-[46px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
+              <h1 className="font-display text-[36px] sm:text-[44px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
                 {trip.name}
               </h1>
 
               {destinationName ? (
-                <p className="font-display text-2xl sm:text-3xl text-primary font-normal flex items-center gap-2 pt-0.5">
+                <p className="font-display text-2xl sm:text-3xl text-primary font-normal flex items-center gap-2 pt-1">
                   <MapPin className="size-5 text-primary shrink-0" />
                   <span>{destinationName}</span>
                 </p>
@@ -530,7 +533,7 @@ export function TripHubDashboard({
               {trip.participants &&
               Array.isArray(trip.participants) &&
               trip.participants.filter((p: any) => p.display_name || p.email).length > 0 ? (
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed pt-0.5">
                   Avec{" "}
                   {trip.participants
                     .map((p: any) => p.display_name || p.email?.split("@")[0] || null)
@@ -540,8 +543,8 @@ export function TripHubDashboard({
               ) : null}
             </div>
 
-            {/* Barre de métadonnées secondaires : icônes neutres (text-muted-foreground) pour sélectivité du Prune */}
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground font-sans pt-3 border-t border-border/40">
+            {/* Ligne de métadonnées compactes */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground font-sans pt-3 border-t border-border/40">
               <span className="inline-flex items-center gap-1.5 font-sans">
                 <Users className="size-3.5 text-muted-foreground shrink-0" />
                 <span className="font-mono text-foreground font-medium">{trip.participants_count}</span> pers.
@@ -590,7 +593,7 @@ export function TripHubDashboard({
         </div>
       </header>
 
-      {/* Zone Sauge "Tes prochaines actions" avec Vague de surface */}
+      {/* GRANDE NAPPE SAUGE "TES PROCHAINES ACTIONS" ENCADRÉE PAR DEUX VAGUES */}
       <NextActionsPanel
         tripId={tripId}
         isOwner={isOwner}

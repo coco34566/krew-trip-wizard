@@ -64,13 +64,13 @@ export function TripHubNav({
   }
 
   return (
-    <nav aria-label="Parcours du groupe" className="rounded-3xl border border-border/60 bg-surface/80 p-5 sm:p-6 space-y-5">
-      {/* En-tête du parcours du groupe */}
-      <div className="flex items-center justify-between border-b border-border/40 pb-3.5">
-        <h3 className="font-sans text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+    <nav aria-label="Parcours du groupe" className="py-4 sm:py-6 space-y-6 sm:rounded-3xl sm:border sm:border-border/60 sm:bg-surface/80 sm:p-6">
+      {/* En-tête éditorial du parcours */}
+      <div className="flex items-center justify-between border-b border-border/40 pb-4">
+        <h3 className="font-display text-xl sm:text-2xl font-normal text-foreground">
           Parcours du <KrewHighlight tone="sage"><span className="text-foreground">groupe</span></KrewHighlight>
         </h3>
-        <span className="text-xs text-muted-foreground font-mono bg-surface-strong/60 px-2.5 py-1 rounded-full">
+        <span className="text-xs text-muted-foreground font-mono bg-surface-strong/60 px-3 py-1 rounded-full">
           {doneCount} / {total} étapes
         </span>
       </div>
@@ -161,8 +161,8 @@ export function TripHubNav({
         })}
       </ol>
 
-      {/* Timeline Verticale Organique sur Mobile */}
-      <ol className="block sm:hidden space-y-0 relative">
+      {/* Trajectoire Organique Serpentine sur Mobile */}
+      <ol className="block sm:hidden space-y-4 py-2 relative">
         {steps.map((step, i) => {
           const isDone = step.status === "done";
           const isActive = step.status === "active";
@@ -170,19 +170,20 @@ export function TripHubNav({
           const href = stepHref(step);
           const isLast = i === steps.length - 1;
           const metric = renderMetric(step.id);
+          const isEven = i % 2 === 0;
 
           const StepContent = (
-            <div className="flex flex-1 items-center justify-between gap-2 py-1">
+            <div className="flex flex-1 items-center justify-between gap-3 py-1.5 px-3 rounded-2xl bg-surface/50 border border-border/30">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 {isActive ? (
-                  <span className="font-sans text-sm font-semibold text-primary">
+                  <span className="font-sans text-base font-semibold text-primary">
                     {step.label}
                   </span>
                 ) : (
                   <span
                     className={cn(
                       "font-sans text-sm font-medium",
-                      isDone && "text-foreground",
+                      isDone && "text-foreground font-semibold",
                       !isDone && !isActive && "text-muted-foreground",
                     )}
                   >
@@ -195,8 +196,8 @@ export function TripHubNav({
               {isActive || href ? (
                 <ArrowRight
                   className={cn(
-                    "size-4 shrink-0 transition-transform group-hover:translate-x-0.5",
-                    isActive ? "text-primary" : "text-muted-foreground/50",
+                    "size-4 shrink-0 transition-transform group-hover:translate-x-1",
+                    isActive ? "text-primary" : "text-muted-foreground/60",
                   )}
                 />
               ) : null}
@@ -205,14 +206,21 @@ export function TripHubNav({
 
           return (
             <li key={step.id} className="relative">
-              <div className="flex items-start gap-3.5">
-                {/* Colonne gauche : nœud statut + ligne de connexion organique */}
-                <div className="flex w-7 flex-col items-center shrink-0">
+              <div className="flex items-center gap-3">
+                {/* Colonne du nœud avec léger décalage X alterné pour tracé organique */}
+                <div
+                  className={cn(
+                    "flex w-8 flex-col items-center shrink-0 transition-transform",
+                    isEven ? "translate-x-0" : "translate-x-1",
+                  )}
+                >
                   <span
                     className={cn(
-                      "flex size-7 items-center justify-center rounded-full border text-[11px] font-semibold transition-colors z-10",
+                      "flex items-center justify-center rounded-full border font-semibold transition-all z-10",
+                      isActive
+                        ? "size-8 border-primary bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/15"
+                        : "size-7 text-[11px]",
                       isDone && "border-sage/60 bg-sage/15 text-sage shadow-2xs",
-                      isActive && !isDone && "border-primary bg-primary text-primary-foreground shadow-xs ring-2 ring-primary/20",
                       !isDone && !isActive && !isSoon && "border-border bg-background text-muted-foreground",
                       isSoon && "border-dashed border-border bg-muted/20 text-muted-foreground opacity-50",
                     )}
@@ -220,26 +228,32 @@ export function TripHubNav({
                     {isDone ? (
                       <KrewMark type="check" tone="sage" size="sm" className="size-3.5" />
                     ) : isSoon ? (
-                      <Lock className="size-2.5" />
+                      <Lock className="size-3" />
                     ) : (
-                      <span className="font-mono text-[11px]">{i + 1}</span>
+                      <span className="font-mono">{i + 1}</span>
                     )}
                   </span>
 
+                  {/* Connecteur courbe organique vertical entre nœuds */}
                   {!isLast ? (
-                    <div className="my-0.5 flex h-6 items-center justify-center" aria-hidden="true">
-                      <div
-                        className={cn(
-                          "w-0.5 h-full rounded-full transition-colors",
-                          isDone ? "bg-sage/50" : "bg-border/40",
-                        )}
-                      />
+                    <div className="my-1 flex h-7 w-full items-center justify-center" aria-hidden="true">
+                      <svg viewBox="0 0 16 32" fill="none" className="h-full w-4">
+                        <path
+                          d={isEven ? "M8,0 C14,10 2,22 8,32" : "M8,0 C2,10 14,22 8,32"}
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          fill="none"
+                          className={isDone ? "text-sage/50" : "text-border/40"}
+                          strokeDasharray={isDone ? undefined : "3 3"}
+                        />
+                      </svg>
                     </div>
                   ) : null}
                 </div>
 
-                {/* Colonne droite : Ligne cliquable si lien/action disponible */}
-                <div className="flex-1 pb-2 min-w-0">
+                {/* Contenu cliquable */}
+                <div className="flex-1 min-w-0">
                   {step.id === "invite" && onInviteClick ? (
                     <button
                       type="button"

@@ -7,8 +7,9 @@ type KrewSectionWaveProps = {
 };
 
 /**
- * Bordure de surface organique en forme de vague.
- * Sert de transition supérieure ou inférieure pour une grande zone colorée.
+ * Grande bordure de surface organique en forme de vague pour nappe colorée.
+ * Position "top" : la vague ouvre la nappe en se remplissant vers le bas.
+ * Position "bottom" : la vague referme la nappe en se remplissant vers le haut.
  */
 export function KrewSectionWave({
   position = "top",
@@ -23,45 +24,45 @@ export function KrewSectionWave({
       className={cn("w-full overflow-hidden pointer-events-none leading-none shrink-0", className)}
     >
       <svg
-        viewBox="0 0 1200 44"
+        viewBox="0 0 1200 60"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className={cn(
-          "w-full h-8 sm:h-12 block",
-          tone === "sage" ? "text-sage/20" : "text-primary/12",
+          "w-full h-10 sm:h-14 lg:h-16 block",
+          tone === "sage" ? "text-sage/18" : "text-primary/12",
         )}
         preserveAspectRatio="none"
       >
         {isTop ? (
           <>
-            {/* Remplissage vers le bas pour joindre la surface sous la vague */}
+            {/* Remplissage organique vers le bas pour former la grande nappe */}
             <path
-              d="M0,22 C200,42 450,2 700,28 C920,44 1080,10 1200,20 L1200,44 L0,44 Z"
+              d="M0,30 C220,58 480,2 720,38 C940,58 1080,14 1200,28 L1200,60 L0,60 Z"
               fill="currentColor"
             />
-            {/* Tracé fluide d'accent sur la courbe */}
+            {/* Trait d'accent fluide sur la crête supérieure */}
             <path
-              d="M0,22 C200,42 450,2 700,28 C920,44 1080,10 1200,20"
+              d="M0,30 C220,58 480,2 720,38 C940,58 1080,14 1200,28"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="2.5"
               strokeLinecap="round"
-              className="opacity-50"
+              className="opacity-40"
             />
           </>
         ) : (
           <>
-            {/* Remplissage vers le haut pour refermer la surface au-dessus */}
+            {/* Remplissage organique vers le haut pour fermer la nappe */}
             <path
-              d="M0,22 C200,2 450,42 700,16 C920,0 1080,34 1200,24 L1200,0 L0,0 Z"
+              d="M0,30 C220,2 480,58 720,22 C940,2 1080,46 1200,32 L1200,0 L0,0 Z"
               fill="currentColor"
             />
-            {/* Tracé fluide d'accent sur la courbe */}
+            {/* Trait d'accent fluide sur la crête inférieure */}
             <path
-              d="M0,22 C200,2 450,42 700,16 C920,0 1080,34 1200,24"
+              d="M0,30 C220,2 480,58 720,22 C940,2 1080,46 1200,32"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="2.5"
               strokeLinecap="round"
-              className="opacity-50"
+              className="opacity-40"
             />
           </>
         )}
