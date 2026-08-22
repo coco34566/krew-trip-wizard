@@ -5,10 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
   Loader2,
-  CalendarDays,
   Lock,
   Unlock,
-  Check,
   ChevronLeft,
   ChevronRight,
   X,
@@ -16,18 +14,17 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import {
   getTripAvailability,
   submitMyAvailability,
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/availability")({
@@ -88,7 +85,7 @@ function MonthGrid({
 
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
-      <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
+      <p className="mb-2 text-center text-sm font-semibold capitalize font-sans">{monthLabel(month)}</p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
           <span key={i}>{d}</span>
@@ -299,14 +296,29 @@ function AvailabilityPage() {
         <ArrowLeft className="size-4" /> Retour à Mon Voyage
       </a>
 
-      <div className="space-y-2">
+      <div className="space-y-2 relative pr-12 sm:pr-20">
+        <div className="absolute top-0 right-0 pointer-events-none">
+          <img
+            src="/brand/otter-states/availability.png"
+            alt=""
+            className="w-11 sm:w-16 h-auto object-contain"
+          />
+        </div>
         <p className="text-xs font-medium uppercase tracking-wider text-primary font-mono">
           Disponibilités · résumé live
         </p>
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          {data.trip.name}
-        </h1>
-        <p className="text-sm text-muted-foreground">
+        <div className="relative inline-block">
+          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+            {data.trip.name}
+          </h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="md"
+            className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground font-mono pt-1">
           {data.answered}/{data.expected} ont indiqué leurs dates
         </p>
       </div>
@@ -314,8 +326,11 @@ function AvailabilityPage() {
       {/* CALENDRIER DEVENU L'OBJET PRINCIPAL */}
       <section className="w-full rounded-[24px] bg-background border border-border/50 p-6 space-y-6">
         <div>
-          <h2 className="font-display text-lg font-semibold">Mes disponibilités</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="font-display text-xl font-normal text-foreground flex items-center gap-2">
+            <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
+            Mes disponibilités
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground font-sans">
             Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes
             réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les
             modifier.

@@ -3,6 +3,8 @@ import { SiteHeader } from "@/components/krew/SiteHeader";
 import { Logo } from "@/components/krew/Logo";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 
 export const Route = createFileRoute("/faq")({
   head: () => ({
@@ -28,14 +30,22 @@ function FaqPage() {
     <div className="min-h-screen bg-background flex flex-col">
       <SiteHeader />
       <main className="flex-1 mx-auto max-w-3xl px-4 py-12">
-        <header className="text-center max-w-2xl mx-auto mb-12">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+        <header className="text-center max-w-2xl mx-auto mb-12 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary font-mono">
             Des questions ?
           </p>
-          <h1 className="mt-2 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-            La foire aux questions
-          </h1>
-          <p className="mt-4 text-base text-muted-foreground">
+          <div className="relative inline-block">
+            <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+              La foire aux questions
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+            />
+          </div>
+          <p className="mt-4 text-base text-muted-foreground font-sans">
             Les réponses aux questions les plus fréquentes sur KREW.
           </p>
         </header>
@@ -59,12 +69,17 @@ function FaqPage() {
           </Accordion>
         </section>
 
-        <div className="mt-16 text-center py-8 border-t border-border/60">
-          <h3 className="font-display text-2xl font-bold">Prêt à organiser ton prochain voyage ?</h3>
-          <p className="text-xs text-muted-foreground mt-1">Crée ton voyage et invite le groupe.</p>
-          <Button asChild className="mt-4">
-            <Link to="/trips/new">Créer mon voyage</Link>
-          </Button>
+        <div className="mt-16 text-center py-8 border-t border-border/60 space-y-2">
+          <h3 className="font-display text-2xl font-normal text-foreground">Prêt à organiser ton prochain voyage ?</h3>
+          <p className="text-xs text-muted-foreground font-sans">Crée ton voyage et invite le groupe.</p>
+          <div className="pt-2">
+            <Button asChild className="rounded-xl">
+              <Link to="/trips/new">
+                <KrewIcon name="plus" size="sm" className="size-4 mr-1.5" />
+                Créer mon voyage
+              </Link>
+            </Button>
+          </div>
         </div>
       </main>
 

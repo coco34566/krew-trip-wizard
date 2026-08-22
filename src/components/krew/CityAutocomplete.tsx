@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, MapPin } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 
 export type CitySelection = {
   /** Nom normalisé de la ville (ex. "Lyon") */
@@ -175,7 +176,7 @@ export function CityAutocomplete({
   return (
     <div ref={boxRef} className={cn("relative", className)}>
       <div className="relative">
-        <MapPin className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <KrewIcon name="map" tone="muted" size="sm" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" />
         <Input
           id={id}
           value={query}

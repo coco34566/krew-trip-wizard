@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LogOut, Plus } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { KrewIcon } from "./visual-language";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +33,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-10">
         <div className="flex items-center gap-8">
           <Link to="/" className="transition-opacity hover:opacity-85">
             <Logo />
@@ -57,7 +58,7 @@ export function SiteHeader() {
               </Button>
               <Button asChild size="sm" className="rounded-xl font-medium">
                 <Link to="/trips/new">
-                  <Plus className="size-4" /> Nouveau voyage
+                  <KrewIcon name="plus" size="sm" className="size-4" /> Nouveau voyage
                 </Link>
               </Button>
               <DropdownMenu>

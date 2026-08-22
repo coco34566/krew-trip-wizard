@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import {
   STAR_EVENT_TYPES,
   getTripTypeImage,
 } from "@/lib/krew/constants";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { cn } from "@/lib/utils";
 
 function clampParticipants(raw: string): number {
@@ -125,11 +127,19 @@ function NewTripPage() {
         <ArrowLeft className="size-4" /> Dashboard
       </Link>
 
-      <div className="space-y-2">
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          Créer un voyage
-        </h1>
-        <p className="text-sm text-muted-foreground">Juste l'essentiel pour démarrer.</p>
+      <div className="space-y-2 relative">
+        <div className="relative inline-block">
+          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+            Créer un voyage
+          </h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="md"
+            className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground font-sans pt-1">Juste l'essentiel pour démarrer.</p>
       </div>
 
       <form onSubmit={onSubmit} className="pt-4">
@@ -320,7 +330,11 @@ function NewTripPage() {
         {/* Actions */}
         <div className="pt-2">
           <Button type="submit" size="lg" className="w-full h-12 rounded-xl text-base font-medium" disabled={submitting}>
-            {submitting ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}
+            {submitting ? (
+              <Loader2 className="animate-spin size-4" />
+            ) : (
+              <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
+            )}
             Créer et inviter le groupe
           </Button>
         </div>

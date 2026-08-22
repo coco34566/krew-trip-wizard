@@ -2,22 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  ExternalLink,
-  Plane,
-  Train,
-  Hotel,
-  Users,
-  Wallet,
-  MapPin,
-  Info,
-  Bell,
-  BellRing,
-  CalendarDays,
-  ThumbsUp,
-  ThumbsDown,
-} from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +16,7 @@ import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
+import { KrewIcon, KrewMark, KrewHighlight, KrewSectionWave } from "@/components/krew/visual-language";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/recap")({
   head: () => ({
@@ -52,10 +38,10 @@ function ExternalLinkButton({
 }: {
   href: string;
   children: React.ReactNode;
-  variant?: "outline" | "hero" | "glass";
+  variant?: "outline" | "default" | "secondary";
 }) {
   return (
-    <Button asChild variant={variant} size="sm" className="gap-1.5">
+    <Button asChild variant={variant} size="sm" className="gap-1.5 rounded-xl font-medium">
       <a href={href} target="_blank" rel="noopener noreferrer">
         {children}
         <ExternalLink className="size-3.5 opacity-70" />
@@ -199,54 +185,83 @@ function TripRecapPage() {
         ? `À partir du ${new Date(trip.startDate).toLocaleDateString("fr-FR")} · ${nights} nuit(s)`
         : `${nights} nuit(s) · dates à confirmer`;
 
+  const selectedDestinationReco = recommendations.find((r) => (r as any).status === "selected") || recommendations[0];
+  const selectedPhotoUrl = selectedDestinationReco?.destination?.imageUrl;
+
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10">
+    <main className="mx-auto max-w-[1020px] px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
-      <header className="mt-4">
-        <p className="text-xs font-medium uppercase tracking-wider text-primary">Récap du groupe</p>
-        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">{trip.name}</h1>
-        <div className="mt-3 flex flex-wrap gap-3 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin className="size-4" /> {dateLabel}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Users className="size-4" /> {trip.participantsCount} pers.
-          </span>
-          {progress ? (
-            <Badge variant="lagoon">
-              Questionnaire {progress.answered}/{progress.total}
-            </Badge>
-          ) : null}
+      {/* HERO COVER HEADER */}
+      <header className="space-y-4">
+        {selectedPhotoUrl && /^https?:\/\//i.test(selectedPhotoUrl) ? (
+          <div className="relative aspect-[21/9] sm:aspect-[24/9] w-full overflow-hidden rounded-[24px] border border-border/50 bg-surface/50">
+            <img
+              src={selectedPhotoUrl}
+              alt=""
+              className="size-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+          </div>
+        ) : null}
+
+        <div className="space-y-2 relative">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Récap du groupe</p>
+          <div className="relative inline-block">
+            <h1 className="font-display text-[36px] sm:text-[48px] font-normal leading-tight text-foreground">
+              {trip.name}
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+            />
+          </div>
+          <div className="pt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground font-sans">
+            <span className="inline-flex items-center gap-1.5 font-mono">
+              <KrewIcon name="calendar" tone="plum" size="sm" className="size-4" /> {dateLabel}
+            </span>
+            <span className="inline-flex items-center gap-1.5 font-mono">
+              <KrewIcon name="group" tone="plum" size="sm" className="size-4" /> {trip.participantsCount} pers.
+            </span>
+            {progress ? (
+              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-primary font-medium">
+                <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" /> Réponses {progress.answered}/{progress.total}
+              </span>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground font-sans pt-1">
+            Départs : {departureOrigins.map((o) => `${o.city} (${o.count})`).join(" · ")}
+          </p>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Villes de départ du groupe :{" "}
-          {departureOrigins.map((o) => `${o.city} (${o.count})`).join(" · ")}
-        </p>
       </header>
 
-      <div className="mt-6 flex gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground/90">
-        <Info className="mt-0.5 size-4 shrink-0 text-primary" />
+      <div className="flex items-start gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 text-xs sm:text-sm text-foreground/90 font-sans">
+        <KrewIcon name="attention" tone="plum" size="sm" className="size-4 shrink-0 mt-0.5" />
         <p>
           Ces liens ouvrent les comparateurs avec tes critères pré-remplis — les prix affichés dans
           KREW sont des estimations, clique pour voir le prix réel du jour.
         </p>
       </div>
 
-      <section className="mt-10 space-y-8">
-        <h2 className="font-display text-2xl font-semibold">
-          {recommendations.length} proposition{recommendations.length > 1 ? "s" : ""} shortlistée
-          {recommendations.length > 1 ? "s" : ""}
-        </h2>
+      {/* PROPOSITIONS SHORTLISTÉES */}
+      <section className="space-y-6 pt-4">
+        <div className="border-b border-border/50 pb-3">
+          <h2 className="font-display text-2xl font-normal text-foreground">
+            {recommendations.length} proposition{recommendations.length > 1 ? "s" : ""} shortlistée
+            {recommendations.length > 1 ? "s" : ""}
+          </h2>
+        </div>
 
         {recommendations.length === 0 ? (
-          <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground font-sans">
             Aucune proposition générée pour l&apos;instant. L&apos;organisateur peut lancer une
             génération depuis la fiche voyage.
           </p>
@@ -267,9 +282,9 @@ function TripRecapPage() {
             return (
               <article
                 key={reco.id}
-                className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm"
+                className="overflow-hidden rounded-[24px] border border-border/60 bg-background shadow-sm space-y-0"
               >
-                <div className="border-b border-border bg-surface/40 px-5 py-4 sm:px-6">
+                <div className="border-b border-border/50 bg-surface/40 px-5 py-4 sm:px-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
@@ -279,48 +294,46 @@ function TripRecapPage() {
                         <div className="flex items-center gap-1 ml-2">
                           <Button
                             size="sm"
-                            variant={(reco as any).myReaction === "like" ? "lagoon" : "outline"}
-                            className="h-6 px-1.5 text-[11px] gap-1 cursor-pointer"
+                            variant={(reco as any).myReaction === "like" ? "default" : "outline"}
+                            className="h-6 px-2 text-[11px] gap-1 rounded-full cursor-pointer"
                             onClick={() => handleReact(reco.id, (reco as any).myReaction === "like" ? null : "like")}
                           >
-                            <ThumbsUp className="size-3" />
-                            <span>{(reco as any).likesCount ?? 0}</span>
+                            <KrewIcon name="vote" tone={(reco as any).myReaction === "like" ? "cream" : "plum"} size="sm" className="size-3" />
+                            <span className="font-mono">{(reco as any).likesCount ?? 0}</span>
                           </Button>
                           <Button
                             size="sm"
                             variant={(reco as any).myReaction === "dislike" ? "destructive" : "outline"}
-                            className="h-6 px-1.5 text-[11px] gap-1 cursor-pointer"
+                            className="h-6 px-2 text-[11px] gap-1 rounded-full cursor-pointer"
                             onClick={() => handleReact(reco.id, (reco as any).myReaction === "dislike" ? null : "dislike")}
                           >
-                            <ThumbsDown className="size-3" />
-                            <span>{(reco as any).dislikesCount ?? 0}</span>
+                            <span className="font-mono">✕ {(reco as any).dislikesCount ?? 0}</span>
                           </Button>
                         </div>
                       </div>
-                      <h3 className="mt-2 font-display text-xl font-semibold">
+                      <h3 className="mt-2 font-display text-2xl font-normal text-foreground">
                         {destName}
                         {reco.destination?.country ? (
-                          <span className="text-base font-normal text-muted-foreground">
+                          <span className="text-base font-normal text-muted-foreground font-sans">
                             {" "}
                             · {reco.destination.country}
                           </span>
                         ) : null}
                       </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">{dateLabel}</p>
+                      <p className="mt-1 text-xs text-muted-foreground font-mono">{dateLabel}</p>
                     </div>
                     {budget ? (
-                      <div className="rounded-2xl border border-border bg-background/80 px-4 py-3 text-right">
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      <div className="rounded-2xl border border-border/60 bg-background p-4 text-right">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
                           Budget estimé
                         </p>
-                        <p className="font-display text-lg font-semibold">
-                          <Wallet className="mr-1 inline size-4" />
+                        <KrewHighlight tone="sage" className="font-mono text-xl sm:text-2xl font-bold text-primary inline-block my-1 px-2 py-0.5">
                           {formatEuro(budget.totalPerPerson)} / pers.
-                        </p>
-                        <p className="text-sm text-muted-foreground">
+                        </KrewHighlight>
+                        <p className="text-xs text-muted-foreground font-mono">
                           soit {formatEuro(budget.totalGroup)} pour le groupe
                         </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
+                        <p className="mt-1 text-[11px] text-muted-foreground font-mono">
                           Transport moy. {formatEuro(budget.transport)}
                           {typeof budget.transportGroup === "number"
                             ? ` · groupe ${formatEuro(budget.transportGroup)}`
@@ -330,16 +343,16 @@ function TripRecapPage() {
                         {/* Fraîcheur des prix */}
                         <div className="mt-2 flex justify-end gap-1 flex-wrap">
                           {budget.priceSource?.transport === "provider" ? (
-                            <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Transport réel</Badge>
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">Transport réel</Badge>
                           ) : (
-                            <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Transport estimé</Badge>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono text-muted-foreground">Transport estimé</Badge>
                           )}
                           {budget.priceSource?.accommodation === "provider" ? (
-                            <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Logement réel</Badge>
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">Logement réel</Badge>
                           ) : budget.priceSource?.accommodation === "web" ? (
-                            <Badge variant="lagoon" className="text-[10px] px-1.5 py-0 font-medium">Hébergement vérifié</Badge>
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">Hébergement vérifié</Badge>
                           ) : (
-                            <Badge variant="muted" className="text-[10px] px-1.5 py-0 font-medium text-muted-foreground bg-muted/30">Logement estimé</Badge>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-mono text-muted-foreground">Logement estimé</Badge>
                           )}
                         </div>
                       </div>
@@ -347,10 +360,13 @@ function TripRecapPage() {
                   </div>
                 </div>
 
-                <div className="space-y-5 px-5 py-5 sm:px-6">
+                <div className="space-y-5 p-5 sm:p-6">
                   <div>
-                    <h4 className="text-sm font-semibold">Vérifier les prix en temps réel</h4>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5 font-sans">
+                      <KrewIcon name="transport" tone="plum" size="sm" className="size-4" />
+                      Vérifier les transports en temps réel
+                    </h4>
+                    <p className="mt-0.5 text-xs text-muted-foreground font-sans">
                       Un bloc par ville de départ — les tarifs vols/trains dépendent de l&apos;origine.
                     </p>
                   </div>
@@ -367,71 +383,74 @@ function TripRecapPage() {
                     return (
                       <div
                         key={origin.originCity}
-                        className="rounded-2xl border border-border/80 bg-surface/30 p-4"
+                        className="rounded-xl border border-border/60 bg-surface/30 p-3.5 font-sans"
                       >
-                        <p className="text-sm font-medium">
+                        <p className="text-xs font-semibold text-foreground">
                           Depuis {origin.originCity}{" "}
-                          <span className="text-muted-foreground">
+                          <span className="text-muted-foreground font-mono font-normal">
                             ({origin.adults} pers.)
                             {origin.distanceKm < 9000
                               ? ` · ~${origin.distanceKm} km`
                               : ""}
                           </span>
                         </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
+                        <div className="mt-2.5 flex flex-wrap gap-2">
                           {transportOfferUrl ? (
-                            <ExternalLinkButton href={transportOfferUrl} variant="hero">
-                              <Plane className="size-3.5" /> Voir l&apos;offre {matchedTransport?.label || "disponible"}
+                            <ExternalLinkButton href={transportOfferUrl}>
+                              <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5" /> Voir l&apos;offre {matchedTransport?.label || "disponible"}
                             </ExternalLinkButton>
                           ) : null}
-                          <ExternalLinkButton href={origin.googleFlights} variant={transportOfferUrl ? "outline" : "hero"}>
-                            <Plane className="size-3.5" /> Google Flights
+                          <ExternalLinkButton href={origin.googleFlights} variant={transportOfferUrl ? "outline" : "default"}>
+                            <KrewIcon name="plane" tone="cream" size="sm" className="size-3.5" /> Google Flights
                           </ExternalLinkButton>
                           <ExternalLinkButton href={origin.kayak}>
-                            <Plane className="size-3.5" /> Kayak
+                            <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5" /> Kayak
                           </ExternalLinkButton>
-                        {origin.showTrain && origin.omio ? (
-                          <ExternalLinkButton href={origin.omio}>
-                            <Train className="size-3.5" /> Omio
-                          </ExternalLinkButton>
-                        ) : null}
-                        {origin.showTrain && origin.trainline ? (
-                          <ExternalLinkButton href={origin.trainline}>
-                            <Train className="size-3.5" /> Trainline
-                          </ExternalLinkButton>
-                        ) : null}
-                        {origin.showTrain && origin.sncf ? (
-                          <ExternalLinkButton href={origin.sncf}>
-                            <Train className="size-3.5" /> SNCF Connect
-                          </ExternalLinkButton>
-                        ) : null}
+                          {origin.showTrain && origin.omio ? (
+                            <ExternalLinkButton href={origin.omio}>
+                              <KrewIcon name="train" tone="plum" size="sm" className="size-3.5" /> Omio
+                            </ExternalLinkButton>
+                          ) : null}
+                          {origin.showTrain && origin.trainline ? (
+                            <ExternalLinkButton href={origin.trainline}>
+                              <KrewIcon name="train" tone="plum" size="sm" className="size-3.5" /> Trainline
+                            </ExternalLinkButton>
+                          ) : null}
+                          {origin.showTrain && origin.sncf ? (
+                            <ExternalLinkButton href={origin.sncf}>
+                              <KrewIcon name="train" tone="plum" size="sm" className="size-3.5" /> SNCF Connect
+                            </ExternalLinkButton>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
                   <Separator />
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">Hébergement (groupe) :</span>
+                  <div className="flex flex-wrap items-center gap-2 font-sans">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <KrewIcon name="accommodation" tone="plum" size="sm" className="size-4" /> Hébergement (groupe) :
+                    </span>
                     {reco.accommodation?.bookingUrl ? (
                       <>
-                        <ExternalLinkButton href={reco.accommodation.bookingUrl} variant="hero">
-                          <Hotel className="size-3.5" /> Réserver cet hébergement ({reco.accommodation.name})
+                        <ExternalLinkButton href={reco.accommodation.bookingUrl} variant="default">
+                          <KrewIcon name="booked" tone="cream" size="sm" className="size-3.5" /> Réserver cet hébergement ({reco.accommodation.name})
                         </ExternalLinkButton>
-                        <ExternalLinkButton href={links.bookingGroup} variant="glass">
-                          <Hotel className="size-3.5" /> Comparer d&apos;autres hôtels
+                        <ExternalLinkButton href={links.bookingGroup}>
+                          <KrewIcon name="search" tone="plum" size="sm" className="size-3.5" /> Comparer d&apos;autres hôtels
                         </ExternalLinkButton>
                       </>
                     ) : (
-                      <ExternalLinkButton href={links.bookingGroup} variant="glass">
-                        <Hotel className="size-3.5" /> Comparer d&apos;autres hôtels
+                      <ExternalLinkButton href={links.bookingGroup}>
+                        <KrewIcon name="search" tone="plum" size="sm" className="size-3.5" /> Comparer d&apos;autres hôtels
                       </ExternalLinkButton>
                     )}
                     <Button
                       type="button"
-                      variant={watched[reco.id] ? "lagoon" : "outline"}
+                      variant={watched[reco.id] ? "secondary" : "outline"}
                       size="sm"
+                      className="rounded-xl text-xs font-medium"
                       disabled={watchMutation.isPending}
                       onClick={() =>
                         watchMutation.mutate({
@@ -440,11 +459,7 @@ function TripRecapPage() {
                         })
                       }
                     >
-                      {watched[reco.id] ? (
-                        <BellRing className="size-3.5" />
-                      ) : (
-                        <Bell className="size-3.5" />
-                      )}
+                      <KrewIcon name="time" tone="plum" size="sm" className="size-3.5 mr-1" />
                       {watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
                     </Button>
                   </div>
@@ -455,7 +470,7 @@ function TripRecapPage() {
         )}
 
         {trip.runnerUps && trip.runnerUps.length > 0 ? (
-          <div className="mt-8 rounded-2xl bg-surface/30 p-4 border border-border/60 text-xs text-muted-foreground">
+          <div className="mt-6 rounded-2xl bg-surface/30 p-4 border border-border/60 text-xs text-muted-foreground font-sans">
             <span className="font-semibold text-foreground mr-1.5">Aussi envisagées :</span>
             {trip.runnerUps.map((r: any, idx: number) => (
               <span key={r.name}>
@@ -468,32 +483,34 @@ function TripRecapPage() {
         ) : null}
       </section>
 
+      <KrewSectionWave tone="sage" position="bottom" className="my-8" />
+
       {costSplitData?.split ? (
-        <section className="mt-12 space-y-4">
-          <h2 className="font-display text-2xl font-semibold">
+        <section className="space-y-4 pt-4">
+          <h2 className="font-display text-2xl font-normal text-foreground">
             {costSplitData.isSelected
               ? "Destination validée — qui paie quoi ?"
-              : "Répartition (proposition)"}
+              : "Répartition des coûts (proposition)"}
           </h2>
           <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
         </section>
       ) : null}
 
-      <div className="space-y-8 mt-12">
-        <section className="rounded-3xl border border-border bg-card p-5 sm:p-6 space-y-4 shadow-sm">
+      <div className="space-y-8 pt-6">
+        <section className="rounded-[24px] border border-border/60 bg-background p-5 sm:p-6 space-y-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <CalendarDays className="size-5 text-primary" />
-            <h2 className="font-display text-xl font-semibold tracking-tight">Exporter mon calendrier</h2>
+            <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
+            <h2 className="font-display text-xl font-normal text-foreground">Exporter mon calendrier</h2>
           </div>
-          <p className="text-xs text-muted-foreground leading-snug">
+          <p className="text-xs text-muted-foreground font-sans">
             Télécharge le fichier de l'itinéraire ou ajoute le séjour complet à ton agenda.
           </p>
           <div className="flex flex-wrap gap-2.5">
-            <Button onClick={handleDownloadIcs} variant="hero" size="sm" className="gap-1.5">
-              <CalendarDays className="size-4" /> Télécharger .ics
+            <Button onClick={handleDownloadIcs} size="sm" className="rounded-xl gap-1.5 font-medium">
+              <KrewIcon name="calendar" tone="cream" size="sm" className="size-4" /> Télécharger .ics
             </Button>
             {googleCalendarUrl && (
-              <Button asChild variant="outline" size="sm" className="gap-1.5">
+              <Button asChild variant="outline" size="sm" className="rounded-xl gap-1.5 font-medium">
                 <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
                   Ajouter à Google Calendar
                 </a>

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2, Sparkles, MapPin, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
 import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { cn } from "@/lib/utils";
 import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
@@ -366,11 +368,19 @@ function StarQuestionnaire() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
-      <div className="space-y-2">
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          Préférences de {starName}
-        </h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="space-y-2 relative">
+        <div className="relative inline-block">
+          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+            Préférences de {starName}
+          </h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="md"
+            className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground font-sans pt-1">
           Complète les réponses au nom de <strong>{starName}</strong> pour ce voyage.
         </p>
       </div>
@@ -519,7 +529,7 @@ function StarQuestionnaire() {
         {/* 4. Transport */}
         <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
           <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
-            <MapPin className="size-5 text-primary" />
+            <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
             Transport
           </h2>
           <div className="space-y-2">
@@ -665,7 +675,7 @@ function StarQuestionnaire() {
             {mutation.isPending ? (
               <Loader2 className="animate-spin mr-2" />
             ) : (
-              <Sparkles className="size-4 mr-2" />
+              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 mr-2" />
             )}
             {data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
           </Button>
