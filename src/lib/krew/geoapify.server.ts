@@ -174,12 +174,27 @@ export function mergeUniquePlacesById(existing: GeoapifyPlace[] = [], incoming: 
 export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Promise<GeoapifyPlace[]> {
   const apiKey = process.env["GEOAPIFY_API_KEY"];
   if (!apiKey) {
-    console.warn("[geoapify] GEOAPIFY_API_KEY missing - returning empty pool");
+    console.warn("[geoapify-diagnostic]", JSON.stringify({
+      stage: "missing_key",
+      keyPresent: false,
+      categories: options.categories,
+      latitude: options.latitude,
+      longitude: options.longitude,
+      radiusMeters: options.radiusMeters ?? 10000,
+    }));
     return [];
   }
 
   const { categories, longitude, latitude, radiusMeters = 10000, limit = 20 } = options;
   if (!categories.length || longitude == null || latitude == null) {
+    console.warn("[geoapify-diagnostic]", JSON.stringify({
+      stage: "invalid_input",
+      keyPresent: true,
+      categories,
+      latitude,
+      longitude,
+      radiusMeters,
+    }));
     return [];
   }
 
@@ -198,6 +213,16 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
     url.searchParams.set("conditions", options.conditions.join(","));
   }
 
+  const diagnosticBase = {
+    keyPresent: true,
+    categories,
+    latitude,
+    longitude,
+    radiusMeters,
+    limit,
+    conditions: options.conditions ?? [],
+  };
+
   try {
     const response = await fetch(url.toString(), {
       method: "GET",
@@ -206,11 +231,24 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
 
     if (!response.ok) {
       const text = await response.text();
+      console.error("[geoapify-diagnostic]", JSON.stringify({
+        ...diagnosticBase,
+        stage: "http_error",
+        httpStatus: response.status,
+        responsePreview: text.slice(0, 160),
+      }));
       throw new Error(`geoapify_places_http_${response.status}:${text.slice(0, 160)}`);
     }
 
     const payload = await response.json();
     const features = Array.isArray(payload?.features) ? payload.features : [];
+
+    console.info("[geoapify-diagnostic]", JSON.stringify({
+      ...diagnosticBase,
+      stage: "success",
+      httpStatus: response.status,
+      featuresReturned: features.length,
+    }));
 
     const places: GeoapifyPlace[] = [];
     const seenNames = new Set<string>();
@@ -277,6 +315,9 @@ export async function searchGeoapifyPlaces(options: GeoapifySearchOptions): Prom
       provider: "geoapify",
       kind: "places_search",
       categories: categoriesParam,
+      latitude,
+      longitude,
+      radiusMeters,
       fallback: "empty_pool",
     });
     return [];
@@ -360,7 +401,6 @@ export function geoapifyOpeningStatus(
   if (isNaN(dateObj.getTime())) return "unknown";
   const weekday = dateObj.getUTCDay();
 
-  // Look for day matching lines (e.g. "Mo-Fr 09:00-18:00" or "lundi: 09:00-18:00")
   const lines = normRaw.split(/[\n;]/);
   let matchingLine: string | null = null;
 
@@ -394,7 +434,7 @@ export function geoapifyOpeningStatus(
   for (const match of ranges) {
     const rStart = Number(match[1]) * 60 + Number(match[2]);
     let rEnd = Number(match[3]) * 60 + Number(match[4]);
-    if (rEnd < rStart) rEnd += 1440; // Overnight range
+    if (rEnd < rStart) rEnd += 1440;
 
     if (slotStart >= rStart && slotEnd <= rEnd) {
       return "open";
@@ -461,71 +501,51 @@ export async function selectGeoapifyCandidate(
   for (const candidate of ranked) {
     if (!candidate || !candidate.id) continue;
 
-    // 1. USED / AVOID
     if (usedCandidateIdsSet.has(candidate.id)) continue;
     const normName = candidate.name.toLowerCase().trim();
     if (avoidSet.has(normName) || avoidSet.has(candidate.id.toLowerCase())) continue;
 
-    // 2. SUBTYPE
     if (req.subtype) {
       const normSubtype = String(req.subtype).toLowerCase();
       const candCategories = (candidate.categories || []).map((c) => String(c).toLowerCase());
       const hasSubtype = candCategories.some((c) => c.includes(normSubtype));
       if (!hasSubtype) {
-        if (telemetry?.candidatesRejectedRequirements != null) {
-          telemetry.candidatesRejectedRequirements++;
-        }
+        if (telemetry?.candidatesRejectedRequirements != null) telemetry.candidatesRejectedRequirements++;
         continue;
       }
     }
 
-    // 3. HARD ACCESSIBILITY (Wheelchair explicit requirement)
     if (accessibilityRequired && candidate.wheelchair === false) {
-      if (telemetry?.candidatesRejectedRequirements != null) {
-        telemetry.candidatesRejectedRequirements++;
-      }
+      if (telemetry?.candidatesRejectedRequirements != null) telemetry.candidatesRejectedRequirements++;
       continue;
     }
 
-    // 4. GEOGRAPHY
     if (refCoords?.latitude != null && refCoords?.longitude != null && candidate.latitude != null && candidate.longitude != null) {
       const dist = haversineKm(refCoords, candidate);
       if (dist != null && dist > maxKm) {
-        if (telemetry?.candidatesRejectedGeography != null) {
-          telemetry.candidatesRejectedGeography++;
-        }
+        if (telemetry?.candidatesRejectedGeography != null) telemetry.candidatesRejectedGeography++;
         continue;
       }
     }
 
-    // 5. OPENING HOURS
     let status = geoapifyOpeningStatus(candidate, date, time, durationMinutes);
 
-    // Call Details ONLY if opening status is unknown AND details is required
     if (status === "unknown" && candidate.id && date && time) {
-      const details = await fetchPlaceDetails(
-        candidate.id,
-        telemetry,
-      );
+      const details = await fetchPlaceDetails(candidate.id, telemetry);
       if (details) {
         if (details.opening_hours && typeof details.opening_hours === "string") {
           candidate.openingHours = details.opening_hours;
           status = geoapifyOpeningStatus(candidate, date, time, durationMinutes);
         }
-        if (details.wheelchair != null) {
-          candidate.wheelchair = Boolean(details.wheelchair);
-        }
+        if (details.wheelchair != null) candidate.wheelchair = Boolean(details.wheelchair);
       }
     }
 
     if (status === "closed") {
-      if (telemetry?.candidatesRejectedOpeningHours != null) {
-        telemetry.candidatesRejectedOpeningHours++;
-      }
+      if (telemetry?.candidatesRejectedOpeningHours != null) telemetry.candidatesRejectedOpeningHours++;
       continue;
     }
 
-    // ACCEPT FIRST COMPATIBLE CANDIDATE
     return candidate;
   }
 
@@ -555,19 +575,16 @@ export function rankGeoapifyCandidates(
   };
 
   return candidates.slice().sort((a, b) => {
-    // 1. Unused candidate first
     const usedA = usedCandidateIdsSet.has(a.id) ? 1 : 0;
     const usedB = usedCandidateIdsSet.has(b.id) ? 1 : 0;
     if (usedA !== usedB) return usedA - usedB;
 
-    // 2. Subtype match using categories array
     if (normSubtype) {
       const matchA = (a.categories || []).some((c) => c.toLowerCase().includes(normSubtype)) ? 0 : 1;
       const matchB = (b.categories || []).some((c) => c.toLowerCase().includes(normSubtype)) ? 0 : 1;
       if (matchA !== matchB) return matchA - matchB;
     }
 
-    // 3. Distance
     if (lastCoords?.latitude != null && lastCoords?.longitude != null) {
       const distA = haversine(lastCoords, a);
       const distB = haversine(lastCoords, b);
