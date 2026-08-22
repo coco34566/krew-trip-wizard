@@ -1314,7 +1314,7 @@ function TripDetail() {
 
             {/* PARAMÈTRES STAR SI VOYAGE STAR (POSITIONNÉS DÉCISIONNELLEMENT AVANT LA LISTE) */}
             {hasStar ? (
-              <div className="bg-sage/12 p-4 rounded-2xl space-y-3">
+              <div className="bg-sage/18 border border-sage/25 p-4 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <KrewIcon name="favorite" tone="sage" size="sm" className="size-4 shrink-0" />
                   <span>Rôle de la Star ({celebratedPerson || "Secret"})</span>
@@ -1322,15 +1322,16 @@ function TripDetail() {
 
                 <div className="grid gap-3 sm:grid-cols-2 text-xs font-sans">
                   <div className="space-y-1.5">
-                    <p className="font-semibold text-foreground text-xs">Visibilité</p>
-                    <div className="flex gap-2">
-                      <Button
+                    <p className="font-medium text-foreground text-xs">Visibilité</p>
+                    <div className="flex gap-1.5">
+                      <button
                         type="button"
-                        size="sm"
-                        variant={
-                          (logistics?.star_mode ?? "secret") === "secret" ? "default" : "outline"
-                        }
-                        className="h-8 text-xs font-medium flex-1 rounded-lg"
+                        className={cn(
+                          "h-7 px-2.5 rounded-lg text-[11px] font-medium flex-1 border transition-colors",
+                          (logistics?.star_mode ?? "secret") === "secret"
+                            ? "bg-sage/20 text-primary border-sage/40 font-semibold"
+                            : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/30 hover:text-foreground",
+                        )}
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1340,14 +1341,15 @@ function TripDetail() {
                         }
                       >
                         Voyage secret
-                      </Button>
-                      <Button
+                      </button>
+                      <button
                         type="button"
-                        size="sm"
-                        variant={
-                          logistics?.star_mode === "participant" ? "default" : "outline"
-                        }
-                        className="h-8 text-xs font-medium flex-1 rounded-lg"
+                        className={cn(
+                          "h-7 px-2.5 rounded-lg text-[11px] font-medium flex-1 border transition-colors",
+                          logistics?.star_mode === "participant"
+                            ? "bg-sage/20 text-primary border-sage/40 font-semibold"
+                            : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/30 hover:text-foreground",
+                        )}
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1357,20 +1359,21 @@ function TripDetail() {
                         }
                       >
                         Participant ordinaire
-                      </Button>
+                      </button>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <p className="font-semibold text-foreground text-xs">Participation aux frais</p>
-                    <div className="flex gap-2">
-                      <Button
+                    <p className="font-medium text-foreground text-xs">Participation aux frais</p>
+                    <div className="flex gap-1.5">
+                      <button
                         type="button"
-                        size="sm"
-                        variant={
-                          logistics?.star_pays_share !== false ? "default" : "outline"
-                        }
-                        className="h-8 text-xs font-medium flex-1 rounded-lg"
+                        className={cn(
+                          "h-7 px-2.5 rounded-lg text-[11px] font-medium flex-1 border transition-colors",
+                          logistics?.star_pays_share !== false
+                            ? "bg-sage/20 text-primary border-sage/40 font-semibold"
+                            : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/30 hover:text-foreground",
+                        )}
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1380,14 +1383,15 @@ function TripDetail() {
                         }
                       >
                         Elle paie sa part
-                      </Button>
-                      <Button
+                      </button>
+                      <button
                         type="button"
-                        size="sm"
-                        variant={
-                          logistics?.star_pays_share === false ? "default" : "outline"
-                        }
-                        className="h-8 text-xs font-medium flex-1 rounded-lg"
+                        className={cn(
+                          "h-7 px-2.5 rounded-lg text-[11px] font-medium flex-1 border transition-colors",
+                          logistics?.star_pays_share === false
+                            ? "bg-sage/20 text-primary border-sage/40 font-semibold"
+                            : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/30 hover:text-foreground",
+                        )}
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
                           finalizeInviteStepMutation.mutate({
@@ -1397,7 +1401,7 @@ function TripDetail() {
                         }
                       >
                         Part offerte par le groupe
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -488,57 +488,55 @@ export function TripHubDashboard({
           </div>
         </div>
 
-        {/* D. MÉTADONNÉES SOUS LE HERO (margin-top 20-24px, 3 lignes éditoriales) */}
-        <div className="mt-6 space-y-2.5 px-4 text-xs">
-          {/* D1. DATES (axe 16px) */}
-          <div className="flex items-center gap-2">
-            <KrewIcon name="calendar" tone="plum" size="sm" className="size-4 shrink-0" />
-            <div className="font-mono text-foreground font-medium">
-              {datesLocked && (trip.start_date || provisionalStart) ? (
-                <div className="inline-flex items-center gap-1.5">
-                  <span className="text-primary font-sans font-medium">Dates validées ·</span>
-                  <KrewHighlight tone="sage" className="px-1 py-0.5">
-                    {trip.start_date
-                      ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                        })
-                      : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                        })}
-                    {trip.end_date
-                      ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                        })}`
-                      : ""}
-                  </KrewHighlight>
-                </div>
-              ) : (
-                <span className="text-muted-foreground font-sans">Date à définir</span>
-              )}
-            </div>
+        {/* D. MÉTADONNÉES SOUS LE HERO (3 LIGNES SANS WRAP A 390PX) */}
+        <div className="mt-6 space-y-2.5 px-4 font-sans text-[13px] font-medium leading-[1.2] whitespace-nowrap text-foreground">
+          {/* D1. DATES (accent sauge sur les dates uniquement) */}
+          <div className="flex items-center gap-2 text-foreground">
+            <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0" />
+            {datesLocked && (trip.start_date || provisionalStart) ? (
+              <p className="whitespace-nowrap">
+                <span className="text-foreground">Dates validées · </span>
+                <KrewHighlight tone="sage" className="px-1 py-0.5 font-medium">
+                  {trip.start_date
+                    ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })
+                    : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                  {trip.end_date
+                    ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                        day: "numeric",
+                        month: "short",
+                      })}`
+                    : ""}
+                </KrewHighlight>
+              </p>
+            ) : (
+              <span className="text-muted-foreground">Date à définir</span>
+            )}
           </div>
 
-          {/* D2. PARTICIPANTS (margin-left 8px relative aux dates) */}
-          <div className="flex items-center gap-2 ml-2">
+          {/* D2. PARTICIPANTS */}
+          <div className="flex items-center gap-2 text-foreground/90">
             <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
-            <span className="font-sans text-muted-foreground">
-              <strong className="font-mono text-foreground font-medium">{trip.participants_count}</strong> pers.
-            </span>
+            <p className="whitespace-nowrap">
+              <span>{trip.participants_count || 1} participants</span>
+            </p>
           </div>
 
-          {/* D3. BUDGET (retour axe 16px) */}
-          <div className="flex items-start gap-2">
-            <KrewIcon name="budget" tone="plum" size="sm" className="size-4 shrink-0 mt-0.5" />
-            <div className="font-mono text-muted-foreground flex-1">
+          {/* D3. BUDGET (WORDING RACCOURCI POUR ÉVITER TOUT WRAP) */}
+          <div className="flex items-center gap-2 text-primary font-semibold text-[12.5px]">
+            <KrewIcon name="budget" tone="plum" size="sm" className="size-4 shrink-0" />
+            <div className="whitespace-nowrap">
               {totalReserved != null && totalEstimated != null ? (
-                <span>Réellement Réservé : {formatEuro(totalReserved)} / Reste estimé : {formatEuro(totalEstimated)}</span>
+                <span>Réservé {formatEuro(totalReserved)} · Reste estimé {formatEuro(totalEstimated)}</span>
               ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
                 <span>~{formatEuro(liveBudgetTotal)} / pers.</span>
               ) : (
-                <span className="font-sans">Budget à définir</span>
+                <span className="text-muted-foreground font-medium">Budget à définir</span>
               )}
             </div>
           </div>
