@@ -61,6 +61,18 @@ export type ActivitySlot = {
   openingHoursVerified?: boolean | undefined;
 };
 
+export function shouldResolveWithPlaceProvider(slot: {
+  kind?: string | null;
+  activityMode?: string | null;
+}): boolean {
+  if (slot.kind === "internal") return false;
+  if (slot.kind === "place_required") return true;
+  return (
+    slot.activityMode !== "self_guided_group" &&
+    slot.activityMode !== "free_exploration"
+  );
+}
+
 export function classifyActivityMode(raw: {
   kind?: string | null;
   category?: string | null;

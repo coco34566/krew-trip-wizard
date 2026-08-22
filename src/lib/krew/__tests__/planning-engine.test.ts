@@ -715,4 +715,305 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
       expect(normalized).toBeNull();
     });
   });
+
+  describe("Tests ciblés — Résolution lieux, compatibilité Geoapify & ranking", () => {
+    // Test 1 — restaurant contenant "quartier"
+    it("Test 1 — restaurant contenant 'quartier' conserve kind: place_required et ne devient pas free_exploration", () => {
+      const slot = {
+        kind: "place_required" as const,
+        type: "resto" as const,
+        category: "repas" as const,
+        venueFamily: "restaurant",
+        searchIntent: "restaurant convivial dans le quartier juif de Budapest",
+        label: "Dîner dans le quartier juif",
+      };
+
+      // classifyActivityMode alone might return free_exploration based on text "quartier"
+      // but in generateGroupItinerary kind === "place_required" overrides heuristics
+      expect(slot.kind).toBe("place_required");
+      const req = convertIntentToPlaceRequirements(
+        slot.venueFamily,
+        slot.category,
+        slot.searchIntent,
+      );
+      expect(req.canonicalFamily).toBe("restaurant");
+      expect(req.categories).toContain("catering.restaurant");
+    });
+
+    // Test 2 — déjeuner externe
+    it("Test 2 — déjeuner externe : aucun appel à findIdeasResourceForActivity et aucune URL ideas", async () => {
+      const { findIdeasResourceForActivity } = await import("../activity-discovery.server");
+      const ideasUrl = await findIdeasResourceForActivity({
+        label: "Déjeuner de groupe",
+        searchIntent: "déjeuner restaurant centre ville",
+        eventType: "evjf",
+        kind: "place_required",
+        type: "resto",
+        category: "repas",
+        locationContext: "external",
+      });
+
+      expect(ideasUrl).toBeNull();
+    });
+
+    // Test 3 — spa family compatibility
+    it("Test 3 — spa family compatibility : service.beauty.spa non rejeté pour subtype leisure.spa", () => {
+      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
+      const candidate = {
+        id: "spa-1",
+        name: "Beauty & Spa Salon",
+        category: "service.beauty.spa",
+        categories: ["service", "service.beauty", "service.beauty.spa"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 300,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "moment spa relaxation");
+      req.subtype = "leisure.spa";
+
+      const compatible = isCandidateCompatibleWithRequirements(candidate, req);
+      expect(compatible).toBe(true);
+    });
+
+    // Test 4 — bar family compatibility
+    it("Test 4 — bar family compatibility : catering.bar est compatible avec bar_pub", () => {
+      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
+      const candidate = {
+        id: "bar-1",
+        name: "Local Pub",
+        category: "catering.bar",
+        categories: ["catering", "catering.bar"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("bar_pub", "soiree", "bar à cocktails convivial");
+      const compatible = isCandidateCompatibleWithRequirements(candidate, req);
+      expect(compatible).toBe(true);
+    });
+
+    // Test 5 — ranking restaurant
+    it("Test 5 — ranking restaurant : restaurant hongrois préféré au restaurant coréen plus proche", () => {
+      const candA = {
+        id: "resto-a",
+        name: "Seoul House koreai étterem",
+        category: "catering.restaurant",
+        categories: ["catering", "catering.restaurant", "catering.restaurant.korean"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 50,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const candB = {
+        id: "resto-b",
+        name: "Magyar Vendéglő - Spécialités hongroises",
+        category: "catering.restaurant",
+        categories: ["catering", "catering.restaurant", "catering.restaurant.hungarian"],
+        address: null,
+        latitude: 47.4990,
+        longitude: 19.0420,
+        distanceMeters: 300,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements(
+        "restaurant",
+        "repas",
+        "restaurant élégant avec spécialités locales hongroises",
+      );
+
+      const ranked = rankGeoapifyCandidates(
+        [candA, candB],
+        req,
+        { latitude: 47.4983, longitude: 19.0404 },
+        new Set(),
+      );
+
+      expect(ranked[0]?.id).toBe("resto-b");
+    });
+
+    // Test 6 — rooftop
+    it("Test 6 — rooftop : Leo Rooftop mieux classé que pub générique plus proche", () => {
+      const candA = {
+        id: "pub-a",
+        name: "Pub Irlandais",
+        category: "catering.pub",
+        categories: ["catering", "catering.pub"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 50,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const candB = {
+        id: "rooftop-b",
+        name: "Leo Rooftop Bar Budapest",
+        category: "catering.bar",
+        categories: ["catering", "catering.bar"],
+        address: null,
+        latitude: 47.4995,
+        longitude: 19.0425,
+        distanceMeters: 200,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("bar_pub", "soiree", "rooftop panoramique élégant");
+
+      const ranked = rankGeoapifyCandidates(
+        [candA, candB],
+        req,
+        { latitude: 47.4983, longitude: 19.0404 },
+        new Set(),
+      );
+
+      expect(ranked[0]?.id).toBe("rooftop-b");
+    });
+
+    // Test 7 — thermes vs salon beauté
+    it("Test 7 — thermes vs salon beauté : Thermal Bath nettement mieux classé que Nail Salon", () => {
+      const candA = {
+        id: "beauty-a",
+        name: "Nail & Beauty Salon",
+        category: "service.beauty.spa",
+        categories: ["service", "service.beauty", "service.beauty.spa"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const candB = {
+        id: "thermal-b",
+        name: "Széchenyi Thermal Bath / Bains Thermaux",
+        category: "leisure.spa",
+        categories: ["leisure", "leisure.spa", "tourism", "tourism.attraction"],
+        address: null,
+        latitude: 47.5188,
+        longitude: 19.0814,
+        distanceMeters: 1500,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "bains thermaux emblématiques");
+
+      const ranked = rankGeoapifyCandidates(
+        [candA, candB],
+        req,
+        { latitude: 47.4983, longitude: 19.0404 },
+        new Set(),
+      );
+
+      expect(ranked[0]?.id).toBe("thermal-b");
+    });
+
+    // Test 8 — aucun changement pour activité interne
+    it("Test 8 — activité interne : Jeu de la mariée au logement reste self_guided_group sans Geoapify", () => {
+      const { classifyActivityMode } = require("../activity-ai.server");
+      const mode = classifyActivityMode({
+        kind: "internal",
+        category: "jeu_groupe",
+        label: "Jeu de la mariée au logement",
+      });
+
+      expect(mode).toBe("self_guided_group");
+    });
+
+    // Test non-régression routing : shouldResolveWithPlaceProvider pour place_required + "quartier"
+    it("Test non-régression routing — place_required avec 'quartier' utilise TOUJOURS la résolution de lieu Geoapify", () => {
+      const { classifyActivityMode, shouldResolveWithPlaceProvider } = require("../activity-ai.server");
+      const slot = {
+        kind: "place_required",
+        type: "resto",
+        category: "repas",
+        venueFamily: "restaurant",
+        locationContext: "external",
+        searchIntent: "restaurant convivial dans le quartier juif de Budapest",
+        label: "Dîner dans le quartier juif",
+      };
+
+      const classifiedMode = classifyActivityMode(slot);
+      // Mode classification might return free_exploration based on text "quartier"
+      expect(classifiedMode).toBe("free_exploration");
+
+      // But shouldResolveWithPlaceProvider must guarantee kind === "place_required" resolves via Geoapify!
+      const mustResolve = shouldResolveWithPlaceProvider({
+        kind: slot.kind,
+        activityMode: classifiedMode,
+      });
+
+      expect(mustResolve).toBe(true);
+    });
+
+    // Test 9 — Nouveau
+    it("Test 9 — candidate.categories = ['service', 'service.beauty'] est INCOMPATIBLE avec canonicalFamily = 'spa_wellness'", () => {
+      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
+      const candidate = {
+        id: "nail-salon-generic",
+        name: "Generic Nail Salon",
+        category: "service.beauty",
+        categories: ["service", "service.beauty"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("spa_wellness", "detente", "bains thermaux");
+      const compatible = isCandidateCompatibleWithRequirements(candidate, req);
+
+      expect(compatible).toBe(false);
+    });
+
+    // Test 10 — Nouveau
+    it("Test 10 — candidate.categories = ['commercial'] est INCOMPATIBLE avec canonicalFamily = 'shopping'", () => {
+      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
+      const candidate = {
+        id: "generic-shop",
+        name: "Generic Commercial Place",
+        category: "commercial",
+        categories: ["commercial"],
+        address: null,
+        latitude: 47.4983,
+        longitude: 19.0404,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify" as const,
+        verified: true,
+      };
+
+      const req = convertIntentToPlaceRequirements("shopping", "shopping", "boutiques de créateurs");
+      const compatible = isCandidateCompatibleWithRequirements(candidate, req);
+
+      expect(compatible).toBe(false);
+    });
+  });
 });
