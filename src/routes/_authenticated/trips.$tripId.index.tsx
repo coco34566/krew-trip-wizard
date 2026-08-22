@@ -1301,6 +1301,7 @@ function TripDetail() {
 
             {/* Underline wave KrewMark sous le titre */}
             <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[10px] -mt-1 opacity-85 pointer-events-none" />
+            </div>
 
             <ul className="divide-y divide-border/40 pt-2">
               {participants.length === 0 ? (
