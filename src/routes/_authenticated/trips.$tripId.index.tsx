@@ -85,6 +85,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
+import { KrewJourneyTimeline, type TimelineStep } from "@/components/krew/KrewJourneyTimeline";
 import {
   getTripAvailability,
   chooseTripDates,
@@ -1803,214 +1804,145 @@ function TripDetail() {
       ) : null}
 
 
-      {/* VUE VOYAGE (SYNTHÈSE ET MODULES) */}
+      {/* VUE VOYAGE (KREW JOURNEY TIMELINE) */}
       {currentView === "voyage" ? (
         !currentSection ? (
-          /* RESTRUCTURED 3-GROUP LIST VIEW */
-          <div className="space-y-6">
-            <div className="rounded-[28px] border border-border/60 bg-card p-6 sm:p-8 space-y-6">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
-                  {eventTypeLabel(trip.event_type)}
-                </p>
-                <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-tight text-foreground">
-                  {trip.name}
-                </h1>
-                {celebratedPerson ? (
-                  <p className="text-sm font-medium text-foreground/80 mt-1">Pour {celebratedPerson}</p>
-                ) : null}
-              </div>
+          (() => {
+            const availDone = (availData?.answered ?? 0) >= (availData?.expected ?? trip.participants_count ?? 1) && (availData?.answered ?? 0) > 0;
+            const prefsDone = (progress?.answered ?? 0) >= (progress?.total ?? trip.participants_count ?? 1) && (progress?.answered ?? 0) > 0;
+            const datesReady = datesLocked || Boolean(trip.start_date);
+            const profileDone = Boolean(profile?.validated);
+            const destDone = destinationSelected;
+            const hotelDone = Boolean(logistics.selectedHotelId || logistics.hotels?.length);
+            const transportDone = Boolean(liveBudget.transportPicksCount && liveBudget.transportPicksCount > 0);
+            const planDone = hasItinerary;
 
-              {/* GROUPE 1 — Questionnaire */}
-              <div className="space-y-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans pt-2">
-                  Questionnaire
-                </h2>
-                <div className="divide-y divide-border/50 text-sm">
-                  <Link
-                    to="/trips/$tripId/availability"
-                    params={{ tripId }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Disponibilités</span>
-                      <p className="text-xs text-muted-foreground">
-                        {availData?.answered ?? 0}/{availData?.expected ?? trip.participants_count ?? 1} dispos renseignées
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+            const computeStatus = (done: boolean, prevDone: boolean): "done" | "current" | "upcoming" => {
+              if (done) return "done";
+              if (prevDone) return "current";
+              return "upcoming";
+            };
 
-                  <Link
-                    to="/trips/$tripId/questionnaire"
-                    params={{ tripId }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Préférences</span>
-                      <p className="text-xs text-muted-foreground">
-                        {progress?.answered ?? 0}/{progress?.total ?? trip.participants_count ?? 1} questionnaires remplis
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+            const timelineSteps: TimelineStep[] = [
+              {
+                id: "invite",
+                title: "Invitation",
+                subtitle: `${trip.participants_count || 1} participant·e·s`,
+                iconName: "invite",
+                status: "done",
+                href: `/trips/${tripId}#group-section`,
+              },
+              {
+                id: "availability",
+                title: "Disponibilités",
+                subtitle: `${availData?.answered ?? 0}/${availData?.expected ?? trip.participants_count ?? 1} indiquées`,
+                iconName: "availability",
+                status: computeStatus(availDone, true),
+                href: `/trips/${tripId}/availability`,
+              },
+              {
+                id: "preferences",
+                title: "Préférences",
+                subtitle: `${progress?.answered ?? 0}/${progress?.total ?? trip.participants_count ?? 1} questionnaires`,
+                iconName: "preferences",
+                status: computeStatus(prefsDone, availDone),
+                href: `/trips/${tripId}/questionnaire`,
+              },
+            ];
 
-                  {(hasStar || celebratedPerson ||
-                    ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) ? (
-                    <Link
-                      to="/trips/$tripId/star"
-                      params={{ tripId }}
-                      className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                    >
-                      <div>
-                        <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                          Préférences de {celebratedPerson || "la Star"}
-                        </span>
-                        <p className="text-xs text-muted-foreground">
-                          {starData?.preferences ? "Questionnaire complété" : "À remplir"}
-                        </p>
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
+            if (hasStar || celebratedPerson || ["evg", "evjf", "anniversaire", "retraite"].includes(String(trip.event_type))) {
+              timelineSteps.push({
+                id: "star",
+                title: `Préférences de ${celebratedPerson || "la Star"}`,
+                subtitle: starData?.preferences ? "Complété" : "À remplir",
+                iconName: "favorite",
+                status: computeStatus(Boolean(starData?.preferences), prefsDone),
+                href: `/trips/${tripId}/star`,
+              });
+            }
 
-              {/* GROUPE 2 — Préparer le voyage */}
-              <div className="space-y-2 pt-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans border-t border-border/50 pt-4">
-                  Préparer le voyage
-                </h2>
-                <div className="divide-y divide-border/50 text-sm">
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "dates" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Dates</span>
-                      <p className="text-xs text-muted-foreground">
-                        {trip.start_date && trip.end_date
-                          ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
-                          : "À définir"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
+            timelineSteps.push(
+              {
+                id: "dates",
+                title: "Dates du groupe",
+                subtitle: datesLocked && trip.start_date
+                  ? `${new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} → ${new Date((trip.end_date || trip.start_date) + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`
+                  : "À valider",
+                iconName: "calendar",
+                status: computeStatus(datesReady, prefsDone),
+                href: `/trips/${tripId}?view=voyage&section=dates`,
+              },
+              {
+                id: "profile",
+                title: "Profil du voyage",
+                subtitle: profile?.selectedConcepts?.length
+                  ? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
+                  : profileDone
+                    ? "Profil validé"
+                    : "À choisir",
+                iconName: "profile",
+                status: computeStatus(profileDone, datesReady),
+                href: `/trips/${tripId}?view=voyage&section=profile`,
+              },
+              {
+                id: "destination",
+                title: "Destination",
+                subtitle: liveBudget.destinationName || "En attente de vote",
+                iconName: "destination",
+                status: computeStatus(destDone, profileDone),
+                href: `/trips/${tripId}?view=voyage&section=destination`,
+              },
+              {
+                id: "accommodation",
+                title: "Hébergement",
+                subtitle: liveBudget.topHotelName || "Options à voter",
+                iconName: "accommodation",
+                status: computeStatus(hotelDone, destDone),
+                href: `/trips/${tripId}?view=voyage&section=accommodation`,
+              },
+              {
+                id: "transport",
+                title: "Transport",
+                subtitle: liveBudget.transportPicksCount ? `${liveBudget.transportPicksCount} trajet(s) choisi(s)` : "Choix individuels",
+                iconName: "transport",
+                status: computeStatus(transportDone, hotelDone),
+                href: `/trips/${tripId}?view=voyage&section=transport`,
+              },
+              {
+                id: "planning",
+                title: "Planning",
+                subtitle: planDone ? "Programme en place" : "Activités & moments forts",
+                iconName: "planning",
+                status: computeStatus(planDone, destDone),
+                href: `/trips/${tripId}?view=voyage&section=planning`,
+              },
+              {
+                id: "tasks",
+                title: "Tâches",
+                subtitle: tasksData?.length ? `${tasksData.length} tâche(s)` : "Répartition du groupe",
+                iconName: "tasks",
+                status: computeStatus(Boolean(tasksData?.length), planDone),
+                href: `/trips/${tripId}?view=voyage&section=tasks`,
+              },
+              {
+                id: "packing",
+                title: "À emporter",
+                subtitle: "Checklist personnalisée",
+                iconName: "packing",
+                status: computeStatus(false, planDone),
+                href: `/trips/${tripId}?view=voyage&section=packing`,
+              },
+            );
 
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "profile" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Profil du voyage</span>
-                      <p className="text-xs text-muted-foreground">
-                        {profile?.selectedConcepts?.length
-                          ? profile.selectedConcepts.map((c) => PROFILE_LABELS[c.id as StayProfileId] || c.title).join(" · ")
-                          : profile?.validated
-                            ? "Profil validé"
-                            : "À définir"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
-
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "destination" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Destination</span>
-                      <p className="text-xs text-muted-foreground">{liveBudget.destinationName || "À définir"}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
-
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "accommodation" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Hébergement</span>
-                      <p className="text-xs text-muted-foreground">{liveBudget.topHotelName || "À définir"}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
-
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "transport" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Transport</span>
-                      <p className="text-xs text-muted-foreground">
-                        {liveBudget.transportPicksCount ? `${liveBudget.transportPicksCount} trajet(s) choisi(s)` : "À définir"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
-                </div>
-              </div>
-
-              {/* GROUPE 3 — Organisation */}
-              <div className="space-y-2 pt-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground font-sans border-t border-border/50 pt-4">
-                  Organisation
-                </h2>
-                <div className="divide-y divide-border/50 text-sm">
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "planning" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Planning</span>
-                      <p className="text-xs text-muted-foreground">{hasItinerary ? "Planning prêt" : "À définir"}</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
-
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "tasks" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">Tâches</span>
-                      <p className="text-xs text-muted-foreground">
-                        {tasksData?.length ? `${tasksData.length} tâche(s)` : "À préparer"}
-                      </p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
-
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "packing" }}
-                    className="py-3 px-2 -mx-2 rounded-xl flex items-center justify-between hover:bg-muted/40 transition-colors group"
-                  >
-                    <div>
-                      <span className="font-semibold text-foreground group-hover:text-primary transition-colors">À emporter</span>
-                      <p className="text-xs text-muted-foreground">Checklist personnalisée</p>
-                    </div>
-                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">→</span>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
+            return (
+              <KrewJourneyTimeline
+                tripId={tripId}
+                tripName={trip.name}
+                steps={timelineSteps}
+                annotationText="Prochaine étape"
+              />
+            );
+          })()
         ) : (
           <div className="space-y-6">
             <Link
