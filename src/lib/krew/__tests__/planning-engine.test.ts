@@ -294,11 +294,7 @@ describe("PR 107 — Tests Gemini & Density", () => {
           ],
         }),
     });
-    if (typeof vi !== "undefined" && typeof (vi as any).stubGlobal === "function") {
-      vi.stubGlobal("fetch", fetchMock);
-    } else {
-      global.fetch = fetchMock;
-    }
+    vi.stubGlobal("fetch", fetchMock);
     process.env["GEMINI_API_KEY"] = "test-key";
 
     const res = await geminiEnrichSkeleton(skeleton, baseInput());
@@ -331,11 +327,7 @@ describe("PR 107 — Tests Gemini & Density", () => {
           ],
         }),
     });
-    if (typeof vi !== "undefined" && typeof (vi as any).stubGlobal === "function") {
-      vi.stubGlobal("fetch", fetchMock);
-    } else {
-      global.fetch = fetchMock;
-    }
+    vi.stubGlobal("fetch", fetchMock);
     process.env["GEMINI_API_KEY"] = "test-key";
 
     const res = await geminiEnrichSkeleton(skeleton, baseInput());
@@ -367,11 +359,7 @@ describe("PR 107 — Tests Gemini & Density", () => {
           ],
         }),
     });
-    if (typeof vi !== "undefined" && typeof (vi as any).stubGlobal === "function") {
-      vi.stubGlobal("fetch", fetchMock);
-    } else {
-      global.fetch = fetchMock;
-    }
+    vi.stubGlobal("fetch", fetchMock);
     process.env["GEMINI_API_KEY"] = "test-key";
 
     const res = await geminiEnrichSkeleton(skeleton, baseInput());
@@ -403,11 +391,7 @@ describe("PR 107 — Tests Gemini & Density", () => {
           ],
         }),
     });
-    if (typeof vi !== "undefined" && typeof (vi as any).stubGlobal === "function") {
-      vi.stubGlobal("fetch", fetchMock);
-    } else {
-      global.fetch = fetchMock;
-    }
+    vi.stubGlobal("fetch", fetchMock);
     process.env["GEMINI_API_KEY"] = "test-key";
 
     const res = await geminiEnrichSkeleton(skeleton, baseInput());
@@ -486,11 +470,7 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
       ok: true,
       json: async () => ({ features: [{ properties: { formatted: "10 Rue du Vin", website: "https://wine.example" } }] }),
     });
-    if (typeof vi !== "undefined" && typeof (vi as any).stubGlobal === "function") {
-      vi.stubGlobal("fetch", fetchMock);
-    } else {
-      global.fetch = fetchMock;
-    }
+    vi.stubGlobal("fetch", fetchMock);
 
     const d1 = await fetchPlaceDetails("place-123");
     const d2 = await fetchPlaceDetails("place-123");
@@ -511,11 +491,7 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
   // AL. autre proposition -> 0 Gemini
   it("AL. regenerateSlotWithAi -> 0 appel Gemini", async () => {
     const fetchMock = vi.fn();
-    if (typeof vi !== "undefined" && typeof (vi as any).stubGlobal === "function") {
-      vi.stubGlobal("fetch", fetchMock);
-    } else {
-      global.fetch = fetchMock;
-    }
+    vi.stubGlobal("fetch", fetchMock);
 
     const mockSlot = { moment: "Soir", type: "activite" as const, label: "Visite", time: "20:00" };
     const res = await regenerateSlotWithAi(baseInput(), mockSlot, 1, [], []);
@@ -627,11 +603,7 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
     // TEST 8 — 0 Gemini sur regenerateSlotWithAi
     it("8. regenerateSlotWithAi effectue 0 appel Gemini", async () => {
       const fetchMock = vi.fn();
-      if (typeof vi !== "undefined" && typeof (vi as any).stubGlobal === "function") {
-        vi.stubGlobal("fetch", fetchMock);
-      } else {
-        global.fetch = fetchMock;
-      }
+      vi.stubGlobal("fetch", fetchMock);
 
       const mockSlot = { moment: "Midi", type: "resto" as const, label: "Déjeuner", time: "12:30" };
       const res = await regenerateSlotWithAi(baseInput(), mockSlot, 1, [], []);
