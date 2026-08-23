@@ -3210,6 +3210,33 @@ function TripDetail() {
             ) : null}
           </div>
 
+          {(() => {
+            const identifiedActiveCount = rawParticipants.filter(
+              (p: any) => p.status !== "absent",
+            ).length;
+            const isMissingParticipants = Number(trip.participants_count || 0) > identifiedActiveCount;
+
+            return isMissingParticipants ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-sage/12 border border-sage/25">
+                <div className="space-y-0.5">
+                  <h4 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                    <UserPlus className="size-4 text-primary shrink-0" />
+                    Il manque encore du monde
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    Invite les autres participants pour pouvoir leur attribuer des tâches.
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
+                  <a href="#group-section">
+                    <UserPlus className="size-3.5" />
+                    Inviter les participants
+                  </a>
+                </Button>
+              </div>
+            ) : null;
+          })()}
+
           {!hasItinerary ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               Le planning doit être prêt avant de répartir les tâches du voyage.
@@ -3279,8 +3306,8 @@ function TripDetail() {
                               className="bg-background border border-border rounded-xl px-2 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                             >
                               <option value="">Non attribué</option>
-                              {(participants ?? [])
-                                .filter((p: any) => p.status !== "absent")
+                              {rawParticipants
+                                .filter((p: any) => !p.placeholder && p.status !== "absent")
                                 .map((p: any) => (
                                   <option key={p.id} value={p.id}>
                                     {p.display_name || p.email?.split("@")[0] || "Ami"}

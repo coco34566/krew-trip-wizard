@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-describe("Synchronisation et persistance des tâches (Test 16 fix)", () => {
+describe("Synchronisation, réassignation et UX des tâches (Test 16 & UX fix)", () => {
   const partitionTasks = (tasksToUpsert: any[]) => {
     const nowIso = new Date().toISOString();
     const existingTasksToUpdate: any[] = [];
@@ -19,6 +19,59 @@ describe("Synchronisation et persistance des tâches (Test 16 fix)", () => {
     }
 
     return { existingTasksToUpdate, newTasksToInsert };
+  };
+
+  const executeReassignTaskLogic = async (
+    supabaseMock: any,
+    data: { taskId: string; participantId: string | null },
+  ) => {
+    // 1. Récupérer la tâche et son trip_id
+    const taskRes = await supabaseMock
+      .from("trip_tasks")
+      .select("id, trip_id")
+      .eq("id", data.taskId)
+      .maybeSingle();
+
+    if (taskRes.error) throw taskRes.error;
+    if (!taskRes.data) throw new Error("Tâche introuvable");
+    const task = taskRes.data;
+
+    // 2. Si participantId !== null, vérifier sa validité
+    if (data.participantId !== null) {
+      const partRes = await supabaseMock
+        .from("trip_participants")
+        .select("id, trip_id, status")
+        .eq("id", data.participantId)
+        .maybeSingle();
+
+      if (partRes.error) throw partRes.error;
+      if (!partRes.data) {
+        throw new Error("Participant introuvable");
+      }
+
+      const participant = partRes.data;
+
+      if (participant.trip_id !== task.trip_id) {
+        throw new Error("Le participant n'appartient pas à ce voyage");
+      }
+
+      if (participant.status === "absent") {
+        throw new Error("Impossible d'assigner une tâche à un participant absent");
+      }
+    }
+
+    // 3. Effectuer la réassignation
+    const { error } = await supabaseMock
+      .from("trip_tasks")
+      .update({
+        assigned_participant_id: data.participantId,
+        is_manually_assigned: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.taskId);
+
+    if (error) throw error;
+    return { ok: true };
   };
 
   it("1. Partitionne correctement les tâches existantes avec id et les nouvelles tâches sans clé id", () => {
@@ -234,5 +287,149 @@ describe("Synchronisation et persistance des tâches (Test 16 fix)", () => {
     }
 
     expect(deleteCalled).toBe(false);
+  });
+
+  // TESTS UX & backend reassignTask A-F
+  it("A & B. Condition d'affichage 'Il manque encore du monde'", () => {
+    const isMissingMessageVisible = (participantsCount: number, rawParticipants: any[]) => {
+      const identifiedActiveCount = rawParticipants.filter((p: any) => p.status !== "absent").length;
+      return Number(participantsCount || 0) > identifiedActiveCount;
+    };
+
+    // Test A : participants_count = 5, 1 seul participant réels
+    const rawPartsA = [{ id: "p1", status: "accepte" }];
+    expect(isMissingMessageVisible(5, rawPartsA)).toBe(true);
+
+    // Test B : participants_count = 2, 2 participants réels
+    const rawPartsB = [{ id: "p1", status: "accepte" }, { id: "p2", status: "accepte" }];
+    expect(isMissingMessageVisible(2, rawPartsB)).toBe(false);
+  });
+
+  it("C. reassignTask avec participant du même voyage -> succès", async () => {
+    let updatePayload: any = null;
+    const mockDb = {
+      tasks: [{ id: "task-1", trip_id: "trip-A" }],
+      participants: [{ id: "part-1", trip_id: "trip-A", status: "accepte" }],
+    };
+
+    const mockSupabase = {
+      from: (table: string) => ({
+        select: () => ({
+          eq: (_col: string, val: string) => ({
+            maybeSingle: async () => {
+              if (table === "trip_tasks") {
+                return { data: mockDb.tasks.find((t) => t.id === val) || null, error: null };
+              }
+              if (table === "trip_participants") {
+                return { data: mockDb.participants.find((p) => p.id === val) || null, error: null };
+              }
+              return { data: null, error: null };
+            },
+          }),
+        }),
+        update: (payload: any) => ({
+          eq: async () => {
+            updatePayload = payload;
+            return { error: null };
+          },
+        }),
+      }),
+    };
+
+    const res = await executeReassignTaskLogic(mockSupabase, { taskId: "task-1", participantId: "part-1" });
+    expect(res.ok).toBe(true);
+    expect(updatePayload.assigned_participant_id).toBe("part-1");
+    expect(updatePayload.is_manually_assigned).toBe(true);
+  });
+
+  it("D. reassignTask avec participant d'un autre voyage -> rejet", async () => {
+    const mockDb = {
+      tasks: [{ id: "task-1", trip_id: "trip-A" }],
+      participants: [{ id: "part-other", trip_id: "trip-B", status: "accepte" }],
+    };
+
+    const mockSupabase = {
+      from: (table: string) => ({
+        select: () => ({
+          eq: (_col: string, val: string) => ({
+            maybeSingle: async () => {
+              if (table === "trip_tasks") {
+                return { data: mockDb.tasks.find((t) => t.id === val) || null, error: null };
+              }
+              if (table === "trip_participants") {
+                return { data: mockDb.participants.find((p) => p.id === val) || null, error: null };
+              }
+              return { data: null, error: null };
+            },
+          }),
+        }),
+      }),
+    };
+
+    await expect(
+      executeReassignTaskLogic(mockSupabase, { taskId: "task-1", participantId: "part-other" }),
+    ).rejects.toThrow("Le participant n'appartient pas à ce voyage");
+  });
+
+  it("E. reassignTask avec participant absent -> rejet", async () => {
+    const mockDb = {
+      tasks: [{ id: "task-1", trip_id: "trip-A" }],
+      participants: [{ id: "part-absent", trip_id: "trip-A", status: "absent" }],
+    };
+
+    const mockSupabase = {
+      from: (table: string) => ({
+        select: () => ({
+          eq: (_col: string, val: string) => ({
+            maybeSingle: async () => {
+              if (table === "trip_tasks") {
+                return { data: mockDb.tasks.find((t) => t.id === val) || null, error: null };
+              }
+              if (table === "trip_participants") {
+                return { data: mockDb.participants.find((p) => p.id === val) || null, error: null };
+              }
+              return { data: null, error: null };
+            },
+          }),
+        }),
+      }),
+    };
+
+    await expect(
+      executeReassignTaskLogic(mockSupabase, { taskId: "task-1", participantId: "part-absent" }),
+    ).rejects.toThrow("Impossible d'assigner une tâche à un participant absent");
+  });
+
+  it("F. reassignTask avec participantId = null -> succès, tâche non attribuée", async () => {
+    let updatePayload: any = null;
+    const mockDb = {
+      tasks: [{ id: "task-1", trip_id: "trip-A" }],
+    };
+
+    const mockSupabase = {
+      from: (table: string) => ({
+        select: () => ({
+          eq: (_col: string, val: string) => ({
+            maybeSingle: async () => {
+              if (table === "trip_tasks") {
+                return { data: mockDb.tasks.find((t) => t.id === val) || null, error: null };
+              }
+              return { data: null, error: null };
+            },
+          }),
+        }),
+        update: (payload: any) => ({
+          eq: async () => {
+            updatePayload = payload;
+            return { error: null };
+          },
+        }),
+      }),
+    };
+
+    const res = await executeReassignTaskLogic(mockSupabase, { taskId: "task-1", participantId: null });
+    expect(res.ok).toBe(true);
+    expect(updatePayload.assigned_participant_id).toBeNull();
+    expect(updatePayload.is_manually_assigned).toBe(true);
   });
 });

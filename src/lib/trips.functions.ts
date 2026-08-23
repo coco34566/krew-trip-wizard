@@ -4184,6 +4184,26 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
     };
   });
 
+export function partitionTasksForSync(tasksToUpsert: any[]) {
+  const nowIso = new Date().toISOString();
+  const existingTasksToUpdate: any[] = [];
+  const newTasksToInsert: any[] = [];
+
+  for (const task of tasksToUpsert) {
+    if (task.id) {
+      existingTasksToUpdate.push({
+        ...task,
+        updated_at: nowIso,
+      });
+    } else {
+      const { id, ...newTask } = task;
+      newTasksToInsert.push(newTask);
+    }
+  }
+
+  return { existingTasksToUpdate, newTasksToInsert };
+}
+
 export function mergeGeneratedPreparationTasks(input: {
   tripId: string;
   generatedTasks: { id: string; label: string }[];
@@ -4392,21 +4412,7 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
       }),
     );
 
-    const nowIso = new Date().toISOString();
-    const existingTasksToUpdate: any[] = [];
-    const newTasksToInsert: any[] = [];
-
-    for (const task of tasksToUpsert) {
-      if (task.id) {
-        existingTasksToUpdate.push({
-          ...task,
-          updated_at: nowIso,
-        });
-      } else {
-        const { id, ...newTask } = task;
-        newTasksToInsert.push(newTask);
-      }
-    }
+    const { existingTasksToUpdate, newTasksToInsert } = partitionTasksForSync(tasksToUpsert);
 
     if (existingTasksToUpdate.length > 0) {
       const { error: updateErr } = await supabase
@@ -4505,6 +4511,42 @@ export const reassignTask = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
+    // 1. Récupérer la tâche et son trip_id
+    const taskRes = await supabase
+      .from("trip_tasks" as any)
+      .select("id, trip_id")
+      .eq("id", data.taskId)
+      .maybeSingle();
+
+    if (taskRes.error) throw taskRes.error;
+    if (!taskRes.data) throw new Error("Tâche introuvable");
+    const task = taskRes.data as any;
+
+    // 2. Si participantId !== null, vérifier sa validité
+    if (data.participantId !== null) {
+      const partRes = await supabase
+        .from("trip_participants")
+        .select("id, trip_id, status")
+        .eq("id", data.participantId)
+        .maybeSingle();
+
+      if (partRes.error) throw partRes.error;
+      if (!partRes.data) {
+        throw new Error("Participant introuvable");
+      }
+
+      const participant = partRes.data as any;
+
+      if (participant.trip_id !== task.trip_id) {
+        throw new Error("Le participant n'appartient pas à ce voyage");
+      }
+
+      if (participant.status === "absent") {
+        throw new Error("Impossible d'assigner une tâche à un participant absent");
+      }
+    }
+
+    // 3. Effectuer la réassignation
     const { error } = await supabase
       .from("trip_tasks" as any)
       .update({
