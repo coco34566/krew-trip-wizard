@@ -58,27 +58,49 @@ export function computeItineraryActivitiesCost(
     for (const slot of slots) {
       if (!slot) continue;
 
-      // Skip internal moments or pure free exploration without explicit price
+      const type = String(slot.type || "").trim().toLowerCase();
+      const cat = String(slot.category || "").trim().toLowerCase();
+      const venue = String(slot.venueFamily || "").trim().toLowerCase();
+
+      // Exclude non-activity slots: meals/restaurants, bars/nightlife, transport, lodging
+      const isMeal = type === "resto" || cat === "repas" || venue === "restaurant" || venue === "cafe";
+      const isBar = type === "bar" || cat === "soiree" || venue === "bar_pub";
+      const isTransport = type === "transport";
+      const isLodging = slot.locationContext === "lodging" || venue === "hotel";
+
+      if (isMeal || isBar || isTransport || isLodging) {
+        continue;
+      }
+
       totalCount++;
 
       const rawPrice = slot.priceHint ?? slot.pricePerPerson ?? slot.price;
       const numericPrice = rawPrice != null && !isNaN(Number(rawPrice)) ? Number(rawPrice) : null;
-      const status: ActivityPriceStatus = slot.priceStatus ?? (
-        numericPrice === 0
-          ? "free"
-          : numericPrice != null
-            ? (slot.verified === true ? "verified" : "estimated")
-            : "unknown"
-      );
+      const explicitStatus: ActivityPriceStatus | undefined = slot.priceStatus;
+      const source = slot.source && typeof slot.source === "string" ? slot.source.trim() : null;
+
+      let effectiveStatus: ActivityPriceStatus = "unknown";
 
       if (numericPrice != null && numericPrice >= 0) {
+        if (explicitStatus === "free" && numericPrice === 0) {
+          effectiveStatus = "free";
+        } else if (explicitStatus === "verified" && source) {
+          effectiveStatus = "verified";
+        } else if (explicitStatus === "estimated" && source) {
+          effectiveStatus = "estimated";
+        } else if (!explicitStatus && slot.verified === true && source) {
+          effectiveStatus = numericPrice === 0 ? "unknown" : "verified";
+        }
+      }
+
+      if (effectiveStatus !== "unknown" && numericPrice != null) {
         knownCount++;
         sumPerPerson += numericPrice;
-        if (numericPrice === 0 || status === "free") {
+        if (effectiveStatus === "free") {
           hasFree = true;
-        } else if (status === "verified") {
+        } else if (effectiveStatus === "verified") {
           hasVerified = true;
-        } else if (status === "estimated") {
+        } else if (effectiveStatus === "estimated") {
           hasEstimated = true;
         }
       } else {
@@ -87,20 +109,11 @@ export function computeItineraryActivitiesCost(
     }
   }
 
-  if (totalCount === 0) {
+  if (totalCount === 0 || knownCount === 0) {
     return {
       activitiesPerPerson: null,
       priceStatus: "unknown",
-      knownCount: 0,
-      totalCount: 0,
-    };
-  }
-
-  if (knownCount === 0) {
-    return {
-      activitiesPerPerson: null,
-      priceStatus: "unknown",
-      knownCount: 0,
+      knownCount,
       totalCount,
     };
   }
@@ -117,7 +130,7 @@ export function computeItineraryActivitiesCost(
   }
 
   return {
-    activitiesPerPerson: Math.round(sumPerPerson),
+    activitiesPerPerson: Math.round(sumPerPerson * 100) / 100,
     priceStatus,
     knownCount,
     totalCount,

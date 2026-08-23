@@ -2448,7 +2448,6 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             source: "krew",
             url: ideasUrl,
             resourceKind: ideasKind,
-            ...(s.priceHint != null ? { priceHint: s.priceHint } : {}),
           });
 
           // Reset spatial reference to lodging ONLY when locationContext === "lodging"
@@ -2613,7 +2612,6 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             source: matchedSource,
             latitude: matchedPlace.latitude,
             longitude: matchedPlace.longitude,
-            ...(s.priceHint != null ? { priceHint: s.priceHint } : {}),
           });
         } else {
           const { findWebResourceForComplexActivity } = await import(
@@ -2651,7 +2649,6 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               source: "krew_web",
               url: resLink.url,
               resourceKind: resLink.resourceKind ?? "website",
-              ...(s.priceHint != null ? { priceHint: s.priceHint } : {}),
             });
           } else {
             const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
@@ -2679,7 +2676,6 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               source: "krew",
               url: fallbackMapUrl,
               resourceKind: fallbackMapUrl ? "maps" : null,
-              ...(s.priceHint != null ? { priceHint: s.priceHint } : {}),
             });
           }
         }

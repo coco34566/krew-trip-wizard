@@ -2774,13 +2774,13 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     });
 
     describe("Activity Cost & Budget Breakdown Integration Tests (Tests A-J)", () => {
-      it("Test A : Deux prix vérifiés (30 € et 45 €) -> somme per-person = 75 €", async () => {
+      it("Test A : Deux prix vérifiés (30 € et 45 €) avec source et priceStatus -> somme per-person = 75 €", async () => {
         const { computeItineraryActivitiesCost } = await import("../cost-split");
         const days = [
           {
             slots: [
-              { label: "Activité A", priceHint: 30, verified: true },
-              { label: "Activité B", priceHint: 45, verified: true },
+              { label: "Activité A", type: "activite", priceHint: 30, priceStatus: "verified", source: "catalog" },
+              { label: "Activité B", type: "activite", priceHint: 45, priceStatus: "verified", source: "catalog" },
             ],
           },
         ];
@@ -2792,11 +2792,14 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(res.totalCount).toBe(2);
       });
 
-      it("Test B : Prix absent -> pas de 0 € inventé, priceStatus = unknown", async () => {
+      it("Test B : Prix absent ou priceHint sans source/statut -> pas de 0 € inventé, priceStatus = unknown", async () => {
         const { computeItineraryActivitiesCost } = await import("../cost-split");
         const days = [
           {
-            slots: [{ label: "Activité A", priceHint: null }],
+            slots: [
+              { label: "Activité A", type: "activite", priceHint: 30 }, // Unconfirmed priceHint without source -> unknown
+              { label: "Activité B", type: "activite", priceHint: null },
+            ],
           },
         ];
 
@@ -2804,16 +2807,16 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(res.activitiesPerPerson).toBeNull();
         expect(res.priceStatus).toBe("unknown");
         expect(res.knownCount).toBe(0);
-        expect(res.totalCount).toBe(1);
+        expect(res.totalCount).toBe(2);
       });
 
-      it("Test C : Prix partiel (30 € verified + unknown) -> somme connue = 30 €, status = partial", async () => {
+      it("Test C : Prix partiel (30 € verified + source + unknown) -> somme connue = 30 €, status = partial", async () => {
         const { computeItineraryActivitiesCost } = await import("../cost-split");
         const days = [
           {
             slots: [
-              { label: "Activité A", priceHint: 30, verified: true },
-              { label: "Activité B", priceHint: null },
+              { label: "Activité A", type: "activite", priceHint: 30, priceStatus: "verified", source: "official_web" },
+              { label: "Activité B", type: "activite", priceHint: null },
             ],
           },
         ];
@@ -2825,11 +2828,11 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(res.totalCount).toBe(2);
       });
 
-      it("Test D : Prix estimé (25 € estimated) -> status = estimated", async () => {
+      it("Test D : Prix estimé (25 € estimated + source) -> status = estimated", async () => {
         const { computeItineraryActivitiesCost } = await import("../cost-split");
         const days = [
           {
-            slots: [{ label: "Activité A", priceHint: 25, priceStatus: "estimated" }],
+            slots: [{ label: "Activité A", type: "activite", priceHint: 25, priceStatus: "estimated", source: "provider_estimate" }],
           },
         ];
 
@@ -2838,17 +2841,43 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(res.priceStatus).toBe("estimated");
       });
 
-      it("Test E : Gratuité confirmée (0 € free) -> status = free", async () => {
+      it("Test E : Gratuité confirmée (0 € + explicit status free) vs 0 € unconfirmed (unknown)", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const daysFree = [
+          {
+            slots: [{ label: "Parc municipal", type: "activite", priceHint: 0, priceStatus: "free" }],
+          },
+        ];
+
+        const resFree = computeItineraryActivitiesCost(daysFree);
+        expect(resFree.activitiesPerPerson).toBe(0);
+        expect(resFree.priceStatus).toBe("free");
+
+        const daysUnconfirmedZero = [
+          {
+            slots: [{ label: "Visite mystère", type: "activite", priceHint: 0 }],
+          },
+        ];
+        const resUnconfirmed = computeItineraryActivitiesCost(daysUnconfirmedZero);
+        expect(resUnconfirmed.activitiesPerPerson).toBeNull();
+        expect(resUnconfirmed.priceStatus).toBe("unknown");
+      });
+
+      it("Exclusion des restaurants et repas : un restaurant avec un prix n'est PAS inclus dans le budget activités", async () => {
         const { computeItineraryActivitiesCost } = await import("../cost-split");
         const days = [
           {
-            slots: [{ label: "Randonnée", priceHint: 0, priceStatus: "free" }],
+            slots: [
+              { label: "Dîner au resto", type: "resto", category: "repas", priceHint: 40, priceStatus: "verified", source: "menu" },
+              { label: "Musée", type: "activite", category: "culture", priceHint: 15, priceStatus: "verified", source: "official_web" },
+            ],
           },
         ];
 
         const res = computeItineraryActivitiesCost(days);
-        expect(res.activitiesPerPerson).toBe(0);
-        expect(res.priceStatus).toBe("free");
+        expect(res.activitiesPerPerson).toBe(15); // Only museum, dinner excluded!
+        expect(res.totalCount).toBe(1);
+        expect(res.knownCount).toBe(1);
       });
 
       it("Test F : GetYourGuide search link sans prix -> priceStatus = unknown, pas de scraping/prix inventé", async () => {
