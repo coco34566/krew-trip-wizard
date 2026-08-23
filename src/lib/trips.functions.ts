@@ -1859,10 +1859,21 @@ export const getCostSplit = createServerFn({ method: "GET" })
     const destName =
       (reco.data as any).destinations?.name ?? budget.destinationName ?? "Destination";
 
+    const { computeItineraryActivitiesCost } = await import("@/lib/krew/cost-split");
+    const itinerary = (trip.data as any)?.group_itinerary;
+    const itineraryActivities = computeItineraryActivitiesCost(itinerary?.days);
+
+    let activitiesCost = Number(budget.activities ?? 0);
+    let activitiesPriceStatus = itineraryActivities.priceStatus;
+
+    if (itineraryActivities.activitiesPerPerson != null) {
+      activitiesCost = itineraryActivities.activitiesPerPerson;
+    }
+
     const split = buildCostSplit({
       destinationName: destName,
       accommodation: accommodationCost,
-      activities: Number(budget.activities ?? 0),
+      activities: activitiesCost,
       food: Number(budget.food ?? 0),
       origins: participantLines,
       fallbackTransportPerPerson: fallbackTransport,
@@ -1870,11 +1881,12 @@ export const getCostSplit = createServerFn({ method: "GET" })
       starPaysShare: logistics.star_pays_share !== false,
     } as any);
 
+    split.activitiesPriceStatus = activitiesPriceStatus;
+
     const isHotelReserved = hotelBookingStatus === "réservé";
     const sharedCostReserved = isHotelReserved ? accommodationCost : 0;
     const sharedCostEstimated = isHotelReserved ? 0 : accommodationCost;
 
-    const activitiesCost = Number(budget.activities ?? 0);
     const foodCost = Number(budget.food ?? 0);
 
     const totalReserved =
@@ -2436,6 +2448,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             source: "krew",
             url: ideasUrl,
             resourceKind: ideasKind,
+            ...(s.priceHint != null ? { priceHint: s.priceHint } : {}),
           });
 
           // Reset spatial reference to lodging ONLY when locationContext === "lodging"
@@ -2600,6 +2613,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             source: matchedSource,
             latitude: matchedPlace.latitude,
             longitude: matchedPlace.longitude,
+            ...(s.priceHint != null ? { priceHint: s.priceHint } : {}),
           });
         } else {
           const { findWebResourceForComplexActivity } = await import(
@@ -2637,6 +2651,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               source: "krew_web",
               url: resLink.url,
               resourceKind: resLink.resourceKind ?? "website",
+              ...(s.priceHint != null ? { priceHint: s.priceHint } : {}),
             });
           } else {
             const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
@@ -2664,6 +2679,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
               source: "krew",
               url: fallbackMapUrl,
               resourceKind: fallbackMapUrl ? "maps" : null,
+              ...(s.priceHint != null ? { priceHint: s.priceHint } : {}),
             });
           }
         }

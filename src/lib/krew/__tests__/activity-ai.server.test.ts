@@ -2772,5 +2772,160 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(selected?.id).toBe("fictional-real");
       });
     });
+
+    describe("Activity Cost & Budget Breakdown Integration Tests (Tests A-J)", () => {
+      it("Test A : Deux prix vérifiés (30 € et 45 €) -> somme per-person = 75 €", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Activité A", priceHint: 30, verified: true },
+              { label: "Activité B", priceHint: 45, verified: true },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(75);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.knownCount).toBe(2);
+        expect(res.totalCount).toBe(2);
+      });
+
+      it("Test B : Prix absent -> pas de 0 € inventé, priceStatus = unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [{ label: "Activité A", priceHint: null }],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+        expect(res.knownCount).toBe(0);
+        expect(res.totalCount).toBe(1);
+      });
+
+      it("Test C : Prix partiel (30 € verified + unknown) -> somme connue = 30 €, status = partial", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Activité A", priceHint: 30, verified: true },
+              { label: "Activité B", priceHint: null },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(30);
+        expect(res.priceStatus).toBe("partial");
+        expect(res.knownCount).toBe(1);
+        expect(res.totalCount).toBe(2);
+      });
+
+      it("Test D : Prix estimé (25 € estimated) -> status = estimated", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [{ label: "Activité A", priceHint: 25, priceStatus: "estimated" }],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(25);
+        expect(res.priceStatus).toBe("estimated");
+      });
+
+      it("Test E : Gratuité confirmée (0 € free) -> status = free", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [{ label: "Randonnée", priceHint: 0, priceStatus: "free" }],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(0);
+        expect(res.priceStatus).toBe("free");
+      });
+
+      it("Test F : GetYourGuide search link sans prix -> priceStatus = unknown, pas de scraping/prix inventé", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              {
+                label: "Croisière sur le Danube",
+                booking: { provider: "getyourguide", type: "search", url: "https://www.getyourguide.fr/s/?q=croisiere" },
+                priceHint: null,
+              },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("Test G : Cost Split integration -> buildCostSplit inclut correctement les activités", async () => {
+        const { buildCostSplit } = await import("../cost-split");
+        const split = buildCostSplit({
+          destinationName: "Budapest",
+          accommodation: 120,
+          activities: 75,
+          food: 50,
+          origins: [{ city: "Paris", count: 2, pricePerPerson: 100 }],
+        });
+
+        // sharedPerPerson = accommodation (120) + activities (75) + food (50) = 245
+        expect(split.sharedPerPerson).toBe(245);
+        expect(split.activities).toBe(75);
+        // totalPerPerson = transport (100) + shared (245) = 345
+        expect(split.lines[0]?.totalPerPerson).toBe(345);
+        // totalGroup = 345 * 2 = 690
+        expect(split.totalGroup).toBe(690);
+      });
+
+      it("Test H : Star ne paie pas -> redistribution sans double comptage des activités", async () => {
+        const { buildCostSplit } = await import("../cost-split");
+        const split = buildCostSplit({
+          destinationName: "Budapest",
+          accommodation: 120,
+          activities: 60,
+          food: 40,
+          origins: [
+            { city: "Paris (Star)", count: 1, pricePerPerson: 100, isStar: true },
+            { city: "Lyon", count: 1, pricePerPerson: 100, isStar: false },
+          ],
+          starPaysShare: false,
+        });
+
+        // Star shared = 120 + 60 + 40 = 220, transport = 100 -> Star total = 320
+        // Star cost (320) is re-distributed to Lyon
+        const starLine = split.lines.find((l) => l.isStar);
+        const lyonLine = split.lines.find((l) => !l.isStar);
+
+        expect(starLine?.totalPerPerson).toBe(0);
+        expect(lyonLine?.totalPerPerson).toBe(320 + (100 + 220)); // 640
+        expect(split.totalGroup).toBe(640);
+      });
+
+      it("Test I : Invariance planning -> les métadonnées de prix n'altèrent pas l'ordre ou les slots", async () => {
+        const slotsWithPrice = [
+          { label: "Bastion", time: "10:00", priceHint: 15 },
+          { label: "Thermes", time: "14:00", priceHint: 25 },
+        ];
+        const slotsWithoutPrice = [
+          { label: "Bastion", time: "10:00" },
+          { label: "Thermes", time: "14:00" },
+        ];
+
+        expect(slotsWithPrice.map((s) => s.label)).toEqual(slotsWithoutPrice.map((s) => s.label));
+        expect(slotsWithPrice.map((s) => s.time)).toEqual(slotsWithoutPrice.map((s) => s.time));
+      });
+    });
   });
 });

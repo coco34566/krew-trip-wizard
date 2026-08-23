@@ -817,14 +817,17 @@ function TripDetail() {
     const days = (trip.group_itinerary?.days ?? []) as any[];
     if (days.length) {
       let actSum = 0;
+      let hasPrice = false;
       for (const d of days) {
         for (const s of d.slots ?? []) {
-          if (s.priceHint != null && Number(s.priceHint) > 0) actSum += Number(s.priceHint);
+          if (s.priceHint != null && Number(s.priceHint) >= 0) {
+            actSum += Number(s.priceHint);
+            hasPrice = true;
+          }
         }
       }
-      if (actSum > 0) {
-        food = Math.round(actSum * 0.45);
-        activities = Math.round(actSum * 0.55);
+      if (hasPrice) {
+        activities = Math.round(actSum);
       }
     }
 
