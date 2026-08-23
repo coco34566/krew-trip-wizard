@@ -10,6 +10,101 @@ import {
 import { resolveActivityResourceUrl, resolveActivityResourceForPlace } from "@/lib/krew/activity-ai.server";
 import { PROFILE_LABELS, STAY_PROFILE_IDS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 
+export function buildFinalItinerarySlot(options: {
+  slot: any;
+  matchedPlace?: any | null;
+  matchedSource?: string | null;
+  mode?: string | null;
+  resolvedResource?: { url?: string | null; resourceKind?: any } | null;
+  webUrl?: string | null;
+  fallbackMapUrl?: string | null;
+}) {
+  const { slot: s, matchedPlace, matchedSource, mode, resolvedResource, webUrl, fallbackMapUrl } = options;
+
+  const estimatedPrices = {
+    estimatedPriceMinPerPerson: (s as any).estimatedPriceMinPerPerson ?? null,
+    estimatedPriceMaxPerPerson: (s as any).estimatedPriceMaxPerPerson ?? null,
+    estimatedPriceCurrency: (s as any).estimatedPriceCurrency ?? null,
+  };
+
+  if (matchedPlace) {
+    return {
+      moment: s.moment,
+      time: s.time,
+      endTime: s.endTime,
+      durationMinutes: s.durationMinutes,
+      type: s.type,
+      category: s.category,
+      venueFamily: s.venueFamily,
+      searchIntent: s.searchIntent,
+      locationContext: s.locationContext ?? "external",
+      label: matchedPlace.name,
+      detail:
+        s.detail ||
+        s.searchIntent ||
+        "Lieu sélectionné par KREW",
+      address: matchedPlace.address || null,
+      ...resolvedResource,
+      activityMode: mode,
+      candidateId: matchedPlace.id,
+      verified: true,
+      source: matchedSource || "geoapify",
+      latitude: matchedPlace.latitude,
+      longitude: matchedPlace.longitude,
+      ...estimatedPrices,
+    };
+  }
+
+  if (webUrl) {
+    const resLink = resolveActivityResourceUrl(webUrl);
+    return {
+      moment: s.moment,
+      time: s.time,
+      endTime: s.endTime,
+      durationMinutes: s.durationMinutes,
+      type: s.type,
+      category: s.category,
+      venueFamily: s.venueFamily,
+      searchIntent: s.searchIntent,
+      locationContext: s.locationContext ?? "external",
+      label: (s as any).suggestedPlace || s.label,
+      detail:
+        s.detail ||
+        s.searchIntent ||
+        "Réservation ou choix du lieu à préciser",
+      address: null,
+      verified: false,
+      source: "krew_web",
+      url: resLink.url,
+      resourceKind: resLink.resourceKind ?? "website",
+      ...estimatedPrices,
+    };
+  }
+
+  return {
+    moment: s.moment,
+    time: s.time,
+    endTime: s.endTime,
+    durationMinutes: s.durationMinutes,
+    type: s.type,
+    category: s.category,
+    venueFamily: s.venueFamily,
+    searchIntent: s.searchIntent,
+    locationContext: s.locationContext ?? "external",
+    label: (s as any).suggestedPlace || s.label,
+    detail:
+      s.detail ||
+      s.searchIntent ||
+      "Réservation ou choix du lieu à préciser",
+    address: null,
+    verified: false,
+    source: "krew",
+    url: fallbackMapUrl || null,
+    resourceKind: fallbackMapUrl ? "maps" : null,
+    ...estimatedPrices,
+  };
+}
+
 export function isSameSuggestedPlace(
   suggestedPlace: string | null | undefined,
   candidateName: string | null | undefined,
@@ -2640,7 +2735,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
         // Step A & B: Try resolving Gemini's proposed place first if provided and concrete
         if (s.kind === "place_required") {
-          matchedPlace = await tryResolveGeminiProposedPlace({
+          const proposedCandidate = await tryResolveGeminiProposedPlace({
             suggestedPlace: (s as any).suggestedPlace,
             label: s.label,
             suggestedUrl: (s as any).suggestedUrl,
@@ -2650,7 +2745,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             refLat: intentCenter?.latitude ?? refLat,
             refLon: intentCenter?.longitude ?? refLon,
           });
-          if (matchedPlace) {
+          const sp = (s as any).suggestedPlace;
+          if (proposedCandidate && isSameSuggestedPlace(sp, proposedCandidate.name)) {
+            matchedPlace = proposedCandidate;
             matchedSource = "gemini_geoapify";
             poolHits++;
           }
@@ -2733,33 +2830,15 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           const resolvedResource = resolveActivityResourceForPlace(matchedPlace, destName, { telemetry: telemetryObj });
           fallbackMapLinks += telemetryObj.fallbackMapLinks;
 
-          slots.push({
-            moment: s.moment,
-            time: s.time,
-            endTime: s.endTime,
-            durationMinutes: s.durationMinutes,
-            type: s.type,
-            category: s.category,
-            venueFamily: s.venueFamily,
-            searchIntent: s.searchIntent,
-            locationContext: s.locationContext ?? "external",
-            label: matchedPlace.name,
-            detail:
-              s.detail ||
-              s.searchIntent ||
-              "Lieu sélectionné par KREW",
-            address: matchedPlace.address || null,
-            ...resolvedResource,
-            activityMode: mode,
-            candidateId: matchedPlace.id,
-            verified: true,
-            source: matchedSource,
-            latitude: matchedPlace.latitude,
-            longitude: matchedPlace.longitude,
-            estimatedPriceMinPerPerson: (s as any).estimatedPriceMinPerPerson ?? null,
-            estimatedPriceMaxPerPerson: (s as any).estimatedPriceMaxPerPerson ?? null,
-            estimatedPriceCurrency: (s as any).estimatedPriceCurrency ?? null,
-          });
+          slots.push(
+            buildFinalItinerarySlot({
+              slot: s,
+              matchedPlace,
+              matchedSource,
+              mode,
+              resolvedResource,
+            }),
+          );
         } else {
           const { findWebResourceForComplexActivity } = await import(
             "@/lib/krew/activity-discovery.server"
@@ -2775,61 +2854,24 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           });
 
           if (webUrl) {
-            const resLink = resolveActivityResourceUrl(webUrl);
-            slots.push({
-              moment: s.moment,
-              time: s.time,
-              endTime: s.endTime,
-              durationMinutes: s.durationMinutes,
-              type: s.type,
-              category: s.category,
-              venueFamily: s.venueFamily,
-              searchIntent: s.searchIntent,
-              locationContext: s.locationContext ?? "external",
-              label: (s as any).suggestedPlace || s.label,
-              detail:
-                s.detail ||
-                s.searchIntent ||
-                "Réservation ou choix du lieu à préciser",
-              address: null,
-              verified: false,
-              source: "krew_web",
-              url: resLink.url,
-              resourceKind: resLink.resourceKind ?? "website",
-              estimatedPriceMinPerPerson: (s as any).estimatedPriceMinPerPerson ?? null,
-              estimatedPriceMaxPerPerson: (s as any).estimatedPriceMaxPerPerson ?? null,
-              estimatedPriceCurrency: (s as any).estimatedPriceCurrency ?? null,
-            });
+            slots.push(
+              buildFinalItinerarySlot({
+                slot: s,
+                webUrl,
+              }),
+            );
           } else {
             const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
               { name: s.label, address: destName },
               destName,
             );
 
-            slots.push({
-              moment: s.moment,
-              time: s.time,
-              endTime: s.endTime,
-              durationMinutes: s.durationMinutes,
-              type: s.type,
-              category: s.category,
-              venueFamily: s.venueFamily,
-              searchIntent: s.searchIntent,
-              locationContext: s.locationContext ?? "external",
-              label: s.label,
-              detail:
-                s.detail ||
-                s.searchIntent ||
-                "Réservation ou choix du lieu à préciser",
-              address: null,
-              verified: false,
-              source: "krew",
-              url: fallbackMapUrl,
-              resourceKind: fallbackMapUrl ? "maps" : null,
-              estimatedPriceMinPerPerson: (s as any).estimatedPriceMinPerPerson ?? null,
-              estimatedPriceMaxPerPerson: (s as any).estimatedPriceMaxPerPerson ?? null,
-              estimatedPriceCurrency: (s as any).estimatedPriceCurrency ?? null,
-            });
+            slots.push(
+              buildFinalItinerarySlot({
+                slot: s,
+                fallbackMapUrl,
+              }),
+            );
           }
         }
       }

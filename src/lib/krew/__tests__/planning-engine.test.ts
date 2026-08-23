@@ -1018,7 +1018,7 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
   });
 
   describe("Validation de la correspondance de lieu isSameSuggestedPlace & estimations de prix", () => {
-    const { isSameSuggestedPlace } = require("@/lib/trips.functions");
+    const { isSameSuggestedPlace, buildFinalItinerarySlot } = require("@/lib/trips.functions");
 
     it("TEST 1 — exact/fort match accepté (Bains Rudas vs Rudas Gyógyfürdő és Uszoda)", () => {
       expect(isSameSuggestedPlace("Bains Rudas", "Rudas Gyógyfürdő és Uszoda")).toBe(true);
@@ -1052,8 +1052,16 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
       expect(isSameSuggestedPlace("Market", "Great Market Hall")).toBe(false);
     });
 
-    it("TEST 6 & 8 — prix et métadonnées conservés lorsque Geoapify confirme le lieu", () => {
+    it("TEST CAS A — LIEU CONFIRMÉ : prix et métadonnées conservés via buildFinalItinerarySlot", () => {
       const slotInput = {
+        moment: "apres_midi",
+        time: "15:00",
+        endTime: "17:00",
+        durationMinutes: 120,
+        type: "activite",
+        category: "detente",
+        venueFamily: "spa_wellness",
+        searchIntent: "bains thermaux",
         kind: "place_required",
         label: "Bains Rudas",
         suggestedPlace: "Bains Rudas",
@@ -1071,28 +1079,34 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
         verified: true,
       };
 
-      const finalSlot = {
-        label: matchedPlace.name,
-        address: matchedPlace.address,
-        latitude: matchedPlace.latitude,
-        longitude: matchedPlace.longitude,
-        verified: true,
-        source: "gemini_geoapify",
-        estimatedPriceMinPerPerson: slotInput.estimatedPriceMinPerPerson ?? null,
-        estimatedPriceMaxPerPerson: slotInput.estimatedPriceMaxPerPerson ?? null,
-        estimatedPriceCurrency: slotInput.estimatedPriceCurrency ?? null,
-      };
-
       expect(isSameSuggestedPlace(slotInput.suggestedPlace, matchedPlace.name)).toBe(true);
+
+      const finalSlot = buildFinalItinerarySlot({
+        slot: slotInput,
+        matchedPlace,
+        matchedSource: "gemini_geoapify",
+        mode: "bookable",
+      });
+
+      expect(finalSlot.label).toBe("Rudas Gyógyfürdő és Uszoda");
       expect(finalSlot.estimatedPriceMinPerPerson).toBe(25);
       expect(finalSlot.estimatedPriceMaxPerPerson).toBe(35);
       expect(finalSlot.estimatedPriceCurrency).toBe("EUR");
       expect(finalSlot.verified).toBe(true);
+      expect(finalSlot.source).toBe("gemini_geoapify");
       expect(finalSlot.address).toBe("Döbrentei tér 9, 1013 Budapest");
     });
 
-    it("TEST 7 — prix conservé lors du fallback Gemini sans confirmation Geoapify", () => {
+    it("TEST CAS B — LIEU NON CONFIRMÉ : fallback Gemini conserve le lieu Gemini, verified: false et les prix", () => {
       const slotInput = {
+        moment: "apres_midi",
+        time: "14:00",
+        endTime: "16:00",
+        durationMinutes: 120,
+        type: "activite",
+        category: "culture",
+        venueFamily: "monument",
+        searchIntent: "visite du bastion",
         kind: "place_required",
         label: "Bastion des Pêcheurs",
         suggestedPlace: "Bastion des Pêcheurs",
@@ -1104,20 +1118,18 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
       const rejectCandidateName = "XVIII sz-ban átalakitott középkori épulet maradványa";
       expect(isSameSuggestedPlace(slotInput.suggestedPlace, rejectCandidateName)).toBe(false);
 
-      const fallbackSlot = {
-        label: slotInput.suggestedPlace || slotInput.label,
-        verified: false,
-        source: "krew",
-        estimatedPriceMinPerPerson: slotInput.estimatedPriceMinPerPerson ?? null,
-        estimatedPriceMaxPerPerson: slotInput.estimatedPriceMaxPerPerson ?? null,
-        estimatedPriceCurrency: slotInput.estimatedPriceCurrency ?? null,
-      };
+      const fallbackSlot = buildFinalItinerarySlot({
+        slot: slotInput,
+        fallbackMapUrl: "https://maps.google.com/?q=Bastion+des+P%C3%AAcheurs",
+      });
 
       expect(fallbackSlot.label).toBe("Bastion des Pêcheurs");
       expect(fallbackSlot.estimatedPriceMinPerPerson).toBe(0);
       expect(fallbackSlot.estimatedPriceMaxPerPerson).toBe(10);
       expect(fallbackSlot.estimatedPriceCurrency).toBe("EUR");
       expect(fallbackSlot.verified).toBe(false);
+      expect(fallbackSlot.source).toBe("krew");
+      expect(fallbackSlot.resourceKind).toBe("maps");
     });
   });
 });
