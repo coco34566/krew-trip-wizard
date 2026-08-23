@@ -2331,6 +2331,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             Boolean(activityInput.accessibilityRequired),
             activityInput.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
             intentCenter,
+            slot.suggestedPlace || slot.label,
+            destName,
           );
 
           requirementsList.push(req);
@@ -2464,6 +2466,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           Boolean(activityInput.accessibilityRequired),
           activityInput.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
           intentCenter,
+          (s as any).suggestedPlace || s.label,
+          destName,
         );
         const poolKey = buildPoolKey(req);
         let pool = placePools[poolKey] || [];
@@ -2817,6 +2821,9 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       aggregated.dietaryConstraints,
       isAccessibilityRequired,
       aggregated.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
+      null,
+      current.suggestedPlace || current.label,
+      itinerary.destination || null,
     );
     const poolKey = buildPoolKey(req);
 

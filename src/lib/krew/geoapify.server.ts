@@ -51,6 +51,7 @@ export type PlaceRequirements = {
   momentType?: string | null;
   intentCenter?: IntentLocationResult | null;
   concretePlaceName?: string | null;
+  destination?: string | null;
 };
 
 const intentLocationCacheMap = new Map<string, IntentLocationResult | null>();
@@ -373,27 +374,11 @@ export function isConcretePlaceProposal(name: string | null | undefined): boolea
   return true;
 }
 
-const MULTI_LINGUAL_ALIASES: Record<string, string[]> = {
-  bastion: ["halasbastya", "halaszbastya", "bastya", "fisherman", "fishermans"],
-  pecheur: ["fisherman", "fishermans", "halasbastya", "halaszbastya", "halasz"],
-  pecheurs: ["fisherman", "fishermans", "halasbastya", "halaszbastya", "halasz"],
-  halles: ["vasarcsarnok", "csarnok", "market hall", "markthalle", "hall"],
-  halle: ["vasarcsarnok", "csarnok", "market hall", "markthalle", "hall"],
-  marche: ["market", "piac", "vasarcsarnok", "csarnok", "markthalle"],
-  chateau: ["castle", "var", "palace", "palais", "schloss"],
-  citadelle: ["citadel", "citadella"],
-  pont: ["bridge", "hid"],
-  parlement: ["parliament", "orszaghaz"],
-  basilique: ["basilica", "bazilika"],
-  cathedrale: ["cathedral"],
-  thermes: ["thermal", "baths", "bath", "spa", "furdo"],
-  bains: ["thermal", "baths", "bath", "spa", "furdo"],
-};
-
 export function isNominalPlaceMatch(
   requestedName: string | null | undefined,
   candidateName: string | null | undefined,
   candidateAddress?: string | null,
+  destination?: string | null,
 ): boolean {
   if (!requestedName || !candidateName) return false;
 
@@ -425,8 +410,21 @@ export function isNominalPlaceMatch(
     "visite", "promenade", "flanerie", "balade", "decouverte", "de", "du", "des",
     "au", "aux", "le", "la", "les", "un", "une", "dans", "avec", "pour", "grand",
     "grande", "grandes", "central", "centrale", "centrales", "couvert", "couverte",
-    "local", "locale", "budapest", "prague", "paris", "annecy", "lyon", "beaune",
+    "local", "locale",
   ]);
+
+  if (destination && typeof destination === "string") {
+    const destTokens = destination
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .split(/[^a-z0-9]+/);
+    for (const dt of destTokens) {
+      if (dt.length >= 3) {
+        ignoreWords.add(dt);
+      }
+    }
+  }
 
   const reqTokens = normReq
     .split(/[^a-z0-9]+/)
@@ -438,12 +436,6 @@ export function isNominalPlaceMatch(
 
   for (const token of reqTokens) {
     if (fullCand.includes(token)) {
-      matchedTokenCount++;
-      continue;
-    }
-
-    const aliases = MULTI_LINGUAL_ALIASES[token];
-    if (aliases && aliases.some((alias) => fullCand.includes(alias))) {
       matchedTokenCount++;
     }
   }
@@ -539,6 +531,7 @@ export async function tryResolveGeminiProposedPlace(options: {
     [],
     null,
     candidateName,
+    destination,
   );
 
   const apiKey = process.env["GEOAPIFY_API_KEY"];
@@ -577,7 +570,7 @@ export async function tryResolveGeminiProposedPlace(options: {
       }
 
       const isNameMatch =
-        isNominalPlaceMatch(candidateName, name, props.formatted || props.address_line2) ||
+        isNominalPlaceMatch(candidateName, name, props.formatted || props.address_line2, destination) ||
         normName.includes(normCandidate) ||
         normCandidate.includes(normName);
 
@@ -632,6 +625,7 @@ export function convertIntentToPlaceRequirements(
   userNotes: string[] = [],
   intentCenter?: IntentLocationResult | null,
   concretePlaceName?: string | null,
+  destination?: string | null,
 ): PlaceRequirements {
   const normIntent = String(searchIntent || "")
     .normalize("NFD")
@@ -686,6 +680,7 @@ export function convertIntentToPlaceRequirements(
     momentType: momentType ?? null,
     intentCenter: intentCenter ?? null,
     concretePlaceName: concretePlaceName ?? (searchIntent && isConcretePlaceProposal(searchIntent) ? searchIntent : null),
+    destination: destination ?? null,
   };
 }
 
@@ -1576,12 +1571,7 @@ export function rankGeoapifyCandidates(
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-    // A. Match nominal pour les lieux concrets demandés
-    if (req.concretePlaceName && isNominalPlaceMatch(req.concretePlaceName, cand.name, cand.address)) {
-      score += 2000;
-    }
-
-    // B. Compatibilité famille métier
+    // A. Compatibilité famille métier
     if (isCandidateCompatibleWithRequirements(cand, req)) {
       score += 300;
     }
@@ -1683,6 +1673,13 @@ export function rankGeoapifyCandidates(
   };
 
   return candidates.slice().sort((a, b) => {
+    if (req.concretePlaceName) {
+      const matchA = isNominalPlaceMatch(req.concretePlaceName, a.name, a.address, req.destination);
+      const matchB = isNominalPlaceMatch(req.concretePlaceName, b.name, b.address, req.destination);
+      if (matchA && !matchB) return -1;
+      if (!matchA && matchB) return 1;
+    }
+
     const scoreA = calculateScore(a);
     const scoreB = calculateScore(b);
     return scoreB - scoreA;

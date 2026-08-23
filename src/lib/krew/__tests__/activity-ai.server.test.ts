@@ -2727,6 +2727,50 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         const status = geoapifyOpeningStatus(ambiguousHours, "2026-08-30", "14:00", 90);
         expect(status).toBe("unknown");
       });
+
+      it("Test générique avec ville/POI fictif : prouve qu'aucune whitelist ou dictionnaire de traductions n'est nécessaire", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const fictionalUnmatchedPoi = {
+          id: "fictional-wrong",
+          name: "Café de la Gare de Val-Fictif",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights"],
+          address: "Val-Fictif",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const fictionalMatchedPoi = {
+          id: "fictional-real",
+          name: "Belvédère de Val-Fictif",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights"],
+          address: "Val-Fictif",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "culture",
+          "culture",
+          "visite du Belvédère de Val-Fictif",
+          [],
+          false,
+          [],
+          null,
+          "Belvédère de Val-Fictif",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [fictionalUnmatchedPoi, fictionalMatchedPoi],
+          req,
+          usedCandidateIdsSet: new Set(),
+        });
+
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("fictional-real");
+      });
     });
   });
 });
