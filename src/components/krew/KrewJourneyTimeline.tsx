@@ -32,14 +32,18 @@ function parseStepHref(href: string) {
 
 const PATH_POINTS = [
   { x: 29, y: 5 },
-  { x: 66, y: 16 },
-  { x: 35, y: 28 },
-  { x: 72, y: 40 },
-  { x: 31, y: 52 },
-  { x: 68, y: 64 },
-  { x: 38, y: 76 },
-  { x: 65, y: 88 },
-  { x: 46, y: 97 },
+  { x: 68, y: 13 },
+  { x: 32, y: 21 },
+  { x: 70, y: 29 },
+  { x: 30, y: 37 },
+  { x: 68, y: 45 },
+  { x: 32, y: 53 },
+  { x: 70, y: 61 },
+  { x: 30, y: 69 },
+  { x: 68, y: 77 },
+  { x: 32, y: 85 },
+  { x: 65, y: 92 },
+  { x: 48, y: 97 },
 ];
 
 export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) {
@@ -50,6 +54,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
   );
   const activeProgressIdx = nextActionIdx >= 0 ? nextActionIdx : lastDoneIdx;
   const progress = steps.length > 1 ? Math.max(0, activeProgressIdx) / (steps.length - 1) : 1;
+  const pathD = "M29 5 C48 7 74 9 68 13 C58 19 26 17 32 21 C42 27 80 25 70 29 C58 35 22 33 30 37 C40 43 77 41 68 45 C56 51 24 49 32 53 C44 59 80 57 70 61 C58 67 22 65 30 69 C40 75 77 73 68 77 C56 83 24 81 32 85 C44 90 75 88 65 92 C58 95 52 96 48 97";
 
   return (
     <div className="w-full max-w-[760px] mx-auto px-1 py-1 font-sans">
@@ -70,7 +75,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
         </p>
       </header>
 
-      <div className="relative h-[720px] sm:h-[780px] lg:h-[820px] overflow-hidden">
+      <div className="relative pt-4 pb-2 sm:pt-6 sm:pb-4 overflow-visible h-[800px] sm:h-[880px] lg:h-[920px]">
         <svg
           aria-hidden="true"
           className="absolute inset-0 h-full w-full pointer-events-none"
@@ -79,7 +84,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
           fill="none"
         >
           <path
-            d="M29 5 C45 7 74 10 66 16 C56 22 28 21 35 28 C44 34 80 32 72 40 C63 47 22 44 31 52 C40 59 77 56 68 64 C58 71 28 69 38 76 C48 82 75 81 65 88 C59 92 51 94 46 97"
+            d={pathD}
             stroke="var(--secondary)"
             strokeWidth="0.7"
             strokeDasharray="1.3 1.4"
@@ -88,7 +93,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
             className="opacity-35"
           />
           <path
-            d="M29 5 C45 7 74 10 66 16 C56 22 28 21 35 28 C44 34 80 32 72 40 C63 47 22 44 31 52 C40 59 77 56 68 64 C58 71 28 69 38 76 C48 82 75 81 65 88 C59 92 51 94 46 97"
+            d={pathD}
             pathLength="100"
             stroke="var(--secondary)"
             strokeWidth="1.15"

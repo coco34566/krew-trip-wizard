@@ -337,7 +337,7 @@ function Dashboard() {
         <Button asChild className="self-start sm:self-auto rounded-xl font-medium">
           <Link to="/trips/new" className="inline-flex items-center justify-center gap-1.5">
             <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
-            Nouveau voyage
+            <span>Nouveau voyage</span>
           </Link>
         </Button>
       </div>

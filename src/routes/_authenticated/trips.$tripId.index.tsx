@@ -1593,7 +1593,7 @@ function TripDetail() {
                 }}
               >
                 <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
-                <span>{shareCopied ? "Copié" : "Copier le lien du voyage"}</span>
+                <span className="whitespace-nowrap">{shareCopied ? "Copié" : "Copier le lien du voyage"}</span>
               </Button>
 
               <Button
@@ -1605,7 +1605,7 @@ function TripDetail() {
                 }}
               >
                 <KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />
-                <span>Inviter via WhatsApp</span>
+                <span className="whitespace-nowrap">Inviter via WhatsApp</span>
               </Button>
 
               {data.isOwner ? (() => {
@@ -1999,10 +1999,9 @@ function TripDetail() {
             <Link
               to="/trips/$tripId"
               params={{ tripId }}
-              search={{ view: "voyage" }}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
-              <ArrowLeft className="size-4" /> Voyage
+              <ArrowLeft className="size-4" /> Retour au voyage
             </Link>
 
       {currentSection === "dates" ? (
@@ -2616,6 +2615,15 @@ function TripDetail() {
         )}
           </>
         )}
+        {destinationSelected ? (
+          <div className="pt-4 border-t border-border/40 flex justify-end">
+            <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
+              <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "accommodation" }}>
+                Choisir l&apos;hébergement <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
+              </Link>
+            </Button>
+          </div>
+        ) : null}
       </section>
       ) : null}
 
@@ -2982,9 +2990,9 @@ function TripDetail() {
                           return (
                             <li
                               key={p.userId}
-                              className="flex items-center justify-between gap-2 py-0.5"
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 py-1 border-b border-border/20 last:border-0"
                             >
-                              <div>
+                              <div className="min-w-0 flex-1 break-words">
                                 <span className="font-medium text-foreground">{p.displayName}</span>
                                 {" · "}
                                 {p.modeLabel || p.mode}
@@ -3097,6 +3105,15 @@ function TripDetail() {
             })()}
           </div>
         )}
+        {destinationSelected ? (
+          <div className="pt-4 border-t border-border/40 flex justify-end">
+            <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
+              <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }}>
+                Organiser le planning <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
+              </Link>
+            </Button>
+          </div>
+        ) : null}
       </section>
       ) : null}
 

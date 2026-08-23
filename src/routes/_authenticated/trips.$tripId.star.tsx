@@ -362,7 +362,7 @@ function StarQuestionnaire() {
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>

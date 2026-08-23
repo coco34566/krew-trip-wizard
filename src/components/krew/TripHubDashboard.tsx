@@ -184,6 +184,7 @@ function NextActionsPanel({
   }
 
   // —— 3. Actions orga uniquement ——
+  const datesReady = datesLocked || Boolean(trip.start_date);
   if (isOwner) {
     if (myAvailabilityDone && myPreferencesDone && !datesLocked) {
       push({
@@ -194,7 +195,7 @@ function NextActionsPanel({
         iconName: "calendar",
       });
     }
-    if (datesLocked && !profileValidated && profileReady) {
+    if (datesReady && !profileValidated && profileReady) {
       push({
         key: "choose-profile",
         title: "Choisir le profil du voyage",
@@ -203,7 +204,7 @@ function NextActionsPanel({
         iconName: "profile",
       });
     }
-    if (datesLocked && profileValidated && !destinationSelected) {
+    if (datesReady && profileValidated && !destinationSelected) {
       if (!hasRecommendations) {
         push({
           key: "gen",
