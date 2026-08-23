@@ -2148,14 +2148,13 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const hotelsList = Array.isArray(logistics.hotels) ? logistics.hotels : [];
     if (selectedHotelId) {
       const matchHotel = hotelsList.find((h: any) => h.id === selectedHotelId);
-      if (matchHotel) {
-        if (matchHotel.pricePerPerson != null && Number.isFinite(Number(matchHotel.pricePerPerson))) {
-          knownAccommodationPerPerson = Number(matchHotel.pricePerPerson);
-        } else if (matchHotel.pricePerNight != null && Number.isFinite(Number(matchHotel.pricePerNight))) {
-          knownAccommodationPerPerson = Number(matchHotel.pricePerNight) * nights;
-        } else if (matchHotel.totalEstimate != null && Number.isFinite(Number(matchHotel.totalEstimate))) {
-          knownAccommodationPerPerson = Number(matchHotel.totalEstimate);
-        }
+      if (
+        matchHotel &&
+        matchHotel.pricePerPerson != null &&
+        Number.isFinite(Number(matchHotel.pricePerPerson)) &&
+        matchHotel.priceStatus !== "unknown"
+      ) {
+        knownAccommodationPerPerson = Number(matchHotel.pricePerPerson);
       }
     }
     if (
@@ -2166,6 +2165,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     ) {
       knownAccommodationPerPerson = Number(recoRow.budget.accommodation);
     }
+
+    const hasStar = Boolean(trip.has_star && (trip.star_user_id || logistics.star_mode));
+    const starPaysShare = logistics.star_pays_share !== false;
 
     let knownTransportPerPerson: number | null = null;
     if (picks.length > 0) {
@@ -2198,6 +2200,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
         Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400,
       accommodationPerPerson: knownAccommodationPerPerson,
       transportPerPerson: knownTransportPerPerson,
+      hasStar,
+      starPaysShare,
       eventType: trip.event_type,
       tripProfile,
       ambiances: aggregated.ambiances ?? [],

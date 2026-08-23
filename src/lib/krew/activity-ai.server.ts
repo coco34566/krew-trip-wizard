@@ -316,6 +316,9 @@ export type GroupPlanningContext = {
     accommodationPerPerson: number | null;
     transportPerPerson: number | null;
     remainingForActivitiesAndFood: number | null;
+    starPaysShare: boolean;
+    travellersCount: number;
+    payingParticipantsCount: number;
   };
   star: {
     starWantedActivities: string[];
@@ -370,6 +373,12 @@ export function buildGroupPlanningContext(
     );
   }
 
+  const travellersCount = brief.participants;
+  const hasStar = input.hasStar === true;
+  const starPaysShare = input.starPaysShare !== false;
+  const payingParticipantsCount =
+    hasStar && !starPaysShare ? Math.max(1, travellersCount - 1) : travellersCount;
+
   return {
     trip: {
       destination: brief.destination,
@@ -402,6 +411,9 @@ export function buildGroupPlanningContext(
       accommodationPerPerson,
       transportPerPerson,
       remainingForActivitiesAndFood,
+      starPaysShare,
+      travellersCount,
+      payingParticipantsCount,
     },
     star: {
       starWantedActivities: input.starWanted ?? [],
@@ -469,6 +481,8 @@ export type ActivityAiInput = {
   forceDiscoveryRefresh?: boolean | undefined;
   accommodationPerPerson?: number | null | undefined;
   transportPerPerson?: number | null | undefined;
+  hasStar?: boolean | undefined;
+  starPaysShare?: boolean | undefined;
 
   // Enriched signals
   activityCategoryFrequencies?: Record<string, number> | undefined;
@@ -2481,7 +2495,7 @@ function categoryFor(raw: any): ActivityCategory {
   return "culture";
 }
 
-function normalizeSlot(
+export function normalizeSlot(
   raw: any,
   input: ActivityAiInput,
   candidates: ActivityCandidate[],
@@ -2504,7 +2518,7 @@ function normalizeSlot(
     ["transport", "libre", "moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(
       String(raw.category),
     );
-  if ((!candidate || candidate.verified !== true) && !internal) return null;
+  if ((!candidate || candidate.verified !== true) && raw.verified !== true && !internal) return null;
   const time =
     typeof raw.time === "string" && HHMM.test(raw.time.slice(0, 5)) ? raw.time.slice(0, 5) : null;
   const durationMinutes = Number.isFinite(Number(raw.durationMinutes))
@@ -2543,13 +2557,15 @@ function normalizeSlot(
     ["verified", "estimated", "free", "unknown"].includes(raw.priceStatus)
       ? raw.priceStatus
       : undefined;
-  const explicitSource =
-    (typeof raw.priceSource === "string" && raw.priceSource.trim() ? raw.priceSource.trim() : null) ??
-    (typeof raw.source === "string" && raw.source.trim() ? raw.source.trim() : null) ??
-    (typeof candidate?.source === "string" && candidate.source.trim() ? candidate.source.trim() : null);
+  const explicitPriceSource =
+    typeof raw.priceSource === "string" && raw.priceSource.trim()
+      ? raw.priceSource.trim()
+      : typeof (candidate as any)?.priceSource === "string" && (candidate as any).priceSource.trim()
+        ? (candidate as any).priceSource.trim()
+        : null;
 
   let effectivePriceStatus: ActivityPriceStatus = "unknown";
-  if (explicitStatus && explicitSource) {
+  if (explicitStatus && explicitPriceSource) {
     if (explicitStatus === "free" && numPrice === 0) {
       effectivePriceStatus = "free";
     } else if (explicitStatus === "verified" && numPrice != null && numPrice >= 0) {
@@ -2569,7 +2585,7 @@ function normalizeSlot(
     ...(numPrice != null ? { priceHint: numPrice, pricePerPerson: numPrice } : {}),
     ...(raw.currency ? { currency: String(raw.currency) } : numPrice != null ? { currency: "EUR" } : {}),
     priceStatus: effectivePriceStatus,
-    priceSource: explicitSource,
+    priceSource: explicitPriceSource,
     time,
     endTime: time ? fromMinutes(toMinutes(time)! + durationMinutes) : null,
     durationMinutes,
@@ -3045,10 +3061,10 @@ export async function regenerateSlotWithAi(
         source: "geoapify",
         latitude: selectedPlace.latitude,
         longitude: selectedPlace.longitude,
-        pricePerPerson: existing.pricePerPerson ?? existing.priceHint ?? null,
-        currency: existing.currency ?? null,
-        priceStatus: existing.priceStatus ?? "unknown",
-        priceSource: existing.priceSource ?? existing.source ?? null,
+        pricePerPerson: existing.priceSource ? existing.pricePerPerson ?? existing.priceHint ?? null : null,
+        currency: existing.priceSource ? existing.currency ?? null : null,
+        priceStatus: existing.priceSource ? existing.priceStatus ?? "unknown" : "unknown",
+        priceSource: existing.priceSource ?? null,
       },
       usedLlm: false,
       updatedPools,
@@ -3067,6 +3083,7 @@ export async function regenerateSlotWithAi(
       { name: candidateAlt.name, website: candidateAlt.sourceUrl, address: candidateAlt.address, latitude: candidateAlt.latitude, longitude: candidateAlt.longitude },
       input.destination,
     );
+    const altPriceSource = existing.priceSource ?? (candidateAlt as any).priceSource ?? null;
     return {
       slot: {
         ...existing,
@@ -3082,10 +3099,10 @@ export async function regenerateSlotWithAi(
         source: candidateAlt.source,
         latitude: candidateAlt.latitude,
         longitude: candidateAlt.longitude,
-        pricePerPerson: existing.pricePerPerson ?? existing.priceHint ?? candidateAlt.priceHint,
-        currency: existing.currency ?? null,
-        priceStatus: existing.priceStatus ?? "unknown",
-        priceSource: existing.priceSource ?? candidateAlt.source ?? existing.source ?? null,
+        pricePerPerson: altPriceSource ? existing.pricePerPerson ?? existing.priceHint ?? candidateAlt.priceHint : null,
+        currency: altPriceSource ? existing.currency ?? null : null,
+        priceStatus: altPriceSource ? existing.priceStatus ?? "unknown" : "unknown",
+        priceSource: altPriceSource,
       },
       usedLlm: false,
       updatedUsedIds: Array.from(usedSet),

@@ -19,6 +19,7 @@ import {
   geminiEnrichSkeleton,
   regenerateSlotWithAi,
   normalizeGeminiParsedResponse,
+  normalizeSlot,
   GEMINI_CONTRACTUAL_PROMPT_TEMPLATE,
   type ActivityAiInput,
 } from "../activity-ai.server";
@@ -3097,6 +3098,79 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("{{GROUP_PLANNING_CONTEXT_JSON}}");
         expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("Tu es le concepteur de planning de KREW.");
       });
+
+      it("A8. Voyage sans Star -> travellersCount = 6, payingParticipantsCount = 6", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Toulouse",
+          nights: 2,
+          participants: 6,
+          budgetPerPerson: 400,
+          hasStar: false,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.travellersCount).toBe(6);
+        expect(ctx.budget.payingParticipantsCount).toBe(6);
+        expect(ctx.budget.starPaysShare).toBe(true);
+      });
+
+      it("A9. Star présente et paie -> travellersCount = 8, starPaysShare = true, payingParticipantsCount = 8", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Biarritz",
+          nights: 2,
+          participants: 8,
+          budgetPerPerson: 400,
+          hasStar: true,
+          starPaysShare: true,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.travellersCount).toBe(8);
+        expect(ctx.budget.payingParticipantsCount).toBe(8);
+        expect(ctx.budget.starPaysShare).toBe(true);
+      });
+
+      it("A10. Star présente et ne paie pas -> travellersCount = 8, starPaysShare = false, payingParticipantsCount = 7", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Marseille",
+          nights: 2,
+          participants: 8,
+          budgetPerPerson: 400,
+          hasStar: true,
+          starPaysShare: false,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.travellersCount).toBe(8);
+        expect(ctx.budget.payingParticipantsCount).toBe(7);
+        expect(ctx.budget.starPaysShare).toBe(false);
+      });
+
+      it("A11. Le budgetPerPerson original n'est PAS modifié quand la Star ne paie pas", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Lille",
+          nights: 2,
+          participants: 8,
+          budgetPerPerson: 400,
+          hasStar: true,
+          starPaysShare: false,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.totalPerPerson).toBe(400);
+      });
     });
 
     describe("Sujet B — qualification des prix d'activités", () => {
@@ -3334,6 +3408,51 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(slotA.moment).toBe(slotB.moment);
         expect(slotA.time).toBe(slotB.time);
         expect(slotA.type).toBe(slotB.type);
+      });
+
+      it("B13. pricePerPerson: 30, priceStatus: 'verified', source: 'geoapify', priceSource absent -> UNKNOWN (non admissible)", () => {
+        const raw = {
+          label: "Monument Geoapify",
+          type: "activite",
+          verified: true,
+          pricePerPerson: 30,
+          priceStatus: "verified",
+          source: "geoapify",
+          priceSource: undefined,
+        };
+        const input: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const normalized = normalizeSlot(raw, input, []);
+        expect(normalized?.priceStatus).toBe("unknown");
+        expect(normalized?.priceSource).toBeNull();
+      });
+
+      it("B14. pricePerPerson: 30, priceStatus: 'verified', priceSource: 'official_web' -> ADMISSIBLE (verified)", () => {
+        const raw = {
+          label: "Château de Versailles",
+          type: "activite",
+          verified: true,
+          pricePerPerson: 30,
+          priceStatus: "verified",
+          priceSource: "official_web",
+        };
+        const input: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const normalized = normalizeSlot(raw, input, []);
+        expect(normalized?.priceStatus).toBe("verified");
+        expect(normalized?.priceSource).toBe("official_web");
       });
     });
   });
