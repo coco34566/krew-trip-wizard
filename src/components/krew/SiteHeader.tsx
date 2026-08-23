@@ -34,7 +34,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center gap-8">
+        <div className="flex min-w-0 items-center gap-8">
           <Link to="/" className="transition-opacity hover:opacity-85">
             <Logo />
           </Link>
@@ -50,7 +50,7 @@ export function SiteHeader() {
             </Link>
           </nav>
         </div>
-        <nav className="flex items-center gap-2.5">
+        <nav className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
           {loading ? null : user ? (
             <>
               <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
@@ -59,7 +59,8 @@ export function SiteHeader() {
               <Button asChild size="sm" className="rounded-xl font-medium">
                 <Link to="/trips/new" className="flex items-center justify-center gap-1.5 text-center">
                   <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
-                  <span>Nouveau voyage</span>
+                  <span className="sm:hidden">Nouveau</span>
+                  <span className="hidden sm:inline">Nouveau voyage</span>
                 </Link>
               </Button>
               <DropdownMenu>
@@ -89,11 +90,14 @@ export function SiteHeader() {
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              <Button asChild variant="ghost" size="sm" className="px-2 text-xs text-muted-foreground hover:text-foreground sm:px-3 sm:text-sm">
                 <Link to="/auth" search={{}}>Connexion</Link>
               </Button>
-              <Button asChild size="sm" className="rounded-xl font-medium">
-                <Link to="/auth" search={{}}>Créer mon voyage</Link>
+              <Button asChild size="sm" className="rounded-xl font-medium px-2.5 sm:px-3">
+                <Link to="/auth" search={{}}>
+                  <span className="sm:hidden">Créer</span>
+                  <span className="hidden sm:inline">Créer mon voyage</span>
+                </Link>
               </Button>
             </>
           )}

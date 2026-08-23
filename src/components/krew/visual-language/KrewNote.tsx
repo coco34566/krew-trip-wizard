@@ -28,8 +28,15 @@ export function KrewNote({ children, variant = "sticky", tone = "cream", rotatio
 }
 
 export function KrewCallout({ children, direction = "right", className }: { children: ReactNode; direction?: "left" | "right" | "down"; className?: string }) {
+  const arrowType =
+    direction === "down"
+      ? "arrow-down"
+      : direction === "left"
+        ? "arrow-curved-left"
+        : "arrow-curved-right";
+
   return <div className={cn("relative inline-flex items-center gap-1", direction === "left" && "flex-row-reverse", direction === "down" && "flex-col", className)}>
     <KrewNote variant="margin" rotation={-2}>{children}</KrewNote>
-    <KrewMark type={direction === "down" ? "arrow-down" : "arrow-curved"} tone="sage" size="md" className={cn(direction === "left" && "scale-x-[-1]")} />
+    <KrewMark type={arrowType} tone="sage" size="md" />
   </div>;
 }

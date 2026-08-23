@@ -426,7 +426,7 @@ export function TripHubDashboard({
 
           {/* C1. PHOTO (z10) : largeur ~calc(100% - 8px), hauteur 260-280px, alignée gauche */}
           <div
-            className="relative z-10 w-[calc(100%-8px)] h-[260px] sm:h-[280px] overflow-hidden"
+            className="relative z-10 w-[calc(100%_-_8px)] h-[260px] sm:h-[280px] overflow-hidden"
             style={{ clipPath: "polygon(0% 0%, 100% 0%, 100% 88%, 88% 100%, 0% 93%)" }}
           >
             <img
@@ -454,8 +454,8 @@ export function TripHubDashboard({
                 className="absolute right-0 bottom-0 w-[130px] sm:w-[160px] h-[65px] sm:h-[75px] text-primary opacity-20 pointer-events-none z-0"
               />
 
-              <h1 className="relative z-10 font-display text-[42px] sm:text-[56px] font-normal leading-[0.94] tracking-tight text-foreground">
-                <span className="relative inline-block">
+              <h1 className="relative z-10 font-display text-[42px] sm:text-[56px] font-normal leading-[0.94] tracking-tight text-foreground max-w-full break-words">
+                <span className="relative inline-block max-w-full">
                   {destinationName || "Destination à définir"}
                   {destinationName ? (
                     <KrewMark
@@ -477,12 +477,12 @@ export function TripHubDashboard({
         </div>
 
         {/* D. MÉTADONNÉES SOUS LE HERO (3 LIGNES SANS WRAP A 390PX) */}
-        <div className="mt-6 space-y-2.5 px-4 font-sans text-[13px] font-medium leading-[1.2] whitespace-nowrap text-foreground">
+        <div className="mt-6 space-y-2.5 px-4 font-sans text-[13px] font-medium leading-[1.2] text-foreground">
           {/* D1. DATES (accent sauge sur les dates uniquement) */}
-          <div className="flex items-center gap-2 text-foreground">
-            <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0" />
+          <div className="flex items-start gap-2 text-foreground min-w-0">
+            <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0 mt-[1px]" />
             {datesLocked && (trip.start_date || provisionalStart) ? (
-              <p className="whitespace-nowrap">
+              <p className="min-w-0">
                 <span className="text-foreground">Dates validées · </span>
                 <KrewHighlight tone="sage" className="px-1 py-0.5 font-medium">
                   {trip.start_date
@@ -516,9 +516,9 @@ export function TripHubDashboard({
           </div>
 
           {/* D3. BUDGET (WORDING RACCOURCI POUR ÉVITER TOUT WRAP) */}
-          <div className="flex items-center gap-2 text-primary font-semibold text-[12.5px]">
+          <div className="flex items-center gap-2 text-primary font-semibold text-[12.5px] min-w-0">
             <KrewIcon name="budget" tone="plum" size="sm" className="size-4 shrink-0" />
-            <div className="whitespace-nowrap">
+            <div className="min-w-0">
               {totalReserved != null && totalEstimated != null ? (
                 <span>Réservé {formatEuro(totalReserved)} · Reste estimé {formatEuro(totalEstimated)}</span>
               ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (

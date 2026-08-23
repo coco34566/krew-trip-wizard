@@ -73,14 +73,14 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
           className="absolute inset-0 w-full h-full z-0 opacity-85 pointer-events-none"
         />
 
-        <div className="relative z-10 flex flex-col gap-2 max-w-[calc(100%-80px)] pr-2">
+        <div className="relative z-10 flex min-w-0 flex-col gap-2 pr-[68px] sm:pr-[76px]">
           {/* Label */}
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/70">
             Prochaine action
           </p>
 
           {/* Titre */}
-          <h2 className="font-display text-[32px] sm:text-[36px] font-normal leading-[0.98] tracking-tight text-primary">
+          <h2 className="font-display text-[32px] sm:text-[36px] font-normal leading-[0.98] tracking-tight text-primary break-words">
             {primary.title}
           </h2>
 
