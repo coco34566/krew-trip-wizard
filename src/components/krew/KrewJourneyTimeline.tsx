@@ -114,6 +114,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
           const isUpcoming = step.status === "upcoming";
           const placeTextRight = point.x < 52;
           const parsed = step.href ? parseStepHref(step.href) : null;
+          const useNativeNavigation = step.id === "preferences" || step.id === "profile";
 
           const content = (
             <div
@@ -178,7 +179,11 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
               className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${point.x}%`, top: `${point.y}%` }}
             >
-              {parsed && !isUpcoming ? (
+              {step.href && !isUpcoming && useNativeNavigation ? (
+                <a href={step.href} className="block no-underline">
+                  {content}
+                </a>
+              ) : parsed && !isUpcoming ? (
                 <Link to={parsed.to as any} search={parsed.search as any} className="block no-underline">
                   {content}
                 </Link>
