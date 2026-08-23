@@ -363,7 +363,11 @@ export function isConcretePlaceProposal(name: string | null | undefined): boolea
     "petit-dejeuner local",
   ];
 
-  if (genericTerms.includes(normName)) return false;
+  const genericCities = new Set([
+    "budapest", "paris", "lyon", "marseille", "bordeaux", "nice", "annecy", "beaune", "lisbonne", "seville", "rome",
+  ]);
+
+  if (genericTerms.includes(normName) || genericCities.has(normName)) return false;
   return true;
 }
 
@@ -473,6 +477,8 @@ export async function tryResolveGeminiProposedPlace(options: {
 
     const normCandidate = candidateName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+    const normDest = destination.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
     for (const hit of hits) {
       const props = hit.properties || {};
       const name = String(props.name || props.address_line1 || "").trim();
@@ -480,10 +486,18 @@ export async function tryResolveGeminiProposedPlace(options: {
 
       const normName = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+      // Ignore city node name match when candidateName is a specific POI/activity
+      if (normName === normDest && normCandidate !== normDest) {
+        continue;
+      }
+
       const isNameMatch =
         normName.includes(normCandidate) ||
         normCandidate.includes(normName) ||
-        normCandidate.split(" ").filter((w) => w.length > 3).some((w) => normName.includes(w));
+        normCandidate
+          .split(" ")
+          .filter((w) => w.length > 3 && w !== normDest)
+          .some((w) => normName.includes(w));
 
       if (!isNameMatch) continue;
 
@@ -1140,6 +1154,27 @@ export function isCandidateCompatibleWithRequirements(
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+
+  // 0. Safeguard against city-level generic POI (e.g., candidate named "Budapest" or viewpoint category) when intent is specific
+  const normCandName = String(candidate.name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const isViewpoint = candCats.some((c) => c.includes("viewpoint"));
+
+  const isRentalOrActivityIntent =
+    normIntent.includes("velo") ||
+    normIntent.includes("rosalie") ||
+    normIntent.includes("location") ||
+    normIntent.includes("rental") ||
+    normIntent.includes("bike") ||
+    normIntent.includes("bicyclette") ||
+    normIntent.includes("karting") ||
+    normIntent.includes("croisiere") ||
+    normIntent.includes("cruise") ||
+    normIntent.includes("thermes") ||
+    normIntent.includes("spa");
+
+  if (isRentalOrActivityIntent && isViewpoint) {
+    return false;
+  }
 
   // 1. Universal Exclusion: Artwork / Sculpture / Statue / Memorial for non-artwork intents
   const isArtwork = candCats.some(

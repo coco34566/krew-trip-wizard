@@ -37,6 +37,8 @@ import {
   tryResolveGeminiProposedPlace,
   isCandidateCompatibleWithRequirements,
   selectGeoapifyCandidate,
+  type GeoapifyPlace,
+  type PlaceRequirements,
 } from "../geoapify.server";
 import { resolveActivityResourceForPlace, resolveActivityResourceUrl, classifyActivityMode, shouldResolveWithPlaceProvider } from "../activity-ai.server";
 import { isTripAdmin } from "../engine";
@@ -2312,6 +2314,58 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  describe("Garde-fous Geoapify Candidate - Test 16", () => {
+    it("candidat Geoapify Budapest/viewpoint pour une intention de location de vélos/rosalies -> rejeté", () => {
+      const cand: GeoapifyPlace = {
+        id: "geo_viewpoint_budapest",
+        name: "Budapest",
+        category: "tourism.attraction, tourism.viewpoint",
+        categories: ["tourism.attraction", "tourism.viewpoint"],
+        address: "Budapest, Hongrie",
+        latitude: 47.50,
+        longitude: 19.05,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify",
+        verified: true,
+      };
+
+      const req: PlaceRequirements = {
+        canonicalFamily: "sport",
+        categories: ["sport"],
+        searchIntent: "location de vélos / rosalies sur l'Île Marguerite",
+      };
+
+      const isCompatible = isCandidateCompatibleWithRequirements(cand, req);
+      expect(isCompatible).toBe(false);
+    });
+
+    it("candidat Geoapify réellement compatible -> comportement actuel inchangé", () => {
+      const cand: GeoapifyPlace = {
+        id: "geo_bike_rental",
+        name: "Bringóhintó Margaret Island",
+        category: "sport, entertainment.activity_park",
+        categories: ["sport", "entertainment.activity_park"],
+        address: "Margitsziget, Budapest",
+        latitude: 47.52,
+        longitude: 19.05,
+        distanceMeters: 500,
+        website: "https://bringohinto.hu",
+        source: "geoapify",
+        verified: true,
+      };
+
+      const req: PlaceRequirements = {
+        canonicalFamily: "sport",
+        categories: ["sport"],
+        searchIntent: "location de vélos / rosalies sur l'Île Marguerite",
+      };
+
+      const isCompatible = isCandidateCompatibleWithRequirements(cand, req);
+      expect(isCompatible).toBe(true);
+    });
   });
 
   describe("Correctifs Bug Thermal Bath vs Beauty Spa & Detail Preservation", () => {
