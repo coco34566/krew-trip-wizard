@@ -558,6 +558,28 @@ export function TripHubDashboard({
         hasItinerary={hasItinerary}
       />
 
+      <nav aria-label="Accès aux informations du voyage" className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-sm">
+        <Link
+          to="/trips/$tripId/questionnaire"
+          params={{ tripId }}
+          className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+        >
+          <KrewIcon name="preferences" tone="plum" size="sm" className="size-4" />
+          Voir mes préférences
+        </Link>
+        {datesLocked ? (
+          <Link
+            to="/trips/$tripId"
+            params={{ tripId }}
+            search={{ view: "voyage", section: "profile" }}
+            className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+          >
+            <KrewIcon name="profile" tone="plum" size="sm" className="size-4" />
+            Voir le profil du voyage
+          </Link>
+        ) : null}
+      </nav>
+
       {children}
     </div>
   );
