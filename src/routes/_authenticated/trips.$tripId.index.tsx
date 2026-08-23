@@ -3228,10 +3228,10 @@ function TripDetail() {
                   </p>
                 </div>
                 <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
-                  <a href="#group-section">
+                  <Link to="/trips/$tripId/invite" params={{ tripId }}>
                     <UserPlus className="size-3.5" />
                     Inviter les participants
-                  </a>
+                  </Link>
                 </Button>
               </div>
             ) : null;

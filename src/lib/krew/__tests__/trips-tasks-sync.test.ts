@@ -290,19 +290,28 @@ describe("Synchronisation, réassignation et UX des tâches (Test 16 & UX fix)",
   });
 
   // TESTS UX & backend reassignTask A-F
-  it("A & B. Condition d'affichage 'Il manque encore du monde'", () => {
-    const isMissingMessageVisible = (participantsCount: number, rawParticipants: any[]) => {
+  it("A & B. Condition d'affichage et navigation du CTA 'Il manque encore du monde'", () => {
+    const getInviteCtaTarget = (participantsCount: number, rawParticipants: any[], tripId: string) => {
       const identifiedActiveCount = rawParticipants.filter((p: any) => p.status !== "absent").length;
-      return Number(participantsCount || 0) > identifiedActiveCount;
+      const isMissing = Number(participantsCount || 0) > identifiedActiveCount;
+      if (!isMissing) return null;
+      return {
+        to: "/trips/$tripId/invite",
+        params: { tripId },
+      };
     };
 
-    // Test A : participants_count = 5, 1 seul participant réels
+    // Test A : participants_count = 5, 1 seul participant réel -> message + CTA pointe vers navigation d'invitation existante
     const rawPartsA = [{ id: "p1", status: "accepte" }];
-    expect(isMissingMessageVisible(5, rawPartsA)).toBe(true);
+    const ctaA = getInviteCtaTarget(5, rawPartsA, "trip-123");
+    expect(ctaA).not.toBeNull();
+    expect(ctaA?.to).toBe("/trips/$tripId/invite");
+    expect(ctaA?.to).not.toBe("#group-section");
+    expect(ctaA?.params.tripId).toBe("trip-123");
 
-    // Test B : participants_count = 2, 2 participants réels
+    // Test B : participants_count = 2, 2 participants réels -> message absent
     const rawPartsB = [{ id: "p1", status: "accepte" }, { id: "p2", status: "accepte" }];
-    expect(isMissingMessageVisible(2, rawPartsB)).toBe(false);
+    expect(getInviteCtaTarget(2, rawPartsB, "trip-123")).toBeNull();
   });
 
   it("C. reassignTask avec participant du même voyage -> succès", async () => {
