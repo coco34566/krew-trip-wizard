@@ -1,193 +1,99 @@
 # KREW — Legal & Compliance Roadmap
 
-> **Document de pilotage interne — version 1 — 15 août 2026**
+> **Document de pilotage interne — révisé le 23 août 2026**
 >
-> Ce document centralise les décisions prises pendant l'audit juridique KREW et leur traduction technique. Il ne constitue pas un avis juridique. Les points marqués « validation juridique » devront être revus avec un professionnel compétent avant le lancement commercial.
+> Ce document centralise les décisions de travail juridiques KREW et leur traduction technique. Il ne constitue pas un avis juridique. Les points nécessitant une validation professionnelle devront être revus avant le lancement commercial.
 
-## 1. Statut actuel de KREW
+## 1. Statut et principes
 
-- KREW est encore en phase de projet et la société n'est pas encore créée.
-- Les mentions légales, l'identité du responsable de traitement, les coordonnées officielles et les informations de société devront être complétées dès la création de la structure.
-- L'objectif est de préparer l'architecture technique et documentaire dès maintenant pour éviter une refonte ultérieure.
+KREW est encore en phase de projet. Les informations légales de la structure devront être complétées lors de sa création.
 
-## 2. Principes directeurs
+Principes de conception : minimisation, limitation des finalités et de la conservation, sécurité/cloisonnement, transparence, droits des personnes et séparation des données lorsque les finalités diffèrent.
 
-KREW applique comme principes de conception :
+## 2. Cookies et traceurs
 
-- minimisation des données ;
-- limitation des finalités ;
-- limitation de la conservation ;
-- sécurité et cloisonnement ;
-- transparence ;
-- respect des droits des personnes ;
-- séparation entre données opérationnelles, données IA et données analytiques/commerciales lorsque leurs finalités diffèrent.
+Expérience retenue : **Tout accepter | Tout refuser | Personnaliser**.
 
-La durée de conservation doit être déterminée selon la finalité ou une obligation légale ; les données ne doivent pas être conservées indéfiniment. Les données arrivées au terme de leur durée doivent être supprimées, anonymisées ou, lorsque nécessaire, archivées avec accès restreint. Référence CNIL : 02/04/2026. 
+Catégories préparées :
+1. traceurs nécessaires ;
+2. mesure & amélioration ;
+3. personnalisation & publicité ;
+4. partenaires & affiliation.
 
-## 3. Cookies et traceurs
+L'ajout d'un fournisseur n'est jamais automatiquement couvert par un ancien consentement. Le fournisseur, la finalité et le mécanisme technique doivent être documentés avant activation lorsque le consentement est requis.
 
-### Décision
+## 3. Fournisseurs et traitements externes
 
-KREW conserve une expérience utilisateur simple :
+La référence technique détaillée est `docs/data-processing-inventory.md`.
 
-**Tout accepter | Tout refuser | Personnaliser**
-
-La personnalisation présente quatre grandes catégories :
-
-1. **Traceurs nécessaires** — authentification, sécurité, fonctionnement et mémorisation du choix ;
-2. **Mesure & amélioration** — audience et performance ;
-3. **Personnalisation & publicité** — personnalisation, publicité, retargeting et réseaux sociaux ;
-4. **Partenaires & affiliation** — suivi de l'affiliation et conversions partenaires.
-
-Le système est préparé pour accueillir les futurs fournisseurs sans charger un traceur non essentiel avant le consentement requis.
-
-### Règle d'évolution
-
-L'ajout futur d'un fournisseur ne doit pas être considéré comme couvert automatiquement par le consentement existant. La finalité, le fournisseur et les informations nécessaires devront être documentés avant activation.
-
-## 4. Fournisseurs et traitements externes
-
-Inventaire technique actuel documenté dans `docs/data-processing-inventory.md` :
-
+À la date de révision, l'architecture comprend notamment :
 - Supabase — base, Auth, Storage ;
 - Vercel — hébergement/exécution ;
-- RapidAPI — passerelle vers des APIs voyage/hébergement ;
-- fournisseurs voyage connectés via RapidAPI ;
-- Open-Meteo — géocodage/météo ;
-- AIMLAPI / OpenAI — fournisseurs IA configurables ;
-- affiliation prévue : Kayak, Booking, Omio, GetYourGuide.
+- Open-Meteo — géocodage/météo/climat ;
+- plusieurs fournisseurs IA configurables selon les moteurs (notamment Gemini, AIMLAPI, OpenAI) ;
+- SearchAPI / recherches externes transport selon configuration ;
+- Travelpayouts / Kiwi pour le flux avion affilié actuel ;
+- GetYourGuide pour les activités réservables affiliées ;
+- des connecteurs voyage/hébergement historiques ou optionnels, dont RapidAPI/StayAPI ;
+- Booking.com / Trip.com via Travelpayouts à considérer comme en attente tant que les programmes ne sont pas approuvés/configurés/testés.
 
-Pour chaque fournisseur, KREW doit documenter avant commercialisation : rôle, données transmises, finalités, durée de conservation, sous-traitants, pays de traitement, DPA, mécanisme de transfert international et modalités d'effacement.
+Kayak et Omio ne doivent pas être décrits comme partenaires d'affiliation actifs simplement parce que des variables ou anciens connecteurs existent encore dans le dépôt.
 
-## 5. Transferts internationaux
+Pour chaque fournisseur réellement activé avant commercialisation : documenter rôle, données transmises, finalité, conservation, sous-traitants, pays, DPA, transfert international et modalités d'effacement.
 
-Un traitement hors EEE n'est pas interdit en soi. Lorsqu'un transfert international existe, KREW doit identifier le pays, le fournisseur, le mécanisme juridique applicable et les mesures supplémentaires nécessaires.
+## 4. Transferts internationaux
 
-Aucun pays, DPA ou mécanisme de transfert ne doit être affirmé dans les documents publics sans vérification auprès du fournisseur concerné et de la configuration effectivement utilisée par KREW.
+Lorsqu'un transfert international existe, identifier le pays, le fournisseur, le mécanisme juridique applicable et les mesures nécessaires. Aucun pays/DPA/mécanisme ne doit être affirmé dans les documents publics sans vérification de la configuration et du contrat effectivement utilisés.
 
-## 6. Conservation des données
+## 5. Conservation des données
 
-### Compte actif
+Règle de travail actuelle pour un compte inactif : **2 ans depuis la dernière action**, avec avertissement préalable, sous réserve des finalités/obligations particulières.
 
-Les données nécessaires au fonctionnement du compte et aux services demandés sont conservées pendant la relation et selon les durées spécifiques applicables à chaque finalité.
+À la suppression volontaire d'un compte, les données personnelles sans finalité restante doivent être supprimées sans délai indu ; les exceptions légales/contentieuses relèvent d'un archivage intermédiaire restreint.
 
-### Compte inactif
+Les données collectives d'un voyage peuvent devoir être préservées pour les autres participants tout en retirant/désidentifiant les informations de la personne supprimée lorsque possible.
 
-Règle opérationnelle retenue : **2 ans depuis la dernière action de l'utilisateur**, avec avertissement préalable. À défaut de réaction, désactivation puis suppression des données personnelles qui n'ont plus de finalité.
+Voir `docs/data-retention-policy.md` pour le détail.
 
-La CNIL indique qu'une suppression après deux ans sans action est proportionnée de manière générale pour les comptes en ligne et recommande d'avertir l'utilisateur avant l'échéance. Cette durée n'est pas une durée légale universelle : les finalités et obligations particulières doivent toujours être examinées. 
+## 6. IA KREW
 
-### Suppression volontaire
+L'utilisation de données pour développer, tester, entraîner, maintenir ou améliorer une IA est une finalité distincte à documenter. Les données envoyées aux fournisseurs externes doivent être minimisées et normalisées ; les identifiants directs doivent être retirés lorsqu'ils ne sont pas nécessaires.
 
-L'utilisateur doit pouvoir demander la suppression de son compte. Les données personnelles qui n'ont plus de finalité doivent être supprimées sans délai indu.
+KREW ne doit pas promettre un effacement absolu d'une information déjà apprise par un modèle tant que cette capacité n'est pas techniquement garantie.
 
-Certaines données peuvent rester en **archivage intermédiaire** lorsqu'une obligation légale l'impose ou lorsqu'elles sont nécessaires à la constatation, l'exercice ou la défense d'un droit, pour la durée applicable et avec accès restreint.
+## 7. Monétisation et affiliation
 
-### Données collectives
+KREW peut monétiser certains clics/réservations via des partenaires d'affiliation. Cela ne constitue pas une autorisation générale de partager ou vendre des données personnelles.
 
-La suppression d'un participant ne doit pas détruire des données nécessaires aux autres membres d'un voyage. Lorsque possible, les informations relatives à la personne supprimée doivent être désidentifiées plutôt que de conserver son identité dans les données collectives.
+Les liens d'affiliation actuels/futurs doivent être distingués des traitements nécessitant un traceur. Lorsqu'un mécanisme d'attribution utilise un traceur soumis à consentement, le chargement et la documentation doivent respecter le choix utilisateur.
 
-### Données anonymisées
+La monétisation future de données personnelles pour une finalité propre d'un partenaire nécessite une analyse juridique spécifique ; elle n'est pas couverte par le consentement cookies général.
 
-Les données réellement anonymisées peuvent être conservées pour statistiques, amélioration du produit et futurs usages compatibles avec leur anonymisation. Une simple pseudonymisation ne rend pas une donnée anonyme : elle reste une donnée personnelle.
+## 8. Paiement et budget
 
-## 7. IA KREW
+Décision produit actuelle : KREW n'est pas un intermédiaire de paiement. Les fonctions de budget, dépenses/répartition et coût estimé peuvent exister, mais aucun encaissement de fonds du groupe ne doit être déduit de ces fonctionnalités sans nouvelle décision produit/juridique.
 
-### Principe
+## 9. Suppression de compte
 
-L'utilisation des données pour développer, tester, entraîner, maintenir ou améliorer une IA constitue une finalité qui doit être documentée séparément. Elle ne justifie pas une conservation illimitée des données personnelles.
+Un mécanisme backend de suppression existe dans Supabase. Les points restant à maintenir/vérifier incluent l'interface et confirmation utilisateur, déconnexion/redirection, archivage intermédiaire, automatisation de l'inactivité, datasets IA, sauvegardes/copies externes et journalisation minimale.
 
-### Architecture cible
+## 10. Documents associés
 
-**Base opérationnelle**
-→ fonctionnement du service
+- `docs/data-processing-inventory.md` — fournisseurs et traitements techniques ;
+- `docs/data-retention-policy.md` — conservation/cycle de vie ;
+- `docs/legal-bases-matrix.md` — matrice de travail des bases légales ;
+- politique de confidentialité / cookies / CGU / mentions légales — à finaliser selon structure et fournisseurs réellement actifs.
 
-**Jeux de données IA séparés**
-→ développement / entraînement / évaluation / amélioration
+## 11. Statuts de conformité
 
-**Données réellement anonymisées**
-→ statistiques / tendances / usages commerciaux compatibles
+**Implémenté / préparé :** architecture CMP, inventaire technique, politique de conservation, mécanismes backend existants à vérifier lors des évolutions.
 
-### Règles
+**À implémenter/finaliser :** automatisation de conservation, cycle de vie complet des datasets IA et sauvegardes, centre de préférences et procédures opérationnelles selon l'état réel du produit.
 
-- extraire uniquement les données nécessaires ;
-- retirer les identifiants directs lorsque leur présence n'est pas nécessaire ;
-- privilégier l'anonymisation lorsque la finalité le permet ;
-- si pseudonymisation seulement, appliquer le RGPD ;
-- attribuer une durée et une date de revue à chaque dataset ;
-- inclure les copies, exports, jeux de test et sauvegardes dans le cycle de vie ;
-- documenter les données envoyées aux fournisseurs IA externes ;
-- vérifier que ces fournisseurs ne réutilisent pas les données KREW pour leur propre entraînement au-delà de ce qui est juridiquement et contractuellement autorisé ;
-- évaluer la capacité de KREW à traiter les demandes d'effacement concernant les datasets et les modèles.
+**À vérifier fournisseur :** DPA, sous-traitants, pays, transferts, conservation, réutilisation IA et traceurs pour chaque fournisseur effectivement activé.
 
-KREW ne promettra pas un effacement absolu d'une information déjà apprise par un modèle tant que la capacité technique correspondante n'est pas garantie.
+**Validation juridique avant commercialisation :** identité du responsable de traitement, bases légales définitives, politique de confidentialité, CGU, mentions légales et traitements/monétisations à risque.
 
-## 8. Monétisation / valorisation future des données
+## 12. Règle de maintenance
 
-La volonté future de valoriser les données KREW ne permet pas de conserver ou de partager librement toutes les données utilisateurs.
-
-Architecture cible :
-
-- données personnelles opérationnelles : service KREW ;
-- données IA : finalité IA documentée et cloisonnée ;
-- données anonymisées : statistiques, tendances et usages commerciaux possibles si l'anonymisation est réelle ;
-- tout partage de données personnelles avec un partenaire pour sa propre finalité doit faire l'objet d'une analyse juridique spécifique et d'une information/base légale appropriée.
-
-Le consentement cookies ne doit pas être présenté comme un consentement général à la monétisation des données personnelles.
-
-## 9. Suppression de compte — état technique
-
-Un mécanisme backend `public.delete_my_account()` a été ajouté dans Supabase.
-
-Il supprime notamment :
-
-- le profil ;
-- les préférences et disponibilités personnelles ;
-- certains votes et données personnelles liées au participant ;
-- les références personnelles dans les voyages lorsque possible ;
-- l'identité Auth Supabase.
-
-### Reste à faire
-
-- interface « Supprimer mon compte » ;
-- confirmation explicite ;
-- déconnexion et redirection ;
-- gestion complète de l'archivage intermédiaire ;
-- automatisation de la règle des deux ans d'inactivité ;
-- procédure d'effacement des datasets IA ;
-- traitement des sauvegardes et copies externes ;
-- journalisation minimale des suppressions sans conserver inutilement les données supprimées.
-
-## 10. Sécurité
-
-Les travaux de sécurité KREW sont suivis séparément dans les audits techniques. Les éléments relatifs aux données personnelles doivent être raccordés à ce document lorsqu'ils ont un impact juridique : contrôle d'accès, exposition de données, secrets, logs, fournisseurs, RLS, suppression et sauvegardes.
-
-## 11. Documents associés
-
-- `docs/data-processing-inventory.md` — inventaire technique des traitements et fournisseurs.
-- `docs/data-retention-policy.md` — politique de conservation et cycle de vie, incluant l'IA.
-- Politique de confidentialité — document public à finaliser avec les informations de la société et les fournisseurs effectivement actifs.
-- Politique cookies — document public à finaliser avec les traceurs effectivement actifs.
-- CGU — à finaliser avant lancement commercial.
-- Mentions légales — à finaliser après création de la société.
-
-## 12. Statuts de conformité
-
-**🟢 Implémenté** — mécanisme CMP préparé ; inventaire technique initial ; politique de conservation ; suppression backend.
-
-**🟡 Décidé / à implémenter** — interface de suppression ; automatisation des comptes inactifs ; cloisonnement et cycle de vie des datasets IA ; gestion des sauvegardes ; centre de préférences accessible après consentement.
-
-**🟠 À vérifier fournisseur** — DPA, sous-traitants, pays, transferts, conservation et réutilisation IA pour chaque fournisseur.
-
-**🔴 Validation juridique avant commercialisation** — identité du responsable de traitement, bases légales définitives, politique de confidentialité, CGU, mentions légales, modèle de monétisation des données personnelles et tout traitement nouveau à risque élevé.
-
-## 13. Journal des décisions — 15 août 2026
-
-- KREW ne sera pas intermédiaire de paiement ; les fonctionnalités « Dépenses du groupe » et « Répartition du budget » sont conservées.
-- Le CMP doit rester simple pour l'utilisateur tout en préparant les futures catégories marketing et partenaires.
-- Le retargeting, les réseaux sociaux, la personnalisation publicitaire et l'affiliation sont prévus dans l'architecture mais ne doivent être activés qu'avec les fournisseurs réellement retenus et le consentement requis.
-- La conservation des données suit la logique : finalité → durée nécessaire → suppression/anonymisation → archivage intermédiaire si obligation légale ou contentieux.
-- Une règle opérationnelle de deux ans d'inactivité est retenue pour les comptes en ligne, avec avertissement préalable, sous réserve des exceptions et finalités particulières.
-- Les données utilisées pour l'IA doivent être traitées comme une finalité distincte et ne doivent pas être conservées indéfiniment simplement parce qu'elles sont utiles à l'entraînement.
-- L'anonymisation est privilégiée pour les futures statistiques et valorisations lorsque possible.
-- La monétisation future de données personnelles nécessitera une analyse spécifique ; elle n'est pas couverte automatiquement par le consentement cookies.
+Toute activation, suppression ou changement de priorité d'un fournisseur externe — notamment affiliation, IA, hébergement, transport ou activité — doit déclencher une revue de `docs/data-processing-inventory.md` et, si le traitement ou le traceur change, de cette roadmap et des documents publics concernés.

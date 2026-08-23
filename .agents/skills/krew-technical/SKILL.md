@@ -10,19 +10,25 @@ Before modifying an architectural component, inspect its dependencies, consumers
 
 ## Application stack
 
-Follow the existing Next.js/React architecture and conventions. Do not introduce framework changes unless required by the task.
+KREW currently uses React 19 with TanStack Start / TanStack Router, Vite, TypeScript, Tailwind CSS and Supabase, deployed through Vercel. Follow the existing architecture and conventions. Do not introduce Next.js, Remix or another framework convention into the application unless an explicit migration is requested.
+
+Routing is file-based under `src/routes/`; `src/routeTree.gen.ts` is generated and must not be edited manually. See `src/routes/README.md` when routing is in scope.
 
 ## Supabase
 
 Before modifying schema, queries, RPCs, authentication, storage or database functions, inspect existing dependencies and affected application flows.
 
-Do not change database behavior without checking consumers and relevant tests.
+Do not change database behavior without checking consumers and relevant tests. Do not read the complete migration history when a targeted schema/query inspection is sufficient.
 
-## External APIs
+## External APIs and providers
 
 Keep provider-specific logic behind appropriate integration boundaries. Normalize external data before it enters core KREW decision logic.
 
-KREW should remain as provider-independent as practical. RapidAPI is an integration gateway where appropriate, not a business-rule authority.
+KREW should remain provider-independent where practical. RapidAPI, Travelpayouts, SearchAPI, GetYourGuide and other providers are integration mechanisms, not business-rule authorities.
+
+Preserve provenance: distinguish live provider offers, external search/deep links and KREW estimates. Never turn an estimate into an apparently verified price, duration or availability.
+
+Provider priorities and current fallbacks are documented in `docs/external_search.md`; inspect that document and the actual integration code before changing a travel provider.
 
 ## Authentication and secrets
 
@@ -32,7 +38,7 @@ Keep secrets in environment configuration. Never hardcode credentials, API keys 
 
 ## Dependencies
 
-Before adding or upgrading a dependency, check current usage, compatibility, build impact and deployment impact. Do not add dependencies for problems already solved by the project.
+Before adding or upgrading a dependency, check current usage, compatibility, build impact and deployment impact. Do not add dependencies for problems already solved by the project. Prefer the committed lockfile and existing package manager workflow.
 
 ## CI and deployment
 
