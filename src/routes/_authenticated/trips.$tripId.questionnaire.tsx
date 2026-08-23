@@ -334,14 +334,13 @@ function ParticipantQuestionnaire() {
 
   return (
     <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate({ to: "/trips/$tripId", params: { tripId } })}
-        className="gap-1.5 text-muted-foreground hover:text-primary px-0 hover:bg-transparent"
+      <Link
+        to="/trips/$tripId"
+        params={{ tripId }}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
-      </Button>
+      </Link>
 
       <div className="space-y-3 relative">
         <div className="flex items-start justify-between gap-4">

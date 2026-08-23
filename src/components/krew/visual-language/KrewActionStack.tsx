@@ -143,7 +143,7 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                 key={action.key}
                 {...(action.href ? { href: action.href } : {})}
                 className={cn(
-                  "grid grid-cols-[40px_1fr_24px] items-center min-h-[68px] border-b border-primary/10 py-2.5 transition-colors group",
+                  "grid grid-cols-[40px_1fr] items-center min-h-[68px] border-b border-primary/10 py-2.5 transition-colors group",
                   action.href && "cursor-pointer",
                 )}
               >
@@ -154,27 +154,23 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                   ) : null}
                 </div>
 
-                {/* COLONNE 2 : Titre + Description */}
-                <div className="min-w-0 pr-2">
-                  <p className="text-sm font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors">
-                    {action.title}
+                {/* COLONNE 2 : Titre avec flèche KrewMark en continuation directe + Description */}
+                <div className="min-w-0 pr-1">
+                  <p className="text-sm font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors inline-flex flex-wrap items-center gap-1.5">
+                    <span>{action.title}</span>
+                    {action.href ? (
+                      <KrewMark
+                        type="arrow-right"
+                        tone="plum"
+                        size="sm"
+                        className="w-[18px] h-[11px] shrink-0 opacity-70 transition-transform group-hover:translate-x-1 group-hover:opacity-100"
+                      />
+                    ) : null}
                   </p>
                   {action.description ? (
                     <p className="mt-0.5 line-clamp-1 text-xs leading-snug text-muted-foreground font-sans">
                       {action.description}
                     </p>
-                  ) : null}
-                </div>
-
-                {/* COLONNE 3 : Arrow-right */}
-                <div className="flex items-center justify-end">
-                  {action.href ? (
-                    <KrewMark
-                      type="arrow-right"
-                      tone="plum"
-                      size="sm"
-                      className="w-[20px] h-[12px] opacity-60 transition-transform group-hover:translate-x-0.5 group-hover:opacity-100"
-                    />
                   ) : null}
                 </div>
               </Tag>

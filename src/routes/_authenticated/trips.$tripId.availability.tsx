@@ -244,6 +244,7 @@ function AvailabilityPage() {
       toast.success("Dates du voyage validées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
     onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 120)),
   });

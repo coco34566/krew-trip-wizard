@@ -79,13 +79,14 @@ import {
   TRIP_STATUS_LABELS,
 } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
-import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
+import { PROFILE_LABELS, STAY_PROFILE_IDS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 import { cn } from "@/lib/utils";
 import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
+import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { KrewJourneyTimeline, type TimelineStep } from "@/components/krew/KrewJourneyTimeline";
 import {
   getTripAvailability,
@@ -1463,8 +1464,13 @@ function TripDetail() {
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-foreground text-sm truncate">
-                              {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
+                            <p className="font-semibold text-foreground text-sm truncate flex items-center">
+                              <span>{p.display_name ?? p.email}</span>
+                              {p.user_id === data.userId ? (
+                                <span className="font-normal text-[11px] text-muted-foreground ml-1.5 shrink-0">
+                                  (Moi)
+                                </span>
+                              ) : null}
                             </p>
                             {isOwner ? (
                               <span className="text-[11px] font-medium text-primary whitespace-nowrap">
@@ -1516,7 +1522,7 @@ function TripDetail() {
                         {p.user_id === data.userId ? (
                           <button
                             type="button"
-                            className="text-xs text-primary font-medium hover:underline ml-2"
+                            className="text-xs text-primary font-medium hover:underline ml-2 whitespace-nowrap"
                             onClick={() => {
                               const nextStatus =
                                 (p.status as string) === "absent" ? "accepte" : "absent";
@@ -1588,7 +1594,7 @@ function TripDetail() {
                 }}
               >
                 <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
-                <span>{shareCopied ? "Copié" : "Copier le lien du voyage"}</span>
+                <span className="whitespace-nowrap">{shareCopied ? "Copié" : "Copier le lien du voyage"}</span>
               </Button>
 
               <Button
@@ -1600,7 +1606,7 @@ function TripDetail() {
                 }}
               >
                 <KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />
-                <span>Inviter via WhatsApp</span>
+                <span className="whitespace-nowrap">Inviter via WhatsApp</span>
               </Button>
 
               {data.isOwner ? (() => {
@@ -1807,7 +1813,7 @@ function TripDetail() {
             const myPrefsDone = Boolean((myPrefsData as any)?.preferences);
             const starDone = Boolean(starData?.preferences);
 
-            const datesReady = datesLocked || Boolean(trip.start_date);
+            const datesReady = datesLocked;
             const profileDone = Boolean(profile?.validated);
             const profileReady = Boolean(
               readiness?.profile.questionnairesReady ||
@@ -1994,10 +2000,9 @@ function TripDetail() {
             <Link
               to="/trips/$tripId"
               params={{ tripId }}
-              search={{ view: "voyage" }}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
-              <ArrowLeft className="size-4" /> Voyage
+              <ArrowLeft className="size-4" /> Retour au voyage
             </Link>
 
       {currentSection === "dates" ? (
@@ -2228,10 +2233,15 @@ function TripDetail() {
       >
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
-              <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
-              Profil du voyage
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
+                <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
+                Profil du voyage
+              </h2>
+              <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+                Style & Ambiance ✨
+              </KrewNote>
+            </div>
             <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
               Sélectionne 1 à 3 profils KREW qui correspondent au séjour du groupe.
             </p>
@@ -2385,10 +2395,15 @@ function TripDetail() {
           <>
             <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
               <div>
-                <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
-                  <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
-                  Destinations proposées
-                </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
+                <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
+                Destination
+              </h2>
+              <KrewNote variant="sticky" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+                Où on va ? 🌍
+              </KrewNote>
+            </div>
                 <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
                   Des destinations sélectionnées pour correspondre aux envies du groupe.
                 </p>
@@ -2611,6 +2626,15 @@ function TripDetail() {
         )}
           </>
         )}
+        {destinationSelected ? (
+          <div className="pt-4 border-t border-border/40 flex justify-end">
+            <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
+              <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "accommodation" }}>
+                Choisir l&apos;hébergement <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
+              </Link>
+            </Button>
+          </div>
+        ) : null}
       </section>
       ) : null}
 
@@ -2629,12 +2653,17 @@ function TripDetail() {
             />
           </div>
 
-          <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
+          <div className="flex flex-wrap items-end justify-between gap-3 pr-20 sm:pr-24">
             <div>
-              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
-                <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
-                Hébergement
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
+                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
+                  Hébergement
+                </h2>
+                <KrewNote variant="tape" tone="sage" rotation={-1} className="hidden sm:inline-block text-xs py-1 px-2.5">
+                  Où on dort 🏡
+                </KrewNote>
+              </div>
               <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
                 Des options d’hébergement adaptées au groupe et au séjour.
               </p>
@@ -2888,10 +2917,15 @@ function TripDetail() {
 
         <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
           <div>
-            <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
-              <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
-              Transport
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
+                <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
+                Transport
+              </h2>
+              <KrewNote variant="sticky" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+                Comment on vient ✈️
+              </KrewNote>
+            </div>
             <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
               Des trajets adaptés au point de départ et aux contraintes de chacun.
             </p>
@@ -2977,9 +3011,9 @@ function TripDetail() {
                           return (
                             <li
                               key={p.userId}
-                              className="flex items-center justify-between gap-2 py-0.5"
+                              className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 py-1 border-b border-border/20 last:border-0"
                             >
-                              <div>
+                              <div className="min-w-0 flex-1 break-words">
                                 <span className="font-medium text-foreground">{p.displayName}</span>
                                 {" · "}
                                 {p.modeLabel || p.mode}
@@ -3092,6 +3126,15 @@ function TripDetail() {
             })()}
           </div>
         )}
+        {destinationSelected ? (
+          <div className="pt-4 border-t border-border/40 flex justify-end">
+            <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
+              <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }}>
+                Organiser le planning <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
+              </Link>
+            </Button>
+          </div>
+        ) : null}
       </section>
       ) : null}
 
@@ -3112,10 +3155,15 @@ function TripDetail() {
 
           <div className="flex flex-wrap items-end justify-between gap-3 pr-0 sm:pr-20">
             <div>
+            <div className="flex items-center gap-3">
               <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
                 <KrewIcon name="planning" tone="plum" size="sm" className="size-5" />
                 Planning
               </h2>
+              <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+                Programme du séjour 🗓️
+              </KrewNote>
+            </div>
               <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
                 Le programme du séjour, jour par jour.
               </p>

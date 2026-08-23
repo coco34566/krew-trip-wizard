@@ -81,31 +81,42 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
 
-    // Authorization: only the trip owner or a participant (by user_id or email) can access the questionnaire
+    // Authorization: owner and co-organizer are trip admins and authorized directly.
+    // Other participants are authorized by user_id or email match in trip_participants.
+    const isTripAdmin =
+      trip.data.owner_id === userId ||
+      trip.data.co_organizer_id === userId ||
+      (trip.data.group_logistics as any)?.co_organizer_id === userId;
+
     const emailRaw = context.claims?.email as string | undefined;
     const email = normalizeEmail(emailRaw);
     let participantRow = null;
-    if (trip.data.owner_id !== userId) {
-      if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire (email manquant)");
-      const participantCheck = await supabase
+
+    if (!isTripAdmin) {
+      let query = supabase
         .from("trip_participants")
         .select("id, user_id, email, display_name")
-        .eq("trip_id", data.tripId)
-        // case-insensitive email match
-        .or(`user_id.eq.${userId},email.ilike.${email}`)
-        .maybeSingle();
+        .eq("trip_id", data.tripId);
+
+      if (email) {
+        query = query.or(`user_id.eq.${userId},email.ilike.${email}`);
+      } else {
+        query = query.eq("user_id", userId);
+      }
+
+      const participantCheck = await query.maybeSingle();
       if (participantCheck.error) throw participantCheck.error;
       if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire");
       participantRow = participantCheck.data;
     } else {
-      const ownerCheck = await supabase
+      const adminCheck = await supabase
         .from("trip_participants")
         .select("id, user_id, email, display_name")
         .eq("trip_id", data.tripId)
         .eq("user_id", userId)
         .maybeSingle();
-      if (!ownerCheck.error && ownerCheck.data) {
-        participantRow = ownerCheck.data;
+      if (!adminCheck.error && adminCheck.data) {
+        participantRow = adminCheck.data;
       }
     }
 
@@ -247,24 +258,35 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Authorization: ensure the user is owner or a listed participant (by user_id or email)
-    const tripRes = await supabase.from("trips").select("id, owner_id, dates_locked").eq("id", data.tripId).maybeSingle();
+    // Authorization: ensure the user is trip admin (owner/co-organizer) or listed participant (by user_id or email)
+    const tripRes = await supabase.from("trips").select("id, owner_id, co_organizer_id, dates_locked, group_logistics").eq("id", data.tripId).maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     if (tripRes.data.dates_locked) {
       throw new Error("Le voyage est verrouillé par l'organisateur, tes réponses ne peuvent plus être modifiées.");
     }
 
+    const isTripAdmin =
+      tripRes.data.owner_id === userId ||
+      tripRes.data.co_organizer_id === userId ||
+      (tripRes.data.group_logistics as any)?.co_organizer_id === userId;
+
     const emailRaw = context.claims?.email as string | undefined;
     const email = normalizeEmail(emailRaw);
-    if (tripRes.data.owner_id !== userId) {
-      if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire (email manquant)");
-      const participantCheck = await supabase
+
+    if (!isTripAdmin) {
+      let query = supabase
         .from("trip_participants")
         .select("id")
-        .eq("trip_id", data.tripId)
-        .or(`user_id.eq.${userId},email.ilike.${email}`)
-        .maybeSingle();
+        .eq("trip_id", data.tripId);
+
+      if (email) {
+        query = query.or(`user_id.eq.${userId},email.ilike.${email}`);
+      } else {
+        query = query.eq("user_id", userId);
+      }
+
+      const participantCheck = await query.maybeSingle();
       if (participantCheck.error) throw participantCheck.error;
       if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire");
     }

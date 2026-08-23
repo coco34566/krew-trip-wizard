@@ -9,6 +9,7 @@ import { resolveShoppingLink, type ShoppingLink } from "@/lib/krew/shopping";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 
 type Props = PackingListInput & {
   tripId?: string;
@@ -181,13 +182,28 @@ export function PackingListCard({
     </ul>
   );
   return (
-    <section className="space-y-6">
-      <div>
-        <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
-          <KrewIcon name="packing" tone="plum" size="sm" className="size-5" />
-          À emporter
-        </h2>
-        <p className="text-xs text-muted-foreground font-sans">
+    <section className="space-y-6 relative overflow-hidden">
+      {/* Mascot otter asset */}
+      <div className="absolute top-0 right-0 pointer-events-none">
+        <img
+          src="/brand/otter-states/trip-preparation.png"
+          alt=""
+          className="w-[60px] sm:w-[72px] h-auto object-contain filter drop-shadow-2xs opacity-85"
+          loading="lazy"
+        />
+      </div>
+
+      <div className="pr-16 sm:pr-20 relative">
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
+            <KrewIcon name="packing" tone="plum" size="sm" className="size-5" />
+            À emporter
+          </h2>
+          <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+            Check-list du séjour 🎒
+          </KrewNote>
+        </div>
+        <p className="text-xs sm:text-sm text-muted-foreground font-sans mt-1">
           Retrouve ici ce qu’il faut prévoir pour le voyage.
         </p>
       </div>

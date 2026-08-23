@@ -32,14 +32,18 @@ function parseStepHref(href: string) {
 
 const PATH_POINTS = [
   { x: 29, y: 5 },
-  { x: 66, y: 16 },
-  { x: 35, y: 28 },
-  { x: 72, y: 40 },
-  { x: 31, y: 52 },
-  { x: 68, y: 64 },
-  { x: 38, y: 76 },
-  { x: 65, y: 88 },
-  { x: 46, y: 97 },
+  { x: 68, y: 13 },
+  { x: 32, y: 21 },
+  { x: 70, y: 29 },
+  { x: 30, y: 37 },
+  { x: 68, y: 45 },
+  { x: 32, y: 53 },
+  { x: 70, y: 61 },
+  { x: 30, y: 69 },
+  { x: 68, y: 77 },
+  { x: 32, y: 85 },
+  { x: 65, y: 92 },
+  { x: 48, y: 97 },
 ];
 
 export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) {
@@ -50,6 +54,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
   );
   const activeProgressIdx = nextActionIdx >= 0 ? nextActionIdx : lastDoneIdx;
   const progress = steps.length > 1 ? Math.max(0, activeProgressIdx) / (steps.length - 1) : 1;
+  const pathD = "M29 5 C48 7 74 9 68 13 C58 19 26 17 32 21 C42 27 80 25 70 29 C58 35 22 33 30 37 C40 43 77 41 68 45 C56 51 24 49 32 53 C44 59 80 57 70 61 C58 67 22 65 30 69 C40 75 77 73 68 77 C56 83 24 81 32 85 C44 90 75 88 65 92 C58 95 52 96 48 97";
 
   return (
     <div className="w-full max-w-[760px] mx-auto px-1 py-1 font-sans">
@@ -70,7 +75,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
         </p>
       </header>
 
-      <div className="relative h-[720px] sm:h-[780px] lg:h-[820px] overflow-hidden">
+      <div className="relative pt-4 pb-2 sm:pt-6 sm:pb-4 overflow-visible h-[800px] sm:h-[880px] lg:h-[920px]">
         <svg
           aria-hidden="true"
           className="absolute inset-0 h-full w-full pointer-events-none"
@@ -79,19 +84,18 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
           fill="none"
         >
           <path
-            d="M29 5 C45 7 74 10 66 16 C56 22 28 21 35 28 C44 34 80 32 72 40 C63 47 22 44 31 52 C40 59 77 56 68 64 C58 71 28 69 38 76 C48 82 75 81 65 88 C59 92 51 94 46 97"
+            d={pathD}
             stroke="var(--secondary)"
-            strokeWidth="0.7"
-            strokeDasharray="1.3 1.4"
+            strokeWidth="1.2"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
             className="opacity-35"
           />
           <path
-            d="M29 5 C45 7 74 10 66 16 C56 22 28 21 35 28 C44 34 80 32 72 40 C63 47 22 44 31 52 C40 59 77 56 68 64 C58 71 28 69 38 76 C48 82 75 81 65 88 C59 92 51 94 46 97"
+            d={pathD}
             pathLength="100"
             stroke="var(--secondary)"
-            strokeWidth="1.15"
+            strokeWidth="2"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
             style={{ strokeDasharray: 100, strokeDashoffset: 100 - progress * 100 }}
@@ -120,30 +124,30 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
             >
               <div
                 className={cn(
-                  "relative shrink-0 flex items-center justify-center rounded-full transition-transform duration-150 group-hover:scale-105",
-                  isDone && "size-8 sm:size-9 bg-sage/20 border border-secondary text-primary shadow-2xs",
-                  isNextAction && "size-11 sm:size-12 bg-primary text-primary-foreground border-2 border-background ring-4 ring-primary/20 shadow-md",
-                  isAvailable && "size-8 sm:size-9 bg-background border border-primary/40 text-primary shadow-2xs",
-                  isUpcoming && "size-7 sm:size-8 bg-background border border-border text-muted-foreground/55",
+                  "relative shrink-0 flex items-center justify-center rounded-full transition-transform duration-150 group-hover:scale-105 z-10",
+                  isDone && "size-10 sm:size-11 bg-sage/20 border-2 border-secondary text-primary shadow-2xs",
+                  isNextAction && "size-13 sm:size-15 bg-primary text-primary-foreground border-2 border-background ring-4 ring-primary/20 shadow-md",
+                  isAvailable && "size-10 sm:size-11 bg-background border-2 border-primary/40 text-primary shadow-2xs",
+                  isUpcoming && "size-8 sm:size-9 bg-background border border-border text-muted-foreground/55",
                 )}
               >
                 <KrewIcon
                   name={step.iconName}
                   size="sm"
                   tone={isNextAction ? "cream" : isDone || isAvailable ? "plum" : "muted"}
-                  className={isNextAction ? "size-5" : "size-4"}
+                  className={isNextAction ? "size-6 sm:size-7" : "size-5"}
                 />
                 {isDone ? (
-                  <span className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-secondary text-white text-[8px] font-bold shadow-2xs">
+                  <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-secondary text-white text-[9px] font-bold shadow-2xs">
                     ✓
                   </span>
                 ) : null}
               </div>
 
-              <div className={cn("relative min-w-0 max-w-[150px] sm:max-w-[220px]", isNextAction && "max-w-[180px] sm:max-w-[250px]") }>
+              <div className={cn("relative min-w-0 max-w-[170px] sm:max-w-[240px]", isNextAction && "max-w-[200px] sm:max-w-[270px]") }>
                 {isNextAction ? (
-                  <div className={cn("absolute -top-8 z-20 pointer-events-none", placeTextRight ? "left-0" : "right-0")}>
-                    <KrewNote variant="label" tone="cream" rotation={placeTextRight ? -2 : 2} className="whitespace-nowrap px-2.5 py-1 text-[11px] sm:text-xs">
+                  <div className={cn("absolute -top-9 z-20 pointer-events-none", placeTextRight ? "left-0" : "right-0")}>
+                    <KrewNote variant="label" tone="cream" rotation={placeTextRight ? -2 : 2} className="whitespace-nowrap px-3 py-1 text-xs sm:text-sm">
                       Prochaine étape
                     </KrewNote>
                   </div>
@@ -151,7 +155,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
                 <h3
                   className={cn(
                     "font-display leading-tight transition-colors",
-                    isNextAction ? "text-lg sm:text-xl font-medium text-foreground" : "text-sm sm:text-base font-normal",
+                    isNextAction ? "text-xl sm:text-2xl font-medium text-foreground" : "text-base sm:text-lg font-normal",
                     isDone && "text-foreground/90",
                     isAvailable && "text-foreground group-hover:text-primary",
                     isUpcoming && "text-muted-foreground/65",

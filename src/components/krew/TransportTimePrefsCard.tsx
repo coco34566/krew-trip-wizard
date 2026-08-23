@@ -50,7 +50,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   });
 
   // 2. Fetch all transport time preferences for the group
-  const { data: groupPrefs, refetch: refetchGroup } = useQuery({
+  const { data: groupPrefs } = useQuery({
     queryKey: ["group-transport-time-prefs", tripId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -90,57 +90,68 @@ export function TransportTimePrefsCard({ tripId }: Props) {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (e: any) => {
-      toast.error(String(e?.message ?? "Erreur lors de l'sauvegarde."));
+      toast.error(String(e?.message ?? "Erreur lors de la sauvegarde."));
     },
   });
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-background p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <KrewIcon name="time" tone="plum" size="sm" className="size-4" />
-        <h3 className="font-display text-lg font-normal text-foreground">
-          Horaires de transport
-        </h3>
+    <div className="rounded-2xl border border-border/60 bg-surface/30 p-4 sm:p-5 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <KrewIcon name="time" tone="plum" size="sm" className="size-5 shrink-0" />
+          <h3 className="font-display text-lg font-normal text-foreground">
+            Mes créneaux horaires
+          </h3>
+        </div>
+        <p className="text-xs text-muted-foreground font-sans">
+          Mes disponibilités pour les trajets aller et retour
+        </p>
       </div>
-      <p className="text-xs text-muted-foreground font-sans">
-        Indiquer l’heure de départ la plus tôt possible et l’heure limite de retour.
-      </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end w-full">
-        <div className="min-w-0 w-full">
-          <label className="text-xs font-medium text-foreground block mb-1 truncate">
-            Départ au plus tôt
-          </label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Zone ALLER */}
+        <div className="rounded-xl border border-border/50 bg-background p-3.5 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary font-mono">
+            <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5 shrink-0" />
+            <span>ALLER · Départ</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground font-sans">
+            Disponible au plus tôt à partir de :
+          </p>
           <Input
             type="time"
-            className="h-9 text-xs rounded-xl w-full min-w-0"
+            className="h-9 text-xs font-mono rounded-lg w-full bg-surface/20 border-border/60 focus:border-primary"
             value={earliest}
             onChange={(e) => setEarliest(e.target.value)}
           />
         </div>
-        <div className="min-w-0 w-full">
-          <label className="text-xs font-medium text-foreground block mb-1 truncate">
-            Retour au plus tard
-          </label>
+
+        {/* Zone RETOUR */}
+        <div className="rounded-xl border border-border/50 bg-background p-3.5 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary font-mono">
+            <KrewIcon name="train" tone="plum" size="sm" className="size-3.5 shrink-0" />
+            <span>RETOUR · Arrivée</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground font-sans">
+            Impératif de rentrer au plus tard avant :
+          </p>
           <Input
             type="time"
-            className="h-9 text-xs rounded-xl w-full min-w-0"
+            className="h-9 text-xs font-mono rounded-lg w-full bg-surface/20 border-border/60 focus:border-primary"
             value={latest}
             onChange={(e) => setLatest(e.target.value)}
           />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-border/40">
         <p className="text-xs text-muted-foreground font-sans">
           {groupWindow.earliestDeparture || groupWindow.latestReturn ? (
-            <span>
-              Groupe :
-              {groupWindow.earliestDeparture
-                ? ` départ au plus tôt à ${groupWindow.earliestDeparture}`
-                : ""}
+            <span className="font-mono">
+              Synthèse groupe :
+              {groupWindow.earliestDeparture ? ` Aller dès ${groupWindow.earliestDeparture}` : ""}
               {groupWindow.earliestDeparture && groupWindow.latestReturn ? " · " : ""}
-              {groupWindow.latestReturn ? `retour au plus tard à ${groupWindow.latestReturn}` : ""}
+              {groupWindow.latestReturn ? `Retour avant ${groupWindow.latestReturn}` : ""}
             </span>
           ) : (
             <span>Aucune contrainte horaire définie pour le groupe.</span>
@@ -151,14 +162,14 @@ export function TransportTimePrefsCard({ tripId }: Props) {
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending || isMyPrefsLoading}
           size="sm"
-          className="h-8 rounded-xl text-xs px-3 font-medium"
+          className="h-8 rounded-xl text-xs px-4 font-medium self-end sm:self-auto shrink-0"
         >
           {saveMutation.isPending ? (
-            <Loader2 className="size-3.5 animate-spin mr-1" />
+            <Loader2 className="size-3.5 animate-spin mr-1.5" />
           ) : (
-            <KrewIcon name="check" tone="plum" size="sm" className="size-3.5 mr-1" />
+            <KrewIcon name="check" tone="plum" size="sm" className="size-3.5 mr-1.5" />
           )}
-          Enregistrer
+          Enregistrer mes créneaux
         </Button>
       </div>
     </div>
