@@ -51,7 +51,7 @@ function Landing() {
       <main>
         <section className="relative overflow-hidden bg-background py-8 sm:py-10 lg:py-12">
           <KrewOrganicBlob tone="sage" variant="soft" className="absolute -top-12 -left-12 w-[350px] sm:w-[500px] h-[300px] sm:h-[400px] opacity-40 pointer-events-none z-0" />
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative z-10">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
             <div className="grid lg:grid-cols-12 gap-6 lg:gap-10 items-center">
               <div className="lg:col-span-7 space-y-4 sm:space-y-5">
                 <div className="relative">
@@ -92,7 +92,7 @@ function Landing() {
         </section>
 
         <section className="bg-sage/12 border-y border-border/60 py-3.5 sm:py-4">
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-4 text-sm">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-4 text-sm">
             <span className="mr-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono shrink-0">Idéal pour</span>
             <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-0 gap-y-2">
               {IDEAL_FOR_TYPES.map((ev, index) => (
@@ -104,9 +104,9 @@ function Landing() {
           </div>
         </section>
 
-        <section className="relative overflow-hidden py-10 sm:py-14 bg-background">
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative">
-            <div className="flex items-end justify-between gap-4 mb-6 sm:mb-8">
+        <section className="relative overflow-hidden py-8 sm:py-10 bg-background">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 relative">
+            <div className="flex items-end justify-between gap-4 mb-5 sm:mb-6">
               <div className="space-y-0.5">
                 <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LE PLAN</span>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono">Comment ça marche</p>
@@ -117,7 +117,7 @@ function Landing() {
               </div>
               <img src="/brand/otter-states/trip-progress.png" alt="Loutre KREW organisation" className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 filter drop-shadow-xs" />
             </div>
-            <div className="grid gap-6 sm:gap-8 lg:grid-cols-3 relative z-10">
+            <div className="grid gap-5 sm:gap-6 lg:grid-cols-3 relative z-10">
               {STEPS.map((step) => (
                 <div key={step.number} className="flex sm:flex-col items-start gap-4 sm:gap-3">
                   <div className="flex items-center gap-3 shrink-0">
@@ -135,10 +135,10 @@ function Landing() {
           </div>
         </section>
 
-        <section className="w-full bg-sage/15 py-12 sm:py-16 relative overflow-hidden border-y border-border/50">
+        <section className="w-full bg-sage/15 py-10 sm:py-12 relative overflow-hidden border-y border-border/50">
           <KrewOrganicBlob tone="plum" variant="soft" className="absolute top-0 right-0 w-[400px] h-[300px] opacity-15 pointer-events-none z-0" />
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
               <div>
                 <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LE MOMENT</span>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono mt-0.5">L&apos;expérience du groupe</p>
@@ -156,9 +156,8 @@ function Landing() {
                   <div className="absolute bottom-4 left-4 right-4 text-white"><span className="text-[10px] font-mono font-semibold uppercase tracking-wider bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full">Week-end entre amis</span><p className="font-display text-lg sm:text-2xl font-normal mt-1 leading-snug">Lisbonne · 8 personnes</p></div>
                 </div>
               </div>
-              <div className="lg:col-span-7 space-y-6 relative">
-                <div className="absolute -top-4 right-2 z-20 hidden sm:block pointer-events-none"><KrewNote variant="sticky" tone="cream" rotation={3} className="text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[130px]">100% validé par l’équipe ✨</KrewNote></div>
-                <div className="p-5 sm:p-6 rounded-2xl bg-background border border-border shadow-xs space-y-4">
+              <div className="lg:col-span-7 space-y-5 relative">
+                <div className="p-4 sm:p-5 rounded-2xl bg-background border border-border/60 shadow-2xs space-y-3.5">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div><span className="text-xs font-semibold uppercase tracking-wider bg-primary/10 px-2.5 py-1 rounded-md text-primary font-mono">Exemple de projet final</span><h3 className="font-display text-2xl sm:text-3xl font-normal text-foreground mt-1">Retrouvailles à Lisbonne</h3><p className="text-xs sm:text-sm text-muted-foreground">Organisé par Thomas · 8 participants</p></div>
                     <div><p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider font-mono">Budget / personne</p><KrewHighlight tone="sage" className="font-mono text-2xl sm:text-3xl font-bold text-primary mt-1 inline-block px-3 py-1">~360 €</KrewHighlight></div>
@@ -174,9 +173,10 @@ function Landing() {
           </div>
         </section>
 
-        <section className="bg-background py-12 sm:py-16 relative overflow-hidden">
+        <section className="bg-background py-10 sm:py-12 relative overflow-hidden">
           <KrewOrganicBlob tone="sage" variant="soft" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] opacity-20 pointer-events-none z-0" />
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative z-10">
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
+            <KrewMark type="sparkle" tone="sage" size="sm" className="absolute top-2 right-10 size-6 opacity-60 pointer-events-none" />
             <div className="max-w-xl text-center mx-auto mb-8 sm:mb-10"><span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LA TEAM</span><p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono mt-0.5">Ce que KREW fait pour toi</p><h2 className="mt-1 font-display text-3xl sm:text-4xl font-normal text-foreground relative inline-block">Moins de débats, plus de départ<KrewMark type="underline-wave" tone="sage" size="md" className="mt-1 w-[140px] mx-auto opacity-80 pointer-events-none" /></h2></div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"><FeatureBlock iconName="destination" title="Destinations adaptées" text="Des propositions qui tiennent compte des envies, du budget et des contraintes du groupe." /><FeatureBlock iconName="budget" title="Budget transparent" text="Transport, hébergement, activités — estimés par personne." /><FeatureBlock iconName="vote" title="Décision collective" text="Chacun partage ses préférences, puis le groupe avance ensemble." /><FeatureBlock iconName="planning" title="Planning jour par jour" text="Restaurants, activités et temps forts réunis dans un programme clair." /></div>
           </div>

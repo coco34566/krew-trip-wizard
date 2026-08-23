@@ -77,7 +77,7 @@ function FeaturedTripCard({
         </KrewNote>
       </div>
 
-      <article className="group relative overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-xs transition-all hover:border-primary/50">
+      <article className="group relative overflow-hidden rounded-[24px] border border-border/70 bg-background shadow-2xs transition-all hover:border-primary/50">
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
           <div className="grid lg:grid-cols-12 items-stretch">
             <div className="lg:col-span-5 relative aspect-[16/10] lg:aspect-auto w-full overflow-hidden bg-surface/50 border-b lg:border-b-0 lg:border-r border-border/40">
@@ -93,8 +93,8 @@ function FeaturedTripCard({
               )}
             </div>
 
-            <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-6">
-              <div className="space-y-3">
+            <div className="lg:col-span-7 p-5 sm:p-6 flex flex-col justify-between space-y-5">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
                     {eventTypeLabel(trip.event_type)}
@@ -132,11 +132,11 @@ function FeaturedTripCard({
                   ) : null}
                 </div>
 
-                <h3 className="font-display text-3xl sm:text-4xl font-normal text-foreground group-hover:text-primary transition-colors">
+                <h3 className="font-display text-2xl sm:text-3xl font-normal text-foreground group-hover:text-primary transition-colors leading-snug">
                   {trip.name}
                 </h3>
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:text-base text-muted-foreground pt-1">
+                <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs sm:text-sm text-muted-foreground pt-0.5">
                   {trip.destination_name ? (
                     <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                       <KrewIcon name="destination" tone="plum" size="sm" className="size-4" />
@@ -160,8 +160,8 @@ function FeaturedTripCard({
                 </div>
               </div>
 
-              <div className="pt-4 flex items-center justify-between border-t border-border/50">
-                <span className="inline-flex items-center gap-2 text-sm sm:text-base font-semibold text-primary transition-transform group-hover:translate-x-1">
+              <div className="pt-3 flex items-center justify-between border-t border-border/50">
+                <span className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-primary transition-transform group-hover:translate-x-1">
                   Continuer l'organisation <KrewMark type="arrow-right" tone="plum" size="md" className="size-4" />
                 </span>
               </div>
@@ -311,30 +311,30 @@ function Dashboard() {
   const archivedTrips = (data?.archivedTrips ?? []) as Trip[];
 
   return (
-    <main className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8 sm:space-y-12">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 relative">
-        <div className="space-y-2 relative">
+    <main className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative">
+        <div className="space-y-1 relative">
           <KrewOrganicBlob
             tone="sage"
             variant="soft"
             className="absolute -top-4 -left-4 w-[180px] sm:w-[260px] h-[80px] opacity-40 pointer-events-none z-0"
           />
           <div className="relative inline-block z-10">
-            <h1 className="font-display text-[40px] sm:text-[44px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
+            <h1 className="font-display text-[36px] sm:text-[42px] lg:text-[48px] font-normal leading-[0.98] tracking-tight text-foreground">
               Mes voyages
             </h1>
             <KrewMark
               type="underline-wave"
               tone="sage"
               size="md"
-              className="absolute left-0 -bottom-2 w-[120px] lg:w-[180px] pointer-events-none"
+              className="absolute left-0 -bottom-1.5 w-[120px] lg:w-[160px] pointer-events-none"
             />
           </div>
-          <p className="text-sm sm:text-base text-muted-foreground pt-1 font-sans">
+          <p className="text-xs sm:text-sm text-muted-foreground pt-0.5 font-sans">
             Tes projets en cours et tes invitations reçues.
           </p>
         </div>
-        <Button asChild className="self-start sm:self-auto rounded-xl font-medium">
+        <Button asChild className="min-h-[44px] rounded-xl font-medium px-5 self-start sm:self-auto">
           <Link to="/trips/new" className="flex items-center justify-center gap-1.5 text-center">
             <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
             <span>Nouveau voyage</span>
@@ -343,7 +343,7 @@ function Dashboard() {
       </div>
 
       {(watchData?.watches?.length ?? 0) > 0 ? (
-        <div className="price-watch-banner space-y-2 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-sm text-foreground">
+        <div className="price-watch-banner space-y-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs sm:text-sm text-foreground">
           {(watchData?.watches ?? []).slice(0, 5).map((w: any) => {
             const when = w.last_checked_at
               ? new Date(w.last_checked_at).toLocaleDateString("fr-FR", {
@@ -355,17 +355,20 @@ function Dashboard() {
             const tripName = (w.trips as any)?.name ?? "Voyage";
             const dest = w.destination_name ?? "destination";
             return (
-              <p key={w.id}>
-                💡 Pense à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
-                bougent vite. Dernière vérif. : {when}.{" "}
-                <Link
-                  to="/trips/$tripId"
-                  params={{ tripId: w.trip_id }}
-                  search={{ view: "voyage" }}
-                  className="font-medium text-primary underline-offset-2 hover:underline"
-                >
-                  Ouvrir le récap
-                </Link>
+              <p key={w.id} className="flex items-start gap-2">
+                <KrewIcon name="attention" tone="plum" size="sm" className="size-4 shrink-0 mt-0.5" />
+                <span>
+                  Pense à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
+                  bougent vite. Dernière vérif. : {when}.{" "}
+                  <Link
+                    to="/trips/$tripId"
+                    params={{ tripId: w.trip_id }}
+                    search={{ view: "voyage" }}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    Ouvrir le récap
+                  </Link>
+                </span>
               </p>
             );
           })}

@@ -1635,7 +1635,7 @@ function TripDetail() {
           {costSplitData?.split ? (
             <section
               id="hub-cost-split"
-              className="mt-12 space-y-4 scroll-mt-24"
+              className="mt-8 space-y-4 scroll-mt-24"
             >
               <div>
                 <div className="relative inline-flex items-center gap-2 py-0.5 px-1">
@@ -2007,11 +2007,11 @@ function TripDetail() {
 
       {currentSection === "dates" ? (
       <section
-        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        className="mt-6 sm:mt-8 space-y-4 rounded-2xl border border-border/40 bg-card p-5 sm:p-6 scroll-mt-24"
         id="hub-dates"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+          <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
             <CalendarDays className="size-5 text-primary" />
             Dates du groupe
           </h2>
@@ -2119,8 +2119,47 @@ function TripDetail() {
               {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
                 <li
                   key={`${w.start}-${w.end}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-surface/20 px-4 py-3"
                 >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm">
+                      {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
+                      {new Date(w.start + "T12:00:00").toLocaleDateString("fr-FR")} →{" "}
+                      {new Date(w.end + "T12:00:00").toLocaleDateString("fr-FR")}
+                      <span className="ml-2 text-xs text-muted-foreground font-mono">
+                        {w.covered}/{w.total} · {Math.round((w.coverageRatio ?? 0) * 100)} %
+                      </span>
+                    </p>
+                    {(w.availablePeople?.length ?? 0) > 0 ? (
+                      <p className="mt-0.5 text-xs text-primary">
+                        <KrewIcon name="check" tone="sage" size="sm" className="size-3.5 inline mr-1" />
+                        {w.availablePeople.map((p: any) => p.name).join(", ")}
+                      </p>
+                    ) : null}
+                    {(w.unavailablePeople?.length ?? 0) > 0 ? (
+                      <p className="mt-0.5 text-xs text-destructive/80">
+                        {w.unavailablePeople.map((p: any) => p.name).join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                  {data.isOwner ? (
+                    <Button
+                      size="sm"
+                      variant={i === 0 ? "default" : "outline"}
+                      className="h-9 rounded-xl text-xs"
+                      disabled={chooseDatesMutation.isPending}
+                      onClick={() => chooseDatesMutation.mutate({ start: w.start, end: w.end })}
+                    >
+                      {chooseDatesMutation.isPending ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Lock className="size-3.5" />
+                      )}
+                      Valider ces dates
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm">
                       {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
@@ -2229,12 +2268,12 @@ function TripDetail() {
       {currentSection === "profile" ? (
       <section
         id="hub-profile"
-        className="mt-8 space-y-4 bg-surface/50 rounded-[20px] p-5 sm:p-7 scroll-mt-24"
+        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] border border-border/40 p-5 sm:p-7 scroll-mt-24"
       >
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
+              <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
                 <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
                 Profil du voyage
               </h2>
@@ -2365,7 +2404,7 @@ function TripDetail() {
       {currentSection === "destination" ? (
       <section
         id="hub-destination"
-        className="mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-6 sm:mt-8 space-y-4 bg-sage/12 rounded-[20px] border border-border/40 p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter destination asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -2641,8 +2680,15 @@ function TripDetail() {
       {currentSection === "accommodation" && destinationSelected ? (
         <section
           id="hub-logistics"
-          className="mt-8 space-y-4 bg-background border-b border-border/40 pb-8 scroll-mt-24 relative overflow-hidden"
+          className="mt-6 sm:mt-8 space-y-4 bg-background border-b border-border/40 pb-8 scroll-mt-24 relative overflow-hidden"
         >
+          <div className="flex flex-wrap items-end justify-between gap-3 pr-20 sm:pr-24">
+            <div>
+              <div className="flex items-center gap-3">
+                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
+                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
+                  Hébergement
+                </h2>
           {/* Otter accommodation asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
             <img
@@ -2903,7 +2949,7 @@ function TripDetail() {
       {currentSection === "transport" ? (
       <section
         id="hub-transports"
-        className="mt-8 space-y-4 bg-surface/50 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] border border-border/40 p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter transport asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -3141,7 +3187,7 @@ function TripDetail() {
       {currentSection === "planning" && destinationSelected ? (
         <section
           id="hub-activities-plan"
-          className="mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+          className="mt-6 sm:mt-8 space-y-4 bg-sage/12 rounded-[20px] border border-border/40 p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter planning asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">

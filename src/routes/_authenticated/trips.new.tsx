@@ -119,7 +119,7 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
       <Link
         to="/dashboard"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"

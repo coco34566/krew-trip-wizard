@@ -29,7 +29,7 @@ export function CostSplitCard({ split, tripName }: Props) {
 
       <div className="mt-5 space-y-4">
         {/* Nappe sauge pâle pour les postes principaux */}
-        <div className="bg-sage/18 border border-sage/25 rounded-2xl p-4 text-xs font-sans space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+        <div className="bg-sage/18 border border-sage/20 rounded-2xl p-4 text-xs font-sans space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4 shadow-none">
           <p>
             <span className="text-muted-foreground">Hébergement : </span>
             <span className="font-mono font-semibold text-foreground">{formatEuro(split.accommodation)}</span>
@@ -75,7 +75,7 @@ export function CostSplitCard({ split, tripName }: Props) {
         {/* Mobile Stacked View */}
         <div className="md:hidden space-y-3">
           {split.lines.map((l) => (
-            <div key={l.city} className="rounded-2xl border border-border/50 bg-background/50 p-3.5 text-sm space-y-1.5">
+            <div key={l.city} className="rounded-2xl border border-border/40 p-3.5 text-sm space-y-1.5 shadow-none">
               <div className="flex justify-between items-center border-b border-border/40 pb-1.5">
                 <span className="text-xs text-muted-foreground font-medium">Participant (Ville)</span>
                 <span className="font-medium text-foreground">{l.city}</span>
@@ -111,7 +111,7 @@ export function CostSplitCard({ split, tripName }: Props) {
         <div className="pt-2 text-right">
           <Button
             type="button"
-            className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-10 px-5 text-xs font-semibold inline-flex items-center gap-2 shadow-none"
+            className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl min-h-[44px] px-5 text-xs font-semibold inline-flex items-center justify-center gap-2 shadow-none w-full sm:w-auto"
             onClick={handleWhatsApp}
           >
             <KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />
