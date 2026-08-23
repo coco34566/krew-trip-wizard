@@ -1,387 +1,77 @@
-# Krew: Your Group Trip Planner
+# KREW
 
-## Destination discovery AI
+KREW est une application d'organisation de voyages en groupe : disponibilités, préférences, profil du séjour, recommandations de destinations, hébergements, transports, activités, planning, tâches, budget et préparation du voyage.
 
-Destination discovery uses server-only OpenAI-compatible providers in this order:
-Gemini, AIMLAPI, then OpenAI. Configure `GEMINI_API_KEY` and optionally
-`GEMINI_MODEL` (default: `gemini-2.5-flash`). Gemini only explores candidates;
-KREW's deterministic enrichment, hard constraints, and scoring remain authoritative.
+## Stack actuelle
 
-Crée une application web complète appelée Krew, une plateforme intelligente d’organisation de voyages de groupe (principalement EVG/EVJF mais extensible à tous types de voyages entre amis).
+- React 19
+- TanStack Start / TanStack Router
+- Vite + TypeScript
+- Tailwind CSS
+- Supabase (base de données, Auth, Storage)
+- Vercel pour le déploiement
+- Vitest + Playwright pour les tests
 
-Vision du projet
+Le routage est file-based sous `src/routes/`. Voir `src/routes/README.md` pour les conventions.
 
-Krew permet à un groupe d’amis de créer facilement un voyage mémorable sans devoir organiser manuellement toutes les étapes. L’utilisateur remplit un questionnaire détaillé, puis la plateforme analyse les besoins du groupe et propose une expérience complète : destination, activités, hébergements, transports, budget et planning.
+## Architecture produit
 
-L’objectif est de devenir un assistant intelligent d’organisation de voyages de groupe.
+Le moteur KREW suit globalement la chaîne :
 
-Fonctionnement principal
+questionnaires + disponibilités → profil de groupe/séjour → découverte de candidats → enrichissement externe → contraintes dures → scoring déterministe → shortlist → hébergement/transport → activités/planning → préparation du voyage.
 
-1. Création d’un projet voyage
+Les LLM peuvent participer à la découverte ou à la formulation, mais les contraintes dures et le scoring déterministe KREW restent autoritaires. Les données externes réelles et les estimations doivent rester distinguables.
 
-L’utilisateur crée un nouveau voyage avec :
+## Intégrations voyage
 
-Nom de l’événement
+Les intégrations évoluent ; `docs/external_search.md` est la référence opérationnelle avant toute modification d'un provider.
 
-Type d’événement :
+État actuel important :
+- activités réservables : GetYourGuide affilié lorsqu'un résultat pertinent existe ;
+- avion sans offre live exploitable : Kiwi via Travelpayouts est la recherche externe principale ; Google Flights peut rester secondaire ;
+- Kayak et Omio ne sont pas les fallbacks principaux actuels ;
+- train : SNCF Connect / Trainline selon le flux ;
+- voiture/covoiturage : comportement existant Google Maps / BlaBlaCar à préserver ;
+- Booking.com / Trip.com via Travelpayouts : ne pas considérer comme live tant que validation/configuration et tests ne sont pas terminés.
 
+## Règles de contribution pour agents
 
+Commencer par `AGENTS.md` puis lire uniquement le skill/document pertinent :
+- `.agents/skills/krew-core/SKILL.md` — méthode, sécurité des changements, validation ;
+- `.agents/skills/krew-product/SKILL.md` — invariants produit et moteurs ;
+- `.agents/skills/krew-technical/SKILL.md` — architecture, Supabase, APIs, déploiement ;
+- `DESIGN.md` — langage visuel KREW ;
+- `docs/external_search.md` — providers voyage, fallbacks, affiliation ;
+- `docs/recommendation-engine-audit.md` — détails du moteur de recommandation.
 
-EVG
+Les fichiers sous `archive/`, `docs/archive/` et `.lovable/plan/` sont historiques et ne sont pas des sources de vérité actuelles.
 
-EVJF
-
-Anniversaire
-
-Weekend entre amis
-
-Voyage de groupe
-
-Date ou période souhaitée
-
-Nombre de participants
-
-Budget par personne
-
-Ville de départ des participants
-
-2. Questionnaire intelligent
-
-Créer un parcours sous forme de wizard avec plusieurs étapes :
-
-Profil du groupe
-
-Nombre de personnes
-
-Âge moyen
-
-Relation avec la personne célébrée
-
-Ambiance recherchée :
-
-
-
-fête
-
-aventure
-
-détente
-
-luxe
-
-insolite
-
-sportif
-
-culturel
-
-Préférences voyage
-
-Destination souhaitée ou possibilité de laisser l’IA proposer
-
-Distance maximale
-
-Pays acceptés/refusés
-
-Durée du séjour
-
-Budget maximum
-
-Activités recherchées
-
-Catégories :
-
-Soirées
-
-Bars/clubs
-
-Activités sportives
-
-Sensations fortes
-
-Activités nautiques
-
-Gastronomie
-
-Expériences locales
-
-Activités insolites
-
-Contraintes
-
-Budget
-
-Disponibilité
-
-Mobilité
-
-Besoin de logement proche du centre
-
-Contraintes alimentaires éventuelles
-
-Connexion obligatoire aux bases de données voyages
-
-Dès la première version fonctionnelle, prévoir une architecture permettant de récupérer automatiquement des données externes.
-
-L’application doit être pensée pour se connecter à des API et bases de données voyages afin d’obtenir :
-
-Destinations
-
-Informations villes/pays
-
-Météo
-
-Saisonnalité
-
-Popularité
-
-Prix moyens
-
-Hébergements
-
-Connexion possible à des bases de données d’hôtels, appartements et locations :
-
-disponibilité
-
-prix
-
-localisation
-
-capacité
-
-notes utilisateurs
-
-Activités
-
-Connexion à des bases d’activités touristiques :
-
-activités disponibles
-
-prix
-
-horaires
-
-avis
-
-localisation
-
-Transport
-
-Prévoir une architecture compatible avec :
-
-vols
-
-trains
-
-transports locaux
-
-transferts
-
-L’objectif est que les recommandations Krew soient basées sur de vraies données actualisées et non uniquement sur du contenu statique.
-
-Intelligence de recommandation
-
-Créer un système de scoring qui analyse :
-
-budget
-
-profil du groupe
-
-envies
-
-contraintes
-
-saison
-
-disponibilité
-
-Puis génère des propositions :
-
-Exemple :
-“Weekend EVG à Barcelone pour 10 personnes avec budget 350€/personne”
-
-Résultat :
-
-Destination recommandée
-
-Pourquoi cette destination correspond au groupe
-
-Programme jour par jour
-
-Hébergement conseillé
-
-Activités proposées
-
-Budget estimé
-
-Interface utilisateur
-
-Créer une interface moderne type startup :
-
-Style :
-
-premium
-
-simple
-
-intuitive
-
-mobile first
-
-Pages principales :
-
-Landing page
-
-Présenter Krew :
-“Organisez le voyage parfait avec vos amis, sans passer des heures à chercher.”
-
-Dashboard utilisateur
-
-Afficher :
-
-voyages créés
-
-voyages en préparation
-
-invitations reçues
-
-Création voyage
-
-Wizard avec progression visuelle.
-
-Résultat voyage
-
-Afficher une proposition complète avec cartes, images, prix et détails.
-
-Collaboration groupe
-
-Permettre :
-
-invitation des participants
-
-votes
-
-validation d’activités
-
-partage du budget
-
-Base de données
-
-Utiliser Supabase comme backend.
-
-Prévoir les tables :
-
-Users
-
-id
-
-email
-
-profil
-
-Trips
-
-id
-
-user_id
-
-nom
-
-type
-
-dates
-
-budget
-
-participants
-
-statut
-
-Trip_preferences
-
-trip_id
-
-activités souhaitées
-
-ambiance
-
-contraintes
-
-Destinations
-
-données récupérées depuis APIs externes
-
-Activities
-
-activités disponibles
-
-Accommodations
-
-logements disponibles
-
-Recommendations
-
-propositions générées par le moteur Krew
-
-Authentification
-
-Mettre en place :
-
-création de compte
-
-connexion utilisateur
-
-gestion des sessions
-
-protection des données
-
-Architecture technique
-
-Créer une base propre et scalable :
-
-Frontend moderne React
-
-Backend Supabase
-
-Gestion des variables d’environnement
-
-Structure permettant l’ajout futur d’IA et d’APIs externes
-
-Code propre et documenté
-
-Ne pas créer une simple maquette. Construire une vraie application fonctionnelle avec :
-
-navigation complète
-
-base de données connectée
-
-authentification
-
-stockage des voyages
-
-préparation des intégrations API voyages
-
-L’objectif est d’obtenir une première version exploitable de Krew pouvant évoluer vers une plateforme complète d’organisation de voyages de groupe.
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://krew-trip-wizard.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/5019176c-8e6a-4e8e-8b68-e953cf78c1b3).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Développement
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```
+
+Validation selon le périmètre :
+
+```sh
+npx tsc --noEmit
+npm test
+npm run build
+npm run test:e2e
+```
+
+Ne pas exécuter systématiquement toute la suite lorsqu'un test ciblé suffit, mais toujours distinguer tests unitaires, build, Preview/runtime et validation fonctionnelle réelle.
+
+## Principes de sécurité
+
+- ne jamais committer de secret, clé API ou token ;
+- inspecter les consommateurs avant toute modification Supabase/RLS/auth/API ;
+- ne pas contourner une contrainte produit pour faire fonctionner un provider ;
+- préserver la provenance des prix, disponibilités, durées et liens externes ;
+- éviter les refactors hors périmètre.
+
+## Documentation légale
+
+`README_LEGAL.md` et les documents `docs/data-*` / `docs/legal-*` sont des documents de travail de conformité. Ils doivent être réévalués lorsque les fournisseurs, traceurs, traitements ou le modèle commercial changent.
