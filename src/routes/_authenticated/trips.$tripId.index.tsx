@@ -1320,25 +1320,25 @@ function TripDetail() {
               <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[8px] mt-1 opacity-85 pointer-events-none" />
             </div>
 
-            {/* PARAMÈTRES STAR SI VOYAGE STAR (POSITIONNÉS DÉCISIONNELLEMENT AVANT LA LISTE) */}
+            {/* PARAMÈTRES STAR SI VOYAGE STAR (PRÉSENTATION LÉGÈRE ET ÉLÉGANTE SANS CARRÉ VERT) */}
             {hasStar ? (
-              <div className="bg-sage/18 border border-sage/25 p-4 rounded-2xl space-y-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <KrewIcon name="favorite" tone="sage" size="sm" className="size-4 shrink-0" />
+              <div className="py-2 px-1 border-b border-border/40 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <KrewIcon name="favorite" tone="plum" size="sm" className="size-3.5 shrink-0" />
                   <span>Rôle de la Star ({celebratedPerson || "Secret"})</span>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 text-xs font-sans">
-                  <div className="space-y-1.5">
-                    <p className="font-medium text-foreground text-xs">Visibilité</p>
-                    <div className="flex gap-1.5">
+                <div className="grid gap-2 sm:grid-cols-2 text-xs font-sans">
+                  <div className="flex items-center justify-between gap-2 bg-surface/50 px-3 py-1.5 rounded-xl border border-border/40">
+                    <span className="font-medium text-muted-foreground text-[11px]">Visibilité :</span>
+                    <div className="flex gap-1">
                       <button
                         type="button"
                         className={cn(
-                          "h-7 px-2.5 rounded-lg text-[11px] font-medium flex-1 border transition-colors",
+                          "h-6 px-2 rounded-md text-[10px] font-medium border transition-colors",
                           (logistics?.star_mode ?? "secret") === "secret"
-                            ? "bg-sage/20 text-primary border-sage/40 font-semibold"
-                            : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/30 hover:text-foreground",
+                            ? "bg-primary/10 text-primary border-primary/30 font-semibold"
+                            : "bg-transparent text-muted-foreground border-border/40 hover:text-foreground",
                         )}
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
@@ -1353,10 +1353,10 @@ function TripDetail() {
                       <button
                         type="button"
                         className={cn(
-                          "h-7 px-2.5 rounded-lg text-[11px] font-medium flex-1 border transition-colors",
+                          "h-6 px-2 rounded-md text-[10px] font-medium border transition-colors",
                           logistics?.star_mode === "participant"
-                            ? "bg-sage/20 text-primary border-sage/40 font-semibold"
-                            : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/30 hover:text-foreground",
+                            ? "bg-primary/10 text-primary border-primary/30 font-semibold"
+                            : "bg-transparent text-muted-foreground border-border/40 hover:text-foreground",
                         )}
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
@@ -1366,21 +1366,21 @@ function TripDetail() {
                           })
                         }
                       >
-                        Participant ordinaire
+                        Ordinaire
                       </button>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <p className="font-medium text-foreground text-xs">Participation aux frais</p>
-                    <div className="flex gap-1.5">
+                  <div className="flex items-center justify-between gap-2 bg-surface/50 px-3 py-1.5 rounded-xl border border-border/40">
+                    <span className="font-medium text-muted-foreground text-[11px]">Frais :</span>
+                    <div className="flex gap-1">
                       <button
                         type="button"
                         className={cn(
-                          "h-7 px-2.5 rounded-lg text-[11px] font-medium flex-1 border transition-colors",
+                          "h-6 px-2 rounded-md text-[10px] font-medium border transition-colors",
                           logistics?.star_pays_share !== false
-                            ? "bg-sage/20 text-primary border-sage/40 font-semibold"
-                            : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/30 hover:text-foreground",
+                            ? "bg-primary/10 text-primary border-primary/30 font-semibold"
+                            : "bg-transparent text-muted-foreground border-border/40 hover:text-foreground",
                         )}
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
@@ -1390,15 +1390,15 @@ function TripDetail() {
                           })
                         }
                       >
-                        Elle paie sa part
+                        Paie sa part
                       </button>
                       <button
                         type="button"
                         className={cn(
-                          "h-7 px-2.5 rounded-lg text-[11px] font-medium flex-1 border transition-colors",
+                          "h-6 px-2 rounded-md text-[10px] font-medium border transition-colors",
                           logistics?.star_pays_share === false
-                            ? "bg-sage/20 text-primary border-sage/40 font-semibold"
-                            : "bg-transparent text-muted-foreground border-border/50 hover:bg-muted/30 hover:text-foreground",
+                            ? "bg-primary/10 text-primary border-primary/30 font-semibold"
+                            : "bg-transparent text-muted-foreground border-border/40 hover:text-foreground",
                         )}
                         disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
                         onClick={() =>
@@ -1408,7 +1408,7 @@ function TripDetail() {
                           })
                         }
                       >
-                        Part offerte par le groupe
+                        Part offerte
                       </button>
                     </div>
                   </div>
@@ -1458,50 +1458,47 @@ function TripDetail() {
                   return (
                     <li
                       key={p.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between min-h-[56px] py-3.5 gap-2.5"
+                      className="flex flex-row items-center justify-between min-h-[48px] py-2.5 gap-3"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
                         {/* Petit repère graphique initial */}
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sage/16 text-primary font-mono text-xs font-semibold mt-0.5">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sage/16 text-primary font-mono text-xs font-semibold">
                           {initial}
                         </span>
 
-                        <div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold text-foreground text-sm">
+                            <p className="font-semibold text-foreground text-sm truncate">
                               {p.display_name ?? p.email} {p.user_id === data.userId ? " (Moi)" : ""}
                             </p>
                             {isOwner ? (
-                            <span className="text-[11px] font-medium text-primary">
+                              <span className="text-[11px] font-medium text-primary whitespace-nowrap">
                                 Organisateur·rice
                               </span>
                             ) : isCoOrganizer ? (
-                            <span className="text-[11px] font-medium text-muted-foreground">
+                              <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">
                                 Co-organisateur·rice
                               </span>
                             ) : null}
                             {p.isStar ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
-                              <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" />
-                              <span>Star</span>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary whitespace-nowrap">
+                                <KrewIcon name="favorite" tone="sage" size="sm" className="size-3" />
+                                <span>Star</span>
                               </span>
                             ) : null}
                           </div>
-                          {p.email ? (
-                            <p className="text-xs text-muted-foreground mt-0.5">{p.email}</p>
-                          ) : null}
                           {city || userPick ? (
-                            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                               {city ? (
                                 <span className="inline-flex items-center gap-1">
-                                  <KrewIcon name="destination" tone="muted" size="sm" className="size-3.5" />
+                                  <KrewIcon name="destination" tone="muted" size="sm" className="size-3" />
                                   <span>Départ : <strong className="text-foreground font-normal">{city}</strong></span>
                                 </span>
                               ) : null}
                               {userPick ? (
                                 <span className="inline-flex items-center gap-1">
-                                  <KrewIcon name={transportIconName} tone="muted" size="sm" className="size-3.5" />
-                                  <span>Trajet : <strong className="text-foreground font-normal">{userPick.modeLabel || userPick.mode} ({userPick.label})</strong></span>
+                                  <KrewIcon name={transportIconName} tone="muted" size="sm" className="size-3" />
+                                  <span>Trajet : <strong className="text-foreground font-normal">{userPick.modeLabel || userPick.mode}</strong></span>
                                 </span>
                               ) : null}
                             </div>
@@ -1509,16 +1506,16 @@ function TripDetail() {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-end sm:self-auto text-xs">
+                      <div className="flex items-center gap-2 sm:gap-3 shrink-0 text-xs">
                         {p.status === "accepte" ? (
-                          <span className="inline-flex items-center gap-1 font-medium text-primary">
+                          <span className="inline-flex items-center gap-1 font-medium text-primary whitespace-nowrap">
                             <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" />
                             <span>Participe</span>
                           </span>
                         ) : p.status === "absent" ? (
-                          <span className="text-muted-foreground italic">Absent</span>
+                          <span className="text-muted-foreground italic whitespace-nowrap">Absent</span>
                         ) : (
-                          <span className="text-muted-foreground">{p.status}</span>
+                          <span className="text-muted-foreground whitespace-nowrap capitalize">{p.status}</span>
                         )}
 
                         {p.user_id === data.userId ? (
@@ -1817,7 +1814,12 @@ function TripDetail() {
 
             const datesReady = datesLocked || Boolean(trip.start_date);
             const profileDone = Boolean(profile?.validated);
-            const profileReady = Boolean(readiness?.profile.questionnairesReady || profile?.legacyBypass);
+            const profileReady = Boolean(
+              readiness?.profile.questionnairesReady ||
+              profile?.legacyBypass ||
+              (profile?.calculatedConcepts && profile.calculatedConcepts.length > 0) ||
+              (readiness?.profile.calculatedConcepts && readiness.profile.calculatedConcepts.length > 0)
+            );
             const destDone = destinationSelected;
             const hotelDone = Boolean(logistics.selectedHotelId);
             const hotelOffersReady = Boolean(logistics.hotels?.length);
@@ -1967,6 +1969,21 @@ function TripDetail() {
                 href: isStepAvailable("packing") ? `/trips/${tripId}?view=voyage&section=packing` : null,
               },
             );
+
+            // "Vos souvenirs de voyage" step - active from start_date onwards
+            const tripStarted = trip.start_date
+              ? new Date(trip.start_date + "T00:00:00") <= new Date()
+              : false;
+
+            timelineSteps.push({
+              id: "memories",
+              title: "Vos souvenirs de voyage",
+              subtitle: tripStarted ? "Album & photos du groupe" : "Disponible dès le premier jour",
+              iconName: "camera",
+              status: tripStarted ? "available" : "upcoming",
+              category: "souvenirs",
+              href: tripStarted ? `/trips/${tripId}/memories` : null,
+            });
 
             return (
               <KrewJourneyTimeline
@@ -2243,15 +2260,25 @@ function TripDetail() {
             </Button>
           ) : null}
         </div>
-        {!readiness?.profile.questionnairesReady && !profile?.legacyBypass ? (
-          <p className="rounded-2xl border border-dashed border-border/70 p-6 text-sm text-muted-foreground font-sans text-center">
-            Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-3 pt-2">
-            {(profile?.calculatedConcepts ?? readiness?.profile.calculatedConcepts ?? [])
-              .slice(0, 3)
-              .map((concept: StayConcept) => {
+        {(() => {
+          const conceptsToDisplay =
+            profile?.calculatedConcepts?.length
+              ? profile.calculatedConcepts
+              : readiness?.profile.calculatedConcepts?.length
+                ? readiness.profile.calculatedConcepts
+                : [];
+
+          if (!conceptsToDisplay.length) {
+            return (
+              <p className="rounded-2xl border border-dashed border-border/70 p-6 text-sm text-muted-foreground font-sans text-center">
+                Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
+              </p>
+            );
+          }
+
+          return (
+            <div className="grid gap-3 sm:grid-cols-3 pt-2">
+              {conceptsToDisplay.slice(0, 3).map((concept: StayConcept) => {
                 const profileId = concept.id as StayProfileId;
                 const label = PROFILE_LABELS[profileId] || concept.title;
                 const selected = profile?.validated
@@ -2298,13 +2325,23 @@ function TripDetail() {
                   </button>
                 );
               })}
-          </div>
-        )}
+            </div>
+          );
+        })()}
         {profile?.validated ? (
-          <p className="text-[13px] sm:text-sm font-semibold text-primary inline-flex items-center gap-1.5 pt-2">
-            <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
-            Profil validé — les destinations sont disponibles.
-          </p>
+          <div className="pt-2 space-y-3">
+            <p className="text-[13px] sm:text-sm font-semibold text-primary inline-flex items-center gap-1.5">
+              <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
+              Profil validé — les destinations sont disponibles.
+            </p>
+            <div>
+              <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
+                <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "destination" }}>
+                  Choisir la destination <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
+                </Link>
+              </Button>
+            </div>
+          </div>
         ) : data.isOwner && (readiness?.profile.questionnairesReady || profile?.legacyBypass) ? (
           <div className="pt-2">
             <Button
@@ -2413,12 +2450,21 @@ function TripDetail() {
         ) : (
           <>
             {destinationSelected ? (
-              <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-300">
-                Destination validée — {Math.max(0, recommendations.length - 1)} autre
-                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
-                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
-                {data.isOwner ? " (change possible)." : "."}
-              </p>
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 space-y-2">
+                <p className="text-xs text-emerald-800 dark:text-emerald-300">
+                  Destination validée — {Math.max(0, recommendations.length - 1)} autre
+                  {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
+                  {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
+                  {data.isOwner ? " (change possible)." : "."}
+                </p>
+                <div>
+                  <Button asChild size="sm" className="rounded-xl font-medium text-xs">
+                    <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "accommodation" }}>
+                      Choisir l’hébergement <KrewMark type="arrow-right" tone="cream" size="sm" className="size-3.5 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
             ) : null}
             <div className="grid gap-4 lg:grid-cols-1">
               {[...recommendations]
@@ -2791,30 +2837,40 @@ function TripDetail() {
                 (trip as any).coOrganizerId === data.userId)),
           ) &&
             (trip as any).group_logistics?.hotels?.length > 0 && (
-              <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-muted/20 p-3 sm:px-4">
-                <div className="text-xs">
-                  <span className="font-semibold text-foreground">Statut de l&apos;hôtel : </span>
-                  <span className="capitalize font-medium text-primary">
-                    {(trip as any).group_logistics?.hotelBookingStatus || "estimé"}
-                  </span>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between rounded-2xl border border-border bg-muted/20 p-3 sm:px-4">
+                  <div className="text-xs">
+                    <span className="font-semibold text-foreground">Statut de l&apos;hôtel : </span>
+                    <span className="capitalize font-medium text-primary">
+                      {(trip as any).group_logistics?.hotelBookingStatus || "estimé"}
+                    </span>
+                  </div>
+                  {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
+                    <Button
+                      size="sm"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                      disabled={bookingStatusMutation.isPending}
+                      onClick={() =>
+                        bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })
+                      }
+                    >
+                      {bookingStatusMutation.isPending ? (
+                        <Loader2 className="animate-spin size-3" />
+                      ) : (
+                        <Check className="size-3" />
+                      )}
+                      Marquer comme réservé
+                    </Button>
+                  )}
                 </div>
-                {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
-                    disabled={bookingStatusMutation.isPending}
-                    onClick={() =>
-                      bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })
-                    }
-                  >
-                    {bookingStatusMutation.isPending ? (
-                      <Loader2 className="animate-spin size-3" />
-                    ) : (
-                      <Check className="size-3" />
-                    )}
-                    Marquer comme réservé
+
+                <div className="pt-1">
+                  <Button asChild size="sm" className="rounded-xl font-medium text-xs">
+                    <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "transport" }}>
+                      Voir les transports <KrewMark type="arrow-right" tone="cream" size="sm" className="size-3.5 ml-1" />
+                    </Link>
                   </Button>
-                )}
+                </div>
               </div>
             )}
         </section>
@@ -2889,6 +2945,14 @@ function TripDetail() {
           </p>
         ) : (
           <div className="space-y-6">
+            <div className="flex justify-end">
+              <Button asChild size="sm" className="rounded-xl font-medium text-xs">
+                <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }}>
+                  Organiser le planning <KrewMark type="arrow-right" tone="cream" size="sm" className="size-3.5 ml-1" />
+                </Link>
+              </Button>
+            </div>
+
             {(() => {
               const transports = ((trip as any).group_logistics.transports ?? []) as any[];
               const picks = ((trip as any).group_logistics.transportPicks ?? []) as any[];
