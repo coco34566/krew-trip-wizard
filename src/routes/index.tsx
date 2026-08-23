@@ -58,9 +58,9 @@ const TRUST = [
   "Budget clair dès le départ",
 ];
 
-// Filter out "Voyage de groupe" and "Voyage en famille" as requested in item 5
-const IDEAL_FOR_TYPES = EVENT_TYPES.filter(
-  (ev) => ev.value !== "voyage_groupe" && ev.value !== "famille"
+// Exactly 3 usages: EVG, EVJF, Week-end entre amis
+const IDEAL_FOR_TYPES = EVENT_TYPES.filter((ev) =>
+  ["evg", "evjf", "weekend"].includes(ev.value)
 );
 
 function Landing() {
@@ -82,11 +82,6 @@ function Landing() {
             <div className="grid lg:grid-cols-12 gap-6 lg:gap-10 items-center">
               {/* Text Column (7 cols) */}
               <div className="lg:col-span-7 space-y-4 sm:space-y-5">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-mono text-xs font-semibold uppercase tracking-wider">
-                  <KrewMark type="sparkle" tone="plum" size="sm" className="size-3.5" />
-                  <span>L’organisation des voyages de groupe, simplement</span>
-                </div>
-
                 <div className="relative">
                   <h1 className="font-display text-[42px] sm:text-[64px] lg:text-[84px] font-normal tracking-tight text-foreground leading-[0.92]">
                     Organisez moins.{" "}
@@ -170,23 +165,23 @@ function Landing() {
           </div>
         </section>
 
-        {/* ——— Section "Idéal pour" — Compact & Filtered ——— */}
-        <section className="bg-sage/12 border-y border-border/60 py-4 sm:py-5">
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-3 text-sm">
+        {/* ——— Section "Idéal pour" — Exactly 3 Usages ——— */}
+        <section className="bg-sage/12 border-y border-border/60 py-3.5 sm:py-4">
+          <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 flex flex-wrap items-center justify-center sm:justify-start gap-y-2 gap-x-4 text-sm">
             <span className="mr-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground font-mono shrink-0">
               Idéal pour
             </span>
-            <div className="flex flex-wrap items-center gap-x-3 sm:gap-x-0 gap-y-2">
+            <div className="flex flex-wrap items-center gap-x-4 sm:gap-x-0 gap-y-2">
               {IDEAL_FOR_TYPES.map((ev, index) => (
                 <div
                   key={ev.value}
                   className={`flex items-center ${
-                    index > 0 ? "sm:border-l sm:border-border/60 sm:pl-3 sm:ml-3" : ""
+                    index > 0 ? "sm:border-l sm:border-border/60 sm:pl-4 sm:ml-4" : ""
                   }`}
                 >
                   <Link
                     to="/trips/new"
-                    className="text-xs sm:text-sm font-medium text-foreground/80 transition hover:text-primary whitespace-nowrap"
+                    className="text-xs sm:text-sm font-semibold text-foreground/90 transition hover:text-primary whitespace-nowrap"
                   >
                     {ev.label}
                   </Link>
@@ -196,19 +191,19 @@ function Landing() {
           </div>
         </section>
 
-        {/* ——— Section "LE PLAN" — Compact, Open Presentation & Autonomous Otter ——— */}
-        <section className="relative overflow-hidden py-12 sm:py-16 bg-background">
+        {/* ——— Section "LE PLAN" — Compact, Structured & Autonomous Otter ——— */}
+        <section className="relative overflow-hidden py-10 sm:py-14 bg-background">
           <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative">
-            {/* Header Block with Autonomous Otter (no card/badge/text around it) */}
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10">
-              <div className="space-y-1">
+            {/* Header Block with Integrated Otter */}
+            <div className="flex items-end justify-between gap-4 mb-6 sm:mb-8">
+              <div className="space-y-0.5">
                 <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">
                   LE PLAN
                 </span>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono">
                   Comment ça marche
                 </p>
-                <h2 className="relative inline-block font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground leading-tight tracking-tight mt-1">
+                <h2 className="relative inline-block font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground leading-tight tracking-tight mt-0.5">
                   Trois étapes, zéro chaos
                   <KrewMark
                     type="underline-wave"
@@ -219,7 +214,7 @@ function Landing() {
                 </h2>
               </div>
 
-              {/* Autonomous KREW Otter asset */}
+              {/* Autonomous KREW Otter integrated near section title */}
               <img
                 src="/brand/otter-states/trip-progress.png"
                 alt="Loutre KREW organisation"
@@ -227,36 +222,35 @@ function Landing() {
               />
             </div>
 
-            {/* Steps Flow Grid — Open presentation (no card rectangles) */}
-            <div className="relative">
-              <div className="hidden lg:block absolute top-10 left-[10%] right-[10%] h-0.5 border-t-2 border-dashed border-secondary/40 z-0" />
-
-              <div className="grid gap-8 lg:grid-cols-3 relative z-10">
-                {STEPS.map((step) => (
-                  <div key={step.number} className="relative space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span
-                        aria-hidden="true"
-                        className="font-display text-4xl sm:text-5xl font-normal text-secondary/50 leading-none select-none"
-                      >
-                        {step.number}
-                      </span>
-                      <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <KrewIcon name={step.iconName} tone="plum" size="sm" className="size-5" />
-                      </div>
-                    </div>
-                    <div>
-                      <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary block mb-1">
-                        Étape {step.number}
-                      </span>
-                      <h3 className="text-base sm:text-lg font-semibold text-foreground">{step.title}</h3>
-                      <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed font-sans">
-                        {step.text}
-                      </p>
+            {/* Steps Flow — Horizontal grid on desktop, compact vertical layout on mobile */}
+            <div className="grid gap-6 sm:gap-8 lg:grid-cols-3 relative z-10">
+              {STEPS.map((step) => (
+                <div key={step.number} className="flex sm:flex-col items-start gap-4 sm:gap-3">
+                  {/* Large Landmark Number + Icon Header */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span
+                      aria-hidden="true"
+                      className="font-display text-5xl sm:text-6xl font-normal text-secondary/60 leading-none select-none tracking-tight"
+                    >
+                      {step.number}
+                    </span>
+                    <div className="flex size-10 sm:size-11 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+                      <KrewIcon name={step.iconName} tone="plum" size="sm" className="size-5" />
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Text Block */}
+                  <div className="space-y-1 min-w-0">
+                    <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary block">
+                      Étape {step.number}
+                    </span>
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground leading-snug">{step.title}</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed font-sans">
+                      {step.text}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -317,7 +311,7 @@ function Landing() {
                 </div>
               </div>
 
-              {/* Travel Journal Detail Breakdown (Original Wording Restored) */}
+              {/* Travel Journal Detail Breakdown */}
               <div className="lg:col-span-7 space-y-6">
                 <div className="p-5 sm:p-6 rounded-2xl bg-background border border-border shadow-xs space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-4">
