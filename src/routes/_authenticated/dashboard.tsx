@@ -71,7 +71,6 @@ function FeaturedTripCard({
 
   return (
     <div className="relative">
-      {/* Decorative KrewNote around featured card */}
       <div className="absolute -top-3 right-4 z-20 hidden sm:block pointer-events-none">
         <KrewNote variant="tape" tone="sage" rotation={2} className="text-xs py-1 px-2.5 min-w-0">
           Prochain départ ! ✈️
@@ -81,7 +80,6 @@ function FeaturedTripCard({
       <article className="group relative overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-xs transition-all hover:border-primary/50">
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
           <div className="grid lg:grid-cols-12 items-stretch">
-            {/* Image Zone (5 cols) */}
             <div className="lg:col-span-5 relative aspect-[16/10] lg:aspect-auto w-full overflow-hidden bg-surface/50 border-b lg:border-b-0 lg:border-r border-border/40">
               {typeImage ? (
                 <img
@@ -95,7 +93,6 @@ function FeaturedTripCard({
               )}
             </div>
 
-            {/* Content Zone (7 cols) */}
             <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-6">
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
@@ -190,7 +187,6 @@ function TripCard({
 
   return (
     <article className="group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-border/60 bg-background transition-all hover:border-primary/40">
-      {/* Top Banner Photo based strictly on trip type */}
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-surface/50 border-b border-border/40">
         {typeImage ? (
           <img
@@ -203,7 +199,6 @@ function TripCard({
           <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />
         )}
 
-        {/* Secondary Archive Button top right */}
         {onCancel ? (
           <div className="absolute top-3 right-3 z-10">
             <AlertDialog>
@@ -234,7 +229,6 @@ function TripCard({
         ) : null}
       </div>
 
-      {/* Content */}
       <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between">
         <div className="space-y-1.5">
           <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
@@ -269,7 +263,6 @@ function TripCard({
           </div>
         </div>
 
-        {/* Action Link */}
         <div className="pt-2 flex items-center justify-between border-t border-border/40">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary transition-transform group-hover:translate-x-0.5">
             {ctaLabel} <KrewMark type="arrow-right" tone="plum" size="sm" className="size-3.5" />
@@ -319,7 +312,6 @@ function Dashboard() {
 
   return (
     <main className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8 sm:space-y-12">
-      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 relative">
         <div className="space-y-2 relative">
           <KrewOrganicBlob
@@ -343,9 +335,9 @@ function Dashboard() {
           </p>
         </div>
         <Button asChild className="self-start sm:self-auto rounded-xl font-medium">
-          <Link to="/trips/new" className="inline-flex h-full w-full items-center justify-center gap-1.5 leading-none">
+          <Link to="/trips/new" className="inline-flex items-center justify-center gap-1.5">
             <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
-            <span className="leading-none">Nouveau voyage</span>
+            Nouveau voyage
           </Link>
         </Button>
       </div>
@@ -419,7 +411,6 @@ function Dashboard() {
         </div>
       ) : (
         <div className="space-y-10">
-          {/* SECTION J'ORGANISE */}
           <section className="space-y-4">
             <h2 className="font-sans font-semibold text-lg text-foreground">
               J'organise
@@ -437,7 +428,6 @@ function Dashboard() {
             )}
           </section>
 
-          {/* SECTION JE PARTICIPE */}
           {invitations.length ? (
             <section className="space-y-4 pt-4 border-t border-border/50">
               <h2 className="font-sans font-semibold text-lg text-foreground">
