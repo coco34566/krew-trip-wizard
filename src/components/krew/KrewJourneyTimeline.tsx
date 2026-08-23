@@ -86,8 +86,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
           <path
             d={pathD}
             stroke="var(--secondary)"
-            strokeWidth="0.7"
-            strokeDasharray="1.3 1.4"
+            strokeWidth="1.2"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
             className="opacity-35"
@@ -96,7 +95,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
             d={pathD}
             pathLength="100"
             stroke="var(--secondary)"
-            strokeWidth="1.15"
+            strokeWidth="2"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
             style={{ strokeDasharray: 100, strokeDashoffset: 100 - progress * 100 }}
@@ -125,30 +124,30 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
             >
               <div
                 className={cn(
-                  "relative shrink-0 flex items-center justify-center rounded-full transition-transform duration-150 group-hover:scale-105",
-                  isDone && "size-8 sm:size-9 bg-sage/20 border border-secondary text-primary shadow-2xs",
-                  isNextAction && "size-11 sm:size-12 bg-primary text-primary-foreground border-2 border-background ring-4 ring-primary/20 shadow-md",
-                  isAvailable && "size-8 sm:size-9 bg-background border border-primary/40 text-primary shadow-2xs",
-                  isUpcoming && "size-7 sm:size-8 bg-background border border-border text-muted-foreground/55",
+                  "relative shrink-0 flex items-center justify-center rounded-full transition-transform duration-150 group-hover:scale-105 z-10",
+                  isDone && "size-10 sm:size-11 bg-sage/20 border-2 border-secondary text-primary shadow-2xs",
+                  isNextAction && "size-13 sm:size-15 bg-primary text-primary-foreground border-2 border-background ring-4 ring-primary/20 shadow-md",
+                  isAvailable && "size-10 sm:size-11 bg-background border-2 border-primary/40 text-primary shadow-2xs",
+                  isUpcoming && "size-8 sm:size-9 bg-background border border-border text-muted-foreground/55",
                 )}
               >
                 <KrewIcon
                   name={step.iconName}
                   size="sm"
                   tone={isNextAction ? "cream" : isDone || isAvailable ? "plum" : "muted"}
-                  className={isNextAction ? "size-5" : "size-4"}
+                  className={isNextAction ? "size-6 sm:size-7" : "size-5"}
                 />
                 {isDone ? (
-                  <span className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-secondary text-white text-[8px] font-bold shadow-2xs">
+                  <span className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-secondary text-white text-[9px] font-bold shadow-2xs">
                     ✓
                   </span>
                 ) : null}
               </div>
 
-              <div className={cn("relative min-w-0 max-w-[150px] sm:max-w-[220px]", isNextAction && "max-w-[180px] sm:max-w-[250px]") }>
+              <div className={cn("relative min-w-0 max-w-[170px] sm:max-w-[240px]", isNextAction && "max-w-[200px] sm:max-w-[270px]") }>
                 {isNextAction ? (
-                  <div className={cn("absolute -top-8 z-20 pointer-events-none", placeTextRight ? "left-0" : "right-0")}>
-                    <KrewNote variant="label" tone="cream" rotation={placeTextRight ? -2 : 2} className="whitespace-nowrap px-2.5 py-1 text-[11px] sm:text-xs">
+                  <div className={cn("absolute -top-9 z-20 pointer-events-none", placeTextRight ? "left-0" : "right-0")}>
+                    <KrewNote variant="label" tone="cream" rotation={placeTextRight ? -2 : 2} className="whitespace-nowrap px-3 py-1 text-xs sm:text-sm">
                       Prochaine étape
                     </KrewNote>
                   </div>
@@ -156,7 +155,7 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
                 <h3
                   className={cn(
                     "font-display leading-tight transition-colors",
-                    isNextAction ? "text-lg sm:text-xl font-medium text-foreground" : "text-sm sm:text-base font-normal",
+                    isNextAction ? "text-xl sm:text-2xl font-medium text-foreground" : "text-base sm:text-lg font-normal",
                     isDone && "text-foreground/90",
                     isAvailable && "text-foreground group-hover:text-primary",
                     isUpcoming && "text-muted-foreground/65",

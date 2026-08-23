@@ -86,14 +86,18 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
     const email = normalizeEmail(emailRaw);
     let participantRow = null;
     if (trip.data.owner_id !== userId) {
-      if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire (email manquant)");
-      const participantCheck = await supabase
+      let query = supabase
         .from("trip_participants")
         .select("id, user_id, email, display_name")
-        .eq("trip_id", data.tripId)
-        // case-insensitive email match
-        .or(`user_id.eq.${userId},email.ilike.${email}`)
-        .maybeSingle();
+        .eq("trip_id", data.tripId);
+
+      if (email) {
+        query = query.or(`user_id.eq.${userId},email.ilike.${email}`);
+      } else {
+        query = query.eq("user_id", userId);
+      }
+
+      const participantCheck = await query.maybeSingle();
       if (participantCheck.error) throw participantCheck.error;
       if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à accéder à ce questionnaire");
       participantRow = participantCheck.data;
@@ -258,13 +262,18 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     const emailRaw = context.claims?.email as string | undefined;
     const email = normalizeEmail(emailRaw);
     if (tripRes.data.owner_id !== userId) {
-      if (!email) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire (email manquant)");
-      const participantCheck = await supabase
+      let query = supabase
         .from("trip_participants")
         .select("id")
-        .eq("trip_id", data.tripId)
-        .or(`user_id.eq.${userId},email.ilike.${email}`)
-        .maybeSingle();
+        .eq("trip_id", data.tripId);
+
+      if (email) {
+        query = query.or(`user_id.eq.${userId},email.ilike.${email}`);
+      } else {
+        query = query.eq("user_id", userId);
+      }
+
+      const participantCheck = await query.maybeSingle();
       if (participantCheck.error) throw participantCheck.error;
       if (!participantCheck.data) throw new Error("403 Forbidden: Vous n'êtes pas autorisé à soumettre ce questionnaire");
     }
