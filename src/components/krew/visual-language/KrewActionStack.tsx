@@ -104,9 +104,8 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
           ) : null}
         </div>
 
-        {/* F3. LOUTRE NEXT-ACTION + F4. KREWMARK ARROW */}
-        <div className="absolute bottom-3 right-2.5 z-20 flex items-end gap-1 pointer-events-none">
-          <KrewMark type="arrow-down-right" tone="plum" size="sm" className="w-[30px] h-[20px] text-primary opacity-85 mb-2" />
+        {/* LOUTRE NEXT-ACTION (SANS FLÈCHE KREWMARK) */}
+        <div className="absolute bottom-3 right-2.5 z-20 flex items-end pointer-events-none">
           <img
             src="/brand/otter-states/next-action.png"
             alt=""

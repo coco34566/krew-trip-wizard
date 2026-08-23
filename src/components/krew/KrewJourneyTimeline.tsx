@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 import {
   KrewIcon,
   KrewMark,
-  KrewOrganicBlob,
   KrewNote,
   type KrewIconName,
 } from "@/components/krew/visual-language";
@@ -68,7 +67,7 @@ export function KrewJourneyTimeline({
   }
 
   return (
-    <div className="w-full max-w-[720px] mx-auto px-1 py-2 space-y-4 font-sans">
+    <div className="w-full max-w-[700px] mx-auto px-1 py-1 space-y-4 font-sans">
       {/* HEADER SECTION */}
       <header className="space-y-1 relative">
         <div className="relative inline-block">
@@ -88,9 +87,9 @@ export function KrewJourneyTimeline({
       </header>
 
       {/* TIMELINE CONTAINER WITH SINGLE CONTINUOUS TRAJECTORY LINE */}
-      <div className="relative my-4 py-1">
-        {/* SINGLE CONTINUOUS TRAJECTORY LINE ALIGNED LEFT (AXIS AT left-6 sm:left-8) */}
-        <div className="absolute top-2 bottom-2 left-6 sm:left-8 -translate-x-1/2 w-4 pointer-events-none z-0">
+      <div className="relative my-3 py-1">
+        {/* SINGLE CONTINUOUS TRAJECTORY LINE ALIGNED LEFT (AXIS AT left-5 sm:left-6) */}
+        <div className="absolute top-2 bottom-2 left-5 sm:left-6 -translate-x-1/2 w-4 pointer-events-none z-0">
           <svg
             className="w-full h-full overflow-visible"
             preserveAspectRatio="none"
@@ -101,7 +100,7 @@ export function KrewJourneyTimeline({
             <path
               d="M8 0 C12 100, 4 200, 8 300 C12 400, 4 500, 8 600"
               stroke="var(--secondary)"
-              strokeWidth="2"
+              strokeWidth="1.75"
               strokeDasharray="3 3"
               strokeLinecap="round"
               className="opacity-35"
@@ -110,7 +109,7 @@ export function KrewJourneyTimeline({
             <path
               d="M8 0 C12 100, 4 200, 8 300 C12 400, 4 500, 8 600"
               stroke="var(--secondary)"
-              strokeWidth="2.5"
+              strokeWidth="2.25"
               strokeLinecap="round"
               style={{
                 strokeDasharray: 600,
@@ -124,18 +123,18 @@ export function KrewJourneyTimeline({
         </div>
 
         {/* CATEGORIES & STEPS */}
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-5">
           {categories.map((cat) => (
-            <div key={cat.key} className="space-y-3">
-              {/* CATEGORY INTERTITLE ALIGNED WITH CONTENT */}
-              <div className="pl-14 sm:pl-16 relative flex items-center gap-2 py-0.5 z-10">
-                <span className="font-mono text-[12px] font-semibold uppercase tracking-wider text-primary bg-sage/12 px-2.5 py-1 rounded-md border border-sage/25">
+            <div key={cat.key} className="space-y-2">
+              {/* TYPOGRAPHIC DISCRETE INTERTITLE */}
+              <div className="pl-12 sm:pl-14 pt-1 pb-0.5">
+                <span className="font-mono text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {cat.label}
                 </span>
               </div>
 
-              {/* STEPS IN CATEGORY — COMPACT VERTICAL LAYOUT */}
-              <div className="space-y-2 sm:space-y-2.5">
+              {/* OPEN COMPOSITION STEPS (NO HEAVY CARDS) */}
+              <div className="space-y-1 sm:space-y-1.5">
                 {cat.steps.map((step) => {
                   const isDone = step.status === "done";
                   const isNextAction = step.status === "next_action";
@@ -145,36 +144,21 @@ export function KrewJourneyTimeline({
                   const StepContent = (
                     <div
                       className={cn(
-                        "relative flex items-center justify-between gap-3 p-3 sm:p-3.5 rounded-2xl transition-all w-full text-left",
-                        isNextAction
-                          ? "bg-surface border-2 border-primary/40 shadow-xs"
-                          : isDone
-                            ? "bg-surface/40 border border-border/40 hover:border-border/70"
-                            : isAvailable
-                              ? "bg-background border border-border/60 hover:border-primary/40"
-                              : "bg-surface/20 border border-border/30 opacity-70",
+                        "relative flex items-center justify-between gap-3 py-1.5 sm:py-2 px-1 transition-all w-full text-left group",
+                        isNextAction ? "py-2 sm:py-2.5" : "",
                       )}
                     >
-                      {/* NEXT ACTION ORGANIC BLOB NAPPE */}
-                      {isNextAction ? (
-                        <KrewOrganicBlob
-                          tone="plum"
-                          variant="soft"
-                          className="absolute -inset-1 w-[calc(100%+8px)] h-[calc(100%+8px)] opacity-20 pointer-events-none z-0"
-                        />
-                      ) : null}
-
                       <div className="relative z-10 space-y-0.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3
                             className={cn(
                               "font-display leading-tight transition-colors",
                               isNextAction
-                                ? "text-lg sm:text-xl font-medium text-foreground"
+                                ? "text-lg sm:text-xl font-medium text-foreground group-hover:text-primary"
                                 : "text-base font-normal",
-                              isDone && "text-foreground/90 font-medium",
-                              isAvailable && "text-foreground",
-                              isUpcoming && "text-muted-foreground/80",
+                              isDone && "text-foreground/90 font-medium group-hover:text-primary",
+                              isAvailable && "text-foreground group-hover:text-primary",
+                              isUpcoming && "text-muted-foreground/70",
                             )}
                           >
                             {step.title}
@@ -188,8 +172,8 @@ export function KrewJourneyTimeline({
                               isNextAction
                                 ? "text-primary font-medium"
                                 : isDone
-                                  ? "text-primary/90 font-mono"
-                                  : "text-muted-foreground",
+                                  ? "text-muted-foreground font-sans"
+                                  : "text-muted-foreground/80",
                             )}
                           >
                             {step.subtitle}
@@ -197,19 +181,20 @@ export function KrewJourneyTimeline({
                         ) : null}
                       </div>
 
-                      {/* CTA / LINK INDICATOR */}
-                      {step.href && !isUpcoming ? (
-                        <div className="relative z-10 shrink-0 flex items-center gap-1 text-xs font-semibold text-primary">
-                          {isNextAction ? (
-                            <span className="hidden sm:inline-block font-sans text-xs bg-primary text-primary-foreground px-3 py-1 rounded-full shadow-2xs">
-                              Continuer →
-                            </span>
-                          ) : null}
+                      {/* PROMINENT NEXT ACTION CTA BUTTON & DISCRETIONARY ARROWS */}
+                      {isNextAction ? (
+                        <div className="relative z-10 shrink-0 flex items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 font-sans text-xs bg-primary text-primary-foreground font-semibold px-3.5 py-1.5 rounded-full shadow-2xs group-hover:opacity-90 transition-opacity">
+                            Continuer <KrewMark type="arrow-right" tone="cream" size="sm" className="size-3.5 shrink-0" />
+                          </span>
+                        </div>
+                      ) : step.href && !isUpcoming ? (
+                        <div className="relative z-10 shrink-0 flex items-center gap-1 text-xs font-semibold text-primary opacity-50 group-hover:opacity-100 transition-opacity">
                           <KrewMark
                             type="arrow-right"
-                            tone={isNextAction ? "plum" : "sage"}
+                            tone="sage"
                             size="sm"
-                            className="size-4 shrink-0"
+                            className="size-3.5 shrink-0"
                           />
                         </div>
                       ) : null}
@@ -219,21 +204,21 @@ export function KrewJourneyTimeline({
                   return (
                     <div
                       key={step.id}
-                      className="relative flex items-center min-h-[52px] group"
+                      className="relative flex items-center min-h-[48px] group"
                     >
-                      {/* NODE DIRECTLY ON THE TRAJECTORY LINE (left-6 sm:left-8) */}
-                      <div className="absolute left-6 sm:left-8 -translate-x-1/2 z-20 flex items-center justify-center">
+                      {/* NODE DIRECTLY ON THE TRAJECTORY LINE (left-5 sm:left-6) */}
+                      <div className="absolute left-5 sm:left-6 -translate-x-1/2 z-20 flex items-center justify-center">
                         <div
                           className={cn(
                             "flex items-center justify-center rounded-full transition-transform duration-150 group-hover:scale-105",
                             isDone &&
-                              "size-8 sm:size-9 bg-sage/18 border border-secondary text-primary shadow-2xs",
+                              "size-7 sm:size-8 bg-sage/20 border border-secondary text-primary shadow-2xs",
                             isNextAction &&
-                              "size-11 sm:size-12 bg-primary text-primary-foreground border-2 border-background ring-4 ring-primary/20 shadow-md scale-105",
+                              "size-10 sm:size-11 bg-primary text-primary-foreground border-2 border-background ring-4 ring-primary/20 shadow-md scale-105",
                             isAvailable &&
-                              "size-8 sm:size-9 bg-background border border-primary/40 text-primary shadow-2xs",
+                              "size-7 sm:size-8 bg-background border border-primary/40 text-primary shadow-2xs",
                             isUpcoming &&
-                              "size-7 sm:size-8 bg-muted/30 border border-border/60 text-muted-foreground/50",
+                              "size-6 sm:size-7 bg-muted/30 border border-border/60 text-muted-foreground/50",
                           )}
                         >
                           <KrewIcon
@@ -241,21 +226,21 @@ export function KrewJourneyTimeline({
                             size="sm"
                             tone={isNextAction ? "cream" : isDone ? "plum" : isAvailable ? "plum" : "muted"}
                             className={cn(
-                              isNextAction ? "size-5" : "size-4",
+                              isNextAction ? "size-4.5" : "size-3.5",
                             )}
                           />
 
                           {/* Check badge for done steps */}
                           {isDone ? (
-                            <span className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-secondary text-white text-[8px] font-bold shadow-2xs">
+                            <span className="absolute -bottom-0.5 -right-0.5 flex size-3 items-center justify-center rounded-full bg-secondary text-white text-[7px] font-bold shadow-2xs">
                               ✓
                             </span>
                           ) : null}
                         </div>
                       </div>
 
-                      {/* STEP CONTENT WRAPPER — ALL CONTENT ON THE RIGHT SIDE (pl-14 sm:pl-16) */}
-                      <div className="pl-14 sm:pl-16 w-full">
+                      {/* STEP CONTENT WRAPPER — ALL CONTENT ON THE RIGHT SIDE (pl-12 sm:pl-14) */}
+                      <div className="pl-12 sm:pl-14 w-full">
                         {step.href && !isUpcoming ? (
                           (() => {
                             const parsed = parseStepHref(step.href);

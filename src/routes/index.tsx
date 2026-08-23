@@ -111,8 +111,8 @@ function Landing() {
                     size="xl"
                     className="rounded-xl px-8 text-base font-medium shadow-none inline-flex items-center justify-center text-center leading-none"
                   >
-                    <Link to="/trips/new" className="inline-flex items-center justify-center text-center">
-                      Nouveau voyage
+                    <Link to="/trips/new" className="inline-flex h-full w-full items-center justify-center gap-1.5 leading-none">
+                      <span className="leading-none">Nouveau voyage</span>
                     </Link>
                   </Button>
                   <Button
