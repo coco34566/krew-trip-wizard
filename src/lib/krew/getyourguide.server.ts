@@ -17,6 +17,28 @@ function norm(str: unknown): string {
     .trim();
 }
 
+/**
+ * Checks if a candidate label or place string is manifestly generic relative to the destination.
+ * A label is generic if it is empty, equals the destination, or brings no additional information.
+ */
+export function isGenericLabel(label: string | null | undefined, destination?: string | null): boolean {
+  if (!label || typeof label !== "string") return true;
+  const normLabel = norm(label);
+  if (!normLabel || normLabel.length < 3) return true;
+
+  if (destination) {
+    const normDest = norm(destination);
+    const primaryCity = normDest.split(",")[0]?.trim() ?? normDest;
+    if (normLabel === normDest || normLabel === primaryCity) return true;
+  }
+
+  const genericPureLabels = new Set([
+    "ville", "city", "centre-ville", "centre ville", "destination",
+  ]);
+
+  return genericPureLabels.has(normLabel);
+}
+
 function isGetYourGuideUrl(urlStr: string): boolean {
   try {
     const u = new URL(urlStr);
@@ -152,10 +174,11 @@ export function buildGetYourGuideBooking(
 
     // CAS B: Pas d'URL GetYourGuide exacte -> Lien de recherche
     // Priority order: 1. slot.label -> 2. slot.suggestedPlace -> 3. slot.searchIntent
+    // Safeguard: ignore labels that are generic (e.g. equal to destination or city)
     let queryBase = "";
-    if (slot.label && slot.label.trim()) {
+    if (slot.label && !isGenericLabel(slot.label, destination)) {
       queryBase = slot.label.trim();
-    } else if (slot.suggestedPlace && slot.suggestedPlace.trim()) {
+    } else if (slot.suggestedPlace && !isGenericLabel(slot.suggestedPlace, destination)) {
       queryBase = slot.suggestedPlace.trim();
     } else if (slot.searchIntent && slot.searchIntent.trim()) {
       queryBase = slot.searchIntent.trim();

@@ -538,4 +538,59 @@ describe("GetYourGuide Enrichment Server Engine", () => {
 
     expect(stripped).toEqual(originalItinerary);
   });
+
+  // Tests pour les garde-fous Test 16
+  describe("Test 16 Safeguard Tests", () => {
+    it("destination Budapest + label final Budapest + suggestedPlace = Bringóhintó Margaret Island -> recherche GYG basée sur Bringóhintó Margaret Island", () => {
+      const slot: ActivitySlot = {
+        moment: "Après-midi",
+        type: "activite",
+        category: "sport_outdoor",
+        label: "Budapest",
+        suggestedPlace: "Bringóhintó Margaret Island",
+        searchIntent: "location de vélos / rosalies sur l'Île Marguerite",
+        activityMode: "bookable",
+      };
+
+      const booking = buildGetYourGuideBooking(slot, "Budapest");
+      expect(booking).not.toBeNull();
+      expect(booking?.type).toBe("search");
+      expect(booking?.url).toContain("q=Bring%C3%B3hint%C3%B3%20Margaret%20Island%20Budapest");
+      expect(booking?.url).not.toContain("q=Budapest%20Budapest");
+      expect(booking?.url).not.toContain("q=Budapest&");
+    });
+
+    it("label final précis Rudas Gyógyfürdő és Uszoda -> priorité au label conservée", () => {
+      const slot: ActivitySlot = {
+        moment: "Matin",
+        type: "activite",
+        category: "detente",
+        label: "Rudas Gyógyfürdő és Uszoda",
+        suggestedPlace: "Thermes Rudas",
+        searchIntent: "détente thermale aux bains historiques",
+        activityMode: "bookable",
+      };
+
+      const booking = buildGetYourGuideBooking(slot, "Budapest");
+      expect(booking).not.toBeNull();
+      expect(booking?.url).toContain("q=Rudas%20Gy%C3%B3gyf%C3%BCrd%C5%91%20%C3%A9s%20Uszoda%20Budapest");
+    });
+
+    it("label générique + aucun suggestedPlace exploitable -> fallback searchIntent", () => {
+      const slot: ActivitySlot = {
+        moment: "Après-midi",
+        type: "activite",
+        category: "sport_outdoor",
+        label: "Budapest",
+        suggestedPlace: null,
+        searchIntent: "location de vélos et rosalies sur l'Île Marguerite",
+        activityMode: "bookable",
+      };
+
+      const booking = buildGetYourGuideBooking(slot, "Budapest");
+      expect(booking).not.toBeNull();
+      const decodedUrl = decodeURIComponent(booking?.url ?? "").normalize("NFC");
+      expect(decodedUrl).toContain("q=location de vélos et rosalies sur l'Île Marguerite Budapest".normalize("NFC"));
+    });
+  });
 });
