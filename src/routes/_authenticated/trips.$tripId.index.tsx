@@ -1818,7 +1818,7 @@ function TripDetail() {
             const myPrefsDone = Boolean((myPrefsData as any)?.preferences);
             const starDone = Boolean(starData?.preferences);
 
-            const datesReady = datesLocked || Boolean(trip.start_date);
+            const datesReady = datesLocked;
             const profileDone = Boolean(profile?.validated);
             const profileReady = Boolean(
               readiness?.profile.questionnairesReady ||
@@ -2271,20 +2271,20 @@ function TripDetail() {
           ) : null}
         </div>
         {(() => {
-          const fallbackConcepts: StayConcept[] = STAY_PROFILE_IDS.slice(0, 3).map((id) => ({
-            id,
-            title: PROFILE_LABELS[id],
-            profiles: [id],
-            score: 50,
-            rationale: PROFILE_LABELS[id],
-          }));
-
           const conceptsToDisplay =
             profile?.calculatedConcepts?.length
               ? profile.calculatedConcepts
               : readiness?.profile.calculatedConcepts?.length
                 ? readiness.profile.calculatedConcepts
-                : fallbackConcepts;
+                : [];
+
+          if (!conceptsToDisplay.length) {
+            return (
+              <p className="rounded-2xl border border-dashed border-border/70 p-6 text-sm text-muted-foreground font-sans text-center">
+                Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
+              </p>
+            );
+          }
 
           return (
             <div className="grid gap-3 sm:grid-cols-3 pt-2">

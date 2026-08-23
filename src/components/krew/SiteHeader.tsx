@@ -57,7 +57,7 @@ export function SiteHeader() {
                 <Link to="/dashboard">Mes voyages</Link>
               </Button>
               <Button asChild size="sm" className="rounded-xl font-medium">
-                <Link to="/trips/new" className="inline-flex items-center justify-center gap-1.5">
+                <Link to="/trips/new" className="flex items-center justify-center gap-1.5 text-center">
                   <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
                   <span>Nouveau voyage</span>
                 </Link>
