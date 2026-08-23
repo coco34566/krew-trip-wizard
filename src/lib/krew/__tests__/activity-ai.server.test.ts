@@ -3659,6 +3659,127 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
           expect(res.priceStatus).toBe("verified");
         });
       });
+
+      describe("Tests de la PR dédiée aux champs d'estimation obligatoire/nullable Gemini", () => {
+        it("Test 1 — schema slots et backups contiennent les 3 champs dans required", async () => {
+          const fileContent = await import("fs").then((fs) =>
+            fs.readFileSync("src/lib/krew/activity-ai.server.ts", "utf-8"),
+          );
+
+          // Match the responseSchema required arrays in activity-ai.server.ts
+          const requiredMatches = [...fileContent.matchAll(/required:\s*\[([\s\S]*?)\]/g)].map((m) => m[1]);
+
+          const slotRequiredString = requiredMatches[0] ?? "";
+          const backupRequiredString = requiredMatches[2] ?? "";
+
+          expect(slotRequiredString).toContain('"estimatedPriceMinPerPerson"');
+          expect(slotRequiredString).toContain('"estimatedPriceMaxPerPerson"');
+          expect(slotRequiredString).toContain('"estimatedPriceCurrency"');
+
+          expect(backupRequiredString).toContain('"estimatedPriceMinPerPerson"');
+          expect(backupRequiredString).toContain('"estimatedPriceMaxPerPerson"');
+          expect(backupRequiredString).toContain('"estimatedPriceCurrency"');
+        });
+
+        it("Test 2 — une réponse avec explicit null pour les 3 champs d'estimation reste valide", () => {
+          const localBaseInput: ActivityAiInput = {
+            destination: "Paris",
+            nights: 1,
+            participants: 2,
+            budgetPerPerson: 300,
+            ambiances: [],
+            activityCategories: [],
+          };
+          const testCandidate = [{ id: "c1", name: "Musée gratuit ou inestimable", verified: true, source: "catalog" } as any];
+          const raw = {
+            label: "Musée gratuit ou inestimable",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: null,
+            estimatedPriceMaxPerPerson: null,
+            estimatedPriceCurrency: null,
+          };
+          const slot = normalizeSlot(raw, localBaseInput, testCandidate);
+          expect(slot).not.toBeNull();
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+          expect(slot?.estimatedPriceCurrency).toBeNull();
+        });
+
+        it("Test 3 — une réponse avec { min: 30, max: 50, currency: 'EUR' } reste valide et propagée", () => {
+          const localBaseInput: ActivityAiInput = {
+            destination: "Paris",
+            nights: 1,
+            participants: 2,
+            budgetPerPerson: 300,
+            ambiances: [],
+            activityCategories: [],
+          };
+          const testCandidate = [{ id: "c1", name: "Escape game", verified: true, source: "catalog" } as any];
+          const raw = {
+            label: "Escape game",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 30,
+            estimatedPriceMaxPerPerson: 50,
+            estimatedPriceCurrency: "EUR",
+          };
+          const slot = normalizeSlot(raw, localBaseInput, testCandidate);
+          expect(slot).not.toBeNull();
+          expect(slot?.estimatedPriceMinPerPerson).toBe(30);
+          expect(slot?.estimatedPriceMaxPerPerson).toBe(50);
+          expect(slot?.estimatedPriceCurrency).toBe("EUR");
+        });
+
+        it("Test 4 — vérifie la présence de l'instruction 'renseigne TOUJOURS' dans le prompt", () => {
+          expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("renseigne TOUJOURS estimatedPriceMinPerPerson, estimatedPriceMaxPerPerson et estimatedPriceCurrency");
+        });
+
+        it("Test 5 — invariance : aucune autre propriété required n'a été modifiée dans le schema slots et backups", async () => {
+          const fileContent = await import("fs").then((fs) =>
+            fs.readFileSync("src/lib/krew/activity-ai.server.ts", "utf-8"),
+          );
+
+          const requiredMatches = [...fileContent.matchAll(/required:\s*\[([\s\S]*?)\]/g)].map((m) => m[1]);
+
+          const expectedSlotRequired = [
+            "id",
+            "kind",
+            "momentType",
+            "label",
+            "detail",
+            "time",
+            "durationMinutes",
+            "estimatedPriceMinPerPerson",
+            "estimatedPriceMaxPerPerson",
+            "estimatedPriceCurrency",
+          ];
+
+          const expectedBackupRequired = [
+            "id",
+            "day",
+            "forSlot",
+            "kind",
+            "momentType",
+            "label",
+            "detail",
+            "time",
+            "durationMinutes",
+            "estimatedPriceMinPerPerson",
+            "estimatedPriceMaxPerPerson",
+            "estimatedPriceCurrency",
+          ];
+
+          const parseRequiredList = (str: string) =>
+            str
+              .split(",")
+              .map((s) => s.trim().replace(/"/g, ""))
+              .filter(Boolean);
+
+          expect(parseRequiredList(requiredMatches[0]!)).toEqual(expectedSlotRequired);
+          expect(parseRequiredList(requiredMatches[2]!)).toEqual(expectedBackupRequired);
+        });
+      });
     });
   });
 });
