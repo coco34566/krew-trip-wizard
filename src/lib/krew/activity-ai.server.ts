@@ -36,6 +36,7 @@ export type ActivityCategory =
 
 export type ActivityMode = "bookable" | "free_exploration" | "self_guided_group";
 export type ActivityResourceKind = "website" | "booking" | "ideas" | null;
+export type ActivityPriceStatus = "verified" | "partial" | "estimated" | "free" | "unknown";
 
 export type ActivitySlot = {
   moment: string;
@@ -52,6 +53,13 @@ export type ActivitySlot = {
   locationContext?: "lodging" | "external" | "flexible" | undefined;
   dietaryCheckRequired?: boolean | undefined;
   priceHint?: number | undefined;
+  pricePerPerson?: number | null | undefined;
+  currency?: string | null | undefined;
+  priceStatus?: ActivityPriceStatus | undefined;
+  priceSource?: string | null | undefined;
+  estimatedPriceMinPerPerson?: number | null | undefined;
+  estimatedPriceMaxPerPerson?: number | null | undefined;
+  estimatedPriceCurrency?: string | null | undefined;
   time?: string | null | undefined;
   endTime?: string | null | undefined;
   durationMinutes?: number | null | undefined;
@@ -205,6 +213,9 @@ export type KrewSkeletonSlot = {
   suggestedUrl?: string | null | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
   dietaryCheckRequired?: boolean | undefined;
+  estimatedPriceMinPerPerson?: number | null | undefined;
+  estimatedPriceMaxPerPerson?: number | null | undefined;
+  estimatedPriceCurrency?: string | null | undefined;
   candidateId?: string | null | undefined;
   url?: string | null | undefined;
   verified?: boolean | undefined;
@@ -234,6 +245,9 @@ export type GeminiBackupSlot = {
   searchIntent?: string | null;
   suggestedPlace?: string | null;
   suggestedUrl?: string | null;
+  estimatedPriceMinPerPerson?: number | null;
+  estimatedPriceMaxPerPerson?: number | null;
+  estimatedPriceCurrency?: string | null;
 };
 
 export type KrewSkeleton = {
@@ -305,6 +319,16 @@ export type GroupPlanningContext = {
     dealBreakers: string[];
     usefulUserNotes: string[];
   };
+  budget: {
+    totalPerPerson: number;
+    nights: number;
+    accommodationPerPerson: number | null;
+    transportPerPerson: number | null;
+    remainingForActivitiesAndFood: number | null;
+    starPaysShare: boolean;
+    travellersCount: number;
+    payingParticipantsCount: number;
+  };
   star: {
     starWantedActivities: string[];
     starWantedEnvType: string | null;
@@ -340,6 +364,30 @@ export function buildGroupPlanningContext(
     ambiancePrefs[amb] = { frequency: freq };
   }
 
+  const totalPerPerson = input.budgetPerPerson;
+  const accommodationPerPerson =
+    input.accommodationPerPerson != null && Number.isFinite(input.accommodationPerPerson)
+      ? input.accommodationPerPerson
+      : null;
+  const transportPerPerson =
+    input.transportPerPerson != null && Number.isFinite(input.transportPerPerson)
+      ? input.transportPerPerson
+      : null;
+
+  let remainingForActivitiesAndFood: number | null = null;
+  if (accommodationPerPerson !== null && transportPerPerson !== null) {
+    remainingForActivitiesAndFood = Math.max(
+      0,
+      totalPerPerson - accommodationPerPerson - transportPerPerson,
+    );
+  }
+
+  const travellersCount = brief.participants;
+  const hasStar = input.hasStar === true;
+  const starPaysShare = input.starPaysShare !== false;
+  const payingParticipantsCount =
+    hasStar && !starPaysShare ? Math.max(1, travellersCount - 1) : travellersCount;
+
   return {
     trip: {
       destination: brief.destination,
@@ -365,6 +413,16 @@ export function buildGroupPlanningContext(
       accessibility: brief.accessibilityRequired,
       dealBreakers: brief.dealBreakers.ambiances,
       usefulUserNotes: brief.usefulUserNotes,
+    },
+    budget: {
+      totalPerPerson,
+      nights: brief.nights,
+      accommodationPerPerson,
+      transportPerPerson,
+      remainingForActivitiesAndFood,
+      starPaysShare,
+      travellersCount,
+      payingParticipantsCount,
     },
     star: {
       starWantedActivities: input.starWanted ?? [],
@@ -430,6 +488,10 @@ export type ActivityAiInput = {
   starWantedEnvType?: string | null | undefined;
   wantedEnvTypes?: string[] | undefined;
   forceDiscoveryRefresh?: boolean | undefined;
+  accommodationPerPerson?: number | null | undefined;
+  transportPerPerson?: number | null | undefined;
+  hasStar?: boolean | undefined;
+  starPaysShare?: boolean | undefined;
 
   // Enriched signals
   activityCategoryFrequencies?: Record<string, number> | undefined;
@@ -1004,6 +1066,8 @@ N'invente aucune autre valeur.
 ## 13. SEARCH INTENT ET SUGGESTED PLACE / URL
 
 Pour chaque \`place_required\` :
+
+Pour une activité potentiellement payante, fournis si possible une fourchette de prix indicative réaliste par personne (estimatedPriceMinPerPerson / estimatedPriceMaxPerPerson). Il s’agit uniquement d’une estimation destinée à calibrer le budget du planning : n’invente pas une précision artificielle et laisse les champs à null si tu ne peux pas raisonnablement estimer le coût.
 
 \`searchIntent\`
 → décrit précisément l'expérience/lieu à rechercher ou vérifier.
@@ -2101,6 +2165,9 @@ export async function geminiEnrichSkeleton(
                   searchIntent: { type: "STRING", nullable: true },
                   suggestedPlace: { type: "STRING", nullable: true },
                   suggestedUrl: { type: "STRING", nullable: true },
+                  estimatedPriceMinPerPerson: { type: "NUMBER", nullable: true },
+                  estimatedPriceMaxPerPerson: { type: "NUMBER", nullable: true },
+                  estimatedPriceCurrency: { type: "STRING", nullable: true },
                 },
                 required: ["id", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
               },
@@ -2128,6 +2195,9 @@ export async function geminiEnrichSkeleton(
             searchIntent: { type: "STRING", nullable: true },
             suggestedPlace: { type: "STRING", nullable: true },
             suggestedUrl: { type: "STRING", nullable: true },
+            estimatedPriceMinPerPerson: { type: "NUMBER", nullable: true },
+            estimatedPriceMaxPerPerson: { type: "NUMBER", nullable: true },
+            estimatedPriceCurrency: { type: "STRING", nullable: true },
           },
           required: ["id", "day", "forSlot", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
         },
@@ -2283,6 +2353,9 @@ export async function geminiEnrichSkeleton(
           searchIntent: kind === "place_required" ? String(rawSlot.searchIntent || rawSlot.label || "").slice(0, 200) : undefined,
           suggestedPlace: kind === "place_required" && rawSlot.suggestedPlace ? String(rawSlot.suggestedPlace).slice(0, 150) : undefined,
           suggestedUrl: kind === "place_required" && rawSlot.suggestedUrl ? String(rawSlot.suggestedUrl).slice(0, 500) : undefined,
+          estimatedPriceMinPerPerson: rawSlot.estimatedPriceMinPerPerson ?? null,
+          estimatedPriceMaxPerPerson: rawSlot.estimatedPriceMaxPerPerson ?? null,
+          estimatedPriceCurrency: rawSlot.estimatedPriceCurrency ?? null,
         });
       }
 
@@ -2442,7 +2515,7 @@ function categoryFor(raw: any): ActivityCategory {
   return "culture";
 }
 
-function normalizeSlot(
+export function normalizeSlot(
   raw: any,
   input: ActivityAiInput,
   candidates: ActivityCandidate[],
@@ -2498,6 +2571,57 @@ function normalizeSlot(
         kindHint: candidate?.sourceUrl ? "website" : null,
       });
 
+  const rawPrice = raw.pricePerPerson ?? raw.priceHint ?? candidate?.priceHint ?? null;
+  const numPrice = rawPrice != null && Number.isFinite(Number(rawPrice)) ? Number(rawPrice) : null;
+  const explicitStatus: ActivityPriceStatus | undefined =
+    ["verified", "estimated", "free", "unknown"].includes(raw.priceStatus)
+      ? raw.priceStatus
+      : undefined;
+  const explicitPriceSource =
+    typeof raw.priceSource === "string" && raw.priceSource.trim()
+      ? raw.priceSource.trim()
+      : typeof (candidate as any)?.priceSource === "string" && (candidate as any).priceSource.trim()
+        ? (candidate as any).priceSource.trim()
+        : null;
+
+  let effectivePriceStatus: ActivityPriceStatus = "unknown";
+  if (explicitStatus && explicitPriceSource) {
+    if (explicitStatus === "free" && numPrice === 0) {
+      effectivePriceStatus = "free";
+    } else if (explicitStatus === "verified" && numPrice != null && numPrice >= 0) {
+      effectivePriceStatus = "verified";
+    } else if (explicitStatus === "estimated" && numPrice != null && numPrice >= 0) {
+      effectivePriceStatus = "estimated";
+    }
+  }
+
+  let rawEstMin =
+    raw.estimatedPriceMinPerPerson != null && Number.isFinite(Number(raw.estimatedPriceMinPerPerson))
+      ? Number(raw.estimatedPriceMinPerPerson)
+      : (candidate as any)?.estimatedPriceMinPerPerson != null && Number.isFinite(Number((candidate as any).estimatedPriceMinPerPerson))
+        ? Number((candidate as any).estimatedPriceMinPerPerson)
+        : null;
+  let rawEstMax =
+    raw.estimatedPriceMaxPerPerson != null && Number.isFinite(Number(raw.estimatedPriceMaxPerPerson))
+      ? Number(raw.estimatedPriceMaxPerPerson)
+      : (candidate as any)?.estimatedPriceMaxPerPerson != null && Number.isFinite(Number((candidate as any).estimatedPriceMaxPerPerson))
+        ? Number((candidate as any).estimatedPriceMaxPerPerson)
+        : null;
+
+  let estMin: number | null = null;
+  let estMax: number | null = null;
+  if (rawEstMin != null && rawEstMax != null && rawEstMin >= 0 && rawEstMax >= rawEstMin) {
+    estMin = rawEstMin;
+    estMax = rawEstMax;
+  }
+
+  const estCurrency =
+    typeof raw.estimatedPriceCurrency === "string" && raw.estimatedPriceCurrency.trim()
+      ? raw.estimatedPriceCurrency.trim()
+      : typeof (candidate as any)?.estimatedPriceCurrency === "string" && (candidate as any).estimatedPriceCurrency.trim()
+        ? (candidate as any).estimatedPriceCurrency.trim()
+        : null;
+
   return {
     moment: String(raw.moment ?? "Après-midi").slice(0, 24),
     type,
@@ -2505,7 +2629,13 @@ function normalizeSlot(
     tags: Array.isArray(raw.tags) ? raw.tags.map(String).slice(0, 8) : candidate?.tags,
     label: String(raw.label).trim().slice(0, 100),
     detail: raw.detail ? String(raw.detail).slice(0, 220) : (candidate?.description ?? undefined),
-    ...(candidate?.priceHint != null ? { priceHint: candidate.priceHint } : {}),
+    ...(numPrice != null ? { priceHint: numPrice, pricePerPerson: numPrice } : {}),
+    ...(raw.currency ? { currency: String(raw.currency) } : numPrice != null ? { currency: "EUR" } : {}),
+    priceStatus: effectivePriceStatus,
+    priceSource: explicitPriceSource,
+    estimatedPriceMinPerPerson: estMin,
+    estimatedPriceMaxPerPerson: estMax,
+    estimatedPriceCurrency: estCurrency,
     time,
     endTime: time ? fromMinutes(toMinutes(time)! + durationMinutes) : null,
     durationMinutes,
@@ -2774,6 +2904,9 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         searchIntent: slot.searchIntent ?? slot.search_intent ?? slot.intent,
         suggestedPlace: slot.suggestedPlace ?? slot.suggested_place ?? slot.place,
         suggestedUrl: slot.suggestedUrl ?? slot.suggested_url ?? slot.url,
+        estimatedPriceMinPerPerson: slot.estimatedPriceMinPerPerson ?? slot.estimated_price_min_per_person ?? null,
+        estimatedPriceMaxPerPerson: slot.estimatedPriceMaxPerPerson ?? slot.estimated_price_max_per_person ?? null,
+        estimatedPriceCurrency: slot.estimatedPriceCurrency ?? slot.estimated_price_currency ?? null,
       };
 
       normalizedSlots.push(normalizedSlot);
@@ -2830,6 +2963,9 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         searchIntent: bk.searchIntent ? String(bk.searchIntent) : null,
         suggestedPlace: bk.suggestedPlace ? String(bk.suggestedPlace) : null,
         suggestedUrl: bk.suggestedUrl ? String(bk.suggestedUrl) : null,
+        estimatedPriceMinPerPerson: bk.estimatedPriceMinPerPerson != null ? Number(bk.estimatedPriceMinPerPerson) : null,
+        estimatedPriceMaxPerPerson: bk.estimatedPriceMaxPerPerson != null ? Number(bk.estimatedPriceMaxPerPerson) : null,
+        estimatedPriceCurrency: bk.estimatedPriceCurrency ? String(bk.estimatedPriceCurrency) : null,
       });
     }
   }
@@ -2981,6 +3117,14 @@ export async function regenerateSlotWithAi(
         source: "geoapify",
         latitude: selectedPlace.latitude,
         longitude: selectedPlace.longitude,
+        pricePerPerson: null,
+        priceHint: undefined,
+        currency: null,
+        priceStatus: "unknown",
+        priceSource: null,
+        estimatedPriceMinPerPerson: existing.estimatedPriceMinPerPerson ?? null,
+        estimatedPriceMaxPerPerson: existing.estimatedPriceMaxPerPerson ?? null,
+        estimatedPriceCurrency: existing.estimatedPriceCurrency ?? null,
       },
       usedLlm: false,
       updatedPools,
@@ -2999,6 +3143,42 @@ export async function regenerateSlotWithAi(
       { name: candidateAlt.name, website: candidateAlt.sourceUrl, address: candidateAlt.address, latitude: candidateAlt.latitude, longitude: candidateAlt.longitude },
       input.destination,
     );
+
+    const altNumPrice = (candidateAlt as any).pricePerPerson ?? candidateAlt.priceHint ?? null;
+    const altExplicitStatus = (candidateAlt as any).priceStatus;
+    const altExplicitPriceSource =
+      typeof (candidateAlt as any).priceSource === "string" &&
+      (candidateAlt as any).priceSource.trim()
+        ? (candidateAlt as any).priceSource.trim()
+        : null;
+
+    const hasCompleteBundle =
+      altNumPrice != null &&
+      Number.isFinite(Number(altNumPrice)) &&
+      Number(altNumPrice) >= 0 &&
+      ["verified", "estimated", "free"].includes(altExplicitStatus) &&
+      Boolean(altExplicitPriceSource);
+
+    const pricePerPerson = hasCompleteBundle ? Number(altNumPrice) : null;
+    const priceStatus: ActivityPriceStatus = hasCompleteBundle ? altExplicitStatus : "unknown";
+    const priceSource = hasCompleteBundle ? altExplicitPriceSource : null;
+    const currency = hasCompleteBundle ? (candidateAlt as any).currency ?? "EUR" : null;
+
+    let rawAltEstMin = (candidateAlt as any).estimatedPriceMinPerPerson != null && Number.isFinite(Number((candidateAlt as any).estimatedPriceMinPerPerson)) ? Number((candidateAlt as any).estimatedPriceMinPerPerson) : null;
+    let rawAltEstMax = (candidateAlt as any).estimatedPriceMaxPerPerson != null && Number.isFinite(Number((candidateAlt as any).estimatedPriceMaxPerPerson)) ? Number((candidateAlt as any).estimatedPriceMaxPerPerson) : null;
+
+    let altEstMin: number | null = null;
+    let altEstMax: number | null = null;
+    if (rawAltEstMin != null && rawAltEstMax != null && rawAltEstMin >= 0 && rawAltEstMax >= rawAltEstMin) {
+      altEstMin = rawAltEstMin;
+      altEstMax = rawAltEstMax;
+    }
+
+    const altEstCurrency =
+      typeof (candidateAlt as any)?.estimatedPriceCurrency === "string" && (candidateAlt as any).estimatedPriceCurrency.trim()
+        ? (candidateAlt as any).estimatedPriceCurrency.trim()
+        : null;
+
     return {
       slot: {
         ...existing,
@@ -3014,6 +3194,14 @@ export async function regenerateSlotWithAi(
         source: candidateAlt.source,
         latitude: candidateAlt.latitude,
         longitude: candidateAlt.longitude,
+        pricePerPerson,
+        ...(pricePerPerson != null ? { priceHint: pricePerPerson } : { priceHint: undefined }),
+        currency,
+        priceStatus,
+        priceSource,
+        estimatedPriceMinPerPerson: altEstMin,
+        estimatedPriceMaxPerPerson: altEstMax,
+        estimatedPriceCurrency: altEstCurrency,
       },
       usedLlm: false,
       updatedUsedIds: Array.from(usedSet),

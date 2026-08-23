@@ -3197,9 +3197,39 @@ function TripDetail() {
                               {slot.detail ? (
                                 <p className="text-xs text-muted-foreground mt-0.5">{slot.detail}</p>
                               ) : null}
-                              {slot.priceHint != null ? (
+                              {slot.priceStatus === "free" ? (
+                                <p className="text-xs text-muted-foreground font-mono mt-1">Gratuit</p>
+                              ) : (slot.priceStatus === "verified" || slot.priceStatus === "estimated") &&
+                                (slot.pricePerPerson != null || slot.priceHint != null) ? (
                                 <p className="text-xs text-muted-foreground font-mono mt-1">
-                                  ~{formatEuro(Number(slot.priceHint))} / pers.
+                                  {slot.priceStatus === "estimated" ? "~" : ""}
+                                  {formatEuro(Number(slot.pricePerPerson ?? slot.priceHint))} / pers.
+                                  {slot.priceStatus === "estimated" ? " (estimé)" : ""}
+                                </p>
+                              ) : slot.estimatedPriceMinPerPerson != null &&
+                                slot.estimatedPriceMaxPerPerson != null &&
+                                slot.estimatedPriceMinPerPerson >= 0 &&
+                                slot.estimatedPriceMaxPerPerson >= slot.estimatedPriceMinPerPerson ? (
+                                <p className="text-xs text-muted-foreground font-mono mt-1">
+                                  {slot.estimatedPriceMinPerPerson === 0 && slot.estimatedPriceMaxPerPerson === 0 ? (
+                                    "Probablement gratuit"
+                                  ) : slot.estimatedPriceMinPerPerson !== slot.estimatedPriceMaxPerPerson ? (
+                                    `Env. ${slot.estimatedPriceMinPerPerson}–${slot.estimatedPriceMaxPerPerson}${
+                                      slot.estimatedPriceCurrency
+                                        ? slot.estimatedPriceCurrency === "EUR"
+                                          ? " €"
+                                          : ` ${slot.estimatedPriceCurrency}`
+                                        : ""
+                                    } / pers.`
+                                  ) : (
+                                    `Env. ${
+                                      slot.estimatedPriceCurrency
+                                        ? slot.estimatedPriceCurrency === "EUR"
+                                          ? formatEuro(slot.estimatedPriceMinPerPerson)
+                                          : `${slot.estimatedPriceMinPerPerson} ${slot.estimatedPriceCurrency}`
+                                        : slot.estimatedPriceMinPerPerson
+                                    } / pers.`
+                                  )}
                                 </p>
                               ) : null}
                               {slot.booking && slot.booking.provider === "getyourguide" ? (
