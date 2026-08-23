@@ -3143,7 +3143,18 @@ function TripDetail() {
                                   ~{formatEuro(Number(slot.priceHint))} / pers.
                                 </p>
                               ) : null}
-                              {slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
+                              {slot.booking && slot.booking.provider === "getyourguide" ? (
+                                <a
+                                  href={slot.booking.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1 block text-xs font-medium text-primary hover:underline"
+                                >
+                                  {slot.booking.type === "exact_product"
+                                    ? "Voir les disponibilités sur GetYourGuide →"
+                                    : "Voir les activités sur GetYourGuide →"}
+                                </a>
+                              ) : slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
                                 <a
                                   href={slot.url}
                                   target="_blank"
@@ -3155,18 +3166,6 @@ function TripDetail() {
                                     : slot.resourceKind === "ideas"
                                       ? "Voir les idées →"
                                       : "Voir le lieu →"}
-                                </a>
-                              ) : null}
-                              {slot.booking && slot.booking.provider === "getyourguide" ? (
-                                <a
-                                  href={slot.booking.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="mt-1 block text-xs font-medium text-primary/80 hover:underline"
-                                >
-                                  {slot.booking.type === "exact_product"
-                                    ? "Voir les disponibilités sur GetYourGuide →"
-                                    : "Voir des activités correspondantes sur GetYourGuide →"}
                                 </a>
                               ) : null}
                             </div>

@@ -57,21 +57,38 @@ export function buildGetYourGuideBooking(
       return null;
     }
 
-    // 2. Explicitly exclude restaurants, bars, brunchs, repas, free_exploration, self_guided_group
+    // 2. Explicitly exclude restaurants, bars, brunchs, repas, free_exploration, self_guided_group, shopping, etc.
     if (
       slot.type === "resto" ||
       slot.type === "bar" ||
       slot.category === "repas" ||
+      slot.category === "shopping" ||
+      slot.category === "temps_libre" ||
+      slot.category === "moment_maison" ||
+      slot.category === "jeu_groupe" ||
       slot.venueFamily === "restaurant" ||
       slot.venueFamily === "cafe" ||
-      slot.venueFamily === "bar_pub"
+      slot.venueFamily === "bar_pub" ||
+      slot.venueFamily === "shopping"
     ) {
       return null;
     }
 
-    const normText = norm(`${slot.label ?? ""} ${slot.category ?? ""} ${slot.searchIntent ?? ""}`);
+    const normText = norm(`${slot.label ?? ""} ${slot.category ?? ""} ${slot.searchIntent ?? ""} ${slot.venueFamily ?? ""}`);
+
+    // Exclude restaurants, bars, meals
     if (/\b(restaurant|restaurants|bar|bars|brunch|brunchs|repas|diner|diners|dejeuner|dejeuners)\b/i.test(normText)) {
       return null;
+    }
+
+    // Exclude free market, shopping, free strolls, neighborhood exploration, public parks/beaches, autonomous exploration
+    if (
+      /\b(marche|marché|piac|market|shopping|promenade|balade|flanerie|flânerie|quartier|parc|park|plage|beach)\b/i.test(normText)
+    ) {
+      const isGuidedOrBookableExperience = /\b(visite guidee|visite guidée|guided|tour|atelier|workshop|degustation|dégustation|tasting|excursion|croisiere|croisière|cruise|billet|ticket|entree|entrée|spectacle|show)\b/i.test(normText);
+      if (!isGuidedOrBookableExperience) {
+        return null;
+      }
     }
 
     // CAS A: URL GetYourGuide exacte existante
@@ -105,19 +122,14 @@ export function buildGetYourGuideBooking(
     }
 
     // CAS B: Pas d'URL GetYourGuide exacte -> Lien de recherche
+    // Priority order: 1. slot.label -> 2. slot.suggestedPlace -> 3. slot.searchIntent
     let queryBase = "";
-    if (slot.searchIntent && slot.searchIntent.trim()) {
-      queryBase = slot.searchIntent.trim();
-    } else if (slot.suggestedPlace && slot.suggestedPlace.trim()) {
-      const place = slot.suggestedPlace.trim();
-      const label = (slot.label || "").trim();
-      if (label && norm(place) !== norm(label)) {
-        queryBase = `${place} ${label}`;
-      } else {
-        queryBase = place;
-      }
-    } else if (slot.label && slot.label.trim()) {
+    if (slot.label && slot.label.trim()) {
       queryBase = slot.label.trim();
+    } else if (slot.suggestedPlace && slot.suggestedPlace.trim()) {
+      queryBase = slot.suggestedPlace.trim();
+    } else if (slot.searchIntent && slot.searchIntent.trim()) {
+      queryBase = slot.searchIntent.trim();
     }
 
     if (!queryBase) {
