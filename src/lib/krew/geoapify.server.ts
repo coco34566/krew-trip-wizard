@@ -50,6 +50,7 @@ export type PlaceRequirements = {
   searchIntent?: string | null;
   momentType?: string | null;
   intentCenter?: IntentLocationResult | null;
+  concretePlaceName?: string | null;
 };
 
 const intentLocationCacheMap = new Map<string, IntentLocationResult | null>();
@@ -361,10 +362,93 @@ export function isConcretePlaceProposal(name: string | null | undefined): boolea
     "marche local",
     "pause cafe",
     "petit-dejeuner local",
+    "restaurant convivial",
+    "spa haut de gamme",
+    "cafe pour petit dejeuner",
+    "activite nautique",
+    "restaurant traditionnel",
   ];
 
   if (genericTerms.includes(normName)) return false;
   return true;
+}
+
+const MULTI_LINGUAL_ALIASES: Record<string, string[]> = {
+  bastion: ["halasbastya", "halaszbastya", "bastya", "fisherman", "fishermans"],
+  pecheur: ["fisherman", "fishermans", "halasbastya", "halaszbastya", "halasz"],
+  pecheurs: ["fisherman", "fishermans", "halasbastya", "halaszbastya", "halasz"],
+  halles: ["vasarcsarnok", "csarnok", "market hall", "markthalle", "hall"],
+  halle: ["vasarcsarnok", "csarnok", "market hall", "markthalle", "hall"],
+  marche: ["market", "piac", "vasarcsarnok", "csarnok", "markthalle"],
+  chateau: ["castle", "var", "palace", "palais", "schloss"],
+  citadelle: ["citadel", "citadella"],
+  pont: ["bridge", "hid"],
+  parlement: ["parliament", "orszaghaz"],
+  basilique: ["basilica", "bazilika"],
+  cathedrale: ["cathedral"],
+  thermes: ["thermal", "baths", "bath", "spa", "furdo"],
+  bains: ["thermal", "baths", "bath", "spa", "furdo"],
+};
+
+export function isNominalPlaceMatch(
+  requestedName: string | null | undefined,
+  candidateName: string | null | undefined,
+  candidateAddress?: string | null,
+): boolean {
+  if (!requestedName || !candidateName) return false;
+
+  const normReq = requestedName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  const normCand = candidateName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  const normAddr = (candidateAddress || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+  const fullCand = `${normCand} ${normAddr}`;
+
+  if (fullCand.includes(normReq) || normReq.includes(normCand)) {
+    return true;
+  }
+
+  const ignoreWords = new Set([
+    "visite", "promenade", "flanerie", "balade", "decouverte", "de", "du", "des",
+    "au", "aux", "le", "la", "les", "un", "une", "dans", "avec", "pour", "grand",
+    "grande", "grandes", "central", "centrale", "centrales", "couvert", "couverte",
+    "local", "locale", "budapest", "prague", "paris", "annecy", "lyon", "beaune",
+  ]);
+
+  const reqTokens = normReq
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 3 && !ignoreWords.has(w));
+
+  if (reqTokens.length === 0) return false;
+
+  let matchedTokenCount = 0;
+
+  for (const token of reqTokens) {
+    if (fullCand.includes(token)) {
+      matchedTokenCount++;
+      continue;
+    }
+
+    const aliases = MULTI_LINGUAL_ALIASES[token];
+    if (aliases && aliases.some((alias) => fullCand.includes(alias))) {
+      matchedTokenCount++;
+    }
+  }
+
+  return matchedTokenCount > 0 && matchedTokenCount >= Math.ceil(reqTokens.length / 2);
 }
 
 export function extractApexDomain(urlInput: string): string | null {
@@ -450,6 +534,11 @@ export async function tryResolveGeminiProposedPlace(options: {
     venueFamily || "local_experience",
     "culture",
     searchIntent || candidateName,
+    [],
+    false,
+    [],
+    null,
+    candidateName,
   );
 
   const apiKey = process.env["GEOAPIFY_API_KEY"];
@@ -488,12 +577,9 @@ export async function tryResolveGeminiProposedPlace(options: {
       }
 
       const isNameMatch =
+        isNominalPlaceMatch(candidateName, name, props.formatted || props.address_line2) ||
         normName.includes(normCandidate) ||
-        normCandidate.includes(normName) ||
-        normCandidate
-          .split(" ")
-          .filter((w) => w.length > 3 && w !== normDest)
-          .some((w) => normName.includes(w));
+        normCandidate.includes(normName);
 
       if (!isNameMatch) continue;
 
@@ -545,6 +631,7 @@ export function convertIntentToPlaceRequirements(
   accessibilityRequired = false,
   userNotes: string[] = [],
   intentCenter?: IntentLocationResult | null,
+  concretePlaceName?: string | null,
 ): PlaceRequirements {
   const normIntent = String(searchIntent || "")
     .normalize("NFD")
@@ -598,6 +685,7 @@ export function convertIntentToPlaceRequirements(
     searchIntent: searchIntent ?? null,
     momentType: momentType ?? null,
     intentCenter: intentCenter ?? null,
+    concretePlaceName: concretePlaceName ?? (searchIntent && isConcretePlaceProposal(searchIntent) ? searchIntent : null),
   };
 }
 
@@ -939,21 +1027,14 @@ export async function fetchPlaceDetails(
   }
 }
 
-const weekdaysMap: Record<string, number> = {
-  dimanche: 0,
-  sunday: 0,
-  lundi: 1,
-  monday: 1,
-  mardi: 2,
-  tuesday: 2,
-  mercredi: 3,
-  wednesday: 3,
-  jeudi: 4,
-  thursday: 4,
-  vendredi: 5,
-  friday: 5,
-  samedi: 6,
-  saturday: 6,
+const DAY_NAME_TO_NUM: Record<string, number> = {
+  su: 0, sun: 0, sunday: 0, dimanche: 0,
+  mo: 1, mon: 1, monday: 1, lundi: 1,
+  tu: 2, tue: 2, tuesday: 2, mardi: 2,
+  we: 3, wed: 3, wednesday: 3, mercredi: 3,
+  th: 4, thu: 4, thursday: 4, jeudi: 4,
+  fr: 5, fri: 5, friday: 5, vendredi: 5,
+  sa: 6, sat: 6, saturday: 6, samedi: 6,
 };
 
 function toMinutes(t?: string | null): number | null {
@@ -961,6 +1042,43 @@ function toMinutes(t?: string | null): number | null {
   const match = t.match(/([01]?\d|2[0-3])[:h]([0-5]\d)/i);
   if (!match) return null;
   return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function parseDaysFromText(text: string): Set<number> {
+  const days = new Set<number>();
+  const norm = text.toLowerCase();
+
+  // Check day ranges first: e.g. "mo-fr", "tu-su", "sa-su", "lundi-vendredi"
+  const rangeMatches = norm.matchAll(
+    /\b(mo|mon|monday|lundi|tu|tue|tuesday|mardi|we|wed|wednesday|mercredi|th|thu|thursday|jeudi|fr|fri|friday|vendredi|sa|sat|saturday|samedi|su|sun|sunday|dimanche)\s*(?:-|–|—|to|a)\s*(mo|mon|monday|lundi|tu|tue|tuesday|mardi|we|wed|wednesday|mercredi|th|thu|thursday|jeudi|fr|fri|friday|vendredi|sa|sat|saturday|samedi|su|sun|sunday|dimanche)\b/g
+  );
+
+  for (const match of rangeMatches) {
+    const start = DAY_NAME_TO_NUM[match[1]];
+    const end = DAY_NAME_TO_NUM[match[2]];
+    if (start != null && end != null) {
+      let current = start;
+      days.add(current);
+      while (current !== end) {
+        current = (current + 1) % 7;
+        days.add(current);
+      }
+    }
+  }
+
+  // Check individual day tokens
+  const singleMatches = norm.matchAll(
+    /\b(mo|mon|monday|lundi|tu|tue|tuesday|mardi|we|wed|wednesday|mercredi|th|thu|thursday|jeudi|fr|fri|friday|vendredi|sa|sat|saturday|samedi|su|sun|sunday|dimanche)\b/g
+  );
+
+  for (const match of singleMatches) {
+    const d = DAY_NAME_TO_NUM[match[1]];
+    if (d != null) {
+      days.add(d);
+    }
+  }
+
+  return days;
 }
 
 export function geoapifyOpeningStatus(
@@ -974,7 +1092,12 @@ export function geoapifyOpeningStatus(
   const timeMins = toMinutes(time);
   if (timeMins == null) return "unknown";
 
-  const raw = typeof place.openingHours === "string" ? place.openingHours : String(place.openingHours || "");
+  const raw = Array.isArray(place.openingHours)
+    ? place.openingHours.join("; ")
+    : typeof place.openingHours === "string"
+      ? place.openingHours
+      : String(place.openingHours || "");
+
   if (!raw.trim()) return "unknown";
 
   const normRaw = raw
@@ -990,47 +1113,74 @@ export function geoapifyOpeningStatus(
   if (isNaN(dateObj.getTime())) return "unknown";
   const weekday = dateObj.getUTCDay();
 
-  const lines = normRaw.split(/[\n;]/);
-  let matchingLine: string | null = null;
+  const rules = normRaw.split(/[\n;]/).map((r) => r.trim()).filter(Boolean);
+  if (rules.length === 0) return "unknown";
 
-  for (const line of lines) {
-    for (const [name, dayNum] of Object.entries(weekdaysMap)) {
-      if (dayNum === weekday && line.includes(name)) {
-        matchingLine = line;
-        break;
-      }
+  const allSpecifiedDaysInSchedule = new Set<number>();
+  const rulesForTargetDay: { text: string; timeRanges: [number, number][]; isOff: boolean }[] = [];
+
+  for (const ruleText of rules) {
+    const daysInRule = parseDaysFromText(ruleText);
+    for (const d of daysInRule) {
+      allSpecifiedDaysInSchedule.add(d);
     }
-    if (matchingLine) break;
+
+    const isOff = ruleText.includes("off") || ruleText.includes("closed") || ruleText.includes("ferme");
+
+    const ranges = [
+      ...ruleText.matchAll(
+        /([01]?\d|2[0-3])[:h]([0-5]\d)\s*(?:-|–|—|a|to)\s*([01]?\d|2[0-3])[:h]([0-5]\d)/gi,
+      ),
+    ].map((m) => {
+      const rStart = Number(m[1]) * 60 + Number(m[2]);
+      let rEnd = Number(m[3]) * 60 + Number(m[4]);
+      if (rEnd < rStart) rEnd += 1440;
+      return [rStart, rEnd] as [number, number];
+    });
+
+    if (daysInRule.size === 0) {
+      // Rule has no day restriction (applies to all days)
+      rulesForTargetDay.push({ text: ruleText, timeRanges: ranges, isOff });
+    } else if (daysInRule.has(weekday)) {
+      // Rule explicitly applies to target weekday
+      rulesForTargetDay.push({ text: ruleText, timeRanges: ranges, isOff });
+    }
   }
 
-  const targetLine = matchingLine || normRaw;
-
-  if (targetLine.includes("closed") || targetLine.includes("ferme")) {
+  // If the schedule explicitly specifies days, but target weekday is not included in any rule:
+  if (allSpecifiedDaysInSchedule.size > 0 && !allSpecifiedDaysInSchedule.has(weekday)) {
     return "closed";
   }
 
-  const ranges = [
-    ...targetLine.matchAll(
-      /([01]?\d|2[0-3])[:h]([0-5]\d)\s*(?:-|–|—|a|to)\s*([01]?\d|2[0-3])[:h]([0-5]\d)/gi,
-    ),
-  ];
+  if (rulesForTargetDay.length === 0) {
+    return "unknown";
+  }
 
-  if (!ranges.length) return "unknown";
-
+  // Check if any rule for target day indicates explicitly closed or time range mismatch
+  let hasValidTimeRanges = false;
   const slotStart = timeMins;
   const slotEnd = slotStart + durationMinutes;
 
-  for (const match of ranges) {
-    const rStart = Number(match[1]) * 60 + Number(match[2]);
-    let rEnd = Number(match[3]) * 60 + Number(match[4]);
-    if (rEnd < rStart) rEnd += 1440;
+  for (const rule of rulesForTargetDay) {
+    if (rule.isOff) {
+      return "closed";
+    }
 
-    if (slotStart >= rStart && slotEnd <= rEnd) {
-      return "open";
+    if (rule.timeRanges.length > 0) {
+      hasValidTimeRanges = true;
+      for (const [rStart, rEnd] of rule.timeRanges) {
+        if (slotStart >= rStart && slotEnd <= rEnd) {
+          return "open";
+        }
+      }
     }
   }
 
-  return "closed";
+  if (hasValidTimeRanges) {
+    return "closed";
+  }
+
+  return "unknown";
 }
 
 export type SelectCandidateOptions = {
@@ -1426,7 +1576,12 @@ export function rankGeoapifyCandidates(
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-    // A. Compatibilité famille métier
+    // A. Match nominal pour les lieux concrets demandés
+    if (req.concretePlaceName && isNominalPlaceMatch(req.concretePlaceName, cand.name, cand.address)) {
+      score += 2000;
+    }
+
+    // B. Compatibilité famille métier
     if (isCandidateCompatibleWithRequirements(cand, req)) {
       score += 300;
     }
