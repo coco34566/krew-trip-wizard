@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from "bun:test";
 import {
   buildGetYourGuideBooking,
   enrichGroupItineraryWithGetYourGuide,
+  isGetYourGuideProductUrl,
 } from "@/lib/krew/getyourguide.server";
 import type { ActivitySlot, GroupItinerary } from "@/lib/krew/activity-ai.server";
 
@@ -20,8 +21,8 @@ describe("GetYourGuide Enrichment Server Engine", () => {
     }
   });
 
-  // 1. URL GYG exacte sans paramètres → ajout du partner_id
-  it("1. URL GYG exacte sans paramètres -> ajout du partner_id", () => {
+  // 1. URL GYG exacte produit → exact_product + partner_id
+  it("1. URL GYG exacte produit -> exact_product + partner_id", () => {
     const slot: ActivitySlot = {
       moment: "Matin",
       type: "activite",
@@ -36,6 +37,23 @@ describe("GetYourGuide Enrichment Server Engine", () => {
     expect(booking?.type).toBe("exact_product");
     expect(booking?.provider).toBe("getyourguide");
     expect(booking?.affiliate).toBe(true);
+    expect(booking?.url).toContain("partner_id=test_affiliate_123");
+  });
+
+  // URL GYG générique/destination -> type: search
+  it("URL GYG search/destination générique -> type: search", () => {
+    const slot: ActivitySlot = {
+      moment: "Après-midi",
+      type: "activite",
+      category: "culture",
+      label: "Découverte de Paris",
+      activityMode: "bookable",
+      url: "https://www.getyourguide.fr/paris-l16/",
+    };
+
+    const booking = buildGetYourGuideBooking(slot, "Paris");
+    expect(booking).not.toBeNull();
+    expect(booking?.type).toBe("search");
     expect(booking?.url).toContain("partner_id=test_affiliate_123");
   });
 
@@ -98,6 +116,23 @@ describe("GetYourGuide Enrichment Server Engine", () => {
     expect(booking?.url).toContain("kayak");
   });
 
+  // Activité category: "soiree" mais type: "activite" → booking GYG autorisé
+  it("Activité category: 'soiree' mais type: 'activite' -> booking GYG autorisé", () => {
+    const slotSoiree: ActivitySlot = {
+      moment: "Soir",
+      type: "activite",
+      category: "soiree",
+      label: "Spectacle au cabaret & croisière nocturne",
+      searchIntent: "spectacle cabaret paris",
+      activityMode: "bookable",
+    };
+
+    const booking = buildGetYourGuideBooking(slotSoiree, "Paris");
+    expect(booking).not.toBeNull();
+    expect(booking?.type).toBe("search");
+    expect(booking?.provider).toBe("getyourguide");
+  });
+
   // 5. restaurant → booking = null
   it("5. restaurant -> booking = null", () => {
     const slotRestoType: ActivitySlot = {
@@ -121,18 +156,27 @@ describe("GetYourGuide Enrichment Server Engine", () => {
     expect(buildGetYourGuideBooking(slotRestoCat, "Paris")).toBeNull();
   });
 
-  // 6. bar → booking = null
-  it("6. bar -> booking = null", () => {
+  // 6. bar → booking = null (type: "bar" ou venueFamily: "bar_pub")
+  it("6. type: 'bar' ou venueFamily: 'bar_pub' -> toujours null", () => {
     const slotBarType: ActivitySlot = {
       moment: "Soir",
       type: "bar",
       category: "soiree",
       label: "Apéro au rooftop",
+      activityMode: "bookable",
+    };
+
+    const slotVenueBar: ActivitySlot = {
+      moment: "Soir",
+      type: "activite",
+      category: "soiree",
+      label: "Pub crawl et verres offerts",
       venueFamily: "bar_pub",
       activityMode: "bookable",
     };
 
     expect(buildGetYourGuideBooking(slotBarType, "Barcelone")).toBeNull();
+    expect(buildGetYourGuideBooking(slotVenueBar, "Barcelone")).toBeNull();
   });
 
   // 7. free_exploration → booking = null
@@ -176,6 +220,14 @@ describe("GetYourGuide Enrichment Server Engine", () => {
     expect(buildGetYourGuideBooking(slot, "Lyon")).toBeNull();
   });
 
+  // Helper detection product url tests
+  it("isGetYourGuideProductUrl détecte correctement les fiches produit", () => {
+    expect(isGetYourGuideProductUrl("https://www.getyourguide.fr/paris-l16/visite-guidee-t12345/")).toBe(true);
+    expect(isGetYourGuideProductUrl("https://www.getyourguide.com/rome-l33/colosseum-tour-tc42/")).toBe(true);
+    expect(isGetYourGuideProductUrl("https://www.getyourguide.fr/paris-l16/")).toBe(false);
+    expect(isGetYourGuideProductUrl("https://www.getyourguide.fr/s/?q=paris")).toBe(false);
+  });
+
   // 10. test d’invariance critique
   it("10. test d’invariance critique : suppression de booking redonne l’objet initial strictly identical", () => {
     const originalItinerary: GroupItinerary = {
@@ -203,6 +255,13 @@ describe("GetYourGuide Enrichment Server Engine", () => {
               type: "resto",
               category: "repas",
               label: "Déjeuner savoyard",
+              activityMode: "bookable",
+            },
+            {
+              moment: "Soir",
+              type: "activite",
+              category: "soiree",
+              label: "Croisière nocturne avec concert",
               activityMode: "bookable",
             },
             {

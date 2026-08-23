@@ -26,6 +26,17 @@ function isGetYourGuideUrl(urlStr: string): boolean {
   }
 }
 
+export function isGetYourGuideProductUrl(urlStr: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    if (!u.hostname.includes("getyourguide.")) return false;
+    const path = u.pathname;
+    return /-t\d+(\/|$)/i.test(path) || /-tc\d+(\/|$)/i.test(path) || /\/(activity|tour)\//i.test(path);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Generates an optional affiliate booking object for a single activity slot.
  * Pure function: never mutates the received slot.
@@ -51,7 +62,6 @@ export function buildGetYourGuideBooking(
       slot.type === "resto" ||
       slot.type === "bar" ||
       slot.category === "repas" ||
-      slot.category === "soiree" ||
       slot.venueFamily === "restaurant" ||
       slot.venueFamily === "cafe" ||
       slot.venueFamily === "bar_pub"
@@ -70,13 +80,16 @@ export function buildGetYourGuideBooking(
       (slot.suggestedUrl && isGetYourGuideUrl(slot.suggestedUrl) ? slot.suggestedUrl : null);
 
     if (existingGygUrl) {
+      const isProduct = isGetYourGuideProductUrl(existingGygUrl);
+      const bookingType = isProduct ? "exact_product" : "search";
+
       try {
         const u = new URL(existingGygUrl);
         u.searchParams.set("partner_id", affiliateId.trim());
         return {
           provider: "getyourguide",
           url: u.toString(),
-          type: "exact_product",
+          type: bookingType,
           affiliate: true,
         };
       } catch {
@@ -85,7 +98,7 @@ export function buildGetYourGuideBooking(
         return {
           provider: "getyourguide",
           url: `${existingGygUrl}${sep}partner_id=${encodeURIComponent(affiliateId.trim())}`,
-          type: "exact_product",
+          type: bookingType,
           affiliate: true,
         };
       }
