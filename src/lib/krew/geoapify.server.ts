@@ -363,11 +363,7 @@ export function isConcretePlaceProposal(name: string | null | undefined): boolea
     "petit-dejeuner local",
   ];
 
-  const genericCities = new Set([
-    "budapest", "paris", "lyon", "marseille", "bordeaux", "nice", "annecy", "beaune", "lisbonne", "seville", "rome",
-  ]);
-
-  if (genericTerms.includes(normName) || genericCities.has(normName)) return false;
+  if (genericTerms.includes(normName)) return false;
   return true;
 }
 
