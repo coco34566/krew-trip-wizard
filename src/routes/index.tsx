@@ -188,7 +188,7 @@ function Landing() {
         </section>
 
         <section className="relative bg-surface/80 border-t border-border py-14 sm:py-20 overflow-hidden">
-          <div className="max-w-2xl mx-auto px-5 sm:px-6 text-center relative z-10 space-y-4">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-10 text-center relative z-10 space-y-4">
             <img src="/brand/otter-states/lets-go.png" alt="Loutre KREW départ" className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-xs mx-auto" />
             <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground leading-tight">Ta prochaine légende commence ici</h2>
             <p className="mx-auto max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed font-sans">Crée le voyage, invite le groupe et avancez ensemble, étape par étape.</p>

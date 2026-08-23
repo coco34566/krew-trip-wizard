@@ -2231,7 +2231,7 @@ function TripDetail() {
       {currentSection === "profile" ? (
       <section
         id="hub-profile"
-        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] border border-border/40 p-5 sm:p-7 scroll-mt-24"
+        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24"
       >
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -2367,7 +2367,7 @@ function TripDetail() {
       {currentSection === "destination" ? (
       <section
         id="hub-destination"
-        className="mt-6 sm:mt-8 space-y-4 bg-sage/12 rounded-[20px] border border-border/40 p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-6 sm:mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter destination asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -2905,7 +2905,7 @@ function TripDetail() {
       {currentSection === "transport" ? (
       <section
         id="hub-transports"
-        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] border border-border/40 p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter transport asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -3143,7 +3143,7 @@ function TripDetail() {
       {currentSection === "planning" && destinationSelected ? (
         <section
           id="hub-activities-plan"
-          className="mt-6 sm:mt-8 space-y-4 bg-sage/12 rounded-[20px] border border-border/40 p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+          className="mt-6 sm:mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter planning asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
