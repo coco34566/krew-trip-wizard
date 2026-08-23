@@ -289,7 +289,7 @@ function TripRecapPage() {
             return (
               <article
                 key={reco.id}
-                className="overflow-hidden rounded-[24px] border border-border/60 bg-background shadow-sm space-y-0"
+                className="overflow-hidden rounded-[24px] border border-border/60 bg-background shadow-2xs space-y-0"
               >
                 <div className="border-b border-border/50 bg-surface/40 px-5 py-4 sm:px-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -508,7 +508,7 @@ function TripRecapPage() {
       ) : null}
 
       <div className="space-y-8 pt-6">
-        <section className="rounded-[24px] border border-border/60 bg-background p-5 sm:p-6 space-y-4 shadow-sm">
+        <section className="rounded-[24px] border border-border/60 bg-background p-5 sm:p-6 space-y-4 shadow-2xs">
           <div className="flex items-center gap-2">
             <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
             <h2 className="font-display text-xl font-normal text-foreground">Exporter mon calendrier</h2>

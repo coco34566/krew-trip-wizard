@@ -88,7 +88,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn("pb-8 mb-8 space-y-4", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-7` : "border-b border-border/50")}>
+    <section className={cn("pb-6 mb-6 space-y-4", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-6` : "border-b border-border/50")}>
       <div>
         <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">{title}</h2>
         {hint ? <p className="mt-1 text-sm text-muted-foreground font-sans">{hint}</p> : null}

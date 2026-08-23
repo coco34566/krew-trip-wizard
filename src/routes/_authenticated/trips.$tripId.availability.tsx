@@ -83,7 +83,7 @@ function MonthGrid({
   }
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
+    <div className="rounded-2xl border border-border/40 bg-card p-3.5 shadow-none">
       <p className="mb-2 text-center text-sm font-semibold capitalize font-sans">{monthLabel(month)}</p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
@@ -342,7 +342,7 @@ function AvailabilityPage() {
       </div>
 
       {/* CALENDRIER DEVENU L'OBJET PRINCIPAL */}
-      <section className="w-full rounded-[24px] bg-background border border-border/50 p-6 space-y-6">
+      <section className="w-full rounded-[24px] bg-background border border-border/40 p-5 sm:p-6 space-y-6 shadow-none">
         <div>
           <h2 className="font-display text-xl font-normal text-foreground flex items-center gap-2">
             <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />

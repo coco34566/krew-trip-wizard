@@ -84,7 +84,7 @@ function MonthGrid({
   }
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
+    <div className="rounded-2xl border border-border/40 bg-card p-3.5 shadow-none">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
@@ -369,7 +369,7 @@ function StarQuestionnaire() {
 
       <div className="space-y-2 relative">
         <div className="relative inline-block">
-          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
             Préférences de{" "}
             <KrewHighlight tone="plum" className="px-2 py-0.5 font-normal">
               {starName}
