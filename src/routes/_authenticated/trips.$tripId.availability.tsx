@@ -288,12 +288,13 @@ function AvailabilityPage() {
 
   return (
     <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
-      <a
-        href={`/trips/${tripId}`}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+      <Link
+        to="/trips/$tripId"
+        params={{ tripId }}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
       >
-        <ArrowLeft className="size-4" /> Retour à Mon Voyage
-      </a>
+        <ArrowLeft className="size-4" /> Retour au voyage
+      </Link>
 
       <div className="space-y-3 relative">
         <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">

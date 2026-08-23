@@ -7,6 +7,7 @@ import { Logo } from "@/components/krew/Logo";
 import { KrewIcon, type KrewIconName } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewHighlight, KrewOrganicBlob } from "@/components/krew/visual-language";
+import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { EVENT_TYPES } from "@/lib/krew/constants";
 
 export const Route = createFileRoute("/")({
@@ -58,9 +59,9 @@ const TRUST = [
   "Budget clair dès le départ",
 ];
 
-// Exactly 3 usages: EVG, EVJF, Week-end entre amis
+// Exactly 4 usages: EVG, EVJF, Week-end entre amis, Anniversaire
 const IDEAL_FOR_TYPES = EVENT_TYPES.filter((ev) =>
-  ["evg", "evjf", "weekend"].includes(ev.value)
+  ["evg", "evjf", "weekend", "anniversaire"].includes(ev.value)
 );
 
 function Landing() {
@@ -293,6 +294,13 @@ function Landing() {
             <div className="grid lg:grid-cols-12 gap-6 items-center">
               {/* Photo Column with /images/trip-types/weekend.png (Friends weekend moment) */}
               <div className="lg:col-span-5 relative">
+                {/* Discrete Post-it 1 on top-left of photo area */}
+                <div className="absolute -top-3 -left-2 z-20 hidden sm:block pointer-events-none">
+                  <KrewNote variant="tape" tone="sage" rotation={-3} className="text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[120px]">
+                    Option coup de cœur !
+                  </KrewNote>
+                </div>
+
                 <div className="relative rounded-[24px] overflow-hidden aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/5] shadow-xs border border-border/40">
                   <img
                     src="/images/trip-types/weekend.png"
@@ -312,7 +320,14 @@ function Landing() {
               </div>
 
               {/* Travel Journal Detail Breakdown */}
-              <div className="lg:col-span-7 space-y-6">
+              <div className="lg:col-span-7 space-y-6 relative">
+                {/* Discrete Post-it 2 on top right of detail breakdown */}
+                <div className="absolute -top-4 right-2 z-20 hidden sm:block pointer-events-none">
+                  <KrewNote variant="sticky" tone="cream" rotation={3} className="text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[130px]">
+                    100% validé par l’équipe ✨
+                  </KrewNote>
+                </div>
+
                 <div className="p-5 sm:p-6 rounded-2xl bg-background border border-border shadow-xs space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>

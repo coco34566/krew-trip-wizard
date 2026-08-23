@@ -106,25 +106,25 @@ export function TransportTimePrefsCard({ tripId }: Props) {
         Indiquer l’heure de départ la plus tôt possible et l’heure limite de retour.
       </p>
 
-      <div className="grid grid-cols-2 gap-3 items-end">
-        <div>
-          <label className="text-xs font-medium text-foreground block mb-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end w-full">
+        <div className="min-w-0 w-full">
+          <label className="text-xs font-medium text-foreground block mb-1 truncate">
             Départ au plus tôt
           </label>
           <Input
             type="time"
-            className="h-9 text-xs rounded-xl"
+            className="h-9 text-xs rounded-xl w-full min-w-0"
             value={earliest}
             onChange={(e) => setEarliest(e.target.value)}
           />
         </div>
-        <div>
-          <label className="text-xs font-medium text-foreground block mb-1">
+        <div className="min-w-0 w-full">
+          <label className="text-xs font-medium text-foreground block mb-1 truncate">
             Retour au plus tard
           </label>
           <Input
             type="time"
-            className="h-9 text-xs rounded-xl"
+            className="h-9 text-xs rounded-xl w-full min-w-0"
             value={latest}
             onChange={(e) => setLatest(e.target.value)}
           />

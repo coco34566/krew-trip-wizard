@@ -14,7 +14,7 @@ export type TimelineStep = {
   subtitle?: string | null;
   iconName: KrewIconName;
   status: "done" | "available" | "next_action" | "upcoming";
-  category?: "questionnaire" | "prepare" | "organisation";
+  category?: "questionnaire" | "prepare" | "organisation" | "souvenirs";
   href?: string | null;
 };
 
@@ -29,6 +29,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   questionnaire: "Questionnaire",
   prepare: "Préparer le voyage",
   organisation: "Organisation",
+  souvenirs: "Vos souvenirs",
 };
 
 function parseStepHref(href: string) {
