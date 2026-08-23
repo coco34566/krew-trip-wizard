@@ -18,24 +18,13 @@ export function CostSplitCard({ split, tripName }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="font-display text-[18px] sm:text-[20px] font-normal text-foreground leading-tight">
-            {split.destinationName}
-          </h3>
-          <p className="mt-0.5 text-xs text-muted-foreground font-sans">
-            Chacun paie son transport depuis sa ville + une part égale du reste.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-10 px-4 text-xs font-semibold gap-2 shadow-none"
-          onClick={handleWhatsApp}
-        >
-          <KrewIcon name="message" tone="plum" size="sm" className="size-4" />
-          <span>Partager sur WhatsApp</span>
-        </Button>
+      <div>
+        <h3 className="font-display text-[18px] sm:text-[20px] font-normal text-foreground leading-tight">
+          {split.destinationName}
+        </h3>
+        <p className="mt-0.5 text-xs text-muted-foreground font-sans">
+          Chacun paie son transport depuis sa ville + une part égale du reste.
+        </p>
       </div>
 
       <div className="mt-5 space-y-4">
@@ -116,6 +105,18 @@ export function CostSplitCard({ split, tripName }: Props) {
           <KrewHighlight tone="sage" className="font-mono font-bold text-xl text-primary px-1.5 py-0.5">
             {formatEuro(split.totalGroup)}
           </KrewHighlight>
+        </div>
+
+        {/* Action finale de partage sur WhatsApp */}
+        <div className="pt-2 text-right">
+          <Button
+            type="button"
+            className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-10 px-5 text-xs font-semibold inline-flex items-center gap-2 shadow-none"
+            onClick={handleWhatsApp}
+          >
+            <KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />
+            <span>Partager la répartition sur WhatsApp</span>
+          </Button>
         </div>
       </div>
     </div>
