@@ -3661,4 +3661,144 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
       });
     });
   });
+
+  describe("Micro-correctif #150 — required et prompt estimation de prix Gemini", () => {
+    it("le prompt contractual contient l'instruction exacte 'renseigne TOUJOURS'", () => {
+      expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain(
+        "Pour chaque activité, renseigne TOUJOURS estimatedPriceMinPerPerson, estimatedPriceMaxPerPerson et estimatedPriceCurrency. Pour une activité potentiellement payante, fournis si possible une fourchette de prix indicative réaliste par personne. Si tu ne peux pas raisonnablement estimer le coût, retourne explicitement null pour les trois champs. N’invente jamais une fausse précision.",
+      );
+    });
+
+    it("vérifie que les 3 champs sont required dans slots et backups du schema Gemini, et restent nullable", async () => {
+      const origKey = process.env["GEMINI_API_KEY"];
+      process.env["GEMINI_API_KEY"] = "fake_key";
+
+      const originalFetch = global.fetch;
+      let capturedBody: any = null;
+
+      global.fetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        if (String(url).includes("googleapis.com")) {
+          if (init?.body) {
+            capturedBody = JSON.parse(init.body as string);
+          }
+          return {
+            ok: true,
+            text: async () =>
+              JSON.stringify({
+                candidates: [
+                  {
+                    content: {
+                      parts: [
+                        {
+                          text: JSON.stringify({
+                            days: [
+                              {
+                                day: 1,
+                                slots: [
+                                  {
+                                    id: "s1",
+                                    kind: "place_required",
+                                    momentType: "culture",
+                                    label: "Musée",
+                                    detail: "Visite",
+                                    time: "10:00",
+                                    durationMinutes: 90,
+                                    estimatedPriceMinPerPerson: null,
+                                    estimatedPriceMaxPerPerson: null,
+                                    estimatedPriceCurrency: null,
+                                  },
+                                ],
+                              },
+                            ],
+                            backups: [
+                              {
+                                id: "b1",
+                                day: 1,
+                                forSlot: "s1",
+                                kind: "place_required",
+                                momentType: "culture",
+                                label: "Exposition",
+                                detail: "Alternative",
+                                time: "10:00",
+                                durationMinutes: 90,
+                                estimatedPriceMinPerPerson: 30,
+                                estimatedPriceMaxPerPerson: 50,
+                                estimatedPriceCurrency: "EUR",
+                              },
+                            ],
+                          }),
+                        },
+                      ],
+                    },
+                  },
+                ],
+              }),
+          };
+        }
+        return originalFetch(url, init);
+      });
+
+      try {
+        const testInput = input({ latestGroupArrival: "10:00" });
+        const skeleton = buildKrewSkeleton(testInput);
+        await geminiEnrichSkeleton(skeleton, testInput);
+
+        const schema = capturedBody?.generationConfig?.responseSchema;
+        expect(schema).toBeDefined();
+
+        const slotsSchema = schema.properties.days.items.properties.slots.items;
+        expect(slotsSchema.required).toContain("estimatedPriceMinPerPerson");
+        expect(slotsSchema.required).toContain("estimatedPriceMaxPerPerson");
+        expect(slotsSchema.required).toContain("estimatedPriceCurrency");
+        expect(slotsSchema.properties.estimatedPriceMinPerPerson.nullable).toBe(true);
+        expect(slotsSchema.properties.estimatedPriceMaxPerPerson.nullable).toBe(true);
+        expect(slotsSchema.properties.estimatedPriceCurrency.nullable).toBe(true);
+
+        const backupsSchema = schema.properties.backups.items;
+        expect(backupsSchema.required).toContain("estimatedPriceMinPerPerson");
+        expect(backupsSchema.required).toContain("estimatedPriceMaxPerPerson");
+        expect(backupsSchema.required).toContain("estimatedPriceCurrency");
+        expect(backupsSchema.properties.estimatedPriceMinPerPerson.nullable).toBe(true);
+        expect(backupsSchema.properties.estimatedPriceMaxPerPerson.nullable).toBe(true);
+        expect(backupsSchema.properties.estimatedPriceCurrency.nullable).toBe(true);
+      } finally {
+        global.fetch = originalFetch;
+        process.env["GEMINI_API_KEY"] = origKey;
+      }
+    });
+
+    it("normalizeSlot accepte null/null/null pour les 3 champs d'estimation de prix", () => {
+      const raw = {
+        label: "Visite Musée",
+        candidateId: "c1",
+        type: "activite",
+        estimatedPriceMinPerPerson: null,
+        estimatedPriceMaxPerPerson: null,
+        estimatedPriceCurrency: null,
+      };
+      const candidateList = [{ id: "c1", name: "Visite Musée", verified: true, source: "catalog" } as any];
+      const slot = normalizeSlot(raw, input(), candidateList);
+
+      expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+      expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+      expect(slot?.estimatedPriceCurrency).toBeNull();
+    });
+
+    it("normalizeSlot accepte 30/50/EUR pour les 3 champs d'estimation de prix", () => {
+      const raw = {
+        label: "Visite Musée",
+        candidateId: "c1",
+        type: "activite",
+        estimatedPriceMinPerPerson: 30,
+        estimatedPriceMaxPerPerson: 50,
+        estimatedPriceCurrency: "EUR",
+      };
+      const candidateList = [{ id: "c1", name: "Visite Musée", verified: true, source: "catalog" } as any];
+      const slot = normalizeSlot(raw, input(), candidateList);
+
+      expect(slot?.estimatedPriceMinPerPerson).toBe(30);
+      expect(slot?.estimatedPriceMaxPerPerson).toBe(50);
+      expect(slot?.estimatedPriceCurrency).toBe("EUR");
+    });
+  });
 });
