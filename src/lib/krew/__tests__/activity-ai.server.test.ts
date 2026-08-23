@@ -2792,12 +2792,12 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(res.totalCount).toBe(2);
       });
 
-      it("Test B : Prix absent ou priceHint sans source/statut -> pas de 0 € inventé, priceStatus = unknown", async () => {
+      it("Test B : priceHint: 30 avec verified: true et source: 'geoapify' sans explicit priceStatus -> UNKNOWN (non inclus)", async () => {
         const { computeItineraryActivitiesCost } = await import("../cost-split");
         const days = [
           {
             slots: [
-              { label: "Activité A", type: "activite", priceHint: 30 }, // Unconfirmed priceHint without source -> unknown
+              { label: "Activité Geoapify", type: "activite", priceHint: 30, verified: true, source: "geoapify" },
               { label: "Activité B", type: "activite", priceHint: null },
             ],
           },
@@ -2808,6 +2808,23 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(res.priceStatus).toBe("unknown");
         expect(res.knownCount).toBe(0);
         expect(res.totalCount).toBe(2);
+      });
+
+      it("Test Soirée Activité : category = 'soiree' avec type = 'activite' ET prix vérifié -> inclus (35 €)", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Cabaret / Spectacle", type: "activite", category: "soiree", priceHint: 35, priceStatus: "verified", source: "ticket_office" },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(35);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.knownCount).toBe(1);
+        expect(res.totalCount).toBe(1);
       });
 
       it("Test C : Prix partiel (30 € verified + source + unknown) -> somme connue = 30 €, status = partial", async () => {
@@ -2841,17 +2858,26 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(res.priceStatus).toBe("estimated");
       });
 
-      it("Test E : Gratuité confirmée (0 € + explicit status free) vs 0 € unconfirmed (unknown)", async () => {
+      it("Test E : Gratuité confirmée (0 € + explicit status free + source) vs 0 € sans source/statut (unknown)", async () => {
         const { computeItineraryActivitiesCost } = await import("../cost-split");
-        const daysFree = [
+        const daysFreeWithSource = [
+          {
+            slots: [{ label: "Parc municipal", type: "activite", priceHint: 0, priceStatus: "free", source: "city_hall" }],
+          },
+        ];
+
+        const resFree = computeItineraryActivitiesCost(daysFreeWithSource);
+        expect(resFree.activitiesPerPerson).toBe(0);
+        expect(resFree.priceStatus).toBe("free");
+
+        const daysFreeNoSource = [
           {
             slots: [{ label: "Parc municipal", type: "activite", priceHint: 0, priceStatus: "free" }],
           },
         ];
-
-        const resFree = computeItineraryActivitiesCost(daysFree);
-        expect(resFree.activitiesPerPerson).toBe(0);
-        expect(resFree.priceStatus).toBe("free");
+        const resFreeNoSource = computeItineraryActivitiesCost(daysFreeNoSource);
+        expect(resFreeNoSource.activitiesPerPerson).toBeNull();
+        expect(resFreeNoSource.priceStatus).toBe("unknown");
 
         const daysUnconfirmedZero = [
           {
@@ -2863,19 +2889,20 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(resUnconfirmed.priceStatus).toBe("unknown");
       });
 
-      it("Exclusion des restaurants et repas : un restaurant avec un prix n'est PAS inclus dans le budget activités", async () => {
+      it("Exclusion des restaurants, repas et bars : un restaurant ou un bar avec un prix n'est PAS inclus dans le budget activités", async () => {
         const { computeItineraryActivitiesCost } = await import("../cost-split");
         const days = [
           {
             slots: [
               { label: "Dîner au resto", type: "resto", category: "repas", priceHint: 40, priceStatus: "verified", source: "menu" },
+              { label: "Apéro au bar", type: "bar", venueFamily: "bar_pub", priceHint: 15, priceStatus: "verified", source: "menu" },
               { label: "Musée", type: "activite", category: "culture", priceHint: 15, priceStatus: "verified", source: "official_web" },
             ],
           },
         ];
 
         const res = computeItineraryActivitiesCost(days);
-        expect(res.activitiesPerPerson).toBe(15); // Only museum, dinner excluded!
+        expect(res.activitiesPerPerson).toBe(15); // Only museum, dinner & bar excluded!
         expect(res.totalCount).toBe(1);
         expect(res.knownCount).toBe(1);
       });

@@ -63,8 +63,10 @@ export function computeItineraryActivitiesCost(
       const venue = String(slot.venueFamily || "").trim().toLowerCase();
 
       // Exclude non-activity slots: meals/restaurants, bars/nightlife, transport, lodging
+      // Exclude non-activity slots: meals/restaurants, bars, transport, lodging.
+      // Note: category === "soiree" is NOT excluded when type === "activite" (shows, cabarets, night cruises).
       const isMeal = type === "resto" || cat === "repas" || venue === "restaurant" || venue === "cafe";
-      const isBar = type === "bar" || cat === "soiree" || venue === "bar_pub";
+      const isBar = type === "bar" || venue === "bar_pub";
       const isTransport = type === "transport";
       const isLodging = slot.locationContext === "lodging" || venue === "hotel";
 
@@ -77,19 +79,20 @@ export function computeItineraryActivitiesCost(
       const rawPrice = slot.priceHint ?? slot.pricePerPerson ?? slot.price;
       const numericPrice = rawPrice != null && !isNaN(Number(rawPrice)) ? Number(rawPrice) : null;
       const explicitStatus: ActivityPriceStatus | undefined = slot.priceStatus;
-      const source = slot.source && typeof slot.source === "string" ? slot.source.trim() : null;
+      const sourceRaw = slot.priceSource ?? slot.source;
+      const source = sourceRaw && typeof sourceRaw === "string" ? sourceRaw.trim() : null;
 
       let effectiveStatus: ActivityPriceStatus = "unknown";
 
+      // A price can only contribute to the budget if there is an explicit priceStatus + identifiable source!
+      // Unconfirmed priceHint (even with verified: true or source: "geoapify") without explicit priceStatus -> unknown.
       if (numericPrice != null && numericPrice >= 0) {
-        if (explicitStatus === "free" && numericPrice === 0) {
+        if (explicitStatus === "free" && numericPrice === 0 && source) {
           effectiveStatus = "free";
         } else if (explicitStatus === "verified" && source) {
           effectiveStatus = "verified";
         } else if (explicitStatus === "estimated" && source) {
           effectiveStatus = "estimated";
-        } else if (!explicitStatus && slot.verified === true && source) {
-          effectiveStatus = numericPrice === 0 ? "unknown" : "verified";
         }
       }
 
