@@ -3544,6 +3544,95 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(resComplete.slot.priceSource).toBe("provider_api");
         expect(resComplete.slot.pricePerPerson).toBe(25);
       });
+
+      describe("Nouveaux tests d'invariance et de validation de fourchette Gemini (#148 mini-correctif)", () => {
+        const baseInput: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const candidate = [{ id: "c1", name: "Visite Musée", verified: true, source: "catalog" } as any];
+
+        it("1. min=50, max=30 -> estimation rejetée (estMin=null, estMax=null)", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 50,
+            estimatedPriceMaxPerPerson: 30,
+            estimatedPriceCurrency: "EUR",
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+        });
+
+        it("2. min=-10, max=30 -> estimation rejetée", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: -10,
+            estimatedPriceMaxPerPerson: 30,
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+        });
+
+        it("3. 30–50 sans devise -> devise reste null (sans hardcoder EUR)", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 30,
+            estimatedPriceMaxPerPerson: 50,
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBe(30);
+          expect(slot?.estimatedPriceMaxPerPerson).toBe(50);
+          expect(slot?.estimatedPriceCurrency).toBeNull();
+        });
+
+        it("4. 30–50 EUR -> conservée", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 30,
+            estimatedPriceMaxPerPerson: 50,
+            estimatedPriceCurrency: "EUR",
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBe(30);
+          expect(slot?.estimatedPriceMaxPerPerson).toBe(50);
+          expect(slot?.estimatedPriceCurrency).toBe("EUR");
+        });
+
+        it("5. Prix sourcé reste prioritaire sur estimation Gemini", async () => {
+          const { computeItineraryActivitiesCost } = await import("../cost-split");
+          const res = computeItineraryActivitiesCost([
+            {
+              slots: [
+                {
+                  label: "Musée Sourdé",
+                  type: "activite",
+                  pricePerPerson: 25,
+                  priceStatus: "verified",
+                  priceSource: "official_web",
+                  estimatedPriceMinPerPerson: 30,
+                  estimatedPriceMaxPerPerson: 50,
+                },
+              ],
+            },
+          ]);
+          expect(res.activitiesPerPerson).toBe(25);
+          expect(res.priceStatus).toBe("verified");
+        });
+      });
     });
   });
 });

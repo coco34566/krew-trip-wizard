@@ -2595,26 +2595,38 @@ export function normalizeSlot(
     }
   }
 
-  const estMin =
+  let rawEstMin =
     raw.estimatedPriceMinPerPerson != null && Number.isFinite(Number(raw.estimatedPriceMinPerPerson))
       ? Number(raw.estimatedPriceMinPerPerson)
       : (candidate as any)?.estimatedPriceMinPerPerson != null && Number.isFinite(Number((candidate as any).estimatedPriceMinPerPerson))
         ? Number((candidate as any).estimatedPriceMinPerPerson)
         : null;
-  const estMax =
+  let rawEstMax =
     raw.estimatedPriceMaxPerPerson != null && Number.isFinite(Number(raw.estimatedPriceMaxPerPerson))
       ? Number(raw.estimatedPriceMaxPerPerson)
       : (candidate as any)?.estimatedPriceMaxPerPerson != null && Number.isFinite(Number((candidate as any).estimatedPriceMaxPerPerson))
         ? Number((candidate as any).estimatedPriceMaxPerPerson)
         : null;
+
+  let estMin: number | null = null;
+  let estMax: number | null = null;
+  if (rawEstMin != null && rawEstMax != null && rawEstMin >= 0 && rawEstMax >= rawEstMin) {
+    estMin = rawEstMin;
+    estMax = rawEstMax;
+  } else if (rawEstMin != null && rawEstMax == null && rawEstMin >= 0) {
+    estMin = rawEstMin;
+    estMax = rawEstMin;
+  } else if (rawEstMax != null && rawEstMin == null && rawEstMax >= 0) {
+    estMin = rawEstMax;
+    estMax = rawEstMax;
+  }
+
   const estCurrency =
     typeof raw.estimatedPriceCurrency === "string" && raw.estimatedPriceCurrency.trim()
       ? raw.estimatedPriceCurrency.trim()
       : typeof (candidate as any)?.estimatedPriceCurrency === "string" && (candidate as any).estimatedPriceCurrency.trim()
         ? (candidate as any).estimatedPriceCurrency.trim()
-        : estMin != null || estMax != null
-          ? "EUR"
-          : null;
+        : null;
 
   return {
     moment: String(raw.moment ?? "Après-midi").slice(0, 24),
@@ -3158,9 +3170,26 @@ export async function regenerateSlotWithAi(
     const priceSource = hasCompleteBundle ? altExplicitPriceSource : null;
     const currency = hasCompleteBundle ? (candidateAlt as any).currency ?? "EUR" : null;
 
-    const altEstMin = (candidateAlt as any).estimatedPriceMinPerPerson ?? null;
-    const altEstMax = (candidateAlt as any).estimatedPriceMaxPerPerson ?? null;
-    const altEstCurrency = (candidateAlt as any).estimatedPriceCurrency ?? (altEstMin != null || altEstMax != null ? "EUR" : null);
+    let rawAltEstMin = (candidateAlt as any).estimatedPriceMinPerPerson != null && Number.isFinite(Number((candidateAlt as any).estimatedPriceMinPerPerson)) ? Number((candidateAlt as any).estimatedPriceMinPerPerson) : null;
+    let rawAltEstMax = (candidateAlt as any).estimatedPriceMaxPerPerson != null && Number.isFinite(Number((candidateAlt as any).estimatedPriceMaxPerPerson)) ? Number((candidateAlt as any).estimatedPriceMaxPerPerson) : null;
+
+    let altEstMin: number | null = null;
+    let altEstMax: number | null = null;
+    if (rawAltEstMin != null && rawAltEstMax != null && rawAltEstMin >= 0 && rawAltEstMax >= rawAltEstMin) {
+      altEstMin = rawAltEstMin;
+      altEstMax = rawAltEstMax;
+    } else if (rawAltEstMin != null && rawAltEstMax == null && rawAltEstMin >= 0) {
+      altEstMin = rawAltEstMin;
+      altEstMax = rawAltEstMin;
+    } else if (rawAltEstMax != null && rawAltEstMin == null && rawAltEstMax >= 0) {
+      altEstMin = rawAltEstMax;
+      altEstMax = rawAltEstMax;
+    }
+
+    const altEstCurrency =
+      typeof (candidateAlt as any)?.estimatedPriceCurrency === "string" && (candidateAlt as any).estimatedPriceCurrency.trim()
+        ? (candidateAlt as any).estimatedPriceCurrency.trim()
+        : null;
 
     return {
       slot: {
