@@ -252,6 +252,148 @@ describe("GetYourGuide Enrichment Server Engine", () => {
     expect(buildGetYourGuideBooking(slotExcursion, "Budapest")).not.toBeNull();
   });
 
+  // Targeted tests for activityMode absent scenarios
+  describe("Slots without activityMode (activityMode absent)", () => {
+    it("1. Budapest River Cruise (type: activite, category: local_experience, venueFamily: local_experience) sans activityMode -> booking GYG généré", () => {
+      const slotBudapestCruise: ActivitySlot = {
+        moment: "Soir",
+        type: "activite",
+        category: "local_experience",
+        venueFamily: "local_experience",
+        label: "Budapest River Cruise",
+        searchIntent: "croisiere sur le danube avec verre de bienvenue",
+      };
+
+      const booking = buildGetYourGuideBooking(slotBudapestCruise, "Budapest");
+      expect(booking).not.toBeNull();
+      expect(booking?.provider).toBe("getyourguide");
+      expect(booking?.type).toBe("search");
+      expect(booking?.url).toContain("partner_id=test_affiliate_123");
+      expect(booking?.url).toContain("q=Budapest%20River%20Cruise");
+    });
+
+    it("2. Une vraie expérience local_experience sans activityMode -> booking GYG", () => {
+      const slot: ActivitySlot = {
+        moment: "Après-midi",
+        type: "activite",
+        category: "local_experience",
+        label: "Atelier poterie traditionnelle",
+      };
+
+      const booking = buildGetYourGuideBooking(slot, "Lisbonne");
+      expect(booking).not.toBeNull();
+      expect(booking?.type).toBe("search");
+    });
+
+    it("3. Une croisière sans activityMode -> booking GYG", () => {
+      const slot: ActivitySlot = {
+        moment: "Matin",
+        type: "activite",
+        category: "detente",
+        venueFamily: "spa_wellness",
+        label: "Croisière promenade sur la Seine",
+      };
+
+      const booking = buildGetYourGuideBooking(slot, "Paris");
+      expect(booking).not.toBeNull();
+      expect(booking?.type).toBe("search");
+    });
+
+    it("4. Dégustation / atelier / excursion clairement réservable sans activityMode -> booking GYG", () => {
+      const slotDegustation: ActivitySlot = {
+        moment: "Après-midi",
+        type: "activite",
+        category: "local_experience",
+        label: "Dégustation de tapas & vin",
+      };
+
+      const slotAtelier: ActivitySlot = {
+        moment: "Matin",
+        type: "activite",
+        category: "culture",
+        label: "Atelier cours de cuisine paëlla",
+      };
+
+      const slotExcursion: ActivitySlot = {
+        moment: "Matin",
+        type: "activite",
+        category: "sport_outdoor",
+        venueFamily: "sport",
+        label: "Excursion en buggy dans les dunes",
+      };
+
+      expect(buildGetYourGuideBooking(slotDegustation, "Séville")).not.toBeNull();
+      expect(buildGetYourGuideBooking(slotAtelier, "Valence")).not.toBeNull();
+      expect(buildGetYourGuideBooking(slotExcursion, "Fuerteventura")).not.toBeNull();
+    });
+
+    it("5. Restaurant sans activityMode -> aucun booking", () => {
+      const slotResto: ActivitySlot = {
+        moment: "Midi",
+        type: "resto",
+        category: "repas",
+        label: "Déjeuner au bistrot du port",
+      };
+
+      expect(buildGetYourGuideBooking(slotResto, "Marseille")).toBeNull();
+    });
+
+    it("6. Bar sans activityMode -> aucun booking", () => {
+      const slotBar: ActivitySlot = {
+        moment: "Soir",
+        type: "bar",
+        category: "soiree",
+        label: "Cocktails en terrasse",
+      };
+
+      expect(buildGetYourGuideBooking(slotBar, "Nice")).toBeNull();
+    });
+
+    it("7. Marché/shopping libre sans activityMode -> aucun booking", () => {
+      const slotShopping: ActivitySlot = {
+        moment: "Après-midi",
+        type: "activite",
+        category: "shopping",
+        label: "Shopping au centre commercial",
+      };
+
+      const slotMarche: ActivitySlot = {
+        moment: "Matin",
+        type: "activite",
+        category: "culture",
+        label: "Marché aux puces",
+        searchIntent: "promenade marché aux puces libre",
+      };
+
+      expect(buildGetYourGuideBooking(slotShopping, "Milan")).toBeNull();
+      expect(buildGetYourGuideBooking(slotMarche, "Paris")).toBeNull();
+    });
+
+    it("8. free_exploration -> aucun booking même si le label pourrait sembler réservable", () => {
+      const slotFree: ActivitySlot = {
+        moment: "Après-midi",
+        type: "activite",
+        category: "local_experience",
+        label: "Visite guidée croisière sur le Danube",
+        activityMode: "free_exploration",
+      };
+
+      expect(buildGetYourGuideBooking(slotFree, "Budapest")).toBeNull();
+    });
+
+    it("9. self_guided_group -> aucun booking", () => {
+      const slotSelfGuided: ActivitySlot = {
+        moment: "Soir",
+        type: "activite",
+        category: "jeu_groupe",
+        label: "Grand quiz de la mariée au logement",
+        activityMode: "self_guided_group",
+      };
+
+      expect(buildGetYourGuideBooking(slotSelfGuided, "Lyon")).toBeNull();
+    });
+  });
+
   // Activité category: "soiree" mais type: "activite" → booking GYG autorisé
   it("Activité category: 'soiree' mais type: 'activite' -> booking GYG autorisé", () => {
     const slotSoiree: ActivitySlot = {
