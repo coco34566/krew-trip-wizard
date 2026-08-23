@@ -64,6 +64,12 @@ export type ActivitySlot = {
   latitude?: number | null | undefined;
   longitude?: number | null | undefined;
   openingHoursVerified?: boolean | undefined;
+  booking?: {
+    provider: "getyourguide";
+    url: string;
+    type: "exact_product" | "search";
+    affiliate: true;
+  } | null | undefined;
 };
 
 export function shouldResolveWithPlaceProvider(slot: {
