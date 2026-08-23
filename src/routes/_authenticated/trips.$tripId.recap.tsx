@@ -414,17 +414,14 @@ function TripRecapPage() {
                               <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5" /> Voir l&apos;offre {matchedTransport?.label || "disponible"}
                             </ExternalLinkButton>
                           ) : null}
-                          <ExternalLinkButton href={origin.googleFlights} variant={transportOfferUrl ? "outline" : "default"}>
-                            <KrewIcon name="plane" tone="cream" size="sm" className="size-3.5" /> Google Flights
-                          </ExternalLinkButton>
-                          <ExternalLinkButton href={origin.kayak}>
-                            <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5" /> Kayak
-                          </ExternalLinkButton>
-                          {origin.showTrain && origin.omio ? (
-                            <ExternalLinkButton href={origin.omio}>
-                              <KrewIcon name="train" tone="plum" size="sm" className="size-3.5" /> Omio
+                          {origin.kiwi ? (
+                            <ExternalLinkButton href={origin.kiwi} variant={transportOfferUrl ? "outline" : "default"}>
+                              <KrewIcon name="plane" tone="cream" size="sm" className="size-3.5" /> Kiwi
                             </ExternalLinkButton>
                           ) : null}
+                          <ExternalLinkButton href={origin.googleFlights} variant="outline">
+                            <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5" /> Google Flights
+                          </ExternalLinkButton>
                           {origin.showTrain && origin.trainline ? (
                             <ExternalLinkButton href={origin.trainline}>
                               <KrewIcon name="train" tone="plum" size="sm" className="size-3.5" /> Trainline
