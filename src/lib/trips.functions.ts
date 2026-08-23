@@ -1859,10 +1859,21 @@ export const getCostSplit = createServerFn({ method: "GET" })
     const destName =
       (reco.data as any).destinations?.name ?? budget.destinationName ?? "Destination";
 
+    const { computeItineraryActivitiesCost } = await import("@/lib/krew/cost-split");
+    const itinerary = (trip.data as any)?.group_itinerary;
+    const itineraryActivities = computeItineraryActivitiesCost(itinerary?.days);
+
+    let activitiesCost = Number(budget.activities ?? 0);
+    let activitiesPriceStatus = itineraryActivities.priceStatus;
+
+    if (itineraryActivities.activitiesPerPerson != null) {
+      activitiesCost = itineraryActivities.activitiesPerPerson;
+    }
+
     const split = buildCostSplit({
       destinationName: destName,
       accommodation: accommodationCost,
-      activities: Number(budget.activities ?? 0),
+      activities: activitiesCost,
       food: Number(budget.food ?? 0),
       origins: participantLines,
       fallbackTransportPerPerson: fallbackTransport,
@@ -1870,11 +1881,12 @@ export const getCostSplit = createServerFn({ method: "GET" })
       starPaysShare: logistics.star_pays_share !== false,
     } as any);
 
+    split.activitiesPriceStatus = activitiesPriceStatus;
+
     const isHotelReserved = hotelBookingStatus === "réservé";
     const sharedCostReserved = isHotelReserved ? accommodationCost : 0;
     const sharedCostEstimated = isHotelReserved ? 0 : accommodationCost;
 
-    const activitiesCost = Number(budget.activities ?? 0);
     const foodCost = Number(budget.food ?? 0);
 
     const totalReserved =
@@ -2331,6 +2343,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             Boolean(activityInput.accessibilityRequired),
             activityInput.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
             intentCenter,
+            slot.suggestedPlace || slot.label,
+            destName,
           );
 
           requirementsList.push(req);
@@ -2464,6 +2478,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           Boolean(activityInput.accessibilityRequired),
           activityInput.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
           intentCenter,
+          (s as any).suggestedPlace || s.label,
+          destName,
         );
         const poolKey = buildPoolKey(req);
         let pool = placePools[poolKey] || [];
@@ -2817,6 +2833,9 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       aggregated.dietaryConstraints,
       isAccessibilityRequired,
       aggregated.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
+      null,
+      current.suggestedPlace || current.label,
+      itinerary.destination || null,
     );
     const poolKey = buildPoolKey(req);
 

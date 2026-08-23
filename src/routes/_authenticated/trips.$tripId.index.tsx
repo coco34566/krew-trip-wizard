@@ -81,6 +81,7 @@ import {
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 import { cn } from "@/lib/utils";
+import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
@@ -816,15 +817,9 @@ function TripDetail() {
 
     const days = (trip.group_itinerary?.days ?? []) as any[];
     if (days.length) {
-      let actSum = 0;
-      for (const d of days) {
-        for (const s of d.slots ?? []) {
-          if (s.priceHint != null && Number(s.priceHint) > 0) actSum += Number(s.priceHint);
-        }
-      }
-      if (actSum > 0) {
-        food = Math.round(actSum * 0.45);
-        activities = Math.round(actSum * 0.55);
+      const res = computeItineraryActivitiesCost(days);
+      if (res.activitiesPerPerson != null) {
+        activities = res.activitiesPerPerson;
       }
     }
 

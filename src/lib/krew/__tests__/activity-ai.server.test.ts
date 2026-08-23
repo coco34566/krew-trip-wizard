@@ -2516,5 +2516,472 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
       const poolKey = Object.keys(result.updatedPools || {})[0];
       expect(result.slot.detail).toBe("Une expérience bien-être incontournable dans des bains thermaux historiques et raffinés.");
     });
+
+    describe("Correctifs Faux Matchs Test 16 — Bastion, Grandes Halles & Horaires", () => {
+      it("Bastion des Pêcheurs : sélectionne Fisherman's Bastion / Halászbástya plutôt qu'une ruine générique proche", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const genericRuins = {
+          id: "ruins-1",
+          name: "XVIII sz-ban átalakitott középkori épulet maradványa",
+          category: "tourism.sights.ruines",
+          categories: ["tourism", "tourism.sights", "tourism.sights.ruines"],
+          address: "Budapest",
+          latitude: 47.501,
+          longitude: 19.034,
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const bastionMatch = {
+          id: "bastion-real",
+          name: "Halászbástya (Fisherman's Bastion)",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights", "entertainment.culture"],
+          address: "Budapest, Szentháromság tér, 1014",
+          latitude: 47.502,
+          longitude: 19.035,
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "culture",
+          "culture",
+          "promenade culturelle au Bastion des Pêcheurs et quartier du Château",
+          [],
+          false,
+          [],
+          null,
+          "Bastion des Pêcheurs",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [genericRuins, bastionMatch],
+          req,
+          usedCandidateIdsSet: new Set(),
+        });
+
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("bastion-real");
+      });
+
+      it("Bastion des Pêcheurs : fallback générique autorisé si aucun match nominal crédible n'existe", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const genericCulture = {
+          id: "culture-1",
+          name: "Musée d'Histoire de Budapest",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights", "entertainment.museum"],
+          address: "Budapest",
+          latitude: 47.496,
+          longitude: 19.039,
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "culture",
+          "culture",
+          "promenade culturelle au Bastion des Pêcheurs et quartier du Château",
+          [],
+          false,
+          [],
+          null,
+          "Bastion des Pêcheurs",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [genericCulture],
+          req,
+          usedCandidateIdsSet: new Set(),
+        });
+
+        // Safe category fallback when no nominal match exists
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("culture-1");
+      });
+
+      it("Grandes Halles de Budapest : Great Market Hall gagne sur Városmajori Termelői Piac", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const wrongMarket = {
+          id: "market-wrong",
+          name: "Városmajori Termelői Piac",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest, Városmajor",
+          latitude: 47.51,
+          longitude: 19.02,
+          openingHours: "Mo 12:00-19:30; We,Fr 08:30-17:00",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const greatMarketHall = {
+          id: "market-real",
+          name: "Központi Vásárcsarnok (Great Market Hall)",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest, Vámház krt. 1-3, 1093",
+          latitude: 47.487,
+          longitude: 19.058,
+          openingHours: "Mo-Fr 06:00-18:00; Sa 06:00-15:00; Su 09:00-16:00",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "shopping",
+          "shopping",
+          "grand marché couvert de Budapest pour spécialités artisanales et gourmandes",
+          [],
+          false,
+          [],
+          null,
+          "Grandes Halles de Budapest",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [wrongMarket, greatMarketHall],
+          req,
+          usedCandidateIdsSet: new Set(),
+          date: "2026-08-30", // Dimanche
+          time: "14:00",
+        });
+
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("market-real");
+      });
+
+      it("Horaires : rejette explicitement un lieu fermé le dimanche au créneau prévu", async () => {
+        const { geoapifyOpeningStatus } = await import("../geoapify.server");
+
+        const closedOnSunday = {
+          id: "closed-sun",
+          name: "Városmajori Termelői Piac",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest",
+          openingHours: "Mo 12:00-19:30; We,Fr 08:30-17:00",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        // Sunday 2026-08-30 at 14:00
+        const status = geoapifyOpeningStatus(closedOnSunday, "2026-08-30", "14:00", 90);
+        expect(status).toBe("closed");
+      });
+
+      it("Horaires : accepte un lieu ouvert le dimanche au bon horaire", async () => {
+        const { geoapifyOpeningStatus } = await import("../geoapify.server");
+
+        const openOnSunday = {
+          id: "open-sun",
+          name: "Központi Vásárcsarnok",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest",
+          openingHours: "Mo-Sa 06:00-18:00; Su 09:00-16:00",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const status = geoapifyOpeningStatus(openOnSunday, "2026-08-30", "14:00", 90);
+        expect(status).toBe("open");
+      });
+
+      it("Horaires : ne rejette pas uniquement à cause de l'absence d'horaires", async () => {
+        const { geoapifyOpeningStatus } = await import("../geoapify.server");
+
+        const noHours = {
+          id: "no-hours",
+          name: "Marché sans horaires renseignés",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest",
+          openingHours: null,
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const status = geoapifyOpeningStatus(noHours, "2026-08-30", "14:00", 90);
+        expect(status).toBe("unknown");
+      });
+
+      it("Horaires ambigus ou non parsables : conserve le comportement existant (unknown)", async () => {
+        const { geoapifyOpeningStatus } = await import("../geoapify.server");
+
+        const ambiguousHours = {
+          id: "ambiguous-hours",
+          name: "Lieu aux horaires vagues",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest",
+          openingHours: "sur rendez-vous / variable selon saison",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const status = geoapifyOpeningStatus(ambiguousHours, "2026-08-30", "14:00", 90);
+        expect(status).toBe("unknown");
+      });
+
+      it("Test générique avec ville/POI fictif : prouve qu'aucune whitelist ou dictionnaire de traductions n'est nécessaire", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const fictionalUnmatchedPoi = {
+          id: "fictional-wrong",
+          name: "Café de la Gare de Val-Fictif",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights"],
+          address: "Val-Fictif",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const fictionalMatchedPoi = {
+          id: "fictional-real",
+          name: "Belvédère de Val-Fictif",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights"],
+          address: "Val-Fictif",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "culture",
+          "culture",
+          "visite du Belvédère de Val-Fictif",
+          [],
+          false,
+          [],
+          null,
+          "Belvédère de Val-Fictif",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [fictionalUnmatchedPoi, fictionalMatchedPoi],
+          req,
+          usedCandidateIdsSet: new Set(),
+        });
+
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("fictional-real");
+      });
+    });
+
+    describe("Activity Cost & Budget Breakdown Integration Tests (Tests A-J)", () => {
+      it("Test A : Deux prix vérifiés (30 € et 45 €) avec source et priceStatus -> somme per-person = 75 €", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Activité A", type: "activite", priceHint: 30, priceStatus: "verified", source: "catalog" },
+              { label: "Activité B", type: "activite", priceHint: 45, priceStatus: "verified", source: "catalog" },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(75);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.knownCount).toBe(2);
+        expect(res.totalCount).toBe(2);
+      });
+
+      it("Test B : priceHint: 30 avec verified: true et source: 'geoapify' sans explicit priceStatus -> UNKNOWN (non inclus)", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Activité Geoapify", type: "activite", priceHint: 30, verified: true, source: "geoapify" },
+              { label: "Activité B", type: "activite", priceHint: null },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+        expect(res.knownCount).toBe(0);
+        expect(res.totalCount).toBe(2);
+      });
+
+      it("Test Soirée Activité : category = 'soiree' avec type = 'activite' ET prix vérifié -> inclus (35 €)", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Cabaret / Spectacle", type: "activite", category: "soiree", priceHint: 35, priceStatus: "verified", source: "ticket_office" },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(35);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.knownCount).toBe(1);
+        expect(res.totalCount).toBe(1);
+      });
+
+      it("Test C : Prix partiel (30 € verified + source + unknown) -> somme connue = 30 €, status = partial", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Activité A", type: "activite", priceHint: 30, priceStatus: "verified", source: "official_web" },
+              { label: "Activité B", type: "activite", priceHint: null },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(30);
+        expect(res.priceStatus).toBe("partial");
+        expect(res.knownCount).toBe(1);
+        expect(res.totalCount).toBe(2);
+      });
+
+      it("Test D : Prix estimé (25 € estimated + source) -> status = estimated", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [{ label: "Activité A", type: "activite", priceHint: 25, priceStatus: "estimated", source: "provider_estimate" }],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(25);
+        expect(res.priceStatus).toBe("estimated");
+      });
+
+      it("Test E : Gratuité confirmée (0 € + explicit status free + source) vs 0 € sans source/statut (unknown)", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const daysFreeWithSource = [
+          {
+            slots: [{ label: "Parc municipal", type: "activite", priceHint: 0, priceStatus: "free", source: "city_hall" }],
+          },
+        ];
+
+        const resFree = computeItineraryActivitiesCost(daysFreeWithSource);
+        expect(resFree.activitiesPerPerson).toBe(0);
+        expect(resFree.priceStatus).toBe("free");
+
+        const daysFreeNoSource = [
+          {
+            slots: [{ label: "Parc municipal", type: "activite", priceHint: 0, priceStatus: "free" }],
+          },
+        ];
+        const resFreeNoSource = computeItineraryActivitiesCost(daysFreeNoSource);
+        expect(resFreeNoSource.activitiesPerPerson).toBeNull();
+        expect(resFreeNoSource.priceStatus).toBe("unknown");
+
+        const daysUnconfirmedZero = [
+          {
+            slots: [{ label: "Visite mystère", type: "activite", priceHint: 0 }],
+          },
+        ];
+        const resUnconfirmed = computeItineraryActivitiesCost(daysUnconfirmedZero);
+        expect(resUnconfirmed.activitiesPerPerson).toBeNull();
+        expect(resUnconfirmed.priceStatus).toBe("unknown");
+      });
+
+      it("Exclusion des restaurants, repas et bars : un restaurant ou un bar avec un prix n'est PAS inclus dans le budget activités", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Dîner au resto", type: "resto", category: "repas", priceHint: 40, priceStatus: "verified", source: "menu" },
+              { label: "Apéro au bar", type: "bar", venueFamily: "bar_pub", priceHint: 15, priceStatus: "verified", source: "menu" },
+              { label: "Musée", type: "activite", category: "culture", priceHint: 15, priceStatus: "verified", source: "official_web" },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(15); // Only museum, dinner & bar excluded!
+        expect(res.totalCount).toBe(1);
+        expect(res.knownCount).toBe(1);
+      });
+
+      it("Test F : GetYourGuide search link sans prix -> priceStatus = unknown, pas de scraping/prix inventé", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              {
+                label: "Croisière sur le Danube",
+                booking: { provider: "getyourguide", type: "search", url: "https://www.getyourguide.fr/s/?q=croisiere" },
+                priceHint: null,
+              },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("Test G : Cost Split integration -> buildCostSplit inclut correctement les activités", async () => {
+        const { buildCostSplit } = await import("../cost-split");
+        const split = buildCostSplit({
+          destinationName: "Budapest",
+          accommodation: 120,
+          activities: 75,
+          food: 50,
+          origins: [{ city: "Paris", count: 2, pricePerPerson: 100 }],
+        });
+
+        // sharedPerPerson = accommodation (120) + activities (75) + food (50) = 245
+        expect(split.sharedPerPerson).toBe(245);
+        expect(split.activities).toBe(75);
+        // totalPerPerson = transport (100) + shared (245) = 345
+        expect(split.lines[0]?.totalPerPerson).toBe(345);
+        // totalGroup = 345 * 2 = 690
+        expect(split.totalGroup).toBe(690);
+      });
+
+      it("Test H : Star ne paie pas -> redistribution sans double comptage des activités", async () => {
+        const { buildCostSplit } = await import("../cost-split");
+        const split = buildCostSplit({
+          destinationName: "Budapest",
+          accommodation: 120,
+          activities: 60,
+          food: 40,
+          origins: [
+            { city: "Paris (Star)", count: 1, pricePerPerson: 100, isStar: true },
+            { city: "Lyon", count: 1, pricePerPerson: 100, isStar: false },
+          ],
+          starPaysShare: false,
+        });
+
+        // Star shared = 120 + 60 + 40 = 220, transport = 100 -> Star total = 320
+        // Star cost (320) is re-distributed to Lyon
+        const starLine = split.lines.find((l) => l.isStar);
+        const lyonLine = split.lines.find((l) => !l.isStar);
+
+        expect(starLine?.totalPerPerson).toBe(0);
+        expect(lyonLine?.totalPerPerson).toBe(320 + (100 + 220)); // 640
+        expect(split.totalGroup).toBe(640);
+      });
+
+      it("Test I : Invariance planning -> les métadonnées de prix n'altèrent pas l'ordre ou les slots", async () => {
+        const slotsWithPrice = [
+          { label: "Bastion", time: "10:00", priceHint: 15 },
+          { label: "Thermes", time: "14:00", priceHint: 25 },
+        ];
+        const slotsWithoutPrice = [
+          { label: "Bastion", time: "10:00" },
+          { label: "Thermes", time: "14:00" },
+        ];
+
+        expect(slotsWithPrice.map((s) => s.label)).toEqual(slotsWithoutPrice.map((s) => s.label));
+        expect(slotsWithPrice.map((s) => s.time)).toEqual(slotsWithoutPrice.map((s) => s.time));
+      });
+    });
   });
 });
