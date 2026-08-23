@@ -37,6 +37,8 @@ import {
   tryResolveGeminiProposedPlace,
   isCandidateCompatibleWithRequirements,
   selectGeoapifyCandidate,
+  type GeoapifyPlace,
+  type PlaceRequirements,
 } from "../geoapify.server";
 import { resolveActivityResourceForPlace, resolveActivityResourceUrl, classifyActivityMode, shouldResolveWithPlaceProvider } from "../activity-ai.server";
 import { isTripAdmin } from "../engine";
@@ -2312,6 +2314,96 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  describe("Garde-fous Geoapify Candidate - Test 16", () => {
+    it("candidat Geoapify Budapest/viewpoint pour une intention de location de vélos/rosalies -> rejeté", () => {
+      const cand: GeoapifyPlace = {
+        id: "geo_viewpoint_budapest",
+        name: "Budapest",
+        category: "tourism.attraction, tourism.viewpoint",
+        categories: ["tourism.attraction", "tourism.viewpoint"],
+        address: "Budapest, Hongrie",
+        latitude: 47.50,
+        longitude: 19.05,
+        distanceMeters: 100,
+        website: null,
+        source: "geoapify",
+        verified: true,
+      };
+
+      const req: PlaceRequirements = {
+        canonicalFamily: "sport",
+        categories: ["sport"],
+        searchIntent: "location de vélos / rosalies sur l'Île Marguerite",
+      };
+
+      const isCompatible = isCandidateCompatibleWithRequirements(cand, req);
+      expect(isCompatible).toBe(false);
+    });
+
+    it("candidat Geoapify réellement compatible -> comportement actuel inchangé", () => {
+      const cand: GeoapifyPlace = {
+        id: "geo_bike_rental",
+        name: "Bringóhintó Margaret Island",
+        category: "sport, entertainment.activity_park",
+        categories: ["sport", "entertainment.activity_park"],
+        address: "Margitsziget, Budapest",
+        latitude: 47.52,
+        longitude: 19.05,
+        distanceMeters: 500,
+        website: "https://bringohinto.hu",
+        source: "geoapify",
+        verified: true,
+      };
+
+      const req: PlaceRequirements = {
+        canonicalFamily: "sport",
+        categories: ["sport"],
+        searchIntent: "location de vélos / rosalies sur l'Île Marguerite",
+      };
+
+      const isCompatible = isCandidateCompatibleWithRequirements(cand, req);
+      expect(isCompatible).toBe(true);
+    });
+
+    it("preuve sans whitelist de villes : destination Prague + proposed place = Prague ignore le match 'Prague' et ne sélectionne pas le node ville", async () => {
+      const originalFetch = globalThis.fetch;
+      const oldApiKey = process.env["GEOAPIFY_API_KEY"];
+      process.env["GEOAPIFY_API_KEY"] = "test-geo-key";
+
+      globalThis.fetch = (async () => ({
+        ok: true,
+        json: async () => ({
+          features: [
+            {
+              properties: {
+                place_id: "geo-prague-city-node",
+                name: "Prague",
+                formatted: "Prague, Czech Republic",
+                lat: 50.0755,
+                lon: 14.4378,
+                categories: ["tourism.sights"],
+              },
+            },
+          ],
+        }),
+      })) as any;
+
+      try {
+        const resolved = await tryResolveGeminiProposedPlace({
+          suggestedPlace: "Location de vélos au parc",
+          label: "Balade vélo",
+          searchIntent: "location de vélos à Prague",
+          venueFamily: "sport",
+          destination: "Prague",
+        });
+        expect(resolved).toBeNull();
+      } finally {
+        globalThis.fetch = originalFetch;
+        process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+      }
+    });
   });
 
   describe("Correctifs Bug Thermal Bath vs Beauty Spa & Detail Preservation", () => {
