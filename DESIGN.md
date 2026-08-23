@@ -87,7 +87,11 @@ Ne jamais utiliser Caveat pour :
 
 > **Instrument Serif = ÉMOTION**  
 > **Plus Jakarta Sans = ACTION**  
+<<<<<<< HEAD
 > **Space Mono = PRÉCISION**
+=======
+> **Space Mono = PRÉCISION**
+>>>>>>> origin/main
 > **Caveat = VOIX HUMAINE**
 
 ### Hiérarchie de référence

@@ -15,6 +15,8 @@ import {
   rankGeoapifyCandidates,
   selectGeoapifyCandidate,
   mergeUniquePlacesById,
+  buildVerifiedPlaceFallbackUrl,
+  resolveSearchIntentLocation,
 } from "@/lib/krew/geoapify.server";
 
 export type ActivitySlotType = "resto" | "activite" | "bar" | "transport" | "libre";
@@ -42,8 +44,11 @@ export type ActivitySlot = {
   tags?: string[] | undefined;
   label: string;
   detail?: string | undefined;
+  address?: string | null | undefined;
   venueFamily?: string | undefined;
   searchIntent?: string | undefined;
+  suggestedPlace?: string | null | undefined;
+  suggestedUrl?: string | null | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
   dietaryCheckRequired?: boolean | undefined;
   priceHint?: number | undefined;
@@ -59,6 +64,12 @@ export type ActivitySlot = {
   latitude?: number | null | undefined;
   longitude?: number | null | undefined;
   openingHoursVerified?: boolean | undefined;
+  booking?: {
+    provider: "getyourguide";
+    url: string;
+    type: "exact_product" | "search";
+    affiliate: true;
+  } | null | undefined;
 };
 
 export function shouldResolveWithPlaceProvider(slot: {
@@ -107,6 +118,7 @@ export function resolveActivityResourceUrl(
   urlInput?: string | null,
   options?: {
     kindHint?: ActivityResourceKind;
+    allowVerifiedGoogleMaps?: boolean;
   },
 ): { url: string | null; resourceKind: ActivityResourceKind } {
   if (!urlInput || typeof urlInput !== "string" || !isSafeActivityUrl(urlInput)) {
@@ -116,14 +128,22 @@ export function resolveActivityResourceUrl(
   const cleanUrl = urlInput.trim();
   const lower = cleanUrl.toLowerCase();
 
-  if (
-    lower.includes("google.com/search") ||
-    lower.includes("maps.google") ||
-    lower.includes("goo.gl/maps") ||
-    lower.includes("maps.apple") ||
-    lower.includes("tripadvisor")
-  ) {
-    return { url: null, resourceKind: null };
+  const isVerifiedGoogleMap =
+    options?.allowVerifiedGoogleMaps === true &&
+    (lower.startsWith("https://www.google.com/maps/search/?api=1&query=") ||
+      lower.startsWith("https://google.com/maps/search/?api=1&query="));
+
+  if (!isVerifiedGoogleMap) {
+    if (
+      lower.includes("google.com/search") ||
+      lower.includes("google.com/maps") ||
+      lower.includes("maps.google") ||
+      lower.includes("goo.gl/maps") ||
+      lower.includes("maps.apple") ||
+      lower.includes("tripadvisor")
+    ) {
+      return { url: null, resourceKind: null };
+    }
   }
 
   const resourceKind: ActivityResourceKind = options?.kindHint ?? "website";
@@ -132,6 +152,33 @@ export function resolveActivityResourceUrl(
     url: cleanUrl,
     resourceKind,
   };
+}
+
+export function resolveActivityResourceForPlace(
+  place: { name?: string | null; website?: string | null; address?: string | null; latitude?: number | null; longitude?: number | null } | null | undefined,
+  destination?: string | null,
+  options?: { kindHint?: ActivityResourceKind; telemetry?: { fallbackMapLinks?: number } },
+): { url: string | null; resourceKind: ActivityResourceKind } {
+  if (!place) return { url: null, resourceKind: null };
+
+  if (place.website) {
+    const res = resolveActivityResourceUrl(place.website, options);
+    if (res.url) return res;
+  }
+
+  const fallbackUrl = buildVerifiedPlaceFallbackUrl(place, destination);
+  if (fallbackUrl) {
+    const res = resolveActivityResourceUrl(fallbackUrl, {
+      kindHint: options?.kindHint ?? "website",
+      allowVerifiedGoogleMaps: true,
+    });
+    if (res.url && options?.telemetry?.fallbackMapLinks != null) {
+      options.telemetry.fallbackMapLinks++;
+    }
+    return res;
+  }
+
+  return { url: null, resourceKind: null };
 }
 
 export type ItineraryDayPlan = { day: number; date?: string | null; slots: ActivitySlot[] };
@@ -149,10 +196,13 @@ export type KrewSkeletonSlot = {
   category: ActivityCategory;
   label: string;
   detail?: string | undefined;
+  address?: string | null | undefined;
   importance: "high" | "medium" | "low";
   flexibility: "rigid" | "flexible";
   venueFamily?: string | undefined;
   searchIntent?: string | undefined;
+  suggestedPlace?: string | null | undefined;
+  suggestedUrl?: string | null | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
   dietaryCheckRequired?: boolean | undefined;
   candidateId?: string | null | undefined;
@@ -183,6 +233,7 @@ export type GeminiBackupSlot = {
   canonicalVenueFamily?: string | null;
   searchIntent?: string | null;
   suggestedPlace?: string | null;
+  suggestedUrl?: string | null;
 };
 
 export type KrewSkeleton = {
@@ -201,6 +252,10 @@ export type PlanningTelemetry = {
   candidatesRejectedOpeningHours: number;
   candidatesRejectedGeography: number;
   candidatesRejectedRequirements: number;
+  intentResolutionCalls?: number;
+  intentResolutionHits?: number;
+  intentCenteredSearches?: number;
+  fallbackMapLinks?: number;
 };
 
 export type GroupItinerary = {
@@ -946,7 +1001,7 @@ Si KREW fournit déjà un label/detail à préserver pour un élément existant,
 
 N'invente aucune autre valeur.
 
-## 13. SEARCH INTENT ET SUGGESTED PLACE
+## 13. SEARCH INTENT ET SUGGESTED PLACE / URL
 
 Pour chaque \`place_required\` :
 
@@ -963,9 +1018,17 @@ Si tu connais une proposition précise pertinente :
 \`suggestedPlace\`
 → nom suggéré.
 
+\`suggestedUrl\`
+→ URL officielle ou réellement pertinente du lieu ou de l'activité, SI TU LA CONNAIS AVEC CERTITUDE.
+
+Règles impératives pour \`suggestedUrl\` :
+- Fournis une URL UNIQUEMENT si tu connais une URL réelle et plausible.
+- NE JAMAIS inventer, deviner ou reconstruire une URL.
+- En cas de doute ou d'incertitude, définis strictement \`suggestedUrl = null\`.
+
 Cette valeur est une SUGGESTION À VÉRIFIER PAR KREW.
 
-N'invente pas de suggestedPlace simplement pour remplir le champ.
+N'invente pas de suggestedPlace ou suggestedUrl simplement pour remplir le champ.
 
 ## 14. BACKUPS
 
@@ -1021,7 +1084,8 @@ Structure exacte :
           "locationContext": "lodging | external | flexible",
           "canonicalVenueFamily": "string | null",
           "searchIntent": "string | null",
-          "suggestedPlace": "string | null"
+          "suggestedPlace": "string | null",
+          "suggestedUrl": "string | null"
         }
       ]
     }
@@ -1040,7 +1104,8 @@ Structure exacte :
       "locationContext": "lodging | external | flexible",
       "canonicalVenueFamily": "string | null",
       "searchIntent": "string | null",
-      "suggestedPlace": "string | null"
+      "suggestedPlace": "string | null",
+      "suggestedUrl": "string | null"
     }
   ]
 }
@@ -2035,6 +2100,7 @@ export async function geminiEnrichSkeleton(
                   canonicalVenueFamily: { type: "STRING", enum: CANONICAL_VENUE_FAMILIES, nullable: true },
                   searchIntent: { type: "STRING", nullable: true },
                   suggestedPlace: { type: "STRING", nullable: true },
+                  suggestedUrl: { type: "STRING", nullable: true },
                 },
                 required: ["id", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
               },
@@ -2061,6 +2127,7 @@ export async function geminiEnrichSkeleton(
             canonicalVenueFamily: { type: "STRING", enum: CANONICAL_VENUE_FAMILIES, nullable: true },
             searchIntent: { type: "STRING", nullable: true },
             suggestedPlace: { type: "STRING", nullable: true },
+            suggestedUrl: { type: "STRING", nullable: true },
           },
           required: ["id", "day", "forSlot", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
         },
@@ -2214,6 +2281,8 @@ export async function geminiEnrichSkeleton(
           locationContext: locCtx,
           venueFamily: kind === "place_required" ? venueFamily : undefined,
           searchIntent: kind === "place_required" ? String(rawSlot.searchIntent || rawSlot.label || "").slice(0, 200) : undefined,
+          suggestedPlace: kind === "place_required" && rawSlot.suggestedPlace ? String(rawSlot.suggestedPlace).slice(0, 150) : undefined,
+          suggestedUrl: kind === "place_required" && rawSlot.suggestedUrl ? String(rawSlot.suggestedUrl).slice(0, 500) : undefined,
         });
       }
 
@@ -2704,6 +2773,7 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         locationContext: slot.locationContext ?? slot.location_context ?? slot.context,
         searchIntent: slot.searchIntent ?? slot.search_intent ?? slot.intent,
         suggestedPlace: slot.suggestedPlace ?? slot.suggested_place ?? slot.place,
+        suggestedUrl: slot.suggestedUrl ?? slot.suggested_url ?? slot.url,
       };
 
       normalizedSlots.push(normalizedSlot);
@@ -2759,6 +2829,7 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         canonicalVenueFamily: bk.canonicalVenueFamily ? String(bk.canonicalVenueFamily) : null,
         searchIntent: bk.searchIntent ? String(bk.searchIntent) : null,
         suggestedPlace: bk.suggestedPlace ? String(bk.suggestedPlace) : null,
+        suggestedUrl: bk.suggestedUrl ? String(bk.suggestedUrl) : null,
       });
     }
   }
@@ -2831,6 +2902,13 @@ export async function regenerateSlotWithAi(
   const usedSet = new Set(usedCandidateIds);
   const avoidNorms = avoid.map(norm);
 
+  const intentCenter = await resolveSearchIntentLocation(
+    existing.searchIntent || existing.label,
+    input.destination,
+    refCoords?.latitude,
+    refCoords?.longitude,
+  );
+
   const req = convertIntentToPlaceRequirements(
     existing.venueFamily || "local_experience",
     existing.category || "culture",
@@ -2838,6 +2916,7 @@ export async function regenerateSlotWithAi(
     input.dietaryConstraints,
     Boolean(input.accessibilityRequired),
     input.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
+    intentCenter,
   );
 
   const poolKey = buildPoolKey(req);
@@ -2886,12 +2965,13 @@ export async function regenerateSlotWithAi(
 
   if (selectedPlace) {
     usedSet.add(selectedPlace.id);
-    const resolvedLink = resolveActivityResourceUrl(selectedPlace.website, { kindHint: "website" });
+    const resolvedLink = resolveActivityResourceForPlace(selectedPlace, input.destination);
     return {
       slot: {
         ...existing,
         label: selectedPlace.name,
-        detail: selectedPlace.address || existing.detail || "Alternative sélectionnée par KREW",
+        detail: existing.detail || existing.searchIntent || "Alternative sélectionnée par KREW",
+        address: selectedPlace.address || existing.address || null,
         candidateId: selectedPlace.id,
         category: existing.category,
         url: resolvedLink.url,
@@ -2915,11 +2995,16 @@ export async function regenerateSlotWithAi(
 
   if (candidateAlt) {
     usedSet.add(candidateAlt.id);
-    const resolvedLink = resolveActivityResourceUrl(candidateAlt.sourceUrl, { kindHint: "website" });
+    const resolvedLink = resolveActivityResourceForPlace(
+      { name: candidateAlt.name, website: candidateAlt.sourceUrl, address: candidateAlt.address, latitude: candidateAlt.latitude, longitude: candidateAlt.longitude },
+      input.destination,
+    );
     return {
       slot: {
         ...existing,
         label: candidateAlt.name,
+        detail: existing.detail || existing.searchIntent || "Alternative sélectionnée par KREW",
+        address: candidateAlt.address || existing.address || null,
         candidateId: candidateAlt.id,
         category: (candidateAlt.category as ActivityCategory) ?? existing.category,
         url: resolvedLink.url,
@@ -2939,7 +3024,7 @@ export async function regenerateSlotWithAi(
     slot: {
       ...existing,
       label: `${existing.label} — lieu à choisir`,
-      detail: "Choix de l'alternative à préciser",
+      detail: existing.detail || existing.searchIntent || "Choix de l'alternative à préciser",
       url: null,
       candidateId: null,
       verified: false,

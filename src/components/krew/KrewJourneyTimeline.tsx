@@ -36,43 +36,40 @@ function parseStepHref(href: string) {
 }
 
 /**
- * Calculates a smooth, strongly curved S-path (Bézier points) for N steps.
- * Returns both the SVG path string (`d`) and the (x, y) coordinate percentage for each step node.
+ * Calculates a hand-drawn strongly curved S-path (Bézier points) for N steps.
+ * Returns SVG path string (`d`) and exact (x, y) coordinates for each step node.
  */
 function computePathAndNodes(
   count: number,
-  viewWidth = 360,
+  viewWidth = 420,
   rowHeight = 90,
-  amplitudeDesktop = 110,
-  amplitudeMobile = 60,
+  amplitude = 110,
 ) {
-  const height = Math.max(300, count * rowHeight);
+  const height = Math.max(320, (count - 0.5) * rowHeight + 80);
   const centerX = viewWidth / 2;
 
   const nodes: { x: number; y: number; side: "left" | "right" }[] = [];
 
   for (let i = 0; i < count; i++) {
     const t = count > 1 ? i / (count - 1) : 0.5;
-    const y = 40 + i * rowHeight;
-    // Alternate left and right horizontal displacement using a sine wave
-    // Sine wave offset produces organic hand-drawn travel path feel
-    const wave = Math.sin(t * Math.PI * 2.5); // ~1.25 full S-curves
-    // On desktop we use wider amplitude, on mobile a slightly constrained amplitude
-    const currentAmp = amplitudeDesktop;
-    const x = centerX + wave * currentAmp;
-    const side = wave >= 0 ? "right" : "left";
+    const y = 45 + i * rowHeight;
+
+    // Organic S-curve movement: wave goes left, right, left, right
+    const wave = Math.sin(t * Math.PI * 2.6 + 0.3);
+    const x = centerX + wave * amplitude;
+    // Position text to the right if node is on left half, or to the left if node is on right half
+    const side = x < centerX ? "right" : "left";
     nodes.push({ x, y, side });
   }
 
-  // Construct SVG cubic Bézier path connecting the nodes smoothly
-  let d = `M ${nodes[0]?.x ?? centerX} ${nodes[0]?.y ?? 40}`;
+  // Build continuous cubic Bézier curve traversing all node coordinates
+  let d = `M ${nodes[0]?.x ?? centerX} ${nodes[0]?.y ?? 45}`;
   for (let i = 0; i < nodes.length - 1; i++) {
     const curr = nodes[i]!;
     const next = nodes[i + 1]!;
     const midY = (curr.y + next.y) / 2;
-    // Control points curve out horizontally
-    const cp1x = curr.x + (next.x - curr.x) * 0.2;
-    const cp2x = next.x - (next.x - curr.x) * 0.2;
+    const cp1x = curr.x + (next.x - curr.x) * 0.15;
+    const cp2x = next.x - (next.x - curr.x) * 0.15;
     d += ` C ${cp1x} ${midY}, ${cp2x} ${midY}, ${next.x} ${next.y}`;
   }
 
@@ -92,19 +89,19 @@ export function KrewJourneyTimeline({
   const activeProgressIdx = nextActionIdx >= 0 ? nextActionIdx : lastDoneIdx;
 
   const count = steps.length;
-  const rowHeight = 96; // Generous vertical spacing so path curves breathe
-  const viewWidth = 400; // viewBox width for desktop/tablet
-  const amplitudeDesktop = 115; // Strong horizontal curve amplitude
+  const rowHeight = 92;
+  const viewWidth = 420;
+  const amplitude = 120; // Pronounced horizontal amplitude for hand-drawn feel
 
   const { height, nodes, d } = computePathAndNodes(
     count,
     viewWidth,
     rowHeight,
-    amplitudeDesktop,
+    amplitude,
   );
 
   return (
-    <div className="w-full max-w-[680px] mx-auto px-0 py-2 space-y-6 font-sans">
+    <div className="w-full max-w-[620px] mx-auto px-0 py-2 space-y-4 font-sans select-none">
       {/* HEADER SECTION */}
       <header className="space-y-1 relative">
         <div className="relative inline-block">
@@ -124,64 +121,62 @@ export function KrewJourneyTimeline({
       </header>
 
       {/* CURVED TRAVEL PATH CONTAINER */}
-      <div className="relative my-6 select-none" style={{ minHeight: `${height}px` }}>
-        {/* SVG CURVED TRAVEL PATH LAYER */}
+      <div className="relative my-4" style={{ height: `${height}px` }}>
+        {/* SVG HAND-DRAWN TRAJECTORY PATH LAYER */}
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible"
           viewBox={`0 0 ${viewWidth} ${height}`}
           preserveAspectRatio="none"
         >
-          {/* Base upcoming dashed path */}
+          {/* Upcoming path segment (dashed) */}
           <path
             d={d}
             stroke="var(--secondary)"
             strokeWidth="2.5"
-            strokeDasharray="5 5"
+            strokeDasharray="6 6"
             strokeLinecap="round"
             fill="none"
-            className="opacity-35"
+            className="opacity-40"
           />
 
-          {/* Solid completed progress path */}
+          {/* Completed path segment (solid thick sage stroke) */}
           {activeProgressIdx >= 0 ? (
             <path
               d={d}
               stroke="var(--secondary)"
-              strokeWidth="3.5"
+              strokeWidth="4"
               strokeLinecap="round"
               fill="none"
               style={{
-                strokeDasharray: 2000,
+                strokeDasharray: 2200,
                 strokeDashoffset: Math.max(
                   0,
-                  2000 - (2000 * (activeProgressIdx + 0.6)) / Math.max(1, count),
+                  2200 - (2200 * (activeProgressIdx + 0.65)) / Math.max(1, count),
                 ),
-                transition: "stroke-dashoffset 0.5s ease-in-out",
+                transition: "stroke-dashoffset 0.6s ease-in-out",
               }}
             />
           ) : null}
         </svg>
 
-        {/* NODES & TITLES LAYER PLACED DIRECTLY ON CURVE */}
+        {/* NODES & TITLES LAYER PLACED DIRECTLY ON THE CURVE */}
         {steps.map((step, idx) => {
-          const node = nodes[idx] || { x: viewWidth / 2, y: 40 + idx * rowHeight, side: "right" };
+          const node = nodes[idx] || { x: viewWidth / 2, y: 45 + idx * rowHeight, side: "right" };
           const isDone = step.status === "done";
           const isNextAction = step.status === "next_action";
           const isAvailable = step.status === "available";
           const isUpcoming = step.status === "upcoming";
 
-          // Calculate left percentage position based on SVG viewBox coordinate
           const leftPct = (node.x / viewWidth) * 100;
           const topPx = node.y;
 
-          // Responsive alignment: text placed right if node is left of center, or placed left if node is right of center
-          const isLeftAligned = node.side === "left";
+          const isTextOnRight = node.side === "right";
 
           const titleContent = (
             <div
               className={cn(
-                "inline-flex flex-col max-w-[180px] sm:max-w-[230px]",
-                isLeftAligned ? "items-start text-left" : "items-end text-right",
+                "inline-flex flex-col max-w-[170px] sm:max-w-[210px]",
+                isTextOnRight ? "items-start text-left" : "items-end text-right",
               )}
             >
               <h3
@@ -193,36 +188,24 @@ export function KrewJourneyTimeline({
                       ? "text-[15px] sm:text-[16px] font-normal text-foreground/85"
                       : isAvailable
                         ? "text-[15px] sm:text-[16px] font-normal text-foreground"
-                        : "text-[14px] sm:text-[15px] font-normal text-muted-foreground/75",
+                        : "text-[14px] sm:text-[15px] font-normal text-muted-foreground/70",
                 )}
               >
                 {step.title}
               </h3>
 
-              {/* DISCRETE SHORT STATUS OR SUBTITLE ONLY */}
+              {/* MINIMAL DISCRETE STATUS ONLY */}
               {isDone ? (
-                <span className="text-xs font-mono text-primary font-medium mt-0.5">
+                <span className="text-[11px] sm:text-xs font-mono text-primary font-medium mt-0.5">
                   Terminé
                 </span>
               ) : isUpcoming ? (
-                <span className="text-xs font-sans text-muted-foreground/60 mt-0.5">
+                <span className="text-[11px] sm:text-xs font-sans text-muted-foreground/60 mt-0.5">
                   À venir
                 </span>
-              ) : step.subtitle ? (
-                <span
-                  className={cn(
-                    "text-xs font-sans mt-0.5",
-                    isNextAction ? "text-foreground font-medium" : "text-muted-foreground",
-                  )}
-                >
-                  {step.subtitle}
-                </span>
-              ) : null}
-
-              {/* NEXT ACTION CONTINUER CTA BUTTON */}
-              {isNextAction && step.href ? (
-                <div className="mt-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground font-medium text-xs shadow-xs hover:bg-primary/90 transition-colors">
+              ) : isNextAction && step.href ? (
+                <div className="mt-1.5">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-primary text-primary-foreground font-medium text-xs shadow-xs hover:bg-primary/90 transition-colors">
                     Continuer <KrewMark type="arrow-right" tone="cream" size="sm" className="size-3" />
                   </span>
                 </div>
@@ -236,8 +219,8 @@ export function KrewJourneyTimeline({
               className="absolute -translate-x-1/2 -translate-y-1/2 flex items-center z-10"
               style={{ left: `${leftPct}%`, top: `${topPx}px` }}
             >
-              {/* TITLE ON LEFT SIDE (WHEN NODE IS ON THE RIGHT) */}
-              {!isLeftAligned ? (
+              {/* TITLE ON LEFT SIDE */}
+              {!isTextOnRight ? (
                 <div className="pr-3 sm:pr-4">
                   {step.href && !isUpcoming ? (
                     (() => {
@@ -258,7 +241,7 @@ export function KrewJourneyTimeline({
                 </div>
               ) : null}
 
-              {/* NODE SEAL CENTERED EXACTLY ON THE PATH */}
+              {/* NODE SEAL ANCHORED EXACTLY ON PATH COORDINATES */}
               <div className="relative shrink-0 flex items-center justify-center">
                 {step.href && !isUpcoming ? (
                   (() => {
@@ -287,7 +270,7 @@ export function KrewJourneyTimeline({
                           )}
                         />
                         {isDone ? (
-                          <span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-secondary text-white text-[9px] font-bold shadow-2xs">
+                          <span className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-secondary text-white text-[8px] font-bold shadow-2xs">
                             ✓
                           </span>
                         ) : null}
@@ -313,7 +296,7 @@ export function KrewJourneyTimeline({
 
                 {/* POST-IT ANNOTATION STRICTLY ON NEXT ACTION NODE */}
                 {isNextAction ? (
-                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap z-20 pointer-events-none">
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap z-20 pointer-events-none">
                     <KrewNote
                       variant="label"
                       tone="cream"
@@ -326,8 +309,8 @@ export function KrewJourneyTimeline({
                 ) : null}
               </div>
 
-              {/* TITLE ON RIGHT SIDE (WHEN NODE IS ON THE LEFT) */}
-              {isLeftAligned ? (
+              {/* TITLE ON RIGHT SIDE */}
+              {isTextOnRight ? (
                 <div className="pl-3 sm:pl-4">
                   {step.href && !isUpcoming ? (
                     (() => {

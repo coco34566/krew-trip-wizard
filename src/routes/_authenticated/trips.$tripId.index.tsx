@@ -3143,7 +3143,18 @@ function TripDetail() {
                                   ~{formatEuro(Number(slot.priceHint))} / pers.
                                 </p>
                               ) : null}
-                              {slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
+                              {slot.booking && slot.booking.provider === "getyourguide" ? (
+                                <a
+                                  href={slot.booking.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1 block text-xs font-medium text-primary hover:underline"
+                                >
+                                  {slot.booking.type === "exact_product"
+                                    ? "Voir les disponibilités sur GetYourGuide →"
+                                    : "Voir les activités sur GetYourGuide →"}
+                                </a>
+                              ) : slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
                                 <a
                                   href={slot.url}
                                   target="_blank"
@@ -3182,6 +3193,30 @@ function TripDetail() {
                   </div>
                 </article>
               ))}
+
+              <div className="pt-4 border-t border-border/50">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-muted/30">
+                  <div className="space-y-0.5">
+                    <h4 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                      <KrewIcon name="tasks" tone="plum" size="sm" className="size-4 shrink-0" />
+                      Répartissez les tâches entre vous
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      Clique ici pour répartir la to-do entre les membres du groupe.
+                    </p>
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
+                    <Link
+                      to="/trips/$tripId"
+                      params={{ tripId }}
+                      search={{ view: "voyage", section: "tasks" }}
+                    >
+                      <KrewIcon name="tasks" size="sm" className="size-3.5" />
+                      Répartir les tâches
+                    </Link>
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </section>
@@ -3228,6 +3263,33 @@ function TripDetail() {
               </Button>
             ) : null}
           </div>
+
+          {(() => {
+            const identifiedActiveCount = rawParticipants.filter(
+              (p: any) => p.status !== "absent",
+            ).length;
+            const isMissingParticipants = Number(trip.participants_count || 0) > identifiedActiveCount;
+
+            return isMissingParticipants ? (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-sage/12 border border-sage/25">
+                <div className="space-y-0.5">
+                  <h4 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                    <UserPlus className="size-4 text-primary shrink-0" />
+                    Il manque encore du monde
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    Invite les autres participants pour pouvoir leur attribuer des tâches.
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm" className="shrink-0 gap-1.5">
+                  <Link to="/trips/$tripId/invite" params={{ tripId }}>
+                    <UserPlus className="size-3.5" />
+                    Inviter les participants
+                  </Link>
+                </Button>
+              </div>
+            ) : null;
+          })()}
 
           {!hasItinerary ? (
             <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
@@ -3298,8 +3360,8 @@ function TripDetail() {
                               className="bg-background border border-border rounded-xl px-2 py-1 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
                             >
                               <option value="">Non attribué</option>
-                              {(participants ?? [])
-                                .filter((p: any) => p.status !== "absent")
+                              {rawParticipants
+                                .filter((p: any) => !p.placeholder && p.status !== "absent")
                                 .map((p: any) => (
                                   <option key={p.id} value={p.id}>
                                     {p.display_name || p.email?.split("@")[0] || "Ami"}
