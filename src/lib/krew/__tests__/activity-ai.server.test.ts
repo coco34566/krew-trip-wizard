@@ -3410,11 +3410,29 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(slotA.type).toBe(slotB.type);
       });
 
+      it("Point 1 — Slot externe raw.verified = true mais aucun candidat vérifié -> rejet", () => {
+        const raw = {
+          label: "Monument Inconnu",
+          type: "activite",
+          verified: true,
+          kind: "place_required",
+        };
+        const input: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const normalized = normalizeSlot(raw, input, []);
+        expect(normalized).toBeNull();
+      });
+
       it("B13. pricePerPerson: 30, priceStatus: 'verified', source: 'geoapify', priceSource absent -> UNKNOWN (non admissible)", () => {
         const raw = {
           label: "Monument Geoapify",
           type: "activite",
-          verified: true,
           pricePerPerson: 30,
           priceStatus: "verified",
           source: "geoapify",
@@ -3428,7 +3446,8 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
           ambiances: [],
           activityCategories: [],
         };
-        const normalized = normalizeSlot(raw, input, []);
+        const candidates = [{ id: "c1", name: "Monument Geoapify", verified: true, source: "geoapify" } as any];
+        const normalized = normalizeSlot(raw, input, candidates);
         expect(normalized?.priceStatus).toBe("unknown");
         expect(normalized?.priceSource).toBeNull();
       });
@@ -3437,7 +3456,6 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         const raw = {
           label: "Château de Versailles",
           type: "activite",
-          verified: true,
           pricePerPerson: 30,
           priceStatus: "verified",
           priceSource: "official_web",
@@ -3450,9 +3468,81 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
           ambiances: [],
           activityCategories: [],
         };
-        const normalized = normalizeSlot(raw, input, []);
+        const candidates = [{ id: "c2", name: "Château de Versailles", verified: true, source: "catalog" } as any];
+        const normalized = normalizeSlot(raw, input, candidates);
         expect(normalized?.priceStatus).toBe("verified");
         expect(normalized?.priceSource).toBe("official_web");
+      });
+
+      it("Point 2 — regenerateSlotWithAi : ne mélange pas montant et source de prix de candidats différents", async () => {
+        const existingSlot = {
+          moment: "Après-midi",
+          type: "activite" as const,
+          label: "Musée Ancien",
+          time: "14:00",
+          pricePerPerson: 30,
+          priceStatus: "verified" as const,
+          priceSource: "official_web",
+        };
+        const input: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+
+        const candidateAltWithoutPriceSource = [
+          {
+            id: "alt_1",
+            name: "Musée Nouveau",
+            sourceUrl: "https://example.com/nouveau",
+            source: "catalog",
+            priceHint: 25,
+            verified: true,
+          } as any,
+        ];
+
+        const resIncomplete = await regenerateSlotWithAi(
+          input,
+          existingSlot,
+          1,
+          ["Musée Ancien"],
+          candidateAltWithoutPriceSource,
+        );
+
+        expect(resIncomplete.slot.label).toBe("Musée Nouveau");
+        expect(resIncomplete.slot.priceStatus).toBe("unknown");
+        expect(resIncomplete.slot.priceSource).toBeNull();
+        expect(resIncomplete.slot.pricePerPerson).toBeNull();
+
+        const candidateAltWithPriceBundle = [
+          {
+            id: "alt_2",
+            name: "Lieu Sourcé",
+            sourceUrl: "https://example.com/source",
+            source: "catalog",
+            priceHint: 25,
+            pricePerPerson: 25,
+            priceStatus: "verified",
+            priceSource: "provider_api",
+            verified: true,
+          } as any,
+        ];
+
+        const resComplete = await regenerateSlotWithAi(
+          input,
+          existingSlot,
+          1,
+          ["Musée Ancien"],
+          candidateAltWithPriceBundle,
+        );
+
+        expect(resComplete.slot.label).toBe("Lieu Sourcé");
+        expect(resComplete.slot.priceStatus).toBe("verified");
+        expect(resComplete.slot.priceSource).toBe("provider_api");
+        expect(resComplete.slot.pricePerPerson).toBe(25);
       });
     });
   });

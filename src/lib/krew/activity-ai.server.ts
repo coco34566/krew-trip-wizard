@@ -2518,7 +2518,7 @@ export function normalizeSlot(
     ["transport", "libre", "moment_maison", "jeu_groupe", "evenement", "temps_libre"].includes(
       String(raw.category),
     );
-  if ((!candidate || candidate.verified !== true) && raw.verified !== true && !internal) return null;
+  if ((!candidate || candidate.verified !== true) && !internal) return null;
   const time =
     typeof raw.time === "string" && HHMM.test(raw.time.slice(0, 5)) ? raw.time.slice(0, 5) : null;
   const durationMinutes = Number.isFinite(Number(raw.durationMinutes))
@@ -3061,10 +3061,11 @@ export async function regenerateSlotWithAi(
         source: "geoapify",
         latitude: selectedPlace.latitude,
         longitude: selectedPlace.longitude,
-        pricePerPerson: existing.priceSource ? existing.pricePerPerson ?? existing.priceHint ?? null : null,
-        currency: existing.priceSource ? existing.currency ?? null : null,
-        priceStatus: existing.priceSource ? existing.priceStatus ?? "unknown" : "unknown",
-        priceSource: existing.priceSource ?? null,
+        pricePerPerson: null,
+        priceHint: undefined,
+        currency: null,
+        priceStatus: "unknown",
+        priceSource: null,
       },
       usedLlm: false,
       updatedPools,
@@ -3083,7 +3084,27 @@ export async function regenerateSlotWithAi(
       { name: candidateAlt.name, website: candidateAlt.sourceUrl, address: candidateAlt.address, latitude: candidateAlt.latitude, longitude: candidateAlt.longitude },
       input.destination,
     );
-    const altPriceSource = existing.priceSource ?? (candidateAlt as any).priceSource ?? null;
+
+    const altNumPrice = (candidateAlt as any).pricePerPerson ?? candidateAlt.priceHint ?? null;
+    const altExplicitStatus = (candidateAlt as any).priceStatus;
+    const altExplicitPriceSource =
+      typeof (candidateAlt as any).priceSource === "string" &&
+      (candidateAlt as any).priceSource.trim()
+        ? (candidateAlt as any).priceSource.trim()
+        : null;
+
+    const hasCompleteBundle =
+      altNumPrice != null &&
+      Number.isFinite(Number(altNumPrice)) &&
+      Number(altNumPrice) >= 0 &&
+      ["verified", "estimated", "free"].includes(altExplicitStatus) &&
+      Boolean(altExplicitPriceSource);
+
+    const pricePerPerson = hasCompleteBundle ? Number(altNumPrice) : null;
+    const priceStatus: ActivityPriceStatus = hasCompleteBundle ? altExplicitStatus : "unknown";
+    const priceSource = hasCompleteBundle ? altExplicitPriceSource : null;
+    const currency = hasCompleteBundle ? (candidateAlt as any).currency ?? "EUR" : null;
+
     return {
       slot: {
         ...existing,
@@ -3099,10 +3120,11 @@ export async function regenerateSlotWithAi(
         source: candidateAlt.source,
         latitude: candidateAlt.latitude,
         longitude: candidateAlt.longitude,
-        pricePerPerson: altPriceSource ? existing.pricePerPerson ?? existing.priceHint ?? candidateAlt.priceHint : null,
-        currency: altPriceSource ? existing.currency ?? null : null,
-        priceStatus: altPriceSource ? existing.priceStatus ?? "unknown" : "unknown",
-        priceSource: altPriceSource,
+        pricePerPerson,
+        ...(pricePerPerson != null ? { priceHint: pricePerPerson } : { priceHint: undefined }),
+        currency,
+        priceStatus,
+        priceSource,
       },
       usedLlm: false,
       updatedUsedIds: Array.from(usedSet),
