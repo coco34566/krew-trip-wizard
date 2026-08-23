@@ -52,20 +52,49 @@ export function buildGetYourGuideBooking(
       return null;
     }
 
-    // 1. Must be bookable mode only
-    if (slot.activityMode !== "bookable") {
+    // 1. Reject explicit non-bookable modes
+    if (slot.activityMode === "free_exploration" || slot.activityMode === "self_guided_group") {
       return null;
     }
 
-    // 2. Explicitly exclude restaurants, bars, brunchs, repas, free_exploration, self_guided_group, shopping, etc.
+    // When activityMode is absent, check structured metadata for bookable experiences
+    if (slot.activityMode !== "bookable") {
+      const isBookableType = !slot.type || slot.type === "activite";
+      const bookableCategories = [
+        "local_experience",
+        "culture",
+        "sport_outdoor",
+        "detente",
+        "evenement",
+        "soiree",
+      ];
+      const bookableVenueFamilies = [
+        "local_experience",
+        "culture",
+        "sport",
+        "spa_wellness",
+      ];
+
+      const isBookableCategory = slot.category ? bookableCategories.includes(slot.category) : false;
+      const isBookableVenueFamily = slot.venueFamily ? bookableVenueFamilies.includes(slot.venueFamily) : false;
+
+      if (!isBookableType || (!isBookableCategory && !isBookableVenueFamily)) {
+        return null;
+      }
+    }
+
+    // 2. Explicitly exclude restaurants, bars, brunchs, repas, shopping, transport, free exploration categories
     if (
       slot.type === "resto" ||
       slot.type === "bar" ||
+      slot.type === "transport" ||
+      slot.type === "libre" ||
       slot.category === "repas" ||
       slot.category === "shopping" ||
       slot.category === "temps_libre" ||
       slot.category === "moment_maison" ||
       slot.category === "jeu_groupe" ||
+      slot.category === "transport" ||
       slot.venueFamily === "restaurant" ||
       slot.venueFamily === "cafe" ||
       slot.venueFamily === "bar_pub" ||
