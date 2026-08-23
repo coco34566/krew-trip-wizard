@@ -20,6 +20,148 @@ export type CostSplitLine = {
   isStar?: boolean;
 };
 
+export type ActivityPriceStatus = "verified" | "partial" | "estimated" | "free" | "unknown";
+
+export type ItineraryActivitiesCostResult = {
+  /** Somme du coût des activités par personne (en €). */
+  activitiesPerPerson: number | null;
+  /** Statut de fiabilité du coût activités. */
+  priceStatus: ActivityPriceStatus;
+  /** Nombre d'activités avec un prix connu (verified / estimated / free). */
+  knownCount: number;
+  /** Nombre total d'activités du planning. */
+  totalCount: number;
+};
+
+export function computeItineraryActivitiesCost(
+  days?: { slots?: any[] }[] | null,
+): ItineraryActivitiesCostResult {
+  if (!days || !Array.isArray(days) || days.length === 0) {
+    return {
+      activitiesPerPerson: null,
+      priceStatus: "unknown",
+      knownCount: 0,
+      totalCount: 0,
+    };
+  }
+
+  let totalCount = 0;
+  let knownCount = 0;
+  let sumPerPerson = 0;
+  let hasVerified = false;
+  let hasEstimated = false;
+  let hasUnknown = false;
+  let hasFree = false;
+
+  for (const day of days) {
+    const slots = Array.isArray(day?.slots) ? day.slots : [];
+    for (const slot of slots) {
+      if (!slot) continue;
+
+      const type = String(slot.type || "").trim().toLowerCase();
+      const cat = String(slot.category || "").trim().toLowerCase();
+      const venue = String(slot.venueFamily || "").trim().toLowerCase();
+
+      // Exclude non-activity slots: meals/restaurants, bars/nightlife, transport, lodging
+      // Exclude non-activity slots: meals/restaurants, bars, transport, lodging.
+      // Note: category === "soiree" is NOT excluded when type === "activite" (shows, cabarets, night cruises).
+      const isMeal = type === "resto" || cat === "repas" || venue === "restaurant" || venue === "cafe";
+      const isBar = type === "bar" || venue === "bar_pub";
+      const isTransport = type === "transport";
+      const isLodging = slot.locationContext === "lodging" || venue === "hotel";
+
+      if (isMeal || isBar || isTransport || isLodging) {
+        continue;
+      }
+
+      totalCount++;
+
+      const rawPrice = slot.priceHint ?? slot.pricePerPerson ?? slot.price;
+      const numericPrice = rawPrice != null && !isNaN(Number(rawPrice)) ? Number(rawPrice) : null;
+      const explicitStatus: ActivityPriceStatus | undefined = slot.priceStatus;
+      const sourceRaw = slot.priceSource ?? slot.source;
+      const source = sourceRaw && typeof sourceRaw === "string" ? sourceRaw.trim() : null;
+
+      let effectiveStatus: ActivityPriceStatus = "unknown";
+      let slotCost: number | null = null;
+      let isGeminiEstimation = false;
+
+      // A price can only contribute as verified/free/provider-estimated if there is an explicit priceStatus + identifiable priceSource!
+      if (numericPrice != null && numericPrice >= 0 && source) {
+        if (explicitStatus === "free" && numericPrice === 0) {
+          effectiveStatus = "free";
+          slotCost = 0;
+        } else if (explicitStatus === "verified") {
+          effectiveStatus = "verified";
+          slotCost = numericPrice;
+        } else if (explicitStatus === "estimated") {
+          effectiveStatus = "estimated";
+          slotCost = numericPrice;
+        }
+      }
+
+      // If no sourced price exists, check if Gemini estimation range (min & max) is available
+      if (effectiveStatus === "unknown") {
+        const estMin =
+          slot.estimatedPriceMinPerPerson != null && !isNaN(Number(slot.estimatedPriceMinPerPerson))
+            ? Number(slot.estimatedPriceMinPerPerson)
+            : null;
+        const estMax =
+          slot.estimatedPriceMaxPerPerson != null && !isNaN(Number(slot.estimatedPriceMaxPerPerson))
+            ? Number(slot.estimatedPriceMaxPerPerson)
+            : null;
+
+        if (estMin != null && estMax != null && estMin >= 0 && estMax >= estMin) {
+          effectiveStatus = "estimated";
+          slotCost = (estMin + estMax) / 2;
+          isGeminiEstimation = true;
+        }
+      }
+
+      if (effectiveStatus !== "unknown" && slotCost != null) {
+        knownCount++;
+        sumPerPerson += slotCost;
+        if (effectiveStatus === "free") {
+          hasFree = true;
+        } else if (effectiveStatus === "verified" && !isGeminiEstimation) {
+          hasVerified = true;
+        } else {
+          hasEstimated = true;
+        }
+      } else {
+        hasUnknown = true;
+      }
+    }
+  }
+
+  if (totalCount === 0 || knownCount === 0) {
+    return {
+      activitiesPerPerson: null,
+      priceStatus: "unknown",
+      knownCount,
+      totalCount,
+    };
+  }
+
+  let priceStatus: ActivityPriceStatus = "verified";
+  if (hasUnknown && knownCount < totalCount) {
+    priceStatus = "partial";
+  } else if (hasEstimated) {
+    priceStatus = "estimated";
+  } else if (hasFree && knownCount === totalCount && sumPerPerson === 0) {
+    priceStatus = "free";
+  } else if (hasVerified && knownCount === totalCount) {
+    priceStatus = "verified";
+  }
+
+  return {
+    activitiesPerPerson: Math.round(sumPerPerson * 100) / 100,
+    priceStatus,
+    knownCount,
+    totalCount,
+  };
+}
+
 export type CostSplitResult = {
   destinationName: string;
   lines: CostSplitLine[];
@@ -28,6 +170,7 @@ export type CostSplitResult = {
   accommodation: number;
   activities: number;
   food: number;
+  activitiesPriceStatus?: ActivityPriceStatus;
 };
 
 export function buildCostSplit(params: {

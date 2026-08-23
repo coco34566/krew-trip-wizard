@@ -1859,10 +1859,21 @@ export const getCostSplit = createServerFn({ method: "GET" })
     const destName =
       (reco.data as any).destinations?.name ?? budget.destinationName ?? "Destination";
 
+    const { computeItineraryActivitiesCost } = await import("@/lib/krew/cost-split");
+    const itinerary = (trip.data as any)?.group_itinerary;
+    const itineraryActivities = computeItineraryActivitiesCost(itinerary?.days);
+
+    let activitiesCost = Number(budget.activities ?? 0);
+    let activitiesPriceStatus = itineraryActivities.priceStatus;
+
+    if (itineraryActivities.activitiesPerPerson != null) {
+      activitiesCost = itineraryActivities.activitiesPerPerson;
+    }
+
     const split = buildCostSplit({
       destinationName: destName,
       accommodation: accommodationCost,
-      activities: Number(budget.activities ?? 0),
+      activities: activitiesCost,
       food: Number(budget.food ?? 0),
       origins: participantLines,
       fallbackTransportPerPerson: fallbackTransport,
@@ -1870,11 +1881,12 @@ export const getCostSplit = createServerFn({ method: "GET" })
       starPaysShare: logistics.star_pays_share !== false,
     } as any);
 
+    split.activitiesPriceStatus = activitiesPriceStatus;
+
     const isHotelReserved = hotelBookingStatus === "réservé";
     const sharedCostReserved = isHotelReserved ? accommodationCost : 0;
     const sharedCostEstimated = isHotelReserved ? 0 : accommodationCost;
 
-    const activitiesCost = Number(budget.activities ?? 0);
     const foodCost = Number(budget.food ?? 0);
 
     const totalReserved =
@@ -2049,7 +2061,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
     const selected = await supabase
       .from("recommendations")
-      .select("id, destination_id, activity_ids, match_reasons, score, destinations(name, country)")
+      .select("id, destination_id, activity_ids, match_reasons, score, budget, destinations(name, country)")
       .eq("trip_id", data.tripId)
       .eq("is_selected", true)
       .maybeSingle();
@@ -2131,6 +2143,52 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const tripProfile =
       aggregated.stayConcepts?.[0]?.title ?? aggregated.stayProfileAffinities?.[0]?.id ?? null;
 
+    let knownAccommodationPerPerson: number | null = null;
+    const selectedHotelId = logistics.selectedHotelId;
+    const hotelsList = Array.isArray(logistics.hotels) ? logistics.hotels : [];
+    if (selectedHotelId) {
+      const matchHotel = hotelsList.find((h: any) => h.id === selectedHotelId);
+      if (
+        matchHotel &&
+        matchHotel.pricePerPerson != null &&
+        Number.isFinite(Number(matchHotel.pricePerPerson)) &&
+        matchHotel.priceStatus !== "unknown"
+      ) {
+        knownAccommodationPerPerson = Number(matchHotel.pricePerPerson);
+      }
+    }
+    if (
+      knownAccommodationPerPerson == null &&
+      recoRow.budget?.accommodation != null &&
+      Number.isFinite(Number(recoRow.budget.accommodation)) &&
+      Number(recoRow.budget.accommodation) > 0
+    ) {
+      knownAccommodationPerPerson = Number(recoRow.budget.accommodation);
+    }
+
+    const hasStar = Boolean(trip.has_star && (trip.star_user_id || logistics.star_mode));
+    const starPaysShare = logistics.star_pays_share !== false;
+
+    let knownTransportPerPerson: number | null = null;
+    if (picks.length > 0) {
+      const validPickPrices = picks
+        .map((p: any) => Number(p.pricePerPerson))
+        .filter((p: number) => Number.isFinite(p) && p > 0);
+      if (validPickPrices.length > 0) {
+        knownTransportPerPerson = Math.round(
+          validPickPrices.reduce((a: number, b: number) => a + b, 0) / validPickPrices.length,
+        );
+      }
+    }
+    if (
+      knownTransportPerPerson == null &&
+      recoRow.budget?.transport != null &&
+      Number.isFinite(Number(recoRow.budget.transport)) &&
+      Number(recoRow.budget.transport) > 0
+    ) {
+      knownTransportPerPerson = Number(recoRow.budget.transport);
+    }
+
     const activityInput: import("@/lib/krew/activity-ai.server").ActivityAiInput = {
       destination: destName,
       country: destCountry,
@@ -2140,6 +2198,10 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       participants: effCount,
       budgetPerPerson:
         Number(aggregated.aggregatedBudget) || Number(trip.budget_per_person) || 400,
+      accommodationPerPerson: knownAccommodationPerPerson,
+      transportPerPerson: knownTransportPerPerson,
+      hasStar,
+      starPaysShare,
       eventType: trip.event_type,
       tripProfile,
       ambiances: aggregated.ambiances ?? [],
@@ -2331,6 +2393,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
             Boolean(activityInput.accessibilityRequired),
             activityInput.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
             intentCenter,
+            slot.suggestedPlace || slot.label,
+            destName,
           );
 
           requirementsList.push(req);
@@ -2464,6 +2528,8 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
           Boolean(activityInput.accessibilityRequired),
           activityInput.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
           intentCenter,
+          (s as any).suggestedPlace || s.label,
+          destName,
         );
         const poolKey = buildPoolKey(req);
         let pool = placePools[poolKey] || [];
@@ -2817,6 +2883,9 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
       aggregated.dietaryConstraints,
       isAccessibilityRequired,
       aggregated.individualPreferences?.map((p: any) => p?.mobilityNotes).filter(Boolean) || [],
+      null,
+      current.suggestedPlace || current.label,
+      itinerary.destination || null,
     );
     const poolKey = buildPoolKey(req);
 

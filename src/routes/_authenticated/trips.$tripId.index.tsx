@@ -81,6 +81,7 @@ import {
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { PROFILE_LABELS, STAY_PROFILE_IDS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 import { cn } from "@/lib/utils";
+import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
@@ -817,15 +818,9 @@ function TripDetail() {
 
     const days = (trip.group_itinerary?.days ?? []) as any[];
     if (days.length) {
-      let actSum = 0;
-      for (const d of days) {
-        for (const s of d.slots ?? []) {
-          if (s.priceHint != null && Number(s.priceHint) > 0) actSum += Number(s.priceHint);
-        }
-      }
-      if (actSum > 0) {
-        food = Math.round(actSum * 0.45);
-        activities = Math.round(actSum * 0.55);
+      const res = computeItineraryActivitiesCost(days);
+      if (res.activitiesPerPerson != null) {
+        activities = res.activitiesPerPerson;
       }
     }
 
@@ -3250,9 +3245,39 @@ function TripDetail() {
                               {slot.detail ? (
                                 <p className="text-xs text-muted-foreground mt-0.5">{slot.detail}</p>
                               ) : null}
-                              {slot.priceHint != null ? (
+                              {slot.priceStatus === "free" ? (
+                                <p className="text-xs text-muted-foreground font-mono mt-1">Gratuit</p>
+                              ) : (slot.priceStatus === "verified" || slot.priceStatus === "estimated") &&
+                                (slot.pricePerPerson != null || slot.priceHint != null) ? (
                                 <p className="text-xs text-muted-foreground font-mono mt-1">
-                                  ~{formatEuro(Number(slot.priceHint))} / pers.
+                                  {slot.priceStatus === "estimated" ? "~" : ""}
+                                  {formatEuro(Number(slot.pricePerPerson ?? slot.priceHint))} / pers.
+                                  {slot.priceStatus === "estimated" ? " (estimé)" : ""}
+                                </p>
+                              ) : slot.estimatedPriceMinPerPerson != null &&
+                                slot.estimatedPriceMaxPerPerson != null &&
+                                slot.estimatedPriceMinPerPerson >= 0 &&
+                                slot.estimatedPriceMaxPerPerson >= slot.estimatedPriceMinPerPerson ? (
+                                <p className="text-xs text-muted-foreground font-mono mt-1">
+                                  {slot.estimatedPriceMinPerPerson === 0 && slot.estimatedPriceMaxPerPerson === 0 ? (
+                                    "Probablement gratuit"
+                                  ) : slot.estimatedPriceMinPerPerson !== slot.estimatedPriceMaxPerPerson ? (
+                                    `Env. ${slot.estimatedPriceMinPerPerson}–${slot.estimatedPriceMaxPerPerson}${
+                                      slot.estimatedPriceCurrency
+                                        ? slot.estimatedPriceCurrency === "EUR"
+                                          ? " €"
+                                          : ` ${slot.estimatedPriceCurrency}`
+                                        : ""
+                                    } / pers.`
+                                  ) : (
+                                    `Env. ${
+                                      slot.estimatedPriceCurrency
+                                        ? slot.estimatedPriceCurrency === "EUR"
+                                          ? formatEuro(slot.estimatedPriceMinPerPerson)
+                                          : `${slot.estimatedPriceMinPerPerson} ${slot.estimatedPriceCurrency}`
+                                        : slot.estimatedPriceMinPerPerson
+                                    } / pers.`
+                                  )}
                                 </p>
                               ) : null}
                               {slot.booking && slot.booking.provider === "getyourguide" ? (

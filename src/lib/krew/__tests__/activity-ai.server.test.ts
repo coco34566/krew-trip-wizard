@@ -19,6 +19,7 @@ import {
   geminiEnrichSkeleton,
   regenerateSlotWithAi,
   normalizeGeminiParsedResponse,
+  normalizeSlot,
   GEMINI_CONTRACTUAL_PROMPT_TEMPLATE,
   type ActivityAiInput,
 } from "../activity-ai.server";
@@ -2515,6 +2516,1149 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
       // detail must remain Gemini's detail, and address must be stored in address property.
       const poolKey = Object.keys(result.updatedPools || {})[0];
       expect(result.slot.detail).toBe("Une expérience bien-être incontournable dans des bains thermaux historiques et raffinés.");
+    });
+
+    describe("Correctifs Faux Matchs Test 16 — Bastion, Grandes Halles & Horaires", () => {
+      it("Bastion des Pêcheurs : sélectionne Fisherman's Bastion / Halászbástya plutôt qu'une ruine générique proche", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const genericRuins = {
+          id: "ruins-1",
+          name: "XVIII sz-ban átalakitott középkori épulet maradványa",
+          category: "tourism.sights.ruines",
+          categories: ["tourism", "tourism.sights", "tourism.sights.ruines"],
+          address: "Budapest",
+          latitude: 47.501,
+          longitude: 19.034,
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const bastionMatch = {
+          id: "bastion-real",
+          name: "Halászbástya (Fisherman's Bastion)",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights", "entertainment.culture"],
+          address: "Budapest, Szentháromság tér, 1014",
+          latitude: 47.502,
+          longitude: 19.035,
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "culture",
+          "culture",
+          "promenade culturelle au Bastion des Pêcheurs et quartier du Château",
+          [],
+          false,
+          [],
+          null,
+          "Bastion des Pêcheurs",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [genericRuins, bastionMatch],
+          req,
+          usedCandidateIdsSet: new Set(),
+        });
+
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("bastion-real");
+      });
+
+      it("Bastion des Pêcheurs : fallback générique autorisé si aucun match nominal crédible n'existe", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const genericCulture = {
+          id: "culture-1",
+          name: "Musée d'Histoire de Budapest",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights", "entertainment.museum"],
+          address: "Budapest",
+          latitude: 47.496,
+          longitude: 19.039,
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "culture",
+          "culture",
+          "promenade culturelle au Bastion des Pêcheurs et quartier du Château",
+          [],
+          false,
+          [],
+          null,
+          "Bastion des Pêcheurs",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [genericCulture],
+          req,
+          usedCandidateIdsSet: new Set(),
+        });
+
+        // Safe category fallback when no nominal match exists
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("culture-1");
+      });
+
+      it("Grandes Halles de Budapest : Great Market Hall gagne sur Városmajori Termelői Piac", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const wrongMarket = {
+          id: "market-wrong",
+          name: "Városmajori Termelői Piac",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest, Városmajor",
+          latitude: 47.51,
+          longitude: 19.02,
+          openingHours: "Mo 12:00-19:30; We,Fr 08:30-17:00",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const greatMarketHall = {
+          id: "market-real",
+          name: "Központi Vásárcsarnok (Great Market Hall)",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest, Vámház krt. 1-3, 1093",
+          latitude: 47.487,
+          longitude: 19.058,
+          openingHours: "Mo-Fr 06:00-18:00; Sa 06:00-15:00; Su 09:00-16:00",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "shopping",
+          "shopping",
+          "grand marché couvert de Budapest pour spécialités artisanales et gourmandes",
+          [],
+          false,
+          [],
+          null,
+          "Grandes Halles de Budapest",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [wrongMarket, greatMarketHall],
+          req,
+          usedCandidateIdsSet: new Set(),
+          date: "2026-08-30", // Dimanche
+          time: "14:00",
+        });
+
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("market-real");
+      });
+
+      it("Horaires : rejette explicitement un lieu fermé le dimanche au créneau prévu", async () => {
+        const { geoapifyOpeningStatus } = await import("../geoapify.server");
+
+        const closedOnSunday = {
+          id: "closed-sun",
+          name: "Városmajori Termelői Piac",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest",
+          openingHours: "Mo 12:00-19:30; We,Fr 08:30-17:00",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        // Sunday 2026-08-30 at 14:00
+        const status = geoapifyOpeningStatus(closedOnSunday, "2026-08-30", "14:00", 90);
+        expect(status).toBe("closed");
+      });
+
+      it("Horaires : accepte un lieu ouvert le dimanche au bon horaire", async () => {
+        const { geoapifyOpeningStatus } = await import("../geoapify.server");
+
+        const openOnSunday = {
+          id: "open-sun",
+          name: "Központi Vásárcsarnok",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest",
+          openingHours: "Mo-Sa 06:00-18:00; Su 09:00-16:00",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const status = geoapifyOpeningStatus(openOnSunday, "2026-08-30", "14:00", 90);
+        expect(status).toBe("open");
+      });
+
+      it("Horaires : ne rejette pas uniquement à cause de l'absence d'horaires", async () => {
+        const { geoapifyOpeningStatus } = await import("../geoapify.server");
+
+        const noHours = {
+          id: "no-hours",
+          name: "Marché sans horaires renseignés",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest",
+          openingHours: null,
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const status = geoapifyOpeningStatus(noHours, "2026-08-30", "14:00", 90);
+        expect(status).toBe("unknown");
+      });
+
+      it("Horaires ambigus ou non parsables : conserve le comportement existant (unknown)", async () => {
+        const { geoapifyOpeningStatus } = await import("../geoapify.server");
+
+        const ambiguousHours = {
+          id: "ambiguous-hours",
+          name: "Lieu aux horaires vagues",
+          category: "commercial.marketplace",
+          categories: ["commercial", "commercial.marketplace"],
+          address: "Budapest",
+          openingHours: "sur rendez-vous / variable selon saison",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const status = geoapifyOpeningStatus(ambiguousHours, "2026-08-30", "14:00", 90);
+        expect(status).toBe("unknown");
+      });
+
+      it("Test générique avec ville/POI fictif : prouve qu'aucune whitelist ou dictionnaire de traductions n'est nécessaire", async () => {
+        const { selectGeoapifyCandidate, convertIntentToPlaceRequirements } = await import("../geoapify.server");
+
+        const fictionalUnmatchedPoi = {
+          id: "fictional-wrong",
+          name: "Café de la Gare de Val-Fictif",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights"],
+          address: "Val-Fictif",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const fictionalMatchedPoi = {
+          id: "fictional-real",
+          name: "Belvédère de Val-Fictif",
+          category: "tourism.sights",
+          categories: ["tourism", "tourism.sights"],
+          address: "Val-Fictif",
+          source: "geoapify" as const,
+          verified: true,
+        };
+
+        const req = convertIntentToPlaceRequirements(
+          "culture",
+          "culture",
+          "visite du Belvédère de Val-Fictif",
+          [],
+          false,
+          [],
+          null,
+          "Belvédère de Val-Fictif",
+        );
+
+        const selected = await selectGeoapifyCandidate({
+          candidates: [fictionalUnmatchedPoi, fictionalMatchedPoi],
+          req,
+          usedCandidateIdsSet: new Set(),
+        });
+
+        expect(selected).not.toBeNull();
+        expect(selected?.id).toBe("fictional-real");
+      });
+    });
+
+    describe("Activity Cost & Budget Breakdown Integration Tests (Tests A-J)", () => {
+      it("Test A : Deux prix vérifiés (30 € et 45 €) avec source et priceStatus -> somme per-person = 75 €", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Activité A", type: "activite", priceHint: 30, priceStatus: "verified", source: "catalog" },
+              { label: "Activité B", type: "activite", priceHint: 45, priceStatus: "verified", source: "catalog" },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(75);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.knownCount).toBe(2);
+        expect(res.totalCount).toBe(2);
+      });
+
+      it("Test B : priceHint: 30 avec verified: true et source: 'geoapify' sans explicit priceStatus -> UNKNOWN (non inclus)", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Activité Geoapify", type: "activite", priceHint: 30, verified: true, source: "geoapify" },
+              { label: "Activité B", type: "activite", priceHint: null },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+        expect(res.knownCount).toBe(0);
+        expect(res.totalCount).toBe(2);
+      });
+
+      it("Test Soirée Activité : category = 'soiree' avec type = 'activite' ET prix vérifié -> inclus (35 €)", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Cabaret / Spectacle", type: "activite", category: "soiree", priceHint: 35, priceStatus: "verified", source: "ticket_office" },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(35);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.knownCount).toBe(1);
+        expect(res.totalCount).toBe(1);
+      });
+
+      it("Test C : Prix partiel (30 € verified + source + unknown) -> somme connue = 30 €, status = partial", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Activité A", type: "activite", priceHint: 30, priceStatus: "verified", source: "official_web" },
+              { label: "Activité B", type: "activite", priceHint: null },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(30);
+        expect(res.priceStatus).toBe("partial");
+        expect(res.knownCount).toBe(1);
+        expect(res.totalCount).toBe(2);
+      });
+
+      it("Test D : Prix estimé (25 € estimated + source) -> status = estimated", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [{ label: "Activité A", type: "activite", priceHint: 25, priceStatus: "estimated", source: "provider_estimate" }],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(25);
+        expect(res.priceStatus).toBe("estimated");
+      });
+
+      it("Test E : Gratuité confirmée (0 € + explicit status free + source) vs 0 € sans source/statut (unknown)", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const daysFreeWithSource = [
+          {
+            slots: [{ label: "Parc municipal", type: "activite", priceHint: 0, priceStatus: "free", source: "city_hall" }],
+          },
+        ];
+
+        const resFree = computeItineraryActivitiesCost(daysFreeWithSource);
+        expect(resFree.activitiesPerPerson).toBe(0);
+        expect(resFree.priceStatus).toBe("free");
+
+        const daysFreeNoSource = [
+          {
+            slots: [{ label: "Parc municipal", type: "activite", priceHint: 0, priceStatus: "free" }],
+          },
+        ];
+        const resFreeNoSource = computeItineraryActivitiesCost(daysFreeNoSource);
+        expect(resFreeNoSource.activitiesPerPerson).toBeNull();
+        expect(resFreeNoSource.priceStatus).toBe("unknown");
+
+        const daysUnconfirmedZero = [
+          {
+            slots: [{ label: "Visite mystère", type: "activite", priceHint: 0 }],
+          },
+        ];
+        const resUnconfirmed = computeItineraryActivitiesCost(daysUnconfirmedZero);
+        expect(resUnconfirmed.activitiesPerPerson).toBeNull();
+        expect(resUnconfirmed.priceStatus).toBe("unknown");
+      });
+
+      it("Exclusion des restaurants, repas et bars : un restaurant ou un bar avec un prix n'est PAS inclus dans le budget activités", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              { label: "Dîner au resto", type: "resto", category: "repas", priceHint: 40, priceStatus: "verified", source: "menu" },
+              { label: "Apéro au bar", type: "bar", venueFamily: "bar_pub", priceHint: 15, priceStatus: "verified", source: "menu" },
+              { label: "Musée", type: "activite", category: "culture", priceHint: 15, priceStatus: "verified", source: "official_web" },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBe(15); // Only museum, dinner & bar excluded!
+        expect(res.totalCount).toBe(1);
+        expect(res.knownCount).toBe(1);
+      });
+
+      it("Test F : GetYourGuide search link sans prix -> priceStatus = unknown, pas de scraping/prix inventé", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const days = [
+          {
+            slots: [
+              {
+                label: "Croisière sur le Danube",
+                booking: { provider: "getyourguide", type: "search", url: "https://www.getyourguide.fr/s/?q=croisiere" },
+                priceHint: null,
+              },
+            ],
+          },
+        ];
+
+        const res = computeItineraryActivitiesCost(days);
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("Test G : Cost Split integration -> buildCostSplit inclut correctement les activités", async () => {
+        const { buildCostSplit } = await import("../cost-split");
+        const split = buildCostSplit({
+          destinationName: "Budapest",
+          accommodation: 120,
+          activities: 75,
+          food: 50,
+          origins: [{ city: "Paris", count: 2, pricePerPerson: 100 }],
+        });
+
+        // sharedPerPerson = accommodation (120) + activities (75) + food (50) = 245
+        expect(split.sharedPerPerson).toBe(245);
+        expect(split.activities).toBe(75);
+        // totalPerPerson = transport (100) + shared (245) = 345
+        expect(split.lines[0]?.totalPerPerson).toBe(345);
+        // totalGroup = 345 * 2 = 690
+        expect(split.totalGroup).toBe(690);
+      });
+
+      it("Test H : Star ne paie pas -> redistribution sans double comptage des activités", async () => {
+        const { buildCostSplit } = await import("../cost-split");
+        const split = buildCostSplit({
+          destinationName: "Budapest",
+          accommodation: 120,
+          activities: 60,
+          food: 40,
+          origins: [
+            { city: "Paris (Star)", count: 1, pricePerPerson: 100, isStar: true },
+            { city: "Lyon", count: 1, pricePerPerson: 100, isStar: false },
+          ],
+          starPaysShare: false,
+        });
+
+        // Star shared = 120 + 60 + 40 = 220, transport = 100 -> Star total = 320
+        // Star cost (320) is re-distributed to Lyon
+        const starLine = split.lines.find((l) => l.isStar);
+        const lyonLine = split.lines.find((l) => !l.isStar);
+
+        expect(starLine?.totalPerPerson).toBe(0);
+        expect(lyonLine?.totalPerPerson).toBe(320 + (100 + 220)); // 640
+        expect(split.totalGroup).toBe(640);
+      });
+
+      it("Test I : Invariance planning -> les métadonnées de prix n'altèrent pas l'ordre ou les slots", async () => {
+        const slotsWithPrice = [
+          { label: "Bastion", time: "10:00", priceHint: 15 },
+          { label: "Thermes", time: "14:00", priceHint: 25 },
+        ];
+        const slotsWithoutPrice = [
+          { label: "Bastion", time: "10:00" },
+          { label: "Thermes", time: "14:00" },
+        ];
+
+        expect(slotsWithPrice.map((s) => s.label)).toEqual(slotsWithoutPrice.map((s) => s.label));
+        expect(slotsWithPrice.map((s) => s.time)).toEqual(slotsWithoutPrice.map((s) => s.time));
+      });
+    });
+
+    describe("Sujet A — Qualification Budget Contexte Gemini Tests", () => {
+      it("A1. buildGroupPlanningContext expose bien budget.totalPerPerson", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Annecy",
+          nights: 2,
+          participants: 4,
+          budgetPerPerson: 450,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget).toBeDefined();
+        expect(ctx.budget.totalPerPerson).toBe(450);
+      });
+
+      it("A2. Le budget injecté est exactement input.budgetPerPerson", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Lyon",
+          nights: 3,
+          participants: 6,
+          budgetPerPerson: 380,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.totalPerPerson).toBe(380);
+      });
+
+      it("A3. Si hébergement/transport connus existent déjà -> apparaissent dans le contexte avec calcul du reste", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Nantes",
+          nights: 2,
+          participants: 5,
+          budgetPerPerson: 400,
+          accommodationPerPerson: 180,
+          transportPerPerson: 100,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.accommodationPerPerson).toBe(180);
+        expect(ctx.budget.transportPerPerson).toBe(100);
+        expect(ctx.budget.remainingForActivitiesAndFood).toBe(120); // 400 - 180 - 100
+      });
+
+      it("A4. Si inconnus -> null, pas 0", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Bordeaux",
+          nights: 2,
+          participants: 4,
+          budgetPerPerson: 500,
+          accommodationPerPerson: null,
+          transportPerPerson: undefined,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.accommodationPerPerson).toBeNull();
+        expect(ctx.budget.transportPerPerson).toBeNull();
+        expect(ctx.budget.remainingForActivitiesAndFood).toBeNull();
+      });
+
+      it("A5. remainingForActivitiesAndFood : calcul correct lorsque possible, null si manquant", () => {
+        const testInputPartial: ActivityAiInput = {
+          destination: "Nice",
+          nights: 2,
+          participants: 3,
+          budgetPerPerson: 600,
+          accommodationPerPerson: 250,
+          transportPerPerson: undefined,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const briefPartial = buildPlanningBrief(testInputPartial);
+        const ctxPartial = buildGroupPlanningContext(testInputPartial, briefPartial);
+
+        expect(ctxPartial.budget.remainingForActivitiesAndFood).toBeNull();
+      });
+
+      it("A6. Test d'invariance : hors ajout du bloc budget, les autres sections du GroupPlanningContext restent identiques", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Strasbourg",
+          nights: 2,
+          participants: 4,
+          budgetPerPerson: 400,
+          accommodationPerPerson: 150,
+          transportPerPerson: 80,
+          ambiances: ["fete"],
+          activityCategories: ["culture"],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.trip.destination).toBe("Strasbourg");
+        expect(ctx.trip.nights).toBe(2);
+        expect(ctx.trip.participantCount).toBe(4);
+        expect(ctx.planning.maxActivitiesPerDay).toBeDefined();
+        expect(ctx.star).toBeDefined();
+        expect(ctx.krewSignals).toBeDefined();
+      });
+
+      it("A7. Test d'invariance prompt : le template Gemini existant contient {{GROUP_PLANNING_CONTEXT_JSON}} et n'est pas réécrit", () => {
+        expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("{{GROUP_PLANNING_CONTEXT_JSON}}");
+        expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("Tu es le concepteur de planning de KREW.");
+      });
+
+      it("A8. Voyage sans Star -> travellersCount = 6, payingParticipantsCount = 6", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Toulouse",
+          nights: 2,
+          participants: 6,
+          budgetPerPerson: 400,
+          hasStar: false,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.travellersCount).toBe(6);
+        expect(ctx.budget.payingParticipantsCount).toBe(6);
+        expect(ctx.budget.starPaysShare).toBe(true);
+      });
+
+      it("A9. Star présente et paie -> travellersCount = 8, starPaysShare = true, payingParticipantsCount = 8", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Biarritz",
+          nights: 2,
+          participants: 8,
+          budgetPerPerson: 400,
+          hasStar: true,
+          starPaysShare: true,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.travellersCount).toBe(8);
+        expect(ctx.budget.payingParticipantsCount).toBe(8);
+        expect(ctx.budget.starPaysShare).toBe(true);
+      });
+
+      it("A10. Star présente et ne paie pas -> travellersCount = 8, starPaysShare = false, payingParticipantsCount = 7", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Marseille",
+          nights: 2,
+          participants: 8,
+          budgetPerPerson: 400,
+          hasStar: true,
+          starPaysShare: false,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.travellersCount).toBe(8);
+        expect(ctx.budget.payingParticipantsCount).toBe(7);
+        expect(ctx.budget.starPaysShare).toBe(false);
+      });
+
+      it("A11. Le budgetPerPerson original n'est PAS modifié quand la Star ne paie pas", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Lille",
+          nights: 2,
+          participants: 8,
+          budgetPerPerson: 400,
+          hasStar: true,
+          starPaysShare: false,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.totalPerPerson).toBe(400);
+      });
+    });
+
+    describe("Sujet B — qualification des prix d'activités", () => {
+      it("B1. Source prix vérifiée existante -> propagation montant/devise/source/status", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Visite guidée",
+                type: "activite",
+                pricePerPerson: 30,
+                currency: "EUR",
+                priceStatus: "verified",
+                priceSource: "official_web",
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBe(30);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.knownCount).toBe(1);
+      });
+
+      it("B2. Source explicitement estimative -> estimated", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Escape game estimé",
+                type: "activite",
+                priceHint: 25,
+                priceStatus: "estimated",
+                priceSource: "provider_estimate",
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBe(25);
+        expect(res.priceStatus).toBe("estimated");
+      });
+
+      it("B3. Aucune source -> unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Activité sans source",
+                type: "activite",
+                priceHint: 30,
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("B4. priceHint Gemini seul -> toujours unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Idée Gemini",
+                type: "activite",
+                priceHint: 50,
+                priceSource: undefined,
+                priceStatus: undefined,
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("B5. verified: true POI + source Geoapify + prix non sourcé -> toujours unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Lieu Geoapify",
+                type: "activite",
+                verified: true,
+                source: "geoapify",
+                priceHint: 20,
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("B6. GYG search seul -> unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Recherche GYG",
+                type: "activite",
+                booking: { provider: "getyourguide", url: "https://www.getyourguide.com/s", type: "search", affiliate: true },
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("B7. free uniquement avec source/statut explicite", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const resFree = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Parc municipal",
+                type: "activite",
+                priceHint: 0,
+                priceStatus: "free",
+                priceSource: "city_hall",
+              },
+            ],
+          },
+        ]);
+        expect(resFree.priceStatus).toBe("free");
+        expect(resFree.activitiesPerPerson).toBe(0);
+
+        const resUnknownFree = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Parc sans statut",
+                type: "activite",
+                priceHint: 0,
+              },
+            ],
+          },
+        ]);
+        expect(resUnknownFree.priceStatus).toBe("unknown");
+      });
+
+      it("B8. Restaurant avec prix -> exclu des activités", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Restaurant Le Gourmet",
+                type: "resto",
+                category: "repas",
+                pricePerPerson: 40,
+                priceStatus: "verified",
+                priceSource: "menu_web",
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+        expect(res.totalCount).toBe(0);
+      });
+
+      it("B9. Activité de soirée payante -> incluse", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Cabaret Spectacle",
+                type: "activite",
+                category: "soiree",
+                pricePerPerson: 35,
+                priceStatus: "verified",
+                priceSource: "ticket_office",
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBe(35);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.totalCount).toBe(1);
+      });
+
+      it("B10. Coût total activités reste PAR PERSONNE", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              { label: "Activité 1", type: "activite", pricePerPerson: 20, priceStatus: "verified", priceSource: "web" },
+              { label: "Activité 2", type: "activite", pricePerPerson: 30, priceStatus: "verified", priceSource: "web" },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBe(50);
+      });
+
+      it("B11. Aucun double comptage dans cost split", async () => {
+        const { buildCostSplit } = await import("../cost-split");
+        const split = buildCostSplit({
+          destinationName: "Lyon",
+          accommodation: 100,
+          activities: 50,
+          food: 40,
+          origins: [{ city: "Paris", count: 3, pricePerPerson: 80 }],
+        });
+
+        // sharedPerPerson = 100 + 50 + 40 = 190
+        // totalPerPerson = 80 + 190 = 270
+        // totalGroup = 270 * 3 = 810
+        expect(split.sharedPerPerson).toBe(190);
+        expect(split.lines[0]?.totalPerPerson).toBe(270);
+        expect(split.totalGroup).toBe(810);
+      });
+
+      it("B12. Planning inchangé hors métadonnées prix : même label, même lieu, même ordre, même heure, même activité", async () => {
+        const slotA = { label: "Musée d'Orsay", moment: "Matin", time: "10:00", type: "activite" as const, pricePerPerson: 16, priceStatus: "verified" as const, priceSource: "official_web" };
+        const slotB = { label: "Musée d'Orsay", moment: "Matin", time: "10:00", type: "activite" as const };
+
+        expect(slotA.label).toBe(slotB.label);
+        expect(slotA.moment).toBe(slotB.moment);
+        expect(slotA.time).toBe(slotB.time);
+        expect(slotA.type).toBe(slotB.type);
+      });
+
+      it("Point 1 — Slot externe raw.verified = true mais aucun candidat vérifié -> rejet", () => {
+        const raw = {
+          label: "Monument Inconnu",
+          type: "activite",
+          verified: true,
+          kind: "place_required",
+        };
+        const input: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const normalized = normalizeSlot(raw, input, []);
+        expect(normalized).toBeNull();
+      });
+
+      it("B13. pricePerPerson: 30, priceStatus: 'verified', source: 'geoapify', priceSource absent -> UNKNOWN (non admissible)", () => {
+        const raw = {
+          label: "Monument Geoapify",
+          type: "activite",
+          pricePerPerson: 30,
+          priceStatus: "verified",
+          source: "geoapify",
+          priceSource: undefined,
+        };
+        const input: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const candidates = [{ id: "c1", name: "Monument Geoapify", verified: true, source: "geoapify" } as any];
+        const normalized = normalizeSlot(raw, input, candidates);
+        expect(normalized?.priceStatus).toBe("unknown");
+        expect(normalized?.priceSource).toBeNull();
+      });
+
+      it("B14. pricePerPerson: 30, priceStatus: 'verified', priceSource: 'official_web' -> ADMISSIBLE (verified)", () => {
+        const raw = {
+          label: "Château de Versailles",
+          type: "activite",
+          pricePerPerson: 30,
+          priceStatus: "verified",
+          priceSource: "official_web",
+        };
+        const input: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const candidates = [{ id: "c2", name: "Château de Versailles", verified: true, source: "catalog" } as any];
+        const normalized = normalizeSlot(raw, input, candidates);
+        expect(normalized?.priceStatus).toBe("verified");
+        expect(normalized?.priceSource).toBe("official_web");
+      });
+
+      it("Point 2 — regenerateSlotWithAi : ne mélange pas montant et source de prix de candidats différents", async () => {
+        const existingSlot = {
+          moment: "Après-midi",
+          type: "activite" as const,
+          label: "Musée Ancien",
+          time: "14:00",
+          pricePerPerson: 30,
+          priceStatus: "verified" as const,
+          priceSource: "official_web",
+        };
+        const input: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+
+        const candidateAltWithoutPriceSource = [
+          {
+            id: "alt_1",
+            name: "Musée Nouveau",
+            sourceUrl: "https://example.com/nouveau",
+            source: "catalog",
+            priceHint: 25,
+            verified: true,
+          } as any,
+        ];
+
+        const resIncomplete = await regenerateSlotWithAi(
+          input,
+          existingSlot,
+          1,
+          ["Musée Ancien"],
+          candidateAltWithoutPriceSource,
+        );
+
+        expect(resIncomplete.slot.label).toBe("Musée Nouveau");
+        expect(resIncomplete.slot.priceStatus).toBe("unknown");
+        expect(resIncomplete.slot.priceSource).toBeNull();
+        expect(resIncomplete.slot.pricePerPerson).toBeNull();
+
+        const candidateAltWithPriceBundle = [
+          {
+            id: "alt_2",
+            name: "Lieu Sourcé",
+            sourceUrl: "https://example.com/source",
+            source: "catalog",
+            priceHint: 25,
+            pricePerPerson: 25,
+            priceStatus: "verified",
+            priceSource: "provider_api",
+            verified: true,
+          } as any,
+        ];
+
+        const resComplete = await regenerateSlotWithAi(
+          input,
+          existingSlot,
+          1,
+          ["Musée Ancien"],
+          candidateAltWithPriceBundle,
+        );
+
+        expect(resComplete.slot.label).toBe("Lieu Sourcé");
+        expect(resComplete.slot.priceStatus).toBe("verified");
+        expect(resComplete.slot.priceSource).toBe("provider_api");
+        expect(resComplete.slot.pricePerPerson).toBe(25);
+      });
+
+      describe("Nouveaux tests d'invariance et de validation de fourchette Gemini (#148 mini-correctif)", () => {
+        const baseInput: ActivityAiInput = {
+          destination: "Paris",
+          nights: 1,
+          participants: 2,
+          budgetPerPerson: 300,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const candidate = [{ id: "c1", name: "Visite Musée", verified: true, source: "catalog" } as any];
+
+        it("1. min=50, max=30 -> estimation rejetée (estMin=null, estMax=null)", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 50,
+            estimatedPriceMaxPerPerson: 30,
+            estimatedPriceCurrency: "EUR",
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+        });
+
+        it("2b. min=30, max=null -> rejet (estMin=null, estMax=null)", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 30,
+            estimatedPriceMaxPerPerson: null,
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+        });
+
+        it("2c. min=null, max=50 -> rejet (estMin=null, estMax=null)", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: null,
+            estimatedPriceMaxPerPerson: 50,
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+        });
+
+        it("2. min=-10, max=30 -> estimation rejetée", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: -10,
+            estimatedPriceMaxPerPerson: 30,
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+        });
+
+        it("3. 30–50 sans devise -> devise reste null (sans hardcoder EUR)", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 30,
+            estimatedPriceMaxPerPerson: 50,
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBe(30);
+          expect(slot?.estimatedPriceMaxPerPerson).toBe(50);
+          expect(slot?.estimatedPriceCurrency).toBeNull();
+        });
+
+        it("4. 30–50 EUR -> conservée", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 30,
+            estimatedPriceMaxPerPerson: 50,
+            estimatedPriceCurrency: "EUR",
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBe(30);
+          expect(slot?.estimatedPriceMaxPerPerson).toBe(50);
+          expect(slot?.estimatedPriceCurrency).toBe("EUR");
+        });
+
+        it("5. Prix sourcé reste prioritaire sur estimation Gemini", async () => {
+          const { computeItineraryActivitiesCost } = await import("../cost-split");
+          const res = computeItineraryActivitiesCost([
+            {
+              slots: [
+                {
+                  label: "Musée Sourdé",
+                  type: "activite",
+                  pricePerPerson: 25,
+                  priceStatus: "verified",
+                  priceSource: "official_web",
+                  estimatedPriceMinPerPerson: 30,
+                  estimatedPriceMaxPerPerson: 50,
+                },
+              ],
+            },
+          ]);
+          expect(res.activitiesPerPerson).toBe(25);
+          expect(res.priceStatus).toBe("verified");
+        });
+      });
     });
   });
 });
