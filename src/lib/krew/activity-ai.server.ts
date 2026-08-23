@@ -1067,7 +1067,7 @@ N'invente aucune autre valeur.
 
 Pour chaque \`place_required\` :
 
-Pour une activité potentiellement payante, fournis si possible une fourchette de prix indicative réaliste par personne (estimatedPriceMinPerPerson / estimatedPriceMaxPerPerson). Il s’agit uniquement d’une estimation destinée à calibrer le budget du planning : n’invente pas une précision artificielle et laisse les champs à null si tu ne peux pas raisonnablement estimer le coût.
+Pour chaque activité, renseigne TOUJOURS estimatedPriceMinPerPerson, estimatedPriceMaxPerPerson et estimatedPriceCurrency. Pour une activité potentiellement payante, fournis si possible une fourchette de prix indicative réaliste par personne. Si tu ne peux pas raisonnablement estimer le coût, retourne explicitement null pour les trois champs. N’invente jamais une fausse précision.
 
 \`searchIntent\`
 → décrit précisément l'expérience/lieu à rechercher ou vérifier.
@@ -2169,7 +2169,18 @@ export async function geminiEnrichSkeleton(
                   estimatedPriceMaxPerPerson: { type: "NUMBER", nullable: true },
                   estimatedPriceCurrency: { type: "STRING", nullable: true },
                 },
-                required: ["id", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
+                required: [
+                  "id",
+                  "kind",
+                  "momentType",
+                  "label",
+                  "detail",
+                  "time",
+                  "durationMinutes",
+                  "estimatedPriceMinPerPerson",
+                  "estimatedPriceMaxPerPerson",
+                  "estimatedPriceCurrency",
+                ],
               },
             },
           },
@@ -2199,7 +2210,20 @@ export async function geminiEnrichSkeleton(
             estimatedPriceMaxPerPerson: { type: "NUMBER", nullable: true },
             estimatedPriceCurrency: { type: "STRING", nullable: true },
           },
-          required: ["id", "day", "forSlot", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
+          required: [
+            "id",
+            "day",
+            "forSlot",
+            "kind",
+            "momentType",
+            "label",
+            "detail",
+            "time",
+            "durationMinutes",
+            "estimatedPriceMinPerPerson",
+            "estimatedPriceMaxPerPerson",
+            "estimatedPriceCurrency",
+          ],
         },
       },
     },
