@@ -320,17 +320,17 @@ function Dashboard() {
             className="absolute -top-4 -left-4 w-[180px] sm:w-[260px] h-[80px] opacity-40 pointer-events-none z-0"
           />
           <div className="relative inline-block z-10">
-            <h1 className="font-display text-[36px] sm:text-[42px] lg:text-[48px] font-normal leading-[0.98] tracking-tight text-foreground">
+            <h1 className="font-display text-[40px] sm:text-[44px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
               Mes voyages
             </h1>
             <KrewMark
               type="underline-wave"
               tone="sage"
               size="md"
-              className="absolute left-0 -bottom-1.5 w-[120px] lg:w-[160px] pointer-events-none"
+              className="absolute left-0 -bottom-2 w-[120px] lg:w-[180px] pointer-events-none"
             />
           </div>
-          <p className="text-xs sm:text-sm text-muted-foreground pt-0.5 font-sans">
+          <p className="text-sm sm:text-base text-muted-foreground pt-1 font-sans">
             Tes projets en cours et tes invitations reçues.
           </p>
         </div>

@@ -2160,43 +2160,6 @@ function TripDetail() {
                   ) : null}
                 </li>
               ))}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm">
-                      {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
-                      {new Date(w.start + "T12:00:00").toLocaleDateString("fr-FR")} →{" "}
-                      {new Date(w.end + "T12:00:00").toLocaleDateString("fr-FR")}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {w.covered}/{w.total} · {Math.round((w.coverageRatio ?? 0) * 100)} %
-                      </span>
-                    </p>
-                    {(w.availablePeople?.length ?? 0) > 0 ? (
-                      <p className="mt-0.5 text-xs text-lagoon">
-                        ✅ {w.availablePeople.map((p: any) => p.name).join(", ")}
-                      </p>
-                    ) : null}
-                    {(w.unavailablePeople?.length ?? 0) > 0 ? (
-                      <p className="mt-0.5 text-xs text-destructive/90">
-                        ❌ {w.unavailablePeople.map((p: any) => p.name).join(", ")}
-                      </p>
-                    ) : null}
-                  </div>
-                  {data.isOwner ? (
-                    <Button
-                      size="sm"
-                      variant={i === 0 ? "default" : "outline"}
-                      disabled={chooseDatesMutation.isPending}
-                      onClick={() => chooseDatesMutation.mutate({ start: w.start, end: w.end })}
-                    >
-                      {chooseDatesMutation.isPending ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Lock className="size-3.5" />
-                      )}
-                      Valider ces dates
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
               {(availData?.windows ?? []).length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   Aucune date commune pour le moment. Il manque peut-être encore des disponibilités.
@@ -2682,13 +2645,6 @@ function TripDetail() {
           id="hub-logistics"
           className="mt-6 sm:mt-8 space-y-4 bg-background border-b border-border/40 pb-8 scroll-mt-24 relative overflow-hidden"
         >
-          <div className="flex flex-wrap items-end justify-between gap-3 pr-20 sm:pr-24">
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
-                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
-                  Hébergement
-                </h2>
           {/* Otter accommodation asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
             <img
@@ -2702,7 +2658,7 @@ function TripDetail() {
           <div className="flex flex-wrap items-end justify-between gap-3 pr-20 sm:pr-24">
             <div>
               <div className="flex items-center gap-3">
-                <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
+                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
                   <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
                   Hébergement
                 </h2>
