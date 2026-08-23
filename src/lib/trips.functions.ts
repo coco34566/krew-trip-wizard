@@ -2699,7 +2699,7 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
 
     console.info("krew-planning-telemetry", telemetry);
 
-    const finalItinerary: import("@/lib/krew/activity-ai.server").GroupItinerary = {
+    const rawItinerary: import("@/lib/krew/activity-ai.server").GroupItinerary = {
       destination: destName,
       nights,
       days: timeCoherentDays,
@@ -2711,6 +2711,11 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       skeleton: enrichedSkeleton,
       telemetry,
     };
+
+    const { enrichGroupItineraryWithGetYourGuide } = await import(
+      "@/lib/krew/getyourguide.server"
+    );
+    const finalItinerary = enrichGroupItineraryWithGetYourGuide(rawItinerary);
 
     const { error } = await supabase
       .from("trips")
@@ -2968,16 +2973,23 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     dayPlan.slots[data.slotIndex] = updatedSlot;
     itinerary.generatedAt = new Date().toISOString();
 
+    const { enrichGroupItineraryWithGetYourGuide } = await import(
+      "@/lib/krew/getyourguide.server"
+    );
+    const enrichedItinerary = enrichGroupItineraryWithGetYourGuide(
+      itinerary as import("@/lib/krew/activity-ai.server").GroupItinerary,
+    );
+
     const { error } = await supabase
       .from("trips")
       .update({
-        group_itinerary: itinerary,
+        group_itinerary: enrichedItinerary,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", data.tripId);
     if (error) throw error;
 
-    return { ok: true, usedLlm: false, slot: updatedSlot, itinerary };
+    return { ok: true, usedLlm: false, slot: dayPlan.slots[data.slotIndex], itinerary: enrichedItinerary };
   });
 
 /** Reco hôtels + A/R multi-modes (avion, train, bus, voiture) avec liens de réservation. */

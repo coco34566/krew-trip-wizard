@@ -3157,6 +3157,18 @@ function TripDetail() {
                                       : "Voir le lieu →"}
                                 </a>
                               ) : null}
+                              {slot.booking && slot.booking.provider === "getyourguide" ? (
+                                <a
+                                  href={slot.booking.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="mt-1 block text-xs font-medium text-primary/80 hover:underline"
+                                >
+                                  {slot.booking.type === "exact_product"
+                                    ? "Voir les disponibilités sur GetYourGuide →"
+                                    : "Voir des activités correspondantes sur GetYourGuide →"}
+                                </a>
+                              ) : null}
                             </div>
                           </div>
                           {data.isOwner ? (
