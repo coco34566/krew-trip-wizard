@@ -88,6 +88,7 @@ export type OriginDeepLinks = {
   distanceKm: number;
   showTrain: boolean;
   googleFlights: string;
+  kiwi: string | null;
   kayak: string;
   omio: string | null;
   trainline: string | null;
@@ -96,8 +97,32 @@ export type OriginDeepLinks = {
   getYourGuide: string;
 };
 
+function getTravelpayoutsPartnerId(): string | null {
+  const fromVite = typeof import.meta !== "undefined" ? import.meta.env?.VITE_TRAVELPAYOUTS_PARTNER_ID : undefined;
+  if (typeof fromVite === "string" && fromVite.trim()) return fromVite.trim();
+  if (typeof process !== "undefined") {
+    const fromServer = process.env.TRAVELPAYOUTS_PARTNER_ID;
+    if (typeof fromServer === "string" && fromServer.trim()) return fromServer.trim();
+  }
+  return null;
+}
+
+export function buildKiwiAffiliateLink(params: {
+  originCode: string;
+  destinationCode: string;
+  departDate: string;
+  returnDate: string;
+  subId?: string;
+}): string | null {
+  const partnerId = getTravelpayoutsPartnerId();
+  if (!partnerId) return null;
+  const kiwiDeepLink = `https://www.kiwi.com/deep?from=${encodeURIComponent(params.originCode)}&to=${encodeURIComponent(params.destinationCode)}&departure=${params.departDate}&return=${params.returnDate}`;
+  const shmarker = params.subId ? `${partnerId}.${params.subId}` : partnerId;
+  return `https://c111.travelpayouts.com/click?shmarker=${encodeURIComponent(shmarker)}&promo_id=3791&source_type=customlink&type=click&custom_url=${encodeURIComponent(kiwiDeepLink)}`;
+}
+
 export function appendAffiliateParam(url: string, paramName: string, envVar: string): string {
-  const value = process.env[envVar];
+  const value = typeof process !== "undefined" ? process.env[envVar] : undefined;
   if (!value || value.trim() === "") return url;
   try {
     const u = new URL(url);
@@ -122,6 +147,13 @@ export function buildOriginDeepLinks(ctx: DeepLinkContext): OriginDeepLinks {
   const showTrain = distanceKm < 700;
 
   const googleFlights = `https://www.google.com/travel/flights?q=` + encodeURIComponent(`Vols de ${originLabel} à ${destLabel} le ${depart} retour ${ret}`);
+  const kiwi = buildKiwiAffiliateLink({
+    originCode,
+    destinationCode: destCode,
+    departDate: depart,
+    returnDate: ret,
+    subId: "krew-transport",
+  });
   let kayak = `https://www.kayak.fr/flights/${encodeURIComponent(originCode)}-${encodeURIComponent(destCode)}/${depart}/${ret}?adults=${adults}`;
   kayak = appendAffiliateParam(kayak, "a", "KAYAK_AFFILIATE_ID");
   let booking = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(destLabel)}&checkin=${depart}&checkout=${ret}&group_adults=${adults}&no_rooms=1&lang=fr`;
@@ -139,7 +171,7 @@ export function buildOriginDeepLinks(ctx: DeepLinkContext): OriginDeepLinks {
   let getYourGuide = `https://www.getyourguide.fr/s/?q=${encodeURIComponent(destLabel)}`;
   getYourGuide = appendAffiliateParam(getYourGuide, "partner_id", "GYG_AFFILIATE_ID");
 
-  return { originCity: originLabel, adults, distanceKm, showTrain, googleFlights, kayak, omio, trainline, sncf, booking, getYourGuide };
+  return { originCity: originLabel, adults, distanceKm, showTrain, googleFlights, kiwi, kayak, omio, trainline, sncf, booking, getYourGuide };
 }
 
 export function buildDeepLinksForProposal(params: {
