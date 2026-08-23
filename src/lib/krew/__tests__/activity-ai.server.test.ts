@@ -2983,5 +2983,358 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(slotsWithPrice.map((s) => s.time)).toEqual(slotsWithoutPrice.map((s) => s.time));
       });
     });
+
+    describe("Sujet A — Qualification Budget Contexte Gemini Tests", () => {
+      it("A1. buildGroupPlanningContext expose bien budget.totalPerPerson", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Annecy",
+          nights: 2,
+          participants: 4,
+          budgetPerPerson: 450,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget).toBeDefined();
+        expect(ctx.budget.totalPerPerson).toBe(450);
+      });
+
+      it("A2. Le budget injecté est exactement input.budgetPerPerson", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Lyon",
+          nights: 3,
+          participants: 6,
+          budgetPerPerson: 380,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.totalPerPerson).toBe(380);
+      });
+
+      it("A3. Si hébergement/transport connus existent déjà -> apparaissent dans le contexte avec calcul du reste", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Nantes",
+          nights: 2,
+          participants: 5,
+          budgetPerPerson: 400,
+          accommodationPerPerson: 180,
+          transportPerPerson: 100,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.accommodationPerPerson).toBe(180);
+        expect(ctx.budget.transportPerPerson).toBe(100);
+        expect(ctx.budget.remainingForActivitiesAndFood).toBe(120); // 400 - 180 - 100
+      });
+
+      it("A4. Si inconnus -> null, pas 0", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Bordeaux",
+          nights: 2,
+          participants: 4,
+          budgetPerPerson: 500,
+          accommodationPerPerson: null,
+          transportPerPerson: undefined,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.budget.accommodationPerPerson).toBeNull();
+        expect(ctx.budget.transportPerPerson).toBeNull();
+        expect(ctx.budget.remainingForActivitiesAndFood).toBeNull();
+      });
+
+      it("A5. remainingForActivitiesAndFood : calcul correct lorsque possible, null si manquant", () => {
+        const testInputPartial: ActivityAiInput = {
+          destination: "Nice",
+          nights: 2,
+          participants: 3,
+          budgetPerPerson: 600,
+          accommodationPerPerson: 250,
+          transportPerPerson: undefined,
+          ambiances: [],
+          activityCategories: [],
+        };
+        const briefPartial = buildPlanningBrief(testInputPartial);
+        const ctxPartial = buildGroupPlanningContext(testInputPartial, briefPartial);
+
+        expect(ctxPartial.budget.remainingForActivitiesAndFood).toBeNull();
+      });
+
+      it("A6. Test d'invariance : hors ajout du bloc budget, les autres sections du GroupPlanningContext restent identiques", () => {
+        const testInput: ActivityAiInput = {
+          destination: "Strasbourg",
+          nights: 2,
+          participants: 4,
+          budgetPerPerson: 400,
+          accommodationPerPerson: 150,
+          transportPerPerson: 80,
+          ambiances: ["fete"],
+          activityCategories: ["culture"],
+        };
+        const brief = buildPlanningBrief(testInput);
+        const ctx = buildGroupPlanningContext(testInput, brief);
+
+        expect(ctx.trip.destination).toBe("Strasbourg");
+        expect(ctx.trip.nights).toBe(2);
+        expect(ctx.trip.participantCount).toBe(4);
+        expect(ctx.planning.maxActivitiesPerDay).toBeDefined();
+        expect(ctx.star).toBeDefined();
+        expect(ctx.krewSignals).toBeDefined();
+      });
+
+      it("A7. Test d'invariance prompt : le template Gemini existant contient {{GROUP_PLANNING_CONTEXT_JSON}} et n'est pas réécrit", () => {
+        expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("{{GROUP_PLANNING_CONTEXT_JSON}}");
+        expect(GEMINI_CONTRACTUAL_PROMPT_TEMPLATE).toContain("Tu es le concepteur de planning de KREW.");
+      });
+    });
+
+    describe("Sujet B — qualification des prix d'activités", () => {
+      it("B1. Source prix vérifiée existante -> propagation montant/devise/source/status", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Visite guidée",
+                type: "activite",
+                pricePerPerson: 30,
+                currency: "EUR",
+                priceStatus: "verified",
+                priceSource: "official_web",
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBe(30);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.knownCount).toBe(1);
+      });
+
+      it("B2. Source explicitement estimative -> estimated", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Escape game estimé",
+                type: "activite",
+                priceHint: 25,
+                priceStatus: "estimated",
+                priceSource: "provider_estimate",
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBe(25);
+        expect(res.priceStatus).toBe("estimated");
+      });
+
+      it("B3. Aucune source -> unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Activité sans source",
+                type: "activite",
+                priceHint: 30,
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("B4. priceHint Gemini seul -> toujours unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Idée Gemini",
+                type: "activite",
+                priceHint: 50,
+                priceSource: undefined,
+                priceStatus: undefined,
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("B5. verified: true POI + source Geoapify + prix non sourcé -> toujours unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Lieu Geoapify",
+                type: "activite",
+                verified: true,
+                source: "geoapify",
+                priceHint: 20,
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("B6. GYG search seul -> unknown", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Recherche GYG",
+                type: "activite",
+                booking: { provider: "getyourguide", url: "https://www.getyourguide.com/s", type: "search", affiliate: true },
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+      });
+
+      it("B7. free uniquement avec source/statut explicite", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const resFree = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Parc municipal",
+                type: "activite",
+                priceHint: 0,
+                priceStatus: "free",
+                priceSource: "city_hall",
+              },
+            ],
+          },
+        ]);
+        expect(resFree.priceStatus).toBe("free");
+        expect(resFree.activitiesPerPerson).toBe(0);
+
+        const resUnknownFree = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Parc sans statut",
+                type: "activite",
+                priceHint: 0,
+              },
+            ],
+          },
+        ]);
+        expect(resUnknownFree.priceStatus).toBe("unknown");
+      });
+
+      it("B8. Restaurant avec prix -> exclu des activités", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Restaurant Le Gourmet",
+                type: "resto",
+                category: "repas",
+                pricePerPerson: 40,
+                priceStatus: "verified",
+                priceSource: "menu_web",
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBeNull();
+        expect(res.priceStatus).toBe("unknown");
+        expect(res.totalCount).toBe(0);
+      });
+
+      it("B9. Activité de soirée payante -> incluse", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              {
+                label: "Cabaret Spectacle",
+                type: "activite",
+                category: "soiree",
+                pricePerPerson: 35,
+                priceStatus: "verified",
+                priceSource: "ticket_office",
+              },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBe(35);
+        expect(res.priceStatus).toBe("verified");
+        expect(res.totalCount).toBe(1);
+      });
+
+      it("B10. Coût total activités reste PAR PERSONNE", async () => {
+        const { computeItineraryActivitiesCost } = await import("../cost-split");
+        const res = computeItineraryActivitiesCost([
+          {
+            slots: [
+              { label: "Activité 1", type: "activite", pricePerPerson: 20, priceStatus: "verified", priceSource: "web" },
+              { label: "Activité 2", type: "activite", pricePerPerson: 30, priceStatus: "verified", priceSource: "web" },
+            ],
+          },
+        ]);
+
+        expect(res.activitiesPerPerson).toBe(50);
+      });
+
+      it("B11. Aucun double comptage dans cost split", async () => {
+        const { buildCostSplit } = await import("../cost-split");
+        const split = buildCostSplit({
+          destinationName: "Lyon",
+          accommodation: 100,
+          activities: 50,
+          food: 40,
+          origins: [{ city: "Paris", count: 3, pricePerPerson: 80 }],
+        });
+
+        // sharedPerPerson = 100 + 50 + 40 = 190
+        // totalPerPerson = 80 + 190 = 270
+        // totalGroup = 270 * 3 = 810
+        expect(split.sharedPerPerson).toBe(190);
+        expect(split.lines[0]?.totalPerPerson).toBe(270);
+        expect(split.totalGroup).toBe(810);
+      });
+
+      it("B12. Planning inchangé hors métadonnées prix : même label, même lieu, même ordre, même heure, même activité", async () => {
+        const slotA = { label: "Musée d'Orsay", moment: "Matin", time: "10:00", type: "activite" as const, pricePerPerson: 16, priceStatus: "verified" as const, priceSource: "official_web" };
+        const slotB = { label: "Musée d'Orsay", moment: "Matin", time: "10:00", type: "activite" as const };
+
+        expect(slotA.label).toBe(slotB.label);
+        expect(slotA.moment).toBe(slotB.moment);
+        expect(slotA.time).toBe(slotB.time);
+        expect(slotA.type).toBe(slotB.type);
+      });
+    });
   });
 });

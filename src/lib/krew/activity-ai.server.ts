@@ -36,6 +36,7 @@ export type ActivityCategory =
 
 export type ActivityMode = "bookable" | "free_exploration" | "self_guided_group";
 export type ActivityResourceKind = "website" | "booking" | "ideas" | null;
+export type ActivityPriceStatus = "verified" | "partial" | "estimated" | "free" | "unknown";
 
 export type ActivitySlot = {
   moment: string;
@@ -52,6 +53,10 @@ export type ActivitySlot = {
   locationContext?: "lodging" | "external" | "flexible" | undefined;
   dietaryCheckRequired?: boolean | undefined;
   priceHint?: number | undefined;
+  pricePerPerson?: number | null | undefined;
+  currency?: string | null | undefined;
+  priceStatus?: ActivityPriceStatus | undefined;
+  priceSource?: string | null | undefined;
   time?: string | null | undefined;
   endTime?: string | null | undefined;
   durationMinutes?: number | null | undefined;
@@ -305,6 +310,13 @@ export type GroupPlanningContext = {
     dealBreakers: string[];
     usefulUserNotes: string[];
   };
+  budget: {
+    totalPerPerson: number;
+    nights: number;
+    accommodationPerPerson: number | null;
+    transportPerPerson: number | null;
+    remainingForActivitiesAndFood: number | null;
+  };
   star: {
     starWantedActivities: string[];
     starWantedEnvType: string | null;
@@ -340,6 +352,24 @@ export function buildGroupPlanningContext(
     ambiancePrefs[amb] = { frequency: freq };
   }
 
+  const totalPerPerson = input.budgetPerPerson;
+  const accommodationPerPerson =
+    input.accommodationPerPerson != null && Number.isFinite(input.accommodationPerPerson)
+      ? input.accommodationPerPerson
+      : null;
+  const transportPerPerson =
+    input.transportPerPerson != null && Number.isFinite(input.transportPerPerson)
+      ? input.transportPerPerson
+      : null;
+
+  let remainingForActivitiesAndFood: number | null = null;
+  if (accommodationPerPerson !== null && transportPerPerson !== null) {
+    remainingForActivitiesAndFood = Math.max(
+      0,
+      totalPerPerson - accommodationPerPerson - transportPerPerson,
+    );
+  }
+
   return {
     trip: {
       destination: brief.destination,
@@ -365,6 +395,13 @@ export function buildGroupPlanningContext(
       accessibility: brief.accessibilityRequired,
       dealBreakers: brief.dealBreakers.ambiances,
       usefulUserNotes: brief.usefulUserNotes,
+    },
+    budget: {
+      totalPerPerson,
+      nights: brief.nights,
+      accommodationPerPerson,
+      transportPerPerson,
+      remainingForActivitiesAndFood,
     },
     star: {
       starWantedActivities: input.starWanted ?? [],
@@ -430,6 +467,8 @@ export type ActivityAiInput = {
   starWantedEnvType?: string | null | undefined;
   wantedEnvTypes?: string[] | undefined;
   forceDiscoveryRefresh?: boolean | undefined;
+  accommodationPerPerson?: number | null | undefined;
+  transportPerPerson?: number | null | undefined;
 
   // Enriched signals
   activityCategoryFrequencies?: Record<string, number> | undefined;
@@ -2498,6 +2537,28 @@ function normalizeSlot(
         kindHint: candidate?.sourceUrl ? "website" : null,
       });
 
+  const rawPrice = raw.pricePerPerson ?? raw.priceHint ?? candidate?.priceHint ?? null;
+  const numPrice = rawPrice != null && Number.isFinite(Number(rawPrice)) ? Number(rawPrice) : null;
+  const explicitStatus: ActivityPriceStatus | undefined =
+    ["verified", "estimated", "free", "unknown"].includes(raw.priceStatus)
+      ? raw.priceStatus
+      : undefined;
+  const explicitSource =
+    (typeof raw.priceSource === "string" && raw.priceSource.trim() ? raw.priceSource.trim() : null) ??
+    (typeof raw.source === "string" && raw.source.trim() ? raw.source.trim() : null) ??
+    (typeof candidate?.source === "string" && candidate.source.trim() ? candidate.source.trim() : null);
+
+  let effectivePriceStatus: ActivityPriceStatus = "unknown";
+  if (explicitStatus && explicitSource) {
+    if (explicitStatus === "free" && numPrice === 0) {
+      effectivePriceStatus = "free";
+    } else if (explicitStatus === "verified" && numPrice != null && numPrice >= 0) {
+      effectivePriceStatus = "verified";
+    } else if (explicitStatus === "estimated" && numPrice != null && numPrice >= 0) {
+      effectivePriceStatus = "estimated";
+    }
+  }
+
   return {
     moment: String(raw.moment ?? "Après-midi").slice(0, 24),
     type,
@@ -2505,7 +2566,10 @@ function normalizeSlot(
     tags: Array.isArray(raw.tags) ? raw.tags.map(String).slice(0, 8) : candidate?.tags,
     label: String(raw.label).trim().slice(0, 100),
     detail: raw.detail ? String(raw.detail).slice(0, 220) : (candidate?.description ?? undefined),
-    ...(candidate?.priceHint != null ? { priceHint: candidate.priceHint } : {}),
+    ...(numPrice != null ? { priceHint: numPrice, pricePerPerson: numPrice } : {}),
+    ...(raw.currency ? { currency: String(raw.currency) } : numPrice != null ? { currency: "EUR" } : {}),
+    priceStatus: effectivePriceStatus,
+    priceSource: explicitSource,
     time,
     endTime: time ? fromMinutes(toMinutes(time)! + durationMinutes) : null,
     durationMinutes,
@@ -2981,6 +3045,10 @@ export async function regenerateSlotWithAi(
         source: "geoapify",
         latitude: selectedPlace.latitude,
         longitude: selectedPlace.longitude,
+        pricePerPerson: existing.pricePerPerson ?? existing.priceHint ?? null,
+        currency: existing.currency ?? null,
+        priceStatus: existing.priceStatus ?? "unknown",
+        priceSource: existing.priceSource ?? existing.source ?? null,
       },
       usedLlm: false,
       updatedPools,
@@ -3014,6 +3082,10 @@ export async function regenerateSlotWithAi(
         source: candidateAlt.source,
         latitude: candidateAlt.latitude,
         longitude: candidateAlt.longitude,
+        pricePerPerson: existing.pricePerPerson ?? existing.priceHint ?? candidateAlt.priceHint,
+        currency: existing.currency ?? null,
+        priceStatus: existing.priceStatus ?? "unknown",
+        priceSource: existing.priceSource ?? candidateAlt.source ?? existing.source ?? null,
       },
       usedLlm: false,
       updatedUsedIds: Array.from(usedSet),

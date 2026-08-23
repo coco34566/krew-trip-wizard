@@ -3197,9 +3197,14 @@ function TripDetail() {
                               {slot.detail ? (
                                 <p className="text-xs text-muted-foreground mt-0.5">{slot.detail}</p>
                               ) : null}
-                              {slot.priceHint != null ? (
+                              {slot.priceStatus === "free" ? (
+                                <p className="text-xs text-muted-foreground font-mono mt-1">Gratuit</p>
+                              ) : (slot.priceStatus === "verified" || slot.priceStatus === "estimated") &&
+                                (slot.pricePerPerson != null || slot.priceHint != null) ? (
                                 <p className="text-xs text-muted-foreground font-mono mt-1">
-                                  ~{formatEuro(Number(slot.priceHint))} / pers.
+                                  {slot.priceStatus === "estimated" ? "~" : ""}
+                                  {formatEuro(Number(slot.pricePerPerson ?? slot.priceHint))} / pers.
+                                  {slot.priceStatus === "estimated" ? " (estimé)" : ""}
                                 </p>
                               ) : null}
                               {slot.booking && slot.booking.provider === "getyourguide" ? (
