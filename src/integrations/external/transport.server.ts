@@ -1,10 +1,10 @@
 /**
- * Transport A/R via Kayak Search (RapidAPI).
- * Host: kayak-search.p.rapidapi.com
- * Fallback: estimateTransport(distanceKm) si l'API échoue.
+ * Transport A/R via Google Flights Search API quand disponible.
+ * Fallback : recherche Kiwi affiliée Travelpayouts, puis estimation KREW.
  */
 
 import { reportServerError } from "@/lib/server-error-reporting.server";
+import { buildKiwiAffiliateLink, cityToIataOrName } from "@/lib/krew/deep-links";
 
 export type TransportQuote = {
   pricePerPerson: number;
@@ -75,7 +75,6 @@ function buildExactFlightSearchUrl(opts: {
 }): string {
   const origin = opts.originCity.trim();
   const destination = opts.destinationCity.trim();
-  const adults = Math.max(1, Math.min(9, Number(opts.adults) || 1));
   return `https://www.google.com/travel/flights?q=Flights%20to%20${encodeURIComponent(destination)}%20from%20${encodeURIComponent(origin)}%20on%20${opts.departDate}%20through%20${opts.returnDate}`;
 }
 
@@ -310,9 +309,32 @@ export async function searchTransportRoundTrip(opts: {
         destinationCity: opts.destinationCity,
       });
   }
+
   const fallbackPrice = estimateTransportFromDistance(opts.distanceKm ?? 1000);
   const adults = Math.min(Math.max(1, opts.adults), 9);
-  const exactSearchUrl = buildExactFlightSearchUrl({ ...opts, adults });
+  const googleSearchUrl = buildExactFlightSearchUrl({ ...opts, adults });
+  const kiwiAffiliateUrl = buildKiwiAffiliateLink({
+    originCode: cityToIataOrName(opts.originCity),
+    destinationCode: cityToIataOrName(opts.destinationCity),
+    departDate: opts.departDate,
+    returnDate: opts.returnDate,
+    subId: "krew-transport",
+  });
+
+  if (kiwiAffiliateUrl) {
+    return {
+      pricePerPerson: fallbackPrice,
+      currency: "EUR",
+      provider: "kiwi/travelpayouts",
+      mode: "flight",
+      dataKind: "external_search",
+      label: "Recherche Kiwi",
+      url: kiwiAffiliateUrl,
+      searchUrl: kiwiAffiliateUrl,
+      rawError: "no_live_quote",
+    };
+  }
+
   return {
     pricePerPerson: fallbackPrice,
     currency: "EUR",
@@ -321,7 +343,7 @@ export async function searchTransportRoundTrip(opts: {
     dataKind: "krew_estimate",
     label: "Estimation KREW (offre avion indisponible)",
     url: null,
-    searchUrl: exactSearchUrl,
+    searchUrl: googleSearchUrl,
     rawError: "no_live_quote",
   };
 }
