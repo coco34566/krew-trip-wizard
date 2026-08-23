@@ -83,27 +83,49 @@ export function computeItineraryActivitiesCost(
       const source = sourceRaw && typeof sourceRaw === "string" ? sourceRaw.trim() : null;
 
       let effectiveStatus: ActivityPriceStatus = "unknown";
+      let slotCost: number | null = null;
+      let isGeminiEstimation = false;
 
-      // A price can only contribute to the budget if there is an explicit priceStatus + identifiable source!
-      // Unconfirmed priceHint (even with verified: true or source: "geoapify") without explicit priceStatus -> unknown.
-      if (numericPrice != null && numericPrice >= 0) {
-        if (explicitStatus === "free" && numericPrice === 0 && source) {
+      // A price can only contribute as verified/free/provider-estimated if there is an explicit priceStatus + identifiable priceSource!
+      if (numericPrice != null && numericPrice >= 0 && source) {
+        if (explicitStatus === "free" && numericPrice === 0) {
           effectiveStatus = "free";
-        } else if (explicitStatus === "verified" && source) {
+          slotCost = 0;
+        } else if (explicitStatus === "verified") {
           effectiveStatus = "verified";
-        } else if (explicitStatus === "estimated" && source) {
+          slotCost = numericPrice;
+        } else if (explicitStatus === "estimated") {
           effectiveStatus = "estimated";
+          slotCost = numericPrice;
         }
       }
 
-      if (effectiveStatus !== "unknown" && numericPrice != null) {
+      // If no sourced price exists, check if Gemini estimation range (min & max) is available
+      if (effectiveStatus === "unknown") {
+        const estMin =
+          slot.estimatedPriceMinPerPerson != null && !isNaN(Number(slot.estimatedPriceMinPerPerson))
+            ? Number(slot.estimatedPriceMinPerPerson)
+            : null;
+        const estMax =
+          slot.estimatedPriceMaxPerPerson != null && !isNaN(Number(slot.estimatedPriceMaxPerPerson))
+            ? Number(slot.estimatedPriceMaxPerPerson)
+            : null;
+
+        if (estMin != null && estMax != null && estMin >= 0 && estMax >= estMin) {
+          effectiveStatus = "estimated";
+          slotCost = (estMin + estMax) / 2;
+          isGeminiEstimation = true;
+        }
+      }
+
+      if (effectiveStatus !== "unknown" && slotCost != null) {
         knownCount++;
-        sumPerPerson += numericPrice;
+        sumPerPerson += slotCost;
         if (effectiveStatus === "free") {
           hasFree = true;
-        } else if (effectiveStatus === "verified") {
+        } else if (effectiveStatus === "verified" && !isGeminiEstimation) {
           hasVerified = true;
-        } else if (effectiveStatus === "estimated") {
+        } else {
           hasEstimated = true;
         }
       } else {

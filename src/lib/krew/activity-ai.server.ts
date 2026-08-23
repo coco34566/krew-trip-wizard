@@ -57,6 +57,9 @@ export type ActivitySlot = {
   currency?: string | null | undefined;
   priceStatus?: ActivityPriceStatus | undefined;
   priceSource?: string | null | undefined;
+  estimatedPriceMinPerPerson?: number | null | undefined;
+  estimatedPriceMaxPerPerson?: number | null | undefined;
+  estimatedPriceCurrency?: string | null | undefined;
   time?: string | null | undefined;
   endTime?: string | null | undefined;
   durationMinutes?: number | null | undefined;
@@ -210,6 +213,9 @@ export type KrewSkeletonSlot = {
   suggestedUrl?: string | null | undefined;
   locationContext?: "lodging" | "external" | "flexible" | undefined;
   dietaryCheckRequired?: boolean | undefined;
+  estimatedPriceMinPerPerson?: number | null | undefined;
+  estimatedPriceMaxPerPerson?: number | null | undefined;
+  estimatedPriceCurrency?: string | null | undefined;
   candidateId?: string | null | undefined;
   url?: string | null | undefined;
   verified?: boolean | undefined;
@@ -239,6 +245,9 @@ export type GeminiBackupSlot = {
   searchIntent?: string | null;
   suggestedPlace?: string | null;
   suggestedUrl?: string | null;
+  estimatedPriceMinPerPerson?: number | null;
+  estimatedPriceMaxPerPerson?: number | null;
+  estimatedPriceCurrency?: string | null;
 };
 
 export type KrewSkeleton = {
@@ -1057,6 +1066,8 @@ N'invente aucune autre valeur.
 ## 13. SEARCH INTENT ET SUGGESTED PLACE / URL
 
 Pour chaque \`place_required\` :
+
+Pour une activité potentiellement payante, fournis si possible une fourchette de prix indicative réaliste par personne (estimatedPriceMinPerPerson / estimatedPriceMaxPerPerson). Il s’agit uniquement d’une estimation destinée à calibrer le budget du planning : n’invente pas une précision artificielle et laisse les champs à null si tu ne peux pas raisonnablement estimer le coût.
 
 \`searchIntent\`
 → décrit précisément l'expérience/lieu à rechercher ou vérifier.
@@ -2154,6 +2165,9 @@ export async function geminiEnrichSkeleton(
                   searchIntent: { type: "STRING", nullable: true },
                   suggestedPlace: { type: "STRING", nullable: true },
                   suggestedUrl: { type: "STRING", nullable: true },
+                  estimatedPriceMinPerPerson: { type: "NUMBER", nullable: true },
+                  estimatedPriceMaxPerPerson: { type: "NUMBER", nullable: true },
+                  estimatedPriceCurrency: { type: "STRING", nullable: true },
                 },
                 required: ["id", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
               },
@@ -2181,6 +2195,9 @@ export async function geminiEnrichSkeleton(
             searchIntent: { type: "STRING", nullable: true },
             suggestedPlace: { type: "STRING", nullable: true },
             suggestedUrl: { type: "STRING", nullable: true },
+            estimatedPriceMinPerPerson: { type: "NUMBER", nullable: true },
+            estimatedPriceMaxPerPerson: { type: "NUMBER", nullable: true },
+            estimatedPriceCurrency: { type: "STRING", nullable: true },
           },
           required: ["id", "day", "forSlot", "kind", "momentType", "label", "detail", "time", "durationMinutes"],
         },
@@ -2336,6 +2353,9 @@ export async function geminiEnrichSkeleton(
           searchIntent: kind === "place_required" ? String(rawSlot.searchIntent || rawSlot.label || "").slice(0, 200) : undefined,
           suggestedPlace: kind === "place_required" && rawSlot.suggestedPlace ? String(rawSlot.suggestedPlace).slice(0, 150) : undefined,
           suggestedUrl: kind === "place_required" && rawSlot.suggestedUrl ? String(rawSlot.suggestedUrl).slice(0, 500) : undefined,
+          estimatedPriceMinPerPerson: rawSlot.estimatedPriceMinPerPerson ?? null,
+          estimatedPriceMaxPerPerson: rawSlot.estimatedPriceMaxPerPerson ?? null,
+          estimatedPriceCurrency: rawSlot.estimatedPriceCurrency ?? null,
         });
       }
 
@@ -2575,6 +2595,27 @@ export function normalizeSlot(
     }
   }
 
+  const estMin =
+    raw.estimatedPriceMinPerPerson != null && Number.isFinite(Number(raw.estimatedPriceMinPerPerson))
+      ? Number(raw.estimatedPriceMinPerPerson)
+      : (candidate as any)?.estimatedPriceMinPerPerson != null && Number.isFinite(Number((candidate as any).estimatedPriceMinPerPerson))
+        ? Number((candidate as any).estimatedPriceMinPerPerson)
+        : null;
+  const estMax =
+    raw.estimatedPriceMaxPerPerson != null && Number.isFinite(Number(raw.estimatedPriceMaxPerPerson))
+      ? Number(raw.estimatedPriceMaxPerPerson)
+      : (candidate as any)?.estimatedPriceMaxPerPerson != null && Number.isFinite(Number((candidate as any).estimatedPriceMaxPerPerson))
+        ? Number((candidate as any).estimatedPriceMaxPerPerson)
+        : null;
+  const estCurrency =
+    typeof raw.estimatedPriceCurrency === "string" && raw.estimatedPriceCurrency.trim()
+      ? raw.estimatedPriceCurrency.trim()
+      : typeof (candidate as any)?.estimatedPriceCurrency === "string" && (candidate as any).estimatedPriceCurrency.trim()
+        ? (candidate as any).estimatedPriceCurrency.trim()
+        : estMin != null || estMax != null
+          ? "EUR"
+          : null;
+
   return {
     moment: String(raw.moment ?? "Après-midi").slice(0, 24),
     type,
@@ -2586,6 +2627,9 @@ export function normalizeSlot(
     ...(raw.currency ? { currency: String(raw.currency) } : numPrice != null ? { currency: "EUR" } : {}),
     priceStatus: effectivePriceStatus,
     priceSource: explicitPriceSource,
+    estimatedPriceMinPerPerson: estMin,
+    estimatedPriceMaxPerPerson: estMax,
+    estimatedPriceCurrency: estCurrency,
     time,
     endTime: time ? fromMinutes(toMinutes(time)! + durationMinutes) : null,
     durationMinutes,
@@ -2854,6 +2898,9 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         searchIntent: slot.searchIntent ?? slot.search_intent ?? slot.intent,
         suggestedPlace: slot.suggestedPlace ?? slot.suggested_place ?? slot.place,
         suggestedUrl: slot.suggestedUrl ?? slot.suggested_url ?? slot.url,
+        estimatedPriceMinPerPerson: slot.estimatedPriceMinPerPerson ?? slot.estimated_price_min_per_person ?? null,
+        estimatedPriceMaxPerPerson: slot.estimatedPriceMaxPerPerson ?? slot.estimated_price_max_per_person ?? null,
+        estimatedPriceCurrency: slot.estimatedPriceCurrency ?? slot.estimated_price_currency ?? null,
       };
 
       normalizedSlots.push(normalizedSlot);
@@ -2910,6 +2957,9 @@ export function normalizeGeminiParsedResponse(rawParsed: any): { days: any[]; ba
         searchIntent: bk.searchIntent ? String(bk.searchIntent) : null,
         suggestedPlace: bk.suggestedPlace ? String(bk.suggestedPlace) : null,
         suggestedUrl: bk.suggestedUrl ? String(bk.suggestedUrl) : null,
+        estimatedPriceMinPerPerson: bk.estimatedPriceMinPerPerson != null ? Number(bk.estimatedPriceMinPerPerson) : null,
+        estimatedPriceMaxPerPerson: bk.estimatedPriceMaxPerPerson != null ? Number(bk.estimatedPriceMaxPerPerson) : null,
+        estimatedPriceCurrency: bk.estimatedPriceCurrency ? String(bk.estimatedPriceCurrency) : null,
       });
     }
   }
@@ -3066,6 +3116,9 @@ export async function regenerateSlotWithAi(
         currency: null,
         priceStatus: "unknown",
         priceSource: null,
+        estimatedPriceMinPerPerson: existing.estimatedPriceMinPerPerson ?? null,
+        estimatedPriceMaxPerPerson: existing.estimatedPriceMaxPerPerson ?? null,
+        estimatedPriceCurrency: existing.estimatedPriceCurrency ?? null,
       },
       usedLlm: false,
       updatedPools,
@@ -3105,6 +3158,10 @@ export async function regenerateSlotWithAi(
     const priceSource = hasCompleteBundle ? altExplicitPriceSource : null;
     const currency = hasCompleteBundle ? (candidateAlt as any).currency ?? "EUR" : null;
 
+    const altEstMin = (candidateAlt as any).estimatedPriceMinPerPerson ?? null;
+    const altEstMax = (candidateAlt as any).estimatedPriceMaxPerPerson ?? null;
+    const altEstCurrency = (candidateAlt as any).estimatedPriceCurrency ?? (altEstMin != null || altEstMax != null ? "EUR" : null);
+
     return {
       slot: {
         ...existing,
@@ -3125,6 +3182,9 @@ export async function regenerateSlotWithAi(
         currency,
         priceStatus,
         priceSource,
+        estimatedPriceMinPerPerson: altEstMin,
+        estimatedPriceMaxPerPerson: altEstMax,
+        estimatedPriceCurrency: altEstCurrency,
       },
       usedLlm: false,
       updatedUsedIds: Array.from(usedSet),

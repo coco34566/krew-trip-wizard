@@ -3206,6 +3206,18 @@ function TripDetail() {
                                   {formatEuro(Number(slot.pricePerPerson ?? slot.priceHint))} / pers.
                                   {slot.priceStatus === "estimated" ? " (estimé)" : ""}
                                 </p>
+                              ) : slot.estimatedPriceMinPerPerson != null || slot.estimatedPriceMaxPerPerson != null ? (
+                                <p className="text-xs text-muted-foreground font-mono mt-1">
+                                  {slot.estimatedPriceMinPerPerson === 0 && slot.estimatedPriceMaxPerPerson === 0 ? (
+                                    "Probablement gratuit"
+                                  ) : slot.estimatedPriceMinPerPerson != null &&
+                                    slot.estimatedPriceMaxPerPerson != null &&
+                                    slot.estimatedPriceMinPerPerson !== slot.estimatedPriceMaxPerPerson ? (
+                                    `Env. ${slot.estimatedPriceMinPerPerson}–${slot.estimatedPriceMaxPerPerson} € / pers.`
+                                  ) : (
+                                    `Env. ${formatEuro(Number(slot.estimatedPriceMinPerPerson ?? slot.estimatedPriceMaxPerPerson))} / pers.`
+                                  )}
+                                </p>
                               ) : null}
                               {slot.booking && slot.booking.provider === "getyourguide" ? (
                                 <a
