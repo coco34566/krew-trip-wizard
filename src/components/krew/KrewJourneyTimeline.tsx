@@ -46,7 +46,7 @@ const PATH_POINTS = [
   { x: 48, y: 97 },
 ];
 
-export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) {
+export function KrewJourneyTimeline({ tripId, tripName, steps, annotationText }: Props) {
   const nextActionIdx = steps.findIndex((step) => step.status === "next_action");
   const lastDoneIdx = steps.reduce(
     (acc, step, idx) => (step.status === "done" || step.status === "next_action" ? idx : acc),
@@ -73,6 +73,20 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
         <p className="pt-2 text-xs sm:text-sm text-muted-foreground">
           Le chemin de <strong className="font-semibold text-foreground">{tripName}</strong>
         </p>
+        <nav aria-label="Accès rapides au questionnaire et au profil" className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+          <a
+            href={`/trips/${tripId}/questionnaire`}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Voir mes préférences
+          </a>
+          <a
+            href={`/trips/${tripId}?view=voyage&section=profile`}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Voir le profil du voyage
+          </a>
+        </nav>
       </header>
 
       <div className="relative pt-4 pb-2 sm:pt-6 sm:pb-4 overflow-visible h-[800px] sm:h-[880px] lg:h-[920px]">
@@ -113,8 +127,13 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
           const isAvailable = step.status === "available";
           const isUpcoming = step.status === "upcoming";
           const placeTextRight = point.x < 52;
+          const directHref =
+            step.id === "preferences"
+              ? `/trips/${tripId}/questionnaire`
+              : step.id === "profile"
+                ? `/trips/${tripId}?view=voyage&section=profile`
+                : null;
           const parsed = step.href ? parseStepHref(step.href) : null;
-          const useNativeNavigation = step.id === "preferences" || step.id === "profile";
 
           const content = (
             <div
@@ -179,8 +198,8 @@ export function KrewJourneyTimeline({ tripName, steps, annotationText }: Props) 
               className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${point.x}%`, top: `${point.y}%` }}
             >
-              {step.href && !isUpcoming && useNativeNavigation ? (
-                <a href={step.href} className="block no-underline">
+              {directHref ? (
+                <a href={directHref} className="block no-underline">
                   {content}
                 </a>
               ) : parsed && !isUpcoming ? (
