@@ -3214,13 +3214,21 @@ function TripDetail() {
                                   {slot.estimatedPriceMinPerPerson === 0 && slot.estimatedPriceMaxPerPerson === 0 ? (
                                     "Probablement gratuit"
                                   ) : slot.estimatedPriceMinPerPerson !== slot.estimatedPriceMaxPerPerson ? (
-                                    `Env. ${slot.estimatedPriceMinPerPerson}–${slot.estimatedPriceMaxPerPerson} ${
+                                    `Env. ${slot.estimatedPriceMinPerPerson}–${slot.estimatedPriceMaxPerPerson}${
                                       slot.estimatedPriceCurrency
-                                        ? slot.estimatedPriceCurrency === "EUR" ? "€" : slot.estimatedPriceCurrency
-                                        : "€"
+                                        ? slot.estimatedPriceCurrency === "EUR"
+                                          ? " €"
+                                          : ` ${slot.estimatedPriceCurrency}`
+                                        : ""
                                     } / pers.`
                                   ) : (
-                                    `Env. ${formatEuro(slot.estimatedPriceMinPerPerson)} / pers.`
+                                    `Env. ${
+                                      slot.estimatedPriceCurrency
+                                        ? slot.estimatedPriceCurrency === "EUR"
+                                          ? formatEuro(slot.estimatedPriceMinPerPerson)
+                                          : `${slot.estimatedPriceMinPerPerson} ${slot.estimatedPriceCurrency}`
+                                        : slot.estimatedPriceMinPerPerson
+                                    } / pers.`
                                   )}
                                 </p>
                               ) : null}

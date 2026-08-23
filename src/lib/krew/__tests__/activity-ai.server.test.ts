@@ -3570,6 +3570,32 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
           expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
         });
 
+        it("2b. min=30, max=null -> rejet (estMin=null, estMax=null)", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: 30,
+            estimatedPriceMaxPerPerson: null,
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+        });
+
+        it("2c. min=null, max=50 -> rejet (estMin=null, estMax=null)", () => {
+          const raw = {
+            label: "Visite Musée",
+            candidateId: "c1",
+            type: "activite",
+            estimatedPriceMinPerPerson: null,
+            estimatedPriceMaxPerPerson: 50,
+          };
+          const slot = normalizeSlot(raw, baseInput, candidate);
+          expect(slot?.estimatedPriceMinPerPerson).toBeNull();
+          expect(slot?.estimatedPriceMaxPerPerson).toBeNull();
+        });
+
         it("2. min=-10, max=30 -> estimation rejetée", () => {
           const raw = {
             label: "Visite Musée",

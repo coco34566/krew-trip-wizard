@@ -2613,12 +2613,6 @@ export function normalizeSlot(
   if (rawEstMin != null && rawEstMax != null && rawEstMin >= 0 && rawEstMax >= rawEstMin) {
     estMin = rawEstMin;
     estMax = rawEstMax;
-  } else if (rawEstMin != null && rawEstMax == null && rawEstMin >= 0) {
-    estMin = rawEstMin;
-    estMax = rawEstMin;
-  } else if (rawEstMax != null && rawEstMin == null && rawEstMax >= 0) {
-    estMin = rawEstMax;
-    estMax = rawEstMax;
   }
 
   const estCurrency =
@@ -3177,12 +3171,6 @@ export async function regenerateSlotWithAi(
     let altEstMax: number | null = null;
     if (rawAltEstMin != null && rawAltEstMax != null && rawAltEstMin >= 0 && rawAltEstMax >= rawAltEstMin) {
       altEstMin = rawAltEstMin;
-      altEstMax = rawAltEstMax;
-    } else if (rawAltEstMin != null && rawAltEstMax == null && rawAltEstMin >= 0) {
-      altEstMin = rawAltEstMin;
-      altEstMax = rawAltEstMin;
-    } else if (rawAltEstMax != null && rawAltEstMin == null && rawAltEstMax >= 0) {
-      altEstMin = rawAltEstMax;
       altEstMax = rawAltEstMax;
     }
 
