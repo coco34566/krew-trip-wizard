@@ -67,14 +67,12 @@ export function KrewJourneyTimeline({
     cat.steps.push(step);
   }
 
-  let globalStepCounter = 0;
-
   return (
-    <div className="w-full max-w-[740px] mx-auto px-0 py-2 space-y-4 font-sans">
+    <div className="w-full max-w-[720px] mx-auto px-1 py-2 space-y-4 font-sans">
       {/* HEADER SECTION */}
       <header className="space-y-1 relative">
         <div className="relative inline-block">
-          <h1 className="font-display text-[30px] sm:text-[36px] font-normal leading-tight text-foreground">
+          <h1 className="font-display text-[28px] sm:text-[34px] font-normal leading-tight text-foreground">
             Parcours du groupe
           </h1>
           <KrewMark
@@ -84,33 +82,33 @@ export function KrewJourneyTimeline({
             className="absolute left-0 -bottom-1.5 w-[140px] pointer-events-none opacity-85"
           />
         </div>
-        <p className="text-sm sm:text-base text-muted-foreground font-sans pt-1">
+        <p className="text-xs sm:text-sm text-muted-foreground font-sans pt-1">
           L&apos;avancement du séjour pour <strong className="text-foreground font-semibold">{tripName}</strong>
         </p>
       </header>
 
-      {/* COMPACT TIMELINE CONTAINER */}
-      <div className="relative my-4 py-2">
-        {/* FIL SAUGE ORGANIQUE DESSINÉ (SVG CURVED PATH) */}
-        <div className="absolute inset-y-0 left-[44%] sm:left-1/2 -translate-x-1/2 w-6 pointer-events-none z-0">
+      {/* TIMELINE CONTAINER WITH SINGLE CONTINUOUS TRAJECTORY LINE */}
+      <div className="relative my-4 py-1">
+        {/* SINGLE CONTINUOUS TRAJECTORY LINE ALIGNED LEFT (AXIS AT left-6 sm:left-8) */}
+        <div className="absolute top-2 bottom-2 left-6 sm:left-8 -translate-x-1/2 w-4 pointer-events-none z-0">
           <svg
             className="w-full h-full overflow-visible"
             preserveAspectRatio="none"
-            viewBox="0 0 30 600"
+            viewBox="0 0 16 600"
             fill="none"
           >
-            {/* Background dashed path */}
+            {/* Soft background trajectory path with gentle organic wave */}
             <path
-              d="M15 0 C25 60, 5 120, 15 180 C25 240, 5 300, 15 360 C25 420, 5 480, 15 540 L15 600"
+              d="M8 0 C12 100, 4 200, 8 300 C12 400, 4 500, 8 600"
               stroke="var(--secondary)"
               strokeWidth="2"
               strokeDasharray="3 3"
               strokeLinecap="round"
-              className="opacity-30"
+              className="opacity-35"
             />
             {/* Active progress path */}
             <path
-              d="M15 0 C25 60, 5 120, 15 180 C25 240, 5 300, 15 360 C25 420, 5 480, 15 540 L15 600"
+              d="M8 0 C12 100, 4 200, 8 300 C12 400, 4 500, 8 600"
               stroke="var(--secondary)"
               strokeWidth="2.5"
               strokeLinecap="round"
@@ -129,74 +127,66 @@ export function KrewJourneyTimeline({
         <div className="relative z-10 space-y-6">
           {categories.map((cat) => (
             <div key={cat.key} className="space-y-3">
-              {/* CATEGORY CHAPTER INTERTITLE - CLEAN LABEL WITHOUT FLOATING MARK */}
-              <div className="relative flex items-center gap-2 py-1 z-10">
-                <span className="font-mono text-[13px] font-semibold uppercase tracking-wider text-primary bg-sage/12 px-2.5 py-1 rounded-md border border-sage/25">
+              {/* CATEGORY INTERTITLE ALIGNED WITH CONTENT */}
+              <div className="pl-14 sm:pl-16 relative flex items-center gap-2 py-0.5 z-10">
+                <span className="font-mono text-[12px] font-semibold uppercase tracking-wider text-primary bg-sage/12 px-2.5 py-1 rounded-md border border-sage/25">
                   {cat.label}
                 </span>
               </div>
 
-              {/* STEPS IN CATEGORY */}
-              <div className="space-y-2 sm:space-y-3">
+              {/* STEPS IN CATEGORY — COMPACT VERTICAL LAYOUT */}
+              <div className="space-y-2 sm:space-y-2.5">
                 {cat.steps.map((step) => {
-                  const currentGlobalIdx = globalStepCounter++;
-                  const isEven = currentGlobalIdx % 2 === 0;
                   const isDone = step.status === "done";
                   const isNextAction = step.status === "next_action";
                   const isAvailable = step.status === "available";
                   const isUpcoming = step.status === "upcoming";
 
-                  const cardContent = (
+                  const StepContent = (
                     <div
                       className={cn(
-                        "relative transition-all duration-150 py-2 px-2.5 sm:px-3.5 rounded-xl",
+                        "relative flex items-center justify-between gap-3 p-3 sm:p-3.5 rounded-2xl transition-all w-full text-left",
                         isNextAction
-                          ? "p-3.5 sm:p-4 text-left"
-                          : isEven
-                            ? "text-right sm:text-right"
-                            : "text-left sm:text-left",
+                          ? "bg-surface border-2 border-primary/40 shadow-xs"
+                          : isDone
+                            ? "bg-surface/40 border border-border/40 hover:border-border/70"
+                            : isAvailable
+                              ? "bg-background border border-border/60 hover:border-primary/40"
+                              : "bg-surface/20 border border-border/30 opacity-70",
                       )}
                     >
-                      {/* PROMINENT PLUM ORGANIC NAPPE FOR NEXT ACTION */}
+                      {/* NEXT ACTION ORGANIC BLOB NAPPE */}
                       {isNextAction ? (
                         <KrewOrganicBlob
                           tone="plum"
                           variant="soft"
-                          className="absolute -inset-1.5 w-[calc(100%+12px)] h-[calc(100%+12px)] opacity-25 pointer-events-none z-0"
+                          className="absolute -inset-1 w-[calc(100%+8px)] h-[calc(100%+8px)] opacity-20 pointer-events-none z-0"
                         />
                       ) : null}
 
-                      <div className="relative z-10 space-y-0.5">
-                        {/* STEP TITLE */}
-                        <h3
-                          className={cn(
-                            "font-display leading-tight transition-colors inline-flex items-center gap-1.5",
-                            isNextAction
-                              ? "text-[22px] sm:text-[24px] font-normal text-foreground"
-                              : "text-[16px] font-normal",
-                            isDone && "text-foreground/85",
-                            isAvailable && "text-foreground",
-                            isUpcoming && "text-muted-foreground/80",
-                          )}
-                        >
-                          {step.title}
-                          {step.href && !isUpcoming ? (
-                            <KrewMark
-                              type="arrow-right"
-                              tone={isNextAction ? "plum" : "sage"}
-                              size="sm"
-                              className="size-3.5 inline-block shrink-0 opacity-80"
-                            />
-                          ) : null}
-                        </h3>
+                      <div className="relative z-10 space-y-0.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3
+                            className={cn(
+                              "font-display leading-tight transition-colors",
+                              isNextAction
+                                ? "text-lg sm:text-xl font-medium text-foreground"
+                                : "text-base font-normal",
+                              isDone && "text-foreground/90 font-medium",
+                              isAvailable && "text-foreground",
+                              isUpcoming && "text-muted-foreground/80",
+                            )}
+                          >
+                            {step.title}
+                          </h3>
+                        </div>
 
-                        {/* INFORMATIVE SUBTITLE */}
                         {step.subtitle ? (
                           <p
                             className={cn(
-                              "text-[13px] font-sans leading-snug",
+                              "text-xs sm:text-[13px] font-sans leading-snug",
                               isNextAction
-                                ? "text-foreground/90 font-medium"
+                                ? "text-primary font-medium"
                                 : isDone
                                   ? "text-primary/90 font-mono"
                                   : "text-muted-foreground",
@@ -206,47 +196,40 @@ export function KrewJourneyTimeline({
                           </p>
                         ) : null}
                       </div>
+
+                      {/* CTA / LINK INDICATOR */}
+                      {step.href && !isUpcoming ? (
+                        <div className="relative z-10 shrink-0 flex items-center gap-1 text-xs font-semibold text-primary">
+                          {isNextAction ? (
+                            <span className="hidden sm:inline-block font-sans text-xs bg-primary text-primary-foreground px-3 py-1 rounded-full shadow-2xs">
+                              Continuer →
+                            </span>
+                          ) : null}
+                          <KrewMark
+                            type="arrow-right"
+                            tone={isNextAction ? "plum" : "sage"}
+                            size="sm"
+                            className="size-4 shrink-0"
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   );
 
                   return (
                     <div
                       key={step.id}
-                      className={cn(
-                        "grid grid-cols-12 items-center gap-1.5 sm:gap-3 relative group min-h-[52px]",
-                      )}
+                      className="relative flex items-center min-h-[52px] group"
                     >
-                      {/* LEFT COLUMN */}
-                      <div className="col-span-5 flex justify-end">
-                        {isEven ? (
-                          step.href ? (
-                            (() => {
-                              const parsed = parseStepHref(step.href);
-                              return (
-                                <Link
-                                  to={parsed.to as any}
-                                  search={parsed.search as any}
-                                  className="w-full hover:opacity-90 transition-opacity"
-                                >
-                                  {cardContent}
-                                </Link>
-                              );
-                            })()
-                          ) : (
-                            <div className="w-full">{cardContent}</div>
-                          )
-                        ) : null}
-                      </div>
-
-                      {/* CENTRAL TIMELINE NODE / SEAL */}
-                      <div className="col-span-2 flex flex-col items-center justify-center relative z-20">
+                      {/* NODE DIRECTLY ON THE TRAJECTORY LINE (left-6 sm:left-8) */}
+                      <div className="absolute left-6 sm:left-8 -translate-x-1/2 z-20 flex items-center justify-center">
                         <div
                           className={cn(
-                            "relative flex items-center justify-center rounded-full transition-transform duration-150 group-hover:scale-105",
+                            "flex items-center justify-center rounded-full transition-transform duration-150 group-hover:scale-105",
                             isDone &&
                               "size-8 sm:size-9 bg-sage/18 border border-secondary text-primary shadow-2xs",
                             isNextAction &&
-                              "size-11 sm:size-13 bg-primary text-primary-foreground border-2 border-background ring-4 ring-primary/20 shadow-md scale-110",
+                              "size-11 sm:size-12 bg-primary text-primary-foreground border-2 border-background ring-4 ring-primary/20 shadow-md scale-105",
                             isAvailable &&
                               "size-8 sm:size-9 bg-background border border-primary/40 text-primary shadow-2xs",
                             isUpcoming &&
@@ -258,11 +241,11 @@ export function KrewJourneyTimeline({
                             size="sm"
                             tone={isNextAction ? "cream" : isDone ? "plum" : isAvailable ? "plum" : "muted"}
                             className={cn(
-                              isNextAction ? "size-5 sm:size-6" : "size-4 sm:size-4.5",
+                              isNextAction ? "size-5" : "size-4",
                             )}
                           />
 
-                          {/* Check icon for done steps */}
+                          {/* Check badge for done steps */}
                           {isDone ? (
                             <span className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-secondary text-white text-[8px] font-bold shadow-2xs">
                               ✓
@@ -271,36 +254,34 @@ export function KrewJourneyTimeline({
                         </div>
                       </div>
 
-                      {/* RIGHT COLUMN */}
-                      <div className="col-span-5 flex justify-start">
-                        {!isEven ? (
-                          step.href ? (
-                            (() => {
-                              const parsed = parseStepHref(step.href);
-                              return (
-                                <Link
-                                  to={parsed.to as any}
-                                  search={parsed.search as any}
-                                  className="w-full hover:opacity-90 transition-opacity"
-                                >
-                                  {cardContent}
-                                </Link>
-                              );
-                            })()
-                          ) : (
-                            <div className="w-full">{cardContent}</div>
-                          )
-                        ) : null}
+                      {/* STEP CONTENT WRAPPER — ALL CONTENT ON THE RIGHT SIDE (pl-14 sm:pl-16) */}
+                      <div className="pl-14 sm:pl-16 w-full">
+                        {step.href && !isUpcoming ? (
+                          (() => {
+                            const parsed = parseStepHref(step.href);
+                            return (
+                              <Link
+                                to={parsed.to as any}
+                                search={parsed.search as any}
+                                className="block w-full no-underline"
+                              >
+                                {StepContent}
+                              </Link>
+                            );
+                          })()
+                        ) : (
+                          <div className="w-full">{StepContent}</div>
+                        )}
                       </div>
 
-                      {/* MAX 1 HANDWRITTEN CAVEAT ANNOTATION ON NEXT ACTION */}
+                      {/* HANDWRITTEN CAVEAT ANNOTATION ON NEXT ACTION */}
                       {isNextAction && annotationText ? (
-                        <div className="absolute -top-5 right-1 sm:right-3 z-30 pointer-events-none">
+                        <div className="absolute -top-3.5 right-2 sm:right-4 z-30 pointer-events-none">
                           <KrewNote
                             variant="label"
                             tone="cream"
                             rotation={-2}
-                            className="text-[14px] sm:text-[15px] py-1.5 px-3"
+                            className="text-xs sm:text-sm py-1 px-2.5"
                           >
                             {annotationText}
                           </KrewNote>

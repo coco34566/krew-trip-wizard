@@ -1814,7 +1814,12 @@ function TripDetail() {
 
             const datesReady = datesLocked || Boolean(trip.start_date);
             const profileDone = Boolean(profile?.validated);
-            const profileReady = Boolean(readiness?.profile.questionnairesReady || profile?.legacyBypass);
+            const profileReady = Boolean(
+              readiness?.profile.questionnairesReady ||
+              profile?.legacyBypass ||
+              (profile?.calculatedConcepts && profile.calculatedConcepts.length > 0) ||
+              (readiness?.profile.calculatedConcepts && readiness.profile.calculatedConcepts.length > 0)
+            );
             const destDone = destinationSelected;
             const hotelDone = Boolean(logistics.selectedHotelId);
             const hotelOffersReady = Boolean(logistics.hotels?.length);
@@ -2255,15 +2260,25 @@ function TripDetail() {
             </Button>
           ) : null}
         </div>
-        {!readiness?.profile.questionnairesReady && !profile?.legacyBypass ? (
-          <p className="rounded-2xl border border-dashed border-border/70 p-6 text-sm text-muted-foreground font-sans text-center">
-            Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
-          </p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-3 pt-2">
-            {(profile?.calculatedConcepts ?? readiness?.profile.calculatedConcepts ?? [])
-              .slice(0, 3)
-              .map((concept: StayConcept) => {
+        {(() => {
+          const conceptsToDisplay =
+            profile?.calculatedConcepts?.length
+              ? profile.calculatedConcepts
+              : readiness?.profile.calculatedConcepts?.length
+                ? readiness.profile.calculatedConcepts
+                : [];
+
+          if (!conceptsToDisplay.length) {
+            return (
+              <p className="rounded-2xl border border-dashed border-border/70 p-6 text-sm text-muted-foreground font-sans text-center">
+                Le profil apparaîtra lorsque suffisamment de questionnaires auront été complétés.
+              </p>
+            );
+          }
+
+          return (
+            <div className="grid gap-3 sm:grid-cols-3 pt-2">
+              {conceptsToDisplay.slice(0, 3).map((concept: StayConcept) => {
                 const profileId = concept.id as StayProfileId;
                 const label = PROFILE_LABELS[profileId] || concept.title;
                 const selected = profile?.validated
@@ -2310,8 +2325,9 @@ function TripDetail() {
                   </button>
                 );
               })}
-          </div>
-        )}
+            </div>
+          );
+        })()}
         {profile?.validated ? (
           <div className="pt-2 space-y-3">
             <p className="text-[13px] sm:text-sm font-semibold text-primary inline-flex items-center gap-1.5">
