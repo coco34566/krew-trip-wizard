@@ -1,7 +1,7 @@
-import { Lock, ArrowRight, Users, CalendarDays, ClipboardList, Sparkles, MapPin, Hotel, Plane } from "lucide-react";
+import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TripStep } from "@/lib/krew/availability";
-import { KrewHighlight, KrewMark, KrewProgressRing } from "@/components/krew/visual-language";
+import { KrewHighlight, KrewIcon, KrewMark, KrewProgressRing, type KrewIconName } from "@/components/krew/visual-language";
 
 const STEP_ROUTE: Record<string, string> = {
   availability: "/trips/$tripId/availability",
@@ -10,27 +10,28 @@ const STEP_ROUTE: Record<string, string> = {
   memories: "/trips/$tripId/memories",
 };
 
-function getStepIcon(stepId: string) {
+function getStepKrewIcon(stepId: string): KrewIconName {
   switch (stepId) {
     case "invite":
-      return Users;
+      return "invite";
     case "availability":
+      return "availability";
     case "dates":
-      return CalendarDays;
+      return "calendar";
     case "questionnaire":
-      return ClipboardList;
+      return "preferences";
     case "profile":
-      return Sparkles;
+      return "profile";
     case "destination":
-      return MapPin;
+      return "destination";
     case "hotels":
-      return Hotel;
+      return "accommodation";
     case "transport":
-      return Plane;
+      return "transport";
     case "organize":
-      return ClipboardList;
+      return "planning";
     default:
-      return Sparkles;
+      return "planning";
   }
 }
 
@@ -113,7 +114,7 @@ export function TripHubNav({
           const href = stepHref(step);
           const isLast = i === steps.length - 1;
           const metric = renderMetric(step.id);
-          const StepIcon = getStepIcon(step.id);
+          const krewIconName = getStepKrewIcon(step.id);
 
           const StepLabel = (
             <div className="flex flex-col items-center text-center gap-1 mt-2.5 max-w-[90px] sm:max-w-[105px]">
@@ -151,7 +152,7 @@ export function TripHubNav({
                   ) : isSoon ? (
                     <Lock className="size-2.5" />
                   ) : (
-                    <StepIcon className={cn(isActive ? "size-4.5" : "size-3.5")} />
+                    <KrewIcon name={krewIconName} tone={isActive ? "cream" : "plum"} size="sm" className={cn(isActive ? "size-4.5" : "size-3.5")} />
                   )}
                 </span>
 
@@ -203,7 +204,7 @@ export function TripHubNav({
           const isLast = i === steps.length - 1;
           const metric = renderMetric(step.id);
           const isEven = i % 2 === 0;
-          const StepIcon = getStepIcon(step.id);
+          const krewIconName = getStepKrewIcon(step.id);
 
           const StepContent = (
             <div className={cn(
@@ -232,7 +233,10 @@ export function TripHubNav({
               </div>
 
               {isActive || href ? (
-                <ArrowRight
+                <KrewMark
+                  type="arrow-right"
+                  tone={isActive ? "plum" : "sage"}
+                  size="sm"
                   className={cn(
                     "size-4 shrink-0 transition-transform group-hover:translate-x-1",
                     isActive ? "text-primary" : "text-muted-foreground/60",
@@ -268,7 +272,7 @@ export function TripHubNav({
                     ) : isSoon ? (
                       <Lock className="size-3" />
                     ) : (
-                      <StepIcon className={cn(isActive ? "size-4.5" : "size-3.5")} />
+                      <KrewIcon name={krewIconName} tone={isActive ? "cream" : "plum"} size="sm" className={cn(isActive ? "size-4.5" : "size-3.5")} />
                     )}
                   </span>
 

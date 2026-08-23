@@ -5,10 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
   Loader2,
-  CalendarDays,
   Lock,
   Unlock,
-  Check,
   ChevronLeft,
   ChevronRight,
   X,
@@ -16,18 +14,16 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import {
   getTripAvailability,
   submitMyAvailability,
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
+import { KrewIcon, KrewMark, KrewNote, KrewProgressRing } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/availability")({
@@ -88,7 +84,7 @@ function MonthGrid({
 
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
-      <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
+      <p className="mb-2 text-center text-sm font-semibold capitalize font-sans">{monthLabel(month)}</p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
           <span key={i}>{d}</span>
@@ -264,18 +260,18 @@ function AvailabilityPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="mt-6 h-40 w-full rounded-3xl" />
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-6">
+        <Skeleton className="h-10 w-48 rounded-xl" />
+        <Skeleton className="mt-6 h-60 w-full rounded-[24px]" />
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-4">
         <p className="text-destructive">{(error as any)?.message ?? "Impossible de charger"}</p>
-        <Button asChild className="mt-4" variant="outline">
+        <Button asChild className="mt-4 rounded-xl" variant="outline">
           <Link to="/trips/$tripId" params={{ tripId }}>
             Retour
           </Link>
@@ -291,7 +287,7 @@ function AvailabilityPage() {
       : null;
 
   return (
-    <main className="space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
       <a
         href={`/trips/${tripId}`}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -299,23 +295,58 @@ function AvailabilityPage() {
         <ArrowLeft className="size-4" /> Retour à Mon Voyage
       </a>
 
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-primary font-mono">
+      <div className="space-y-3 relative">
+        <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
           Disponibilités · résumé live
         </p>
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          {data.trip.name}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {data.answered}/{data.expected} ont indiqué leurs dates
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="relative inline-block flex-1">
+            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+              {data.trip.name}
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+            />
+          </div>
+          <img
+            src="/brand/otter-states/availability.png"
+            alt=""
+            className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 pointer-events-none"
+          />
+        </div>
+        <div className="flex items-center gap-3 pt-2">
+          <KrewProgressRing
+            value={data.answered}
+            total={data.expected || 1}
+            size={56}
+            tone="sage"
+          />
+          <div className="space-y-0.5">
+            <p className="text-sm sm:text-base font-medium text-foreground font-sans">
+              <span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates
+            </p>
+            {data.expected - data.answered > 0 ? (
+              <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
+                {data.expected - data.answered === 1
+                  ? "1 réponse manque"
+                  : `${data.expected - data.answered} réponses manquent`}
+              </KrewNote>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {/* CALENDRIER DEVENU L'OBJET PRINCIPAL */}
       <section className="w-full rounded-[24px] bg-background border border-border/50 p-6 space-y-6">
         <div>
-          <h2 className="font-display text-lg font-semibold">Mes disponibilités</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="font-display text-xl font-normal text-foreground flex items-center gap-2">
+            <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
+            Mes disponibilités
+          </h2>
+          <p className="mt-1.5 text-sm sm:text-base text-muted-foreground font-sans leading-relaxed">
             Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes
             réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les
             modifier.

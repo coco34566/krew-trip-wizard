@@ -5,13 +5,6 @@ import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -83,9 +77,17 @@ function AccountPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-14">
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold tracking-tight">Mon compte</h1>
-        <p className="mt-2 text-muted-foreground">
+      <div className="mb-8 space-y-1">
+        <div className="relative inline-block">
+          <h1 className="font-display text-[38px] font-normal leading-tight text-foreground">Mon compte</h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="sm"
+            className="absolute left-0 -bottom-1.5 w-[110px] pointer-events-none"
+          />
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground font-sans">
           Gère les informations associées à ton compte KREW.
         </p>
       </div>

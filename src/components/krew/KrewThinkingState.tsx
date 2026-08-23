@@ -61,12 +61,22 @@ export function KrewThinkingState({
         className
       )}
     >
-      {/* Official KREW Otter Mark with gentle CSS dance/sway animation */}
+      {/* Official KREW Otter Asset with gentle CSS animation */}
       <div className="relative flex items-center justify-center">
-        <Logo
-          variant="icon"
-          size="md"
-          className="h-12 w-auto transition-transform motion-reduce:animate-none motion-reduce:transform-none"
+        <img
+          src={
+            context === "destinations"
+              ? "/brand/otter-states/destination.png"
+              : context === "accommodations"
+                ? "/brand/otter-states/accommodation.png"
+                : context === "transport"
+                  ? "/brand/otter-states/transport.png"
+                  : context === "planning"
+                    ? "/brand/otter-states/planning.png"
+                    : "/brand/otter-states/searching.png"
+          }
+          alt=""
+          className="h-14 w-auto object-contain transition-transform motion-reduce:animate-none motion-reduce:transform-none"
           style={{
             animation: "krewOtterDance 1.8s ease-in-out infinite",
           }}

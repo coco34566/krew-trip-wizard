@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import {
   STAR_EVENT_TYPES,
   getTripTypeImage,
 } from "@/lib/krew/constants";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { cn } from "@/lib/utils";
 
 function clampParticipants(raw: string): number {
@@ -117,7 +119,7 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[820px] space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
       <Link
         to="/dashboard"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -125,11 +127,26 @@ function NewTripPage() {
         <ArrowLeft className="size-4" /> Dashboard
       </Link>
 
-      <div className="space-y-2">
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          Créer un voyage
-        </h1>
-        <p className="text-sm text-muted-foreground">Juste l'essentiel pour démarrer.</p>
+      <div className="space-y-2 relative">
+        <div className="flex items-start justify-between gap-4">
+          <div className="relative inline-block flex-1">
+            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+              Créer un voyage
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+            />
+          </div>
+          <img
+            src="/brand/otter-states/lets-go.png"
+            alt=""
+            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90 shrink-0 pointer-events-none"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground font-sans pt-1">Juste l'essentiel pour démarrer.</p>
       </div>
 
       <form onSubmit={onSubmit} className="pt-4">
@@ -320,7 +337,11 @@ function NewTripPage() {
         {/* Actions */}
         <div className="pt-2">
           <Button type="submit" size="lg" className="w-full h-12 rounded-xl text-base font-medium" disabled={submitting}>
-            {submitting ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}
+            {submitting ? (
+              <Loader2 className="animate-spin size-4" />
+            ) : (
+              <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
+            )}
             Créer et inviter le groupe
           </Button>
         </div>

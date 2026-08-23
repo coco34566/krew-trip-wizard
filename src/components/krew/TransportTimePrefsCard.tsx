@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Clock, Loader2, Save, Sparkles, Users } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { setMyTransportTimePrefs } from "@/lib/trips.functions";
 import { computeGroupTimeWindow } from "@/lib/krew/engine";
@@ -96,12 +97,12 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   return (
     <div className="rounded-2xl border border-border/60 bg-background p-4 space-y-3">
       <div className="flex items-center gap-2">
-        <Clock className="size-4 text-primary" />
-        <h3 className="font-display text-base font-medium text-foreground">
+        <KrewIcon name="time" tone="plum" size="sm" className="size-4" />
+        <h3 className="font-display text-lg font-normal text-foreground">
           Horaires de transport
         </h3>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground font-sans">
         Indiquer l’heure de départ la plus tôt possible et l’heure limite de retour.
       </p>
 
@@ -155,7 +156,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
           {saveMutation.isPending ? (
             <Loader2 className="size-3.5 animate-spin mr-1" />
           ) : (
-            <Save className="size-3.5 mr-1" />
+            <KrewIcon name="check" tone="plum" size="sm" className="size-3.5 mr-1" />
           )}
           Enregistrer
         </Button>

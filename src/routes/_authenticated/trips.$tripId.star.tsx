@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2, Sparkles, MapPin, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
 import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
+import { KrewIcon, KrewMark, KrewHighlight } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
 import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
@@ -143,7 +144,7 @@ function SelectableOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-[14px] border p-4 text-left text-sm font-medium transition-colors select-none",
+        "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
         active
           ? "border-primary bg-primary/5 text-foreground"
           : "border-border bg-background text-foreground/80 hover:border-primary/40",
@@ -332,8 +333,8 @@ function StarQuestionnaire() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-[820px] space-y-4">
-        <Skeleton className="h-8 w-48" />
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-4">
+        <Skeleton className="h-8 w-48 rounded-xl" />
         <Skeleton className="h-40 w-full rounded-[24px]" />
       </main>
     );
@@ -341,7 +342,7 @@ function StarQuestionnaire() {
 
   if (!data?.trip.hasStar) {
     return (
-      <main className="mx-auto max-w-[820px] text-center space-y-4 pt-8">
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 text-center space-y-4">
         <p className="text-muted-foreground">
           Ce type de voyage n’a pas de personne principale (star).
         </p>
@@ -357,7 +358,7 @@ function StarQuestionnaire() {
   const starName = data.trip.celebratedPerson || "la personne principale";
 
   return (
-    <main className="mx-auto max-w-[820px] space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -366,11 +367,22 @@ function StarQuestionnaire() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
-      <div className="space-y-2">
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          Préférences de {starName}
-        </h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="space-y-2 relative">
+        <div className="relative inline-block">
+          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+            Préférences de{" "}
+            <KrewHighlight tone="plum" className="px-2 py-0.5 font-normal">
+              {starName}
+            </KrewHighlight>
+          </h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="md"
+            className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+          />
+        </div>
+        <p className="text-sm sm:text-base text-muted-foreground font-sans pt-1">
           Complète les réponses au nom de <strong>{starName}</strong> pour ce voyage.
         </p>
       </div>
@@ -420,8 +432,8 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-        {/* 2. Destination & cadre */}
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
+        {/* 2. Destination & cadre (FOND SAUGE LÉGER) */}
+        <section className="bg-sage/12 rounded-[20px] p-5 sm:p-7 pb-8 mb-8 space-y-4 font-sans">
           <h2 className="font-display text-2xl font-normal text-foreground">Les lieux qui plairaient à {starName}</h2>
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label>
@@ -493,8 +505,8 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-        {/* 3. Hébergement */}
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
+        {/* 3. Hébergement (FOND CRÈME LÉGER) */}
+        <section className="bg-surface/50 rounded-[20px] p-5 sm:p-7 pb-8 mb-8 space-y-4 font-sans">
           <h2 className="font-display text-2xl font-normal text-foreground">Hébergement</h2>
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label>
@@ -519,7 +531,7 @@ function StarQuestionnaire() {
         {/* 4. Transport */}
         <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
           <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
-            <MapPin className="size-5 text-primary" />
+            <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
             Transport
           </h2>
           <div className="space-y-2">
@@ -665,7 +677,7 @@ function StarQuestionnaire() {
             {mutation.isPending ? (
               <Loader2 className="animate-spin mr-2" />
             ) : (
-              <Sparkles className="size-4 mr-2" />
+              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 mr-2" />
             )}
             {data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
           </Button>

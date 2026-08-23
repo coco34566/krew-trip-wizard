@@ -4184,26 +4184,6 @@ export const createGroupPaymentSession = createServerFn({ method: "POST" })
     };
   });
 
-export function partitionTasksForSync(tasksToUpsert: any[]) {
-  const nowIso = new Date().toISOString();
-  const existingTasksToUpdate: any[] = [];
-  const newTasksToInsert: any[] = [];
-
-  for (const task of tasksToUpsert) {
-    if (task.id) {
-      existingTasksToUpdate.push({
-        ...task,
-        updated_at: nowIso,
-      });
-    } else {
-      const { id, ...newTask } = task;
-      newTasksToInsert.push(newTask);
-    }
-  }
-
-  return { existingTasksToUpdate, newTasksToInsert };
-}
-
 export function mergeGeneratedPreparationTasks(input: {
   tripId: string;
   generatedTasks: { id: string; label: string }[];
@@ -4412,7 +4392,21 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
       }),
     );
 
-    const { existingTasksToUpdate, newTasksToInsert } = partitionTasksForSync(tasksToUpsert);
+    const nowIso = new Date().toISOString();
+    const existingTasksToUpdate: any[] = [];
+    const newTasksToInsert: any[] = [];
+
+    for (const task of tasksToUpsert) {
+      if (task.id) {
+        existingTasksToUpdate.push({
+          ...task,
+          updated_at: nowIso,
+        });
+      } else {
+        const { id, ...newTask } = task;
+        newTasksToInsert.push(newTask);
+      }
+    }
 
     if (existingTasksToUpdate.length > 0) {
       const { error: updateErr } = await supabase

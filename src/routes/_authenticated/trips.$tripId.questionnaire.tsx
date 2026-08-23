@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
+import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
 import {
   getMyParticipantPreferences,
   submitParticipantPreferences,
@@ -63,7 +64,7 @@ function SelectableOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-[14px] border p-4 text-left text-sm font-medium transition-colors select-none",
+        "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
         active
           ? "border-primary bg-primary/5 text-foreground"
           : "border-border bg-background text-foreground/80 hover:border-primary/40",
@@ -78,17 +79,19 @@ function SelectableOption({
 function Section({
   title,
   hint,
+  bgClass,
   children,
 }: {
   title: string;
   hint?: string;
+  bgClass?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-b border-border/50 pb-8 mb-8 space-y-4">
+    <section className={cn("pb-8 mb-8 space-y-4", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-7` : "border-b border-border/50")}>
       <div>
-        <h2 className="font-display text-2xl font-normal text-foreground">{title}</h2>
-        {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+        <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">{title}</h2>
+        {hint ? <p className="mt-1 text-sm text-muted-foreground font-sans">{hint}</p> : null}
       </div>
       {children}
     </section>
@@ -323,14 +326,14 @@ function ParticipantQuestionnaire() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
+      <div className="mx-auto max-w-[820px] px-4 sm:px-6 py-20 flex justify-center">
         <Loader2 className="animate-spin text-primary size-6" />
       </div>
     );
   }
 
   return (
-    <main className="mx-auto max-w-[820px] space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
       <Button
         variant="ghost"
         size="sm"
@@ -340,30 +343,50 @@ function ParticipantQuestionnaire() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Button>
 
-      <div className="space-y-2">
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
-        </h1>
+      <div className="space-y-3 relative">
+        <div className="flex items-start justify-between gap-4">
+          <div className="relative inline-block flex-1">
+            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+              {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+            />
+          </div>
+          <img
+            src="/brand/otter-states/preferences.png"
+            alt=""
+            className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 pointer-events-none"
+          />
+        </div>
         {isEditing ? (
-          <p className="text-sm text-muted-foreground pt-1">
-            Tu as déjà répondu
-            {lastSavedAt
-              ? ` (dernière enreg. ${new Date(lastSavedAt).toLocaleString("fr-FR", {
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })})`
-              : ""}
-            . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton
-            compte.
-          </p>
+          <div className="space-y-1.5 pt-1">
+            <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
+              Réponses enregistrées
+            </KrewNote>
+            <p className="text-sm text-muted-foreground">
+              Tu as déjà répondu
+              {lastSavedAt
+                ? ` (dernière enreg. ${new Date(lastSavedAt).toLocaleString("fr-FR", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })})`
+                : ""}
+              . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton
+              compte.
+            </p>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground pt-1">
             Tes réponses individuelles ne sont pas visibles par les autres participants.
           </p>
         )}
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground font-sans">
           Ces infos permettent à KREW de comprendre tes envies pour vous proposer le voyage qui
           correspond le mieux au groupe.
         </p>
@@ -463,6 +486,7 @@ function ParticipantQuestionnaire() {
         <Section
           title="Destination & cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
+          bgClass="bg-sage/12"
         >
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Destination rêvée (optionnel)</Label>
@@ -543,7 +567,11 @@ function ParticipantQuestionnaire() {
         >
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">
-              Budget max par personne : <span className="font-mono text-primary">{formatEuro(budgetMax)}</span> *
+              Budget max par personne :{" "}
+              <KrewHighlight tone="sage" className="font-mono text-primary px-2 py-0.5">
+                {formatEuro(budgetMax)}
+              </KrewHighlight>{" "}
+              *
             </Label>
             <Slider
               min={150}
@@ -580,6 +608,7 @@ function ParticipantQuestionnaire() {
         <Section
           title="Hébergement"
           hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
+          bgClass="bg-surface/50"
         >
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Type de logement</Label>
@@ -634,7 +663,11 @@ function ParticipantQuestionnaire() {
           </div>
         </Section>
 
-        <Section title="Transport" hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation.">
+        <Section
+          title="Transport"
+          hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation."
+          bgClass="bg-sage/12"
+        >
           <div className="space-y-2">
             <Label htmlFor="departure" className="font-semibold block text-base text-foreground">Ville de départ * (ou code postal)</Label>
             <CityAutocomplete
@@ -742,7 +775,7 @@ function ParticipantQuestionnaire() {
             {submitting ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
+              <KrewIcon name="preferences" tone="plum" size="sm" className="mr-2 size-4" />
             )}
             {isEditing ? "Enregistrer mes modifications" : "Envoyer mes réponses"}
           </Button>

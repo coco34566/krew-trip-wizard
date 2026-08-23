@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckSquare, ExternalLink, Plus, Square } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import {
   buildTripPreparation,
   type PackingItem,
@@ -8,6 +8,7 @@ import {
 import { resolveShoppingLink, type ShoppingLink } from "@/lib/krew/shopping";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 
 type Props = PackingListInput & {
   tripId?: string;
@@ -103,12 +104,12 @@ export function PackingListCard({
                 type="button"
                 aria-label={`Cocher ${item.label}`}
                 onClick={() => toggle(item.id)}
-                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 {state.checked[item.id] ? (
-                  <CheckSquare className="size-4 text-sage" />
+                  <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
                 ) : (
-                  <Square className="size-4" />
+                  <span className="size-4 rounded border border-border inline-block" />
                 )}
               </button>
               <span
@@ -182,21 +183,24 @@ export function PackingListCard({
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="font-display text-2xl font-normal text-foreground">Préparer le voyage</h2>
-        <p className="text-xs text-muted-foreground">
+        <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
+          <KrewIcon name="packing" tone="plum" size="sm" className="size-5" />
+          À emporter
+        </h2>
+        <p className="text-xs text-muted-foreground font-sans">
           Retrouve ici ce qu’il faut prévoir pour le voyage.
         </p>
       </div>
-      <div className="grid gap-8 md:grid-cols-2">
-        <div className="space-y-3">
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-3 bg-surface/40 rounded-2xl p-4.5 border border-border/40">
           <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Mes affaires</h3>
           {renderItems(result.personal)}
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 bg-sage/12 rounded-2xl p-4.5 border border-border/40">
           <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Pour le groupe</h3>
           {renderItems(result.group, true)}
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 bg-background rounded-2xl p-4.5 border border-border/40">
           <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Courses</h3>
           <ul className="divide-y divide-border/40 text-sm">
             {result.groceries.map((g) => (
@@ -209,7 +213,7 @@ export function PackingListCard({
             ))}
           </ul>
         </div>
-        <div className="space-y-3">
+        <div className="space-y-3 bg-surface/40 rounded-2xl p-4.5 border border-border/40">
           <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">À faire</h3>
           <ul className="divide-y divide-border/40 text-sm">
             {result.tasks.map((t) => (
@@ -223,24 +227,24 @@ export function PackingListCard({
           </ul>
         </div>
       </div>
-      <div className="flex flex-wrap gap-2 border-t border-border/50 pt-4">
+      <div className="flex flex-wrap gap-2 border-t border-border/50 pt-4 items-center">
         <Input
           value={manualLabel}
           onChange={(e) => setManualLabel(e.target.value)}
           placeholder="Ajouter un élément"
-          className="max-w-xs"
+          className="max-w-xs rounded-xl text-xs h-9"
         />
         <select
           aria-label="Type de l'élément"
           value={manualMode}
           onChange={(e) => setManualMode(e.target.value as "personal" | "group")}
-          className="rounded-md border bg-background px-2 text-sm"
+          className="rounded-xl border border-border bg-background px-3 text-xs h-9 font-medium"
         >
           <option value="personal">Mes affaires</option>
           <option value="group">Pour le groupe</option>
         </select>
-        <Button type="button" variant="outline" onClick={addManual}>
-          <Plus className="size-4" /> Ajouter
+        <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl text-xs font-medium" onClick={addManual}>
+          <KrewIcon name="plus" size="sm" className="size-3.5 mr-1" /> Ajouter
         </Button>
       </div>
     </section>
