@@ -196,11 +196,11 @@ function Landing() {
           </div>
         </section>
 
-        {/* ——— Section "LE PLAN" — Compact, Structured & Otter Signature ——— */}
+        {/* ——— Section "LE PLAN" — Compact, Open Presentation & Autonomous Otter ——— */}
         <section className="relative overflow-hidden py-12 sm:py-16 bg-background">
           <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative">
-            {/* Header Block */}
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+            {/* Header Block with Autonomous Otter (no card/badge/text around it) */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10">
               <div className="space-y-1">
                 <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">
                   LE PLAN
@@ -219,30 +219,21 @@ function Landing() {
                 </h2>
               </div>
 
-              {/* Prominent KREW Otter tied directly to "Le plan" section */}
-              <div className="shrink-0 flex items-center gap-3 bg-sage/15 px-4 py-2.5 rounded-2xl border border-sage/30">
-                <img
-                  src="/brand/otter-states/trip-progress.png"
-                  alt="Loutre KREW organisation"
-                  className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 filter drop-shadow-xs"
-                />
-                <div className="text-xs font-sans">
-                  <p className="font-semibold text-foreground">KREW orchestre tout</p>
-                  <p className="text-muted-foreground">Dispos & envies synchronisées</p>
-                </div>
-              </div>
+              {/* Autonomous KREW Otter asset */}
+              <img
+                src="/brand/otter-states/trip-progress.png"
+                alt="Loutre KREW organisation"
+                className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 filter drop-shadow-xs"
+              />
             </div>
 
-            {/* Steps Flow Grid */}
+            {/* Steps Flow Grid — Open presentation (no card rectangles) */}
             <div className="relative">
-              <div className="hidden lg:block absolute top-12 left-[10%] right-[10%] h-0.5 border-t-2 border-dashed border-secondary/40 z-0" />
+              <div className="hidden lg:block absolute top-10 left-[10%] right-[10%] h-0.5 border-t-2 border-dashed border-secondary/40 z-0" />
 
-              <div className="grid gap-6 lg:grid-cols-3 relative z-10">
+              <div className="grid gap-8 lg:grid-cols-3 relative z-10">
                 {STEPS.map((step) => (
-                  <div
-                    key={step.number}
-                    className="relative space-y-2.5 p-5 rounded-2xl bg-surface/50 border border-border/50 transition-colors hover:border-border"
-                  >
+                  <div key={step.number} className="relative space-y-3">
                     <div className="flex items-center justify-between">
                       <span
                         aria-hidden="true"
@@ -250,15 +241,15 @@ function Landing() {
                       >
                         {step.number}
                       </span>
-                      <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <KrewIcon name={step.iconName} tone="plum" size="sm" className="size-5" />
                       </div>
                     </div>
                     <div>
-                      <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary block mb-0.5">
+                      <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-primary block mb-1">
                         Étape {step.number}
                       </span>
-                      <h3 className="text-base font-semibold text-foreground">{step.title}</h3>
+                      <h3 className="text-base sm:text-lg font-semibold text-foreground">{step.title}</h3>
                       <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed font-sans">
                         {step.text}
                       </p>
@@ -279,7 +270,7 @@ function Landing() {
           />
 
           <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 relative z-10">
-            {/* Header Block */}
+            {/* Header Block with Autonomous Otter (no card/badge/text around it) */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
               <div>
                 <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">
@@ -291,23 +282,17 @@ function Landing() {
                 <h2 className="mt-1 font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground">
                   Un voyage prêt, un groupe rassemblé
                 </h2>
-                <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-lg font-sans">
+                <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-lg font-sans">
                   Une fois les réponses du groupe réunies, le séjour se dessine clairement avec des hébergements, des billets et un planning validé.
                 </p>
               </div>
 
-              {/* Otter asset specific to "Le moment" (Planning state) */}
-              <div className="shrink-0 flex items-center gap-3 bg-background/80 backdrop-blur-xs px-4 py-2.5 rounded-2xl border border-border/60">
-                <img
-                  src="/brand/otter-states/planning.png"
-                  alt="Loutre KREW planning"
-                  className="w-[72px] sm:w-[84px] h-auto object-contain shrink-0 filter drop-shadow-xs"
-                />
-                <div className="text-xs font-sans">
-                  <p className="font-semibold text-foreground">Week-end garanti</p>
-                  <p className="text-muted-foreground">0 membre oublié</p>
-                </div>
-              </div>
+              {/* Autonomous Otter asset for "Le moment" */}
+              <img
+                src="/brand/otter-states/planning.png"
+                alt="Loutre KREW planning"
+                className="w-[72px] sm:w-[84px] h-auto object-contain shrink-0 filter drop-shadow-xs"
+              />
             </div>
 
             {/* Photo & Story Grid — Using existing weekend photo asset */}
@@ -332,65 +317,100 @@ function Landing() {
                 </div>
               </div>
 
-              {/* Travel Journal Detail Breakdown */}
-              <div className="lg:col-span-7 space-y-4">
-                {/* Title & Budget Summary */}
-                <div className="p-5 rounded-2xl bg-background/90 border border-border/70 shadow-2xs space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Travel Journal Detail Breakdown (Original Wording Restored) */}
+              <div className="lg:col-span-7 space-y-6">
+                <div className="p-5 sm:p-6 rounded-2xl bg-background border border-border shadow-xs space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                      <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-md text-primary font-mono">
+                      <span className="text-xs font-semibold uppercase tracking-wider bg-primary/10 px-2.5 py-1 rounded-md text-primary font-mono">
                         Exemple de projet final
                       </span>
                       <h3 className="font-display text-2xl sm:text-3xl font-normal text-foreground mt-1">
                         Retrouvailles à Lisbonne
                       </h3>
-                      <p className="text-xs text-muted-foreground font-sans">Organisé par Thomas · 8 participants</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">Organisé par Thomas · 8 participants</p>
                     </div>
 
-                    <div className="text-left sm:text-right">
-                      <p className="text-[11px] font-semibold uppercase text-muted-foreground tracking-wider font-mono">
+                    <div>
+                      <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider font-mono">
                         Budget / personne
                       </p>
-                      <KrewHighlight tone="sage" className="font-mono text-2xl sm:text-3xl font-bold text-primary mt-0.5 inline-block px-2.5 py-0.5">
+                      <KrewHighlight tone="sage" className="font-mono text-2xl sm:text-3xl font-bold text-primary mt-1 inline-block px-3 py-1">
                         ~360 €
                       </KrewHighlight>
                     </div>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-3 pt-2 border-t border-border/50 text-xs">
-                    <div>
-                      <p className="font-mono font-semibold uppercase text-[10px] text-muted-foreground">Dates</p>
-                      <p className="font-medium text-foreground">Ven 11 Sept. → Dim 13 Sept.</p>
-                    </div>
-                    <div>
-                      <p className="font-mono font-semibold uppercase text-[10px] text-muted-foreground">Réponses groupe</p>
-                      <p className="font-medium text-foreground flex items-center gap-3">
-                        <span>Dispos : <strong className="font-mono text-primary">8/8</strong></span>
-                        <span>Envies : <strong className="font-mono text-primary">8/8</strong></span>
-                      </p>
+                  <div className="border-t border-border/50 pt-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider font-mono">Dates choisies</p>
+                    <p className="text-xs sm:text-sm font-medium text-foreground mt-0.5">Vendredi 11 Sept. → Dimanche 13 Sept.</p>
+                  </div>
+
+                  <div className="border-t border-border/50 pt-3 space-y-1">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">État des réponses</p>
+                    <div className="flex flex-wrap gap-4 text-xs pt-1">
+                      <span className="inline-flex items-center gap-1.5">
+                        <KrewIcon name="availability" tone="sage" size="sm" className="size-4" />
+                        <span>Disponibilités : </span>
+                        <span className="font-mono font-semibold text-primary">8/8</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <KrewIcon name="preferences" tone="sage" size="sm" className="size-4" />
+                        <span>Préférences : </span>
+                        <span className="font-mono font-semibold text-primary">8/8</span>
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Lodging & Transport Highlights */}
-                <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-4 rounded-xl bg-background/80 border border-border/50 space-y-1">
-                    <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
-                      <KrewMark type="check" tone="sage" size="sm" className="size-3.5 shrink-0" />
-                      <span>Hébergement validé</span>
+                <div className="border-t border-border/50 pt-3 space-y-2">
+                  <h4 className="font-semibold text-xs sm:text-sm flex items-center gap-2 text-foreground">
+                    <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
+                    Hébergement retenu par le groupe
+                  </h4>
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <p className="font-semibold text-foreground text-xs sm:text-sm">Lisbon Sky Apartments</p>
+                      <p className="text-xs text-muted-foreground">Appartement entier · ★ 4.7 · Proche centre (0.8 km)</p>
                     </div>
-                    <p className="font-semibold text-foreground">Lisbon Sky Apartments</p>
-                    <p className="text-muted-foreground text-[11px]">Centre ville · 5 votes sur 8</p>
-                    <p className="font-mono text-primary font-medium text-[11px]">42 € / pers / nuit</p>
+                    <Badge variant="success" className="shrink-0 text-[10px]">5 votes sur 8</Badge>
                   </div>
+                  <p className="text-xs text-muted-foreground font-mono">42 € / personne par nuit · 84 € / personne pour le séjour</p>
+                </div>
 
-                  <div className="p-4 rounded-xl bg-background/80 border border-border/50 space-y-1">
-                    <div className="flex items-center gap-1.5 font-semibold text-foreground text-xs">
-                      <KrewMark type="check" tone="sage" size="sm" className="size-3.5 shrink-0" />
-                      <span>Transports sur mesure</span>
+                <div className="border-t border-border/50 pt-3 space-y-2 text-xs">
+                  <h4 className="font-semibold text-xs sm:text-sm flex items-center gap-2 text-foreground">
+                    <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
+                    Transports par ville de départ
+                  </h4>
+                  <div className="flex justify-between border-b border-border/40 pb-1.5 text-muted-foreground">
+                    <span>Paris (5 personnes) · Vol EasyJet aller-retour</span>
+                    <span className="font-mono font-semibold text-foreground">115 €</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Lyon (3 personnes) · Vol Transavia aller-retour</span>
+                    <span className="font-mono font-semibold text-foreground">125 €</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-border/50 pt-3 space-y-2.5">
+                  <h4 className="font-semibold text-xs sm:text-sm flex items-center gap-2 text-foreground">
+                    <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
+                    Extrait du planning jour par jour
+                  </h4>
+                  <div className="space-y-2 pt-0.5">
+                    <div className="relative pl-4 border-l-2 border-sage/40">
+                      <p className="text-xs font-mono font-semibold text-primary">JOUR 1 · 15:30</p>
+                      <p className="font-semibold text-xs mt-0.5 text-foreground">Arrivée à l&apos;aéroport de Lisbonne et transfert</p>
                     </div>
-                    <p className="text-muted-foreground text-[11px]">Paris (5 pers) : Vol A/R 115 €</p>
-                    <p className="text-muted-foreground text-[11px]">Lyon (3 pers) : Vol A/R 125 €</p>
+                    <div className="relative pl-4 border-l-2 border-sage/40">
+                      <p className="text-xs font-mono font-semibold text-primary">JOUR 1 · 19:30</p>
+                      <p className="font-semibold text-xs mt-0.5 text-foreground">Dîner de Tapas locales chez Ramiro</p>
+                    </div>
+                    <div className="relative pl-4 border-l-2 border-sage/40">
+                      <p className="text-xs font-mono font-semibold text-primary">JOUR 2 · 14:00</p>
+                      <p className="font-semibold text-xs mt-0.5 text-foreground">Visite guidée en Tuk-Tuk électrique</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -425,7 +445,7 @@ function Landing() {
               </h2>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <FeatureBlock
                 iconName="destination"
                 title="Destinations adaptées"
@@ -450,16 +470,15 @@ function Landing() {
           </div>
         </section>
 
-        {/* ——— Final CTA — Focused & Compact ——— */}
+        {/* ——— Final CTA — Autonomous Otter & Clean Button ——— */}
         <section className="relative bg-surface/80 border-t border-border py-14 sm:py-20 overflow-hidden">
           <div className="max-w-2xl mx-auto px-5 sm:px-6 text-center relative z-10 space-y-4">
-            <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-sage/15 border border-sage/30 mx-auto">
-              <img
-                src="/brand/otter-states/lets-go.png"
-                alt="Loutre KREW départ"
-                className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-xs"
-              />
-            </div>
+            {/* Autonomous Otter asset without card/badge wrapper */}
+            <img
+              src="/brand/otter-states/lets-go.png"
+              alt="Loutre KREW départ"
+              className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-xs mx-auto"
+            />
 
             <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground leading-tight">
               Ta prochaine légende commence ici
@@ -519,12 +538,12 @@ function FeatureBlock({
   text: string;
 }) {
   return (
-    <div className="space-y-2.5 p-4 rounded-xl bg-surface/40 border border-border/40">
-      <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+    <div className="space-y-3">
+      <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <KrewIcon name={iconName} tone="plum" size="sm" className="size-5" />
       </div>
-      <h3 className="font-semibold text-foreground text-sm sm:text-base">{title}</h3>
-      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed font-sans">{text}</p>
+      <h3 className="font-semibold text-foreground text-base">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed font-sans">{text}</p>
     </div>
   );
 }
