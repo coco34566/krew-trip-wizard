@@ -334,10 +334,9 @@ function Dashboard() {
             Tes projets en cours et tes invitations reçues.
           </p>
         </div>
-        <Button asChild className="min-h-[44px] rounded-xl font-medium px-5 self-start sm:self-auto">
-          <Link to="/trips/new" className="flex items-center justify-center gap-1.5 text-center">
-            <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
-            <span>Nouveau voyage</span>
+        <Button asChild className="min-h-[44px] h-auto rounded-xl px-5 font-medium self-start sm:self-auto">
+          <Link to="/trips/new" className="flex w-full items-center justify-center text-center whitespace-nowrap">
+            Nouveau voyage
           </Link>
         </Button>
       </div>

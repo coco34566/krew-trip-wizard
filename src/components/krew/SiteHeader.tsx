@@ -56,11 +56,9 @@ export function SiteHeader() {
               <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
                 <Link to="/dashboard">Mes voyages</Link>
               </Button>
-              <Button asChild size="sm" className="rounded-xl font-medium">
-                <Link to="/trips/new" className="flex items-center justify-center gap-1.5 text-center">
-                  <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
-                  <span className="sm:hidden">Nouveau</span>
-                  <span className="hidden sm:inline">Nouveau voyage</span>
+              <Button asChild size="sm" className="h-10 rounded-xl px-2.5 sm:px-4 text-xs sm:text-sm font-medium">
+                <Link to="/trips/new" className="flex w-full items-center justify-center text-center whitespace-nowrap">
+                  Nouveau voyage
                 </Link>
               </Button>
               <DropdownMenu>
