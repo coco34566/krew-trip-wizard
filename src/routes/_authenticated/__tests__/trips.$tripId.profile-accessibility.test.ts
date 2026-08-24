@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 describe("profile section navigation and gating end-to-end", () => {
   function isStepAvailable(
