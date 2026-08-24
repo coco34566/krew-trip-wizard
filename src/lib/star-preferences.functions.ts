@@ -30,7 +30,7 @@ export const getStarPreferences = createServerFn({ method: "GET" })
           eventType: trip.data.event_type,
           celebratedPerson: trip.data.celebrated_person,
           hasStar: true,
-          isOwner: trip.data.owner_id === userId,
+          isOwner: isAdmin,
         },
         preferences: null,
         starMode,
@@ -63,7 +63,7 @@ export const getStarPreferences = createServerFn({ method: "GET" })
         eventType,
         celebratedPerson: trip.data.celebrated_person as string | null,
         hasStar: starRelevant,
-        isOwner: trip.data.owner_id === userId,
+        isOwner: isAdmin,
       },
       preferences: prefs.data
         ? {
