@@ -208,6 +208,26 @@ main[class*="max-w-[1280px]"] > div:first-child > a[href="/trips/new"] {
   justify-content: center;
 }
 
+/* Landing creation CTAs: never crop their label. The xl button variant has a
+ * fixed height; on some WebKit/text metrics that can visually clip the label. */
+main > section:first-child a[href="/trips/new"],
+header a[href="/trips/new"] {
+  height: auto;
+  min-height: 2.75rem;
+  max-width: 100%;
+  padding-block: 0.625rem;
+  line-height: 1.25;
+  overflow: visible;
+  text-align: center;
+  justify-content: center;
+}
+
+main > section:first-child a[href="/trips/new"] {
+  min-height: 3rem;
+  padding-inline: 2rem;
+  white-space: nowrap;
+}
+
 /* New-trip form: use the same breathing rhythm as the preferences form.
  * Selection styling itself is intentionally untouched (light plum fill +
  * plum border); only spacing around labels, controls and helper copy changes. */
