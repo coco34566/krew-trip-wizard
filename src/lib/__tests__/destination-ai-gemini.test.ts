@@ -521,7 +521,7 @@ describe("Gemini destination discovery unique provider", () => {
       expect(proposals[0]?.destination.name).toBe("Nice");
     });
 
-    it("élimine la destination si logement = provider et transport = provider et total > vetoBudgetMax", async () => {
+    it("conserve la destination avec un warning même si les prix vérifiés dépassent le budget d'un participant", async () => {
       const { buildProposals } = await import("../krew/engine");
       const catalog = {
         destinations: [
@@ -582,7 +582,8 @@ describe("Gemini destination discovery unique provider", () => {
       };
 
       const proposals = buildProposals(catalog, context, 5);
-      expect(proposals.length).toBe(0);
+      expect(proposals.length).toBeGreaterThan(0);
+      expect(proposals[0]?.matchReasons.some((reason) => reason.includes("Risque de dépasser le budget maximum"))).toBe(true);
     });
   });
 
