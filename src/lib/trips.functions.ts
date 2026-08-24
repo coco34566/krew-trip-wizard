@@ -905,7 +905,7 @@ export const generateRecommendations = createServerFn({ method: "POST" })
     z.object({ tripId: z.string().uuid(), force: z.boolean().optional() }).parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase } = context;
     const trip = await supabase
       .from("trips")
       .select("owner_id, co_organizer_id")
@@ -1253,7 +1253,31 @@ export const selectRecommendation = createServerFn({ method: "POST" })
     z.object({ tripId: z.string().uuid(), recommendationId: z.string().uuid() }).parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+
+    const tripAccess = await supabase
+      .from("trips")
+      .select("id, owner_id, co_organizer_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (tripAccess.error) throw tripAccess.error;
+    if (!tripAccess.data) throw new Error("Voyage introuvable");
+    if (!isTripAdmin(tripAccess.data, userId)) {
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut choisir la destination",
+      );
+    }
+
+    const authorizedReco = await supabase
+      .from("recommendations")
+      .select("id")
+      .eq("id", data.recommendationId)
+      .eq("trip_id", data.tripId)
+      .maybeSingle();
+    if (authorizedReco.error) throw authorizedReco.error;
+    if (!authorizedReco.data) {
+      throw new Error("Cette recommandation n'appartient pas à ce voyage");
+    }
 
     // 1. Récupère le brief_fingerprint AVANT toute modification des préférences
     const { getCurrentBriefFingerprint } = await import("@/lib/krew/trip-service");
@@ -1275,6 +1299,7 @@ export const selectRecommendation = createServerFn({ method: "POST" })
       .from("recommendations")
       .update({ is_selected: true })
       .eq("id", data.recommendationId)
+      .eq("trip_id", data.tripId)
       .select("id, destinations(name)")
       .single();
     if (recoError) throw recoError;
@@ -1320,6 +1345,7 @@ export const selectRecommendation = createServerFn({ method: "POST" })
         .from("recommendations")
         .select("destination_id")
         .eq("id", data.recommendationId)
+        .eq("trip_id", data.tripId)
         .maybeSingle();
       const chosenDestId = (chosen.data as any)?.destination_id as string | undefined;
       if (chosenDestId) {
@@ -1339,6 +1365,7 @@ export const selectRecommendation = createServerFn({ method: "POST" })
         .from("recommendations")
         .select("id, destination_id, score, budget")
         .eq("id", data.recommendationId)
+        .eq("trip_id", data.tripId)
         .maybeSingle();
       const tripRow = await supabase
         .from("trips")
@@ -2117,15 +2144,18 @@ export const cancelTrip = createServerFn({ method: "POST" })
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
-    if (!isTripAdmin(trip.data, userId))
-      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut annuler");
-
     if (data.hardDelete) {
+      if (trip.data.owner_id !== userId) {
+        throw new Error("403 Forbidden: seul l'organisateur initial peut supprimer le voyage");
+      }
       // CASCADE sur participants, prefs, recos si FK ON DELETE CASCADE
       const { error } = await supabase.from("trips").delete().eq("id", data.tripId);
       if (error) throw error;
       return { ok: true, mode: "deleted" as const };
     }
+
+    if (!isTripAdmin(trip.data, userId))
+      throw new Error("403 Forbidden: seul l'organisateur ou co-organisateur peut annuler");
 
     const { error } = await supabase
       .from("trips")
@@ -2210,7 +2240,17 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Check trip-level rate limit for itinerary generation
+    const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data) throw new Error("Voyage introuvable");
+    const trip = tripRes.data as any;
+    if (!isTripAdmin(trip, userId)) {
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut générer le planning",
+      );
+    }
+
+    // Réserve le quota seulement après autorisation, pour qu'un tiers ne puisse pas l'épuiser.
     const isForced = data.force === true && process.env["ALLOW_FORCE_GENERATION"] === "true";
     if (!isForced) {
       const tripWindow = Number(process.env["RATE_LIMIT_ITINERARY_WINDOW_SEC"]) || 300;
@@ -2224,22 +2264,13 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
       });
     }
 
-    const [tripRes, partsRes, timePrefsRes] = await Promise.all([
-      supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle(),
+    const [partsRes, timePrefsRes] = await Promise.all([
       supabase.from("trip_participants").select("*").eq("trip_id", data.tripId),
       supabase
         .from("trip_transport_time_prefs")
         .select("participant_id, earliest_departure_time, latest_return_time")
         .eq("trip_id", data.tripId),
     ]);
-    if (tripRes.error) throw tripRes.error;
-    if (!tripRes.data) throw new Error("Voyage introuvable");
-    const trip = tripRes.data as any;
-    if (!isTripAdmin(trip, userId)) {
-      throw new Error(
-        "403 Forbidden: seul l'organisateur ou co-organisateur peut générer le planning",
-      );
-    }
     const participants = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
 
     const selected = await supabase
@@ -3221,17 +3252,6 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Check trip-level rate limit for logistics generation
-    const tripWindow = Number(process.env["RATE_LIMIT_LOGISTICS_WINDOW_SEC"]) || 120;
-    const tripMax = Number(process.env["RATE_LIMIT_LOGISTICS_MAX"]) || 1;
-    await assertNotRateLimited(supabase, {
-      tripId: data.tripId,
-      userId,
-      kind: "logistics",
-      windowSeconds: tripWindow,
-      maxCalls: tripMax,
-    });
-
     const tripRes = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
@@ -3258,6 +3278,17 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         "403 Forbidden: seuls les participants du voyage peuvent chercher les transports",
       );
     }
+
+    // Réserve le quota seulement après autorisation, pour qu'un tiers ne puisse pas l'épuiser.
+    const tripWindow = Number(process.env["RATE_LIMIT_LOGISTICS_WINDOW_SEC"]) || 120;
+    const tripMax = Number(process.env["RATE_LIMIT_LOGISTICS_MAX"]) || 1;
+    await assertNotRateLimited(supabase, {
+      tripId: data.tripId,
+      userId,
+      kind: "logistics",
+      windowSeconds: tripWindow,
+      maxCalls: tripMax,
+    });
 
     const selected = await supabase
       .from("recommendations")
@@ -4457,19 +4488,25 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
 
     // 1. Fetch trip and its itinerary
     const tripRes = await supabase
       .from("trips")
       .select(
-        "group_itinerary, group_logistics, event_type, celebrated_person, has_star, star_user_id",
+        "owner_id, co_organizer_id, group_itinerary, group_logistics, event_type, celebrated_person, has_star, star_user_id",
       )
       .eq("id", data.tripId)
       .maybeSingle();
 
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
+    if (!isTripAdmin(tripRes.data, userId)) {
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut préparer les tâches",
+      );
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const itinerary = (tripRes.data as any).group_itinerary;
     if (!itinerary || !Array.isArray(itinerary.days)) {
@@ -4635,14 +4672,14 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
     }
 
     if (existingTasksToUpdate.length > 0) {
-      const { error: updateErr } = await supabase
+      const { error: updateErr } = await supabaseAdmin
         .from("trip_tasks" as any)
         .upsert(existingTasksToUpdate, { onConflict: "trip_id,slot_id" });
       if (updateErr) throw updateErr;
     }
 
     if (newTasksToInsert.length > 0) {
-      const { error: insertErr } = await supabase
+      const { error: insertErr } = await supabaseAdmin
         .from("trip_tasks" as any)
         .insert(newTasksToInsert);
       if (insertErr) throw insertErr;
@@ -4671,7 +4708,7 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
       .filter(Boolean);
 
     if (orphanTaskIds.length > 0) {
-      const { error: deleteErr } = await supabase
+      const { error: deleteErr } = await supabaseAdmin
         .from("trip_tasks" as any)
         .delete()
         .eq("trip_id", data.tripId)
@@ -4680,7 +4717,7 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
     }
 
     // Verify actual database persistence of generated tasks
-    const { count: persistedCount, error: countErr } = await supabase
+    const { count: persistedCount, error: countErr } = await supabaseAdmin
       .from("trip_tasks" as any)
       .select("id", { count: "exact", head: true })
       .eq("trip_id", data.tripId);
@@ -4729,7 +4766,7 @@ export const reassignTask = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
 
     // 1. Récupérer la tâche et son trip_id
     const taskRes = await supabase
@@ -4741,6 +4778,18 @@ export const reassignTask = createServerFn({ method: "POST" })
     if (taskRes.error) throw taskRes.error;
     if (!taskRes.data) throw new Error("Tâche introuvable");
     const task = taskRes.data as any;
+
+    const tripRes = await supabase
+      .from("trips")
+      .select("id, owner_id, co_organizer_id")
+      .eq("id", task.trip_id)
+      .maybeSingle();
+    if (tripRes.error) throw tripRes.error;
+    if (!tripRes.data || !isTripAdmin(tripRes.data, userId)) {
+      throw new Error(
+        "403 Forbidden: seul l'organisateur ou co-organisateur peut réassigner une tâche",
+      );
+    }
 
     // 2. Si participantId !== null, vérifier sa validité
     if (data.participantId !== null) {
@@ -4767,7 +4816,8 @@ export const reassignTask = createServerFn({ method: "POST" })
     }
 
     // 3. Effectuer la réassignation
-    const { error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("trip_tasks" as any)
       .update({
         assigned_participant_id: data.participantId,
