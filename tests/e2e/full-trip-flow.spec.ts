@@ -113,7 +113,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await waitForTripHub(participantPage, tripId!);
   await participantContext.close();
 
-  await page.goto(`/trips/${tripId}`);
+  await page.goto(`/trips/${tripId}?view=voyage`);
   await handleNormalUserUi(page);
 
   stage = "lock-dates";
@@ -161,7 +161,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
     await page.goto("/dashboard");
     await handleNormalUserUi(page);
     await expect(page.getByText(tripName, { exact: false }).first()).toBeVisible();
-    await page.goto(`/trips/${tripId}`);
+    await page.goto(`/trips/${tripId}?view=voyage`);
     await handleNormalUserUi(page);
     await expect(page.locator("#hub-profile").getByText(/Profil validé/).first()).toBeVisible();
     await expect(page.locator("#hub-dates").getByText("Dates validées", { exact: true })).toBeVisible();
