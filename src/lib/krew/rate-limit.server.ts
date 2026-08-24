@@ -29,7 +29,7 @@ export async function assertNotRateLimited(
 ): Promise<void> {
   const { tripId, userId, kind, windowSeconds, maxCalls, isUserCheck = false } = options;
 
-  const { data, error } = await supabaseAdmin.rpc("consume_generation_rate_limit_server", {
+  const { data, error } = await (supabaseAdmin as any).rpc("consume_generation_rate_limit_server", {
     p_trip_id: tripId,
     p_user_id: userId,
     p_kind: kind,
@@ -61,7 +61,7 @@ export async function releaseRateLimit(
   _supabase: SupabaseClient,
   options: Pick<RateLimitOptions, "tripId" | "userId" | "kind">,
 ): Promise<void> {
-  const { error } = await supabaseAdmin.rpc("release_generation_rate_limit_server", {
+  const { error } = await (supabaseAdmin as any).rpc("release_generation_rate_limit_server", {
     p_trip_id: options.tripId,
     p_user_id: options.userId,
     p_kind: options.kind,
