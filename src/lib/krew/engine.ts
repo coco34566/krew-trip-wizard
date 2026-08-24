@@ -1613,14 +1613,6 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
                 ? "estimated"
                 : "provider";
 
-      if (ctx.hasBudgetVeto && ctx.vetoBudgetMax != null && totalPerPerson > ctx.vetoBudgetMax) {
-        const isLodgingVerified = priceSourceAccommodation === "provider";
-        const isTransportVerified = priceSourceTransport === "provider";
-        if (isLodgingVerified && isTransportVerified) {
-          continue;
-        }
-      }
-
       const budget: BudgetBreakdown & { configuration: AccommodationConfig } = {
         transport: Math.round(transport),
         transportGroup: Math.round(transportGroup),
@@ -1962,7 +1954,7 @@ export function buildProposals(catalog: TravelCatalog, ctx: ScoringContext, limi
       if (!hardBudgetFits && hardCap != null)
         matchReasons.push(
           ctx.hasBudgetVeto
-            ? `Hors plafond veto budget (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`
+            ? `⚠️ Risque de dépasser le budget maximum indiqué par un participant (${hardCap} €) — total estimé ~${Math.round(totalPerPerson)} €`
             : `Hors budget du plus serré (${hardCap} €) — total ~${Math.round(totalPerPerson)} €`,
         );
       if (ctx.hasBudgetVeto && hardBudgetFits)
