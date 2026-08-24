@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildDiscoveryQueries,
   normalizeSearchCandidates,
@@ -32,6 +32,7 @@ import {
   resolveSearchIntentLocation,
   clearIntentLocationCache,
   convertIntentToPlaceRequirements,
+  buildBasePoolKey,
   buildPoolKey,
   rankGeoapifyCandidates,
   mergeUniquePlacesById,
@@ -89,10 +90,34 @@ const candidate: ActivityCandidate = {
   groundingSources: [],
 };
 
+const restoreEnv = (key: string, value: string | undefined) => {
+  if (value === undefined) {
+    delete process.env[key];
+    return;
+  }
+  process.env[key] = value;
+};
+
+const providerEnv = {
+  GEMINI_API_KEY: process.env["GEMINI_API_KEY"],
+  GEOAPIFY_API_KEY: process.env["GEOAPIFY_API_KEY"],
+  TAVILY_API_KEY: process.env["TAVILY_API_KEY"],
+};
+
+beforeEach(() => {
+  delete process.env["GEMINI_API_KEY"];
+  delete process.env["GEOAPIFY_API_KEY"];
+  delete process.env["TAVILY_API_KEY"];
+});
+
+afterAll(() => {
+  restoreEnv("GEMINI_API_KEY", providerEnv.GEMINI_API_KEY);
+  restoreEnv("GEOAPIFY_API_KEY", providerEnv.GEOAPIFY_API_KEY);
+  restoreEnv("TAVILY_API_KEY", providerEnv.TAVILY_API_KEY);
+});
+
 describe("Enrichissement des liens d'activités & classification des modes", () => {
   it("classifyActivityMode classifie correctement les 3 besoins fonctionnels", () => {
-    const { classifyActivityMode } = require("../activity-ai.server");
-
     expect(classifyActivityMode({ kind: "internal", label: "Jeu de la mariée" })).toBe("self_guided_group");
     expect(classifyActivityMode({ category: "jeu_groupe", label: "Quiz" })).toBe("self_guided_group");
     expect(classifyActivityMode({ label: "Balade dans le centre historique" })).toBe("free_exploration");
@@ -101,8 +126,6 @@ describe("Enrichissement des liens d'activités & classification des modes", () 
   });
 
   it("resolveActivityResourceUrl n'infère pas 'official' ou 'booking' uniquement d'après le domaine", () => {
-    const { resolveActivityResourceUrl } = require("../activity-ai.server");
-
     // Sans hint explicit, par défaut website si HTTPS valide
     expect(resolveActivityResourceUrl("https://parc-national.fr/site")).toEqual({
       url: "https://parc-national.fr/site",
@@ -178,8 +201,6 @@ describe("Enrichissement des liens d'activités & classification des modes", () 
   });
 
   it("prouve que self_guided_group avec une ressource ideas et free_exploration ont verified = false", () => {
-    const { resolveActivityResourceUrl } = require("../activity-ai.server");
-
     // self_guided_group avec ressource
     const ideasLink = resolveActivityResourceUrl("https://idees-evjf.fr/regles-jeu-mariee", { kindHint: "ideas" });
     const selfGuidedSlot = {
@@ -244,7 +265,7 @@ describe("Enrichissement des liens d'activités & classification des modes", () 
       expect(gameRes).toBe("https://idees-evjf.fr/regles-jeu-mariee");
     } finally {
       global.fetch = originalFetch;
-      process.env["TAVILY_API_KEY"] = origTavily;
+      restoreEnv("TAVILY_API_KEY", origTavily);
     }
   });
 });
@@ -336,7 +357,7 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Obligatoires 1 
       expect(resolved?.categories).toContain("leisure.spa");
     } finally {
       globalThis.fetch = originalFetch;
-      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+      restoreEnv("GEOAPIFY_API_KEY", oldApiKey);
     }
   });
 
@@ -455,7 +476,7 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Complémentaire
       expect(resolved?.website).toBe("https://szechenyibath.hu/official-booking");
     } finally {
       globalThis.fetch = originalFetch;
-      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+      restoreEnv("GEOAPIFY_API_KEY", oldApiKey);
     }
   });
 
@@ -497,7 +518,7 @@ describe("Correctifs Résolution Lieux Réels Planning — Tests Complémentaire
       expect(resolved?.website).toBe("https://szechenyibath.hu/real-site");
     } finally {
       globalThis.fetch = originalFetch;
-      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+      restoreEnv("GEOAPIFY_API_KEY", oldApiKey);
     }
   });
 
@@ -597,7 +618,7 @@ describe("Durcissement URLs Gemini & Fallback Tavily — Tests Obligatoires E, F
       expect(resolved?.website).toBe("https://szechenyibath.hu/official-booking");
     } finally {
       globalThis.fetch = originalFetch;
-      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+      restoreEnv("GEOAPIFY_API_KEY", oldApiKey);
     }
   });
 
@@ -639,7 +660,7 @@ describe("Durcissement URLs Gemini & Fallback Tavily — Tests Obligatoires E, F
       expect(resolved?.website).toBe("https://szechenyibath.hu/");
     } finally {
       globalThis.fetch = originalFetch;
-      process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+      restoreEnv("GEOAPIFY_API_KEY", oldApiKey);
     }
   });
 
@@ -866,7 +887,7 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     delete process.env["GEMINI_API_KEY"];
 
     const enriched = await geminiEnrichSkeleton(skeleton, input());
-    process.env["GEMINI_API_KEY"] = origKey;
+    restoreEnv("GEMINI_API_KEY", origKey);
 
     expect(enriched.usedLlm).toBe(false);
     expect(enriched.enrichedSkeleton.days.length).toBe(skeleton.days.length);
@@ -882,7 +903,7 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
       latitude: 45.9,
     });
 
-    process.env["GEOAPIFY_API_KEY"] = origKey;
+    restoreEnv("GEOAPIFY_API_KEY", origKey);
 
     expect(places).toEqual([]);
   });
@@ -961,7 +982,7 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
       expect(res.usedLlm).toBe(true);
     } finally {
       global.fetch = originalFetch;
-      process.env["GEMINI_API_KEY"] = origKey;
+      restoreEnv("GEMINI_API_KEY", origKey);
     }
   });
 
@@ -1440,7 +1461,7 @@ describe("Pipeline Planning Gemini & Backups Contractuels", () => {
       expect(res.enrichedSkeleton.backups?.length).toBe(1);
       expect(res.enrichedSkeleton.backups?.[0]?.label).toBe("Paddle sur le lac");
       expect(res.enrichedSkeleton.backups?.[0]?.suggestedPlace).toBe("Paddle Club");
-      process.env["GEMINI_API_KEY"] = origKey;
+      restoreEnv("GEMINI_API_KEY", origKey);
     } finally {
       global.fetch = originalFetch;
     }
@@ -1777,12 +1798,10 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
   });
 
   it("TEST 14 : place_required conserve son comportement grounded", () => {
-    const { shouldResolveWithPlaceProvider } = require("../activity-ai.server");
     expect(shouldResolveWithPlaceProvider({ kind: "place_required", activityMode: "bookable" })).toBe(true);
   });
 
   it("TEST 15 : free_exploration et self_guided_group conservent leur comportement actuel", () => {
-    const { classifyActivityMode } = require("../activity-ai.server");
     expect(classifyActivityMode({ kind: "internal", category: "jeu_groupe", label: "Blind test" })).toBe("self_guided_group");
     expect(classifyActivityMode({ kind: "place_required", category: "culture", label: "Balade dans le centre historique" })).toBe("free_exploration");
   });
@@ -2171,7 +2190,6 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
   });
 
   it("TEST POI 6 : IntentCenter POI rejeté -> base pool destination reste utilisable", () => {
-    const { buildBasePoolKey } = require("../geoapify.server");
     const req = convertIntentToPlaceRequirements("culture", "culture", "Château de Buda", [], false, [], null);
     expect(req.intentCenter).toBeNull();
     const baseKey = buildBasePoolKey(req);
@@ -2414,7 +2432,7 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(resolved).toBeNull();
       } finally {
         globalThis.fetch = originalFetch;
-        process.env["GEOAPIFY_API_KEY"] = oldApiKey;
+        restoreEnv("GEOAPIFY_API_KEY", oldApiKey);
       }
     });
   });
@@ -3775,7 +3793,7 @@ describe("Correctifs PR #133 Grounding Geoapify — Tests Obligatoires 1 à 15",
         expect(backupsSchema.properties.estimatedPriceCurrency.nullable).toBe(true);
       } finally {
         global.fetch = originalFetch;
-        process.env["GEMINI_API_KEY"] = origKey;
+        restoreEnv("GEMINI_API_KEY", origKey);
       }
     });
 
