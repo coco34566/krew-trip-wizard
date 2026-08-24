@@ -81,24 +81,24 @@ function MemoriesPage(){
           {photos.length > 0 && (
             <>
               <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => download(false)} disabled={downloading}>
-                <Download className="size-3.5 mr-1" /> Toutes ({photos.length})
+                <Download className="size-3.5 shrink-0" /> Toutes ({photos.length})
               </Button>
               <Button size="sm" className="rounded-xl text-xs font-medium" onClick={() => download(true)} disabled={downloading}>
-                <KrewIcon name="favorite" tone="cream" size="sm" className="size-3.5 mr-1" /> Sélection KREW ({selection.length})
+                <KrewIcon name="favorite" tone="cream" size="sm" className="size-3.5 shrink-0" /> Sélection KREW ({selection.length})
               </Button>
               <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => setShowAlbum(true)}>
-                <BookOpen className="size-3.5 mr-1" /> Album
+                <BookOpen className="size-3.5 shrink-0" /> Album
               </Button>
             </>
           )}
           {photos.length > 0 && (
             <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => setShowPartner(true)}>
-              <ExternalLink className="size-3.5 mr-1" /> Imprimer
+              <ExternalLink className="size-3.5 shrink-0" /> Imprimer
             </Button>
           )}
           {permission !== "prompt" && (
             <Button variant="ghost" size="sm" className="rounded-xl text-xs" onClick={() => { localStorage.removeItem("krew_photo_permission"); setPermission("prompt"); }}>
-              <Settings className="size-3.5" />
+              <Settings className="size-3.5 shrink-0" />
             </Button>
           )}
         </div>
@@ -121,7 +121,7 @@ function MemoriesPage(){
         </div>
         <div className="pt-1">
           <Button size="sm" className="rounded-xl font-medium" disabled={uploading} onClick={() => permission === "granted" ? fileInputRef.current?.click() : setShowModal(true)}>
-            {uploading ? <><Loader2 className="size-3.5 animate-spin mr-1.5" /> Importation...</> : "Choisir des photos"}
+            {uploading ? <><Loader2 className="size-3.5 animate-spin shrink-0" /> Importation...</> : "Choisir des photos"}
           </Button>
         </div>
       </section>
@@ -235,7 +235,7 @@ function MemoriesPage(){
             <div className="p-5 sm:p-7 border-t border-border/50 flex flex-wrap justify-end gap-2">
               <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setShowAlbum(false)}>Fermer</Button>
               <Button size="sm" className="rounded-xl font-medium" onClick={() => download(true)} disabled={downloading}>
-                <Download className="size-3.5 mr-1.5" /> Télécharger la sélection
+                <Download className="size-3.5 shrink-0" /> Télécharger la sélection
               </Button>
             </div>
           </div>

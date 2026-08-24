@@ -669,15 +669,15 @@ function StarQuestionnaire() {
 
         <div className="pt-2 pb-12">
           <Button
-            className="w-full h-12 rounded-xl text-base font-medium"
+            className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
             size="lg"
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}
           >
             {mutation.isPending ? (
-              <Loader2 className="animate-spin mr-2" />
+              <Loader2 className="animate-spin shrink-0" />
             ) : (
-              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 mr-2" />
+              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
             {data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
           </Button>

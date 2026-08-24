@@ -470,7 +470,7 @@ function TripRecapPage() {
                         })
                       }
                     >
-                      <KrewIcon name="time" tone="plum" size="sm" className="size-3.5 mr-1" />
+                      <KrewIcon name="time" tone="plum" size="sm" className="size-3.5 shrink-0" />
                       {watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
                     </Button>
                   </div>

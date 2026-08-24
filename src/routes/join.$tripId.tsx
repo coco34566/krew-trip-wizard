@@ -245,12 +245,12 @@ function JoinTripPage() {
 
               <Button
                 size="lg"
-                className="w-full min-h-[48px] rounded-xl font-medium text-base"
+                className="w-full min-h-[48px] h-auto rounded-xl font-medium text-base whitespace-normal text-center leading-tight py-2.5"
                 disabled={joining}
                 onClick={handleJoin}
               >
                 {joining ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin shrink-0" />
                 ) : null}
                 {isAuthenticated
                   ? "Rejoindre et indiquer mes dispos"

@@ -260,7 +260,7 @@ export function PackingListCard({
           <option value="group">Pour le groupe</option>
         </select>
         <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl text-xs font-medium" onClick={addManual}>
-          <KrewIcon name="plus" size="sm" className="size-3.5 mr-1" /> Ajouter
+          <KrewIcon name="plus" size="sm" className="size-3.5 shrink-0" /> Ajouter
         </Button>
       </div>
     </section>

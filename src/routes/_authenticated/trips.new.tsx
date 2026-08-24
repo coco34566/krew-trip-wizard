@@ -332,11 +332,11 @@ function NewTripPage() {
 
         {/* Actions */}
         <div className="pt-4">
-          <Button type="submit" size="lg" className="w-full sm:w-auto min-h-[48px] rounded-xl text-base font-medium px-8" disabled={submitting}>
+          <Button type="submit" size="lg" className="w-full sm:w-auto min-h-[48px] h-auto rounded-xl text-base font-medium px-6 sm:px-8 py-2.5 whitespace-normal text-center leading-tight" disabled={submitting}>
             {submitting ? (
-              <Loader2 className="animate-spin size-4 mr-2" />
+              <Loader2 className="animate-spin size-4 shrink-0" />
             ) : (
-              <KrewIcon name="invite" tone="plum" size="sm" className="size-4 mr-2" />
+              <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
             Créer et inviter le groupe
           </Button>

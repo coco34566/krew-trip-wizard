@@ -493,10 +493,10 @@ function AvailabilityPage() {
         <Button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending || availableDates.length === 0 || datesLocked}
-          className="w-full h-12 rounded-xl text-base font-medium"
+          className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
           size="lg"
         >
-          {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+          {mutation.isPending ? <Loader2 className="size-4 animate-spin shrink-0" /> : null}
           {data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}
         </Button>
         {availableDates.length === 0 ? (

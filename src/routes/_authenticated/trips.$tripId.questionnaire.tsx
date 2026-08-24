@@ -768,11 +768,11 @@ function ParticipantQuestionnaire() {
         </Section>
 
         <div className="pt-2 pb-12">
-          <Button onClick={handleSubmit} disabled={submitting} className="w-full h-12 rounded-xl text-base font-medium" size="lg">
+          <Button onClick={handleSubmit} disabled={submitting} className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5" size="lg">
             {submitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
             ) : (
-              <KrewIcon name="preferences" tone="plum" size="sm" className="mr-2 size-4" />
+              <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
             {isEditing ? "Enregistrer mes modifications" : "Envoyer mes réponses"}
           </Button>

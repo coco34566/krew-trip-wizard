@@ -1988,6 +1988,7 @@ function TripDetail() {
 
             return (
               <KrewJourneyTimeline
+                tripId={tripId}
                 tripName={trip.name}
                 steps={timelineSteps}
                 annotationText="Prochaine étape"
@@ -2351,11 +2352,11 @@ function TripDetail() {
         ) : data.isOwner && (readiness?.profile.questionnairesReady || profile?.legacyBypass) ? (
           <div className="pt-2">
             <Button
-              className="rounded-xl font-medium h-11 text-sm sm:text-base"
+              className="rounded-xl font-medium h-11 text-sm sm:text-base whitespace-normal text-center leading-tight"
               disabled={validateProfileMutation.isPending || selectedConceptIds.length < 1}
               onClick={() => validateProfileMutation.mutate()}
             >
-              {validateProfileMutation.isPending ? <Loader2 className="animate-spin size-4 mr-1.5" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4 mr-1.5" />}
+              {validateProfileMutation.isPending ? <Loader2 className="animate-spin size-4 shrink-0" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4 shrink-0" />}
               Valider notre profil de voyage
             </Button>
           </div>
@@ -2411,7 +2412,7 @@ function TripDetail() {
               </div>
               {data.isOwner ? (
                 <Button
-                  className="rounded-xl font-medium"
+                  className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
                   onClick={() => regenerateMutation.mutate(undefined)}
                   disabled={
                     regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
@@ -2423,9 +2424,9 @@ function TripDetail() {
                   }
                 >
                   {regenerateMutation.isPending ? (
-                    <Loader2 className="animate-spin size-4 mr-1.5" />
+                    <Loader2 className="animate-spin size-4 shrink-0" />
                   ) : (
-                    <KrewIcon name="destination" tone="plum" size="sm" className="size-4 mr-1.5" />
+                    <KrewIcon name="destination" tone="plum" size="sm" className="size-4 shrink-0" />
                   )}
                   {recommendations.length ? "Voir d’autres propositions" : "Générer les propositions"}
                 </Button>
@@ -2671,14 +2672,14 @@ function TripDetail() {
             </div>
             {data.isOwner ? (
               <Button
-                className="rounded-xl font-medium"
+                className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
                 disabled={hotelLogisticsMutation.isPending}
                 onClick={() => hotelLogisticsMutation.mutate()}
               >
                 {hotelLogisticsMutation.isPending ? (
-                  <Loader2 className="animate-spin size-4 mr-1.5" />
+                  <Loader2 className="animate-spin size-4 shrink-0" />
                 ) : (
-                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-4 mr-1.5" />
+                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-4 shrink-0" />
                 )}
                 {(trip as any).group_logistics?.hotels?.length
                   ? "Actualiser les offres"
@@ -2933,14 +2934,14 @@ function TripDetail() {
           </div>
           <Button
             variant="outline"
-              className="rounded-xl text-sm font-medium"
+            className="rounded-xl text-sm font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
             disabled={!destinationSelected || logisticsMutation.isPending}
             onClick={() => logisticsMutation.mutate()}
           >
             {logisticsMutation.isPending ? (
-              <Loader2 className="animate-spin size-4 mr-1.5" />
+              <Loader2 className="animate-spin size-4 shrink-0" />
             ) : (
-              <KrewIcon name="transport" tone="plum" size="sm" className="size-4 mr-1.5" />
+              <KrewIcon name="transport" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
             {logisticsMutation.isPending ? "Recherche en cours…" : "Générer des propositions"}
           </Button>
@@ -3042,7 +3043,7 @@ function TripDetail() {
                                     })
                                   }
                                 >
-                                  <Check className="size-3 mr-0.5" />
+                                  <Check className="size-3 shrink-0" />
                                   Marquer comme réservé
                                 </Button>
                               )}
@@ -3171,14 +3172,14 @@ function TripDetail() {
             </div>
             {data.isOwner ? (
               <Button
-                className="rounded-xl font-medium"
+                className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
                 disabled={itineraryMutation.isPending}
                 onClick={() => itineraryMutation.mutate()}
               >
                 {itineraryMutation.isPending ? (
-                  <Loader2 className="animate-spin size-4 mr-1.5" />
+                  <Loader2 className="animate-spin size-4 shrink-0" />
                 ) : (
-                  <KrewIcon name="planning" tone="plum" size="sm" className="size-4 mr-1.5" />
+                  <KrewIcon name="planning" tone="plum" size="sm" className="size-4 shrink-0" />
                 )}
                 {(trip as any).group_itinerary?.days?.length
                   ? "Régénérer tout le planning"

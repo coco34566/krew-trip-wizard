@@ -141,11 +141,11 @@ function AccountPage() {
           <Button
             type="button"
             variant="destructive"
-            className="mt-4 min-h-[44px] rounded-xl"
+            className="mt-4 min-h-[44px] h-auto rounded-xl whitespace-normal text-center leading-tight py-2.5"
             onClick={() => setOpen(true)}
             disabled={deleting}
           >
-            <Trash2 className="mr-2 size-4" />
+            <Trash2 className="size-4 shrink-0" />
             Supprimer mon compte
           </Button>
         </section>
@@ -164,7 +164,7 @@ function AccountPage() {
               Annuler
             </Button>
             <Button type="button" variant="destructive" onClick={handleDeleteAccount} disabled={deleting}>
-              {deleting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Trash2 className="mr-2 size-4" />}
+              {deleting ? <Loader2 className="size-4 animate-spin shrink-0" /> : <Trash2 className="size-4 shrink-0" />}
               {deleting ? "Suppression…" : "Supprimer définitivement"}
             </Button>
           </DialogFooter>
