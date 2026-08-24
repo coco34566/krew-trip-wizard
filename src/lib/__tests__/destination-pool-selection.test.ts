@@ -73,8 +73,13 @@ describe("destination candidate pool selection", () => {
         if (table === "recommendations") {
           return {
             update: (_payload: any) => ({
-              eq: (_field1: string, _value1: any) => ({
-                eq: async (_field2: string, _value2: any) => ({ data: null, error: null }),
+              eq: (_field: string, _value: any) => ({
+                select: (_columns: string) => ({
+                  single: async () => ({
+                    data: { id: recommendationId, destinations: { name: "Nice" } },
+                    error: null,
+                  }),
+                }),
               }),
             }),
             select: (_columns: string) => ({
