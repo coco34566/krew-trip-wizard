@@ -28,6 +28,7 @@ test.describe("KREW golden customer journey", () => {
   });
 
   test("prepared trip exercises accommodation, transport and planning through the real UI", async ({ page }, testInfo) => {
+    test.skip(process.env.KREW_E2E_API_MODE !== "real", "Live provider journey requires explicit KREW_E2E_API_MODE=real.");
     test.skip(!qa.existingTripId, "Set KREW_E2E_EXISTING_TRIP_ID to a disposable trip with locked dates and a selected destination.");
     test.skip(testInfo.project.name !== "mobile-safari", "Run the API-consuming golden path once only to keep provider usage deterministic.");
     const assertDiagnostics = installDiagnostics(page, testInfo);

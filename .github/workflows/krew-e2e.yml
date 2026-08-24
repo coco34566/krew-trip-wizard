@@ -11,6 +11,19 @@ on:
         description: "Disposable prepared trip id for Destination → Planning checks"
         required: false
         type: string
+      api_mode:
+        description: "safe = no external generation; real = live Gemini/Tavily/provider calls"
+        required: true
+        default: safe
+        type: choice
+        options:
+          - safe
+          - real
+      confirm_live_api_calls:
+        description: "WARNING: confirm that real mode may consume paid API quota"
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   golden-path:
@@ -23,12 +36,25 @@ jobs:
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
       KREW_E2E_EXISTING_TRIP_ID: ${{ inputs.existing_trip_id }}
+      KREW_E2E_API_MODE: ${{ inputs.api_mode }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+      - name: Enforce API-call safety gate
+        shell: bash
+        run: |
+          if [ "$KREW_E2E_API_MODE" = "real" ] && [ "${{ inputs.confirm_live_api_calls }}" != "true" ]; then
+            echo "::error::Real E2E mode can consume paid API quota. Re-run with confirm_live_api_calls enabled."
+            exit 1
+          fi
+          if [ "$KREW_E2E_API_MODE" = "real" ]; then
+            echo "::warning::LIVE API MODE: this run may call Gemini, Tavily and configured travel providers. Retries are disabled."
+          else
+            echo "SAFE API MODE: provider-generating stages are disabled; no paid API call is expected."
+          fi
       - name: Run customer journey
         run: npm run test:e2e
       - name: Upload Playwright report
