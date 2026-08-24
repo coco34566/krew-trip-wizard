@@ -207,20 +207,20 @@ export function PackingListCard({
           Retrouve ici ce qu’il faut prévoir pour le voyage.
         </p>
       </div>
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-3 bg-surface/40 rounded-2xl p-4.5 border border-border/40">
-          <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Mes affaires</h3>
+      <div className="grid gap-5 md:grid-cols-2">
+        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
+          <h3 className="font-sans font-semibold text-base text-foreground">Mes affaires</h3>
           {renderItems(result.personal)}
         </div>
-        <div className="space-y-3 bg-sage/12 rounded-2xl p-4.5 border border-border/40">
-          <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Pour le groupe</h3>
+        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
+          <h3 className="font-sans font-semibold text-base text-foreground">Pour le groupe</h3>
           {renderItems(result.group, true)}
         </div>
-        <div className="space-y-3 bg-background rounded-2xl p-4.5 border border-border/40">
-          <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">Courses</h3>
+        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
+          <h3 className="font-sans font-semibold text-base text-foreground">Courses</h3>
           <ul className="divide-y divide-border/40 text-sm">
             {result.groceries.map((g) => (
-              <li key={g.id} className="py-2.5 flex items-center justify-between">
+              <li key={g.id} className="py-2 flex items-center justify-between">
                 <span className="font-medium text-foreground">
                   {g.label}
                   {g.optional ? " (facultatif)" : ""}
@@ -229,11 +229,11 @@ export function PackingListCard({
             ))}
           </ul>
         </div>
-        <div className="space-y-3 bg-surface/40 rounded-2xl p-4.5 border border-border/40">
-          <h3 className="font-sans font-semibold text-base text-foreground border-b border-border/50 pb-2">À faire</h3>
+        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
+          <h3 className="font-sans font-semibold text-base text-foreground">À faire</h3>
           <ul className="divide-y divide-border/40 text-sm">
             {result.tasks.map((t) => (
-              <li key={t.id} className="py-2.5 flex items-center justify-between">
+              <li key={t.id} className="py-2 flex items-center justify-between">
                 <span className="font-medium text-foreground">{t.label}</span>
                 <span className="text-xs text-muted-foreground">
                   À attribuer
@@ -260,7 +260,7 @@ export function PackingListCard({
           <option value="group">Pour le groupe</option>
         </select>
         <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl text-xs font-medium" onClick={addManual}>
-          <KrewIcon name="plus" size="sm" className="size-3.5 mr-1" /> Ajouter
+          <KrewIcon name="plus" size="sm" className="size-3.5 shrink-0" /> Ajouter
         </Button>
       </div>
     </section>

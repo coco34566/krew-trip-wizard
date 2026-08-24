@@ -104,7 +104,7 @@ export function CookieConsent() {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300 md:left-auto md:right-4 md:max-w-md">
-      <div className="space-y-4 rounded-xl border border-border/60 bg-card p-5 shadow-sm">
+      <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-5 shadow-2xs">
         <header className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Shield className="size-4" />
@@ -158,22 +158,22 @@ export function CookieConsent() {
         <footer className="flex flex-col gap-2 pt-1">
           {showCustomize ? (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="w-1/2 text-xs" onClick={() => setShowCustomize(false)}>
+              <Button variant="outline" size="sm" className="w-1/2 rounded-xl h-10 text-xs" onClick={() => setShowCustomize(false)}>
                 Retour
               </Button>
-              <Button size="sm" className="w-1/2 text-xs font-medium" onClick={() => saveConsent(consent)}>
+              <Button size="sm" className="w-1/2 rounded-xl h-10 text-xs font-medium" onClick={() => saveConsent(consent)}>
                 Enregistrer mes choix
               </Button>
             </div>
           ) : (
             <>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="w-1/2 text-xs" onClick={() => saveConsent(emptyOptionalConsent())}>
+                <Button variant="outline" size="sm" className="w-1/2 rounded-xl h-10 text-xs" onClick={() => saveConsent(emptyOptionalConsent())}>
                   Tout refuser
                 </Button>
                 <Button
                   size="sm"
-                  className="w-1/2 text-xs font-medium"
+                  className="w-1/2 rounded-xl h-10 text-xs font-medium"
                   onClick={() => saveConsent({
                     analytics: true,
                     personalization: true,

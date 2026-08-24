@@ -66,8 +66,8 @@ function SelectableOption({
       className={cn(
         "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
         active
-          ? "border-primary bg-primary/5 text-foreground"
-          : "border-border bg-background text-foreground/80 hover:border-primary/40",
+          ? "border-primary/40 bg-primary/5 text-foreground"
+          : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
         className,
       )}
     >
@@ -88,7 +88,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className={cn("pb-8 mb-8 space-y-4", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-7` : "border-b border-border/50")}>
+    <section className={cn("pb-6 mb-6 space-y-4", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-6` : "border-b border-border/50")}>
       <div>
         <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">{title}</h2>
         {hint ? <p className="mt-1 text-sm text-muted-foreground font-sans">{hint}</p> : null}
@@ -345,7 +345,7 @@ function ParticipantQuestionnaire() {
       <div className="space-y-3 relative">
         <div className="flex items-start justify-between gap-4">
           <div className="relative inline-block flex-1">
-            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+            <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
               {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »
             </h1>
             <KrewMark
@@ -485,7 +485,6 @@ function ParticipantQuestionnaire() {
         <Section
           title="Destination & cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
-          bgClass="bg-sage/12"
         >
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Destination rêvée (optionnel)</Label>
@@ -665,7 +664,6 @@ function ParticipantQuestionnaire() {
         <Section
           title="Transport"
           hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation."
-          bgClass="bg-sage/12"
         >
           <div className="space-y-2">
             <Label htmlFor="departure" className="font-semibold block text-base text-foreground">Ville de départ * (ou code postal)</Label>
@@ -770,11 +768,11 @@ function ParticipantQuestionnaire() {
         </Section>
 
         <div className="pt-2 pb-12">
-          <Button onClick={handleSubmit} disabled={submitting} className="w-full h-12 rounded-xl text-base font-medium" size="lg">
+          <Button onClick={handleSubmit} disabled={submitting} className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5" size="lg">
             {submitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
             ) : (
-              <KrewIcon name="preferences" tone="plum" size="sm" className="mr-2 size-4" />
+              <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
             {isEditing ? "Enregistrer mes modifications" : "Envoyer mes réponses"}
           </Button>

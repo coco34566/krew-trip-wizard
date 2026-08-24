@@ -34,7 +34,7 @@ function MemoriesPage(){
  const upload=async(e:React.ChangeEvent<HTMLInputElement>)=>{const files=Array.from(e.target.files||[]);e.target.value="";if(!userId||!files.length){if(!userId&&files.length)toast.error("Tu dois être connecté pour importer une photo.");return;}setUploading(true);let added=0,duplicates=0;try{for(const file of files){if(!file.type.startsWith("image/")){toast.error(`${file.name} n'est pas une image prise en charge.`);continue;}const hash=await sha256File(file);const {data:dup,error:de}=await supabase.from("trip_photos" as any).select("id").eq("trip_id",tripId).eq("content_hash",hash).is("deleted_at",null).maybeSingle();if(de)throw de;if(dup){duplicates++;continue;}const id=crypto.randomUUID(),ext=file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg",path=`${tripId}/${userId}/${id}.${ext}`;const {error:ue}=await supabase.storage.from("trip-photos").upload(path,file,{contentType:file.type,upsert:false});if(ue)throw ue;const {error:ie}=await supabase.from("trip_photos" as any).insert({id,trip_id:tripId,owner_user_id:userId,storage_path:path,author:userName,likes:0,content_hash:hash,original_filename:file.name,mime_type:file.type,file_size_bytes:file.size});if(ie){await supabase.storage.from("trip-photos").remove([path]);throw ie;}added++;}await qc.invalidateQueries({queryKey:["trip-photos",tripId]});if(added)toast.success(`${added} photo(s) ajoutée(s) à l'album.`);if(duplicates)toast.info(`${duplicates} doublon(s) exact(s) ignoré(s).`);}catch(e){toast.error(`Impossible d'importer la photo : ${err(e)}`);}finally{setUploading(false);}};
 
  return (
-    <main className="mx-auto max-w-[1020px] px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
+    <main className="mx-auto max-w-[1020px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -55,7 +55,7 @@ function MemoriesPage(){
             <span className="text-xs font-semibold uppercase tracking-wider font-mono">Souvenirs</span>
           </div>
           <div className="relative inline-block z-10">
-            <h1 className="font-display text-[36px] sm:text-[44px] font-normal leading-tight text-foreground">
+            <h1 className="font-display text-[36px] sm:text-[48px] font-normal leading-tight text-foreground">
               L&apos;album du voyage
             </h1>
             <KrewMark
@@ -81,24 +81,24 @@ function MemoriesPage(){
           {photos.length > 0 && (
             <>
               <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => download(false)} disabled={downloading}>
-                <Download className="size-3.5 mr-1" /> Toutes ({photos.length})
+                <Download className="size-3.5 shrink-0" /> Toutes ({photos.length})
               </Button>
               <Button size="sm" className="rounded-xl text-xs font-medium" onClick={() => download(true)} disabled={downloading}>
-                <KrewIcon name="favorite" tone="cream" size="sm" className="size-3.5 mr-1" /> Sélection KREW ({selection.length})
+                <KrewIcon name="favorite" tone="cream" size="sm" className="size-3.5 shrink-0" /> Sélection KREW ({selection.length})
               </Button>
               <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => setShowAlbum(true)}>
-                <BookOpen className="size-3.5 mr-1" /> Album
+                <BookOpen className="size-3.5 shrink-0" /> Album
               </Button>
             </>
           )}
           {photos.length > 0 && (
             <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => setShowPartner(true)}>
-              <ExternalLink className="size-3.5 mr-1" /> Imprimer
+              <ExternalLink className="size-3.5 shrink-0" /> Imprimer
             </Button>
           )}
           {permission !== "prompt" && (
             <Button variant="ghost" size="sm" className="rounded-xl text-xs" onClick={() => { localStorage.removeItem("krew_photo_permission"); setPermission("prompt"); }}>
-              <Settings className="size-3.5" />
+              <Settings className="size-3.5 shrink-0" />
             </Button>
           )}
         </div>
@@ -121,7 +121,7 @@ function MemoriesPage(){
         </div>
         <div className="pt-1">
           <Button size="sm" className="rounded-xl font-medium" disabled={uploading} onClick={() => permission === "granted" ? fileInputRef.current?.click() : setShowModal(true)}>
-            {uploading ? <><Loader2 className="size-3.5 animate-spin mr-1.5" /> Importation...</> : "Choisir des photos"}
+            {uploading ? <><Loader2 className="size-3.5 animate-spin shrink-0" /> Importation...</> : "Choisir des photos"}
           </Button>
         </div>
       </section>
@@ -174,7 +174,7 @@ function MemoriesPage(){
 
       {showModal && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border/60 rounded-[24px] p-6 max-w-md space-y-4 shadow-lg">
+          <div className="bg-card border border-border/60 rounded-2xl p-6 max-w-md space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-xl font-normal text-foreground">Autorisation d&apos;import</h3>
               <button type="button" onClick={() => setShowModal(false)} aria-label="Fermer"><X className="size-4" /></button>
@@ -235,7 +235,7 @@ function MemoriesPage(){
             <div className="p-5 sm:p-7 border-t border-border/50 flex flex-wrap justify-end gap-2">
               <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setShowAlbum(false)}>Fermer</Button>
               <Button size="sm" className="rounded-xl font-medium" onClick={() => download(true)} disabled={downloading}>
-                <Download className="size-3.5 mr-1.5" /> Télécharger la sélection
+                <Download className="size-3.5 shrink-0" /> Télécharger la sélection
               </Button>
             </div>
           </div>
@@ -244,7 +244,7 @@ function MemoriesPage(){
 
       {showPartner && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-[24px] bg-card border border-border/60 p-6 space-y-5 shadow-lg">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border/60 p-6 space-y-5 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Prestataire externe</p>

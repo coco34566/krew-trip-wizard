@@ -83,7 +83,7 @@ function MonthGrid({
   }
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
+    <div className="rounded-2xl border border-border/40 bg-card p-3.5 shadow-none">
       <p className="mb-2 text-center text-sm font-semibold capitalize font-sans">{monthLabel(month)}</p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
@@ -303,7 +303,7 @@ function AvailabilityPage() {
         </p>
         <div className="flex items-start justify-between gap-4">
           <div className="relative inline-block flex-1">
-            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+            <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
               {data.trip.name}
             </h1>
             <KrewMark
@@ -342,7 +342,7 @@ function AvailabilityPage() {
       </div>
 
       {/* CALENDRIER DEVENU L'OBJET PRINCIPAL */}
-      <section className="w-full rounded-[24px] bg-background border border-border/50 p-6 space-y-6">
+      <section className="w-full rounded-[24px] bg-background border border-border/40 p-5 sm:p-6 space-y-6 shadow-none">
         <div>
           <h2 className="font-display text-xl font-normal text-foreground flex items-center gap-2">
             <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
@@ -363,8 +363,8 @@ function AvailabilityPage() {
             className={cn(
               "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition",
               paintMode === "available"
-                ? "border-lagoon bg-lagoon text-white"
-                : "border-border bg-background text-muted-foreground hover:border-lagoon/50",
+                ? "border-sage/40 bg-sage/20 text-primary font-semibold"
+                : "border-border bg-background text-muted-foreground hover:border-primary/25",
             )}
           >
             <span className="size-2.5 rounded-full bg-current" /> Je suis dispo
@@ -493,10 +493,10 @@ function AvailabilityPage() {
         <Button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending || availableDates.length === 0 || datesLocked}
-          className="w-full h-12 rounded-xl text-base font-medium"
+          className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
           size="lg"
         >
-          {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+          {mutation.isPending ? <Loader2 className="size-4 animate-spin shrink-0" /> : null}
           {data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}
         </Button>
         {availableDates.length === 0 ? (
@@ -508,10 +508,10 @@ function AvailabilityPage() {
 
       {/* Date verrouillée */}
       {datesLocked && lockedLabel ? (
-        <section className="mt-6 rounded-3xl border border-lagoon/40 bg-lagoon/10 p-5">
+        <section className="mt-6 rounded-3xl border border-sage/40 bg-sage/15 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">
-              <Lock className="mt-0.5 size-5 text-lagoon" />
+              <Lock className="mt-0.5 size-5 text-primary" />
               <div>
                 <h2 className="font-semibold">Date choisie (verrouillée)</h2>
                 <p className="mt-1 text-sm">

@@ -119,7 +119,7 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
       <Link
         to="/dashboard"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -130,7 +130,7 @@ function NewTripPage() {
       <div className="space-y-2 relative">
         <div className="flex items-start justify-between gap-4">
           <div className="relative inline-block flex-1">
-            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+            <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
               Créer un voyage
             </h1>
             <KrewMark
@@ -149,9 +149,9 @@ function NewTripPage() {
         <p className="text-sm text-muted-foreground font-sans pt-1">Juste l'essentiel pour démarrer.</p>
       </div>
 
-      <form onSubmit={onSubmit} className="pt-4">
+      <form onSubmit={onSubmit} className="pt-2">
         {/* Question 1: Nom du voyage */}
-        <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+        <div className="border-b border-border/50 pb-6 mb-6 space-y-2">
           <Label htmlFor="name" className="text-base font-semibold text-foreground">
             Nom du voyage
           </Label>
@@ -166,7 +166,7 @@ function NewTripPage() {
         </div>
 
         {/* Question 2: Prénom organisateur */}
-        <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+        <div className="border-b border-border/50 pb-6 mb-6 space-y-2">
           <Label htmlFor="orga" className="text-base font-semibold text-foreground">
             Ton prénom (organisateur)
           </Label>
@@ -183,7 +183,7 @@ function NewTripPage() {
         </div>
 
         {/* Question 3: Type d'événement */}
-        <div className="border-b border-border/50 pb-8 mb-8 space-y-4">
+        <div className="border-b border-border/50 pb-6 mb-6 space-y-4">
           <Label className="text-base font-semibold text-foreground block">Type d'événement</Label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {activeEventTypes.map((t) => {
@@ -197,8 +197,8 @@ function NewTripPage() {
                     "group relative overflow-hidden rounded-[14px] border text-left transition-all cursor-pointer",
                     imgUrl ? "p-0 min-h-[110px] flex flex-col justify-end" : "p-4",
                     eventType === t.value
-                      ? "border-primary bg-primary/5 text-foreground ring-2 ring-primary/20"
-                      : "border-border bg-background hover:border-primary/40 text-foreground/80",
+                      ? "border-primary/40 bg-primary/5 text-foreground"
+                      : "border-border bg-background hover:border-primary/25 text-foreground/80",
                   )}
                 >
                   {imgUrl ? (
@@ -210,7 +210,6 @@ function NewTripPage() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
                       <div className="relative p-3.5 z-10 text-white">
-                        <span className="text-base block mb-0.5">{t.emoji}</span>
                         <span className="font-semibold text-sm leading-tight block text-white drop-shadow-sm">
                           {t.label}
                         </span>
@@ -218,7 +217,6 @@ function NewTripPage() {
                     </>
                   ) : (
                     <>
-                      <span className="text-xl block mb-1">{t.emoji}</span>
                       <span className="font-medium text-sm leading-tight block">{t.label}</span>
                     </>
                   )}
@@ -228,27 +226,25 @@ function NewTripPage() {
           </div>
 
           <div className="pt-2 space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground block">
               À venir
             </span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-xl border border-border/30 bg-surface/20 p-3 sm:p-4 shadow-none flex flex-wrap gap-2 text-xs text-muted-foreground">
               {upcomingEventTypes.map((t) => (
-                <div
+                <span
                   key={t.value}
-                  aria-disabled="true"
-                  className="rounded-[14px] p-4 border border-border/50 bg-muted/30 text-muted-foreground/70 opacity-60 cursor-not-allowed select-none"
+                  className="inline-flex items-center px-2.5 py-1 rounded-lg bg-background/50 border border-border/30 text-muted-foreground/80"
                 >
-                  <span className="text-xl block mb-1 opacity-70">{t.emoji}</span>
-                  <span className="font-medium text-sm leading-tight block">{t.label}</span>
-                </div>
+                  {t.label}
+                </span>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Question 4 (conditionnelle): Star */}
+        {/* Question 4 (conditionnelle): Star (chapitre implicite: respiration accrue) */}
         {needsStar ? (
-          <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+          <div className="border-b border-border/50 pb-6 mb-6 space-y-2 pt-2 sm:pt-4">
             <Label htmlFor="star" className="text-base font-semibold text-foreground">
               Personne principale (Star)
             </Label>
@@ -266,7 +262,7 @@ function NewTripPage() {
         ) : null}
 
         {/* Question 5: Nombre estimé */}
-        <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+        <div className="border-b border-border/50 pb-6 mb-6 space-y-2">
           <Label htmlFor="n" className="text-base font-semibold text-foreground">
             Nombre estimé de participants
           </Label>
@@ -287,8 +283,8 @@ function NewTripPage() {
           </p>
         </div>
 
-        {/* Question 6: Tranche d'âge */}
-        <div className="border-b border-border/50 pb-8 mb-8 space-y-3">
+        {/* Question 6: Tranche d'âge (chapitre implicite: respiration accrue) */}
+        <div className="border-b border-border/50 pb-6 mb-6 space-y-3 pt-2 sm:pt-4">
           <Label className="text-base font-semibold text-foreground block">
             Tranche d’âge du groupe
           </Label>
@@ -312,7 +308,7 @@ function NewTripPage() {
         </div>
 
         {/* Question 7: Durée du voyage */}
-        <div className="border-b border-border/50 pb-8 mb-8 space-y-2">
+        <div className="border-b border-border/50 pb-6 mb-6 space-y-2">
           <Label htmlFor="durationDays" className="text-base font-semibold text-foreground">
             Durée du voyage (en jours)
           </Label>
@@ -335,12 +331,12 @@ function NewTripPage() {
         </div>
 
         {/* Actions */}
-        <div className="pt-2">
-          <Button type="submit" size="lg" className="w-full h-12 rounded-xl text-base font-medium" disabled={submitting}>
+        <div className="pt-4">
+          <Button type="submit" size="lg" className="w-full sm:w-auto min-h-[48px] h-auto rounded-xl text-base font-medium px-6 sm:px-8 py-2.5 whitespace-normal text-center leading-tight" disabled={submitting}>
             {submitting ? (
-              <Loader2 className="animate-spin size-4" />
+              <Loader2 className="animate-spin size-4 shrink-0" />
             ) : (
-              <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
+              <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
             Créer et inviter le groupe
           </Button>

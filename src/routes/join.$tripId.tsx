@@ -5,10 +5,12 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/krew/Logo";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { getJoinPreview, joinTrip, checkJoinStatus } from "@/lib/join.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { eventTypeLabel } from "@/lib/krew/constants";
@@ -168,11 +170,10 @@ function JoinTripPage() {
           <Logo size="lg" withTagline />
         </Link>
 
-        <div className="w-full rounded-xl border border-border/60 bg-card p-6 shadow-sm sm:p-8">
+        <div className="w-full rounded-[24px] border border-border/50 bg-card p-6 shadow-2xs sm:p-8">
           {loading || authLoading || checkingStatus ? (
-            <div className="flex flex-col items-center gap-3 py-12">
-              <Loader2 className="size-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Chargement de l&apos;invitation…</p>
+            <div className="py-8">
+              <KrewThinkingState context="generic" customMessage="Chargement de l’invitation…" delayMs={0} />
             </div>
           ) : error ? (
             <div className="space-y-4 text-center">
@@ -226,12 +227,12 @@ function JoinTripPage() {
               </p>
 
               <div className="space-y-1.5 text-left">
-                <label htmlFor="join-firstname" className="text-sm font-medium">
+                <label htmlFor="join-firstname" className="text-sm font-medium text-foreground">
                   Ton prénom
                 </label>
-                <input
+                <Input
                   id="join-firstname"
-                  className="flex h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                  className="h-12 rounded-xl border-border text-base"
                   placeholder="Ex. Léa"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -244,12 +245,12 @@ function JoinTripPage() {
 
               <Button
                 size="lg"
-                className="w-full font-medium"
+                className="w-full min-h-[48px] h-auto rounded-xl font-medium text-base whitespace-normal text-center leading-tight py-2.5"
                 disabled={joining}
                 onClick={handleJoin}
               >
                 {joining ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin shrink-0" />
                 ) : null}
                 {isAuthenticated
                   ? "Rejoindre et indiquer mes dispos"

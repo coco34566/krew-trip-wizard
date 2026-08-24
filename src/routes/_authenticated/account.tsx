@@ -76,10 +76,10 @@ function AccountPage() {
     : "—";
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-14">
+    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-12">
       <div className="mb-8 space-y-1">
         <div className="relative inline-block">
-          <h1 className="font-display text-[38px] font-normal leading-tight text-foreground">Mon compte</h1>
+          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-tight text-foreground">Mon compte</h1>
           <KrewMark
             type="underline-wave"
             tone="sage"
@@ -95,7 +95,7 @@ function AccountPage() {
       <div className="space-y-10">
         <section className="space-y-4">
           <div className="border-b border-border/60 pb-2">
-            <h2 className="text-lg font-semibold tracking-tight">Mes informations</h2>
+            <h2 className="font-display text-2xl font-normal text-foreground">Mes informations</h2>
             <p className="text-xs text-muted-foreground">Les informations associées à ton compte KREW.</p>
           </div>
           <div className="divide-y divide-border/40 text-sm">
@@ -141,11 +141,11 @@ function AccountPage() {
           <Button
             type="button"
             variant="destructive"
-            className="mt-4"
+            className="mt-4 min-h-[44px] h-auto rounded-xl whitespace-normal text-center leading-tight py-2.5"
             onClick={() => setOpen(true)}
             disabled={deleting}
           >
-            <Trash2 className="mr-2 size-4" />
+            <Trash2 className="size-4 shrink-0" />
             Supprimer mon compte
           </Button>
         </section>
@@ -164,7 +164,7 @@ function AccountPage() {
               Annuler
             </Button>
             <Button type="button" variant="destructive" onClick={handleDeleteAccount} disabled={deleting}>
-              {deleting ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Trash2 className="mr-2 size-4" />}
+              {deleting ? <Loader2 className="size-4 animate-spin shrink-0" /> : <Trash2 className="size-4 shrink-0" />}
               {deleting ? "Suppression…" : "Supprimer définitivement"}
             </Button>
           </DialogFooter>

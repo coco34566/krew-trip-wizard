@@ -40,7 +40,7 @@ function PricingPage() {
         </header>
 
         <section className="grid gap-6 sm:grid-cols-1 max-w-md mx-auto">
-          <div className="rounded-[24px] border border-border/60 bg-card p-6 sm:p-8 shadow-sm flex flex-col justify-between">
+          <div className="rounded-[24px] border border-border/60 bg-card p-6 sm:p-8 shadow-2xs flex flex-col justify-between">
             <div>
               <p className="text-xs uppercase tracking-wider text-primary font-mono font-semibold">Formule unique</p>
               <div className="mt-4 flex items-baseline">
@@ -69,9 +69,9 @@ function PricingPage() {
               </ul>
             </div>
             <div className="mt-8 text-center">
-              <Button asChild className="w-full rounded-xl">
+              <Button asChild className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5">
                 <Link to="/trips/new">
-                  <KrewIcon name="plus" size="sm" className="size-4 mr-1.5" />
+                  <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
                   Créer mon voyage gratuitement
                 </Link>
               </Button>

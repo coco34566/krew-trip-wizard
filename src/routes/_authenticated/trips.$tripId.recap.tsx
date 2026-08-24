@@ -189,7 +189,7 @@ function TripRecapPage() {
   const selectedPhotoUrl = selectedDestinationReco?.destination?.imageUrl;
 
   return (
-    <main className="mx-auto max-w-[1020px] px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
+    <main className="mx-auto max-w-[1020px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -215,7 +215,7 @@ function TripRecapPage() {
           <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Récap du groupe</p>
           <div className="flex items-start justify-between gap-4">
             <div className="relative inline-block flex-1">
-              <h1 className="font-display text-[30px] sm:text-[48px] font-normal leading-tight text-foreground">
+              <h1 className="font-display text-[36px] sm:text-[48px] font-normal leading-tight text-foreground">
                 {trip.name}
               </h1>
               <KrewMark
@@ -289,7 +289,7 @@ function TripRecapPage() {
             return (
               <article
                 key={reco.id}
-                className="overflow-hidden rounded-[24px] border border-border/60 bg-background shadow-sm space-y-0"
+                className="overflow-hidden rounded-[24px] border border-border/60 bg-background shadow-2xs space-y-0"
               >
                 <div className="border-b border-border/50 bg-surface/40 px-5 py-4 sm:px-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -330,7 +330,7 @@ function TripRecapPage() {
                       <p className="mt-1 text-[13px] text-muted-foreground font-mono">{dateLabel}</p>
                     </div>
                     {budget ? (
-                      <div className="rounded-2xl border border-border/60 bg-background p-4 text-right">
+                      <div className="border-t sm:border-t-0 sm:border-l border-border/30 pt-3 sm:pt-0 sm:pl-5 text-left sm:text-right">
                         <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
                           Budget estimé
                         </p>
@@ -347,8 +347,8 @@ function TripRecapPage() {
                             : ""}
                         </p>
 
-                        {/* Fraîcheur des prix : integrated icon + text */}
-                        <div className="mt-2.5 flex items-center justify-end gap-2 text-xs font-mono text-muted-foreground">
+                        {/* Fraîcheur des prix */}
+                        <div className="mt-2 flex items-center justify-start sm:justify-end gap-2 text-xs font-mono text-muted-foreground">
                           {budget.priceSource?.transport === "provider" ? (
                             <span className="inline-flex items-center gap-1 text-primary font-medium">
                               <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" /> Transport réel
@@ -470,7 +470,7 @@ function TripRecapPage() {
                         })
                       }
                     >
-                      <KrewIcon name="time" tone="plum" size="sm" className="size-3.5 mr-1" />
+                      <KrewIcon name="time" tone="plum" size="sm" className="size-3.5 shrink-0" />
                       {watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
                     </Button>
                   </div>
@@ -508,7 +508,7 @@ function TripRecapPage() {
       ) : null}
 
       <div className="space-y-8 pt-6">
-        <section className="rounded-[24px] border border-border/60 bg-background p-5 sm:p-6 space-y-4 shadow-sm">
+        <section className="rounded-[24px] border border-border/60 bg-background p-5 sm:p-6 space-y-4 shadow-2xs">
           <div className="flex items-center gap-2">
             <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
             <h2 className="font-display text-xl font-normal text-foreground">Exporter mon calendrier</h2>

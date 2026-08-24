@@ -95,7 +95,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   });
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-surface/30 p-4 sm:p-5 space-y-4">
+    <div className="rounded-2xl border border-border/40 bg-surface/20 p-4 sm:p-5 space-y-4 shadow-none">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <KrewIcon name="time" tone="plum" size="sm" className="size-5 shrink-0" />
@@ -110,7 +110,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Zone ALLER */}
-        <div className="rounded-xl border border-border/50 bg-background p-3.5 space-y-2">
+        <div className="rounded-xl border border-border/30 p-3.5 space-y-2 shadow-none">
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary font-mono">
             <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5 shrink-0" />
             <span>ALLER · Départ</span>
@@ -120,14 +120,14 @@ export function TransportTimePrefsCard({ tripId }: Props) {
           </p>
           <Input
             type="time"
-            className="h-9 text-xs font-mono rounded-lg w-full bg-surface/20 border-border/60 focus:border-primary"
+            className="h-9 text-xs font-mono rounded-lg w-full border-border/50 focus:border-primary"
             value={earliest}
             onChange={(e) => setEarliest(e.target.value)}
           />
         </div>
 
         {/* Zone RETOUR */}
-        <div className="rounded-xl border border-border/50 bg-background p-3.5 space-y-2">
+        <div className="rounded-xl border border-border/30 p-3.5 space-y-2 shadow-none">
           <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary font-mono">
             <KrewIcon name="train" tone="plum" size="sm" className="size-3.5 shrink-0" />
             <span>RETOUR · Arrivée</span>
@@ -137,7 +137,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
           </p>
           <Input
             type="time"
-            className="h-9 text-xs font-mono rounded-lg w-full bg-surface/20 border-border/60 focus:border-primary"
+            className="h-9 text-xs font-mono rounded-lg w-full border-border/50 focus:border-primary"
             value={latest}
             onChange={(e) => setLatest(e.target.value)}
           />
@@ -162,7 +162,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending || isMyPrefsLoading}
           size="sm"
-          className="h-8 rounded-xl text-xs px-4 font-medium self-end sm:self-auto shrink-0"
+          className="h-9 rounded-xl text-xs px-4 font-medium self-end sm:self-auto shrink-0"
         >
           {saveMutation.isPending ? (
             <Loader2 className="size-3.5 animate-spin mr-1.5" />

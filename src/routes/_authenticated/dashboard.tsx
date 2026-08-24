@@ -77,7 +77,7 @@ function FeaturedTripCard({
         </KrewNote>
       </div>
 
-      <article className="group relative overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-xs transition-all hover:border-primary/50">
+      <article className="group relative overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-2xs transition-all hover:border-primary/50">
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
           <div className="grid lg:grid-cols-12 items-stretch">
             <div className="lg:col-span-5 relative aspect-[16/10] lg:aspect-auto w-full overflow-hidden bg-surface/50 border-b lg:border-b-0 lg:border-r border-border/40">
@@ -311,9 +311,9 @@ function Dashboard() {
   const archivedTrips = (data?.archivedTrips ?? []) as Trip[];
 
   return (
-    <main className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8 sm:space-y-12">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 relative">
-        <div className="space-y-2 relative">
+    <main className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10 space-y-8 sm:space-y-10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative">
+        <div className="space-y-1 relative">
           <KrewOrganicBlob
             tone="sage"
             variant="soft"
@@ -334,16 +334,15 @@ function Dashboard() {
             Tes projets en cours et tes invitations reçues.
           </p>
         </div>
-        <Button asChild className="self-start sm:self-auto rounded-xl font-medium">
-          <Link to="/trips/new" className="flex items-center justify-center gap-1.5 text-center">
-            <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
-            <span>Nouveau voyage</span>
+        <Button asChild className="min-h-[44px] h-auto rounded-xl px-5 font-medium self-start sm:self-auto">
+          <Link to="/trips/new" className="flex w-full items-center justify-center text-center whitespace-nowrap">
+            Nouveau voyage
           </Link>
         </Button>
       </div>
 
       {(watchData?.watches?.length ?? 0) > 0 ? (
-        <div className="price-watch-banner space-y-2 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-sm text-foreground">
+        <div className="price-watch-banner space-y-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs sm:text-sm text-foreground">
           {(watchData?.watches ?? []).slice(0, 5).map((w: any) => {
             const when = w.last_checked_at
               ? new Date(w.last_checked_at).toLocaleDateString("fr-FR", {
@@ -355,17 +354,20 @@ function Dashboard() {
             const tripName = (w.trips as any)?.name ?? "Voyage";
             const dest = w.destination_name ?? "destination";
             return (
-              <p key={w.id}>
-                💡 Pense à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
-                bougent vite. Dernière vérif. : {when}.{" "}
-                <Link
-                  to="/trips/$tripId"
-                  params={{ tripId: w.trip_id }}
-                  search={{ view: "voyage" }}
-                  className="font-medium text-primary underline-offset-2 hover:underline"
-                >
-                  Ouvrir le récap
-                </Link>
+              <p key={w.id} className="flex items-start gap-2">
+                <KrewIcon name="attention" tone="plum" size="sm" className="size-4 shrink-0 mt-0.5" />
+                <span>
+                  Pense à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
+                  bougent vite. Dernière vérif. : {when}.{" "}
+                  <Link
+                    to="/trips/$tripId"
+                    params={{ tripId: w.trip_id }}
+                    search={{ view: "voyage" }}
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    Ouvrir le récap
+                  </Link>
+                </span>
               </p>
             );
           })}

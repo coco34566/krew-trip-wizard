@@ -84,7 +84,7 @@ function MonthGrid({
   }
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
+    <div className="rounded-2xl border border-border/40 bg-card p-3.5 shadow-none">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
@@ -146,8 +146,8 @@ function SelectableOption({
       className={cn(
         "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
         active
-          ? "border-primary bg-primary/5 text-foreground"
-          : "border-border bg-background text-foreground/80 hover:border-primary/40",
+          ? "border-primary/40 bg-primary/5 text-foreground"
+          : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
         className,
       )}
     >
@@ -369,7 +369,7 @@ function StarQuestionnaire() {
 
       <div className="space-y-2 relative">
         <div className="relative inline-block">
-          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
+          <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
             Préférences de{" "}
             <KrewHighlight tone="plum" className="px-2 py-0.5 font-normal">
               {starName}
@@ -433,7 +433,7 @@ function StarQuestionnaire() {
         </section>
 
         {/* 2. Destination & cadre (FOND SAUGE LÉGER) */}
-        <section className="bg-sage/12 rounded-[20px] p-5 sm:p-7 pb-8 mb-8 space-y-4 font-sans">
+        <section className="pb-8 mb-8 space-y-4 font-sans border-b border-border/50">
           <h2 className="font-display text-2xl font-normal text-foreground">Les lieux qui plairaient à {starName}</h2>
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label>
@@ -586,8 +586,8 @@ function StarQuestionnaire() {
               className={cn(
                 "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
                 paintMode === "available"
-                  ? "border-lagoon bg-lagoon text-white"
-                  : "border-border bg-background text-muted-foreground hover:border-lagoon/50",
+                    ? "border-sage/40 bg-sage/20 text-primary font-semibold"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/25",
               )}
             >
               <span className="size-2 rounded-full bg-current" /> Disponible
@@ -669,15 +669,15 @@ function StarQuestionnaire() {
 
         <div className="pt-2 pb-12">
           <Button
-            className="w-full h-12 rounded-xl text-base font-medium"
+            className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
             size="lg"
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}
           >
             {mutation.isPending ? (
-              <Loader2 className="animate-spin mr-2" />
+              <Loader2 className="animate-spin shrink-0" />
             ) : (
-              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 mr-2" />
+              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
             {data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
           </Button>

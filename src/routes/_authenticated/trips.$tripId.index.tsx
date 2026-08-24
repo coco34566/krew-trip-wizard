@@ -1635,7 +1635,7 @@ function TripDetail() {
           {costSplitData?.split ? (
             <section
               id="hub-cost-split"
-              className="mt-12 space-y-4 scroll-mt-24"
+              className="mt-8 space-y-4 scroll-mt-24"
             >
               <div>
                 <div className="relative inline-flex items-center gap-2 py-0.5 px-1">
@@ -1752,13 +1752,13 @@ function TripDetail() {
                   <div className="text-xs space-y-0.5 font-normal">
                     <div className="flex justify-between gap-1">
                       <span>Déjà réservé :</span>{" "}
-                      <span className="font-bold text-emerald-600">
+                      <span className="font-bold text-primary font-mono">
                         {formatEuro(costSplitData.totalReserved ?? 0)}
                       </span>
                     </div>
                     <div className="flex justify-between gap-1">
                       <span>Reste estimé :</span>{" "}
-                      <span className="font-bold text-amber-600">
+                      <span className="font-bold text-foreground font-mono">
                         {formatEuro(costSplitData.totalEstimated ?? 0)}
                       </span>
                     </div>
@@ -2009,11 +2009,11 @@ function TripDetail() {
 
       {currentSection === "dates" ? (
       <section
-        className="mt-8 space-y-4 rounded-3xl border border-border bg-card p-5 sm:p-6 scroll-mt-24"
+        className="mt-6 sm:mt-8 space-y-4 rounded-2xl border border-border/40 bg-card p-5 sm:p-6 scroll-mt-24"
         id="hub-dates"
       >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-xl font-semibold tracking-tight flex items-center gap-2">
+          <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
             <CalendarDays className="size-5 text-primary" />
             Dates du groupe
           </h2>
@@ -2121,25 +2121,26 @@ function TripDetail() {
               {(availData?.windows ?? []).slice(0, 3).map((w: any, i: number) => (
                 <li
                   key={`${w.start}-${w.end}`}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-surface/30 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-surface/20 px-4 py-3"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm">
                       {i === 0 ? "🥇 " : i === 1 ? "🥈 " : "🥉 "}
                       {new Date(w.start + "T12:00:00").toLocaleDateString("fr-FR")} →{" "}
                       {new Date(w.end + "T12:00:00").toLocaleDateString("fr-FR")}
-                      <span className="ml-2 text-xs text-muted-foreground">
+                      <span className="ml-2 text-xs text-muted-foreground font-mono">
                         {w.covered}/{w.total} · {Math.round((w.coverageRatio ?? 0) * 100)} %
                       </span>
                     </p>
                     {(w.availablePeople?.length ?? 0) > 0 ? (
-                      <p className="mt-0.5 text-xs text-lagoon">
-                        ✅ {w.availablePeople.map((p: any) => p.name).join(", ")}
+                      <p className="mt-0.5 text-xs text-primary">
+                        <KrewIcon name="check" tone="sage" size="sm" className="size-3.5 inline mr-1" />
+                        {w.availablePeople.map((p: any) => p.name).join(", ")}
                       </p>
                     ) : null}
                     {(w.unavailablePeople?.length ?? 0) > 0 ? (
-                      <p className="mt-0.5 text-xs text-destructive/90">
-                        ❌ {w.unavailablePeople.map((p: any) => p.name).join(", ")}
+                      <p className="mt-0.5 text-xs text-destructive/80">
+                        {w.unavailablePeople.map((p: any) => p.name).join(", ")}
                       </p>
                     ) : null}
                   </div>
@@ -2147,6 +2148,7 @@ function TripDetail() {
                     <Button
                       size="sm"
                       variant={i === 0 ? "default" : "outline"}
+                      className="h-9 rounded-xl text-xs"
                       disabled={chooseDatesMutation.isPending}
                       onClick={() => chooseDatesMutation.mutate({ start: w.start, end: w.end })}
                     >
@@ -2231,12 +2233,12 @@ function TripDetail() {
       {currentSection === "profile" ? (
       <section
         id="hub-profile"
-        className="mt-8 space-y-4 bg-surface/50 rounded-[20px] p-5 sm:p-7 scroll-mt-24"
+        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24"
       >
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
+              <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
                 <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
                 Profil du voyage
               </h2>
@@ -2352,11 +2354,11 @@ function TripDetail() {
         ) : data.isOwner && (readiness?.profile.questionnairesReady || profile?.legacyBypass) ? (
           <div className="pt-2">
             <Button
-              className="rounded-xl font-medium h-11 text-sm sm:text-base"
+              className="rounded-xl font-medium min-h-[44px] h-auto text-sm sm:text-base whitespace-normal text-center leading-tight py-2.5"
               disabled={validateProfileMutation.isPending || selectedConceptIds.length < 1}
               onClick={() => validateProfileMutation.mutate()}
             >
-              {validateProfileMutation.isPending ? <Loader2 className="animate-spin size-4 mr-1.5" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4 mr-1.5" />}
+              {validateProfileMutation.isPending ? <Loader2 className="animate-spin size-4 shrink-0" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4 shrink-0" />}
               Valider notre profil de voyage
             </Button>
           </div>
@@ -2367,7 +2369,7 @@ function TripDetail() {
       {currentSection === "destination" ? (
       <section
         id="hub-destination"
-        className="mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-6 sm:mt-8 space-y-4 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter destination asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -2380,7 +2382,7 @@ function TripDetail() {
         </div>
 
         {!profile?.validated && !profile?.legacyBypass ? (
-          <div className="rounded-2xl border border-sage/30 bg-sage/12 p-6 text-center space-y-3">
+          <div className="rounded-2xl border border-border/50 bg-surface/30 p-6 text-center space-y-3">
             <h2 className="font-display text-2xl font-normal text-foreground">
               Choisis d’abord le profil du voyage
             </h2>
@@ -2412,7 +2414,7 @@ function TripDetail() {
               </div>
               {data.isOwner ? (
                 <Button
-                  className="rounded-xl font-medium"
+                  className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
                   onClick={() => regenerateMutation.mutate(undefined)}
                   disabled={
                     regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
@@ -2424,9 +2426,9 @@ function TripDetail() {
                   }
                 >
                   {regenerateMutation.isPending ? (
-                    <Loader2 className="animate-spin size-4 mr-1.5" />
+                    <Loader2 className="animate-spin size-4 shrink-0" />
                   ) : (
-                    <KrewIcon name="destination" tone="plum" size="sm" className="size-4 mr-1.5" />
+                    <KrewIcon name="destination" tone="plum" size="sm" className="size-4 shrink-0" />
                   )}
                   {recommendations.length ? "Voir d’autres propositions" : "Générer les propositions"}
                 </Button>
@@ -2462,8 +2464,8 @@ function TripDetail() {
         ) : (
           <>
             {destinationSelected ? (
-              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 space-y-2">
-                <p className="text-xs text-emerald-800 dark:text-emerald-300">
+              <div className="rounded-xl border border-sage/40 bg-sage/15 p-3 space-y-2 text-foreground">
+                <p className="text-xs text-foreground">
                   Destination validée — {Math.max(0, recommendations.length - 1)} autre
                   {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
                   {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
@@ -2500,10 +2502,10 @@ function TripDetail() {
                     <article
                       key={reco.id}
                       className={cn(
-                        "rounded-2xl border bg-card p-4 shadow-sm transition sm:p-5",
+                        "rounded-2xl border bg-card p-4 shadow-2xs transition sm:p-5",
                         reco.is_selected
-                          ? "border-emerald-500 ring-2 ring-emerald-500/20"
-                          : "border-border",
+                          ? "border-primary/40 ring-1 ring-primary/10 bg-primary/5"
+                          : "border-border/50 hover:border-primary/25 hover:bg-primary/[0.02]",
                       )}
                     >
                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
@@ -2600,7 +2602,7 @@ function TripDetail() {
                                 size="sm"
                                 variant="outline"
                                 disabled
-                                className="border-emerald-500 text-emerald-700"
+                                className="border-sage/50 bg-sage/15 text-primary rounded-xl"
                               >
                                 <CheckCircle2 className="size-3.5" /> Destination choisie
                               </Button>
@@ -2643,7 +2645,7 @@ function TripDetail() {
       {currentSection === "accommodation" && destinationSelected ? (
         <section
           id="hub-logistics"
-          className="mt-8 space-y-4 bg-background border-b border-border/40 pb-8 scroll-mt-24 relative overflow-hidden"
+          className="mt-6 sm:mt-8 space-y-4 bg-background border-b border-border/40 pb-8 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter accommodation asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -2658,7 +2660,7 @@ function TripDetail() {
           <div className="flex flex-wrap items-end justify-between gap-3 pr-20 sm:pr-24">
             <div>
               <div className="flex items-center gap-3">
-                <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
+                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
                   <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
                   Hébergement
                 </h2>
@@ -2672,14 +2674,14 @@ function TripDetail() {
             </div>
             {data.isOwner ? (
               <Button
-                className="rounded-xl font-medium"
+                className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
                 disabled={hotelLogisticsMutation.isPending}
                 onClick={() => hotelLogisticsMutation.mutate()}
               >
                 {hotelLogisticsMutation.isPending ? (
-                  <Loader2 className="animate-spin size-4 mr-1.5" />
+                  <Loader2 className="animate-spin size-4 shrink-0" />
                 ) : (
-                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-4 mr-1.5" />
+                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-4 shrink-0" />
                 )}
                 {(trip as any).group_logistics?.hotels?.length
                   ? "Actualiser les offres"
@@ -2689,13 +2691,13 @@ function TripDetail() {
           </div>
 
           {(trip as any).group_logistics?.hotelVoteTodo ? (
-            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            <p className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground font-medium">
               To-do orga · {(trip as any).group_logistics.hotelVoteTodo}
             </p>
           ) : null}
 
           {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited" ? (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+            <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-xs text-primary font-medium">
               <p className="font-semibold">
                 {(trip as any).group_logistics.accommodationGeneration.userMessage ||
                   "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."}
@@ -2729,10 +2731,10 @@ function TripDetail() {
                   <article
                     key={h.id}
                     className={cn(
-                      "rounded-2xl border bg-card p-4 shadow-sm",
+                      "rounded-2xl border bg-card p-4 shadow-2xs",
                       isTop
                         ? isReserved
-                          ? "border-emerald-500 ring-1 ring-emerald-500/20 bg-emerald-500/5"
+                          ? "border-sage/50 ring-1 ring-sage/20 bg-sage/10"
                           : "border-border ring-1 ring-border"
                         : "border-border",
                     )}
@@ -2874,7 +2876,7 @@ function TripDetail() {
                   {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
                     <Button
                       size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                      className="border border-sage/40 bg-sage/15 text-primary hover:bg-sage/25 shadow-none rounded-xl font-medium"
                       disabled={bookingStatusMutation.isPending}
                       onClick={() =>
                         bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })
@@ -2883,7 +2885,7 @@ function TripDetail() {
                       {bookingStatusMutation.isPending ? (
                         <Loader2 className="animate-spin size-3" />
                       ) : (
-                        <Check className="size-3" />
+                        <KrewIcon name="booked" tone="plum" size="sm" className="size-3.5" />
                       )}
                       Marquer comme réservé
                     </Button>
@@ -2905,7 +2907,7 @@ function TripDetail() {
       {currentSection === "transport" ? (
       <section
         id="hub-transports"
-        className="mt-8 space-y-4 bg-surface/50 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter transport asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -2934,14 +2936,14 @@ function TripDetail() {
           </div>
           <Button
             variant="outline"
-              className="rounded-xl text-sm font-medium"
+            className="rounded-xl text-sm font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
             disabled={!destinationSelected || logisticsMutation.isPending}
             onClick={() => logisticsMutation.mutate()}
           >
             {logisticsMutation.isPending ? (
-              <Loader2 className="animate-spin size-4 mr-1.5" />
+              <Loader2 className="animate-spin size-4 shrink-0" />
             ) : (
-              <KrewIcon name="transport" tone="plum" size="sm" className="size-4 mr-1.5" />
+              <KrewIcon name="transport" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
             {logisticsMutation.isPending ? "Recherche en cours…" : "Générer des propositions"}
           </Button>
@@ -3033,7 +3035,7 @@ function TripDetail() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 px-1.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  className="h-6 px-1.5 text-[10px] text-primary hover:text-primary hover:bg-sage/20 rounded-lg font-medium"
                                   disabled={bookingStatusMutation.isPending}
                                   onClick={() =>
                                     bookingStatusMutation.mutate({
@@ -3043,7 +3045,7 @@ function TripDetail() {
                                     })
                                   }
                                 >
-                                  <Check className="size-3 mr-0.5" />
+                                  <Check className="size-3 shrink-0" />
                                   Marquer comme réservé
                                 </Button>
                               )}
@@ -3143,7 +3145,7 @@ function TripDetail() {
       {currentSection === "planning" && destinationSelected ? (
         <section
           id="hub-activities-plan"
-          className="mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+          className="mt-6 sm:mt-8 space-y-4 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter planning asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -3172,14 +3174,14 @@ function TripDetail() {
             </div>
             {data.isOwner ? (
               <Button
-                className="rounded-xl font-medium"
+                className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
                 disabled={itineraryMutation.isPending}
                 onClick={() => itineraryMutation.mutate()}
               >
                 {itineraryMutation.isPending ? (
-                  <Loader2 className="animate-spin size-4 mr-1.5" />
+                  <Loader2 className="animate-spin size-4 shrink-0" />
                 ) : (
-                  <KrewIcon name="planning" tone="plum" size="sm" className="size-4 mr-1.5" />
+                  <KrewIcon name="planning" tone="plum" size="sm" className="size-4 shrink-0" />
                 )}
                 {(trip as any).group_itinerary?.days?.length
                   ? "Régénérer tout le planning"
@@ -3410,7 +3412,7 @@ function TripDetail() {
             const isMissingParticipants = Number(trip.participants_count || 0) > identifiedActiveCount;
 
             return isMissingParticipants ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-sage/12 border border-sage/25">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20 text-foreground">
                 <div className="space-y-0.5">
                   <h4 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
                     <UserPlus className="size-4 text-primary shrink-0" />
@@ -3530,9 +3532,9 @@ function TripDetail() {
                             className={cn(
                               "border rounded-xl px-2 py-1 text-xs focus:outline-none font-semibold",
                               task.status === "done" &&
-                                "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+                                "bg-sage/20 text-primary border-sage/40",
                               task.status === "in_progress" &&
-                                "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                                "bg-primary/8 text-primary border-primary/25",
                               task.status === "todo" &&
                                 "bg-muted text-muted-foreground border-border",
                             )}
