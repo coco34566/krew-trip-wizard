@@ -45,7 +45,7 @@ describe("setCoOrganizerHelper (trips.functions.ts)", () => {
     const eqUpdateMock = vi.fn(() => ({ then: (resolve: any) => resolve({ error: null }) }));
 
     const maybeSingleMock = vi.fn().mockResolvedValue({
-      data: { id: tripId, owner_id: ownerId },
+      data: { id: tripId, owner_id: ownerId, co_organizer_id: null },
       error: null,
     });
     const eqSelectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
@@ -60,6 +60,9 @@ describe("setCoOrganizerHelper (trips.functions.ts)", () => {
               return { eq: eqUpdateMock };
             }),
           };
+        }
+        if (table === "trip_participants") {
+          return { select: () => ({ eq: () => ({ eq: () => ({ neq: () => ({ maybeSingle: async () => ({ data: { id: "participant" }, error: null }) }) }) }) }) };
         }
         return {} as any;
       }),
@@ -78,7 +81,7 @@ describe("setCoOrganizerHelper (trips.functions.ts)", () => {
     const eqUpdateMock = vi.fn(() => ({ then: (resolve: any) => resolve({ error: null }) }));
 
     const maybeSingleMock = vi.fn().mockResolvedValue({
-      data: { id: tripId, owner_id: ownerId },
+      data: { id: tripId, owner_id: ownerId, co_organizer_id: "user-co-org" },
       error: null,
     });
     const eqSelectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
@@ -102,13 +105,13 @@ describe("setCoOrganizerHelper (trips.functions.ts)", () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it("interdit à un non-propriétaire de désigner un co-organisateur", async () => {
+  it("interdit à un non-organisateur de désigner un co-organisateur", async () => {
     const tripId = "trip-123";
     const ownerId = "user-owner";
     const otherUserId = "user-malicious";
 
     const maybeSingleMock = vi.fn().mockResolvedValue({
-      data: { id: tripId, owner_id: ownerId },
+      data: { id: tripId, owner_id: ownerId, co_organizer_id: "existing-co-org" },
       error: null,
     });
     const eqSelectMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
@@ -126,7 +129,7 @@ describe("setCoOrganizerHelper (trips.functions.ts)", () => {
 
     await expect(
       setCoOrganizerHelper(supabase, otherUserId, tripId, "user-co-org")
-    ).rejects.toThrow("seul l'organisateur principal peut nommer un co-organisateur");
+    ).rejects.toThrow("seul un organisateur peut nommer un co-organisateur");
   });
 
   it("lève une erreur si le voyage est introuvable", async () => {
