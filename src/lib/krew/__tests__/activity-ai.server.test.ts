@@ -1053,6 +1053,18 @@ describe("Nouveau moteur de planning KREW (Skeletons, Gemini, Geoapify)", () => 
     expect(spaCats).toEqual(["leisure.spa", "service.beauty.spa", "service.beauty.massage"]);
     expect(spaCats.some((c) => c.includes("fitness") || c.includes("theme_park"))).toBe(false);
   });
+
+  it("R. Geoapify ruin bars: utilise uniquement des catégories acceptées par l’API", () => {
+    const requirements = convertIntentToPlaceRequirements(
+      "nightlife",
+      "bar",
+      "soirée dans un ruin bar à Budapest",
+    );
+
+    expect(requirements.subtype).toBe("catering.bar");
+    expect(requirements.categories).toEqual(["catering.bar", "catering.pub"]);
+    expect(requirements.categories).not.toContain("entertainment.nightlife");
+  });
 });
 
 describe("contraintes déterministes du planning", () => {

@@ -648,7 +648,7 @@ export function convertIntentToPlaceRequirements(
     categories = ["leisure.spa"];
   } else if (normIntent.includes("ruin bar") || normIntent.includes("ruinbar")) {
     subtype = "catering.bar";
-    categories = Array.from(new Set(["catering.bar", "catering.pub", "entertainment.nightlife"]));
+    categories = ["catering.bar", "catering.pub"];
   } else if (normIntent.includes("chateau") || normIntent.includes("bastion") || normIntent.includes("monument") || normIntent.includes("sight")) {
     subtype = "tourism.sights";
     categories = Array.from(new Set(["tourism.sights", "entertainment.culture"]));
