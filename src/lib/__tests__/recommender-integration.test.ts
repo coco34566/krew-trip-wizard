@@ -172,7 +172,8 @@ describe("Recommender Integration Tests", () => {
     };
 
     const proposals = buildProposals(catalog, ctxWithVeto, 1);
-    expect(proposals).toHaveLength(0);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.matchReasons.some((reason) => reason.includes("Risque de dépasser le budget maximum"))).toBe(true);
   });
 
   // Test Case C : Compatibilité de la durée du séjour (nights vs min/max preferred)
@@ -748,6 +749,7 @@ describe("Recommender Integration Tests", () => {
     };
 
     const proposalsMust = buildProposals(catalog, ctxMustHave, 1);
-    expect(proposalsMust).toHaveLength(0);
+    expect(proposalsMust).toHaveLength(1);
+    expect(proposalsMust[0]?.matchReasons.some((reason) => reason.includes("Risque de dépasser le budget maximum"))).toBe(true);
   });
 });
