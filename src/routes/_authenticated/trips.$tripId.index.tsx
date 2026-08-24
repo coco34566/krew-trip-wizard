@@ -1673,23 +1673,25 @@ function TripDetail() {
                   Annuler le voyage
                 </button>
 
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-destructive/70 hover:text-destructive hover:underline font-normal text-xs"
-                  disabled={cancelMutation.isPending}
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Supprimer définitivement ce voyage et toutes ses données ? Cette action est irréversible.",
-                      )
-                    ) {
-                      cancelMutation.mutate(true);
-                    }
-                  }}
-                >
-                  <Trash2 className="size-3" />
-                  <span>Supprimer définitivement</span>
-                </button>
+                {data.isCreator ? (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-destructive/70 hover:text-destructive hover:underline font-normal text-xs"
+                    disabled={cancelMutation.isPending}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Supprimer définitivement ce voyage et toutes ses données ? Cette action est irréversible.",
+                        )
+                      ) {
+                        cancelMutation.mutate(true);
+                      }
+                    }}
+                  >
+                    <Trash2 className="size-3" />
+                    <span>Supprimer définitivement</span>
+                  </button>
+                ) : null}
               </div>
             </footer>
           ) : null}
@@ -3384,7 +3386,7 @@ function TripDetail() {
                 Les tâches à répartir pour préparer le voyage.
               </p>
             </div>
-            {hasItinerary ? (
+            {hasItinerary && data.isOwner ? (
               <Button
                 size="sm"
                 disabled={generateTasksMutation.isPending}
@@ -3435,20 +3437,22 @@ function TripDetail() {
           ) : !tasksData || tasksData.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               <p>Aucune tâche pour le moment.</p>
-              <Button
-                variant="hero"
-                size="sm"
-                onClick={() => generateTasksMutation.mutate()}
-                className="mt-4 gap-1.5"
-                disabled={generateTasksMutation.isPending}
-              >
-                {generateTasksMutation.isPending ? (
-                  <Loader2 className="animate-spin size-4" />
-                ) : (
-                  <Sparkles className="size-4" />
-                )}
-                Préparer les tâches
-              </Button>
+              {data.isOwner ? (
+                <Button
+                  variant="hero"
+                  size="sm"
+                  onClick={() => generateTasksMutation.mutate()}
+                  className="mt-4 gap-1.5"
+                  disabled={generateTasksMutation.isPending}
+                >
+                  {generateTasksMutation.isPending ? (
+                    <Loader2 className="animate-spin size-4" />
+                  ) : (
+                    <Sparkles className="size-4" />
+                  )}
+                  Préparer les tâches
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div className="overflow-x-auto">

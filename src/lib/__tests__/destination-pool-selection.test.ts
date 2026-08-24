@@ -71,23 +71,24 @@ describe("destination candidate pool selection", () => {
     const supabase = {
       from: (table: string) => {
         if (table === "recommendations") {
-          return {
-            update: (_payload: any) => ({
-              eq: (_field1: string, _value1: any) => ({
-                eq: async (_field2: string, _value2: any) => ({ data: null, error: null }),
-              }),
+          const query: any = {
+            update: () => query,
+            select: () => query,
+            eq: () => query,
+            single: async () => ({
+              data: { id: recommendationId, destinations: { name: "Nice" } },
+              error: null,
             }),
-            select: (_columns: string) => ({
-              eq: (_field1: string, _value1: any) => ({
-                eq: (_field2: string, _value2: any) => ({
-                  maybeSingle: async () => ({
-                    data: { destinations: { name: "Nice" } },
-                    error: null,
-                  }),
-                }),
-              }),
+            maybeSingle: async () => ({
+              data: {
+                id: recommendationId,
+                destination_id: null,
+                destinations: { name: "Nice" },
+              },
+              error: null,
             }),
           };
+          return query;
         }
 
         if (table === "trip_preferences") {
@@ -120,11 +121,21 @@ describe("destination candidate pool selection", () => {
         }
 
         if (table === "trips") {
-          return {
-            update: (_payload: any) => ({
-              eq: async (_field: string, _value: any) => ({ data: null, error: null }),
+          const query: any = {
+            select: () => query,
+            update: () => query,
+            eq: () => query,
+            maybeSingle: async () => ({
+              data: {
+                id: tripId,
+                owner_id: "00000000-0000-4000-8000-000000000004",
+                co_organizer_id: null,
+                event_type: "default",
+              },
+              error: null,
             }),
           };
+          return query;
         }
 
         throw new Error(`Unexpected table in test: ${table}`);
@@ -134,7 +145,10 @@ describe("destination candidate pool selection", () => {
     const { selectRecommendation } = await import("../trips.functions");
     await (selectRecommendation as any)({
       data: { tripId, recommendationId },
-      context: { supabase },
+      context: {
+        supabase,
+        userId: "00000000-0000-4000-8000-000000000004",
+      },
     });
 
     expect(getCurrentBriefFingerprint).toHaveBeenCalledWith(supabase, tripId);
