@@ -2352,7 +2352,7 @@ function TripDetail() {
         ) : data.isOwner && (readiness?.profile.questionnairesReady || profile?.legacyBypass) ? (
           <div className="pt-2">
             <Button
-              className="rounded-xl font-medium h-11 text-sm sm:text-base whitespace-normal text-center leading-tight"
+              className="rounded-xl font-medium min-h-[44px] h-auto text-sm sm:text-base whitespace-normal text-center leading-tight py-2.5"
               disabled={validateProfileMutation.isPending || selectedConceptIds.length < 1}
               onClick={() => validateProfileMutation.mutate()}
             >

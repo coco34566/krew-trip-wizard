@@ -69,9 +69,9 @@ function PricingPage() {
               </ul>
             </div>
             <div className="mt-8 text-center">
-              <Button asChild className="w-full min-h-[48px] rounded-xl text-base font-medium">
+              <Button asChild className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5">
                 <Link to="/trips/new">
-                  <KrewIcon name="plus" size="sm" className="size-4 mr-1.5" />
+                  <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
                   Créer mon voyage gratuitement
                 </Link>
               </Button>
