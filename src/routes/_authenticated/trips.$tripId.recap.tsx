@@ -189,7 +189,7 @@ function TripRecapPage() {
   const selectedPhotoUrl = selectedDestinationReco?.destination?.imageUrl;
 
   return (
-    <main className="mx-auto max-w-[1020px] px-5 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
+    <main className="mx-auto max-w-[1020px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -215,7 +215,7 @@ function TripRecapPage() {
           <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Récap du groupe</p>
           <div className="flex items-start justify-between gap-4">
             <div className="relative inline-block flex-1">
-              <h1 className="font-display text-[30px] sm:text-[48px] font-normal leading-tight text-foreground">
+              <h1 className="font-display text-[36px] sm:text-[48px] font-normal leading-tight text-foreground">
                 {trip.name}
               </h1>
               <KrewMark

@@ -55,7 +55,7 @@ function MemoriesPage(){
             <span className="text-xs font-semibold uppercase tracking-wider font-mono">Souvenirs</span>
           </div>
           <div className="relative inline-block z-10">
-            <h1 className="font-display text-[36px] sm:text-[44px] font-normal leading-tight text-foreground">
+            <h1 className="font-display text-[36px] sm:text-[48px] font-normal leading-tight text-foreground">
               L&apos;album du voyage
             </h1>
             <KrewMark
