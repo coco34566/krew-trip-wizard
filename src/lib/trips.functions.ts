@@ -595,18 +595,17 @@ export async function updateTripParticipantsCountForUser(
 ) {
   const trip = await supabase
     .from("trips")
-    .select("id, owner_id")
+    .select("id, owner_id, co_organizer_id")
     .eq("id", data.tripId)
     .maybeSingle();
   if (trip.error) throw trip.error;
   if (!trip.data) throw new Error("Voyage introuvable");
-  if (trip.data.owner_id !== userId)
-    throw new Error("Seul le propriétaire principal peut modifier le groupe");
+  if (!isTripAdmin(trip.data, userId))
+    throw new Error("Seul l'organisateur ou le co-organisateur peut modifier le groupe");
   const updated = await supabase
     .from("trips")
     .update({ participants_count: data.participantsCount, updated_at: new Date().toISOString() })
     .eq("id", data.tripId)
-    .eq("owner_id", userId)
     .select("participants_count")
     .single();
   if (updated.error) throw updated.error;
@@ -1108,19 +1107,35 @@ export async function setCoOrganizerHelper(
   tripId: string,
   coOrganizerId: string | null,
 ) {
-  // Récupérer le voyage pour vérifier la propriété de l'organisateur principal
+  // Récupérer le voyage pour vérifier les droits d'administration.
   const { data: trip, error: fetchError } = await supabase
     .from("trips")
-    .select("id, owner_id")
+    .select("id, owner_id, co_organizer_id")
     .eq("id", tripId)
     .maybeSingle();
 
   if (fetchError) throw fetchError;
   if (!trip) throw new Error("Voyage introuvable");
 
-  // Seul le propriétaire (owner_id) peut nommer ou enlever un co-organisateur
-  if (trip.owner_id !== userId) {
-    throw new Error("403 Forbidden: seul l'organisateur principal peut nommer un co-organisateur");
+  if (!isTripAdmin(trip, userId)) {
+    throw new Error("403 Forbidden: seul un organisateur peut nommer un co-organisateur");
+  }
+
+  if (coOrganizerId) {
+    if (coOrganizerId === trip.owner_id) {
+      throw new Error("L'organisateur principal ne peut pas être son propre co-organisateur");
+    }
+    const participant = await supabase
+      .from("trip_participants")
+      .select("id")
+      .eq("trip_id", tripId)
+      .eq("user_id", coOrganizerId)
+      .neq("status", "absent")
+      .maybeSingle();
+    if (participant.error) throw participant.error;
+    if (!participant.data) {
+      throw new Error("Le co-organisateur doit être un participant actif de ce voyage");
+    }
   }
 
   const { error } = await supabase
@@ -1223,6 +1238,16 @@ export const toggleVote = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const recommendation = await supabase
+      .from("recommendations")
+      .select("id")
+      .eq("id", data.recommendationId)
+      .eq("trip_id", data.tripId)
+      .maybeSingle();
+    if (recommendation.error) throw recommendation.error;
+    if (!recommendation.data) {
+      throw new Error("Cette recommandation n'appartient pas à ce voyage");
+    }
     const existing = await supabase
       .from("recommendation_votes")
       .select("id")
@@ -1590,8 +1615,8 @@ export const getTripRecap = createServerFn({ method: "GET" })
     if (!trip.data) throw new Error("Voyage introuvable");
 
     // Membre uniquement
-    const isOwner = trip.data.owner_id === userId;
-    if (!isOwner) {
+    const isAdmin = isTripAdmin(trip.data, userId);
+    if (!isAdmin) {
       const email = (typeof context.claims?.email === "string" ? context.claims.email : "")
         .trim()
         .toLowerCase();
@@ -1792,6 +1817,17 @@ export const watchPrice = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const now = new Date().toISOString();
 
+    const recommendation = await supabase
+      .from("recommendations")
+      .select("id")
+      .eq("id", data.recommendationId)
+      .eq("trip_id", data.tripId)
+      .maybeSingle();
+    if (recommendation.error) throw recommendation.error;
+    if (!recommendation.data) {
+      throw new Error("Cette recommandation n'appartient pas à ce voyage");
+    }
+
     // Upsert manuel (unique trip + user + reco)
     const existing = await supabase
       .from("price_watch")
@@ -1878,6 +1914,20 @@ export const setBookingStatus = createServerFn({ method: "POST" })
       throw new Error(
         "403 Forbidden: seul l'organisateur ou co-organisateur peut modifier les statuts de réservation",
       );
+    }
+
+    if (data.type === "transport" && data.userId) {
+      const participant = await supabase
+        .from("trip_participants")
+        .select("id")
+        .eq("trip_id", data.tripId)
+        .eq("user_id", data.userId)
+        .neq("status", "absent")
+        .maybeSingle();
+      if (participant.error) throw participant.error;
+      if (!participant.data && data.userId !== trip.owner_id) {
+        throw new Error("Le statut de transport ne peut viser qu'un membre actif du voyage");
+      }
     }
 
     const logistics = (trip.group_logistics || {}) as any;
@@ -2173,6 +2223,17 @@ export const toggleActivityVote = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const recommendations = await supabase
+      .from("recommendations")
+      .select("activity_ids")
+      .eq("trip_id", data.tripId);
+    if (recommendations.error) throw recommendations.error;
+    const belongsToTrip = (recommendations.data ?? []).some((row: any) =>
+      Array.isArray(row.activity_ids) && row.activity_ids.includes(data.activityId),
+    );
+    if (!belongsToTrip) {
+      throw new Error("Cette activité n'appartient pas aux propositions de ce voyage");
+    }
     const existing = await supabase
       .from("activity_votes")
       .select("id")
@@ -2219,6 +2280,19 @@ export const finalizeSelectedActivities = createServerFn({ method: "POST" })
       throw new Error(
         "403 Forbidden: seul l'organisateur ou co-organisateur peut valider les activités",
       );
+    }
+    if (data.activityIds.length) {
+      const recommendations = await supabase
+        .from("recommendations")
+        .select("activity_ids")
+        .eq("trip_id", data.tripId);
+      if (recommendations.error) throw recommendations.error;
+      const proposedIds = new Set(
+        (recommendations.data ?? []).flatMap((recommendation: any) => recommendation.activity_ids ?? []),
+      );
+      if (data.activityIds.some((activityId) => !proposedIds.has(activityId))) {
+        throw new Error("Une activité sélectionnée ne fait pas partie des propositions de ce voyage");
+      }
     }
     const { error } = await supabase
       .from("trips")
@@ -4029,13 +4103,28 @@ export const voteHotel = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const tripRes = await supabase
       .from("trips")
-      .select("id, group_logistics")
+      .select("id, owner_id, co_organizer_id, group_logistics")
       .eq("id", data.tripId)
       .maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
 
     const logistics = ((tripRes.data as any).group_logistics || {}) as any;
+    const participant = await supabase
+      .from("trip_participants")
+      .select("id")
+      .eq("trip_id", data.tripId)
+      .eq("user_id", userId)
+      .neq("status", "absent")
+      .maybeSingle();
+    if (participant.error) throw participant.error;
+    if (!isTripAdmin(tripRes.data, userId) && !participant.data) {
+      throw new Error("403 Forbidden: seuls les membres du voyage peuvent voter");
+    }
+    const hotels = Array.isArray(logistics.hotels) ? logistics.hotels : [];
+    if (!hotels.some((hotel: any) => String(hotel.id) === data.hotelId)) {
+      throw new Error("Cet hébergement n'appartient pas aux propositions de ce voyage");
+    }
     const votes: { userId: string; hotelId: string; at: string }[] = Array.isArray(
       logistics.hotelVotes,
     )
@@ -4073,14 +4162,15 @@ export const voteHotel = createServerFn({ method: "POST" })
         : "Faire voter le groupe sur un hôtel",
     };
 
-    const { error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("trips")
       .update({ group_logistics: next, updated_at: new Date().toISOString() } as any)
       .eq("id", data.tripId);
     if (error) throw error;
 
     if (topId && !topId.startsWith("portal-")) {
-      await supabase
+      await supabaseAdmin
         .from("recommendations")
         .update({ accommodation_id: topId })
         .eq("trip_id", data.tripId)
@@ -4118,28 +4208,27 @@ export const pickTransport = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const tripRes = await supabase
       .from("trips")
-      .select("id, group_logistics")
+      .select("id, owner_id, co_organizer_id, group_logistics")
       .eq("id", data.tripId)
       .maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
 
     // Nom affiché
-    let displayName = "Participant";
-    try {
-      const p = await supabase
-        .from("trip_participants")
-        .select("display_name, email")
-        .eq("trip_id", data.tripId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      displayName =
-        (p.data as any)?.display_name ||
-        String((p.data as any)?.email || "").split("@")[0] ||
-        "Participant";
-    } catch {
-      /* ignore */
+    const participant = await supabase
+      .from("trip_participants")
+      .select("display_name, email, status")
+      .eq("trip_id", data.tripId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (participant.error) throw participant.error;
+    if (!isTripAdmin(tripRes.data, userId) && (!participant.data || participant.data.status === "absent")) {
+      throw new Error("403 Forbidden: seuls les membres du voyage peuvent choisir un transport");
     }
+    const displayName =
+      (participant.data as any)?.display_name ||
+      String((participant.data as any)?.email || "").split("@")[0] ||
+      "Participant";
 
     const logistics = ((tripRes.data as any).group_logistics || {}) as any;
     const picks: any[] = Array.isArray(logistics.transportPicks)
@@ -4167,7 +4256,8 @@ export const pickTransport = createServerFn({ method: "POST" })
     else picks.push(entry);
 
     const next = { ...logistics, transportPicks: picks };
-    const { error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("trips")
       .update({ group_logistics: next, updated_at: new Date().toISOString() } as any)
       .eq("id", data.tripId);
@@ -4235,6 +4325,17 @@ export const reactToRecommendation = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const email = (context.claims?.email as string | undefined)?.toLowerCase();
 
+    const recommendation = await supabase
+      .from("recommendations")
+      .select("id")
+      .eq("id", data.recommendationId)
+      .eq("trip_id", data.tripId)
+      .maybeSingle();
+    if (recommendation.error) throw recommendation.error;
+    if (!recommendation.data) {
+      throw new Error("Cette recommandation n'appartient pas à ce voyage");
+    }
+
     // Trouve le participant rattaché à cet utilisateur dans le voyage
     const { data: participant, error: partErr } = await supabase
       .from("trip_participants")
@@ -4272,173 +4373,6 @@ export const reactToRecommendation = createServerFn({ method: "POST" })
       if (error) throw error;
       return { ok: true, reaction: data.reaction };
     }
-  });
-
-export const createGroupPaymentSession = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ tripId: z.string().uuid() }).parse(data))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const email = (context.claims?.email as string | undefined)?.toLowerCase();
-
-    // 1. Get participant
-    const { data: participant, error: partErr } = await supabase
-      .from("trip_participants")
-      .select("id, email, display_name")
-      .eq("trip_id", data.tripId)
-      .or(email ? `user_id.eq.${userId},email.eq.${email}` : `user_id.eq.${userId}`)
-      .maybeSingle();
-
-    if (partErr || !participant) {
-      throw new Error("Participant non trouvé pour cet utilisateur");
-    }
-
-    // 2. Get cost split
-    const trip = await supabase.from("trips").select("*").eq("id", data.tripId).maybeSingle();
-    if (trip.error || !trip.data) throw new Error("Voyage introuvable");
-
-    const reco = await supabase
-      .from("recommendations")
-      .select("*, destinations(name, distance_from_paris_km)")
-      .eq("trip_id", data.tripId)
-      .eq("is_selected", true)
-      .maybeSingle();
-    if (reco.error || !reco.data) throw new Error("Aucune proposition validée");
-
-    const { aggregateParticipantPreferences } = await import("@/lib/krew/trip-service");
-    const { buildCostSplit } = await import("@/lib/krew/cost-split");
-    const aggregated = await aggregateParticipantPreferences(supabase, data.tripId);
-
-    const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
-    let departureOrigins =
-      aggregated.departureOrigins && aggregated.departureOrigins.length > 0
-        ? aggregated.departureOrigins
-        : [{ city: tripOrigin, count: Math.max(1, Number(trip.data.participants_count) || 1) }];
-
-    const budget = (reco.data.budget ?? {}) as any;
-    const transportByOrigin =
-      Array.isArray(budget.transportByOrigin) && budget.transportByOrigin.length
-        ? budget.transportByOrigin
-        : departureOrigins.map((o: any) => ({
-            city: o.city,
-            count: o.count,
-            pricePerPerson: Number(budget.transport ?? 0),
-          }));
-
-    const { data: prefData } = await supabase
-      .from("trip_participant_preferences")
-      .select("departure_city")
-      .eq("trip_id", data.tripId)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const pCity = prefData?.departure_city || tripOrigin;
-    const cityRow =
-      transportByOrigin.find((o: any) => o.city.toLowerCase() === pCity.toLowerCase()) ||
-      transportByOrigin[0];
-
-    const participantsCount = Number(trip.data.participants_count) || 2;
-    const split = buildCostSplit({
-      destinationName:
-        (reco.data as any).destinations?.name || budget.destinationName || "Destination",
-      accommodation: Number(budget.accommodation ?? 0),
-      activities: Number(budget.activities ?? 0),
-      food: Number(budget.food ?? 0),
-      origins: transportByOrigin,
-      fallbackTransportPerPerson: Number(budget.transport ?? 0),
-      participants: participantsCount,
-    });
-
-    const userLine =
-      split.lines.find((l) => l.city.toLowerCase() === pCity.toLowerCase()) || split.lines[0];
-
-    const fallbackTransport = Number(budget.transport ?? 0);
-    const sharedCost =
-      (Number(budget.accommodation ?? 0) +
-        Number(budget.activities ?? 0) +
-        Number(budget.food ?? 0)) /
-      participantsCount;
-    const totalPerPerson = userLine ? userLine.totalPerPerson : fallbackTransport + sharedCost;
-
-    if (totalPerPerson <= 0) {
-      throw new Error("Le montant calculé pour ce séjour est invalide.");
-    }
-
-    const amountCents = totalPerPerson * 100;
-    const feePercent = Number(process.env["KREW_PLATFORM_FEE_PERCENT"]) || 0;
-    const platformFeeCents = Math.round(amountCents * (feePercent / 100));
-
-    const stripeSecret = process.env["STRIPE_SECRET_KEY"];
-    if (!stripeSecret) {
-      console.warn("STRIPE_SECRET_KEY non définie, simulation de session");
-      const { data: fakePayment, error: fakeErr } = await supabase
-        .from("trip_payments")
-        .insert({
-          trip_id: data.tripId,
-          participant_id: participant.id,
-          amount_cents: amountCents,
-          currency: "eur",
-          status: "pending",
-          stripe_session_id: "fake_session_" + Date.now(),
-          platform_fee_cents: platformFeeCents,
-        })
-        .select("*")
-        .single();
-      if (fakeErr) throw fakeErr;
-
-      return {
-        sessionId: "fake_session",
-        url: `${process.env["VITE_APP_URL"] || "http://localhost:3000"}/trips/${data.tripId}/recap?payment_success=true&session_id=${fakePayment.stripe_session_id}`,
-      };
-    }
-
-    const { default: Stripe } = await import("stripe");
-    const stripe = new Stripe(stripeSecret, { apiVersion: "2023-10-16" as any });
-
-    const destName = (reco.data as any).destinations?.name || "Séjour Krew";
-    const originUrl = process.env["VITE_APP_URL"] || "http://localhost:3000";
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: `Votre part du voyage - ${destName}`,
-              description: `Séjour à ${destName} incluant transport depuis ${pCity} et part égale hébergement/activités/repas.`,
-            },
-            unit_amount: amountCents,
-          },
-          quantity: 1,
-        },
-      ],
-      mode: "payment",
-      success_url: `${originUrl}/trips/${data.tripId}/recap?payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${originUrl}/trips/${data.tripId}/recap?payment_cancel=true`,
-      metadata: {
-        tripId: data.tripId,
-        participantId: participant.id,
-      },
-    });
-
-    const { error: insertErr } = await supabase.from("trip_payments").insert({
-      trip_id: data.tripId,
-      participant_id: participant.id,
-      amount_cents: amountCents,
-      currency: "eur",
-      status: "pending",
-      stripe_session_id: session.id,
-      platform_fee_cents: platformFeeCents,
-    });
-    if (insertErr) {
-      console.error("Erreur lors de l'enregistrement du paiement en base", insertErr);
-    }
-
-    return {
-      sessionId: session.id,
-      url: session.url,
-    };
   });
 
 export function mergeGeneratedPreparationTasks(input: {

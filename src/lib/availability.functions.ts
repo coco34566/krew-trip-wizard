@@ -42,7 +42,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
           startDate: trip.data.start_date as string | null,
           endDate: trip.data.end_date as string | null,
         },
-        isOwner: trip.data.owner_id === userId,
+        isOwner: isTripAdmin(trip.data, userId),
         answered: 0,
         expected: Math.max(Number(trip.data.participants_count) || 1, (participants.data ?? []).length, 1),
         windows: [],
@@ -181,7 +181,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
       startDate: trip.data.start_date as string | null,
       endDate: trip.data.end_date as string | null,
     },
-    isOwner: trip.data.owner_id === userId,
+    isOwner: isTripAdmin(trip.data, userId),
     answered,
     expected,
     windows,
@@ -227,7 +227,7 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
 
     const trip = await supabase
       .from("trips")
-      .select("id, owner_id, participants_count, duration_nights, dates_locked")
+      .select("id, owner_id, co_organizer_id, participants_count, duration_nights, dates_locked")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -240,7 +240,7 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
     }
 
     const email = (typeof context.claims?.email === "string" ? context.claims.email : "").toLowerCase();
-    if (trip.data.owner_id !== userId) {
+    if (!isTripAdmin(trip.data, userId)) {
       const part = await supabase
         .from("trip_participants")
         .select("id")

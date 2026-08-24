@@ -1,6 +1,9 @@
 name: KREW Golden Path E2E
 
 on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       base_url:
@@ -27,19 +30,65 @@ on:
 
 jobs:
   golden-path:
+    # Repository secrets are never exposed to code coming from a fork.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
     timeout-minutes: 25
     env:
-      KREW_E2E_BASE_URL: ${{ inputs.base_url }}
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
       KREW_E2E_EXISTING_TRIP_ID: ${{ inputs.existing_trip_id }}
-      KREW_E2E_API_MODE: ${{ inputs.api_mode }}
+      KREW_E2E_API_MODE: ${{ inputs.api_mode || 'safe' }}
+    permissions:
+      contents: read
+      deployments: read
+      pull-requests: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Resolve Vercel preview URL
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node <<'NODE'
+          const { appendFileSync } = await import("node:fs");
+          const headers = {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${process.env.GH_TOKEN}`,
+            "X-GitHub-Api-Version": "2022-11-28",
+          };
+          const api = async (path) => {
+            const response = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}${path}`, { headers });
+            if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
+            return response.json();
+          };
+          let previewUrl = "";
+          for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
+            const deployments = await api(`/deployments?sha=${process.env.HEAD_SHA}&per_page=20`);
+            for (const deployment of deployments) {
+              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
+              const ready = statuses.find((status) =>
+                status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
+              );
+              if (ready) {
+                previewUrl = ready.environment_url.replace(/\/$/, "");
+                break;
+              }
+            }
+            if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
+          }
+          if (!previewUrl) throw new Error("Vercel preview URL unavailable after 10 minutes");
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
+          console.log(`Safe E2E target: ${previewUrl}`);
+          NODE
+      - name: Use requested URL
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "KREW_E2E_BASE_URL=${{ inputs.base_url }}" >> "$GITHUB_ENV"
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false @playwright/test@1.55.0
@@ -56,7 +105,12 @@ jobs:
             echo "SAFE API MODE: provider-generating stages are disabled; no paid API call is expected."
           fi
       - name: Run customer journey
-        run: npm run test:e2e
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm run test:e2e -- tests/e2e/full-trip-flow.spec.ts --project=mobile-safari
+          else
+            npm run test:e2e
+          fi
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

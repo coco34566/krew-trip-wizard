@@ -11,6 +11,13 @@ async function fillPreferences(page: Page) {
   await userClick(page, page.getByRole("button", { name: /Envoyer mes réponses/ }), "submit preferences");
 }
 
+async function waitForTripHub(page: Page, tripId: string) {
+  await page.waitForURL(
+    (url) => url.pathname === `/trips/${tripId}`,
+    { timeout: 30_000 },
+  );
+}
+
 async function fillAvailability(page: Page, tripId: string) {
   await page.goto(`/trips/${tripId}/availability`);
   await handleNormalUserUi(page);
@@ -18,7 +25,7 @@ async function fillAvailability(page: Page, tripId: string) {
   const saveAvailability = page.getByRole("button", { name: /Enregistrer mes disponibilités/ });
   await expect(saveAvailability).toBeEnabled();
   await userClick(page, saveAvailability, "save availability");
-  await page.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
+  await waitForTripHub(page, tripId);
 }
 
 test("single full KREW journey from zero to planning", async ({ page, browser }, testInfo) => {
@@ -62,7 +69,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await page.goto(`/trips/${tripId}/questionnaire`);
   await handleNormalUserUi(page);
   await fillPreferences(page);
-  await page.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
+  await waitForTripHub(page, tripId!);
 
   stage = "second-participant-auth";
   const password = process.env.KREW_E2E_PASSWORD;
@@ -103,10 +110,10 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await participantPage.goto(`/trips/${tripId}/questionnaire`);
   await handleNormalUserUi(participantPage);
   await fillPreferences(participantPage);
-  await participantPage.waitForURL(new RegExp(`/trips/${tripId}/?$`), { timeout: 30_000 });
+  await waitForTripHub(participantPage, tripId!);
   await participantContext.close();
 
-  await page.goto(`/trips/${tripId}`);
+  await page.goto(`/trips/${tripId}?view=voyage&section=dates`);
   await handleNormalUserUi(page);
 
   stage = "lock-dates";
@@ -128,6 +135,8 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await expect(dates.getByText("Dates validées", { exact: true })).toBeVisible({ timeout: 30_000 });
 
   stage = "stay-profile";
+  await page.goto(`/trips/${tripId}?view=voyage&section=profile`);
+  await handleNormalUserUi(page);
   const profile = page.locator("#hub-profile");
   const validateProfile = profile.getByRole("button", { name: "Valider notre profil de voyage", exact: true });
   await expect(validateProfile).toBeEnabled({ timeout: 30_000 });
@@ -139,6 +148,34 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
     await page.reload();
     await handleNormalUserUi(page);
     await expect(page.locator("#hub-profile").getByText(/Profil validé/).first()).toBeVisible();
+
+    await page.goto(`/trips/${tripId}?view=voyage&section=dates`);
+    await handleNormalUserUi(page);
+    await expect(page.locator("#hub-dates").getByText("Dates validées", { exact: true })).toBeVisible();
+
+    // Le parcours sécurisé s'arrête exactement avant le premier appel fournisseur.
+    // On vérifie néanmoins que l'étape suivante est réellement accessible à l'organisateur.
+    await page.goto(`/trips/${tripId}?view=voyage&section=destination`);
+    await handleNormalUserUi(page);
+    const safeDestinationCta = page
+      .locator("#hub-destination")
+      .getByRole("button", { name: "Générer les propositions", exact: true });
+    await expect(safeDestinationCta).toBeVisible();
+    await expect(safeDestinationCta).toBeEnabled();
+
+    // Vérifie que le voyage créé reste retrouvable depuis la liste, puis après une nouvelle navigation.
+    stage = "safe-dashboard-persistence";
+    await page.goto("/dashboard");
+    await handleNormalUserUi(page);
+    await expect(page.getByText(tripName, { exact: false }).first()).toBeVisible();
+    await page.goto(`/trips/${tripId}?view=voyage&section=profile`);
+    await handleNormalUserUi(page);
+    await expect(page.locator("#hub-profile").getByText(/Profil validé/).first()).toBeVisible();
+
+    await page.goto(`/trips/${tripId}?view=voyage&section=dates`);
+    await handleNormalUserUi(page);
+    await expect(page.locator("#hub-dates").getByText("Dates validées", { exact: true })).toBeVisible();
+
     await testInfo.attach("safe-trip", { body: Buffer.from(JSON.stringify({ tripId, tripName, apiMode, serverResponses }, null, 2)), contentType: "application/json" });
     await assertDiagnostics();
     return;
@@ -147,6 +184,8 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   testInfo.annotations.push({ type: "warning", description: "LIVE API MODE: destination, accommodation, transport and planning may consume provider quota." });
 
   stage = "destinations";
+  await page.goto(`/trips/${tripId}?view=voyage&section=destination`);
+  await handleNormalUserUi(page);
   const destinations = page.locator("#hub-destination");
   const generateDestinations = destinations.getByRole("button", { name: "Générer les propositions", exact: true });
   await expect(generateDestinations).toBeEnabled({ timeout: 20_000 });
@@ -157,6 +196,8 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await expect(destinations.getByText(/Destination validée/).first()).toBeVisible({ timeout: 30_000 });
 
   stage = "accommodation";
+  await page.goto(`/trips/${tripId}?view=voyage&section=accommodation`);
+  await handleNormalUserUi(page);
   const accommodation = page.locator("#hub-logistics");
   const accommodationButton = accommodation.getByRole("button", { name: "Rechercher des hébergements", exact: true });
   await userClick(page, accommodationButton, "search accommodation");
@@ -165,6 +206,8 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await userClick(page, hotelVote, "vote hotel");
 
   stage = "transport";
+  await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
+  await handleNormalUserUi(page);
   const transports = page.locator("#hub-transports");
   const transportButton = transports.getByRole("button", { name: "Générer des propositions", exact: true });
   await expect(transportButton).toBeEnabled();
@@ -174,6 +217,8 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await userClick(page, chooseTransport, "choose transport");
 
   stage = "planning";
+  await page.goto(`/trips/${tripId}?view=voyage&section=planning`);
+  await handleNormalUserUi(page);
   const planning = page.locator("#hub-activities-plan");
   const planningButton = planning.getByRole("button", { name: "Générer le planning", exact: true });
   await userClick(page, planningButton, "generate planning");
@@ -182,10 +227,17 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   stage = "persistence";
   await page.reload();
   await handleNormalUserUi(page);
-  await expect(page.locator("#hub-destination").getByText(/Destination validée/).first()).toBeVisible();
-  await expect(page.locator("#hub-logistics").getByRole("button", { name: /^Mon vote ·/ }).first()).toBeVisible();
-  await expect(page.locator("#hub-transports").getByRole("button", { name: "Mon trajet", exact: true }).first()).toBeVisible();
   await expect(page.locator("#hub-activities-plan").getByRole("heading", { name: /Jour 1/ }).first()).toBeVisible();
+
+  await page.goto(`/trips/${tripId}?view=voyage&section=destination`);
+  await handleNormalUserUi(page);
+  await expect(page.locator("#hub-destination").getByText(/Destination validée/).first()).toBeVisible();
+  await page.goto(`/trips/${tripId}?view=voyage&section=accommodation`);
+  await handleNormalUserUi(page);
+  await expect(page.locator("#hub-logistics").getByRole("button", { name: /^Mon vote ·/ }).first()).toBeVisible();
+  await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
+  await handleNormalUserUi(page);
+  await expect(page.locator("#hub-transports").getByRole("button", { name: "Mon trajet", exact: true }).first()).toBeVisible();
   await testInfo.attach("full-trip", { body: Buffer.from(JSON.stringify({ tripId, tripName, serverResponses }, null, 2)), contentType: "application/json" });
   await assertDiagnostics();
 });

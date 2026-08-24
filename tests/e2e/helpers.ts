@@ -80,7 +80,9 @@ export function installDiagnostics(page: Page, testInfo: TestInfo) {
   });
   page.on("request", (request) => {
     const url = request.url().toLowerCase();
-    if (/rapidapi|stayapi|serper|kiwi|kayak/.test(url)) paidProviderRequests.push(request.url());
+    if (/rapidapi|stayapi|searchapi|serper|tavily|gemini|geoapify|getyourguide|kiwi|kayak/.test(url)) {
+      paidProviderRequests.push(request.url());
+    }
   });
 
   return async () => {
