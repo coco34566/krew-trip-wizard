@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildProposals,
+  estimateGroupOriginDistanceKm,
   type DestinationRecord,
   type ScoringContext,
   type TravelCatalog,
@@ -61,13 +62,35 @@ const context = (overrides: Partial<ScoringContext> = {}): ScoringContext => ({
 });
 
 describe("hard constraints remain blocking", () => {
-  it("excludes an otherwise excellent proposal above an explicit budget veto", () => {
+  it("keeps a proposal above an individual budget and exposes the overrun instead of vetoing the group", () => {
     const proposals = buildProposals(
       catalog([destination()]),
-      context({ hasBudgetVeto: true, vetoBudgetMax: 10 }),
+      context({
+        hasBudgetVeto: true,
+        vetoBudgetMax: 10,
+        individualPreferences: [
+          {
+            ambiances: [],
+            activityCategories: [],
+            budgetMax: 10,
+            budgetPriority: "must_have",
+            dealBreakerAmbiances: [],
+            dealBreakerDestinations: [],
+          },
+        ],
+      }),
       4,
     );
-    expect(proposals).toHaveLength(0);
+    expect(proposals).toHaveLength(1);
+    expect(proposals[0]?.budget.hardBudgetFits).toBe(false);
+  });
+
+  it("uses the group's actual departure origin for distance heuristics when known", () => {
+    const fromLyon = estimateGroupOriginDistanceKm("Budapest", 1250, [
+      { city: "Lyon", count: 4 },
+    ]);
+    expect(fromLyon).toBeGreaterThan(900);
+    expect(fromLyon).toBeLessThan(1250);
   });
 
   it("never reintroduces a destination rejected by explicit plane refusal", () => {
