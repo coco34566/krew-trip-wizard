@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
 export type RateLimitOptions = {
   tripId: string;
   userId: string;
@@ -22,12 +24,12 @@ function formatRemainingTime(seconds: number): string {
  * Fails closed if the database cannot evaluate the limit.
  */
 export async function assertNotRateLimited(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   options: RateLimitOptions,
 ): Promise<void> {
   const { tripId, userId, kind, windowSeconds, maxCalls, isUserCheck = false } = options;
 
-  const { data, error } = await supabase.rpc("consume_generation_rate_limit", {
+  const { data, error } = await (supabaseAdmin as any).rpc("consume_generation_rate_limit_server", {
     p_trip_id: tripId,
     p_user_id: userId,
     p_kind: kind,
@@ -56,10 +58,10 @@ export async function assertNotRateLimited(
  * producing a usable result. The database function re-checks the caller identity.
  */
 export async function releaseRateLimit(
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
   options: Pick<RateLimitOptions, "tripId" | "userId" | "kind">,
 ): Promise<void> {
-  const { error } = await supabase.rpc("release_generation_rate_limit", {
+  const { error } = await (supabaseAdmin as any).rpc("release_generation_rate_limit_server", {
     p_trip_id: options.tripId,
     p_user_id: options.userId,
     p_kind: options.kind,
