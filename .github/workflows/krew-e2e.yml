@@ -1,6 +1,8 @@
 name: KREW Golden Path E2E
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
@@ -31,7 +33,7 @@ on:
 jobs:
   golden-path:
     # Repository secrets are never exposed to code coming from a fork.
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
@@ -48,12 +50,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Resolve Vercel preview URL
-        if: github.event_name == 'pull_request'
+      - name: Resolve Vercel deployment URL
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: |
           node <<'NODE'
           const { appendFileSync } = await import("node:fs");
@@ -67,8 +69,8 @@ jobs:
             if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
             return response.json();
           };
-          let previewUrl = "";
-          for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
+          let deploymentUrl = "";
+          for (let attempt = 0; attempt < 30 && !deploymentUrl; attempt += 1) {
             const deployments = await api(`/deployments?sha=${process.env.HEAD_SHA}&per_page=20`);
             for (const deployment of deployments) {
               const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
@@ -76,15 +78,15 @@ jobs:
                 status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
               );
               if (ready) {
-                previewUrl = ready.environment_url.replace(/\/$/, "");
+                deploymentUrl = ready.environment_url.replace(/\/$/, "");
                 break;
               }
             }
-            if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
+            if (!deploymentUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
           }
-          if (!previewUrl) throw new Error("Vercel preview URL unavailable after 10 minutes");
-          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
-          console.log(`Safe E2E target: ${previewUrl}`);
+          if (!deploymentUrl) throw new Error("Vercel deployment URL unavailable after 10 minutes");
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${deploymentUrl}\n`);
+          console.log(`Safe E2E target: ${deploymentUrl}`);
           NODE
       - name: Use requested URL
         if: github.event_name == 'workflow_dispatch'
@@ -106,7 +108,7 @@ jobs:
           fi
       - name: Run customer journey
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "push" ]; then
             npm run test:e2e -- tests/e2e/full-trip-flow.spec.ts --project=mobile-safari
           else
             npm run test:e2e
