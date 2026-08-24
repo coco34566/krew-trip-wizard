@@ -23,6 +23,10 @@ async function fillAvailability(page: Page, tripId: string) {
 
 test("single full KREW journey from zero to planning", async ({ page, browser }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-safari", "Full provider-consuming journey runs once only.");
+  const apiMode = process.env.KREW_E2E_API_MODE ?? "safe";
+  if (!["safe", "real"].includes(apiMode)) {
+    throw new Error(`TEST_SETUP: unsupported KREW_E2E_API_MODE=${apiMode}`);
+  }
   const assertDiagnostics = installDiagnostics(page, testInfo);
   const serverResponses: Array<{ stage: string; url: string; status: number; body: string }> = [];
   let stage = "setup";
@@ -129,6 +133,18 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await expect(validateProfile).toBeEnabled({ timeout: 30_000 });
   await userClick(page, validateProfile, "validate stay profile");
   await expect(profile.getByText(/Profil validé/).first()).toBeVisible({ timeout: 30_000 });
+
+  if (apiMode === "safe") {
+    stage = "safe-mode-complete";
+    await page.reload();
+    await handleNormalUserUi(page);
+    await expect(page.locator("#hub-profile").getByText(/Profil validé/).first()).toBeVisible();
+    await testInfo.attach("safe-trip", { body: Buffer.from(JSON.stringify({ tripId, tripName, apiMode, serverResponses }, null, 2)), contentType: "application/json" });
+    await assertDiagnostics();
+    return;
+  }
+
+  testInfo.annotations.push({ type: "warning", description: "LIVE API MODE: destination, accommodation, transport and planning may consume provider quota." });
 
   stage = "destinations";
   const destinations = page.locator("#hub-destination");
