@@ -28,8 +28,8 @@ export function CostSplitCard({ split, tripName }: Props) {
       </div>
 
       <div className="mt-5 space-y-4">
-        {/* Nappe sauge pâle pour les postes principaux */}
-        <div className="bg-sage/18 border border-sage/20 rounded-2xl p-4 text-xs font-sans space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4 shadow-none">
+        {/* Résumé des postes principaux */}
+        <div className="bg-surface/20 border border-border/30 rounded-2xl p-4 text-xs font-sans space-y-2 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4 shadow-none">
           <p>
             <span className="text-muted-foreground">Hébergement : </span>
             <span className="font-mono font-semibold text-foreground">{formatEuro(split.accommodation)}</span>

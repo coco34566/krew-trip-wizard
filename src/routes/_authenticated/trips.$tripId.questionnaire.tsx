@@ -66,8 +66,8 @@ function SelectableOption({
       className={cn(
         "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
         active
-          ? "border-primary bg-primary/5 text-foreground"
-          : "border-border bg-background text-foreground/80 hover:border-primary/40",
+          ? "border-primary/40 bg-primary/5 text-foreground"
+          : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
         className,
       )}
     >

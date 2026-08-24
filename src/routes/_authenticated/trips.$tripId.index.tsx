@@ -1988,7 +1988,6 @@ function TripDetail() {
 
             return (
               <KrewJourneyTimeline
-                tripId={tripId}
                 tripName={trip.name}
                 steps={timelineSteps}
                 annotationText="Prochaine étape"
@@ -2689,7 +2688,7 @@ function TripDetail() {
           </div>
 
           {(trip as any).group_logistics?.hotelVoteTodo ? (
-            <p className="rounded-xl border border-sage/40 bg-sage/15 px-3 py-2 text-xs text-primary font-medium">
+            <p className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground font-medium">
               To-do orga · {(trip as any).group_logistics.hotelVoteTodo}
             </p>
           ) : null}
