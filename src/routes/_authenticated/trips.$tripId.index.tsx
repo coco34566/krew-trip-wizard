@@ -2462,8 +2462,8 @@ function TripDetail() {
         ) : (
           <>
             {destinationSelected ? (
-              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 space-y-2">
-                <p className="text-xs text-emerald-800 dark:text-emerald-300">
+              <div className="rounded-xl border border-sage/40 bg-sage/15 p-3 space-y-2 text-foreground">
+                <p className="text-xs text-foreground">
                   Destination validée — {Math.max(0, recommendations.length - 1)} autre
                   {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
                   {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
@@ -2500,9 +2500,9 @@ function TripDetail() {
                     <article
                       key={reco.id}
                       className={cn(
-                        "rounded-2xl border bg-card p-4 shadow-sm transition sm:p-5",
+                        "rounded-2xl border bg-card p-4 shadow-2xs transition sm:p-5",
                         reco.is_selected
-                          ? "border-emerald-500 ring-2 ring-emerald-500/20"
+                          ? "border-primary/40 ring-1 ring-primary/15 bg-primary/5"
                           : "border-border",
                       )}
                     >
@@ -2600,7 +2600,7 @@ function TripDetail() {
                                 size="sm"
                                 variant="outline"
                                 disabled
-                                className="border-emerald-500 text-emerald-700"
+                                className="border-sage/50 bg-sage/15 text-primary rounded-xl"
                               >
                                 <CheckCircle2 className="size-3.5" /> Destination choisie
                               </Button>
@@ -2729,10 +2729,10 @@ function TripDetail() {
                   <article
                     key={h.id}
                     className={cn(
-                      "rounded-2xl border bg-card p-4 shadow-sm",
+                      "rounded-2xl border bg-card p-4 shadow-2xs",
                       isTop
                         ? isReserved
-                          ? "border-emerald-500 ring-1 ring-emerald-500/20 bg-emerald-500/5"
+                          ? "border-sage/50 ring-1 ring-sage/20 bg-sage/10"
                           : "border-border ring-1 ring-border"
                         : "border-border",
                     )}
@@ -2874,7 +2874,7 @@ function TripDetail() {
                   {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
                     <Button
                       size="sm"
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm"
+                      className="border border-sage/40 bg-sage/15 text-primary hover:bg-sage/25 shadow-none rounded-xl font-medium"
                       disabled={bookingStatusMutation.isPending}
                       onClick={() =>
                         bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })
@@ -2883,7 +2883,7 @@ function TripDetail() {
                       {bookingStatusMutation.isPending ? (
                         <Loader2 className="animate-spin size-3" />
                       ) : (
-                        <Check className="size-3" />
+                        <KrewIcon name="booked" tone="plum" size="sm" className="size-3.5" />
                       )}
                       Marquer comme réservé
                     </Button>
@@ -3528,9 +3528,9 @@ function TripDetail() {
                             className={cn(
                               "border rounded-xl px-2 py-1 text-xs focus:outline-none font-semibold",
                               task.status === "done" &&
-                                "bg-emerald-500/10 text-emerald-600 border-emerald-500/30",
+                                "bg-sage/20 text-primary border-sage/40",
                               task.status === "in_progress" &&
-                                "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                                "bg-primary/8 text-primary border-primary/25",
                               task.status === "todo" &&
                                 "bg-muted text-muted-foreground border-border",
                             )}

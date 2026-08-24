@@ -130,7 +130,7 @@ function NewTripPage() {
       <div className="space-y-2 relative">
         <div className="flex items-start justify-between gap-4">
           <div className="relative inline-block flex-1">
-            <h1 className="font-display text-[30px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+            <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
               Créer un voyage
             </h1>
             <KrewMark
