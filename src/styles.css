@@ -135,3 +135,47 @@
 @utility shadow-elevated { box-shadow: var(--shadow-elevated); }
 @utility shadow-glow { box-shadow: var(--shadow-glow); }
 @utility glass-panel { background-color: var(--color-card); border: 1px solid var(--color-border); }
+
+/*
+ * Trip Hub structural rhythm.
+ * These IDs are stable section anchors; aligning them here avoids touching
+ * the large Trip Hub route or any business logic.
+ */
+#hub-activities-plan,
+#hub-tasks-org,
+#hub-cost-split,
+#hub-packing {
+  margin-top: 2rem;
+  padding: 1.25rem;
+  border: 0;
+  border-radius: 1.25rem;
+  background: transparent;
+  box-shadow: none;
+}
+
+#hub-activities-plan h2,
+#hub-tasks-org h2,
+#hub-cost-split h2,
+#hub-packing h2 {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 640px) {
+  #hub-activities-plan,
+  #hub-tasks-org,
+  #hub-cost-split,
+  #hub-packing {
+    padding: 1.75rem;
+  }
+
+  #hub-activities-plan h2,
+  #hub-tasks-org h2,
+  #hub-cost-split h2,
+  #hub-packing h2 {
+    font-size: 2rem;
+  }
+}
