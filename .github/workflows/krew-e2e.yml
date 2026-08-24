@@ -56,6 +56,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           node <<'NODE'
+          const { appendFileSync } = await import("node:fs");
           const headers = {
             Accept: "application/vnd.github+json",
             Authorization: `Bearer ${process.env.GH_TOKEN}`,
@@ -82,7 +83,7 @@ jobs:
             if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
           }
           if (!previewUrl) throw new Error("Vercel preview URL unavailable after 10 minutes");
-          require("node:fs").appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
           console.log(`Safe E2E target: ${previewUrl}`);
           NODE
       - name: Use requested URL
