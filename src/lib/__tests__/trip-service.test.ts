@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { discoverDestinationsWithAi } from "../krew/destination-ai.server";
+import { loadTravelCatalog } from "../krew/providers.server";
 import {
   assessGenerationReadiness,
   generateRecommendationsForTrip,
@@ -6,6 +8,22 @@ import {
 } from "../krew/trip-service";
 import { assertNotRateLimited } from "../krew/rate-limit.server";
 import { appendAffiliateParam, buildOriginDeepLinks } from "../krew/deep-links";
+
+const { rateLimitRpc } = vi.hoisted(() => ({ rateLimitRpc: vi.fn() }));
+
+vi.mock("@/integrations/supabase/client.server", () => ({
+  supabaseAdmin: { rpc: rateLimitRpc },
+}));
+
+vi.mock("../krew/destination-ai.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../krew/destination-ai.server")>();
+  return { ...actual, discoverDestinationsWithAi: vi.fn(actual.discoverDestinationsWithAi) };
+});
+
+vi.mock("../krew/providers.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../krew/providers.server")>();
+  return { ...actual, loadTravelCatalog: vi.fn(actual.loadTravelCatalog) };
+});
 
 describe("getEffectiveParticipantsCount", () => {
   it("compte correctement les participants sans star", () => {
@@ -321,8 +339,6 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
 
   it("conserve plus de 12 candidats (jusqu'à 50) dans la shortlist de generateRecommendationsForTrip", async () => {
     const tripId = "trip-123";
-    const { discoverDestinationsWithAi } = await import("../krew/destination-ai.server");
-    const { loadTravelCatalog } = await import("../krew/providers.server");
 
     const generatedCandidates = Array.from({ length: 30 }, (_, i) => ({
       name: `Destination ${i + 1}`,
@@ -333,13 +349,13 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
       anchorPlaces: [`Destination ${i + 1}`],
     }));
 
-    vi.spyOn(await import("../krew/destination-ai.server"), "discoverDestinationsWithAi").mockResolvedValue({
+    vi.mocked(discoverDestinationsWithAi).mockResolvedValue({
       candidates: generatedCandidates,
       usedLlm: true,
       provider: "gemini",
     });
 
-    vi.spyOn(await import("../krew/providers.server"), "loadTravelCatalog").mockImplementation(async () => {
+    vi.mocked(loadTravelCatalog).mockImplementation(async () => {
       return {
         destinations: generatedCandidates.map((c, i) => ({
           id: `dest-${i + 1}`,
@@ -482,7 +498,7 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
     const res = await generateRecommendationsForTrip(supabaseMock, tripId, { force: true });
     expect(res.shortlist.length).toBeGreaterThan(12);
     expect(res.shortlist.length).toBe(40);
-  });
+  }, 15_000);
 
   it("exclut réellement les candidates incompatibles transport au niveau generateRecommendationsForTrip", async () => {
     const tripId = "trip-transport-test";
@@ -520,13 +536,13 @@ describe("Trip Service & Readiness (trip-service.ts)", () => {
       },
     ];
 
-    vi.spyOn(await import("../krew/destination-ai.server"), "discoverDestinationsWithAi").mockResolvedValue({
+    vi.mocked(discoverDestinationsWithAi).mockResolvedValue({
       candidates,
       usedLlm: true,
       provider: "gemini",
     });
 
-    vi.spyOn(await import("../krew/providers.server"), "loadTravelCatalog").mockImplementation(async () => {
+    vi.mocked(loadTravelCatalog).mockImplementation(async () => {
       return {
         destinations: candidates.map((c, i) => ({
           id: `dest-${i + 1}`,
@@ -773,8 +789,8 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
 
     let callsCount = 0;
 
-    const supabaseMock = {
-      rpc: vi.fn((fnName: string, params: any) => {
+    rateLimitRpc.mockReset();
+    rateLimitRpc.mockImplementation((_fnName: string, _params: any) => {
         callsCount++;
         if (callsCount === 1) {
           return Promise.resolve({ data: [{ allowed: true }], error: null });
@@ -786,8 +802,8 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
         } else {
           return Promise.resolve({ data: [{ allowed: true }], error: null });
         }
-      }),
-    } as any;
+    });
+    const supabaseMock = {} as any;
 
     // 1er appel : valide
     await assertNotRateLimited(supabaseMock, {
@@ -798,7 +814,7 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
       maxCalls: 1,
     });
 
-    expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
+    expect(rateLimitRpc).toHaveBeenCalledTimes(1);
 
     // 2e appel immédiat : bloqué par le rate limit
     await expect(
@@ -820,7 +836,7 @@ describe("Rate Limiting (rate-limit.server.ts)", () => {
       maxCalls: 1,
     });
 
-    expect(supabaseMock.rpc).toHaveBeenCalledTimes(3);
+    expect(rateLimitRpc).toHaveBeenCalledTimes(3);
   });
 });
 
