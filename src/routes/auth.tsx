@@ -129,7 +129,7 @@ function AuthPage() {
           <Link to="/" className="mb-8 flex justify-center">
             <Logo size="lg" withTagline />
           </Link>
-          <div className="rounded-xl border border-border/60 bg-card p-6 sm:p-8 text-center space-y-6 shadow-sm">
+          <div className="rounded-[24px] border border-border/40 bg-card p-6 sm:p-8 text-center space-y-6 shadow-2xs">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Mail className="h-6 w-6" />
             </div>

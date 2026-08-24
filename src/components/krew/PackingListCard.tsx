@@ -208,15 +208,15 @@ export function PackingListCard({
         </p>
       </div>
       <div className="grid gap-5 md:grid-cols-2">
-        <div className="space-y-2 p-4 bg-transparent border-b border-border/40 md:border-b-0">
+        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
           <h3 className="font-sans font-semibold text-base text-foreground">Mes affaires</h3>
           {renderItems(result.personal)}
         </div>
-        <div className="space-y-2 p-4 bg-sage/12 rounded-xl border border-border/30">
+        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
           <h3 className="font-sans font-semibold text-base text-foreground">Pour le groupe</h3>
           {renderItems(result.group, true)}
         </div>
-        <div className="space-y-2 p-4 bg-sage/12 rounded-xl border border-border/30">
+        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
           <h3 className="font-sans font-semibold text-base text-foreground">Courses</h3>
           <ul className="divide-y divide-border/40 text-sm">
             {result.groceries.map((g) => (
@@ -229,7 +229,7 @@ export function PackingListCard({
             ))}
           </ul>
         </div>
-        <div className="space-y-2 p-4 bg-transparent border-b border-border/40 md:border-b-0">
+        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
           <h3 className="font-sans font-semibold text-base text-foreground">À faire</h3>
           <ul className="divide-y divide-border/40 text-sm">
             {result.tasks.map((t) => (

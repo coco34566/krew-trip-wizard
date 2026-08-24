@@ -485,7 +485,6 @@ function ParticipantQuestionnaire() {
         <Section
           title="Destination & cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
-          bgClass="bg-sage/12"
         >
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Destination rêvée (optionnel)</Label>
@@ -665,7 +664,6 @@ function ParticipantQuestionnaire() {
         <Section
           title="Transport"
           hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation."
-          bgClass="bg-sage/12"
         >
           <div className="space-y-2">
             <Label htmlFor="departure" className="font-semibold block text-base text-foreground">Ville de départ * (ou code postal)</Label>

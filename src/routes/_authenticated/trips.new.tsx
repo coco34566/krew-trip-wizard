@@ -197,8 +197,8 @@ function NewTripPage() {
                     "group relative overflow-hidden rounded-[14px] border text-left transition-all cursor-pointer",
                     imgUrl ? "p-0 min-h-[110px] flex flex-col justify-end" : "p-4",
                     eventType === t.value
-                      ? "border-primary bg-primary/5 text-foreground ring-2 ring-primary/20"
-                      : "border-border bg-background hover:border-primary/40 text-foreground/80",
+                      ? "border-primary/40 bg-primary/5 text-foreground"
+                      : "border-border bg-background hover:border-primary/25 text-foreground/80",
                   )}
                 >
                   {imgUrl ? (

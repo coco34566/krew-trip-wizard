@@ -433,7 +433,7 @@ function StarQuestionnaire() {
         </section>
 
         {/* 2. Destination & cadre (FOND SAUGE LÉGER) */}
-        <section className="bg-sage/12 rounded-[20px] p-5 sm:p-7 pb-8 mb-8 space-y-4 font-sans">
+        <section className="pb-8 mb-8 space-y-4 font-sans border-b border-border/50">
           <h2 className="font-display text-2xl font-normal text-foreground">Les lieux qui plairaient à {starName}</h2>
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label>
@@ -586,8 +586,8 @@ function StarQuestionnaire() {
               className={cn(
                 "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
                 paintMode === "available"
-                  ? "border-lagoon bg-lagoon text-white"
-                  : "border-border bg-background text-muted-foreground hover:border-lagoon/50",
+                    ? "border-sage/40 bg-sage/20 text-primary font-semibold"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/25",
               )}
             >
               <span className="size-2 rounded-full bg-current" /> Disponible

@@ -363,8 +363,8 @@ function AvailabilityPage() {
             className={cn(
               "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition",
               paintMode === "available"
-                ? "border-lagoon bg-lagoon text-white"
-                : "border-border bg-background text-muted-foreground hover:border-lagoon/50",
+                ? "border-sage/40 bg-sage/20 text-primary font-semibold"
+                : "border-border bg-background text-muted-foreground hover:border-primary/25",
             )}
           >
             <span className="size-2.5 rounded-full bg-current" /> Je suis dispo
@@ -508,10 +508,10 @@ function AvailabilityPage() {
 
       {/* Date verrouillée */}
       {datesLocked && lockedLabel ? (
-        <section className="mt-6 rounded-3xl border border-lagoon/40 bg-lagoon/10 p-5">
+        <section className="mt-6 rounded-3xl border border-sage/40 bg-sage/15 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">
-              <Lock className="mt-0.5 size-5 text-lagoon" />
+              <Lock className="mt-0.5 size-5 text-primary" />
               <div>
                 <h2 className="font-semibold">Date choisie (verrouillée)</h2>
                 <p className="mt-1 text-sm">

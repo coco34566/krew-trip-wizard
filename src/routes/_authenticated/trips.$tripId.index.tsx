@@ -102,7 +102,7 @@ import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewIcon, KrewMark, KrewHighlight } from "@/components/krew/visual-language";
+import { KrewHighlight, KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
   destinationBudgetTotal,
@@ -2367,7 +2367,7 @@ function TripDetail() {
       {currentSection === "destination" ? (
       <section
         id="hub-destination"
-        className="mt-6 sm:mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-6 sm:mt-8 space-y-4 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
         {/* Otter destination asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -2380,7 +2380,7 @@ function TripDetail() {
         </div>
 
         {!profile?.validated && !profile?.legacyBypass ? (
-          <div className="rounded-2xl border border-sage/30 bg-sage/12 p-6 text-center space-y-3">
+          <div className="rounded-2xl border border-border/50 bg-surface/30 p-6 text-center space-y-3">
             <h2 className="font-display text-2xl font-normal text-foreground">
               Choisis d’abord le profil du voyage
             </h2>
@@ -2502,8 +2502,8 @@ function TripDetail() {
                       className={cn(
                         "rounded-2xl border bg-card p-4 shadow-2xs transition sm:p-5",
                         reco.is_selected
-                          ? "border-primary/40 ring-1 ring-primary/15 bg-primary/5"
-                          : "border-border",
+                          ? "border-primary/40 ring-1 ring-primary/10 bg-primary/5"
+                          : "border-border/50 hover:border-primary/25 hover:bg-primary/[0.02]",
                       )}
                     >
                       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
@@ -3143,7 +3143,7 @@ function TripDetail() {
       {currentSection === "planning" && destinationSelected ? (
         <section
           id="hub-activities-plan"
-          className="mt-6 sm:mt-8 space-y-4 bg-sage/12 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+          className="mt-6 sm:mt-8 space-y-4 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
         >
           {/* Otter planning asset (top right) */}
           <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -3410,7 +3410,7 @@ function TripDetail() {
             const isMissingParticipants = Number(trip.participants_count || 0) > identifiedActiveCount;
 
             return isMissingParticipants ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-sage/12 border border-sage/25">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/20 text-foreground">
                 <div className="space-y-0.5">
                   <h4 className="font-semibold text-sm text-foreground flex items-center gap-1.5">
                     <UserPlus className="size-4 text-primary shrink-0" />

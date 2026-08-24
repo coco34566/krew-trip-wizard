@@ -330,7 +330,7 @@ function TripRecapPage() {
                       <p className="mt-1 text-[13px] text-muted-foreground font-mono">{dateLabel}</p>
                     </div>
                     {budget ? (
-                      <div className="rounded-2xl border border-border/60 bg-background p-4 text-right">
+                      <div className="border-t sm:border-t-0 sm:border-l border-border/30 pt-3 sm:pt-0 sm:pl-5 text-left sm:text-right">
                         <p className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground font-mono">
                           Budget estimé
                         </p>
@@ -347,8 +347,8 @@ function TripRecapPage() {
                             : ""}
                         </p>
 
-                        {/* Fraîcheur des prix : integrated icon + text */}
-                        <div className="mt-2.5 flex items-center justify-end gap-2 text-xs font-mono text-muted-foreground">
+                        {/* Fraîcheur des prix */}
+                        <div className="mt-2 flex items-center justify-start sm:justify-end gap-2 text-xs font-mono text-muted-foreground">
                           {budget.priceSource?.transport === "provider" ? (
                             <span className="inline-flex items-center gap-1 text-primary font-medium">
                               <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" /> Transport réel

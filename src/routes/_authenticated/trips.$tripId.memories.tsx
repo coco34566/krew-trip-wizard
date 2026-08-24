@@ -174,7 +174,7 @@ function MemoriesPage(){
 
       {showModal && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border/60 rounded-[24px] p-6 max-w-md space-y-4 shadow-lg">
+          <div className="bg-card border border-border/60 rounded-2xl p-6 max-w-md space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-xl font-normal text-foreground">Autorisation d&apos;import</h3>
               <button type="button" onClick={() => setShowModal(false)} aria-label="Fermer"><X className="size-4" /></button>
@@ -244,7 +244,7 @@ function MemoriesPage(){
 
       {showPartner && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-[24px] bg-card border border-border/60 p-6 space-y-5 shadow-lg">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border/60 p-6 space-y-5 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Prestataire externe</p>
