@@ -102,7 +102,7 @@ import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
+import { KrewIcon, KrewMark, KrewHighlight } from "@/components/krew/visual-language";
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
   destinationBudgetTotal,
@@ -1750,13 +1750,13 @@ function TripDetail() {
                   <div className="text-xs space-y-0.5 font-normal">
                     <div className="flex justify-between gap-1">
                       <span>Déjà réservé :</span>{" "}
-                      <span className="font-bold text-emerald-600">
+                      <span className="font-bold text-primary font-mono">
                         {formatEuro(costSplitData.totalReserved ?? 0)}
                       </span>
                     </div>
                     <div className="flex justify-between gap-1">
                       <span>Reste estimé :</span>{" "}
-                      <span className="font-bold text-amber-600">
+                      <span className="font-bold text-foreground font-mono">
                         {formatEuro(costSplitData.totalEstimated ?? 0)}
                       </span>
                     </div>
@@ -2689,13 +2689,13 @@ function TripDetail() {
           </div>
 
           {(trip as any).group_logistics?.hotelVoteTodo ? (
-            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+            <p className="rounded-xl border border-sage/40 bg-sage/15 px-3 py-2 text-xs text-primary font-medium">
               To-do orga · {(trip as any).group_logistics.hotelVoteTodo}
             </p>
           ) : null}
 
           {(trip as any).group_logistics?.accommodationGeneration?.status === "rate_limited" ? (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
+            <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-xs text-primary font-medium">
               <p className="font-semibold">
                 {(trip as any).group_logistics.accommodationGeneration.userMessage ||
                   "Recherche de logements momentanément indisponible. Réessaie un peu plus tard."}
@@ -3033,7 +3033,7 @@ function TripDetail() {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 px-1.5 text-[10px] text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  className="h-6 px-1.5 text-[10px] text-primary hover:text-primary hover:bg-sage/20 rounded-lg font-medium"
                                   disabled={bookingStatusMutation.isPending}
                                   onClick={() =>
                                     bookingStatusMutation.mutate({
