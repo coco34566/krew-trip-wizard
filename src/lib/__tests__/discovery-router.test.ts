@@ -73,10 +73,10 @@ describe("Discovery Router destination shapes", () => {
     );
   });
 
-  it("parses provider-independent territories and legacy cities", () => {
+  it("parses provider-independent territories and rejects legacy payloads", () => {
     const modern = parseDiscoveryCandidates(
       JSON.stringify({
-        destinations: [
+        candidates: [
           {
             title: "Dolomites",
             country: "Italie",
@@ -96,10 +96,6 @@ describe("Discovery Router destination shapes", () => {
     const legacy = parseDiscoveryCandidates(
       '{"cities":[{"name":"Lisbonne","country":"Portugal","why":"culture"}]}',
     );
-    expect(legacy[0]).toMatchObject({
-      name: "Lisbonne",
-      destinationType: "city",
-      anchorPlaces: ["Lisbonne"],
-    });
+    expect(legacy).toEqual([]);
   });
 });
