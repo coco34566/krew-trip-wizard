@@ -61,13 +61,18 @@ const context = (overrides: Partial<ScoringContext> = {}): ScoringContext => ({
 });
 
 describe("hard constraints remain blocking", () => {
-  it("excludes an otherwise excellent proposal above an explicit budget veto", () => {
+  it("keeps a proposal above one participant's budget ceiling with an explicit warning", () => {
     const proposals = buildProposals(
       catalog([destination()]),
       context({ hasBudgetVeto: true, vetoBudgetMax: 10 }),
       4,
     );
-    expect(proposals).toHaveLength(0);
+    expect(proposals.length).toBeGreaterThan(0);
+    expect(
+      proposals[0]?.matchReasons.some((reason) =>
+        reason.includes("Risque de dépasser le budget maximum indiqué par un participant (10 €)"),
+      ),
+    ).toBe(true);
   });
 
   it("never reintroduces a destination rejected by explicit plane refusal", () => {
