@@ -139,6 +139,26 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
     await page.reload();
     await handleNormalUserUi(page);
     await expect(page.locator("#hub-profile").getByText(/Profil validé/).first()).toBeVisible();
+    await expect(page.locator("#hub-dates").getByText("Dates validées", { exact: true })).toBeVisible();
+
+    // Le parcours sécurisé s'arrête exactement avant le premier appel fournisseur.
+    // On vérifie néanmoins que l'étape suivante est réellement accessible à l'organisateur.
+    const safeDestinationCta = page
+      .locator("#hub-destination")
+      .getByRole("button", { name: "Générer les propositions", exact: true });
+    await expect(safeDestinationCta).toBeVisible();
+    await expect(safeDestinationCta).toBeEnabled();
+
+    // Vérifie que le voyage créé reste retrouvable depuis la liste, puis après une nouvelle navigation.
+    stage = "safe-dashboard-persistence";
+    await page.goto("/dashboard");
+    await handleNormalUserUi(page);
+    await expect(page.getByText(tripName, { exact: false }).first()).toBeVisible();
+    await page.goto(`/trips/${tripId}`);
+    await handleNormalUserUi(page);
+    await expect(page.locator("#hub-profile").getByText(/Profil validé/).first()).toBeVisible();
+    await expect(page.locator("#hub-dates").getByText("Dates validées", { exact: true })).toBeVisible();
+
     await testInfo.attach("safe-trip", { body: Buffer.from(JSON.stringify({ tripId, tripName, apiMode, serverResponses }, null, 2)), contentType: "application/json" });
     await assertDiagnostics();
     return;
