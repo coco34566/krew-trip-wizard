@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: "Vercel URL to test"
-        required: true
+        description: "Optional URL override (defaults to the stable Vercel main alias)"
+        required: false
         type: string
       existing_trip_id:
         description: "Disposable prepared trip id for Destination → Planning checks"
@@ -32,9 +32,10 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
     timeout-minutes: 25
     env:
-      KREW_E2E_BASE_URL: ${{ inputs.base_url }}
+      KREW_E2E_BASE_URL: ${{ inputs.base_url || 'https://krew-trip-wizard-git-main-coco34566s-projects.vercel.app' }}
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_PARTICIPANT_EMAIL: ${{ secrets.KREW_E2E_PARTICIPANT_EMAIL }}
       KREW_E2E_EXISTING_TRIP_ID: ${{ inputs.existing_trip_id }}
       KREW_E2E_API_MODE: ${{ inputs.api_mode }}
     steps:
@@ -55,6 +56,8 @@ jobs:
           else
             echo "SAFE API MODE: provider-generating stages are disabled; no paid API call is expected."
           fi
+      - name: Show resolved test target
+        run: echo "Testing $KREW_E2E_BASE_URL in $KREW_E2E_API_MODE mode"
       - name: Run customer journey
         run: npm run test:e2e
       - name: Upload Playwright report

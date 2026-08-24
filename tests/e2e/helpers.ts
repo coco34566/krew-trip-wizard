@@ -3,8 +3,40 @@ import { expect, type Locator, type Page, type TestInfo } from "@playwright/test
 export const qa = {
   email: (process.env.KREW_E2E_EMAIL ?? "").trim(),
   password: (process.env.KREW_E2E_PASSWORD ?? "").trim(),
+  participantEmail: (process.env.KREW_E2E_PARTICIPANT_EMAIL ?? "krew.qa.participant@gmail.com").trim(),
   existingTripId: (process.env.KREW_E2E_EXISTING_TRIP_ID ?? "").trim(),
 };
+
+const disposableTrips = new Map<string, string>();
+
+export function registerDisposableTrip(testInfo: TestInfo, tripId: string) {
+  disposableTrips.set(testInfo.testId, tripId);
+}
+
+export async function cleanupDisposableTrip(page: Page, testInfo: TestInfo) {
+  const tripId = disposableTrips.get(testInfo.testId);
+  if (!tripId) return;
+  disposableTrips.delete(testInfo.testId);
+  try {
+    await page.goto(`/trips/${tripId}`);
+    await handleNormalUserUi(page);
+    const remove = page.getByRole("button", { name: "Supprimer définitivement", exact: true });
+    await expect(remove).toBeVisible({ timeout: 15_000 });
+    page.once("dialog", (dialog) => dialog.accept());
+    await remove.click();
+    await page.waitForURL(/\/dashboard(?:\?|$)/, { timeout: 30_000 });
+    await testInfo.attach("cleanup", {
+      body: Buffer.from(JSON.stringify({ tripId, deleted: true }, null, 2)),
+      contentType: "application/json",
+    });
+  } catch (error) {
+    await testInfo.attach("cleanup-error", {
+      body: Buffer.from(JSON.stringify({ tripId, deleted: false, error: String(error) }, null, 2)),
+      contentType: "application/json",
+    });
+    throw new Error(`TEST_CLEANUP: disposable trip ${tripId} could not be deleted :: ${String(error)}`);
+  }
+}
 
 export function requireQaCredentials() {
   expect(qa.email, "KREW_E2E_EMAIL must be configured").not.toBe("");

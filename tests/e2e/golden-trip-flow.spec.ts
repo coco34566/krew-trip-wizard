@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { installDiagnostics, openTrip, qa, signIn } from "./helpers";
+import { cleanupDisposableTrip, installDiagnostics, openTrip, qa, registerDisposableTrip, signIn } from "./helpers";
 
 test.describe("KREW golden customer journey", () => {
+  test.afterEach(async ({ page }, testInfo) => cleanupDisposableTrip(page, testInfo));
+
   test("QA account can sign in, create a trip and persist it after reload", async ({ page }, testInfo) => {
     const assertDiagnostics = installDiagnostics(page, testInfo);
     await signIn(page);
@@ -19,6 +21,7 @@ test.describe("KREW golden customer journey", () => {
     const match = page.url().match(/\/trips\/([^/]+)\/invite/);
     expect(match?.[1], "Created trip id should be present in the URL").toBeTruthy();
     const tripId = match![1];
+    registerDisposableTrip(testInfo, tripId);
     await page.reload();
     await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/invite`));
     await page.goto("/dashboard");

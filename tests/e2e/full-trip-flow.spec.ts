@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
-import { installDiagnostics, signIn, userClick, handleNormalUserUi } from "./helpers";
+import { cleanupDisposableTrip, installDiagnostics, qa, registerDisposableTrip, signIn, userClick, handleNormalUserUi } from "./helpers";
+
+test.afterEach(async ({ page }, testInfo) => cleanupDisposableTrip(page, testInfo));
 
 async function fillPreferences(page: Page) {
   await userClick(page, page.getByRole("button", { name: "🧖 Détente", exact: true }), "choose Détente");
@@ -54,6 +56,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   ]);
   const tripId = page.url().match(/\/trips\/([^/]+)\/invite/)?.[1];
   expect(tripId).toBeTruthy();
+  registerDisposableTrip(testInfo, tripId!);
 
   stage = "organizer-availability";
   await fillAvailability(page, tripId!);
@@ -67,7 +70,8 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   stage = "second-participant-auth";
   const password = process.env.KREW_E2E_PASSWORD;
   if (!password) throw new Error("TEST_SETUP: KREW_E2E_PASSWORD is required");
-  const participantEmail = "krew.qa.participant@gmail.com";
+  const participantEmail = qa.participantEmail;
+  if (!participantEmail) throw new Error("TEST_SETUP: KREW_E2E_PARTICIPANT_EMAIL is required");
   const participantContext = await browser.newContext({ ...testInfo.project.use, baseURL: process.env.KREW_E2E_BASE_URL } as any);
   const participantPage = await participantContext.newPage();
   await participantPage.goto(`/auth?next=${encodeURIComponent(`/join/${tripId}`)}`);
@@ -76,20 +80,8 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await participantPage.locator("#password").fill(password);
   await userClick(participantPage, participantPage.getByRole("button", { name: "Se connecter", exact: true }), "second participant sign in");
 
-  const reachedJoin = await participantPage.waitForURL(new RegExp(`/join/${tripId}`), { timeout: 8_000 }).then(() => true).catch(() => false);
-  if (!reachedJoin) {
-    await participantPage.goto(`/auth?next=${encodeURIComponent(`/join/${tripId}`)}`);
-    await handleNormalUserUi(participantPage);
-    await userClick(participantPage, participantPage.getByRole("tab", { name: "Créer un compte", exact: true }), "open signup");
-    await participantPage.locator("#name").fill("QA Participant");
-    await participantPage.locator("#email2").fill(participantEmail);
-    await participantPage.locator("#password2").fill(password);
-    await userClick(participantPage, participantPage.getByRole("button", { name: "Créer mon compte", exact: true }), "create second QA account");
-    if (await participantPage.getByText("Vérifie ta boîte mail pour confirmer ton adresse e-mail.", { exact: true }).isVisible().catch(() => false)) {
-      throw new Error("TEST_SETUP: second QA account requires one-time email confirmation; no provider API reached");
-    }
-    await participantPage.waitForURL(new RegExp(`/join/${tripId}`), { timeout: 30_000 });
-  }
+  const reachedJoin = await participantPage.waitForURL(new RegExp(`/join/${tripId}`), { timeout: 15_000 }).then(() => true).catch(() => false);
+  if (!reachedJoin) throw new Error("TEST_SETUP: permanent participant QA account could not sign in; no provider API reached");
 
   stage = "second-participant-join";
   await handleNormalUserUi(participantPage);
