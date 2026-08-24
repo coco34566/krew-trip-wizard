@@ -117,15 +117,7 @@ function StepLabel({
   );
 }
 
-export function KrewJourneyTimeline({ tripId, tripName, steps, annotationText }: Props) {
-  const nextActionIdx = steps.findIndex((step) => step.status === "next_action");
-  const lastDoneIdx = steps.reduce(
-    (acc, step, idx) => (step.status === "done" || step.status === "next_action" ? idx : acc),
-    0,
-  );
-  const activeProgressIdx = nextActionIdx >= 0 ? nextActionIdx : lastDoneIdx;
-  const progress = steps.length > 1 ? Math.max(0, activeProgressIdx) / (steps.length - 1) : 1;
-
+export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
   return (
     <div className="w-full max-w-[900px] mx-auto px-1 py-1 font-sans">
       <header className="relative mb-2 sm:mb-3 min-h-[105px] sm:min-h-[130px] pr-[92px] sm:pr-[150px]">
@@ -172,15 +164,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps, annotationText }:
           preserveAspectRatio="none"
           fill="none"
         >
-          <path d={desktopPath} stroke="var(--sage)" strokeWidth="1.35" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity=".25" />
           <path
             d={desktopPath}
-            pathLength="100"
-            stroke="var(--primary)"
-            strokeWidth="2.25"
+            stroke="var(--sage)"
+            strokeWidth="2"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
-            style={{ strokeDasharray: 100, strokeDashoffset: 100 - progress * 100 }}
+            opacity=".7"
           />
         </svg>
         <svg
@@ -190,15 +180,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps, annotationText }:
           preserveAspectRatio="none"
           fill="none"
         >
-          <path d={mobilePath} stroke="var(--sage)" strokeWidth="1.2" strokeLinecap="round" vectorEffect="non-scaling-stroke" opacity=".25" />
           <path
             d={mobilePath}
-            pathLength="100"
-            stroke="var(--primary)"
+            stroke="var(--sage)"
             strokeWidth="2"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
-            style={{ strokeDasharray: 100, strokeDashoffset: 100 - progress * 100 }}
+            opacity=".7"
           />
         </svg>
 
@@ -276,34 +264,30 @@ export function KrewJourneyTimeline({ tripId, tripName, steps, annotationText }:
           );
 
           const nextContent = (
-            <div className="relative w-[188px] sm:w-[260px] -translate-x-1/2 -translate-y-1/2">
-              <KrewMark
-                type="circle-loose"
+            <div className="relative w-[174px] sm:w-[228px] -translate-x-1/2 -translate-y-1/2">
+              <KrewNote
+                variant="label"
                 tone="plum"
-                size="lg"
-                className="absolute -inset-x-4 -top-5 h-[115px] sm:h-[135px] w-[220px] sm:w-[300px] opacity-20 pointer-events-none"
-              />
-              <KrewNote variant="label" tone="plum" rotation={-2} className="relative z-10 mb-1.5 text-[.8rem] sm:text-[.95rem]">
+                rotation={-2}
+                className="relative z-10 mb-2 text-[.76rem] sm:text-[.88rem]"
+              >
                 prochaine étape
               </KrewNote>
-              <div className="relative z-10 flex items-start gap-2.5 sm:gap-3">
-                <div className="flex size-11 sm:size-14 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/10">
+              <div className="relative z-10 flex items-center gap-2.5 sm:gap-3 rounded-[46%_54%_48%_52%/54%_46%_56%_44%] bg-background/95 px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-[0_4px_16px_rgba(60,35,50,.05)]">
+                <div className="flex size-10 sm:size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/10">
                   <KrewIcon name={step.iconName} size="sm" tone="cream" className="size-5 sm:size-6" />
                 </div>
-                <div className="min-w-0 pt-0.5">
-                  <h3 className="font-display text-[21px] sm:text-[28px] leading-[.98] text-foreground">{step.title}</h3>
-                  {step.subtitle ? <p className="mt-1.5 text-[10px] sm:text-xs leading-snug text-muted-foreground">{step.subtitle}</p> : null}
-                  <span className="mt-2 inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-primary">
+                <div className="min-w-0">
+                  <h3 className="font-display text-[20px] sm:text-[25px] leading-[1] text-foreground">{step.title}</h3>
+                  {step.subtitle ? (
+                    <p className="mt-1 text-[10px] sm:text-[11px] leading-snug text-muted-foreground">{step.subtitle}</p>
+                  ) : null}
+                  <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-primary">
                     Continuer
-                    <KrewMark type="arrow-right" tone="plum" size="sm" className="h-4 w-7" />
+                    <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6" />
                   </span>
                 </div>
               </div>
-              {annotationText ? (
-                <KrewNote variant="margin" rotation={2} className="relative z-10 mt-2 ml-12 max-w-[170px] text-[.9rem]">
-                  {annotationText}
-                </KrewNote>
-              ) : null}
             </div>
           );
 
