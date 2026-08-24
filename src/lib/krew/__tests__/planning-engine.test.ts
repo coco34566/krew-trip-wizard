@@ -14,6 +14,8 @@ import {
   fromMinutes,
   aggregateMajorityTimePreference,
   normalizeGeminiParsedResponse,
+  classifyActivityMode,
+  shouldResolveWithPlaceProvider,
   type ActivityAiInput,
 } from "../activity-ai.server";
 import {
@@ -27,7 +29,9 @@ import {
   mergeUniquePlacesById,
   mapDietaryConstraintsToGeoapifyConditions,
   mapAccessibilityToGeoapifyConditions,
+  isCandidateCompatibleWithRequirements,
 } from "../geoapify.server";
+import { buildFinalItinerarySlot, isSameSuggestedPlace } from "@/lib/trips.functions";
 
 const baseInput = (overrides: Partial<ActivityAiInput> = {}): ActivityAiInput => ({
   destination: "Beaune",
@@ -758,7 +762,6 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
 
     // Test 3 — spa family compatibility
     it("Test 3 — spa family compatibility : service.beauty.spa non rejeté pour subtype leisure.spa", () => {
-      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
       const candidate = {
         id: "spa-1",
         name: "Beauty & Spa Salon",
@@ -782,7 +785,6 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
 
     // Test 4 — bar family compatibility
     it("Test 4 — bar family compatibility : catering.bar est compatible avec bar_pub", () => {
-      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
       const candidate = {
         id: "bar-1",
         name: "Local Pub",
@@ -934,7 +936,6 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
 
     // Test 8 — aucun changement pour activité interne
     it("Test 8 — activité interne : Jeu de la mariée au logement reste self_guided_group sans Geoapify", () => {
-      const { classifyActivityMode } = require("../activity-ai.server");
       const mode = classifyActivityMode({
         kind: "internal",
         category: "jeu_groupe",
@@ -946,7 +947,6 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
 
     // Test non-régression routing : shouldResolveWithPlaceProvider pour place_required + "quartier"
     it("Test non-régression routing — place_required avec 'quartier' utilise TOUJOURS la résolution de lieu Geoapify", () => {
-      const { classifyActivityMode, shouldResolveWithPlaceProvider } = require("../activity-ai.server");
       const slot = {
         kind: "place_required",
         type: "resto",
@@ -972,7 +972,6 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
 
     // Test 9 — Nouveau
     it("Test 9 — candidate.categories = ['service', 'service.beauty'] est INCOMPATIBLE avec canonicalFamily = 'spa_wellness'", () => {
-      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
       const candidate = {
         id: "nail-salon-generic",
         name: "Generic Nail Salon",
@@ -995,7 +994,6 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
 
     // Test 10 — Nouveau
     it("Test 10 — candidate.categories = ['commercial'] est INCOMPATIBLE avec canonicalFamily = 'shopping'", () => {
-      const { isCandidateCompatibleWithRequirements } = require("../geoapify.server");
       const candidate = {
         id: "generic-shop",
         name: "Generic Commercial Place",
@@ -1018,8 +1016,6 @@ describe("PR 107 — Tests Geoapify & Location Context", () => {
   });
 
   describe("Validation de la correspondance de lieu isSameSuggestedPlace & estimations de prix", () => {
-    const { isSameSuggestedPlace, buildFinalItinerarySlot } = require("@/lib/trips.functions");
-
     it("TEST 1 — exact/fort match accepté (Bains Rudas vs Rudas Gyógyfürdő és Uszoda)", () => {
       expect(isSameSuggestedPlace("Bains Rudas", "Rudas Gyógyfürdő és Uszoda")).toBe(true);
     });
