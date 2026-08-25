@@ -1,9 +1,4 @@
-/* Small, semantic visual corrections that depend on existing route markup. */
-
-/* Landing: KREW is not communicating on payment yet. */
-body:has(main > section:first-child) main > section:last-of-type p.text-xs.text-muted-foreground.font-mono.pt-1 {
-  display: none !important;
-}
+/* Small, scoped visual corrections that depend on existing route markup. */
 
 /* Trip overview — the trip name is a KREW paper note over the upper-left photo area. */
 main.max-w-5xl header > div.relative.w-full > div.relative.z-20 > p:first-child {
@@ -35,9 +30,8 @@ main.max-w-5xl header > div.relative.w-full > div.relative.z-20 > p:first-child 
   }
 }
 
-/* A discreet progress annotation using only already-visible progress semantics. */
-main.max-w-5xl header > div.relative.w-full::after {
-  content: "La suite se prépare";
+/* Trip overview — progress note is derived from the real primary next-action link. */
+main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a) > header > div.relative.w-full::after {
   position: absolute;
   z-index: 24;
   right: 1rem;
@@ -55,31 +49,39 @@ main.max-w-5xl header > div.relative.w-full::after {
   pointer-events: none;
 }
 
-/* Questionnaire saved state: exact wording and a hand-drawn-looking check, larger post-it. */
-main[class*="max-w-[820px]"] div.space-y-1\.5 > div:first-child {
-  min-height: 2.6rem;
-  padding: 0.55rem 0.9rem !important;
-  font-size: 0 !important;
-  clip-path: polygon(2% 2%, 99% 0, 97% 96%, 3% 100%);
+main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a[href$="/availability"], section > div.relative.p-6 a[href$="/questionnaire"], section > div.relative.p-6 a[href$="/star"]) > header > div.relative.w-full::after {
+  content: "Le groupe prend forme";
 }
 
-main[class*="max-w-[820px]"] div.space-y-1\.5 > div:first-child::before {
-  content: "✓";
-  display: inline-block;
-  margin-right: 0.45rem;
-  font-family: "Caveat", cursive;
-  font-size: 1.35rem;
-  line-height: 1;
-  color: var(--sage);
-  transform: rotate(-8deg);
+main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a[href*="section=dates"], section > div.relative.p-6 a[href*="section=profile"], section > div.relative.p-6 a[href*="section=destination"]) > header > div.relative.w-full::after {
+  content: "La suite se dessine";
 }
 
-main[class*="max-w-[820px]"] div.space-y-1\.5 > div:first-child::after {
-  content: "Réponse enregistrée";
-  font-family: "Caveat", cursive;
-  font-size: 1.08rem;
-  line-height: 1;
-  color: var(--primary);
+main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a[href*="section=accommodation"], section > div.relative.p-6 a[href*="section=transport"], section > div.relative.p-6 a[href*="section=planning"]) > header > div.relative.w-full::after {
+  content: "La suite se prépare";
+}
+
+/* Trip overview — existing KREW otter, visible only where there is enough room. */
+@media (min-width: 640px) {
+  main.max-w-5xl div:has(> header > div.relative.w-full) > header::after {
+    content: "";
+    position: absolute;
+    z-index: 22;
+    right: 1.25rem;
+    bottom: 1.4rem;
+    width: 5.75rem;
+    height: 5.75rem;
+    background: url("/brand/otter-states/trip-progress.png") center / contain no-repeat;
+    pointer-events: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  main.max-w-5xl div:has(> header > div.relative.w-full) > header::after {
+    right: 1.75rem;
+    width: 6.25rem;
+    height: 6.25rem;
+  }
 }
 
 /* Journey: normal French capitalization for the secondary note. */
@@ -135,9 +137,9 @@ div[class*="max-w-[900px]"] div[class*="top-[74%]"] > div {
   }
 }
 
-/* Keep all added paper elements inside phone width. */
+/* Keep added paper elements inside phone width. */
 @media (max-width: 639px) {
-  main.max-w-5xl header > div.relative.w-full::after {
+  main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a) > header > div.relative.w-full::after {
     right: 0.75rem;
     top: 0.75rem;
     max-width: 8.5rem;

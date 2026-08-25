@@ -411,6 +411,13 @@ function AvailabilityPage() {
           ))}
         </div>
 
+        <div className="flex items-center justify-end gap-2 sm:pr-2">
+          <KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" />
+          <KrewNote variant="sticky" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
+            On cherche le bon créneau
+          </KrewNote>
+        </div>
+
         {/* Actions rapides */}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={selectWeekendsInView}>
