@@ -83,7 +83,7 @@ function AccountPage() {
             type="underline-wave"
             tone="sage"
             size="sm"
-            className="absolute left-0 -bottom-1.5 w-[96px] pointer-events-none"
+            className="absolute left-0 -bottom-1.5 w-[110px] pointer-events-none"
           />
         </div>
         <p className="mt-3 text-sm text-muted-foreground font-sans">
