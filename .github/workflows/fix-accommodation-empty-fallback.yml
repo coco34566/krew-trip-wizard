@@ -1,0 +1,47 @@
+name: Fix accommodation empty-result fallback
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-accommodation-empty-fallback.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch accommodation search fallback
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/krew/accommodation-ai.server.ts')
+          text = p.read_text()
+          old = '''  const payload = JSON.parse(body);\n  console.info("accommodation-web-search", {\n    destination: specification.destination.name,\n    geminiCalls: 1,\n    webSearchCalls: 1,\n    tavilyCredits: Number(payload?.usage?.credits ?? 1),\n    resultCount: Array.isArray(payload?.results) ? payload.results.length : 0,\n    queryLength: searchQuery.length,\n  });\n  return normalizeTavilyAccommodationResults(payload, specification);'''
+          new = '''  let payload = JSON.parse(body);\n  let webSearchCalls = 1;\n  let tavilyCredits = Number(payload?.usage?.credits ?? 1);\n  let rawResultCount = Array.isArray(payload?.results) ? payload.results.length : 0;\n\n  if (rawResultCount === 0) {\n    const fallbackTypes = [...new Set(specification.searchStrategies.flatMap((strategy) => strategy.propertyTypes))]\n      .filter(Boolean)\n      .slice(0, 4)\n      .join(" ");\n    const fallbackQuery = [\n      specification.destination.name,\n      specification.destination.country,\n      fallbackTypes || "hotel apartment accommodation",\n      `${specification.group.size} people`,\n      specification.dates.checkIn,\n      specification.dates.checkOut,\n    ]\n      .filter(Boolean)\n      .join(" ")\n      .replace(/\\s+/g, " ")\n      .trim()\n      .slice(0, 380);\n\n    const fallbackResponse = await fetch("https://api.tavily.com/search", {\n      method: "POST",\n      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilyKey}` },\n      body: JSON.stringify({\n        query: fallbackQuery,\n        search_depth: "basic",\n        auto_parameters: false,\n        topic: "general",\n        max_results: 20,\n        include_answer: false,\n        include_raw_content: false,\n        include_images: false,\n        include_usage: true,\n      }),\n    });\n    const fallbackBody = await fallbackResponse.text();\n    if (fallbackResponse.ok) {\n      payload = JSON.parse(fallbackBody);\n      webSearchCalls = 2;\n      tavilyCredits += Number(payload?.usage?.credits ?? 1);\n      rawResultCount = Array.isArray(payload?.results) ? payload.results.length : 0;\n    } else if (fallbackResponse.status !== 429) {\n      console.warn("accommodation-web-search fallback failed", fallbackResponse.status);\n    }\n  }\n\n  console.info("accommodation-web-search", {\n    destination: specification.destination.name,\n    geminiCalls: 1,\n    webSearchCalls,\n    tavilyCredits,\n    resultCount: rawResultCount,\n    queryLength: searchQuery.length,\n  });\n  return normalizeTavilyAccommodationResults(payload, specification);'''
+          if text.count(old) != 1:
+              raise SystemExit(f'Expected one exact accommodation search block, found {text.count(old)}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Verify targeted diff
+        run: |
+          git diff --check
+          git diff -- src/lib/krew/accommodation-ai.server.ts
+          grep -q 'if (rawResultCount === 0)' src/lib/krew/accommodation-ai.server.ts
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name 'KREW fix bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/fix-accommodation-empty-fallback.yml
+          git add src/lib/krew/accommodation-ai.server.ts
+          git commit -m 'Add accommodation search fallback on empty results'
+          git push origin HEAD:main
