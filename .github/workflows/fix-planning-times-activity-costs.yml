@@ -1,0 +1,214 @@
+name: Fix planning timing and activity costs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-planning-times-activity-costs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch targeted planning behavior
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # 1) Server-side FX normalization helper.
+          fx = Path('src/lib/krew/currency.server.ts')
+          fx.write_text(r'''type FxRate = {
+  rate: number;
+  date: string | null;
+  source: string;
+};
+
+const eurRateCache = new Map<string, FxRate>();
+
+function normalizeCurrency(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const code = value.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(code) ? code : null;
+}
+
+export async function getRateToEur(currencyInput: unknown): Promise<FxRate | null> {
+  const currency = normalizeCurrency(currencyInput);
+  if (!currency) return null;
+  if (currency === "EUR") return { rate: 1, date: null, source: "native_eur" };
+  const cached = eurRateCache.get(currency);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(`https://api.frankfurter.dev/v2/rate/${currency}/EUR`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(3500),
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as any;
+    const rate = Number(payload?.rate);
+    if (!Number.isFinite(rate) || rate <= 0) return null;
+    const result = {
+      rate,
+      date: typeof payload?.date === "string" ? payload.date : null,
+      source: "frankfurter",
+    } satisfies FxRate;
+    eurRateCache.set(currency, result);
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+async function normalizeSlotPriceToEur(slot: any): Promise<any> {
+  if (!slot || typeof slot !== "object") return slot;
+  const next = { ...slot };
+
+  const estimatedCurrency = normalizeCurrency(next.estimatedPriceCurrency);
+  const estimatedMin = Number(next.estimatedPriceMinPerPerson);
+  const estimatedMax = Number(next.estimatedPriceMaxPerPerson);
+  if (
+    estimatedCurrency &&
+    estimatedCurrency !== "EUR" &&
+    Number.isFinite(estimatedMin) &&
+    Number.isFinite(estimatedMax)
+  ) {
+    const fx = await getRateToEur(estimatedCurrency);
+    if (fx) {
+      next.estimatedPriceOriginalCurrency = estimatedCurrency;
+      next.estimatedPriceOriginalMinPerPerson = estimatedMin;
+      next.estimatedPriceOriginalMaxPerPerson = estimatedMax;
+      next.estimatedPriceFxRate = fx.rate;
+      next.estimatedPriceFxDate = fx.date;
+      next.estimatedPriceFxSource = fx.source;
+      next.estimatedPriceMinPerPerson = roundMoney(estimatedMin * fx.rate);
+      next.estimatedPriceMaxPerPerson = roundMoney(estimatedMax * fx.rate);
+      next.estimatedPriceCurrency = "EUR";
+    }
+  }
+
+  const directCurrency = normalizeCurrency(next.currency);
+  const directPrice = next.pricePerPerson ?? next.priceHint ?? next.price;
+  const numericDirect = Number(directPrice);
+  if (directCurrency && directCurrency !== "EUR" && Number.isFinite(numericDirect)) {
+    const fx = await getRateToEur(directCurrency);
+    if (fx) {
+      next.originalCurrency = directCurrency;
+      next.originalPricePerPerson = numericDirect;
+      next.fxRateToEur = fx.rate;
+      next.fxDate = fx.date;
+      next.fxSource = fx.source;
+      const converted = roundMoney(numericDirect * fx.rate);
+      if (next.pricePerPerson != null) next.pricePerPerson = converted;
+      else if (next.priceHint != null) next.priceHint = converted;
+      else if (next.price != null) next.price = converted;
+      next.currency = "EUR";
+    }
+  }
+
+  return next;
+}
+
+export async function normalizeItineraryPricesToEur<T extends { days?: any[]; backups?: any[] }>(
+  itinerary: T,
+): Promise<T> {
+  const days = await Promise.all(
+    (Array.isArray(itinerary?.days) ? itinerary.days : []).map(async (day: any) => ({
+      ...day,
+      slots: await Promise.all(
+        (Array.isArray(day?.slots) ? day.slots : []).map((slot: any) => normalizeSlotPriceToEur(slot)),
+      ),
+    })),
+  );
+  const backups = Array.isArray(itinerary?.backups)
+    ? await Promise.all(itinerary.backups.map((slot: any) => normalizeSlotPriceToEur(slot)))
+    : itinerary?.backups;
+  return { ...itinerary, days, ...(backups ? { backups } : {}) } as T;
+}
+''')
+
+          # 2) Transport pick: never invent 12:00/18:00. Prefer verified provider times.
+          route = Path('src/routes/_authenticated/trips.$tripId.index.tsx')
+          text = route.read_text()
+          old_state = '''  const [pickArrival, setPickArrival] = useState("12:00");\n  const [pickDeparture, setPickDeparture] = useState("18:00");'''
+          new_state = '''  const [pickArrival] = useState("");\n  const [pickDeparture] = useState("");'''
+          if text.count(old_state) != 1:
+            raise SystemExit(f'pick state anchor count={text.count(old_state)}')
+          text = text.replace(old_state, new_state, 1)
+
+          old_pick = '''                                    arrivalTime: pickArrival || undefined,\n                                    departureTime: pickDeparture || undefined,\n                                    durationHours: tr.durationHours,\n                                    outboundDepartureTime:\n                                      tr.providerOffer?.outboundTime || undefined,\n                                    returnArrivalTime: tr.providerOffer?.returnTime || undefined,\n                                    time: pickArrival || undefined,'''
+          new_pick = '''                                    arrivalTime:\n                                      tr.providerOffer?.outboundArrivalTime || pickArrival || undefined,\n                                    departureTime:\n                                      tr.providerOffer?.returnDepartureTime || pickDeparture || undefined,\n                                    durationHours: tr.durationHours,\n                                    outboundDepartureTime:\n                                      tr.providerOffer?.outboundTime || undefined,\n                                    returnArrivalTime:\n                                      tr.providerOffer?.returnArrivalTime || tr.providerOffer?.returnTime || undefined,\n                                    time:\n                                      tr.providerOffer?.outboundArrivalTime || pickArrival || undefined,'''
+          if text.count(old_pick) != 1:
+            raise SystemExit(f'pick payload anchor count={text.count(old_pick)}')
+          text = text.replace(old_pick, new_pick, 1)
+
+          # Activity total visible in Planning header using the calculator already used elsewhere.
+          planning_copy = '''              <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">\n                Le programme du séjour, jour par jour.\n              </p>'''
+          planning_total = '''              <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">\n                Le programme du séjour, jour par jour.\n              </p>\n              {(() => {\n                const activityCost = computeItineraryActivitiesCost(trip.group_itinerary?.days ?? []);\n                if (activityCost.activitiesPerPerson == null) return null;\n                const statusLabel =\n                  activityCost.priceStatus === "verified"\n                    ? "prix vérifiés"\n                    : activityCost.priceStatus === "free"\n                      ? "gratuit"\n                      : activityCost.priceStatus === "partial"\n                        ? "estimation partielle"\n                        : "estimation";\n                return (\n                  <div className="mt-3 inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1 rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-sm">\n                    <span className="font-semibold text-foreground">\n                      Activités : ~{Math.round(activityCost.activitiesPerPerson)} € / personne\n                    </span>\n                    <span className="text-xs text-muted-foreground">{statusLabel}</span>\n                  </div>\n                );\n              })()}'''
+          if text.count(planning_copy) != 1:
+            raise SystemExit(f'planning copy anchor count={text.count(planning_copy)}')
+          text = text.replace(planning_copy, planning_total, 1)
+          route.write_text(text)
+
+          # 3) Fail-safe cost aggregation: explicit non-EUR amounts must not be summed as EUR.
+          cost = Path('src/lib/krew/cost-split.ts')
+          ctext = cost.read_text()
+          direct_anchor = '''      const rawPrice = slot.priceHint ?? slot.pricePerPerson ?? slot.price;\n      const numericPrice = rawPrice != null && !isNaN(Number(rawPrice)) ? Number(rawPrice) : null;'''
+          direct_repl = '''      const rawPrice = slot.priceHint ?? slot.pricePerPerson ?? slot.price;\n      const directCurrency = typeof slot.currency === "string" ? slot.currency.trim().toUpperCase() : null;\n      const numericPrice =\n        rawPrice != null &&\n        !isNaN(Number(rawPrice)) &&\n        (!directCurrency || directCurrency === "EUR")\n          ? Number(rawPrice)\n          : null;'''
+          if ctext.count(direct_anchor) != 1:
+            raise SystemExit(f'direct currency anchor count={ctext.count(direct_anchor)}')
+          ctext = ctext.replace(direct_anchor, direct_repl, 1)
+
+          estimated_anchor = '''        const estMin =\n          slot.estimatedPriceMinPerPerson != null && !isNaN(Number(slot.estimatedPriceMinPerPerson))\n            ? Number(slot.estimatedPriceMinPerPerson)\n            : null;\n        const estMax =\n          slot.estimatedPriceMaxPerPerson != null && !isNaN(Number(slot.estimatedPriceMaxPerPerson))\n            ? Number(slot.estimatedPriceMaxPerPerson)\n            : null;'''
+          estimated_repl = '''        const estimatedCurrency =\n          typeof slot.estimatedPriceCurrency === "string"\n            ? slot.estimatedPriceCurrency.trim().toUpperCase()\n            : null;\n        const estimationIsEur = !estimatedCurrency || estimatedCurrency === "EUR";\n        const estMin =\n          estimationIsEur &&\n          slot.estimatedPriceMinPerPerson != null &&\n          !isNaN(Number(slot.estimatedPriceMinPerPerson))\n            ? Number(slot.estimatedPriceMinPerPerson)\n            : null;\n        const estMax =\n          estimationIsEur &&\n          slot.estimatedPriceMaxPerPerson != null &&\n          !isNaN(Number(slot.estimatedPriceMaxPerPerson))\n            ? Number(slot.estimatedPriceMaxPerPerson)\n            : null;'''
+          if ctext.count(estimated_anchor) != 1:
+            raise SystemExit(f'estimated currency anchor count={ctext.count(estimated_anchor)}')
+          ctext = ctext.replace(estimated_anchor, estimated_repl, 1)
+          cost.write_text(ctext)
+
+          # 4) Normalize itinerary prices before persistence on generation and slot regeneration.
+          trips = Path('src/lib/trips.functions.ts')
+          t = trips.read_text()
+          gen_anchor = '''    const finalItinerary = enrichGroupItineraryWithGetYourGuide(rawItinerary);\n\n    const { error } = await supabase'''
+          gen_repl = '''    const affiliateItinerary = enrichGroupItineraryWithGetYourGuide(rawItinerary);\n    const { normalizeItineraryPricesToEur } = await import("@/lib/krew/currency.server");\n    const finalItinerary = await normalizeItineraryPricesToEur(affiliateItinerary);\n\n    const { error } = await supabase'''
+          if t.count(gen_anchor) != 1:
+            raise SystemExit(f'generation itinerary anchor count={t.count(gen_anchor)}')
+          t = t.replace(gen_anchor, gen_repl, 1)
+
+          regen_anchor = '''    const enrichedItinerary = enrichGroupItineraryWithGetYourGuide(\n      itinerary as import("@/lib/krew/activity-ai.server").GroupItinerary,\n    );\n\n    const { error } = await supabase'''
+          regen_repl = '''    const affiliateItinerary = enrichGroupItineraryWithGetYourGuide(\n      itinerary as import("@/lib/krew/activity-ai.server").GroupItinerary,\n    );\n    const { normalizeItineraryPricesToEur } = await import("@/lib/krew/currency.server");\n    const enrichedItinerary = await normalizeItineraryPricesToEur(affiliateItinerary);\n\n    const { error } = await supabase'''
+          if t.count(regen_anchor) != 1:
+            raise SystemExit(f'regeneration itinerary anchor count={t.count(regen_anchor)}')
+          t = t.replace(regen_anchor, regen_repl, 1)
+          trips.write_text(t)
+          PY
+
+      - name: Verify targeted changes
+        run: |
+          git diff --check
+          grep -q 'outboundArrivalTime || pickArrival' 'src/routes/_authenticated/trips.$tripId.index.tsx'
+          grep -q 'Activités : ~' 'src/routes/_authenticated/trips.$tripId.index.tsx'
+          grep -q 'estimatedPriceFxRate' src/lib/krew/currency.server.ts
+          grep -q 'estimationIsEur' src/lib/krew/cost-split.ts
+          grep -q 'normalizeItineraryPricesToEur' src/lib/trips.functions.ts
+          npx vitest run src/lib/krew/__tests__/activity-ai.server.test.ts --runInBand || npx vitest run src/lib/krew/__tests__/activity-ai.server.test.ts
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name 'KREW fix bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/fix-planning-times-activity-costs.yml
+          git add src/lib/krew/currency.server.ts src/lib/krew/cost-split.ts src/lib/trips.functions.ts 'src/routes/_authenticated/trips.$tripId.index.tsx'
+          git commit -m 'Fix planning transport times and activity costs'
+          git push origin HEAD:main
