@@ -1,0 +1,85 @@
+name: Fix transport relevance and Kiwi links
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-transport-prague-kiwi.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch transport generation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/lib/trips.functions.ts')
+          text = p.read_text()
+
+          anchor = '''    const { searchTransportRoundTrip, estimateTransportFromDistance } =\n      await import("@/integrations/external/transport.server");\n\n    const baseFlight = estimateTransportFromDistance(distanceKm);\n'''
+          replacement = '''    const { searchTransportRoundTrip, estimateTransportFromDistance } =\n      await import("@/integrations/external/transport.server");\n    const { buildKiwiAffiliateLink, cityToIataOrName } = await import("@/lib/krew/deep-links");\n\n    const baseFlight = estimateTransportFromDistance(distanceKm);\n'''
+          if text.count(anchor) != 1:
+              raise SystemExit(f'import anchor count={text.count(anchor)}')
+          text = text.replace(anchor, replacement, 1)
+
+          old_flight = '''      if (mode === "flight") {\n        return [\n          {\n            label: "Kayak (vol)",\n            url: `https://www.kayak.fr/flights/${f}-${d}/${checkin}/${checkout}?adults=${gAdults}&sort=price_a`,\n          },\n        ];\n      }\n'''
+          new_flight = '''      if (mode === "flight") {\n        const kiwi = buildKiwiAffiliateLink({\n          originCode: cityToIataOrName(from),\n          destinationCode: cityToIataOrName(to),\n          departDate: checkin,\n          returnDate: checkout,\n          subId: "krew-transport",\n        });\n        if (kiwi) return [{ label: "Kiwi", url: kiwi }];\n        return [\n          {\n            label: "Google Flights",\n            url: `https://www.google.com/travel/flights?q=${encodeURIComponent(`Vols de ${from} à ${to} le ${checkin} retour ${checkout}`)}`,\n          },\n        ];\n      }\n'''
+          if text.count(old_flight) != 1:
+              raise SystemExit(f'flight links anchor count={text.count(old_flight)}')
+          text = text.replace(old_flight, new_flight, 1)
+
+          text = text.replace(
+            '{ mode: "train", modeLabel: "Train", enabled: distanceKm <= 1200 },',
+            '{ mode: "train", modeLabel: "Train", enabled: distanceKm <= 700 },',
+            1,
+          )
+          text = text.replace(
+            '        distanceKm <= 1200\n      ) {',
+            '        distanceKm <= 700\n      ) {',
+            1,
+          )
+
+          sort_anchor = '''    // Tri : par ville puis prix croissant\n    transports.sort((a, b) => a.city.localeCompare(b.city) || a.pricePerPerson - b.pricePerPerson);\n\n    // Mise à jour additive : une génération conserve l'autre domaine, ses votes et ses statuts.\n'''
+          sort_replacement = '''    // Tri : par ville puis prix croissant\n    transports.sort((a, b) => a.city.localeCompare(b.city) || a.pricePerPerson - b.pricePerPerson);\n\n    // Ne pas afficher plusieurs fois le même trajet lorsqu'une même ville est\n    // scindée en sous-groupes (contraintes renseignées vs valeurs par défaut).\n    const dedupedTransports: TransportCard[] = [];\n    for (const card of transports) {\n      const routeKey = `${norm(card.city)}|${norm(card.mode)}|${card.url || card.searchUrl || ""}`;\n      const existing = dedupedTransports.find(\n        (item) => `${norm(item.city)}|${norm(item.mode)}|${item.url || item.searchUrl || ""}` === routeKey,\n      );\n      if (!existing) {\n        dedupedTransports.push(card);\n        continue;\n      }\n      existing.count += card.count;\n      existing.participantIds = [...new Set([...(existing.participantIds ?? []), ...(card.participantIds ?? [])])];\n      existing.respectedConstraints = [...new Set([...(existing.respectedConstraints ?? []), ...(card.respectedConstraints ?? [])])];\n      existing.matchReasons = [...new Set([...(existing.matchReasons ?? []), ...(card.matchReasons ?? [])])];\n      existing.score = Math.max(existing.score ?? 0, card.score ?? 0);\n    }\n    transports.splice(0, transports.length, ...dedupedTransports);\n\n    // Mise à jour additive : une génération conserve l'autre domaine, ses votes et ses statuts.\n'''
+          if text.count(sort_anchor) != 1:
+              raise SystemExit(f'sort anchor count={text.count(sort_anchor)}')
+          text = text.replace(sort_anchor, sort_replacement, 1)
+          p.write_text(text)
+
+          p2 = Path('src/lib/krew/trip-service-legacy.ts')
+          text2 = p2.read_text()
+          old_origins = '''  const departureOrigins = aggregated.departureOrigins?.length\n    ? aggregated.departureOrigins\n    : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];\n  const countedInOrigins = departureOrigins.reduce((sum, origin) => sum + origin.count, 0);\n  const originsForQuote =\n    countedInOrigins < ctx.participants\n      ? [...departureOrigins, { city: tripOrigin, count: ctx.participants - countedInOrigins }]\n      : departureOrigins;\n'''
+          new_origins = '''  const departureOrigins = aggregated.departureOrigins?.length\n    ? aggregated.departureOrigins.map((origin) => ({ ...origin }))\n    : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];\n  const countedInOrigins = departureOrigins.reduce((sum, origin) => sum + origin.count, 0);\n  const originsForQuote = (() => {\n    if (countedInOrigins >= ctx.participants) return departureOrigins;\n    const remaining = ctx.participants - countedInOrigins;\n    const existing = departureOrigins.find((origin) => normCity(origin.city) === normCity(tripOrigin));\n    if (existing) {\n      existing.count += remaining;\n      return departureOrigins;\n    }\n    return [...departureOrigins, { city: tripOrigin, count: remaining }];\n  })();\n'''
+          if text2.count(old_origins) != 1:
+              raise SystemExit(f'origins anchor count={text2.count(old_origins)}')
+          text2 = text2.replace(old_origins, new_origins, 1)
+          p2.write_text(text2)
+          PY
+
+      - name: Verify targeted diff
+        run: |
+          git diff --check
+          git diff -- src/lib/trips.functions.ts src/lib/krew/trip-service-legacy.ts
+          grep -q 'modeLabel: "Train", enabled: distanceKm <= 700' src/lib/trips.functions.ts
+          grep -q 'label: "Kiwi"' src/lib/trips.functions.ts
+          grep -q 'dedupedTransports' src/lib/trips.functions.ts
+          grep -q 'existing.count += remaining' src/lib/krew/trip-service-legacy.ts
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name 'KREW fix bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/fix-transport-prague-kiwi.yml
+          git add src/lib/trips.functions.ts src/lib/krew/trip-service-legacy.ts
+          git commit -m 'Fix transport relevance, dedupe and Kiwi links'
+          git push origin HEAD:main
