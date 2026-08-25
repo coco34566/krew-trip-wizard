@@ -149,7 +149,7 @@ function NextActionsPanel({
       iconName: "preferences",
     });
   }
-  if (hasStar && !starDone) {
+  if (isOwner && hasStar && !starDone) {
     push({
       key: "star",
       title: trip.celebrated_person
@@ -280,7 +280,7 @@ function NextActionsPanel({
         ]
           .filter(Boolean)
           .join(" · "),
-        href: `/trips/${tripId}#group-section`,
+        href: `/trips/${tripId}/invite`,
         iconName: "group",
       });
     }
@@ -289,7 +289,7 @@ function NextActionsPanel({
   const participantCaughtUp =
     myAvailabilityDone &&
     myPreferencesDone &&
-    (!hasStar || starDone) &&
+    (!isOwner || !hasStar || starDone) &&
     (!destinationSelected ||
       ((!hotelOffersReady || myHotelVoted) && (!transportOffersReady || myTransportPicked)));
 
@@ -320,9 +320,7 @@ function NextActionsPanel({
                   : destinationSelected
                     ? "L’hébergement, le transport et le planning restent à finaliser."
                     : "Dès que le groupe a assez répondu, valide dates et destination."
-                : !destinationSelected
-                  ? "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."
-                  : "De ton côté c'est bon pour l'instant. La suite dépend du groupe ou de l'organisateur·rice."}
+                : "Tout est bon pour le moment. L’organisateur reviendra vers toi pour les prochaines étapes."}
             </p>
           </div>
         </div>
@@ -355,8 +353,7 @@ function NextActionsPanel({
     <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden relative space-y-3">
       {waitingOnOthers ? (
         <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
-          De ton côté c&apos;est bon pour l&apos;instant. La suite dépend du groupe ou de
-          l&apos;organisateur·rice.
+          Tout est bon pour le moment. L&apos;organisateur reviendra vers toi pour les prochaines étapes.
         </div>
       ) : null}
 
