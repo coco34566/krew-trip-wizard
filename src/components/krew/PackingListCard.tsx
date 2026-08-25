@@ -40,6 +40,7 @@ export function PackingListCard({
   }>({ checked: {}, manual: [], assigned: {}, owned: {} });
   const [manualLabel, setManualLabel] = useState("");
   const [manualMode, setManualMode] = useState<"personal" | "group">("personal");
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -48,6 +49,7 @@ export function PackingListCard({
       /* stockage indisponible */
     }
   }, [storageKey]);
+
   useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(state));
@@ -55,6 +57,7 @@ export function PackingListCard({
       /* stockage indisponible */
     }
   }, [state, storageKey]);
+
   const result = useMemo(
     () => buildTripPreparation({ ...input, manualItems: state.manual }),
     [
@@ -70,8 +73,10 @@ export function PackingListCard({
       JSON.stringify(state.manual),
     ],
   );
+
   const toggle = (id: string) =>
     setState((s) => ({ ...s, checked: { ...s.checked, [id]: !s.checked[id] } }));
+
   const addManual = () => {
     const label = manualLabel.trim();
     if (!label) return;
@@ -90,8 +95,9 @@ export function PackingListCard({
     setState((s) => ({ ...s, manual: [...s.manual, item] }));
     setManualLabel("");
   };
+
   const renderItems = (items: PackingItem[], group = false) => (
-    <ul className="divide-y divide-border/40 text-sm">
+    <ul className="divide-y divide-border/40 text-sm sm:text-base">
       {items.map((item) => {
         const link =
           item.purchasable && !state.owned[item.id]
@@ -99,13 +105,13 @@ export function PackingListCard({
             : null;
         const participant = participants.find((p) => p.id === state.assigned[item.id]);
         return (
-          <li key={item.id} className="py-2.5 flex flex-col gap-1.5">
-            <div className="flex items-center gap-2.5">
+          <li key={item.id} className="py-3 flex flex-col gap-2">
+            <div className="flex items-start gap-2.5">
               <button
                 type="button"
                 aria-label={`Cocher ${item.label}`}
                 onClick={() => toggle(item.id)}
-                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-6 min-w-6 inline-flex items-center justify-center"
               >
                 {state.checked[item.id] ? (
                   <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
@@ -124,10 +130,10 @@ export function PackingListCard({
               </span>
             </div>
             {group ? (
-              <div className="flex flex-wrap items-center gap-2 pl-6">
+              <div className="flex flex-wrap items-center gap-2 pl-8">
                 <select
                   aria-label={`Assigner ${item.label}`}
-                  className="h-8 rounded-lg border border-border bg-background px-2 text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                  className="min-h-9 rounded-lg border border-border bg-background px-2.5 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
                   value={state.assigned[item.id] || ""}
                   onChange={(e) =>
                     setState((s) => ({
@@ -148,7 +154,7 @@ export function PackingListCard({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-8 text-xs"
+                    className="min-h-9 h-auto text-sm"
                     onClick={() =>
                       setState((s) => ({
                         ...s,
@@ -162,7 +168,7 @@ export function PackingListCard({
                   </Button>
                 ) : null}
                 {link ? (
-                  <Button asChild size="sm" variant="ghost" className="h-8 text-xs">
+                  <Button asChild size="sm" variant="ghost" className="min-h-9 h-auto text-sm">
                     <a
                       href={link.url}
                       target="_blank"
@@ -170,7 +176,7 @@ export function PackingListCard({
                       data-item={item.id}
                       data-merchant={link.merchant}
                     >
-                      Voir des options <ExternalLink className="size-3" />
+                      Voir des options <ExternalLink className="size-3.5" />
                     </a>
                   </Button>
                 ) : null}
@@ -181,9 +187,9 @@ export function PackingListCard({
       })}
     </ul>
   );
+
   return (
     <section className="space-y-6 relative overflow-hidden">
-      {/* Mascot otter asset */}
       <div className="absolute top-0 right-0 pointer-events-none">
         <img
           src="/brand/otter-states/trip-preparation.png"
@@ -199,28 +205,29 @@ export function PackingListCard({
             <KrewIcon name="packing" tone="plum" size="sm" className="size-5" />
             À emporter
           </h2>
-          <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-xs py-1 px-2.5">
-            Check-list du séjour 🎒
+          <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-sm py-1 px-2.5">
+            Adaptée au séjour
           </KrewNote>
         </div>
-        <p className="text-xs sm:text-sm text-muted-foreground font-sans mt-1">
-          Retrouve ici ce qu’il faut prévoir pour le voyage.
+        <p className="text-sm sm:text-base text-muted-foreground font-sans mt-1 leading-relaxed">
+          Une liste adaptée au séjour et aux activités, à compléter avec le groupe.
         </p>
       </div>
-      <div className="grid gap-5 md:grid-cols-2">
-        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
-          <h3 className="font-sans font-semibold text-base text-foreground">Mes affaires</h3>
+
+      <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
+        <section className="space-y-2 border-t border-border/50 pt-4">
+          <h3 className="font-sans font-semibold text-base sm:text-lg text-foreground">Mes affaires</h3>
           {renderItems(result.personal)}
-        </div>
-        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
-          <h3 className="font-sans font-semibold text-base text-foreground">Pour le groupe</h3>
+        </section>
+        <section className="space-y-2 border-t border-border/50 pt-4">
+          <h3 className="font-sans font-semibold text-base sm:text-lg text-foreground">Pour le groupe</h3>
           {renderItems(result.group, true)}
-        </div>
-        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
-          <h3 className="font-sans font-semibold text-base text-foreground">Courses</h3>
-          <ul className="divide-y divide-border/40 text-sm">
+        </section>
+        <section className="space-y-2 border-t border-border/50 pt-4">
+          <h3 className="font-sans font-semibold text-base sm:text-lg text-foreground">Courses</h3>
+          <ul className="divide-y divide-border/40 text-sm sm:text-base">
             {result.groceries.map((g) => (
-              <li key={g.id} className="py-2 flex items-center justify-between">
+              <li key={g.id} className="py-3 flex items-start justify-between gap-3">
                 <span className="font-medium text-foreground">
                   {g.label}
                   {g.optional ? " (facultatif)" : ""}
@@ -228,38 +235,37 @@ export function PackingListCard({
               </li>
             ))}
           </ul>
-        </div>
-        <div className="space-y-2 p-4 bg-surface/20 rounded-xl border border-border/30">
-          <h3 className="font-sans font-semibold text-base text-foreground">À faire</h3>
-          <ul className="divide-y divide-border/40 text-sm">
+        </section>
+        <section className="space-y-2 border-t border-border/50 pt-4">
+          <h3 className="font-sans font-semibold text-base sm:text-lg text-foreground">À faire</h3>
+          <ul className="divide-y divide-border/40 text-sm sm:text-base">
             {result.tasks.map((t) => (
-              <li key={t.id} className="py-2 flex items-center justify-between">
+              <li key={t.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">
                 <span className="font-medium text-foreground">{t.label}</span>
-                <span className="text-xs text-muted-foreground">
-                  À attribuer
-                </span>
+                <span className="text-sm text-muted-foreground">À répartir dans les tâches</span>
               </li>
             ))}
           </ul>
-        </div>
+        </section>
       </div>
-      <div className="flex flex-wrap gap-2 border-t border-border/50 pt-4 items-center">
+
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 border-t border-border/50 pt-4 items-stretch sm:items-center">
         <Input
           value={manualLabel}
           onChange={(e) => setManualLabel(e.target.value)}
           placeholder="Ajouter un élément"
-          className="max-w-xs rounded-xl text-xs h-9"
+          className="w-full sm:max-w-xs rounded-xl text-base h-11"
         />
         <select
           aria-label="Type de l'élément"
           value={manualMode}
           onChange={(e) => setManualMode(e.target.value as "personal" | "group")}
-          className="rounded-xl border border-border bg-background px-3 text-xs h-9 font-medium"
+          className="rounded-xl border border-border bg-background px-3 text-sm h-11 font-medium"
         >
           <option value="personal">Mes affaires</option>
           <option value="group">Pour le groupe</option>
         </select>
-        <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl text-xs font-medium" onClick={addManual}>
+        <Button type="button" variant="outline" size="sm" className="h-11 rounded-xl text-sm font-medium" onClick={addManual}>
           <KrewIcon name="plus" size="sm" className="size-3.5 shrink-0" /> Ajouter
         </Button>
       </div>
