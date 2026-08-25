@@ -1253,7 +1253,7 @@ function TripDetail() {
                     Membres du groupe
                   </h2>
                 </div>
-
+              </div>
 
               {/* Underline wave KrewMark sous le titre */}
               <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[8px] mt-1 opacity-85 pointer-events-none" />
@@ -1575,8 +1575,6 @@ function TripDetail() {
                     )
                   ) : null}
                 </div>
-              </div>
-
             </div>
 
             {/* ACTION INVITATION / PARTAGE SANS VERT WHATSAPP NI AMBER (UNIFIED 40px/12px/600/12px) */}
