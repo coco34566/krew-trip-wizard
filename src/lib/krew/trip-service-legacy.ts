@@ -920,6 +920,8 @@ export async function aggregateParticipantPreferences(
       weatherPreference: r.weather_preference ?? 1,
       freeText: r.free_text || null,
       mobilityNotes: r.mobility_notes || null,
+      acceptsSharedRoom: r.accepts_shared_room ?? true,
+      roomTypePreference: r.room_type_preference ?? null,
       localMobility: r.local_mobility ?? null,
       accommodationRole: r.accommodation_role ?? null,
     };
