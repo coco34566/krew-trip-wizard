@@ -9,6 +9,7 @@ import { resolveShoppingLink, type ShoppingLink } from "@/lib/krew/shopping";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 
 type Props = PackingListInput & {
@@ -201,15 +202,23 @@ export function PackingListCard({
 
       <div className="pr-16 sm:pr-20 relative">
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
-            <KrewIcon name="packing" tone="plum" size="sm" className="size-5" />
-            À emporter
-          </h2>
+          <div className="relative inline-block">
+            <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
+              <KrewIcon name="packing" tone="plum" size="sm" className="size-5" />
+              À emporter
+            </h2>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="sm"
+              className="absolute left-7 -bottom-1.5 w-[90px] pointer-events-none"
+            />
+          </div>
           <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-sm py-1 px-2.5">
             Adaptée au séjour
           </KrewNote>
         </div>
-        <p className="text-sm sm:text-base text-muted-foreground font-sans mt-1 leading-relaxed">
+        <p className="text-sm sm:text-base text-muted-foreground font-sans mt-2 leading-relaxed">
           Une liste adaptée au séjour et aux activités, à compléter avec le groupe.
         </p>
       </div>
