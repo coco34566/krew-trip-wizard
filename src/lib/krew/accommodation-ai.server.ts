@@ -404,13 +404,62 @@ export async function searchAccommodationsWithGemini(specification: Accommodatio
     if (tavilyResponse.status === 429) throw new Error("tavily_accommodation_429:rate_limited");
     throw new Error(`tavily_accommodation_http_${tavilyResponse.status}:${body.slice(0, 160)}`);
   }
-  const payload = JSON.parse(body);
+  let payload = JSON.parse(body);
+  let webSearchCalls = 1;
+  let tavilyCredits = Number(payload?.usage?.credits ?? 1);
+  let rawResultCount = Array.isArray(payload?.results) ? payload.results.length : 0;
+
+  if (rawResultCount === 0) {
+    const fallbackTypes = [...new Set(specification.searchStrategies.flatMap((strategy) => strategy.propertyTypes))]
+      .filter(Boolean)
+      .slice(0, 4)
+      .join(" ");
+    const fallbackQuery = [
+      specification.destination.name,
+      specification.destination.country,
+      fallbackTypes || "hotel apartment accommodation",
+      `${specification.group.size} people`,
+      specification.dates.checkIn,
+      specification.dates.checkOut,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 380);
+
+    const fallbackResponse = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilyKey}` },
+      body: JSON.stringify({
+        query: fallbackQuery,
+        search_depth: "basic",
+        auto_parameters: false,
+        topic: "general",
+        max_results: 20,
+        include_answer: false,
+        include_raw_content: false,
+        include_images: false,
+        include_usage: true,
+      }),
+    });
+    const fallbackBody = await fallbackResponse.text();
+    if (fallbackResponse.ok) {
+      payload = JSON.parse(fallbackBody);
+      webSearchCalls = 2;
+      tavilyCredits += Number(payload?.usage?.credits ?? 1);
+      rawResultCount = Array.isArray(payload?.results) ? payload.results.length : 0;
+    } else if (fallbackResponse.status !== 429) {
+      console.warn("accommodation-web-search fallback failed", fallbackResponse.status);
+    }
+  }
+
   console.info("accommodation-web-search", {
     destination: specification.destination.name,
     geminiCalls: 1,
-    webSearchCalls: 1,
-    tavilyCredits: Number(payload?.usage?.credits ?? 1),
-    resultCount: Array.isArray(payload?.results) ? payload.results.length : 0,
+    webSearchCalls,
+    tavilyCredits,
+    resultCount: rawResultCount,
     queryLength: searchQuery.length,
   });
   return normalizeTavilyAccommodationResults(payload, specification);
