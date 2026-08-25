@@ -194,7 +194,6 @@ function Landing() {
             <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground leading-tight">Ta prochaine légende commence ici</h2>
             <p className="mx-auto max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed font-sans">Crée le voyage, invite le groupe et avancez ensemble, étape par étape.</p>
             <div className="pt-2 relative"><KrewNote variant="tape" tone="sage" rotation={1} className="absolute -top-7 left-1/2 -translate-x-1/2 sm:hidden text-sm px-2 py-1 pointer-events-none">prêts à partir ?</KrewNote><Button asChild size="xl" className="h-12 min-h-12 rounded-xl px-8 py-0 text-base font-medium leading-none shadow-none"><Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link></Button></div>
-            <p className="text-xs text-muted-foreground font-mono pt-1">Gratuit pour démarrer · sans carte bancaire</p>
           </div>
         </section>
       </main>
