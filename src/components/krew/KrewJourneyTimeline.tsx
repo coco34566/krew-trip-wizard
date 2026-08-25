@@ -105,12 +105,15 @@ function StepLabel({
         >
           {step.title}
         </div>
+        {step.category === "souvenirs" && step.subtitle ? (
+          <span className="mt-1 block max-w-[116px] sm:max-w-[150px] text-[10px] sm:text-[11px] leading-snug text-muted-foreground/75">{step.subtitle}</span>
+        ) : null}
         {isDone ? (
           <span className="mt-1 inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.08em] text-sage">
             terminé
           </span>
         ) : isAvailable ? (
-          <span className="mt-1 block text-[9px] sm:text-[10px] font-medium text-primary/65">disponible</span>
+          <span className="mt-1 block text-[9px] sm:text-[10px] font-medium text-primary/65">Disponible</span>
         ) : null}
       </div>
     </div>
@@ -271,8 +274,14 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 rotation={-2}
                 className="relative z-10 mb-2 text-[.76rem] sm:text-[.88rem]"
               >
-                prochaine étape
+                Prochaine étape
               </KrewNote>
+              <KrewMark
+                type="arrow-curved-right"
+                tone="sage"
+                size="sm"
+                className="absolute left-8 top-7 z-20 h-7 w-10 rotate-[18deg] pointer-events-none"
+              />
               <div className="relative z-10 flex items-center gap-2.5 sm:gap-3 rounded-[46%_54%_48%_52%/54%_46%_56%_44%] bg-background/95 px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-[0_4px_16px_rgba(60,35,50,.05)]">
                 <div className="flex size-10 sm:size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/10">
                   <KrewIcon name={step.iconName} size="sm" tone="cream" className="size-5 sm:size-6" />
@@ -319,9 +328,6 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
           );
         })}
 
-        <div className="absolute bottom-0 right-[7%] sm:right-[12%] pointer-events-none">
-          <KrewMark type="route" tone="sage" size="lg" className="w-24 sm:w-32 opacity-50" />
-        </div>
       </div>
     </div>
   );
