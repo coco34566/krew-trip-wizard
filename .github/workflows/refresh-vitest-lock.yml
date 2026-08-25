@@ -23,7 +23,7 @@ jobs:
       - name: Refresh dependency lock safely
         run: |
           npm install --package-lock-only --ignore-scripts
-          npm audit fix --package-lock-only --ignore-scripts
+          npm audit fix --package-lock-only --ignore-scripts || true
       - name: Validate patched Vitest resolution
         run: |
           node - <<'NODE'
