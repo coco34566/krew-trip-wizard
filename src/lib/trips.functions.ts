@@ -3731,6 +3731,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     const { searchTransportRoundTrip, estimateTransportFromDistance } =
       await import("@/integrations/external/transport.server");
+    const { buildKiwiAffiliateLink, cityToIataOrName } = await import("@/lib/krew/deep-links");
 
     const baseFlight = estimateTransportFromDistance(distanceKm);
     const priceForMode = (mode: string): number => {
@@ -3777,10 +3778,18 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       const d = encodeURIComponent(to);
       const gAdults = Math.min(Math.max(1, groupSize), 9);
       if (mode === "flight") {
+        const kiwi = buildKiwiAffiliateLink({
+          originCode: cityToIataOrName(from),
+          destinationCode: cityToIataOrName(to),
+          departDate: checkin,
+          returnDate: checkout,
+          subId: "krew-transport",
+        });
+        if (kiwi) return [{ label: "Kiwi", url: kiwi }];
         return [
           {
-            label: "Kayak (vol)",
-            url: `https://www.kayak.fr/flights/${f}-${d}/${checkin}/${checkout}?adults=${gAdults}&sort=price_a`,
+            label: "Google Flights",
+            url: `https://www.google.com/travel/flights?q=${encodeURIComponent(`Vols de ${from} à ${to} le ${checkin} retour ${checkout}`)}`,
           },
         ];
       }
@@ -3846,7 +3855,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
     const modeMeta: { mode: string; modeLabel: string; enabled: boolean }[] = [
       { mode: "flight", modeLabel: "Avion", enabled: !planeRefused && distanceKm >= 250 },
       // Providers futurs : ne pas matérialiser une estimation de distance comme une offre réelle.
-      { mode: "train", modeLabel: "Train", enabled: distanceKm <= 1200 },
+      { mode: "train", modeLabel: "Train", enabled: distanceKm <= 700 },
       { mode: "car", modeLabel: "Voiture", enabled: distanceKm <= 1000 },
       { mode: "covoiturage", modeLabel: "Covoiturage", enabled: distanceKm <= 800 },
       { mode: "ferry", modeLabel: "Ferry", enabled: false },
@@ -3897,7 +3906,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       }
       if (
         (!hasModeFilter || acceptedModes.some((m) => m.includes("train"))) &&
-        distanceKm <= 1200
+        distanceKm <= 700
       ) {
         try {
           const { searchSncfRoundTripFares } =
@@ -4064,6 +4073,26 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
     // Tri : par ville puis prix croissant
     transports.sort((a, b) => a.city.localeCompare(b.city) || a.pricePerPerson - b.pricePerPerson);
+
+    // Ne pas afficher plusieurs fois le même trajet lorsqu'une même ville est
+    // scindée en sous-groupes (contraintes renseignées vs valeurs par défaut).
+    const dedupedTransports: TransportCard[] = [];
+    for (const card of transports) {
+      const routeKey = `${norm(card.city)}|${norm(card.mode)}|${card.url || card.searchUrl || ""}`;
+      const existing = dedupedTransports.find(
+        (item) => `${norm(item.city)}|${norm(item.mode)}|${item.url || item.searchUrl || ""}` === routeKey,
+      );
+      if (!existing) {
+        dedupedTransports.push(card);
+        continue;
+      }
+      existing.count += card.count;
+      existing.participantIds = [...new Set([...(existing.participantIds ?? []), ...(card.participantIds ?? [])])];
+      existing.respectedConstraints = [...new Set([...(existing.respectedConstraints ?? []), ...(card.respectedConstraints ?? [])])];
+      existing.matchReasons = [...new Set([...(existing.matchReasons ?? []), ...(card.matchReasons ?? [])])];
+      existing.score = Math.max(existing.score ?? 0, card.score ?? 0);
+    }
+    transports.splice(0, transports.length, ...dedupedTransports);
 
     // Mise à jour additive : une génération conserve l'autre domaine, ses votes et ses statuts.
     const prev = (trip.group_logistics as any) || {};

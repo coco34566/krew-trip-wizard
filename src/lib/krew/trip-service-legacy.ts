@@ -1885,13 +1885,19 @@ export async function generateRecommendationsForTrip(
   const budgetLevelByDestinationId: Record<string, "low" | "medium" | "high"> = {};
   const tripOrigin = ((trip.data.departure_city as string) || "Paris").trim() || "Paris";
   const departureOrigins = aggregated.departureOrigins?.length
-    ? aggregated.departureOrigins
+    ? aggregated.departureOrigins.map((origin) => ({ ...origin }))
     : [{ city: tripOrigin, count: Math.max(1, ctx.participants) }];
   const countedInOrigins = departureOrigins.reduce((sum, origin) => sum + origin.count, 0);
-  const originsForQuote =
-    countedInOrigins < ctx.participants
-      ? [...departureOrigins, { city: tripOrigin, count: ctx.participants - countedInOrigins }]
-      : departureOrigins;
+  const originsForQuote = (() => {
+    if (countedInOrigins >= ctx.participants) return departureOrigins;
+    const remaining = ctx.participants - countedInOrigins;
+    const existing = departureOrigins.find((origin) => normCity(origin.city) === normCity(tripOrigin));
+    if (existing) {
+      existing.count += remaining;
+      return departureOrigins;
+    }
+    return [...departureOrigins, { city: tripOrigin, count: remaining }];
+  })();
   const fallbackTransport = (distanceKm: number) =>
     distanceKm <= 350
       ? 45
