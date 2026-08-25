@@ -1,0 +1,241 @@
+/* Scoped corrections from the tablet/mobile KREW UX review.
+ * Keep this file deliberately narrow: no business logic and no global redesign. */
+
+/* Shared page-title rhythm: keep the hand-drawn sage underline below, never through, the title. */
+main[class*="max-w-[820px]"] h1 + svg[class*="underline"],
+main[class*="max-w-[1020px]"] h1 + svg[class*="underline"],
+main[class*="max-w-[1180px]"] h1 + svg[class*="underline"],
+main.max-w-5xl h1 + svg[class*="underline"] {
+  bottom: -0.875rem !important;
+}
+
+/* Create trip — make the existing selected language unmistakable on photo cards. */
+main[class*="max-w-[820px]"] form button[class*="border-primary/40"] {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 18%, transparent),
+    0 8px 20px -16px color-mix(in oklch, var(--primary) 50%, transparent);
+}
+
+main[class*="max-w-[820px]"] form button[class*="border-primary/40"]::after {
+  content: "";
+  position: absolute;
+  inset: 0.4rem;
+  border: 1.5px solid color-mix(in oklch, var(--primary) 75%, white);
+  border-radius: 0.65rem;
+  pointer-events: none;
+}
+
+/* Questionnaire accommodation: it is a normal section, not a disabled/secondary grey card. */
+main[class*="max-w-[820px]"] section.bg-surface\/50,
+main[class*="max-w-[820px]"] [class*="bg-surface/50"]:has(> h2:first-child) {
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Saved-answer note: stronger KREW post-it presence without disturbing the form. */
+main[class*="max-w-[820px]"] div.space-y-1\.5 > [class*="KrewNote"],
+main[class*="max-w-[820px]"] div.space-y-1\.5 > div[class*="bg-"] {
+  min-height: 2.4rem;
+}
+
+/* Group — preserve tablet/desktop, untangle information only on phones. */
+@media (max-width: 639px) {
+  #group-section [class*="grid-cols"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #group-section [class*="flex"][class*="items-center"][class*="gap"] {
+    flex-wrap: wrap;
+    row-gap: 0.45rem;
+  }
+
+  #group-section [class*="text-xs"],
+  #group-section [class*="text-sm"] {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Participant total: label left, action right, including mobile. */
+#group-section > div:nth-child(2) > div:first-child > div:last-child {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Cost split: one modest KREW annotation, not another dominant card. */
+#hub-cost-split {
+  position: relative;
+}
+
+#hub-cost-split::after {
+  content: "On partage, on s’y retrouve";
+  display: block;
+  width: max-content;
+  max-width: 13rem;
+  margin: 0.75rem 0 0 auto;
+  padding: 0.45rem 0.8rem;
+  background: color-mix(in oklch, var(--sage) 24%, var(--background));
+  border: 1px solid color-mix(in oklch, var(--sage) 42%, var(--border));
+  box-shadow: 0 7px 16px -13px color-mix(in oklch, var(--foreground) 38%, transparent);
+  transform: rotate(-1.2deg);
+  font-family: "Caveat", cursive;
+  font-size: 1rem;
+  line-height: 1.05;
+  color: var(--primary);
+  clip-path: polygon(2% 4%, 99% 0, 97% 96%, 4% 100%);
+}
+
+/* Trip management: remove old heading, align archive/delete as two peer actions. */
+main.max-w-5xl footer[class*="mt-16"] > p:first-child {
+  display: none !important;
+}
+
+main.max-w-5xl footer[class*="mt-16"] > div {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start !important;
+  gap: 1rem 1.5rem !important;
+}
+
+main.max-w-5xl footer[class*="mt-16"] button {
+  min-height: 2.75rem;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+@media (max-width: 639px) {
+  main.max-w-5xl footer[class*="mt-16"] > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Journey header: real title first; annotation becomes a secondary bottom-right note. */
+div[class*="max-w-[900px]"] > header {
+  padding-right: 7.25rem !important;
+  padding-bottom: 2rem;
+}
+
+div[class*="max-w-[900px]"] > header > div:first-child {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.15rem;
+  margin: 0 !important;
+  z-index: 2;
+}
+
+div[class*="max-w-[900px]"] > header > img {
+  right: 0.35rem !important;
+  width: 7.25rem !important;
+}
+
+@media (min-width: 640px) {
+  div[class*="max-w-[900px]"] > header {
+    padding-right: 10.5rem !important;
+    min-height: 9.25rem !important;
+  }
+
+  div[class*="max-w-[900px]"] > header > img {
+    right: 0.5rem !important;
+    width: 9.4rem !important;
+  }
+}
+
+/* Journey labels: create a little more air from nodes/path, especially tablet. */
+div[class*="max-w-[900px]"] [class*="left-[calc(100%+9px)]"] {
+  left: calc(100% + 14px) !important;
+}
+
+div[class*="max-w-[900px]"] [class*="right-[calc(100%+9px)]"] {
+  right: calc(100% + 14px) !important;
+}
+
+/* Remove the decorative arrow after “On avance ensemble” when it has no target. */
+div[class*="max-w-[900px]"] div[class*="left-[6%]"][class*="top-[24%]"] + svg {
+  display: none !important;
+}
+
+/* Next action: keep the existing status, remove the synthetic floating blob/halo. */
+div[class*="max-w-[900px]"] div[class*="rounded-[46%_54%"] {
+  border-radius: 1rem !important;
+  box-shadow: none !important;
+  border: 1px dashed color-mix(in oklch, var(--sage) 50%, var(--border));
+  background: color-mix(in oklch, var(--background) 94%, var(--sage)) !important;
+}
+
+div[class*="max-w-[900px]"] div[class*="ring-4"][class*="ring-primary/10"] {
+  box-shadow: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+/* Make route annotations a little more legible on tablet without touching mobile interaction. */
+@media (min-width: 640px) {
+  div[class*="max-w-[900px]"] div[class*="top-[24%]"] [class*="KrewNote"],
+  div[class*="max-w-[900px]"] div[class*="top-[74%]"] [class*="KrewNote"] {
+    font-size: 1rem;
+  }
+}
+
+/* Availability: use the free lower-right calendar space as a small paper note. */
+main[class*="max-w-[820px]"] section:has(> div.grid.gap-3.sm\:grid-cols-2) {
+  position: relative;
+}
+
+main[class*="max-w-[820px]"] section:has(> div.grid.gap-3.sm\:grid-cols-2)::after {
+  content: "On cherche le bon créneau";
+  display: block;
+  width: max-content;
+  max-width: 12rem;
+  margin: 0.4rem 0 0 auto;
+  padding: 0.45rem 0.75rem;
+  background: color-mix(in oklch, var(--sage) 22%, var(--background));
+  border: 1px solid color-mix(in oklch, var(--sage) 40%, var(--border));
+  clip-path: polygon(1% 3%, 99% 0, 97% 96%, 3% 100%);
+  transform: rotate(1deg);
+  font-family: "Caveat", cursive;
+  font-size: 1rem;
+  color: var(--primary);
+  pointer-events: none;
+}
+
+/* Star questionnaire: a single secondary annotation under the intro. */
+main[class*="max-w-[820px]"]:has(h1 [class*="bg-"]) > div.space-y-2.relative::after {
+  content: "Ses envies comptent";
+  display: block;
+  width: max-content;
+  margin: 0.75rem 0 0 auto;
+  padding: 0.45rem 0.8rem;
+  background: color-mix(in oklch, var(--sage) 22%, var(--background));
+  border: 1px solid color-mix(in oklch, var(--sage) 40%, var(--border));
+  clip-path: polygon(2% 2%, 100% 4%, 96% 98%, 3% 95%);
+  transform: rotate(-1deg);
+  font-family: "Caveat", cursive;
+  font-size: 1rem;
+  color: var(--primary);
+}
+
+/* Tablet page rhythm across this flow. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  main[class*="max-w-[820px]"],
+  main[class*="max-w-[1020px]"],
+  main[class*="max-w-[1180px]"],
+  main.max-w-5xl {
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+}
+
+/* Do not let decorative additions create horizontal scrolling. */
+@media (max-width: 1023px) {
+  main[class*="max-w-[820px]"],
+  main[class*="max-w-[1020px]"],
+  main[class*="max-w-[1180px]"],
+  main.max-w-5xl {
+    overflow-x: clip;
+  }
+}

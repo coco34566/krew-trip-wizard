@@ -23,7 +23,7 @@ export function CostSplitCard({ split, tripName }: Props) {
           {split.destinationName}
         </h3>
         <p className="mt-0.5 text-xs text-muted-foreground font-sans">
-          Chacun paie son transport depuis sa ville + une part égale du reste.
+          Chacun paie son transport depuis sa ville + une part commune du reste.
         </p>
       </div>
 
@@ -45,7 +45,7 @@ export function CostSplitCard({ split, tripName }: Props) {
         </div>
 
         <p className="text-xs font-medium text-foreground">
-          Part égale : <span className="font-mono font-semibold text-primary">{formatEuro(split.sharedPerPerson)}</span> / pers.
+          Part commune : <span className="font-mono font-semibold text-primary">{formatEuro(split.sharedPerPerson)}</span> / pers.
         </p>
 
         {/* Desktop Table View */}
@@ -55,7 +55,7 @@ export function CostSplitCard({ split, tripName }: Props) {
               <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2.5 pr-3">Participant (Ville)</th>
                 <th className="py-2.5 pr-3">Transport</th>
-                <th className="py-2.5 pr-3">Part égale</th>
+                <th className="py-2.5 pr-3">Part commune</th>
                 <th className="py-2.5 pr-3">Total</th>
               </tr>
             </thead>
@@ -85,7 +85,7 @@ export function CostSplitCard({ split, tripName }: Props) {
                 <span className="font-mono text-foreground">{formatEuro(l.transport)}</span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-muted-foreground">Part égale</span>
+                <span className="text-muted-foreground">Part commune</span>
                 <span className="font-mono text-foreground">{formatEuro(l.shared)}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-semibold pt-1 border-t border-border/30">

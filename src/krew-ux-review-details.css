@@ -1,0 +1,150 @@
+/* Small, semantic visual corrections that depend on existing route markup. */
+
+/* Landing: KREW is not communicating on payment yet. */
+body:has(main > section:first-child) main > section:last-of-type p.text-xs.text-muted-foreground.font-mono.pt-1 {
+  display: none !important;
+}
+
+/* Trip overview — the trip name is a KREW paper note over the upper-left photo area. */
+main.max-w-5xl header > div.relative.w-full > div.relative.z-20 > p:first-child {
+  position: absolute;
+  z-index: 30;
+  left: 0.75rem;
+  top: -14.25rem;
+  max-width: min(70%, 15rem);
+  padding: 0.5rem 0.85rem;
+  background: color-mix(in oklch, var(--sage) 25%, var(--background));
+  border: 1px solid color-mix(in oklch, var(--sage) 42%, var(--border));
+  color: var(--primary) !important;
+  font-family: "Caveat", cursive !important;
+  font-size: 1.08rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  clip-path: polygon(2% 3%, 99% 0, 97% 97%, 3% 100%);
+  transform: rotate(-1.4deg);
+  box-shadow: 0 9px 18px -15px color-mix(in oklch, var(--foreground) 45%, transparent);
+}
+
+@media (min-width: 640px) {
+  main.max-w-5xl header > div.relative.w-full > div.relative.z-20 > p:first-child {
+    left: 1.25rem;
+    top: -15.2rem;
+    font-size: 1.2rem !important;
+  }
+}
+
+/* A discreet progress annotation using only already-visible progress semantics. */
+main.max-w-5xl header > div.relative.w-full::after {
+  content: "La suite se prépare";
+  position: absolute;
+  z-index: 24;
+  right: 1rem;
+  top: 1rem;
+  max-width: 10rem;
+  padding: 0.42rem 0.72rem;
+  background: color-mix(in oklch, var(--background) 88%, var(--sage));
+  border: 1px solid color-mix(in oklch, var(--sage) 38%, var(--border));
+  color: var(--primary);
+  font-family: "Caveat", cursive;
+  font-size: 0.98rem;
+  line-height: 1;
+  transform: rotate(1.1deg);
+  clip-path: polygon(1% 3%, 98% 0, 100% 96%, 4% 100%);
+  pointer-events: none;
+}
+
+/* Questionnaire saved state: exact wording and a hand-drawn-looking check, larger post-it. */
+main[class*="max-w-[820px]"] div.space-y-1\.5 > div:first-child {
+  min-height: 2.6rem;
+  padding: 0.55rem 0.9rem !important;
+  font-size: 0 !important;
+  clip-path: polygon(2% 2%, 99% 0, 97% 96%, 3% 100%);
+}
+
+main[class*="max-w-[820px]"] div.space-y-1\.5 > div:first-child::before {
+  content: "✓";
+  display: inline-block;
+  margin-right: 0.45rem;
+  font-family: "Caveat", cursive;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--sage);
+  transform: rotate(-8deg);
+}
+
+main[class*="max-w-[820px]"] div.space-y-1\.5 > div:first-child::after {
+  content: "Réponse enregistrée";
+  font-family: "Caveat", cursive;
+  font-size: 1.08rem;
+  line-height: 1;
+  color: var(--primary);
+}
+
+/* Journey: normal French capitalization for the secondary note. */
+div[class*="max-w-[900px]"] > header > div:first-child {
+  font-size: 0 !important;
+}
+
+div[class*="max-w-[900px]"] > header > div:first-child::after {
+  content: "Notre feuille de route";
+  font-family: "Caveat", cursive;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--sage);
+}
+
+/* End the green journey path with a simple two-stroke hand-drawn arrow head. */
+div[class*="max-w-[900px]"] > div.relative.mx-auto::before,
+div[class*="max-w-[900px]"] > div.relative.mx-auto::after {
+  content: "";
+  position: absolute;
+  z-index: 4;
+  right: 18.5%;
+  bottom: 1.2%;
+  width: 1rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--sage);
+  opacity: 0.72;
+  transform-origin: right center;
+  pointer-events: none;
+}
+
+div[class*="max-w-[900px]"] > div.relative.mx-auto::before {
+  transform: rotate(28deg);
+}
+
+div[class*="max-w-[900px]"] > div.relative.mx-auto::after {
+  transform: rotate(-28deg);
+}
+
+/* Make existing journey paper annotations substantial enough to read as stickers. */
+div[class*="max-w-[900px]"] div[class*="top-[24%]"] > div,
+div[class*="max-w-[900px]"] div[class*="top-[74%]"] > div {
+  transform: scale(1.08);
+  transform-origin: center;
+}
+
+/* Tablet: otter stays decorative but closer and more present. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  div[class*="max-w-[900px]"] > header > img {
+    right: 0.75rem !important;
+    width: 9.75rem !important;
+  }
+}
+
+/* Keep all added paper elements inside phone width. */
+@media (max-width: 639px) {
+  main.max-w-5xl header > div.relative.w-full::after {
+    right: 0.75rem;
+    top: 0.75rem;
+    max-width: 8.5rem;
+    font-size: 0.9rem;
+  }
+
+  div[class*="max-w-[900px]"] > header > div:first-child {
+    right: 0;
+  }
+}
