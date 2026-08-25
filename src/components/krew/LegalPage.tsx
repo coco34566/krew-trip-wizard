@@ -3,14 +3,23 @@ import type { ReactNode } from "react";
 
 import { Logo } from "@/components/krew/Logo";
 import { SiteHeader } from "@/components/krew/SiteHeader";
+import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 
 export function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-10 sm:py-12">
-        <h1 className="font-display text-3xl sm:text-4xl font-normal tracking-tight leading-tight text-foreground">{title}</h1>
-        <p className="mt-2 text-sm font-mono text-muted-foreground">
+        <div className="relative inline-block">
+          <h1 className="font-display text-3xl sm:text-4xl font-normal tracking-tight leading-tight text-foreground">{title}</h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="sm"
+            className="absolute left-0 -bottom-1.5 w-[110px] sm:w-[130px] pointer-events-none"
+          />
+        </div>
+        <p className="mt-3 text-sm font-mono text-muted-foreground">
           Dernière mise à jour : 7 août 2026
         </p>
         <article className="prose-krew mt-8 space-y-7 text-sm sm:text-base leading-relaxed text-foreground/90">
