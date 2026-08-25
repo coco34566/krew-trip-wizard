@@ -379,7 +379,7 @@ function StarQuestionnaire() {
             type="underline-wave"
             tone="sage"
             size="md"
-            className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+            className="absolute left-1 -bottom-2 w-[clamp(96px,38vw,160px)] max-w-[70%] pointer-events-none"
           />
         </div>
         <p className="text-sm sm:text-base text-muted-foreground font-sans pt-1">
@@ -530,8 +530,7 @@ function StarQuestionnaire() {
 
         {/* 4. Transport */}
         <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
-          <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
-            <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
+          <h2 className="font-display text-2xl font-normal text-foreground">
             Transport
           </h2>
           <div className="space-y-2">
