@@ -71,7 +71,7 @@ export function SiteHeader() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="md:hidden size-10 rounded-xl text-muted-foreground hover:text-foreground"
+                className="md:hidden size-11 min-h-11 min-w-11 rounded-xl text-muted-foreground hover:text-foreground"
                 aria-label="Ouvrir le menu"
               >
                 <Menu className="size-5" />
@@ -86,17 +86,17 @@ export function SiteHeader() {
 
           {loading ? null : user ? (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex min-h-11 text-muted-foreground hover:text-foreground">
                 <Link to="/dashboard">Mes voyages</Link>
               </Button>
-              <Button asChild size="sm" className="h-10 min-h-10 shrink-0 rounded-xl px-3 sm:px-4 text-xs sm:text-sm font-medium leading-none">
+              <Button asChild size="sm" className="h-11 min-h-11 shrink-0 rounded-xl px-3 sm:px-4 text-xs sm:text-sm font-medium leading-none">
                 <Link to="/trips/new" className="inline-flex min-w-max items-center justify-center whitespace-nowrap text-center leading-none">
                   Nouveau voyage
                 </Link>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="ml-1 cursor-pointer outline-none" aria-label="Menu du compte">
+                  <button className="ml-1 inline-flex size-11 items-center justify-center rounded-full cursor-pointer outline-none" aria-label="Menu du compte">
                     <Avatar className="size-9 border border-border">
                       <AvatarFallback className="bg-surface text-xs font-semibold text-foreground">{initials}</AvatarFallback>
                     </Avatar>
@@ -124,10 +124,10 @@ export function SiteHeader() {
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex px-2 text-xs text-muted-foreground hover:text-foreground sm:px-3 sm:text-sm">
+              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex min-h-11 px-2 text-xs text-muted-foreground hover:text-foreground sm:px-3 sm:text-sm">
                 <Link to="/auth" search={{}}>Connexion</Link>
               </Button>
-              <Button asChild size="sm" className="h-10 min-h-10 shrink-0 rounded-xl px-3 sm:px-4 text-xs sm:text-sm font-medium leading-none">
+              <Button asChild size="sm" className="h-11 min-h-11 shrink-0 rounded-xl px-3 sm:px-4 text-xs sm:text-sm font-medium leading-none">
                 <Link to="/auth" search={{}} className="inline-flex min-w-max items-center justify-center whitespace-nowrap text-center leading-none">
                   Créer un voyage
                 </Link>
