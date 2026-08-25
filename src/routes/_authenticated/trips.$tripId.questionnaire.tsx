@@ -363,8 +363,9 @@ function ParticipantQuestionnaire() {
         </div>
         {isEditing ? (
           <div className="space-y-1.5 pt-1">
-            <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
-              Réponses enregistrées
+            <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-flex items-center gap-2">
+              <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
+              Réponse enregistrée
             </KrewNote>
             <p className="text-sm text-muted-foreground">
               Tu as déjà répondu
@@ -565,7 +566,7 @@ function ParticipantQuestionnaire() {
         >
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">
-              Budget max par personne :{" "}
+              Budget max par personne:{" "}
               <KrewHighlight tone="sage" className="font-mono text-primary px-2 py-0.5">
                 {formatEuro(budgetMax)}
               </KrewHighlight>{" "}
@@ -606,7 +607,6 @@ function ParticipantQuestionnaire() {
         <Section
           title="Hébergement"
           hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
-          bgClass="bg-surface/50"
         >
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Type de logement</Label>
@@ -684,7 +684,7 @@ function ParticipantQuestionnaire() {
                   active={transportModeAccepted.includes(m)}
                   onClick={() => {
                     setTransportModeAccepted((prev) => {
-                      if (m === "peu importe") return ["peu importe"];
+                      if (m === "peu importe") return ["peu_importe"];
                       const without = prev.filter((x) => x !== "peu importe" && x !== m);
                       const next = prev.includes(m) ? without : [...without, m];
                       return next.length ? next : ["peu importe"];
