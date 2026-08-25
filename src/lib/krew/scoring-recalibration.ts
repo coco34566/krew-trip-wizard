@@ -12,7 +12,8 @@ const normalize = (value: unknown) =>
 export function isLearningExcludedTripName(name: unknown): boolean {
   const normalized = normalize(name);
   if (!normalized) return false;
-  return /(^|[^a-z0-9])(test|qa|e2e|playwright|golden path|demo)([^a-z0-9]|$)/i.test(normalized);
+  // TEST16 / Test15 are common QA names too: allow digits immediately after "test".
+  return /(^|[^a-z0-9])(test(?=\d|[^a-z0-9]|$)|qa(?=[^a-z0-9]|$)|e2e(?=[^a-z0-9]|$)|playwright(?=[^a-z0-9]|$)|golden path(?=[^a-z0-9]|$)|demo(?=[^a-z0-9]|$))/i.test(normalized);
 }
 
 export function filterEligibleScoringFeedback<TRow extends { trip_id?: string | null }>(
