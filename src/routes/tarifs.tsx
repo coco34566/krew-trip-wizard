@@ -31,7 +31,7 @@ function PricingPage() {
               type="underline-wave"
               tone="sage"
               size="md"
-              className="absolute left-0 -bottom-2 w-[180px] pointer-events-none"
+              className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
             />
           </div>
           <p className="mt-4 text-base text-muted-foreground font-sans">
