@@ -20,14 +20,14 @@ function AboutPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <SiteHeader />
-      <main className="flex-1 mx-auto max-w-3xl px-4 py-12">
-        <header className="text-center max-w-2xl mx-auto mb-12 space-y-2 relative">
+      <main className="flex-1 mx-auto w-full max-w-3xl px-4 sm:px-6 py-10 sm:py-12">
+        <header className="text-center max-w-2xl mx-auto mb-10 sm:mb-12 space-y-2 relative">
           <KrewOrganicBlob
             tone="sage"
             variant="soft"
             className="absolute -top-10 -left-10 w-[200px] h-[150px] opacity-30 pointer-events-none"
           />
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary font-mono relative z-10">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary font-mono relative z-10">
             Notre mission
           </p>
           <div className="relative inline-block z-10">
@@ -41,22 +41,22 @@ function AboutPage() {
               className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
             />
           </div>
-          <p className="mt-4 text-base text-muted-foreground font-sans relative z-10">
-            On adore voyager entre ami·e·s, mais on déteste devoir relancer tout le monde sur WhatsApp ou remplir des fichiers Excel sans fin.
+          <p className="mt-4 text-base text-muted-foreground font-sans relative z-10 leading-relaxed">
+            Voyager à plusieurs, c’est souvent la meilleure partie. L’organiser ne devrait pas être la pire.
           </p>
         </header>
 
-        <article className="prose-krew space-y-8 text-sm leading-relaxed text-foreground/90">
+        <article className="prose-krew space-y-9 text-sm sm:text-base leading-relaxed text-foreground/90">
           <section className="space-y-3">
             <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
               <KrewIcon name="group" tone="plum" size="sm" className="size-5" />
               Notre histoire
             </h2>
             <p>
-              Tout a commencé lors de l&apos;organisation d&apos;un EVG. Entre celui qui n&apos;aime pas l&apos;avion, celle qui a un budget serré, et les dix autres personnes qui ne répondent pas aux sondages de dates... On a bien failli abandonner. On s&apos;est rendu compte qu&apos;organiser un voyage de groupe était devenu un vrai parcours du combattant.
+              Tout a commencé lors de l&apos;organisation d&apos;un EVG. Entre celui qui n&apos;aime pas l&apos;avion, celle qui a un budget serré et les personnes qui ne répondent pas aux sondages de dates, organiser le séjour devenait vite compliqué.
             </p>
             <p>
-              C&apos;est pour ça qu&apos;on a créé KREW : une application qui rassemble les disponibilités et les préférences du groupe pour aider à construire le voyage, des dates au planning.
+              KREW est né pour rassembler au même endroit les disponibilités, les envies et les contraintes du groupe, puis aider à avancer des dates jusqu’au planning.
             </p>
           </section>
 
@@ -66,29 +66,29 @@ function AboutPage() {
               Notre philosophie
             </h2>
             <p>
-              Chez KREW, on croit en la simplicité et en l&apos;équité. Chacun doit pouvoir partager ses préférences librement pour que le groupe trouve un voyage qui lui ressemble.
+              Chacun doit pouvoir partager ses préférences simplement, sans transformer l’organisation en une suite de débats et de tableaux à maintenir.
             </p>
             <p>
-              On veut réduire les débats sans fin et simplifier les décisions, sans décider à la place du groupe.
+              KREW aide le groupe à y voir clair et à décider ensemble. L’application simplifie l’organisation, mais le dernier mot reste toujours au groupe.
             </p>
           </section>
 
           <section className="space-y-3">
             <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
               <KrewIcon name="favorite" tone="plum" size="sm" className="size-5" />
-              Conçu pour toi
+              Pour les moments qui comptent
             </h2>
             <p>
-              Que tu organises un EVG, un EVJF, un anniversaire ou un week-end, KREW t’aide à avancer avec le groupe.
+              EVG, EVJF, anniversaire ou week-end entre amis : KREW accompagne le groupe du premier message jusqu’au départ.
             </p>
           </section>
         </article>
 
         <div className="mt-12 text-center py-8 border-t border-border/60 space-y-2">
           <h3 className="font-display text-2xl font-normal text-foreground">Prêt pour le prochain voyage ?</h3>
-          <p className="text-xs text-muted-foreground font-sans">Crée ton premier voyage et invite le groupe.</p>
+          <p className="text-sm text-muted-foreground font-sans">Crée ton voyage et invite le groupe.</p>
           <div className="pt-2">
-            <Button asChild className="rounded-xl min-h-[44px] h-auto whitespace-normal text-center leading-tight py-2.5">
+            <Button asChild className="rounded-xl min-h-[44px] h-auto whitespace-normal text-center leading-tight py-2.5 px-5">
               <Link to="/trips/new">
                 <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
                 Créer mon voyage
@@ -99,9 +99,9 @@ function AboutPage() {
       </main>
 
       <footer className="border-t border-border bg-card/30 py-8">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 text-xs text-muted-foreground">
+        <div className="mx-auto flex max-w-3xl flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 text-sm text-muted-foreground">
           <Logo size="sm" />
-          <p>© {new Date().getFullYear()} KREW — voyages de groupe simples</p>
+          <p className="text-center sm:text-right">© {new Date().getFullYear()} KREW — voyages de groupe simples</p>
         </div>
       </footer>
     </div>
