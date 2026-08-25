@@ -10,7 +10,7 @@ export const Route = createFileRoute("/faq")({
   head: () => ({
     meta: [
       { title: "FAQ — KREW" },
-      { name: "description", content: "Une question sur KREW ? Retrouve toutes les réponses à tes questions ici." },
+      { name: "description", content: "Une question sur KREW ? Retrouve les réponses aux questions les plus fréquentes." },
     ],
   }),
   component: FaqPage,
@@ -29,9 +29,9 @@ function FaqPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <SiteHeader />
-      <main className="flex-1 mx-auto max-w-3xl px-4 py-12">
-        <header className="text-center max-w-2xl mx-auto mb-12 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary font-mono">
+      <main className="flex-1 mx-auto w-full max-w-3xl px-4 sm:px-6 py-10 sm:py-12">
+        <header className="text-center max-w-2xl mx-auto mb-10 sm:mb-12 space-y-2">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary font-mono">
             Des questions ?
           </p>
           <div className="relative inline-block">
@@ -53,15 +53,11 @@ function FaqPage() {
         <section className="max-w-2xl mx-auto">
           <Accordion type="single" collapsible className="w-full divide-y divide-border/50 border-y border-border/50">
             {FAQS.map((faq, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="border-b-0 py-1"
-              >
-                <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
+              <AccordionItem key={index} value={`item-${index}`} className="border-b-0 py-1">
+                <AccordionTrigger className="text-left text-base font-semibold hover:no-underline py-4.5">
                   {faq.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground leading-relaxed text-sm pb-4">
+                <AccordionContent className="text-muted-foreground leading-relaxed text-sm sm:text-base pb-5 pr-2">
                   {faq.a}
                 </AccordionContent>
               </AccordionItem>
@@ -69,11 +65,11 @@ function FaqPage() {
           </Accordion>
         </section>
 
-        <div className="mt-16 text-center py-8 border-t border-border/60 space-y-2">
+        <div className="mt-14 sm:mt-16 text-center py-8 border-t border-border/60 space-y-2">
           <h3 className="font-display text-2xl font-normal text-foreground">Prêt à organiser ton prochain voyage ?</h3>
-          <p className="text-xs text-muted-foreground font-sans">Crée ton voyage et invite le groupe.</p>
+          <p className="text-sm text-muted-foreground font-sans">Crée ton voyage et invite le groupe.</p>
           <div className="pt-2">
-            <Button asChild className="rounded-xl min-h-[44px] h-auto whitespace-normal text-center leading-tight py-2.5">
+            <Button asChild className="rounded-xl min-h-[44px] h-auto whitespace-normal text-center leading-tight py-2.5 px-5">
               <Link to="/trips/new">
                 <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
                 Créer mon voyage
@@ -84,9 +80,9 @@ function FaqPage() {
       </main>
 
       <footer className="border-t border-border bg-card/30 py-8">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 text-xs text-muted-foreground">
+        <div className="mx-auto flex max-w-3xl flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 text-sm text-muted-foreground">
           <Logo size="sm" />
-          <p>© {new Date().getFullYear()} KREW — voyages de groupe simples</p>
+          <p className="text-center sm:text-right">© {new Date().getFullYear()} KREW — voyages de groupe simples</p>
         </div>
       </footer>
     </div>
