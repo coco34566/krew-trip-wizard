@@ -10,6 +10,7 @@ import {
 describe("scoring recalibration safeguards", () => {
   it("excludes QA, test, E2E and demo trips from learning", () => {
     expect(isLearningExcludedTripName("TEST 16 EVJF")).toBe(true);
+    expect(isLearningExcludedTripName("Test15")).toBe(true);
     expect(isLearningExcludedTripName("QA Golden Path")).toBe(true);
     expect(isLearningExcludedTripName("E2E - Budapest")).toBe(true);
     expect(isLearningExcludedTripName("Demo voyage")).toBe(true);
