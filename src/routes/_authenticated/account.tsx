@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -79,25 +78,25 @@ function AccountPage() {
     <main className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
       <div className="mb-8 space-y-1">
         <div className="relative inline-block">
-          <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-tight text-foreground">Mon compte</h1>
+          <h1 className="font-display text-[36px] sm:text-[44px] font-normal leading-tight text-foreground">Mon compte</h1>
           <KrewMark
             type="underline-wave"
             tone="sage"
             size="sm"
-            className="absolute left-0 -bottom-1.5 w-[110px] pointer-events-none"
+            className="absolute left-0 -bottom-1.5 w-[96px] pointer-events-none"
           />
         </div>
-        <p className="mt-3 text-sm sm:text-base text-muted-foreground font-sans">
-          Retrouve les informations associées à ton compte KREW.
+        <p className="mt-3 text-sm text-muted-foreground font-sans">
+          Tes informations de compte et tes préférences générales.
         </p>
       </div>
 
       <div className="space-y-10">
-        <section className="space-y-4">
-          <div className="border-b border-border/60 pb-3">
-            <h2 className="font-display text-2xl font-normal text-foreground">Mes informations</h2>
+        <section className="space-y-3">
+          <div className="border-b border-border/60 pb-2.5">
+            <h2 className="font-display text-xl sm:text-2xl font-normal text-foreground">Mes informations</h2>
           </div>
-          <div className="divide-y divide-border/40 text-sm sm:text-base">
+          <div className="divide-y divide-border/40 text-sm">
             {firstName ? (
               <div className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
                 <span className="text-muted-foreground">Prénom</span>
@@ -115,36 +114,28 @@ function AccountPage() {
           </div>
         </section>
 
-        <section className="space-y-4 border-t border-border/60 pt-8">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight text-destructive">Supprimer mon compte</h2>
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              Supprime ton compte et les données personnelles qui n'ont plus de raison légale d'être conservées.
+        <section className="border-t border-border/60 pt-6 space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-foreground">Gestion du compte</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
+              Tu peux supprimer définitivement ton compte. Certaines données peuvent être conservées si la loi l’exige.
             </p>
           </div>
 
-          <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 text-destructive">
-            <AlertTriangle className="size-4" />
-            <AlertTitle>À savoir</AlertTitle>
-            <AlertDescription>
-              Certaines données peuvent être conservées lorsque la loi nous y oblige, notamment dans le cadre d'une obligation légale ou d'un litige.
-            </AlertDescription>
-          </Alert>
-
           {error ? (
-            <p className="mt-2 text-sm font-medium text-destructive" role="alert">
+            <p className="text-sm font-medium text-destructive" role="alert">
               {error}
             </p>
           ) : null}
 
           <Button
             type="button"
-            variant="destructive"
-            className="mt-2 min-h-[44px] h-auto rounded-xl whitespace-normal text-center leading-tight py-2.5"
+            variant="outline"
+            className="min-h-[40px] h-auto rounded-xl border-destructive/30 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/5 hover:text-destructive"
             onClick={() => setOpen(true)}
             disabled={deleting}
           >
-            <Trash2 className="size-4 shrink-0" />
+            <Trash2 className="size-3.5 shrink-0" />
             Supprimer mon compte
           </Button>
         </section>
