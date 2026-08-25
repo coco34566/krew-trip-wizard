@@ -60,216 +60,154 @@ type Trip = {
   destination_image_url?: string | null;
 };
 
-function FeaturedTripCard({
-  trip,
-  onCancel,
-}: {
-  trip: Trip;
-  onCancel?: (tripId: string) => void;
-}) {
-  const typeImage = getTripTypeImage(trip.event_type);
+function nextActionFor(trip: Trip) {
+  if (!trip.dates_locked) return "Finaliser les disponibilités";
+  if (!trip.destination_selected) return "Choisir la destination";
+  if (!trip.has_itinerary) return "Construire le planning";
+  return "Retrouver le voyage";
+}
 
+function tripImage(trip: Trip) {
+  return trip.destination_image_url || getTripTypeImage(trip.event_type);
+}
+
+function ArchiveControl({ trip, onCancel, compact = false }: { trip: Trip; onCancel: (tripId: string) => void; compact?: boolean }) {
   return (
-    <div className="relative">
-      <div className="absolute -top-3 right-4 z-20 hidden sm:block pointer-events-none">
-        <KrewNote variant="tape" tone="sage" rotation={2} className="text-xs py-1 px-2.5 min-w-0">
-          Prochain départ ! ✈️
-        </KrewNote>
-      </div>
-
-      <article className="group relative overflow-hidden rounded-[28px] border border-border/70 bg-background shadow-2xs transition-all hover:border-primary/50">
-        <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
-          <div className="grid lg:grid-cols-12 items-stretch">
-            <div className="lg:col-span-5 relative aspect-[16/10] lg:aspect-auto w-full overflow-hidden bg-surface/50 border-b lg:border-b-0 lg:border-r border-border/40">
-              {typeImage ? (
-                <img
-                  src={typeImage}
-                  alt={eventTypeLabel(trip.event_type)}
-                  className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                />
-              ) : (
-                <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />
-              )}
-            </div>
-
-            <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-6">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-mono font-semibold uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
-                    {eventTypeLabel(trip.event_type)}
-                  </span>
-
-                  {onCancel ? (
-                    <div className="relative z-20" onClick={(e) => e.stopPropagation()}>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 rounded-full text-muted-foreground hover:text-destructive"
-                            aria-label="Archiver le voyage"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Archiver ce voyage</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Êtes-vous sûr de vouloir archiver ce voyage ?
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Annuler</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => onCancel(trip.id)}>
-                              Archiver
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  ) : null}
-                </div>
-
-                <h3 className="font-display text-3xl sm:text-4xl font-normal text-foreground group-hover:text-primary transition-colors">
-                  {trip.name}
-                </h3>
-
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:text-base text-muted-foreground pt-1">
-                  {trip.destination_name ? (
-                    <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                      <KrewIcon name="destination" tone="plum" size="sm" className="size-4" />
-                      {trip.destination_name}
-                    </span>
-                  ) : null}
-                  {trip.start_date ? (
-                    <span className="inline-flex items-center gap-1.5 font-mono">
-                      <KrewIcon name="calendar" tone="muted" size="sm" className="size-4" />
-                      {new Date(trip.start_date).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </span>
-                  ) : null}
-                  <span className="inline-flex items-center gap-1.5 font-mono">
-                    <KrewIcon name="group" tone="muted" size="sm" className="size-4" />
-                    {trip.participants_count} participants
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center justify-between border-t border-border/50">
-                <span className="inline-flex items-center gap-2 text-sm sm:text-base font-semibold text-primary transition-transform group-hover:translate-x-1">
-                  Continuer l'organisation <KrewMark type="arrow-right" tone="plum" size="md" className="size-4" />
-                </span>
-              </div>
-            </div>
-          </div>
-        </Link>
-      </article>
-    </div>
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={compact ? "size-8 rounded-full bg-background/80 backdrop-blur-sm text-muted-foreground hover:text-destructive" : "size-9 rounded-full text-muted-foreground hover:text-destructive"}
+          aria-label="Archiver le voyage"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Archiver ce voyage</AlertDialogTitle>
+          <AlertDialogDescription>
+            Le voyage quittera tes voyages actifs. Tu pourras le retrouver plus tard dans tes voyages archivés.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Garder le voyage</AlertDialogCancel>
+          <AlertDialogAction onClick={() => onCancel(trip.id)}>Archiver</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
-function TripCard({
-  trip,
-  invited = false,
-  onCancel,
-}: {
-  trip: Trip;
-  invited?: boolean;
-  onCancel?: (tripId: string) => void;
-}) {
-  const ctaLabel = invited ? "Voir le voyage" : "Continuer l'organisation";
-  const typeImage = getTripTypeImage(trip.event_type);
+function FeaturedTrip({ trip, onCancel }: { trip: Trip; onCancel: (tripId: string) => void }) {
+  const image = tripImage(trip);
 
   return (
-    <article className="group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-border/60 bg-background transition-all hover:border-primary/40">
-      <div className="relative aspect-[16/9] w-full overflow-hidden bg-surface/50 border-b border-border/40">
-        {typeImage ? (
-          <img
-            src={typeImage}
-            alt={eventTypeLabel(trip.event_type)}
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-          />
-        ) : (
-          <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />
-        )}
+    <article className="relative isolate min-h-[430px] sm:min-h-[470px] lg:min-h-[500px] overflow-visible">
+      <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-5 top-10 h-[300px] w-[70%] opacity-45 -z-10" />
+      <KrewOrganicBlob tone="plum" variant="soft" className="absolute right-0 bottom-4 h-[220px] w-[48%] opacity-[.045] -z-10" />
 
-        {onCancel ? (
-          <div className="absolute top-3 right-3 z-10">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="size-8 rounded-full bg-background/80 backdrop-blur-sm text-muted-foreground hover:text-destructive hover:bg-background"
-                  aria-label="Archiver le voyage"
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Archiver ce voyage</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Êtes-vous sûr de vouloir archiver ce voyage ?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onCancel(trip.id)}>Archiver</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+      <div className="absolute left-[3%] top-5 w-[78%] sm:w-[57%] lg:w-[54%] rotate-[-1.5deg] rounded-[26px] bg-background p-2.5 shadow-[0_18px_50px_-30px_rgba(42,25,37,.35)] ring-1 ring-border/55">
+        <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block overflow-hidden rounded-[20px]">
+          <div className="aspect-[4/3] sm:aspect-[16/11] overflow-hidden bg-surface/60">
+            {image ? (
+              <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.025]" />
+            ) : (
+              <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />
+            )}
           </div>
-        ) : null}
+        </Link>
+        <div className="flex items-center justify-between px-2 pb-1 pt-2.5 text-[11px] text-muted-foreground">
+          <span className="font-mono uppercase tracking-[.08em]">{eventTypeLabel(trip.event_type)}</span>
+          <span className="font-handwriting text-base text-primary/75">la KREW se prépare</span>
+        </div>
       </div>
 
-      <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between">
-        <div className="space-y-1.5">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground font-mono">
-            {eventTypeLabel(trip.event_type)}
-          </p>
-          <h3 className="font-display text-[28px] font-normal leading-snug text-foreground">
-            <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="focus:outline-none">
-              <span className="absolute inset-0" aria-hidden="true" />
-              {trip.name}
-            </Link>
-          </h3>
-          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] sm:text-sm text-muted-foreground pt-1">
+      <div className="absolute right-[1%] top-[215px] sm:top-[72px] w-[62%] sm:w-[48%] lg:w-[46%] z-20">
+        <div className="relative rounded-[30px_24px_34px_22px] bg-background/95 px-5 py-5 sm:px-7 sm:py-7 shadow-[0_16px_45px_-34px_rgba(42,25,37,.4)] ring-1 ring-border/45">
+          <div className="absolute -top-4 right-5">
+            <KrewNote variant="tape" tone="sage" rotation={2} className="min-w-0 px-2.5 py-1 text-xs">à suivre maintenant</KrewNote>
+          </div>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-[10px] sm:text-xs font-mono uppercase tracking-[.12em] text-primary">J'organise</p>
+              <h2 className="mt-1 font-display text-[29px] sm:text-[38px] lg:text-[44px] leading-[.95] font-normal text-foreground">{trip.name}</h2>
+            </div>
+            <ArchiveControl trip={trip} onCancel={onCancel} />
+          </div>
+
+          <div className="mt-4 space-y-2 text-[12px] sm:text-sm text-muted-foreground">
             {trip.destination_name ? (
-              <span className="inline-flex items-center gap-1 font-medium text-foreground">
-                <KrewIcon name="destination" tone="muted" size="sm" className="size-4" />
-                {trip.destination_name}
-              </span>
+              <p className="flex items-center gap-2 font-medium text-foreground"><KrewIcon name="destination" tone="plum" size="sm" className="size-4" />{trip.destination_name}</p>
             ) : null}
             {trip.start_date ? (
-              <span className="inline-flex items-center gap-1 font-mono">
-                <KrewIcon name="calendar" tone="muted" size="sm" className="size-4" />
-                {new Date(trip.start_date).toLocaleDateString("fr-FR", {
-                  day: "numeric",
-                  month: "short",
-                })}
-              </span>
+              <p className="flex items-center gap-2"><KrewIcon name="calendar" tone="muted" size="sm" className="size-4" />{new Date(trip.start_date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
             ) : null}
-            <span className="inline-flex items-center gap-1 font-mono">
-              <KrewIcon name="group" tone="muted" size="sm" className="size-4" />
-              {trip.participants_count} pers.
-            </span>
+            <p className="flex items-center gap-2"><KrewIcon name="group" tone="muted" size="sm" className="size-4" />{trip.participants_count} participants</p>
+          </div>
+
+          <div className="relative mt-5 border-t border-dashed border-sage/45 pt-4">
+            <KrewNote variant="margin" rotation={-2} className="mb-1 text-sage">prochaine action</KrewNote>
+            <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group inline-flex items-center gap-2 font-display text-[19px] sm:text-[22px] leading-tight text-primary">
+              {nextActionFor(trip)}
+              <KrewMark type="arrow-right" tone="plum" size="md" className="h-5 w-8 transition-transform group-hover:translate-x-1" />
+            </Link>
           </div>
         </div>
+      </div>
 
-        <div className="pt-2 flex items-center justify-between border-t border-border/40">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary transition-transform group-hover:translate-x-0.5">
-            {ctaLabel} <KrewMark type="arrow-right" tone="plum" size="sm" className="size-3.5" />
-          </span>
+      <KrewMark type="arrow-curved-right" tone="sage" size="lg" rotation={-7} className="absolute left-[52%] top-[32px] hidden sm:block h-16 w-24 opacity-55 pointer-events-none" />
+      <KrewMark type="sparkle" tone="plum" size="sm" rotation={6} className="absolute right-[4%] bottom-[8%] hidden sm:block opacity-35 pointer-events-none" />
+      <img src="/brand/otter-states/trip-progress.png" alt="" className="absolute bottom-0 left-[7%] w-[72px] sm:w-[92px] h-auto object-contain pointer-events-none" />
+    </article>
+  );
+}
+
+function NotebookTrip({ trip, invited = false, onCancel, index = 0 }: { trip: Trip; invited?: boolean; onCancel?: (tripId: string) => void; index?: number }) {
+  const image = tripImage(trip);
+  const rotation = index % 2 === 0 ? "md:rotate-[-.45deg]" : "md:rotate-[.45deg] md:translate-y-4";
+
+  return (
+    <article className={`group relative ${rotation}`}>
+      <div className="relative rounded-[22px] bg-background p-2.5 ring-1 ring-border/55 shadow-[0_16px_36px_-30px_rgba(42,25,37,.4)]">
+        <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
+          <div className="relative aspect-[16/9] overflow-hidden rounded-[16px] bg-surface/50">
+            {image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.025]" loading="lazy" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />}
+            <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/45 to-transparent" />
+            <p className="absolute bottom-3 left-3 right-12 font-display text-[25px] sm:text-[29px] leading-none text-white drop-shadow-sm">{trip.name}</p>
+          </div>
+        </Link>
+
+        {onCancel ? <div className="absolute right-4 top-4 z-20"><ArchiveControl trip={trip} onCancel={onCancel} compact /></div> : null}
+
+        <div className="px-2 pb-2 pt-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] sm:text-xs text-muted-foreground">
+            <span className="font-mono uppercase tracking-[.07em] text-primary">{eventTypeLabel(trip.event_type)}</span>
+            {trip.destination_name ? <span className="inline-flex items-center gap-1"><KrewIcon name="destination" tone="muted" size="sm" className="size-3.5" />{trip.destination_name}</span> : null}
+            <span className="inline-flex items-center gap-1"><KrewIcon name="group" tone="muted" size="sm" className="size-3.5" />{trip.participants_count}</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-dashed border-border/70 pt-2.5">
+            <span className="font-handwriting text-[16px] text-sage">{invited ? "avec la team" : nextActionFor(trip)}</span>
+            <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="relative z-10 inline-flex items-center gap-1 text-xs font-semibold text-primary">
+              {invited ? "Voir" : "Continuer"}<KrewMark type="arrow-right" tone="plum" size="sm" className="h-4 w-6" />
+            </Link>
+          </div>
         </div>
       </div>
     </article>
+  );
+}
+
+function SectionHeading({ children, note }: { children: React.ReactNode; note?: string }) {
+  return (
+    <div className="relative mb-5 flex items-end gap-3">
+      <div className="relative inline-block">
+        <h2 className="font-display text-[29px] sm:text-[34px] font-normal leading-none text-foreground">{children}</h2>
+        <KrewMark type="underline-wave" tone="sage" size="sm" className="absolute -bottom-3 left-0 h-4 w-[92px] opacity-60" />
+      </div>
+      {note ? <KrewNote variant="margin" rotation={2} className="hidden sm:block pb-0.5 text-muted-foreground">{note}</KrewNote> : null}
+    </div>
   );
 }
 
@@ -295,11 +233,7 @@ function Dashboard() {
     retry: false,
   });
 
-  const {
-    data,
-    isLoading,
-    error: tripsError,
-  } = useQuery({
+  const { data, isLoading, error: tripsError } = useQuery({
     queryKey: ["my-trips", user?.id],
     queryFn: () => fetchTrips(),
     enabled: !!user && !authLoading,
@@ -309,152 +243,75 @@ function Dashboard() {
   const trips = (data?.trips ?? []) as Trip[];
   const invitations = (data?.invitations ?? []) as { id: string; trips: Trip | null }[];
   const archivedTrips = (data?.archivedTrips ?? []) as Trip[];
+  const featuredTrip = trips[0];
+  const otherTrips = trips.slice(1);
 
   return (
-    <main className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10 space-y-8 sm:space-y-10">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative">
-        <div className="space-y-1 relative">
-          <KrewOrganicBlob
-            tone="sage"
-            variant="soft"
-            className="absolute -top-4 -left-4 w-[180px] sm:w-[260px] h-[80px] opacity-40 pointer-events-none z-0"
-          />
-          <div className="relative inline-block z-10">
-            <h1 className="font-display text-[40px] sm:text-[44px] lg:text-[52px] font-normal leading-[0.95] tracking-tight text-foreground">
-              Mes voyages
-            </h1>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="md"
-              className="absolute left-0 -bottom-2 w-[120px] lg:w-[180px] pointer-events-none"
-            />
+    <main className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10 space-y-8 sm:space-y-12 overflow-hidden sm:overflow-visible">
+      <header className="relative flex items-start justify-between gap-4 min-h-[100px] sm:min-h-[120px]">
+        <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-8 -top-6 h-[110px] w-[300px] opacity-45 pointer-events-none" />
+        <div className="relative z-10 max-w-[680px]">
+          <KrewNote variant="margin" rotation={-2} className="mb-1 text-sage">le carnet de la KREW</KrewNote>
+          <div className="relative inline-block">
+            <h1 className="font-display text-[42px] sm:text-[52px] lg:text-[58px] font-normal leading-[.92] tracking-tight text-foreground">Mes voyages</h1>
+            <KrewMark type="underline-wave" tone="sage" size="lg" className="absolute -bottom-5 left-1 h-5 w-[150px] sm:w-[190px] opacity-70" />
           </div>
-          <p className="text-sm sm:text-base text-muted-foreground pt-1 font-sans">
-            Tes projets en cours et tes invitations reçues.
-          </p>
+          <p className="mt-5 text-sm sm:text-base text-muted-foreground">Ce qui se prépare, ce qui approche, et les voyages où ta KREW t'attend.</p>
         </div>
-        <Button asChild className="min-h-[44px] h-auto rounded-xl px-5 font-medium self-start sm:self-auto">
-          <Link to="/trips/new" className="flex w-full items-center justify-center text-center whitespace-nowrap">
-            Nouveau voyage
-          </Link>
+        <Button asChild className="relative z-10 min-h-[44px] h-auto shrink-0 rounded-xl px-4 sm:px-5 font-medium">
+          <Link to="/trips/new" className="flex items-center justify-center gap-1.5 whitespace-nowrap"><KrewIcon name="plus" size="sm" className="size-4" /><span className="hidden sm:inline">Nouveau voyage</span><span className="sm:hidden">Nouveau</span></Link>
         </Button>
-      </div>
+      </header>
 
       {(watchData?.watches?.length ?? 0) > 0 ? (
-        <div className="price-watch-banner space-y-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-xs sm:text-sm text-foreground">
-          {(watchData?.watches ?? []).slice(0, 5).map((w: any) => {
-            const when = w.last_checked_at
-              ? new Date(w.last_checked_at).toLocaleDateString("fr-FR", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "—";
-            const tripName = (w.trips as any)?.name ?? "Voyage";
-            const dest = w.destination_name ?? "destination";
-            return (
-              <p key={w.id} className="flex items-start gap-2">
-                <KrewIcon name="attention" tone="plum" size="sm" className="size-4 shrink-0 mt-0.5" />
-                <span>
-                  Pense à re-vérifier les prix pour <strong>{dest}</strong> ({tripName}) — ils
-                  bougent vite. Dernière vérif. : {when}.{" "}
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId: w.trip_id }}
-                    search={{ view: "voyage" }}
-                    className="font-medium text-primary underline-offset-2 hover:underline"
-                  >
-                    Ouvrir le récap
-                  </Link>
-                </span>
-              </p>
-            );
-          })}
+        <div className="relative ml-auto max-w-[760px] rotate-[.25deg] rounded-[20px_26px_18px_24px] border border-primary/15 bg-primary/[.035] px-4 py-3 text-xs sm:text-sm text-foreground">
+          <KrewNote variant="tape" tone="sage" rotation={-2} className="absolute -top-3 left-5 min-w-0 px-2 py-0.5 text-[11px]">à garder à l'œil</KrewNote>
+          <div className="space-y-2 pt-1">
+            {(watchData?.watches ?? []).slice(0, 5).map((w: any) => {
+              const when = w.last_checked_at ? new Date(w.last_checked_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—";
+              const tripName = (w.trips as any)?.name ?? "Voyage";
+              const dest = w.destination_name ?? "destination";
+              return <p key={w.id} className="flex items-start gap-2"><KrewIcon name="calendar" tone="plum" size="sm" className="mt-0.5 size-4 shrink-0" /><span>Re-vérifier les prix pour <strong>{dest}</strong> ({tripName}). Dernière vérif. : {when}. <Link to="/trips/$tripId" params={{ tripId: w.trip_id }} search={{ view: "voyage" }} className="font-medium text-primary underline-offset-2 hover:underline">Ouvrir</Link></span></p>;
+            })}
+          </div>
         </div>
       ) : null}
 
       {tripsError ? (
-        <div className="rounded-[28px] border border-destructive/30 bg-destructive/5 p-6">
-          <h2 className="font-display text-lg font-normal text-destructive">
-            Impossible de charger tes voyages
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Erreur réelle du chargement : {String((tripsError as any)?.message ?? tripsError)}
-          </p>
-        </div>
+        <div className="rounded-[28px] border border-destructive/30 bg-destructive/5 p-6"><h2 className="font-display text-lg font-normal text-destructive">Impossible de charger tes voyages</h2><p className="mt-2 text-sm text-muted-foreground">Erreur réelle du chargement : {String((tripsError as any)?.message ?? tripsError)}</p></div>
       ) : isLoading ? (
-        <div className="grid gap-6 sm:grid-cols-2">
-          <Skeleton className="h-64 rounded-[24px]" />
-          <Skeleton className="h-64 rounded-[24px]" />
-        </div>
+        <div className="space-y-6"><Skeleton className="h-[430px] rounded-[28px]" /><div className="grid gap-6 sm:grid-cols-2"><Skeleton className="h-64 rounded-[24px]" /><Skeleton className="h-64 rounded-[24px]" /></div></div>
       ) : trips.length === 0 && invitations.length === 0 ? (
-        <div className="rounded-[28px] border border-dashed border-border bg-surface/40 p-10 text-center sm:p-16 relative overflow-hidden">
-          <div className="mx-auto mb-4 w-20 h-20 flex items-center justify-center">
-            <img
-              src="/brand/otter-states/trip-progress.png"
-              alt=""
-              className="w-[72px] sm:w-[80px] h-auto object-contain"
-            />
-          </div>
-          <h2 className="font-display text-2xl font-normal text-foreground">Aucun voyage pour l'instant</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground font-sans">
-            Lance le questionnaire KREW : en quelques minutes tu obtiens destination, hébergement,
-            activités et budget détaillé.
-          </p>
-          <div className="mt-6 inline-flex flex-col items-center gap-2 relative">
-            <Button asChild size="lg" className="rounded-xl">
-              <Link to="/trips/new">
-                <KrewIcon name="plus" size="sm" className="size-4 mr-1.5" />
-                Créer mon premier voyage
-              </Link>
-            </Button>
-          </div>
+        <div className="relative overflow-hidden rounded-[36px_28px_40px_30px] border border-dashed border-sage/50 bg-surface/30 p-10 text-center sm:p-16">
+          <KrewOrganicBlob tone="sage" variant="soft" className="absolute inset-x-[15%] top-5 h-[150px] opacity-40" />
+          <img src="/brand/otter-states/trip-progress.png" alt="" className="relative mx-auto mb-3 w-[82px] sm:w-[96px] h-auto object-contain" />
+          <KrewNote variant="margin" rotation={-2} className="relative mb-1 text-sage">première page à écrire</KrewNote>
+          <h2 className="relative font-display text-3xl font-normal text-foreground">Aucun voyage pour l'instant</h2>
+          <p className="relative mx-auto mt-2 max-w-md text-sm text-muted-foreground">Lance un voyage et construis le plan avec toute la KREW.</p>
+          <Button asChild size="lg" className="relative mt-6 rounded-xl"><Link to="/trips/new"><KrewIcon name="plus" size="sm" className="mr-1.5 size-4" />Créer mon premier voyage</Link></Button>
         </div>
       ) : (
-        <div className="space-y-10">
-          <section className="space-y-4">
-            <h2 className="font-sans font-semibold text-lg text-foreground">
-              J'organise
-            </h2>
-            {trips.length === 1 ? (
-              <FeaturedTripCard trip={trips[0]} onCancel={(id) => cancelMutation.mutate(id)} />
-            ) : trips.length > 1 ? (
-              <div className="grid gap-6 sm:grid-cols-2">
-                {trips.map((t) => (
-                  <TripCard key={t.id} trip={t} onCancel={(id) => cancelMutation.mutate(id)} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Aucun voyage.</p>
-            )}
-          </section>
+        <div className="space-y-14 sm:space-y-16">
+          {featuredTrip ? (
+            <section>
+              <SectionHeading note={otherTrips.length ? `${trips.length} voyages en préparation` : "le prochain à faire avancer"}>J'organise</SectionHeading>
+              <FeaturedTrip trip={featuredTrip} onCancel={(id) => cancelMutation.mutate(id)} />
+              {otherTrips.length ? <div className="mt-4 sm:mt-0 grid gap-7 sm:grid-cols-2 lg:grid-cols-3">{otherTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onCancel={(id) => cancelMutation.mutate(id)} />)}</div> : null}
+            </section>
+          ) : null}
 
           {invitations.length ? (
-            <section className="space-y-4 pt-4 border-t border-border/50">
-              <h2 className="font-sans font-semibold text-lg text-foreground">
-                Je participe
-              </h2>
-              <div className="grid gap-6 sm:grid-cols-2">
-                {invitations
-                  .filter((i) => i.trips)
-                  .map((i) => (
-                    <TripCard key={i.id} trip={i.trips as Trip} invited />
-                  ))}
-              </div>
+            <section className="relative pt-2">
+              <KrewOrganicBlob tone="sage" variant="soft" className="absolute -right-16 top-0 h-[180px] w-[320px] opacity-30 -z-10" />
+              <SectionHeading note="les plans où tu fais partie de la team">Je participe</SectionHeading>
+              <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">{invitations.filter((i) => i.trips).map((i, index) => <NotebookTrip key={i.id} trip={i.trips as Trip} invited index={index} />)}</div>
             </section>
           ) : null}
 
           {archivedTrips.length ? (
-            <section className="space-y-4 pt-4 border-t border-border/50">
-              <h2 className="font-sans font-semibold text-base text-muted-foreground">
-                Voyages archivés
-              </h2>
-              <div className="grid gap-6 sm:grid-cols-2 opacity-70">
-                {archivedTrips.map((t) => (
-                  <TripCard key={t.id} trip={t} />
-                ))}
-              </div>
+            <section className="border-t border-dashed border-border/70 pt-7 opacity-75">
+              <SectionHeading note="rien n'est perdu">Voyages archivés</SectionHeading>
+              <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">{archivedTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} />)}</div>
             </section>
           ) : null}
         </div>
