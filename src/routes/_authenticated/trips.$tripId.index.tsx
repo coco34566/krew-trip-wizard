@@ -1253,63 +1253,6 @@ function TripDetail() {
                     Membres du groupe
                   </h2>
                 </div>
-
-                {/* Participant count + Modifier directly below or aligned right */}
-                <div className="flex items-center gap-2 text-xs font-sans text-muted-foreground pt-1 sm:pt-0">
-                  <span className="font-mono text-foreground font-semibold">
-                    {trip.participants_count || 2}
-                  </span>{" "}
-                  participants
-                  {data.isOwner ? (
-                    isEditingCount ? (
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (countInput >= 2 && countInput <= 25) {
-                            updateCountMutation.mutate(countInput);
-                          } else {
-                            toast.error("Le nombre de participants doit être entre 2 et 25");
-                          }
-                        }}
-                        className="inline-flex items-center gap-1.5 ml-2"
-                      >
-                        <Input
-                          type="number"
-                          min={2}
-                          max={25}
-                          value={countInput}
-                          onChange={(e) => setCountInput(Number(e.target.value))}
-                          className="w-16 h-7 text-xs font-mono"
-                        />
-                        <button
-                          type="submit"
-                          className="text-xs font-semibold text-primary hover:underline"
-                          disabled={updateCountMutation.isPending}
-                        >
-                          OK
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs text-muted-foreground hover:underline"
-                          onClick={() => setIsEditingCount(false)}
-                        >
-                          Annuler
-                        </button>
-                      </form>
-                    ) : (
-                      <button
-                        type="button"
-                        className="text-xs text-primary font-medium hover:underline ml-1"
-                        onClick={() => {
-                          setCountInput(Number(trip.participants_count || 2));
-                          setIsEditingCount(true);
-                        }}
-                      >
-                        Modifier
-                      </button>
-                    )
-                  ) : null}
-                </div>
               </div>
 
               {/* Underline wave KrewMark sous le titre */}
@@ -1576,6 +1519,64 @@ function TripDetail() {
               )}
             </ul>
 
+            <div className="mt-4 border-t-2 border-sage/35 pt-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-sans text-muted-foreground">
+                  <span className="font-sans text-foreground font-semibold">Total : <span className="font-mono">
+                    {trip.participants_count || 2}
+                  </span></span>{" "}
+                  participants
+                  {data.isOwner ? (
+                    isEditingCount ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          if (countInput >= 2 && countInput <= 25) {
+                            updateCountMutation.mutate(countInput);
+                          } else {
+                            toast.error("Le nombre de participants doit être entre 2 et 25");
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 ml-2"
+                      >
+                        <Input
+                          type="number"
+                          min={2}
+                          max={25}
+                          value={countInput}
+                          onChange={(e) => setCountInput(Number(e.target.value))}
+                          className="w-16 h-7 text-xs font-mono"
+                        />
+                        <button
+                          type="submit"
+                          className="text-xs font-semibold text-primary hover:underline"
+                          disabled={updateCountMutation.isPending}
+                        >
+                          OK
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs text-muted-foreground hover:underline"
+                          onClick={() => setIsEditingCount(false)}
+                        >
+                          Annuler
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-sm text-primary font-medium hover:underline ml-1"
+                        onClick={() => {
+                          setCountInput(Number(trip.participants_count || 2));
+                          setIsEditingCount(true);
+                        }}
+                      >
+                        Modifier
+                      </button>
+                    )
+                  ) : null}
+                </div>
+            </div>
+
             {/* ACTION INVITATION / PARTAGE SANS VERT WHATSAPP NI AMBER (UNIFIED 40px/12px/600/12px) */}
             <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               <Button
@@ -1657,41 +1658,57 @@ function TripDetail() {
           ) : null}
 
           {data.isOwner && (trip.status as string) !== "annule" ? (
-            <footer className="mt-16 pt-6 border-t border-border/30 space-y-2 text-xs">
-              <p className="text-[12px] text-muted-foreground">Gestion du voyage</p>
-              <div className="flex flex-wrap items-center gap-4">
-                <button
-                  type="button"
-                  className="text-destructive/80 hover:text-destructive hover:underline font-normal text-xs"
-                  disabled={cancelMutation.isPending}
-                  onClick={() => {
-                    if (window.confirm("Annuler ce voyage ? Il disparaîtra de la liste active.")) {
-                      cancelMutation.mutate(false);
-                    }
-                  }}
-                >
-                  Annuler le voyage
-                </button>
-
-                {data.isCreator ? (
+            <footer className="mt-16 pt-6 border-t border-border/40 space-y-4">
+              <p className="text-sm font-semibold text-foreground">Gestion du voyage</p>
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Archiver le voyage</p>
+                    <p className="text-xs text-muted-foreground">
+                      Il disparaîtra de tes voyages actifs, mais restera conservé pour être retrouvé ou réactivé plus tard.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 text-destructive/70 hover:text-destructive hover:underline font-normal text-xs"
+                    className="self-start text-sm text-primary hover:underline"
                     disabled={cancelMutation.isPending}
                     onClick={() => {
-                      if (
-                        window.confirm(
-                          "Supprimer définitivement ce voyage et toutes ses données ? Cette action est irréversible.",
-                        )
-                      ) {
-                        cancelMutation.mutate(true);
+                      if (window.confirm("Archiver ce voyage ? Tu pourras le retrouver et le réactiver plus tard.")) {
+                        cancelMutation.mutate(false);
                       }
                     }}
                   >
-                    <Trash2 className="size-3" />
-                    <span>Supprimer définitivement</span>
+                    Archiver
                   </button>
+                </div>
+
+                {data.isCreator ? (
+                  <div className="border-t border-destructive/15 pt-4">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-2 text-destructive/80 hover:text-destructive hover:underline text-sm font-medium"
+                      disabled={cancelMutation.isPending}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Supprimer définitivement ce voyage et toutes ses données ? Cette action est irréversible.",
+                          )
+                        ) {
+                          cancelMutation.mutate(true);
+                        }
+                      }}
+                    >
+                      <Trash2 className="size-4 shrink-0" />
+                      <span>Supprimer définitivement</span>
+                    </button>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Irréversible — le voyage et toutes ses données seront supprimés.
+                    </p>
+                  </div>
                 ) : null}
+              </div>
+            </footer>
+          ) : null}
               </div>
             </footer>
           ) : null}
@@ -1817,12 +1834,7 @@ function TripDetail() {
 
             const datesReady = datesLocked;
             const profileDone = Boolean(profile?.validated);
-            const profileReady = Boolean(
-              readiness?.profile.questionnairesReady ||
-              profile?.legacyBypass ||
-              (profile?.calculatedConcepts && profile.calculatedConcepts.length > 0) ||
-              (readiness?.profile.calculatedConcepts && readiness.profile.calculatedConcepts.length > 0)
-            );
+            const profileReady = Boolean(readiness?.profile.questionnairesReady);
             const destDone = destinationSelected;
             const hotelDone = Boolean(logistics.selectedHotelId);
             const hotelOffersReady = Boolean(logistics.hotels?.length);
@@ -1845,7 +1857,7 @@ function TripDetail() {
             const isStepAvailable = (id: string): boolean => {
               if (id === "availability" || id === "preferences" || id === "star") return true;
               if (id === "dates") return true; // Always accessible to view/lock dates
-              if (id === "profile") return datesReady;
+              if (id === "profile") return datesReady && profileReady;
               if (id === "destination") return datesReady && (profileDone || Boolean(profile?.legacyBypass));
               if (id === "accommodation" || id === "transport") return destDone;
               if (id === "planning" || id === "tasks" || id === "packing") return destDone;
@@ -1981,7 +1993,7 @@ function TripDetail() {
             timelineSteps.push({
               id: "memories",
               title: "Vos souvenirs de voyage",
-              subtitle: tripStarted ? "Album & photos du groupe" : "Disponible dès le premier jour",
+              subtitle: tripStarted ? "Album & photos du groupe" : "Se débloquera au moment du voyage",
               iconName: "camera",
               status: tripStarted ? "available" : "upcoming",
               category: "souvenirs",
@@ -2230,20 +2242,26 @@ function TripDetail() {
       </section>
       ) : null}
 
-      {currentSection === "profile" ? (
+      {currentSection === "profile" && Boolean(readiness?.profile.questionnairesReady) ? (
       <section
         id="hub-profile"
-        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24"
+        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
       >
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        <img
+          src="/brand/otter-states/trip-progress.png"
+          alt=""
+          className="absolute right-3 top-3 w-[64px] sm:w-[84px] h-auto object-contain opacity-90 pointer-events-none"
+          loading="lazy"
+        />
+        <div className="flex items-center justify-between flex-wrap gap-2 pr-[68px] sm:pr-[92px]">
           <div>
             <div className="flex items-center gap-3">
               <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
                 <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
                 Profil du voyage
               </h2>
-              <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-xs py-1 px-2.5">
-                Style & Ambiance ✨
+              <KrewNote variant="tape" tone="sage" rotation={-2} className="inline-block text-sm sm:text-xs py-1 px-2.5">
+                Style & ambiance
               </KrewNote>
             </div>
             <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
