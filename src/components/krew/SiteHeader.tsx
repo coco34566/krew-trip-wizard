@@ -56,8 +56,8 @@ export function SiteHeader() {
               <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex text-muted-foreground hover:text-foreground">
                 <Link to="/dashboard">Mes voyages</Link>
               </Button>
-              <Button asChild size="sm" className="h-10 rounded-xl px-2.5 sm:px-4 text-xs sm:text-sm font-medium">
-                <Link to="/trips/new" className="flex w-full items-center justify-center text-center whitespace-nowrap">
+              <Button asChild size="sm" className="h-auto min-h-10 rounded-xl px-2.5 py-2 sm:px-4 text-xs sm:text-sm font-medium leading-tight">
+                <Link to="/trips/new" className="flex w-full items-center justify-center text-center whitespace-nowrap leading-tight">
                   Nouveau voyage
                 </Link>
               </Button>
@@ -91,8 +91,8 @@ export function SiteHeader() {
               <Button asChild variant="ghost" size="sm" className="px-2 text-xs text-muted-foreground hover:text-foreground sm:px-3 sm:text-sm">
                 <Link to="/auth" search={{}}>Connexion</Link>
               </Button>
-              <Button asChild size="sm" className="rounded-xl font-medium px-2.5 sm:px-3">
-                <Link to="/auth" search={{}}>
+              <Button asChild size="sm" className="h-auto min-h-10 rounded-xl px-2.5 py-2 sm:px-3 font-medium leading-tight">
+                <Link to="/auth" search={{}} className="inline-flex items-center justify-center text-center leading-tight">
                   <span className="sm:hidden">Créer</span>
                   <span className="hidden sm:inline">Créer mon voyage</span>
                 </Link>
