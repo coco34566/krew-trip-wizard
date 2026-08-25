@@ -56,7 +56,7 @@ export function TripHubNav({
   const total = steps.length;
 
   function stepHref(step: TripStep): string | null {
-    const remainsAccessibleWhenSoon = step.id === "questionnaire" || step.id === "profile";
+    const remainsAccessibleWhenSoon = step.id === "questionnaire";
     if (step.status === "soon" && !remainsAccessibleWhenSoon) return null;
     if (step.id === "invite") return `/trips/${tripId}/invite`;
     if (step.id === "dates") return `/trips/${tripId}?view=voyage&section=dates`;
