@@ -110,7 +110,7 @@ function StepLabel({
         ) : null}
         {isDone ? (
           <span className="mt-1 inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.08em] text-sage">
-            terminé
+            Terminé
           </span>
         ) : isAvailable ? (
           <span className="mt-1 block text-[9px] sm:text-[10px] font-medium text-primary/65">Disponible</span>
