@@ -352,7 +352,7 @@ function ParticipantQuestionnaire() {
               type="underline-wave"
               tone="sage"
               size="md"
-              className="absolute left-0 -bottom-2 w-[160px] pointer-events-none"
+              className="absolute left-1 -bottom-2 w-[clamp(96px,38vw,160px)] max-w-[70%] pointer-events-none"
             />
           </div>
           <img

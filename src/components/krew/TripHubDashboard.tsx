@@ -564,7 +564,7 @@ export function TripHubDashboard({
           <KrewIcon name="preferences" tone="plum" size="sm" className="size-4" />
           Voir mes préférences
         </Link>
-        {datesLocked ? (
+        {datesLocked && profileReady ? (
           <Link
             to="/trips/$tripId"
             params={{ tripId }}
