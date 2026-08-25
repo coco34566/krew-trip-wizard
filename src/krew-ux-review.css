@@ -165,8 +165,8 @@ div[class*="max-w-[900px]"] div[class*="ring-4"][class*="ring-primary/10"] {
   }
 }
 
-/* Star questionnaire: a single secondary annotation under the intro. */
-main[class*="max-w-[820px]"]:has(h1 [class*="bg-"]) > div.space-y-2.relative::after {
+/* Star questionnaire: identify the page through the KrewHighlight in its title. */
+main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.space-y-2.relative::after {
   content: "Ses envies comptent";
   display: block;
   width: max-content;
@@ -179,6 +179,26 @@ main[class*="max-w-[820px]"]:has(h1 [class*="bg-"]) > div.space-y-2.relative::af
   font-family: "Caveat", cursive;
   font-size: 1rem;
   color: var(--primary);
+}
+
+/* Star accommodation is a normal questionnaire section, not a disabled grey card. */
+main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) section.bg-surface\/50 {
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Destination note: keep the existing KREW post-it but remove the unrelated earth emoji. */
+#hub-destination h2 + div > div.font-handwriting {
+  font-size: 0 !important;
+}
+
+#hub-destination h2 + div > div.font-handwriting::after {
+  content: "Où on va ?";
+  font-size: 0.75rem;
+  line-height: 1.15;
 }
 
 /* Tablet page rhythm across this flow. */
