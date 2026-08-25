@@ -112,29 +112,29 @@ export function PackingListCard({
                 type="button"
                 aria-label={`Cocher ${item.label}`}
                 onClick={() => toggle(item.id)}
-                className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-6 min-w-6 inline-flex items-center justify-center"
+                className="-ml-1 -mt-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg"
               >
                 {state.checked[item.id] ? (
-                  <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
+                  <KrewIcon name="check" tone="sage" size="sm" className="size-5" />
                 ) : (
-                  <span className="size-4 rounded border border-border inline-block" />
+                  <span className="size-5 rounded border border-border inline-block" />
                 )}
               </button>
               <span
                 className={
                   state.checked[item.id]
-                    ? "line-through text-muted-foreground font-normal"
-                    : "font-medium text-foreground"
+                    ? "pt-1.5 line-through text-muted-foreground font-normal"
+                    : "pt-1.5 font-medium text-foreground"
                 }
               >
                 {item.label}
               </span>
             </div>
             {group ? (
-              <div className="flex flex-wrap items-center gap-2 pl-8">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pl-0 sm:pl-10">
                 <select
                   aria-label={`Assigner ${item.label}`}
-                  className="min-h-9 rounded-lg border border-border bg-background px-2.5 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
+                  className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
                   value={state.assigned[item.id] || ""}
                   onChange={(e) =>
                     setState((s) => ({
@@ -155,7 +155,7 @@ export function PackingListCard({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="min-h-9 h-auto text-sm"
+                    className="min-h-11 h-auto text-sm rounded-xl"
                     onClick={() =>
                       setState((s) => ({
                         ...s,
@@ -169,7 +169,7 @@ export function PackingListCard({
                   </Button>
                 ) : null}
                 {link ? (
-                  <Button asChild size="sm" variant="ghost" className="min-h-9 h-auto text-sm">
+                  <Button asChild size="sm" variant="ghost" className="min-h-11 h-auto text-sm rounded-xl">
                     <a
                       href={link.url}
                       target="_blank"
@@ -195,15 +195,15 @@ export function PackingListCard({
         <img
           src="/brand/otter-states/trip-preparation.png"
           alt=""
-          className="w-[60px] sm:w-[72px] h-auto object-contain filter drop-shadow-2xs opacity-85"
+          className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90"
           loading="lazy"
         />
       </div>
 
-      <div className="pr-16 sm:pr-20 relative">
+      <div className="pr-20 sm:pr-24 relative">
         <div className="flex items-center gap-3">
           <div className="relative inline-block">
-            <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground flex items-center gap-2">
+            <h2 className="font-display text-[28px] sm:text-[32px] font-normal text-foreground flex items-center gap-2">
               <KrewIcon name="packing" tone="plum" size="sm" className="size-5" />
               À emporter
             </h2>
@@ -211,7 +211,7 @@ export function PackingListCard({
               type="underline-wave"
               tone="sage"
               size="sm"
-              className="absolute left-7 -bottom-1.5 w-[90px] pointer-events-none"
+              className="absolute left-7 -bottom-1.5 w-[110px] pointer-events-none"
             />
           </div>
           <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-sm py-1 px-2.5">
