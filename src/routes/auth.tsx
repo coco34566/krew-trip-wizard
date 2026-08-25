@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Mail, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/krew/Logo";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -131,7 +132,7 @@ function AuthPage() {
           </Link>
           <div className="rounded-[24px] border border-border/40 bg-card p-6 sm:p-8 text-center space-y-6 shadow-2xs">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Mail className="h-6 w-6" />
+              <KrewIcon name="message" tone="plum" size="md" className="size-6" />
             </div>
             <div className="space-y-2">
               <h2 className="font-display text-3xl font-normal text-foreground">Compte créé !</h2>
