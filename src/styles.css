@@ -126,7 +126,6 @@
   .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
 }
 
-/* Caveat is intentionally scoped to KrewNote/KrewCallout annotations only. */
 .font-handwriting { font-family: "Caveat", cursive; }
 
 @utility bg-hero-gradient { background-image: var(--gradient-hero); }
@@ -136,19 +135,12 @@
 @utility shadow-glow { box-shadow: var(--shadow-glow); }
 @utility glass-panel { background-color: var(--color-card); border: 1px solid var(--color-border); }
 
-/* Rich trip sub-pages keep a wider canvas, but their page-title hierarchy
- * matches the form sub-pages (34px mobile / 44px from sm). */
 main[class*="max-w-[1020px]"] > header h1 {
   font-size: 2.125rem;
   line-height: 0.98;
   letter-spacing: -0.025em;
 }
 
-/*
- * Trip Hub structural rhythm.
- * These IDs are stable section anchors; aligning them here avoids touching
- * the large Trip Hub route or any business logic.
- */
 #hub-activities-plan,
 #hub-tasks-org,
 #hub-cost-split,
@@ -195,9 +187,6 @@ main[class*="max-w-[1020px]"] > header h1 {
   align-self: stretch;
 }
 
-/* Dashboard: the primary creation CTA must stay compact on every viewport.
- * The Link is rendered through Button/asChild, so a nested w-full utility
- * otherwise makes the whole CTA stretch across the available row. */
 main[class*="max-w-[1280px]"] > div:first-child > a[href="/trips/new"] {
   width: auto;
   max-width: max-content;
@@ -208,8 +197,6 @@ main[class*="max-w-[1280px]"] > div:first-child > a[href="/trips/new"] {
   justify-content: center;
 }
 
-/* Landing creation CTAs: never crop their label. The xl button variant has a
- * fixed height; on some WebKit/text metrics that can visually clip the label. */
 main > section:first-child a[href="/trips/new"],
 header a[href="/trips/new"] {
   height: auto;
@@ -228,9 +215,6 @@ main > section:first-child a[href="/trips/new"] {
   white-space: nowrap;
 }
 
-/* New-trip form: use the same breathing rhythm as the preferences form.
- * Selection styling itself is intentionally untouched (light plum fill +
- * plum border); only spacing around labels, controls and helper copy changes. */
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] {
   margin-bottom: 2rem;
   padding-bottom: 2rem;
@@ -249,6 +233,135 @@ main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > p 
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > div.grid,
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > input {
   margin-top: 0;
+}
+
+/* Tablet/front polish — selected trip type must be unmistakable even over a photo. */
+main[class*="max-w-[820px]"] form button[class*="border-primary/40"] {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent), 0 8px 22px -14px color-mix(in oklch, var(--primary) 55%, transparent);
+  transform: translateY(-2px);
+}
+
+main[class*="max-w-[820px]"] form button[class*="border-primary/40"]::after {
+  content: "Sélectionné";
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 20;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.22rem 0.48rem;
+  font-size: 0.62rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+main[class*="max-w-[820px]"] form button[class*="border-primary/40"] img {
+  transform: scale(1.035);
+}
+
+/* Trip hero: supporting information should not look tiny next to the editorial title. */
+main.max-w-5xl div[class*="mt-6"][class*="space-y-2.5"][class*="px-4"] {
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  row-gap: 0.7rem;
+}
+
+main.max-w-5xl div[class*="mt-6"][class*="space-y-2.5"][class*="px-4"] [class*="text-[12.5px]"] {
+  font-size: 0.9375rem;
+}
+
+/* Group header: participant count/edit is a real control, not micro-copy. */
+#group-section > div:nth-child(2) > div:first-child > div:last-child {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid color-mix(in oklch, var(--primary) 18%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--sage) 12%, transparent);
+  font-size: 0.875rem;
+  color: var(--foreground);
+}
+
+#group-section > div:nth-child(2) > div:first-child > div:last-child button {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
+/* Bottom trip management: remove the redundant heading and explain both outcomes. */
+main.max-w-5xl footer[class*="mt-16"] > p:first-child {
+  display: none;
+}
+
+main.max-w-5xl footer[class*="mt-16"] > div {
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+main.max-w-5xl footer[class*="mt-16"] button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  text-align: left;
+}
+
+main.max-w-5xl footer[class*="mt-16"] button:first-child {
+  font-size: 0;
+  color: var(--muted-foreground);
+}
+
+main.max-w-5xl footer[class*="mt-16"] button:first-child::before {
+  content: "Archiver le voyage";
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--foreground);
+}
+
+main.max-w-5xl footer[class*="mt-16"] button:first-child::after {
+  content: "Il quitte tes voyages actifs et peut être repris plus tard.";
+  max-width: 20rem;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+}
+
+main.max-w-5xl footer[class*="mt-16"] button:last-child::after {
+  content: "Irréversible : le voyage et ses données seront supprimés.";
+  max-width: 20rem;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+}
+
+/* Mes voyages: turn the catalogue grid into a more editorial KREW notebook rhythm. */
+main[class*="max-w-[1280px]"] > div[class*="space-y-10"] > section > h2 {
+  display: inline-block;
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+main[class*="max-w-[1280px]"] article {
+  box-shadow: 0 14px 34px -28px color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+
+@media (min-width: 768px) {
+  main[class*="max-w-[1280px]"] > div[class*="space-y-10"] > section > div[class*="grid"] > article:nth-child(2n) {
+    transform: translateY(1.5rem) rotate(0.35deg);
+  }
+
+  main[class*="max-w-[1280px]"] > div[class*="space-y-10"] > section > div[class*="grid"] > article:nth-child(2n + 1) {
+    transform: rotate(-0.25deg);
+  }
+
+  main[class*="max-w-[1280px]"] > div[class*="space-y-10"] > section > div[class*="grid"] {
+    row-gap: 2.75rem;
+  }
 }
 
 @media (min-width: 640px) {
