@@ -1709,9 +1709,6 @@ function TripDetail() {
               </div>
             </footer>
           ) : null}
-              </div>
-            </footer>
-          ) : null}
         </div>
       ) : null}
 
