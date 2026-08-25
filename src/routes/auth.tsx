@@ -17,10 +17,10 @@ export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): Record<string, any> => search,
   head: () => ({
     meta: [
-      { title: "Connexion — KREW, l'organisateur de voyages de groupe" },
-      { name: "description", content: "Connecte-toi à KREW pour créer, organiser et voter en groupe sur ton prochain EVG, EVJF ou week-end entre ami·e·s." },
+      { title: "Connexion — KREW" },
+      { name: "description", content: "Connecte-toi à KREW pour retrouver ou organiser tes voyages de groupe." },
       { property: "og:title", content: "Connexion — KREW" },
-      { property: "og:description", content: "Accède à tes voyages de groupe organisés par KREW." },
+      { property: "og:description", content: "Retrouve tes voyages de groupe sur KREW." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -119,7 +119,7 @@ function AuthPage() {
 
   if (showConfirmationSent) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12 relative overflow-hidden">
+      <main className="flex min-h-screen items-center justify-center bg-background px-4 sm:px-6 py-10 sm:py-12 relative overflow-hidden">
         <KrewOrganicBlob
           tone="sage"
           variant="soft"
@@ -135,29 +135,29 @@ function AuthPage() {
             </div>
             <div className="space-y-2">
               <h2 className="font-display text-3xl font-normal text-foreground">Compte créé !</h2>
-              <p className="text-sm text-muted-foreground font-sans">
+              <p className="text-sm sm:text-base text-muted-foreground font-sans">
                 Vérifie ta boîte mail pour confirmer ton adresse e-mail.
               </p>
             </div>
-            <div className="rounded-xl border border-border/40 bg-muted/30 p-4 text-left text-sm text-muted-foreground leading-relaxed">
-              Un e-mail de confirmation a été envoyé à <strong className="text-foreground">{email}</strong>. Clique sur le lien présent dans cet e-mail pour activer ton compte KREW.
+            <div className="rounded-xl border border-border/40 bg-muted/30 p-4 text-left text-sm sm:text-base text-muted-foreground leading-relaxed">
+              Un e-mail de confirmation a été envoyé à <strong className="text-foreground break-all">{email}</strong>. Clique sur le lien présent dans cet e-mail pour activer ton compte KREW.
             </div>
             <div className="space-y-3 pt-2">
               <Button
                 size="lg"
-                className="w-full"
+                className="w-full min-h-[48px] h-auto whitespace-normal text-center leading-tight py-2.5"
                 onClick={resendConfirmationEmail}
                 disabled={resending}
               >
-                {resending ? "Renvoi en cours..." : "Renvoyer l'e-mail de confirmation"}
+                {resending ? "Renvoi en cours…" : "Renvoyer l'e-mail de confirmation"}
               </Button>
               <Button
                 variant="ghost"
                 size="lg"
-                className="w-full gap-2"
+                className="w-full min-h-[44px] h-auto gap-2 whitespace-normal text-center leading-tight"
                 onClick={() => setShowConfirmationSent(false)}
               >
-                <ArrowLeft className="h-4 w-4" /> Retour à la connexion
+                <ArrowLeft className="h-4 w-4 shrink-0" /> Retour à la connexion
               </Button>
             </div>
           </div>
@@ -167,7 +167,7 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-12 relative overflow-hidden">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 sm:px-6 py-10 sm:py-12 relative overflow-hidden">
       <KrewOrganicBlob
         tone="sage"
         variant="soft"
@@ -175,9 +175,9 @@ function AuthPage() {
       />
       <div className="w-full max-w-md relative z-10 space-y-6">
         <Link to="/" className="flex justify-center"><Logo size="lg" withTagline /></Link>
-        <div className="text-center space-y-1 relative">
+        <div className="text-center space-y-1 relative pr-10 sm:pr-0">
           <div className="relative inline-block">
-            <h1 className="font-display text-[32px] font-normal leading-tight text-foreground">
+            <h1 className="font-display text-[32px] sm:text-[34px] font-normal leading-tight text-foreground">
               Bienvenue sur KREW
             </h1>
             <KrewMark
@@ -201,17 +201,17 @@ function AuthPage() {
             <TabsList className="grid w-full grid-cols-2 bg-muted/40 p-1"><TabsTrigger value="signin">Connexion</TabsTrigger><TabsTrigger value="signup">Créer un compte</TabsTrigger></TabsList>
             <TabsContent value="signin" className="mt-6">
               <form onSubmit={signIn} className="space-y-4">
-                <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" required className="h-12 rounded-xl border-border" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" required className="h-12 rounded-xl border-border" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" size="lg" className="w-full h-12 rounded-xl font-medium text-base" disabled={busy}>Se connecter</Button>
+                <div className="space-y-2"><Label htmlFor="email">Adresse e-mail</Label><Input id="email" type="email" required className="h-12 rounded-xl border-border text-base" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+                <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" required className="h-12 rounded-xl border-border text-base" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+                <Button type="submit" size="lg" className="w-full min-h-[48px] h-auto rounded-xl font-medium text-base py-2.5" disabled={busy}>{busy ? "Connexion…" : "Se connecter"}</Button>
               </form>
             </TabsContent>
             <TabsContent value="signup" className="mt-6">
               <form onSubmit={signUp} className="space-y-4">
-                <div className="space-y-2"><Label htmlFor="name">Prénom / pseudo</Label><Input id="name" className="h-12 rounded-xl border-border" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="email2">Email</Label><Input id="email2" type="email" required className="h-12 rounded-xl border-border" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="password2">Mot de passe</Label><Input id="password2" type="password" required minLength={6} className="h-12 rounded-xl border-border" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" size="lg" className="w-full h-12 rounded-xl font-medium text-base" disabled={busy}>Créer mon compte</Button>
+                <div className="space-y-2"><Label htmlFor="name">Prénom / pseudo</Label><Input id="name" className="h-12 rounded-xl border-border text-base" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
+                <div className="space-y-2"><Label htmlFor="email2">Adresse e-mail</Label><Input id="email2" type="email" required className="h-12 rounded-xl border-border text-base" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
+                <div className="space-y-2"><Label htmlFor="password2">Mot de passe</Label><Input id="password2" type="password" required minLength={6} className="h-12 rounded-xl border-border text-base" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+                <Button type="submit" size="lg" className="w-full min-h-[48px] h-auto rounded-xl font-medium text-base py-2.5" disabled={busy}>{busy ? "Création…" : "Créer mon compte"}</Button>
               </form>
             </TabsContent>
           </Tabs>
