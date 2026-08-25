@@ -904,7 +904,7 @@ export const generateRecommendations = createServerFn({ method: "POST" })
     z.object({ tripId: z.string().uuid(), force: z.boolean().optional() }).parse(data),
   )
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
       .select("owner_id, co_organizer_id")
