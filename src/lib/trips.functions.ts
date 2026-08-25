@@ -3031,7 +3031,9 @@ export const generateGroupItinerary = createServerFn({ method: "POST" })
     const { enrichGroupItineraryWithGetYourGuide } = await import(
       "@/lib/krew/getyourguide.server"
     );
-    const finalItinerary = enrichGroupItineraryWithGetYourGuide(rawItinerary);
+    const affiliateItinerary = enrichGroupItineraryWithGetYourGuide(rawItinerary);
+    const { normalizeItineraryPricesToEur } = await import("@/lib/krew/currency.server");
+    const finalItinerary = await normalizeItineraryPricesToEur(affiliateItinerary);
 
     const { error } = await supabase
       .from("trips")
@@ -3295,9 +3297,11 @@ export const regenerateItinerarySlot = createServerFn({ method: "POST" })
     const { enrichGroupItineraryWithGetYourGuide } = await import(
       "@/lib/krew/getyourguide.server"
     );
-    const enrichedItinerary = enrichGroupItineraryWithGetYourGuide(
+    const affiliateItinerary = enrichGroupItineraryWithGetYourGuide(
       itinerary as import("@/lib/krew/activity-ai.server").GroupItinerary,
     );
+    const { normalizeItineraryPricesToEur } = await import("@/lib/krew/currency.server");
+    const enrichedItinerary = await normalizeItineraryPricesToEur(affiliateItinerary);
 
     const { error } = await supabase
       .from("trips")

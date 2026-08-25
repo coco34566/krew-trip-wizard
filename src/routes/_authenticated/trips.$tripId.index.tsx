@@ -467,8 +467,8 @@ function TripDetail() {
   const [shareCopied, setShareCopied] = useState(false);
   const [arriveByFilter, setArriveByFilter] = useState("");
   const [departAfterFilter, setDepartAfterFilter] = useState("");
-  const [pickArrival, setPickArrival] = useState("12:00");
-  const [pickDeparture, setPickDeparture] = useState("18:00");
+  const [pickArrival] = useState("");
+  const [pickDeparture] = useState("");
   const [manualStartDate, setManualStartDate] = useState("");
 
   const shareUrl = useMemo(() => {
@@ -3111,13 +3111,17 @@ function TripDetail() {
                                     label: tr.label,
                                     pricePerPerson: tr.pricePerPerson,
                                     url: tr.url,
-                                    arrivalTime: pickArrival || undefined,
-                                    departureTime: pickDeparture || undefined,
+                                    arrivalTime:
+                                      tr.providerOffer?.outboundArrivalTime || pickArrival || undefined,
+                                    departureTime:
+                                      tr.providerOffer?.returnDepartureTime || pickDeparture || undefined,
                                     durationHours: tr.durationHours,
                                     outboundDepartureTime:
                                       tr.providerOffer?.outboundTime || undefined,
-                                    returnArrivalTime: tr.providerOffer?.returnTime || undefined,
-                                    time: pickArrival || undefined,
+                                    returnArrivalTime:
+                                      tr.providerOffer?.returnArrivalTime || tr.providerOffer?.returnTime || undefined,
+                                    time:
+                                      tr.providerOffer?.outboundArrivalTime || pickArrival || undefined,
                                   } as any)
                                 }
                               >
@@ -3186,6 +3190,26 @@ function TripDetail() {
               <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
                 Le programme du séjour, jour par jour.
               </p>
+              {(() => {
+                const activityCost = computeItineraryActivitiesCost(trip.group_itinerary?.days ?? []);
+                if (activityCost.activitiesPerPerson == null) return null;
+                const statusLabel =
+                  activityCost.priceStatus === "verified"
+                    ? "prix vérifiés"
+                    : activityCost.priceStatus === "free"
+                      ? "gratuit"
+                      : activityCost.priceStatus === "partial"
+                        ? "estimation partielle"
+                        : "estimation";
+                return (
+                  <div className="mt-3 inline-flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1 rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-sm">
+                    <span className="font-semibold text-foreground">
+                      Activités : ~{Math.round(activityCost.activitiesPerPerson)} € / personne
+                    </span>
+                    <span className="text-xs text-muted-foreground">{statusLabel}</span>
+                  </div>
+                );
+              })()}
             </div>
             {data.isOwner ? (
               <Button

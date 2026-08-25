@@ -77,7 +77,13 @@ export function computeItineraryActivitiesCost(
       totalCount++;
 
       const rawPrice = slot.priceHint ?? slot.pricePerPerson ?? slot.price;
-      const numericPrice = rawPrice != null && !isNaN(Number(rawPrice)) ? Number(rawPrice) : null;
+      const directCurrency = typeof slot.currency === "string" ? slot.currency.trim().toUpperCase() : null;
+      const numericPrice =
+        rawPrice != null &&
+        !isNaN(Number(rawPrice)) &&
+        (!directCurrency || directCurrency === "EUR")
+          ? Number(rawPrice)
+          : null;
       const explicitStatus: ActivityPriceStatus | undefined = slot.priceStatus;
       const sourceRaw = slot.priceSource ?? slot.source;
       const source = sourceRaw && typeof sourceRaw === "string" ? sourceRaw.trim() : null;
@@ -102,12 +108,21 @@ export function computeItineraryActivitiesCost(
 
       // If no sourced price exists, check if Gemini estimation range (min & max) is available
       if (effectiveStatus === "unknown") {
+        const estimatedCurrency =
+          typeof slot.estimatedPriceCurrency === "string"
+            ? slot.estimatedPriceCurrency.trim().toUpperCase()
+            : null;
+        const estimationIsEur = !estimatedCurrency || estimatedCurrency === "EUR";
         const estMin =
-          slot.estimatedPriceMinPerPerson != null && !isNaN(Number(slot.estimatedPriceMinPerPerson))
+          estimationIsEur &&
+          slot.estimatedPriceMinPerPerson != null &&
+          !isNaN(Number(slot.estimatedPriceMinPerPerson))
             ? Number(slot.estimatedPriceMinPerPerson)
             : null;
         const estMax =
-          slot.estimatedPriceMaxPerPerson != null && !isNaN(Number(slot.estimatedPriceMaxPerPerson))
+          estimationIsEur &&
+          slot.estimatedPriceMaxPerPerson != null &&
+          !isNaN(Number(slot.estimatedPriceMaxPerPerson))
             ? Number(slot.estimatedPriceMaxPerPerson)
             : null;
 
