@@ -1,0 +1,49 @@
+name: Fix room preference mapping
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-room-preference-mapping.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch room preference mapping
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/krew/trip-service-legacy.ts')
+          text = p.read_text()
+          anchor = '''      freeText: r.free_text || null,\n      mobilityNotes: r.mobility_notes || null,\n      localMobility: r.local_mobility ?? null,\n      accommodationRole: r.accommodation_role ?? null,\n'''
+          replacement = '''      freeText: r.free_text || null,\n      mobilityNotes: r.mobility_notes || null,\n      acceptsSharedRoom: r.accepts_shared_room ?? true,\n      roomTypePreference: r.room_type_preference ?? null,\n      localMobility: r.local_mobility ?? null,\n      accommodationRole: r.accommodation_role ?? null,\n'''
+          if text.count(anchor) != 1:
+              raise SystemExit(f'Expected one mapping anchor, found {text.count(anchor)}')
+          text = text.replace(anchor, replacement, 1)
+          p.write_text(text)
+          PY
+
+      - name: Verify targeted diff
+        run: |
+          git diff --check
+          git diff -- src/lib/krew/trip-service-legacy.ts
+          grep -q 'acceptsSharedRoom: r.accepts_shared_room' src/lib/krew/trip-service-legacy.ts
+          grep -q 'roomTypePreference: r.room_type_preference' src/lib/krew/trip-service-legacy.ts
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          git config user.name 'KREW fix bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/fix-room-preference-mapping.yml
+          git add src/lib/krew/trip-service-legacy.ts
+          git commit -m 'Fix accommodation room preference mapping'
+          git push origin HEAD:main
