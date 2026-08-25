@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
 import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
-import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewMark, KrewHighlight } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
 import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
@@ -73,18 +73,23 @@ function MonthGrid({
   onToggle: (iso: string) => void;
 }) {
   const first = startOfMonth(month);
-  const startWeekday = (first.getDay() + 6) % 7;
+  const startWeekday = (first.getDay() + 6) % 7; // lundi = 0
   const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const todayISO = toISO(new Date());
+
   const cells: (Date | null)[] = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(month.getFullYear(), month.getMonth(), d));
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push(new Date(month.getFullYear(), month.getMonth(), d));
+  }
 
   return (
     <div className="rounded-2xl border border-border/40 bg-card p-3.5 shadow-none">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
-        {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => <span key={i}>{d}</span>)}
+        {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
+          <span key={i}>{d}</span>
+        ))}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((date, i) => {
@@ -93,14 +98,22 @@ function MonthGrid({
           const mode = selection.get(iso) ?? null;
           const isPast = iso < todayISO;
           return (
-            <button key={iso} type="button" disabled={isPast} onClick={() => onToggle(iso)} className={cn(
-              "aspect-square rounded-xl text-sm font-mono font-medium transition min-h-[38px] flex items-center justify-center",
-              isPast && "cursor-not-allowed opacity-30",
-              !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary border border-border/40",
-              mode === "available" && "bg-secondary text-secondary-foreground shadow-sm hover:opacity-90 font-bold",
-              mode === "blocked" && "bg-destructive/90 text-destructive-foreground hover:bg-destructive font-bold",
-              iso === todayISO && !mode && "ring-1 ring-primary/50",
-            )}>{date.getDate()}</button>
+            <button
+              key={iso}
+              type="button"
+              disabled={isPast}
+              onClick={() => onToggle(iso)}
+              className={cn(
+                "aspect-square rounded-xl text-sm font-mono font-medium transition min-h-[38px] flex items-center justify-center",
+                isPast && "cursor-not-allowed opacity-30",
+                !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary border border-border/40",
+                mode === "available" && "bg-secondary text-secondary-foreground shadow-sm hover:opacity-90 font-bold",
+                mode === "blocked" && "bg-destructive/90 text-destructive-foreground hover:bg-destructive font-bold",
+                iso === todayISO && !mode && "ring-1 ring-primary/50",
+              )}
+            >
+              {date.getDate()}
+            </button>
           );
         })}
       </div>
@@ -109,17 +122,37 @@ function MonthGrid({
 }
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/star")({
-  head: () => ({ meta: [{ title: "Préférences de la Star — KREW" }] }),
+  head: () => ({
+    meta: [{ title: "Préférences de la Star — KREW" }],
+  }),
   component: StarQuestionnaire,
 });
 
-function SelectableOption({ active, onClick, children, className }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string }) {
+function SelectableOption({
+  active,
+  onClick,
+  children,
+  className,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <button type="button" onClick={onClick} className={cn(
-      "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
-      active ? "border-primary/40 bg-primary/5 text-foreground" : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
-      className,
-    )}>{children}</button>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
+        active
+          ? "border-primary/40 bg-primary/5 text-foreground"
+          : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
+        className,
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -133,27 +166,42 @@ function StarQuestionnaire() {
   const queryClient = useQueryClient();
   const fetchStar = useServerFn(getStarPreferences);
   const submit = useServerFn(submitStarPreferences);
-  const { data, isLoading } = useQuery({ queryKey: ["star-prefs", tripId], queryFn: () => fetchStar({ data: { tripId } }) });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["star-prefs", tripId],
+    queryFn: () => fetchStar({ data: { tripId } }),
+  });
 
   useEffect(() => {
-    if ((data as any)?.starMode === "participant") navigate({ to: "/trips/$tripId", params: { tripId }, replace: true });
+    if ((data as any)?.starMode === "participant") {
+      navigate({ to: "/trips/$tripId", params: { tripId }, replace: true });
+    }
   }, [data, navigate, tripId]);
 
   const [wanted, setWanted] = useState<string[]>([]);
   const [breakers, setBreakers] = useState<string[]>([]);
   const [ambiances, setAmbiances] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+
+  // Nouveaux champs pour la star
   const [departureCity, setDepartureCity] = useState("");
   const [departureAirportOrStation, setDepartureAirportOrStation] = useState("");
   const [desiredDestination, setDesiredDestination] = useState("");
   const [excludedDestinations, setExcludedDestinations] = useState("");
   const [wantedEnvTypes, setWantedEnvTypes] = useState<string[]>([]);
   const [weatherPreference, setWeatherPreference] = useState<number>(1);
-  const [localMobility, setLocalMobility] = useState<"walk_transit" | "car_if_worth_it" | "car_ok" | null>(null);
-  const [accommodationRole, setAccommodationRole] = useState<"base_only" | "part_of_stay" | "centerpiece" | null>(null);
+  const [localMobility, setLocalMobility] = useState<
+    "walk_transit" | "car_if_worth_it" | "car_ok" | null
+  >(null);
+  const [accommodationRole, setAccommodationRole] = useState<
+    "base_only" | "part_of_stay" | "centerpiece" | null
+  >(null);
+
+  // Disponibilités de la star (iso → DayMode)
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
   const [paintMode, setPaintMode] = useState<"available" | "blocked">("available");
   const [monthOffset, setMonthOffset] = useState(0);
+
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -167,10 +215,15 @@ function StarQuestionnaire() {
         setDepartureAirportOrStation(data.preferences.departureAirportOrStation ?? "");
         setDesiredDestination(data.preferences.desiredDestination ?? "");
         setExcludedDestinations((data.preferences.excludedDestinations ?? []).join(", "));
-        setWantedEnvTypes((data.preferences as any).wantedEnvType ? (data.preferences as any).wantedEnvType.split(", ") : []);
+        setWantedEnvTypes(
+          (data.preferences as any).wantedEnvType
+            ? (data.preferences as any).wantedEnvType.split(", ")
+            : [],
+        );
         setWeatherPreference((data.preferences as any).weatherPreference ?? 1);
         setLocalMobility((data.preferences as any).localMobility ?? null);
         setAccommodationRole((data.preferences as any).accommodationRole ?? null);
+
         const m = new Map<string, DayMode>();
         for (const d of data.preferences.availableDates ?? []) m.set(d.slice(0, 10), "available");
         for (const d of data.preferences.blockedDates ?? []) m.set(d.slice(0, 10), "blocked");
@@ -180,21 +233,37 @@ function StarQuestionnaire() {
     }
   }, [data, hydrated]);
 
-  const availableDates = useMemo(() => [...selection.entries()].filter(([, v]) => v === "available").map(([k]) => k).sort(), [selection]);
-  const blockedDates = useMemo(() => [...selection.entries()].filter(([, v]) => v === "blocked").map(([k]) => k).sort(), [selection]);
+  const availableDates = useMemo(
+    () =>
+      [...selection.entries()]
+        .filter(([, v]) => v === "available")
+        .map(([k]) => k)
+        .sort(),
+    [selection],
+  );
+  const blockedDates = useMemo(
+    () =>
+      [...selection.entries()]
+        .filter(([, v]) => v === "blocked")
+        .map(([k]) => k)
+        .sort(),
+    [selection],
+  );
 
   function toggleDay(iso: string) {
     setSelection((prev) => {
       const next = new Map(prev);
       const cur = next.get(iso) ?? null;
-      if (paintMode === "available") cur === "available" ? next.delete(iso) : next.set(iso, "available");
-      else cur === "blocked" ? next.delete(iso) : next.set(iso, "blocked");
+      if (paintMode === "available") {
+        if (cur === "available") next.delete(iso);
+        else next.set(iso, "available");
+      } else {
+        if (cur === "blocked") next.delete(iso);
+        else next.set(iso, "blocked");
+      }
       return next;
     });
   }
-
-  const baseMonth = startOfMonth(new Date());
-  const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
 
   function selectWeekendsInView() {
     setSelection((prev) => {
@@ -205,8 +274,10 @@ function StarQuestionnaire() {
           const date = new Date(month.getFullYear(), month.getMonth(), d);
           const iso = toISO(date);
           if (iso < toISO(new Date())) continue;
-          if (date.getDay() === 0 || date.getDay() === 6) {
-            if (paintMode === "available") next.set(iso, "available"); else next.set(iso, "blocked");
+          const wd = date.getDay();
+          if (wd === 0 || wd === 6) {
+            if (paintMode === "available") next.set(iso, "available");
+            else next.set(iso, "blocked");
           }
         }
       }
@@ -214,31 +285,45 @@ function StarQuestionnaire() {
     });
   }
 
-  function clearSelection() { setSelection(new Map()); }
+  function clearSelection() {
+    setSelection(new Map());
+  }
+
+  const baseMonth = startOfMonth(new Date());
+  const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
 
   const mutation = useMutation({
     mutationFn: () => {
-      const excluded = excludedDestinations.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
-      return submit({ data: {
-        tripId,
-        wantedActivities: wanted,
-        dealBreakers: breakers,
-        ambiances,
-        notes: notes.trim() || undefined,
-        departureCity: departureCity.trim() || undefined,
-        departureAirportOrStation: departureAirportOrStation.trim() || undefined,
-        desiredDestination: desiredDestination.trim() || undefined,
-        excludedDestinations: excluded,
-        availableDates,
-        blockedDates,
-        wantedEnvType: wantedEnvTypes.join(", ") || undefined,
-        weatherPreference,
-        localMobility,
-        accommodationRole,
-      } });
+      const excluded = excludedDestinations
+        .split(/[,;]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return submit({
+        data: {
+          tripId,
+          wantedActivities: wanted,
+          dealBreakers: breakers,
+          ambiances,
+          notes: notes.trim() || undefined,
+          departureCity: departureCity.trim() || undefined,
+          departureAirportOrStation: departureAirportOrStation.trim() || undefined,
+          desiredDestination: desiredDestination.trim() || undefined,
+          excludedDestinations: excluded,
+          availableDates,
+          blockedDates,
+          wantedEnvType: wantedEnvTypes.join(", ") || undefined,
+          weatherPreference,
+          localMobility,
+          accommodationRole,
+        },
+      });
     },
     onSuccess: (res) => {
-      toast.success(res.isUpdate ? "Préférences de la Star mises à jour" : "Préférences de la Star enregistrées");
+      toast.success(
+        res.isUpdate
+          ? "Préférences de la Star mises à jour"
+          : "Préférences de la Star enregistrées",
+      );
       queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
@@ -246,63 +331,356 @@ function StarQuestionnaire() {
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 120)),
   });
 
-  if (isLoading) return <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-4"><Skeleton className="h-8 w-48 rounded-xl" /><Skeleton className="h-40 w-full rounded-[24px]" /></main>;
-  if (!data?.trip.hasStar) return <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 text-center space-y-4"><p className="text-muted-foreground">Ce type de voyage n’a pas de personne principale (star).</p><Button asChild variant="outline" className="rounded-xl"><Link to="/trips/$tripId" params={{ tripId }}>Retour au voyage</Link></Button></main>;
+  if (isLoading) {
+    return (
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-4">
+        <Skeleton className="h-8 w-48 rounded-xl" />
+        <Skeleton className="h-40 w-full rounded-[24px]" />
+      </main>
+    );
+  }
+
+  if (!data?.trip.hasStar) {
+    return (
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 text-center space-y-4">
+        <p className="text-muted-foreground">
+          Ce type de voyage n’a pas de personne principale (star).
+        </p>
+        <Button asChild variant="outline" className="rounded-xl">
+          <Link to="/trips/$tripId" params={{ tripId }}>
+            Retour au voyage
+          </Link>
+        </Button>
+      </main>
+    );
+  }
 
   const starName = data.trip.celebratedPerson || "la personne principale";
 
   return (
     <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
-      <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"><ArrowLeft className="size-4" /> Retour au voyage</Link>
+      <Link
+        to="/trips/$tripId"
+        params={{ tripId }}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+      >
+        <ArrowLeft className="size-4" /> Retour au voyage
+      </Link>
+
       <div className="space-y-2 relative">
         <div className="relative inline-block">
-          <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">Préférences de <KrewHighlight tone="plum" className="px-2 py-0.5 font-normal">{starName}</KrewHighlight></h1>
-          <KrewMark type="underline-wave" tone="sage" size="md" className="absolute left-1 -bottom-2 w-[clamp(96px,38vw,160px)] max-w-[70%] pointer-events-none" />
+          <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
+            Préférences de{" "}
+            <KrewHighlight tone="plum" className="px-2 py-0.5 font-normal">
+              {starName}
+            </KrewHighlight>
+          </h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="md"
+            className="absolute left-1 -bottom-2 w-[clamp(96px,38vw,160px)] max-w-[70%] pointer-events-none"
+          />
         </div>
-        <p className="text-sm sm:text-base text-muted-foreground font-sans pt-1">Complète les réponses au nom de <strong>{starName}</strong> pour ce voyage.</p>
-        <KrewNote variant="sticky" tone="cream" rotation={-1} className="mt-3 inline-block text-[14px] py-1.5 px-3">Ses envies comptent</KrewNote>
+        <p className="text-sm sm:text-base text-muted-foreground font-sans pt-1">
+          Complète les réponses au nom de <strong>{starName}</strong> pour ce voyage.
+        </p>
       </div>
 
       <div className="pt-4">
+        {/* 1. Envies & ambiance */}
         <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
-          <div className="space-y-4"><h2 className="font-display text-2xl font-normal text-foreground">Quelles activités plairaient à {starName} ?</h2><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{STAR_WANTED_ACTIVITIES.map((a) => <SelectableOption key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}><span className="mr-1.5">{STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"}</span> {a.charAt(0).toUpperCase() + a.slice(1)}</SelectableOption>)}</div></div>
-          <div className="space-y-4 pt-2"><h2 className="font-display text-2xl font-normal text-foreground">Quelle ambiance {starName} apprécierait ?</h2><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{AMBIANCES.map((a) => <SelectableOption key={a.value} active={ambiances.includes(a.value)} onClick={() => toggle(ambiances, setAmbiances, a.value)}><span className="mr-1.5">{a.emoji}</span> {a.label}</SelectableOption>)}</div></div>
-          <div className="space-y-4 pt-2"><h2 className="font-display text-2xl font-normal text-foreground">Que refuserait absolument {starName} ?</h2><div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{STAR_DEAL_BREAKERS.map((a) => <SelectableOption key={a} active={breakers.includes(a)} onClick={() => toggle(breakers, setBreakers, a)}><span className="mr-1.5">{STAR_DEAL_BREAKERS_EMOJIS[a] || "🚫"}</span> {a}</SelectableOption>)}</div></div>
+          <div className="space-y-4">
+            <h2 className="font-display text-2xl font-normal text-foreground">Quelles activités plairaient à {starName} ?</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {STAR_WANTED_ACTIVITIES.map((a) => (
+                <SelectableOption key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
+                  <span className="mr-1.5">{STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"}</span> {a.charAt(0).toUpperCase() + a.slice(1)}
+                </SelectableOption>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <h2 className="font-display text-2xl font-normal text-foreground">Quelle ambiance {starName} apprécierait ?</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {AMBIANCES.map((a) => (
+                <SelectableOption
+                  key={a.value}
+                  active={ambiances.includes(a.value)}
+                  onClick={() => toggle(ambiances, setAmbiances, a.value)}
+                >
+                  <span className="mr-1.5">{a.emoji}</span> {a.label}
+                </SelectableOption>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2">
+            <h2 className="font-display text-2xl font-normal text-foreground">Que refuserait absolument {starName} ?</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {STAR_DEAL_BREAKERS.map((a) => (
+                <SelectableOption
+                  key={a}
+                  active={breakers.includes(a)}
+                  onClick={() => toggle(breakers, setBreakers, a)}
+                >
+                  <span className="mr-1.5">{STAR_DEAL_BREAKERS_EMOJIS[a] || "🚫"}</span> {a}
+                </SelectableOption>
+              ))}
+            </div>
+          </div>
         </section>
 
+        {/* 2. Destination & cadre (FOND SAUGE LÉGER) */}
         <section className="pb-8 mb-8 space-y-4 font-sans border-b border-border/50">
           <h2 className="font-display text-2xl font-normal text-foreground">Les lieux qui plairaient à {starName}</h2>
-          <div className="space-y-2"><Label htmlFor="destination" className="font-semibold block text-base text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label><Input id="destination" value={desiredDestination} onChange={(e) => setDesiredDestination(e.target.value)} placeholder="Ex : Lisbonne, Barcelone…" className="h-12 rounded-xl border-border focus-visible:ring-primary text-base" /></div>
-          <div className="space-y-2 pt-2"><Label htmlFor="excluded" className="font-semibold block text-base text-foreground">Quelles destinations {starName} voudrait éviter ? (optionnel)</Label><Input id="excluded" value={excludedDestinations} onChange={(e) => setExcludedDestinations(e.target.value)} placeholder="Ex : Ibiza, Marrakech (séparées par des virgules)" className="h-12 rounded-xl border-border focus-visible:ring-primary text-base" /></div>
-          <div className="space-y-3 pt-4"><Label className="font-semibold block text-base text-foreground">Quel type de lieu plairait le plus à {starName} ?</Label><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{[
-            { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" }, { v: "Quartier animé", label: "🍻 Quartier animé" }, { v: "Bord de mer", label: "🌊 Bord de mer" }, { v: "Nature / pleine nature", label: "🌳 Nature / pleine nature" }, { v: "Village de charme", label: "🏡 Village de charme" }, { v: "Montagne", label: "🏔️ Montagne" }, { v: "Lac / rivière", label: "🚣 Lac / rivière" },
-          ].map((env) => <SelectableOption key={env.v} active={wantedEnvTypes.includes(env.v)} onClick={() => toggle(wantedEnvTypes, setWantedEnvTypes, env.v)}>{env.label}</SelectableOption>)}</div></div>
-          <div className="space-y-3 pt-4"><Label className="font-semibold block text-base text-foreground">Quelle importance {starName} accorderait à la météo pour ce voyage ?</Label><div className="grid grid-cols-1 gap-3">{[
-            { v: 2, label: "☀️ Je veux privilégier une destination avec de bonnes chances de beau temps" }, { v: 1, label: "🌤️ C’est un plus, mais ce n’est pas déterminant" }, { v: 0, label: "🌍 La météo n’est pas un critère pour moi" },
-          ].map((opt) => <SelectableOption key={opt.v} active={weatherPreference === opt.v} onClick={() => setWeatherPreference(opt.v)}>{opt.label}</SelectableOption>)}</div></div>
+          <div className="space-y-2">
+            <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label>
+            <Input
+              id="destination"
+              value={desiredDestination}
+              onChange={(e) => setDesiredDestination(e.target.value)}
+              placeholder="Ex : Lisbonne, Barcelone…"
+              className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
+            />
+          </div>
+          <div className="space-y-2 pt-2">
+            <Label htmlFor="excluded" className="font-semibold block text-base text-foreground">Quelles destinations {starName} voudrait éviter ? (optionnel)</Label>
+            <Input
+              id="excluded"
+              value={excludedDestinations}
+              onChange={(e) => setExcludedDestinations(e.target.value)}
+              placeholder="Ex : Ibiza, Marrakech (séparées par des virgules)"
+              className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
+            />
+          </div>
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">
+              Quel type de lieu plairait le plus à {starName} ?
+            </Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" },
+                { v: "Quartier animé", label: "🍻 Quartier animé" },
+                { v: "Bord de mer", label: "🌊 Bord de mer" },
+                { v: "Nature / pleine nature", label: "🌳 Nature / pleine nature" },
+                { v: "Village de charme", label: "🏡 Village de charme" },
+                { v: "Montagne", label: "🏔️ Montagne" },
+                { v: "Lac / rivière", label: "🚣 Lac / rivière" },
+              ].map((env) => (
+                <SelectableOption
+                  key={env.v}
+                  active={wantedEnvTypes.includes(env.v)}
+                  onClick={() => toggle(wantedEnvTypes, setWantedEnvTypes, env.v)}
+                >
+                  {env.label}
+                </SelectableOption>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3 pt-4">
+            <Label className="font-semibold block text-base text-foreground">
+              Quelle importance {starName} accorderait à la météo pour ce voyage ?
+            </Label>
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                {
+                  v: 2,
+                  label:
+                    "☀️ Je veux privilégier une destination avec de bonnes chances de beau temps",
+                },
+                { v: 1, label: "🌤️ C’est un plus, mais ce n’est pas déterminant" },
+                { v: 0, label: "🌍 La météo n’est pas un critère pour moi" },
+              ].map((opt) => (
+                <SelectableOption
+                  key={opt.v}
+                  active={weatherPreference === opt.v}
+                  onClick={() => setWeatherPreference(opt.v)}
+                >
+                  {opt.label}
+                </SelectableOption>
+              ))}
+            </div>
+          </div>
         </section>
 
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-4 font-sans">
+        {/* 3. Hébergement (FOND CRÈME LÉGER) */}
+        <section className="bg-surface/50 rounded-[20px] p-5 sm:p-7 pb-8 mb-8 space-y-4 font-sans">
           <h2 className="font-display text-2xl font-normal text-foreground">Hébergement</h2>
-          <div className="space-y-3"><Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label><div className="grid grid-cols-1 gap-3">{[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => <SelectableOption key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</SelectableOption>)}</div></div>
+          <div className="space-y-3">
+            <Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label>
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                ["base_only", "Un point de chute"],
+                ["part_of_stay", "Un lieu où on aime aussi passer du temps"],
+                ["centerpiece", "Une vraie partie du voyage"],
+              ].map(([value, label]) => (
+                <SelectableOption
+                  key={value}
+                  active={accommodationRole === value}
+                  onClick={() => setAccommodationRole(value as typeof accommodationRole)}
+                >
+                  {label}
+                </SelectableOption>
+              ))}
+            </div>
+          </div>
         </section>
 
+        {/* 4. Transport */}
         <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
-          <h2 className="font-display text-2xl font-normal text-foreground">Transport</h2>
-          <div className="space-y-2"><Label htmlFor="departure" className="font-semibold block text-base text-foreground">D’où partirait {starName} ? (ville ou code postal)</Label><CityAutocomplete id="departure" value={departureCity} onChange={setDepartureCity} onSelect={(sel) => { setDepartureCity(sel.city); if (sel.airportIata) setDepartureAirportOrStation(sel.airportIata); else setDepartureAirportOrStation(""); }} placeholder="Ex. Lyon, 69001, Paris…" /></div>
-          <div className="space-y-3 pt-2"><Label className="font-semibold block text-base text-foreground">Sur place, qu’est-ce que {starName} préférerait ?</Label><div className="grid grid-cols-1 gap-3">{[["walk_transit", "Tout faire à pied / transports"], ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"], ["car_ok", "Aucun problème pour se déplacer en voiture"]].map(([value, label]) => <SelectableOption key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>{label}</SelectableOption>)}</div></div>
+          <h2 className="font-display text-2xl font-normal text-foreground">
+            Transport
+          </h2>
+          <div className="space-y-2">
+            <Label htmlFor="departure" className="font-semibold block text-base text-foreground">D’où partirait {starName} ? (ville ou code postal)</Label>
+            <CityAutocomplete
+              id="departure"
+              value={departureCity}
+              onChange={setDepartureCity}
+              onSelect={(sel) => {
+                setDepartureCity(sel.city);
+                if (sel.airportIata) {
+                  setDepartureAirportOrStation(sel.airportIata);
+                } else {
+                  setDepartureAirportOrStation("");
+                }
+              }}
+              placeholder="Ex. Lyon, 69001, Paris…"
+            />
+          </div>
+          <div className="space-y-3 pt-2">
+            <Label className="font-semibold block text-base text-foreground">Sur place, qu’est-ce que {starName} préférerait ?</Label>
+            <div className="grid grid-cols-1 gap-3">
+              {[
+                ["walk_transit", "Tout faire à pied / transports"],
+                ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"],
+                ["car_ok", "Aucun problème pour se déplacer en voiture"],
+              ].map(([value, label]) => (
+                <SelectableOption
+                  key={value}
+                  active={localMobility === value}
+                  onClick={() => setLocalMobility(value as typeof localMobility)}
+                >
+                  {label}
+                </SelectableOption>
+              ))}
+            </div>
+          </div>
         </section>
 
+        {/* 5. Disponibilités Calendrier */}
         <section className="space-y-4 pb-8 mb-8 border-b border-border/50">
-          <h2 className="font-display text-2xl font-normal text-foreground">Disponibilités de {starName}</h2><p className="text-xs text-muted-foreground leading-relaxed">Indique les dates où {starName} serait disponible ou indisponible.</p>
-          <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setPaintMode("available")} className={cn("inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition", paintMode === "available" ? "border-sage/40 bg-sage/20 text-primary font-semibold" : "border-border bg-background text-muted-foreground hover:border-primary/25")}><span className="size-2 rounded-full bg-current" /> Disponible</button><button type="button" onClick={() => setPaintMode("blocked")} className={cn("inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition", paintMode === "blocked" ? "border-destructive bg-destructive text-white" : "border-border bg-background text-muted-foreground hover:border-destructive/50")}><span className="size-2 rounded-full bg-current" /> Impossible</button></div>
-          <div className="flex items-center justify-between"><Button type="button" variant="ghost" size="sm" onClick={() => setMonthOffset((o) => Math.max(0, o - 1))} disabled={monthOffset <= 0}><ChevronLeft className="size-4" /></Button><p className="text-[10px] text-muted-foreground">Fais défiler les mois →</p><Button type="button" variant="ghost" size="sm" onClick={() => setMonthOffset((o) => o + 1)}><ChevronRight className="size-4" /></Button></div>
-          <div className="grid gap-3 sm:grid-cols-2">{months.map((m) => <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />)}</div>
-          <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" className="text-xs" onClick={selectWeekendsInView}>Tous les week-ends affichés</Button><Button type="button" variant="ghost" size="sm" className="text-xs" onClick={clearSelection}>Tout effacer</Button></div>
+          <h2 className="font-display text-2xl font-normal text-foreground">Disponibilités de {starName}</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Indique les dates où {starName} serait disponible ou indisponible.
+          </p>
+
+          {/* Mode peinture */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setPaintMode("available")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
+                paintMode === "available"
+                    ? "border-sage/40 bg-sage/20 text-primary font-semibold"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/25",
+              )}
+            >
+              <span className="size-2 rounded-full bg-current" /> Disponible
+            </button>
+            <button
+              type="button"
+              onClick={() => setPaintMode("blocked")}
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
+                paintMode === "blocked"
+                  ? "border-destructive bg-destructive text-white"
+                  : "border-border bg-background text-muted-foreground hover:border-destructive/50",
+              )}
+            >
+              <span className="size-2 rounded-full bg-current" /> Impossible
+            </button>
+          </div>
+
+          {/* Navigation mois */}
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}
+              disabled={monthOffset <= 0}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <p className="text-[10px] text-muted-foreground">Fais défiler les mois →</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setMonthOffset((o) => o + 1)}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {months.map((m) => (
+              <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
+              onClick={selectWeekendsInView}
+            >
+              Tous les week-ends affichés
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={clearSelection}
+            >
+              Tout effacer
+            </Button>
+          </div>
         </section>
 
-        <section className="space-y-2 pb-8"><Label className="font-semibold block text-base text-foreground">Autres précisions utiles sur les préférences de {starName}</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Précisions utiles pour le groupe…" className="min-h-[120px] rounded-xl border-border focus-visible:ring-primary text-base" /></section>
-        <div className="pt-2 pb-12"><Button className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5" size="lg" disabled={mutation.isPending} onClick={() => mutation.mutate()}>{mutation.isPending ? <Loader2 className="animate-spin shrink-0" /> : <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />}{data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}</Button></div>
+        {/* 6. Précisions */}
+        <section className="space-y-2 pb-8">
+          <Label className="font-semibold block text-base text-foreground">Autres précisions utiles sur les préférences de {starName}</Label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Précisions utiles pour le groupe…"
+            className="min-h-[120px] rounded-xl border-border focus-visible:ring-primary text-base"
+          />
+        </section>
+
+        <div className="pt-2 pb-12">
+          <Button
+            className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
+            size="lg"
+            disabled={mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            {mutation.isPending ? (
+              <Loader2 className="animate-spin shrink-0" />
+            ) : (
+              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
+            )}
+            {data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
+          </Button>
+        </div>
       </div>
     </main>
   );
