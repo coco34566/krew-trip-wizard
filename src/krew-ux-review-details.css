@@ -30,6 +30,60 @@ main.max-w-5xl header > div.relative.w-full > div.relative.z-20 > p:first-child 
   }
 }
 
+/* Trip overview — progress note is derived from the real primary next-action link. */
+main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a) > header > div.relative.w-full::after {
+  position: absolute;
+  z-index: 24;
+  right: 1rem;
+  top: 1rem;
+  max-width: 10rem;
+  padding: 0.42rem 0.72rem;
+  background: color-mix(in oklch, var(--background) 88%, var(--sage));
+  border: 1px solid color-mix(in oklch, var(--sage) 38%, var(--border));
+  color: var(--primary);
+  font-family: "Caveat", cursive;
+  font-size: 0.98rem;
+  line-height: 1;
+  transform: rotate(1.1deg);
+  clip-path: polygon(1% 3%, 98% 0, 100% 96%, 4% 100%);
+  pointer-events: none;
+}
+
+main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a[href$="/availability"], section > div.relative.p-6 a[href$="/questionnaire"], section > div.relative.p-6 a[href$="/star"]) > header > div.relative.w-full::after {
+  content: "Le groupe prend forme";
+}
+
+main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a[href*="section=dates"], section > div.relative.p-6 a[href*="section=profile"], section > div.relative.p-6 a[href*="section=destination"]) > header > div.relative.w-full::after {
+  content: "La suite se dessine";
+}
+
+main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a[href*="section=accommodation"], section > div.relative.p-6 a[href*="section=transport"], section > div.relative.p-6 a[href*="section=planning"]) > header > div.relative.w-full::after {
+  content: "La suite se prépare";
+}
+
+/* Trip overview — existing KREW otter, visible only where there is enough room. */
+@media (min-width: 640px) {
+  main.max-w-5xl div:has(> header > div.relative.w-full) > header::after {
+    content: "";
+    position: absolute;
+    z-index: 22;
+    right: 1.25rem;
+    bottom: 1.4rem;
+    width: 5.75rem;
+    height: 5.75rem;
+    background: url("/brand/otter-states/trip-progress.png") center / contain no-repeat;
+    pointer-events: none;
+  }
+}
+
+@media (min-width: 1024px) {
+  main.max-w-5xl div:has(> header > div.relative.w-full) > header::after {
+    right: 1.75rem;
+    width: 6.25rem;
+    height: 6.25rem;
+  }
+}
+
 /* Journey: normal French capitalization for the secondary note. */
 div[class*="max-w-[900px]"] > header > div:first-child {
   font-size: 0 !important;
@@ -85,6 +139,13 @@ div[class*="max-w-[900px]"] div[class*="top-[74%]"] > div {
 
 /* Keep added paper elements inside phone width. */
 @media (max-width: 639px) {
+  main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relative.p-6 a) > header > div.relative.w-full::after {
+    right: 0.75rem;
+    top: 0.75rem;
+    max-width: 8.5rem;
+    font-size: 0.9rem;
+  }
+
   div[class*="max-w-[900px]"] > header > div:first-child {
     right: 0;
   }
