@@ -93,6 +93,16 @@ describe("hard constraints remain blocking", () => {
     expect(fromLyon).toBeLessThan(1250);
   });
 
+  it("weights multiple departure origins by traveller count", () => {
+    const lyon = estimateGroupOriginDistanceKm("Budapest", 1250, [{ city: "Lyon", count: 1 }]);
+    const paris = estimateGroupOriginDistanceKm("Budapest", 1250, [{ city: "Paris", count: 1 }]);
+    const weighted = estimateGroupOriginDistanceKm("Budapest", 1250, [
+      { city: "Lyon", count: 3 },
+      { city: "Paris", count: 1 },
+    ]);
+    expect(weighted).toBe(Math.round((lyon * 3 + paris) / 4));
+  });
+
   it("never reintroduces a destination rejected by explicit plane refusal", () => {
     const far = destination({ distance_from_paris_km: 1200 });
     expect(buildProposals(catalog([far]), context({ planeRefused: true }), 4)).toHaveLength(0);

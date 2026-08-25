@@ -45,4 +45,18 @@ describe("scoring recalibration safeguards", () => {
     }));
     expect(hasEnoughLearningSignal(enough, reactions)).toBe(true);
   });
+
+  it("counts positive learning signal by distinct trip, not repeated rows", () => {
+    const reactions = new Map<string, { likes: number; dislikes: number }>();
+    const rows = Array.from({ length: MIN_LEARNING_TRIPS }, (_, index) => ({
+      trip_id: `trip-${index}`,
+      recommendation_id: `rec-${index}`,
+      was_selected: index < MIN_POSITIVE_LEARNING_TRIPS - 1,
+    }));
+    rows.push(
+      { trip_id: "trip-0", recommendation_id: "duplicate-1", was_selected: true },
+      { trip_id: "trip-0", recommendation_id: "duplicate-2", was_selected: true },
+    );
+    expect(hasEnoughLearningSignal(rows, reactions)).toBe(false);
+  });
 });
