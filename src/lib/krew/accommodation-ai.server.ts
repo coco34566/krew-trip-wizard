@@ -384,6 +384,26 @@ export async function searchAccommodationsWithGemini(specification: Accommodatio
   if (!tavilyKey) throw new Error("no_tavily_key");
 
   const searchQuery = await generateTavilyQuery(specification, geminiKey);
+  console.info("accommodation-search-input", {
+    model: process.env["GEMINI_MODEL"] || "gemini-3.6-flash",
+    query: searchQuery,
+    destination: specification.destination,
+    dates: specification.dates,
+    group: specification.group,
+    budget: specification.budget,
+    locationIntent: specification.locationIntent,
+    minimumRating: specification.minimumRating,
+    requiredAmenities: specification.requiredAmenities,
+    accessibilityRequired: specification.accessibilityRequired,
+    searchStrategies: specification.searchStrategies.map((strategy) => ({
+      concept: strategy.concept,
+      score: strategy.score,
+      priority: strategy.priority,
+      propertyTypes: strategy.propertyTypes,
+      mustHave: strategy.mustHave,
+      preferred: strategy.preferred,
+    })),
+  });
   const tavilyResponse = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${tavilyKey}` },
@@ -462,5 +482,13 @@ export async function searchAccommodationsWithGemini(specification: Accommodatio
     resultCount: rawResultCount,
     queryLength: searchQuery.length,
   });
-  return normalizeTavilyAccommodationResults(payload, specification);
+  const normalized = normalizeTavilyAccommodationResults(payload, specification);
+  console.info("accommodation-search-output", {
+    destination: specification.destination.name,
+    rawResultCount,
+    normalizedResultCount: normalized.length,
+    webSearchCalls,
+    tavilyCredits,
+  });
+  return normalized;
 }
