@@ -76,7 +76,7 @@ function AccountPage() {
     : "—";
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10 sm:py-12">
+    <main className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
       <div className="mb-8 space-y-1">
         <div className="relative inline-block">
           <h1 className="font-display text-[40px] sm:text-[48px] font-normal leading-tight text-foreground">Mon compte</h1>
@@ -87,30 +87,29 @@ function AccountPage() {
             className="absolute left-0 -bottom-1.5 w-[110px] pointer-events-none"
           />
         </div>
-        <p className="mt-2 text-sm text-muted-foreground font-sans">
-          Gère les informations associées à ton compte KREW.
+        <p className="mt-3 text-sm sm:text-base text-muted-foreground font-sans">
+          Retrouve les informations associées à ton compte KREW.
         </p>
       </div>
 
       <div className="space-y-10">
         <section className="space-y-4">
-          <div className="border-b border-border/60 pb-2">
+          <div className="border-b border-border/60 pb-3">
             <h2 className="font-display text-2xl font-normal text-foreground">Mes informations</h2>
-            <p className="text-xs text-muted-foreground">Les informations associées à ton compte KREW.</p>
           </div>
-          <div className="divide-y divide-border/40 text-sm">
+          <div className="divide-y divide-border/40 text-sm sm:text-base">
             {firstName ? (
-              <div className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <div className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
                 <span className="text-muted-foreground">Prénom</span>
                 <span className="font-medium text-foreground">{firstName}</span>
               </div>
             ) : null}
-            <div className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+            <div className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
               <span className="text-muted-foreground">Adresse e-mail</span>
-              <span className="font-medium text-foreground break-all">{user?.email ?? "—"}</span>
+              <span className="font-medium text-foreground break-all sm:text-right">{user?.email ?? "—"}</span>
             </div>
-            <div className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-              <span className="text-muted-foreground">Date de création du compte</span>
+            <div className="py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
+              <span className="text-muted-foreground">Compte créé le</span>
               <span className="font-medium text-foreground">{createdAt}</span>
             </div>
           </div>
@@ -119,7 +118,7 @@ function AccountPage() {
         <section className="space-y-4 border-t border-border/60 pt-8">
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-destructive">Supprimer mon compte</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
               Supprime ton compte et les données personnelles qui n'ont plus de raison légale d'être conservées.
             </p>
           </div>
@@ -141,7 +140,7 @@ function AccountPage() {
           <Button
             type="button"
             variant="destructive"
-            className="mt-4 min-h-[44px] h-auto rounded-xl whitespace-normal text-center leading-tight py-2.5"
+            className="mt-2 min-h-[44px] h-auto rounded-xl whitespace-normal text-center leading-tight py-2.5"
             onClick={() => setOpen(true)}
             disabled={deleting}
           >
