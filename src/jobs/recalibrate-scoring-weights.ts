@@ -1,4 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  filterEligibleScoringFeedback,
+  hasEnoughLearningSignal,
+} from "@/lib/krew/scoring-recalibration";
 
 const url = process.env["krewproject_SUPABASE_URL"] || process.env["SUPABASE_URL"] || process.env["NEXT_PUBLIC_krewproject_SUPABASE_URL"];
 const key = process.env["krewproject_SUPABASE_SERVICE_ROLE_KEY"] || process.env["SUPABASE_SERVICE_ROLE_KEY"];
@@ -16,13 +20,16 @@ const WEIGHT_COL: Record<(typeof SUBS)[number], string> = {
 };
 
 async function main() {
-  const [feedbackRes, reactionsRes] = await Promise.all([
+  const [feedbackRes, reactionsRes, tripsRes] = await Promise.all([
     supabase.from("scoring_feedback").select("*"),
-    supabase.from("destination_feedback").select("recommendation_id, reaction")
+    supabase.from("destination_feedback").select("recommendation_id, reaction"),
+    supabase.from("trips").select("id, name"),
   ]);
   if (feedbackRes.error) throw feedbackRes.error;
-  const rows = feedbackRes.data;
-  if (!rows?.length) return;
+  if (tripsRes.error) throw tripsRes.error;
+
+  const rows = filterEligibleScoringFeedback(feedbackRes.data ?? [], tripsRes.data ?? []);
+  if (!rows.length) return;
 
   const reactionsMap = new Map<string, { likes: number; dislikes: number }>();
   for (const r of reactionsRes.data || []) {
@@ -41,8 +48,7 @@ async function main() {
   }
 
   for (const [eventType, list] of byEvent) {
-    const positiveCount = list.filter((r) => r.was_selected || ((r.recommendation_id ? reactionsMap.get(r.recommendation_id) : null)?.likes || 0) > ((r.recommendation_id ? reactionsMap.get(r.recommendation_id) : null)?.dislikes || 0)).length;
-    if (positiveCount < 3) continue;
+    if (!hasEnoughLearningSignal(list, reactionsMap)) continue;
 
     const { data: current } = await supabase.from("scoring_weights").select("*").eq("event_type", eventType).maybeSingle();
     const next: Record<string, number> = {

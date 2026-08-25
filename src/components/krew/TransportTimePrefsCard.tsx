@@ -154,7 +154,11 @@ export function TransportTimePrefsCard({ tripId }: Props) {
               {groupWindow.latestReturn ? `Retour avant ${groupWindow.latestReturn}` : ""}
             </span>
           ) : (
-            <span>Aucune contrainte horaire définie pour le groupe.</span>
+            <span>
+              Aucune contrainte horaire définie pour le groupe. Tant que KREW ne connaît pas
+              les horaires de transport réels, le planning utilise des repères estimés
+              (arrivée 18:30 · départ 16:30), à confirmer.
+            </span>
           )}
         </p>
 
