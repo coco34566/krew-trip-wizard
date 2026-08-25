@@ -12,6 +12,7 @@ import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
+import { cn } from "@/lib/utils";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -177,22 +178,32 @@ function TripCard({
   trip,
   invited = false,
   onCancel,
+  index = 0,
+  archived = false,
 }: {
   trip: Trip;
   invited?: boolean;
   onCancel?: (tripId: string) => void;
+  index?: number;
+  archived?: boolean;
 }) {
   const ctaLabel = invited ? "Voir le voyage" : "Continuer l'organisation";
   const typeImage = getTripTypeImage(trip.event_type);
 
   return (
-    <article className="group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-border/60 bg-background transition-all hover:border-primary/40">
+    <article
+      className={cn(
+        "group relative flex flex-col justify-between overflow-hidden rounded-[24px] border border-border/60 bg-background transition-[transform,border-color] hover:border-primary/40 hover:rotate-0",
+        index % 3 === 0 ? "-rotate-[0.45deg]" : index % 3 === 1 ? "rotate-[0.4deg]" : "-rotate-[0.2deg]",
+        archived && "bg-muted/20 text-muted-foreground",
+      )}
+    >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-surface/50 border-b border-border/40">
         {typeImage ? (
           <img
             src={typeImage}
             alt={eventTypeLabel(trip.event_type)}
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className={cn("size-full object-cover transition-transform duration-300 group-hover:scale-105", archived && "grayscale saturate-50 opacity-75")}
             loading="lazy"
           />
         ) : (
@@ -240,7 +251,7 @@ function TripCard({
               {trip.name}
             </Link>
           </h3>
-          <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[13px] sm:text-sm text-muted-foreground pt-1">
+          <div className="grid grid-cols-1 gap-1.5 text-[13px] sm:flex sm:flex-wrap sm:items-center sm:gap-x-3.5 sm:gap-y-1 sm:text-sm text-muted-foreground pt-2">
             {trip.destination_name ? (
               <span className="inline-flex items-center gap-1 font-medium text-foreground">
                 <KrewIcon name="destination" tone="muted" size="sm" className="size-4" />
@@ -331,11 +342,11 @@ function Dashboard() {
             />
           </div>
           <p className="text-sm sm:text-base text-muted-foreground pt-1 font-sans">
-            Tes projets en cours et tes invitations reçues.
+            Ce qui se prépare, ce qui approche et les voyages en cours t’attendent.
           </p>
         </div>
-        <Button asChild className="min-h-[44px] h-auto rounded-xl px-5 font-medium self-start sm:self-auto">
-          <Link to="/trips/new" className="flex w-full items-center justify-center text-center whitespace-nowrap">
+        <Button asChild className="h-10 min-h-10 shrink-0 rounded-xl px-5 py-0 font-medium leading-none self-start sm:self-auto">
+          <Link to="/trips/new" className="inline-flex h-full min-w-max items-center justify-center whitespace-nowrap text-center leading-none">
             Nouveau voyage
           </Link>
         </Button>
@@ -421,8 +432,8 @@ function Dashboard() {
               <FeaturedTripCard trip={trips[0]} onCancel={(id) => cancelMutation.mutate(id)} />
             ) : trips.length > 1 ? (
               <div className="grid gap-6 sm:grid-cols-2">
-                {trips.map((t) => (
-                  <TripCard key={t.id} trip={t} onCancel={(id) => cancelMutation.mutate(id)} />
+                {trips.map((t, index) => (
+                  <TripCard key={t.id} trip={t} index={index} onCancel={(id) => cancelMutation.mutate(id)} />
                 ))}
               </div>
             ) : (
@@ -438,8 +449,8 @@ function Dashboard() {
               <div className="grid gap-6 sm:grid-cols-2">
                 {invitations
                   .filter((i) => i.trips)
-                  .map((i) => (
-                    <TripCard key={i.id} trip={i.trips as Trip} invited />
+                  .map((i, index) => (
+                    <TripCard key={i.id} trip={i.trips as Trip} index={index + trips.length} invited />
                   ))}
               </div>
             </section>
@@ -450,9 +461,9 @@ function Dashboard() {
               <h2 className="font-sans font-semibold text-base text-muted-foreground">
                 Voyages archivés
               </h2>
-              <div className="grid gap-6 sm:grid-cols-2 opacity-70">
-                {archivedTrips.map((t) => (
-                  <TripCard key={t.id} trip={t} />
+              <div className="grid gap-6 sm:grid-cols-2 opacity-80">
+                {archivedTrips.map((t, index) => (
+                  <TripCard key={t.id} trip={t} index={index} archived />
                 ))}
               </div>
             </section>
