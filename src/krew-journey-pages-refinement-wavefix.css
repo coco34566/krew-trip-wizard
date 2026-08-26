@@ -40,3 +40,38 @@ main.max-w-5xl :is(
   bottom: -.5rem !important;
   left: 2rem !important;
 }
+
+/* Once a journey chapter is open, the technical Overview / Détail tabs are no longer
+ * part of the page hierarchy. Use the chapter wrapper itself as the source of truth so
+ * this stays correct even when a locked chapter has not rendered its inner section yet. */
+main.max-w-5xl:has(> div.space-y-6 > a:first-child)
+  > nav[aria-label="Navigation principale du voyage"] {
+  display: none !important;
+}
+
+/* À emporter: make the semantic preparation otter deterministic on mobile too.
+ * The original image remains the source asset; a CSS background avoids lazy-image timing
+ * differences in visual runs and keeps exactly the same illustration on every viewport. */
+#hub-packing > section > div.absolute:first-child {
+  display: block !important;
+  width: 72px !important;
+  height: 72px !important;
+  top: 0 !important;
+  right: 0 !important;
+  z-index: 2;
+  background: url("/brand/otter-states/trip-preparation.png") center / contain no-repeat;
+  pointer-events: none;
+}
+
+#hub-packing > section > div.absolute:first-child > img {
+  opacity: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+@media (min-width: 640px) {
+  #hub-packing > section > div.absolute:first-child {
+    width: 88px !important;
+    height: 88px !important;
+  }
+}
