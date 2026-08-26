@@ -1,4 +1,44 @@
-/* Final hierarchy refinements for embedded customer-journey chapters. */
+/* Final hierarchy refinements for customer-journey chapters. */
+
+/* Participant preferences: trip/questionnaire phrase becomes context, chapter becomes H1. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.space-y-3.relative > div.flex > div.relative h1 {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-size: .8125rem !important;
+  line-height: 1.35 !important;
+  font-weight: 600 !important;
+  letter-spacing: .02em !important;
+  color: var(--muted-foreground) !important;
+  max-width: 34rem;
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.space-y-3.relative > div.flex > div.relative h1::after {
+  content: "Tes préférences";
+  display: block;
+  margin-top: .35rem;
+  font-family: "Instrument Serif", serif;
+  font-size: 2.25rem;
+  line-height: .98;
+  font-weight: 400;
+  letter-spacing: -.02em;
+  color: var(--foreground);
+}
+
+@media (min-width: 640px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.space-y-3.relative > div.flex > div.relative h1::after {
+    font-size: 2.75rem;
+  }
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.space-y-3.relative > div.flex > div.relative h1 + svg {
+  bottom: -.85rem !important;
+  width: clamp(7.75rem, 42%, 10.25rem) !important;
+  height: 1rem !important;
+  opacity: .72 !important;
+}
 
 /* A chapter opened from the journey is a page, not a technical tab inside the trip. */
 main.max-w-5xl:has(:is(
