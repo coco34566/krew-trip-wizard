@@ -38,7 +38,7 @@ function AboutPage() {
               type="underline-wave"
               tone="sage"
               size="md"
-              className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+              className="absolute left-1/2 -bottom-2 h-5 w-[clamp(110px,38%,180px)] -translate-x-1/2 opacity-70 pointer-events-none"
             />
           </div>
           <p className="mt-4 text-base text-muted-foreground font-sans relative z-10 leading-relaxed">
