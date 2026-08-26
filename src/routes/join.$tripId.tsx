@@ -248,7 +248,7 @@ function JoinTripPage() {
                 onClick={handleJoin}
               >
                 {joining ? <Loader2 className="size-4 animate-spin shrink-0" /> : null}
-                {isAuthenticated ? "Rejoindre le voyage" : "Se connecter pour rejoindre le voyage"}
+                {isAuthenticated ? "Rejoindre et indiquer mes dispos" : "Se connecter pour rejoindre le voyage"}
               </Button>
 
               {!isAuthenticated ? (
