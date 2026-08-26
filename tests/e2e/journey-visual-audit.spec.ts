@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
-import { handleNormalUserUi, signIn } from "./helpers";
+import { handleNormalUserUi, signIn, userClick } from "./helpers";
 
 const VIEWPORTS = [
   { name: "mobile", width: 390, height: 844 },
@@ -19,16 +19,7 @@ async function dashboardTripIds(page: Page) {
   await page.goto("/dashboard");
   await handleNormalUserUi(page);
   await expect(page.locator("main")).toBeVisible();
-
-  // The dashboard query may still be showing skeletons after the shell is visible.
-  // Wait for either a trip link or a genuine loaded empty state instead of reading the DOM too early.
-  await page.waitForFunction(() => {
-    const tripLinks = document.querySelectorAll('a[href*="/trips/"]');
-    const text = document.querySelector("main")?.textContent || "";
-    const hasEmptyState = /aucun voyage|pas encore de voyage|crée ton premier voyage/i.test(text);
-    const hasSkeleton = Boolean(document.querySelector(".animate-pulse"));
-    return tripLinks.length > 0 || (hasEmptyState && !hasSkeleton);
-  }, undefined, { timeout: 15_000 }).catch(() => undefined);
+  await page.waitForTimeout(1800);
 
   const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
     links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
@@ -41,17 +32,38 @@ async function dashboardTripIds(page: Page) {
   return ids.slice(0, 15);
 }
 
-async function findPreparedTrip(page: Page) {
-  const ids = await dashboardTripIds(page);
-  expect(ids.length, "Visual audit needs at least one loaded QA trip").toBeGreaterThan(0);
+async function createVisualAuditTrip(page: Page) {
+  await page.goto("/trips/new");
+  await handleNormalUserUi(page);
+  await expect(page.locator("#name")).toBeVisible();
+  await page.locator("#name").fill(`VISUAL-AUDIT-${Date.now()}`);
+  await page.locator("#orga").fill("QA");
+  await userClick(page, page.getByRole("button", { name: /25-35 ans/ }), "choose visual-audit age range");
+  await page.locator("#n").fill("2");
+  await page.locator("#durationDays").fill("3");
+  await Promise.all([
+    page.waitForURL(/\/trips\/[^/]+\/invite/, { timeout: 30_000 }),
+    userClick(page, page.getByRole("button", { name: /Créer et inviter le groupe/ }), "create visual-audit trip"),
+  ]);
+  const tripId = page.url().match(/\/trips\/([0-9a-f-]{36})\/invite/i)?.[1];
+  expect(tripId, "Visual audit trip should expose a UUID in the URL").toBeTruthy();
+  return tripId!;
+}
 
+async function findAuditTrip(page: Page) {
+  const ids = await dashboardTripIds(page);
+
+  // Prefer an existing QA trip so richer states can be captured when available.
   for (const id of ids) {
-    await page.goto(`/trips/${id}?view=voyage&section=accommodation`);
+    await page.goto(`/trips/${id}?view=voyage&section=planning`);
     await handleNormalUserUi(page);
     await page.waitForTimeout(700);
-    if (await page.locator("#hub-logistics").isVisible().catch(() => false)) return id;
+    if (await page.locator("#hub-activities-plan").isVisible().catch(() => false)) return id;
   }
-  return ids[0]!;
+
+  // Keep the audit deterministic even when the QA dashboard is temporarily empty/loading.
+  // This creates only local KREW data and never triggers destination/provider generation.
+  return createVisualAuditTrip(page);
 }
 
 async function capture(
@@ -65,7 +77,7 @@ async function capture(
   await page.goto(path);
   await handleNormalUserUi(page);
   await expect(page.locator("main")).toBeVisible();
-  await page.waitForTimeout(650);
+  await page.waitForTimeout(850);
 
   const geometry = await page.evaluate(() => {
     const root = document.documentElement;
@@ -127,7 +139,7 @@ async function captureJourney(
   // Star is conditional. Capture it only when the route renders normally for this trip/account.
   await page.goto(`/trips/${tripId}/star`);
   await handleNormalUserUi(page);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(700);
   if (await page.locator("main h1").isVisible().catch(() => false)) {
     const screenshotPath = testInfo.outputPath(`${viewportName}-star.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
@@ -147,13 +159,13 @@ async function signedInContext(browser: Browser, width: number, height: number):
   return context;
 }
 
-test("read-only visual audit of every customer-journey chapter", async ({ page, browser }, testInfo) => {
+test("visual audit of every customer-journey chapter without provider calls", async ({ page, browser }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-safari", "Visual audit runs once and creates all target viewports itself.");
   const metrics: VisualMetric[] = [];
 
   await page.setViewportSize({ width: VIEWPORTS[0].width, height: VIEWPORTS[0].height });
   await signIn(page);
-  const tripId = await findPreparedTrip(page);
+  const tripId = await findAuditTrip(page);
 
   await captureJourney(page, testInfo, metrics, "mobile", tripId);
 
