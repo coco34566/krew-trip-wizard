@@ -19,7 +19,8 @@ async function dashboardTripIds(page: Page) {
   await page.goto("/dashboard");
   await handleNormalUserUi(page);
   await expect(page.locator("main")).toBeVisible();
-  await page.waitForTimeout(1800);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 15_000 }).catch(() => undefined);
 
   const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
     links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
@@ -56,11 +57,63 @@ async function findAuditTrip(page: Page) {
   for (const id of ids) {
     await page.goto(`/trips/${id}?view=voyage&section=planning`);
     await handleNormalUserUi(page);
-    await page.waitForTimeout(700);
+    await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+    await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 15_000 }).catch(() => undefined);
     if (await page.locator("#hub-activities-plan").isVisible().catch(() => false)) return id;
   }
 
   return createVisualAuditTrip(page);
+}
+
+async function waitForVisibleImages(page: Page) {
+  await page.waitForFunction(
+    () =>
+      Array.from(document.querySelectorAll("main img")).every((node) => {
+        const img = node as HTMLImageElement;
+        const box = img.getBoundingClientRect();
+        const style = getComputedStyle(img);
+        const visible =
+          style.display !== "none" &&
+          style.visibility !== "hidden" &&
+          box.width > 0 &&
+          box.height > 0;
+        return !visible || img.complete;
+      }),
+    undefined,
+    { timeout: 10_000 },
+  ).catch(() => undefined);
+}
+
+async function waitForRenderedChapter(page: Page, name: string) {
+  await expect(page.locator("main")).toBeVisible();
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+
+  // Never approve a screenshot while KREW is still showing its page skeleton.
+  await page.waitForFunction(
+    () => !document.querySelector("main .animate-pulse"),
+    undefined,
+    { timeout: 20_000 },
+  );
+
+  // Chapters that are always rendered must expose real content before capture.
+  const required: Record<string, () => ReturnType<Page["locator"]>> = {
+    invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
+    availability: () => page.locator('main img[src*="/brand/otter-states/availability.png"]'),
+    preferences: () => page.locator("main form").first(),
+    dates: () => page.locator("#hub-dates"),
+    destination: () => page.locator("#hub-destination"),
+    transport: () => page.locator("#hub-transports"),
+    packing: () => page.getByRole("heading", { name: "À emporter", exact: true }),
+  };
+
+  const marker = required[name]?.();
+  if (marker) {
+    await expect(marker, `${name}: real chapter content must render before screenshot`).toBeVisible({ timeout: 20_000 });
+  }
+
+  await waitForVisibleImages(page);
+  // Give CSS background/decorative assets one frame after network/image settlement.
+  await page.waitForTimeout(150);
 }
 
 async function capture(
@@ -73,8 +126,7 @@ async function capture(
 ) {
   await page.goto(path);
   await handleNormalUserUi(page);
-  await expect(page.locator("main")).toBeVisible();
-  await page.waitForTimeout(850);
+  await waitForRenderedChapter(page, name);
 
   const geometry = await page.evaluate(() => {
     const root = document.documentElement;
@@ -135,7 +187,9 @@ async function captureJourney(
 
   await page.goto(`/trips/${tripId}/star`);
   await handleNormalUserUi(page);
-  await page.waitForTimeout(700);
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 20_000 }).catch(() => undefined);
+  await waitForVisibleImages(page);
   if (await page.locator("main h1").isVisible().catch(() => false)) {
     const screenshotPath = testInfo.outputPath(`${viewportName}-star.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
