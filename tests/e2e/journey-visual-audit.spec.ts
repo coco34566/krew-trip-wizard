@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { handleNormalUserUi, signIn, userClick } from "./helpers";
 
 const VIEWPORTS = [
@@ -53,7 +53,6 @@ async function createVisualAuditTrip(page: Page) {
 async function findAuditTrip(page: Page) {
   const ids = await dashboardTripIds(page);
 
-  // Prefer an existing QA trip so richer states can be captured when available.
   for (const id of ids) {
     await page.goto(`/trips/${id}?view=voyage&section=planning`);
     await handleNormalUserUi(page);
@@ -61,8 +60,6 @@ async function findAuditTrip(page: Page) {
     if (await page.locator("#hub-activities-plan").isVisible().catch(() => false)) return id;
   }
 
-  // Keep the audit deterministic even when the QA dashboard is temporarily empty/loading.
-  // This creates only local KREW data and never triggers destination/provider generation.
   return createVisualAuditTrip(page);
 }
 
@@ -136,7 +133,6 @@ async function captureJourney(
 
   for (const [name, path] of pages) await capture(page, testInfo, metrics, viewportName, name, path);
 
-  // Star is conditional. Capture it only when the route renders normally for this trip/account.
   await page.goto(`/trips/${tripId}/star`);
   await handleNormalUserUi(page);
   await page.waitForTimeout(700);
@@ -147,19 +143,7 @@ async function captureJourney(
   }
 }
 
-async function signedInContext(browser: Browser, width: number, height: number): Promise<BrowserContext> {
-  const context = await browser.newContext({
-    baseURL: process.env.KREW_E2E_BASE_URL,
-    viewport: { width, height },
-    deviceScaleFactor: 1,
-  });
-  const page = await context.newPage();
-  await signIn(page);
-  await page.close();
-  return context;
-}
-
-test("visual audit of every customer-journey chapter without provider calls", async ({ page, browser }, testInfo) => {
+test("visual audit of every customer-journey chapter without provider calls", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-safari", "Visual audit runs once and creates all target viewports itself.");
   const metrics: VisualMetric[] = [];
 
@@ -167,17 +151,9 @@ test("visual audit of every customer-journey chapter without provider calls", as
   await signIn(page);
   const tripId = await findAuditTrip(page);
 
-  await captureJourney(page, testInfo, metrics, "mobile", tripId);
-
-  for (const viewport of VIEWPORTS.slice(1)) {
-    const context = await signedInContext(browser, viewport.width, viewport.height);
-    try {
-      const auditPage = await context.newPage();
-      await captureJourney(auditPage, testInfo, metrics, viewport.name, tripId);
-      await auditPage.close();
-    } finally {
-      await context.close();
-    }
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await captureJourney(page, testInfo, metrics, viewport.name, tripId);
   }
 
   await testInfo.attach("visual-audit-metrics", {
