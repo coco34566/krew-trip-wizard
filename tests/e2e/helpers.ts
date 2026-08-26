@@ -56,6 +56,7 @@ function isExpectedAbortedNavigation(url: string, errorText: string) {
   if (/\/_serverFn\//i.test(url)) return true;
   if (/\/auth(?:\?|$)|\/dashboard(?:\?|$)|\/trips\//i.test(url)) return true;
   if (/\/assets\//i.test(url)) return true;
+  if (/\/brand\/[^?#]+\.(?:png|jpe?g|webp|svg)(?:\?|$)/i.test(url)) return true;
   if (/\/krew-logo\.jpg(?:\?|$)/i.test(url)) return true;
   if (/supabase\.co\/auth\/v1\/user/i.test(url)) return true;
   return false;
