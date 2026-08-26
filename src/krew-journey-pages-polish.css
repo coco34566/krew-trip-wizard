@@ -1,0 +1,84 @@
+/* Final hierarchy refinements for embedded customer-journey chapters. */
+
+/* A chapter opened from the journey is a page, not a technical tab inside the trip. */
+main.max-w-5xl:has(:is(
+  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+  #hub-activities-plan,#hub-tasks-org,#hub-packing
+)) > nav[aria-label="Navigation principale du voyage"] {
+  display: none;
+}
+
+/* Keep a comfortable gap between the back action and the active chapter. */
+main.max-w-5xl:has(:is(
+  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+  #hub-activities-plan,#hub-tasks-org,#hub-packing
+)) > div.space-y-6 > a:first-child {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: .5rem;
+}
+
+/* The journey calls this chapter “Tâches”; use the same visible title here. */
+#hub-tasks-org h2.font-display:first-of-type {
+  font-size: 0 !important;
+}
+
+#hub-tasks-org h2.font-display:first-of-type::after {
+  content: "Tâches";
+  font-family: "Instrument Serif", serif;
+  font-size: 1.875rem;
+  line-height: 1.02;
+  font-weight: 400;
+  letter-spacing: -.015em;
+  color: var(--foreground);
+}
+
+@media (min-width: 640px) {
+  #hub-tasks-org h2.font-display:first-of-type::after { font-size: 2rem; }
+}
+
+/* Chapter descriptions should have the same readable measure. */
+main.max-w-5xl :is(
+  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+  #hub-activities-plan,#hub-tasks-org,#hub-packing
+) h2.font-display:first-of-type ~ p {
+  max-width: 42rem;
+}
+
+/* Keep primary chapter CTAs from crowding title and otter on a phone. */
+@media (max-width: 639px) {
+  main.max-w-5xl :is(#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org)
+    > div.flex:first-of-type {
+    align-items: flex-start !important;
+  }
+
+  main.max-w-5xl :is(#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org)
+    > div.flex:first-of-type > button {
+    flex-basis: 100%;
+    margin-right: -5rem;
+    margin-top: .5rem;
+  }
+}
+
+/* Packing already owns its internal card — avoid a double-card appearance. */
+#hub-packing {
+  background: transparent !important;
+  border: 0 !important;
+  padding-inline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Mobile task cards: make field ordering visually clear despite the table source. */
+@media (max-width: 767px) {
+  #hub-tasks-org table[class*="min-w-[600px]"] td:nth-child(1) {
+    color: var(--muted-foreground);
+    font-size: .75rem;
+  }
+  #hub-tasks-org table[class*="min-w-[600px]"] td:nth-child(2) {
+    padding-bottom: .65rem !important;
+  }
+  #hub-tasks-org table[class*="min-w-[600px]"] td:nth-child(n+3) {
+    margin-top: .35rem;
+  }
+}
