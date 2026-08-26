@@ -95,20 +95,25 @@ async function waitForRenderedChapter(page: Page, name: string) {
     { timeout: 20_000 },
   );
 
-  // Chapters that are always rendered must expose real content before capture.
+  // Every audited step must expose either its real chapter or an explicit locked state.
+  // A blank route can therefore never be approved as visually valid.
   const required: Record<string, () => ReturnType<Page["locator"]>> = {
     invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
     availability: () => page.locator('main img[src*="/brand/otter-states/availability.png"]'),
     preferences: () => page.getByRole("heading", { name: "Envies & ambiance", exact: true }),
     dates: () => page.locator("#hub-dates"),
+    profile: () => page.locator('#hub-profile, [data-journey-locked-section="profile"]'),
     destination: () => page.locator("#hub-destination"),
+    accommodation: () => page.locator('#hub-logistics, [data-journey-locked-section="accommodation"]'),
     transport: () => page.locator("#hub-transports"),
+    planning: () => page.locator('#hub-activities-plan, [data-journey-locked-section="planning"]'),
+    tasks: () => page.locator('#hub-tasks-org, [data-journey-locked-section="tasks"]'),
     packing: () => page.getByRole("heading", { name: "À emporter", exact: true }),
   };
 
   const marker = required[name]?.();
   if (marker) {
-    await expect(marker, `${name}: real chapter content must render before screenshot`).toBeVisible({ timeout: 20_000 });
+    await expect(marker, `${name}: real or locked chapter content must render before screenshot`).toBeVisible({ timeout: 20_000 });
   }
 
   await waitForVisibleImages(page);
