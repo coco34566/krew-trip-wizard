@@ -1,0 +1,340 @@
+/* KREW journey — second visual refinement pass.
+ * Fine harmonisation only: title rhythm, otter alignment, borders, density and KREW signature.
+ * No product/business/data/permission logic.
+ */
+
+:root {
+  --krew-journey-title-mobile: 2.25rem;
+  --krew-journey-title-large: 2.75rem;
+  --krew-journey-copy: 0.9375rem;
+  --krew-journey-copy-large: 1rem;
+  --krew-journey-section-gap: 2rem;
+}
+
+/* Exact underline-wave geometry reused from KrewMark.tsx as a CSS mask.
+   This lets embedded chapter titles share the exact same hand-drawn signature
+   without introducing another visual language. */
+@supports ((mask-image: url("")) or (-webkit-mask-image: url(""))) {
+  /* Invitation currently owns no KrewMark in JSX: add the exact KREW wave. */
+  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8)
+    > div.space-y-2 > h1 {
+    position: relative;
+    display: inline-block;
+    padding-bottom: .35rem;
+  }
+
+  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8)
+    > div.space-y-2 > h1::after {
+    content: "";
+    position: absolute;
+    left: .1rem;
+    bottom: -.45rem;
+    width: clamp(7.5rem, 43%, 10.5rem);
+    height: 1rem;
+    background: var(--sage);
+    opacity: .72;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 64'%3E%3Cpath d='M4 39c13-7 23 5 36-1s24-5 35-1c8 3 14 1 21-2' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 64'%3E%3Cpath d='M4 39c13-7 23 5 36-1s24-5 35-1c8 3 14 1 21-2' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    pointer-events: none;
+  }
+
+  /* Embedded chapters without their own title mark receive the same exact wave. */
+  main.max-w-5xl :is(
+    #hub-dates,
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan
+  ) h2.font-display:first-of-type {
+    position: relative;
+    width: fit-content;
+    padding-bottom: .35rem;
+  }
+
+  main.max-w-5xl :is(
+    #hub-dates,
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan
+  ) h2.font-display:first-of-type::after {
+    content: "";
+    position: absolute;
+    left: 2rem;
+    bottom: -.45rem;
+    width: clamp(6.75rem, 42%, 9rem);
+    height: .9rem;
+    background: var(--sage);
+    opacity: .68;
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 64'%3E%3Cpath d='M4 39c13-7 23 5 36-1s24-5 35-1c8 3 14 1 21-2' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 64'%3E%3Cpath d='M4 39c13-7 23 5 36-1s24-5 35-1c8 3 14 1 21-2' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    pointer-events: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Header rhythm: same optical structure on every journey page.               */
+/* -------------------------------------------------------------------------- */
+
+/* Dedicated routes: back action → context → title → description. */
+main[class*="max-w-[820px]"] > a:first-child,
+main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > a:first-child,
+main.max-w-5xl > div.space-y-6 > a:first-child {
+  font-size: .875rem;
+  line-height: 1.25rem;
+  color: var(--muted-foreground);
+}
+
+/* Context labels should never compete with the page title. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > div.space-y-3.relative h1,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.space-y-3.relative > div.flex > div.relative h1,
+main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8)
+  > div.space-y-2 > p:first-child {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-size: .75rem !important;
+  line-height: 1.35 !important;
+  font-weight: 600 !important;
+  letter-spacing: .06em !important;
+  color: color-mix(in oklch, var(--primary) 82%, var(--muted-foreground)) !important;
+}
+
+/* True chapter H1s keep one optical scale. */
+main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2 > h1,
+main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) h1 {
+  font-size: var(--krew-journey-title-mobile) !important;
+  line-height: .98 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.02em !important;
+}
+
+@media (min-width: 640px) {
+  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2 > h1,
+  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) h1 {
+    font-size: var(--krew-journey-title-large) !important;
+  }
+}
+
+/* Embedded sections are full journey pages when opened from the timeline:
+   visually promote their title to the same chapter scale. */
+main.max-w-5xl :is(
+  #hub-dates,
+  #hub-profile,
+  #hub-destination,
+  #hub-logistics,
+  #hub-transports,
+  #hub-activities-plan,
+  #hub-packing
+) h2.font-display:first-of-type {
+  font-size: var(--krew-journey-title-mobile) !important;
+  line-height: .98 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.02em !important;
+}
+
+@media (min-width: 640px) {
+  main.max-w-5xl :is(
+    #hub-dates,
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan,
+    #hub-packing
+  ) h2.font-display:first-of-type {
+    font-size: var(--krew-journey-title-large) !important;
+  }
+}
+
+/* Tâches uses a generated visible title in the previous polish layer. */
+#hub-tasks-org h2.font-display:first-of-type::after {
+  font-size: var(--krew-journey-title-mobile) !important;
+  line-height: .98 !important;
+  letter-spacing: -.02em !important;
+}
+
+@media (min-width: 640px) {
+  #hub-tasks-org h2.font-display:first-of-type::after {
+    font-size: var(--krew-journey-title-large) !important;
+  }
+}
+
+/* Dedicated-page descriptions and embedded chapter descriptions share the same measure. */
+main[class*="max-w-[820px]"] > div.relative > p,
+main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2 > p:last-child,
+main.max-w-5xl :is(
+  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+  #hub-activities-plan,#hub-tasks-org,#hub-packing
+) h2.font-display:first-of-type ~ p {
+  max-width: 42rem;
+  font-size: var(--krew-journey-copy) !important;
+  line-height: 1.55 !important;
+}
+
+@media (min-width: 640px) {
+  main[class*="max-w-[820px]"] > div.relative > p,
+  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2 > p:last-child,
+  main.max-w-5xl :is(
+    #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+    #hub-activities-plan,#hub-tasks-org,#hub-packing
+  ) h2.font-display:first-of-type ~ p {
+    font-size: var(--krew-journey-copy-large) !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Otters: same optical lane, not merely the same numeric width.               */
+/* -------------------------------------------------------------------------- */
+
+main[class*="max-w-[820px]"] img[src*="/brand/otter-states/availability.png"],
+main[class*="max-w-[820px]"] img[src*="/brand/otter-states/preferences.png"],
+main.max-w-5xl :is(
+  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+  #hub-activities-plan,#hub-tasks-org,#hub-packing
+) img[src*="/brand/otter-states/"] {
+  object-position: center;
+  filter: none !important;
+  opacity: .94 !important;
+}
+
+/* Absolute chapter otters share the same inset. */
+main.max-w-5xl :is(
+  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+  #hub-activities-plan,#hub-tasks-org
+) > div.absolute:has(img[src*="/brand/otter-states/"]) {
+  top: 1rem !important;
+  right: 1rem !important;
+}
+
+@media (min-width: 640px) {
+  main.max-w-5xl :is(
+    #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+    #hub-activities-plan,#hub-tasks-org
+  ) > div.absolute:has(img[src*="/brand/otter-states/"]) {
+    top: 1.25rem !important;
+    right: 1.25rem !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Surfaces, borders and density.                                              */
+/* -------------------------------------------------------------------------- */
+
+/* Top-level chapter panels: quiet paper-like surfaces, never dashboard cards. */
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan) {
+  box-shadow: none !important;
+  border-width: 1px !important;
+  border-color: color-mix(in oklch, var(--border) 60%, transparent) !important;
+}
+
+/* Avoid visually colder/greyer cards than neighbouring pages. */
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan)
+  [class*="bg-card"],
+main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8)
+  > section[class*="bg-card"] {
+  box-shadow: none !important;
+}
+
+/* Internal functional cards use the same radius family. */
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing)
+  :is(article,div)[class*="rounded-2xl"],
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing)
+  :is(article,div)[class*="rounded-3xl"] {
+  border-radius: 18px !important;
+}
+
+/* Buttons/selects share a calmer 12px corner and minimum touch target. */
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing)
+  :is(button,select,a[class*="inline-flex"]),
+main[class*="max-w-[820px]"] :is(button:not([role="switch"]),select,a[class*="inline-flex"]),
+main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8)
+  :is(button,select,a[class*="inline-flex"]) {
+  min-height: 44px;
+  border-radius: 12px;
+}
+
+/* Primary actions align consistently on phones. */
+@media (max-width: 639px) {
+  main.max-w-5xl :is(#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org)
+    > div.flex:first-of-type > button,
+  main.max-w-5xl :is(#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan)
+    > div.flex:first-of-type > a[class*="inline-flex"] {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Page-specific fine polish while retaining each chapter's personality.       */
+/* -------------------------------------------------------------------------- */
+
+/* Invitation: slightly less bulky first block and cleaner hierarchy. */
+main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8)
+  > section.bg-sage\/8 {
+  padding: 1.25rem !important;
+}
+
+@media (min-width: 640px) {
+  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8)
+    > section.bg-sage\/8 {
+    padding: 1.5rem !important;
+  }
+}
+
+/* Invitation participant header uses the same section-title rhythm as the rest. */
+main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8)
+  > section.space-y-4 > div:first-child > h2.font-display {
+  font-size: 1.75rem !important;
+  line-height: 1.05 !important;
+}
+
+/* Availability: make the progress state feel connected to the header rather than floating. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > div.space-y-3.relative > div.flex + div.flex {
+  padding-top: .75rem !important;
+}
+
+/* Questionnaire: reduce the gap between intro and first section, while keeping breathing room. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 {
+  padding-top: .5rem !important;
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  form > section {
+  margin-bottom: 1.75rem !important;
+  padding-bottom: 1.75rem !important;
+}
+
+/* Packing: keep the deliberately lighter list treatment but align title/header geometry. */
+#hub-packing > section > div:first-of-type {
+  min-height: 80px;
+}
+
+#hub-packing h2.font-display:first-of-type {
+  margin-top: .15rem;
+}
+
+/* Dense long lists should not accidentally look like data tables. */
+#hub-packing ul > li,
+#hub-tasks-org table tbody tr {
+  border-color: color-mix(in oklch, var(--border) 48%, transparent) !important;
+}
+
+/* On tablet/desktop, keep the journey content visually centred and not overly stretched. */
+@media (min-width: 768px) {
+  main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing) {
+    margin-inline: auto;
+  }
+}
