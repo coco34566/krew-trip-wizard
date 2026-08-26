@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { KrewMark } from "./KrewMark";
 
-export type KrewNoteVariant = "sticky" | "torn" | "tape" | "margin" | "label" | "photo" | "callout";
+export type KrewNoteVariant = "sticky" | "torn" | "tape" | "tape-strip" | "margin" | "label" | "photo" | "callout";
 export type KrewNoteTone = "cream" | "sage" | "plum";
 export type KrewNoteSize = "xs" | "sm" | "md" | "lg" | "wide";
 
@@ -83,10 +83,7 @@ export function KrewNote({
     );
   }
 
-  const physicalPaper = variant === "sticky" || variant === "torn" || variant === "photo" || variant === "callout";
-  const shape = paperShape(variant, tone, rotation);
-
-  if (variant === "tape") {
+  if (variant === "tape-strip") {
     return (
       <span
         aria-hidden
@@ -100,6 +97,9 @@ export function KrewNote({
       </span>
     );
   }
+
+  const physicalPaper = variant === "sticky" || variant === "torn" || variant === "photo" || variant === "callout" || variant === "tape";
+  const shape = paperShape(variant, tone, rotation);
 
   return (
     <div
