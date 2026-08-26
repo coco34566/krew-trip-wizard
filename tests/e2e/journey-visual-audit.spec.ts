@@ -19,12 +19,23 @@ async function dashboardTripIds(page: Page) {
   await page.goto("/dashboard");
   await handleNormalUserUi(page);
   await expect(page.locator("main")).toBeVisible();
-  const hrefs = await page.locator('a[href^="/trips/"]').evaluateAll((links) =>
+
+  // The dashboard query may still be showing skeletons after the shell is visible.
+  // Wait for either a trip link or a genuine loaded empty state instead of reading the DOM too early.
+  await page.waitForFunction(() => {
+    const tripLinks = document.querySelectorAll('a[href*="/trips/"]');
+    const text = document.querySelector("main")?.textContent || "";
+    const hasEmptyState = /aucun voyage|pas encore de voyage|crée ton premier voyage/i.test(text);
+    const hasSkeleton = Boolean(document.querySelector(".animate-pulse"));
+    return tripLinks.length > 0 || (hasEmptyState && !hasSkeleton);
+  }, undefined, { timeout: 15_000 }).catch(() => undefined);
+
+  const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
     links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
   );
   const ids: string[] = [];
   for (const href of hrefs) {
-    const match = href.match(/^\/trips\/([0-9a-f-]{36})(?:[/?]|$)/i);
+    const match = href.match(/\/trips\/([0-9a-f-]{36})(?:[/?#]|$)/i);
     if (match?.[1] && !ids.includes(match[1])) ids.push(match[1]);
   }
   return ids.slice(0, 15);
@@ -32,12 +43,12 @@ async function dashboardTripIds(page: Page) {
 
 async function findPreparedTrip(page: Page) {
   const ids = await dashboardTripIds(page);
-  expect(ids.length, "Visual audit needs at least one QA trip").toBeGreaterThan(0);
+  expect(ids.length, "Visual audit needs at least one loaded QA trip").toBeGreaterThan(0);
 
   for (const id of ids) {
     await page.goto(`/trips/${id}?view=voyage&section=accommodation`);
     await handleNormalUserUi(page);
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(700);
     if (await page.locator("#hub-logistics").isVisible().catch(() => false)) return id;
   }
   return ids[0]!;
