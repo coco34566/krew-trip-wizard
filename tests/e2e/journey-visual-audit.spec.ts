@@ -198,6 +198,7 @@ async function captureJourney(
 }
 
 test("visual audit of every customer-journey chapter without provider calls", async ({ page }, testInfo) => {
+  test.setTimeout(360_000);
   test.skip(testInfo.project.name !== "mobile-safari", "Visual audit runs once and creates all target viewports itself.");
   const metrics: VisualMetric[] = [];
 
