@@ -9,14 +9,14 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   font-weight: 600 !important;
   letter-spacing: .02em !important;
   color: var(--muted-foreground) !important;
-  max-width: 34rem;
+  max-width: 22rem;
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.space-y-3.relative > div.flex > div.relative h1::after {
   content: "Tes préférences";
   display: block;
-  margin-top: .35rem;
+  margin-top: .4rem;
   font-family: "Instrument Serif", serif;
   font-size: 2.25rem;
   line-height: .98;
@@ -34,8 +34,54 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.space-y-3.relative > div.flex > div.relative h1 + svg {
-  bottom: -.85rem !important;
+  bottom: -.9rem !important;
   width: clamp(7.75rem, 42%, 10.25rem) !important;
+  height: 1rem !important;
+  opacity: .72 !important;
+}
+
+/* Availability: the trip name is context; “Disponibilités” is the chapter title. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > div.space-y-3.relative > p:first-child {
+  display: none !important;
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > div.space-y-3.relative > div.flex > div.relative h1 {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-size: .8125rem !important;
+  line-height: 1.35 !important;
+  font-weight: 600 !important;
+  letter-spacing: .02em !important;
+  color: var(--muted-foreground) !important;
+  max-width: 21rem;
+  text-transform: none !important;
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > div.space-y-3.relative > div.flex > div.relative h1::after {
+  content: "Disponibilités";
+  display: block;
+  margin-top: .4rem;
+  font-family: "Instrument Serif", serif;
+  font-size: 2.25rem;
+  line-height: .98;
+  font-weight: 400;
+  letter-spacing: -.02em;
+  color: var(--foreground);
+}
+
+@media (min-width: 640px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+    > div.space-y-3.relative > div.flex > div.relative h1::after {
+    font-size: 2.75rem;
+  }
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > div.space-y-3.relative > div.flex > div.relative h1 + svg {
+  bottom: -.9rem !important;
+  width: clamp(7.5rem, 42%, 10rem) !important;
   height: 1rem !important;
   opacity: .72 !important;
 }
@@ -88,6 +134,27 @@ main.max-w-5xl:has(:is(
   margin-bottom: .5rem;
 }
 
+/* Embedded chapters use the same title scale and rhythm. */
+main.max-w-5xl :is(
+  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+  #hub-activities-plan,#hub-tasks-org,#hub-packing
+) h2.font-display:first-of-type {
+  font-family: "Instrument Serif", serif !important;
+  font-size: 2rem !important;
+  line-height: 1 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.015em !important;
+}
+
+@media (min-width: 640px) {
+  main.max-w-5xl :is(
+    #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
+    #hub-activities-plan,#hub-tasks-org,#hub-packing
+  ) h2.font-display:first-of-type {
+    font-size: 2.25rem !important;
+  }
+}
+
 /* The journey calls this chapter “Tâches”; use the same visible title here. */
 #hub-tasks-org h2.font-display:first-of-type {
   font-size: 0 !important;
@@ -96,15 +163,15 @@ main.max-w-5xl:has(:is(
 #hub-tasks-org h2.font-display:first-of-type::after {
   content: "Tâches";
   font-family: "Instrument Serif", serif;
-  font-size: 1.875rem;
-  line-height: 1.02;
+  font-size: 2rem;
+  line-height: 1;
   font-weight: 400;
   letter-spacing: -.015em;
   color: var(--foreground);
 }
 
 @media (min-width: 640px) {
-  #hub-tasks-org h2.font-display:first-of-type::after { font-size: 2rem; }
+  #hub-tasks-org h2.font-display:first-of-type::after { font-size: 2.25rem; }
 }
 
 /* Chapter descriptions should have the same readable measure. */
@@ -113,6 +180,7 @@ main.max-w-5xl :is(
   #hub-activities-plan,#hub-tasks-org,#hub-packing
 ) h2.font-display:first-of-type ~ p {
   max-width: 42rem;
+  margin-top: .45rem;
 }
 
 /* On phones, reserve the otter lane only beside text; CTA then uses full width below. */
