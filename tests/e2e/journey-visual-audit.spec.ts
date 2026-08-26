@@ -99,7 +99,7 @@ async function waitForRenderedChapter(page: Page, name: string) {
   const required: Record<string, () => ReturnType<Page["locator"]>> = {
     invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
     availability: () => page.locator('main img[src*="/brand/otter-states/availability.png"]'),
-    preferences: () => page.locator("main form").first(),
+    preferences: () => page.getByRole("heading", { name: "Envies & ambiance", exact: true }),
     dates: () => page.locator("#hub-dates"),
     destination: () => page.locator("#hub-destination"),
     transport: () => page.locator("#hub-transports"),
