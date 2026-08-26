@@ -29,6 +29,7 @@ async function findPreparedTrip(page: Page) {
   for (const id of ids) {
     await page.goto(`/trips/${id}?view=voyage&section=accommodation`);
     await handleNormalUserUi(page);
+    await page.waitForTimeout(300);
     if (await page.locator("#hub-logistics").isVisible().catch(() => false)) return id;
   }
   return ids[0]!;
@@ -37,8 +38,8 @@ async function findPreparedTrip(page: Page) {
 async function capture(page: Page, testInfo: TestInfo, viewportName: string, name: string, path: string) {
   await page.goto(path);
   await handleNormalUserUi(page);
-  await page.waitForLoadState("networkidle").catch(() => undefined);
   await expect(page.locator("main")).toBeVisible();
+  await page.waitForTimeout(650);
   const screenshotPath = testInfo.outputPath(`${viewportName}-${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   await testInfo.attach(`${viewportName}-${name}`, { path: screenshotPath, contentType: "image/png" });
@@ -64,6 +65,7 @@ async function captureJourney(page: Page, testInfo: TestInfo, viewportName: stri
   // Star is conditional. Capture it only when the route renders normally for this trip/account.
   await page.goto(`/trips/${tripId}/star`);
   await handleNormalUserUi(page);
+  await page.waitForTimeout(500);
   if (await page.locator("main h1").isVisible().catch(() => false)) {
     const screenshotPath = testInfo.outputPath(`${viewportName}-star.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
