@@ -7,6 +7,14 @@ const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 1000 },
 ] as const;
 
+type VisualMetric = {
+  viewport: string;
+  page: string;
+  width: number;
+  scrollWidth: number;
+  undersizedControls: Array<{ tag: string; text: string; width: number; height: number }>;
+};
+
 async function dashboardTripIds(page: Page) {
   await page.goto("/dashboard");
   await handleNormalUserUi(page);
@@ -35,17 +43,60 @@ async function findPreparedTrip(page: Page) {
   return ids[0]!;
 }
 
-async function capture(page: Page, testInfo: TestInfo, viewportName: string, name: string, path: string) {
+async function capture(
+  page: Page,
+  testInfo: TestInfo,
+  metrics: VisualMetric[],
+  viewportName: string,
+  name: string,
+  path: string,
+) {
   await page.goto(path);
   await handleNormalUserUi(page);
   await expect(page.locator("main")).toBeVisible();
   await page.waitForTimeout(650);
+
+  const geometry = await page.evaluate(() => {
+    const root = document.documentElement;
+    const visible = (element: Element) => {
+      const style = getComputedStyle(element);
+      const box = (element as HTMLElement).getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+    };
+    const controls = Array.from(document.querySelectorAll("button, select, a[role='button']"))
+      .filter(visible)
+      .map((element) => {
+        const box = (element as HTMLElement).getBoundingClientRect();
+        return {
+          tag: element.tagName.toLowerCase(),
+          text: (element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 80),
+          width: Math.round(box.width),
+          height: Math.round(box.height),
+        };
+      })
+      .filter((control) => control.height < 40 || control.width < 40)
+      .slice(0, 40);
+    return { width: root.clientWidth, scrollWidth: root.scrollWidth, undersizedControls: controls };
+  });
+
+  metrics.push({ viewport: viewportName, page: name, ...geometry });
+  expect(
+    geometry.scrollWidth,
+    `${viewportName}/${name}: no horizontal overflow (${geometry.scrollWidth}px content for ${geometry.width}px viewport)`,
+  ).toBeLessThanOrEqual(geometry.width + 1);
+
   const screenshotPath = testInfo.outputPath(`${viewportName}-${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   await testInfo.attach(`${viewportName}-${name}`, { path: screenshotPath, contentType: "image/png" });
 }
 
-async function captureJourney(page: Page, testInfo: TestInfo, viewportName: string, tripId: string) {
+async function captureJourney(
+  page: Page,
+  testInfo: TestInfo,
+  metrics: VisualMetric[],
+  viewportName: string,
+  tripId: string,
+) {
   const pages = [
     ["invite", `/trips/${tripId}/invite`],
     ["availability", `/trips/${tripId}/availability`],
@@ -60,7 +111,7 @@ async function captureJourney(page: Page, testInfo: TestInfo, viewportName: stri
     ["packing", `/trips/${tripId}?view=voyage&section=packing`],
   ] as const;
 
-  for (const [name, path] of pages) await capture(page, testInfo, viewportName, name, path);
+  for (const [name, path] of pages) await capture(page, testInfo, metrics, viewportName, name, path);
 
   // Star is conditional. Capture it only when the route renders normally for this trip/account.
   await page.goto(`/trips/${tripId}/star`);
@@ -87,24 +138,29 @@ async function signedInContext(browser: Browser, width: number, height: number):
 
 test("read-only visual audit of every customer-journey chapter", async ({ page, browser }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-safari", "Visual audit runs once and creates all target viewports itself.");
+  const metrics: VisualMetric[] = [];
 
   await page.setViewportSize({ width: VIEWPORTS[0].width, height: VIEWPORTS[0].height });
   await signIn(page);
   const tripId = await findPreparedTrip(page);
 
-  await captureJourney(page, testInfo, "mobile", tripId);
+  await captureJourney(page, testInfo, metrics, "mobile", tripId);
 
   for (const viewport of VIEWPORTS.slice(1)) {
     const context = await signedInContext(browser, viewport.width, viewport.height);
     try {
       const auditPage = await context.newPage();
-      await captureJourney(auditPage, testInfo, viewport.name, tripId);
+      await captureJourney(auditPage, testInfo, metrics, viewport.name, tripId);
       await auditPage.close();
     } finally {
       await context.close();
     }
   }
 
+  await testInfo.attach("visual-audit-metrics", {
+    body: Buffer.from(JSON.stringify(metrics, null, 2)),
+    contentType: "application/json",
+  });
   await testInfo.attach("visual-audit-trip", {
     body: Buffer.from(JSON.stringify({ tripId, viewports: VIEWPORTS }, null, 2)),
     contentType: "application/json",
