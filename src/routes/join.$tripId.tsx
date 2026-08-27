@@ -199,7 +199,7 @@ function JoinTripPage() {
                     type="underline-wave"
                     tone="sage"
                     size="sm"
-                    className="absolute left-0 -bottom-1.5 w-[110px] pointer-events-none"
+                    className="absolute left-1/2 -bottom-1.5 h-4 w-[clamp(110px,38%,160px)] -translate-x-1/2 opacity-70 pointer-events-none"
                   />
                 </div>
                 <p className="text-sm text-muted-foreground pt-1">

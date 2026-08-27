@@ -16,6 +16,9 @@ async function waitForTripHub(page: Page, tripId: string) {
     (url) => url.pathname === `/trips/${tripId}`,
     { timeout: 30_000 },
   );
+  // TanStack can still be completing the SPA transition after the URL itself changes.
+  // Waiting for network idle prevents the next explicit goto from racing that transition.
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }
 
 async function fillAvailability(page: Page, tripId: string) {
@@ -26,6 +29,68 @@ async function fillAvailability(page: Page, tripId: string) {
   await expect(saveAvailability).toBeEnabled();
   await userClick(page, saveAvailability, "save availability");
   await waitForTripHub(page, tripId);
+}
+
+async function authenticateSecondParticipant(page: Page, tripId: string, email: string, password: string) {
+  const authUrl = `/auth?next=${encodeURIComponent(`/join/${tripId}`)}`;
+  const joinUrl = new RegExp(`/join/${tripId}(?:\\?|$)`);
+
+  await page.goto(authUrl);
+  await handleNormalUserUi(page);
+  await page.locator("#email").fill(email);
+  await page.locator("#password").fill(password);
+  await userClick(page, page.getByRole("button", { name: "Se connecter", exact: true }), "second participant sign in");
+
+  const invalidCredentials = page.getByText(
+    "Identifiants incorrects. Vérifie ton adresse e-mail et ton mot de passe.",
+    { exact: true },
+  );
+
+  const signInOutcome = await Promise.race([
+    page.waitForURL(joinUrl, { timeout: 30_000 }).then(() => "join" as const),
+    invalidCredentials.waitFor({ state: "visible", timeout: 30_000 }).then(() => "invalid" as const),
+  ]).catch(() => "timeout" as const);
+
+  if (signInOutcome === "join") return;
+  if (signInOutcome === "timeout") {
+    throw new Error(
+      `TEST_SETUP: second participant authentication neither reached /join/${tripId} nor returned an explicit credentials error within 30s`,
+    );
+  }
+
+  // Only a real credentials error may trigger first-time QA account creation.
+  // A slow redirect must never be interpreted as “account does not exist”.
+  await page.goto(authUrl);
+  await handleNormalUserUi(page);
+  await userClick(page, page.getByRole("tab", { name: "Créer un compte", exact: true }), "open signup");
+  await page.locator("#name").fill("QA Participant");
+  await page.locator("#email2").fill(email);
+  await page.locator("#password2").fill(password);
+  await userClick(page, page.getByRole("button", { name: "Créer mon compte", exact: true }), "create second QA account");
+
+  const confirmationRequired = page.getByText(
+    "Vérifie ta boîte mail pour confirmer ton adresse e-mail.",
+    { exact: true },
+  );
+  const alreadyRegistered = page.getByText(
+    "Cette adresse e-mail est déjà utilisée pour un autre compte.",
+    { exact: true },
+  );
+
+  const signUpOutcome = await Promise.race([
+    page.waitForURL(joinUrl, { timeout: 30_000 }).then(() => "join" as const),
+    confirmationRequired.waitFor({ state: "visible", timeout: 30_000 }).then(() => "confirmation" as const),
+    alreadyRegistered.waitFor({ state: "visible", timeout: 30_000 }).then(() => "registered" as const),
+  ]).catch(() => "timeout" as const);
+
+  if (signUpOutcome === "join") return;
+  if (signUpOutcome === "confirmation") {
+    throw new Error("TEST_SETUP: second QA account requires one-time email confirmation; no provider API reached");
+  }
+  if (signUpOutcome === "registered") {
+    throw new Error("TEST_SETUP: second QA account exists but KREW_E2E_PASSWORD does not authenticate it");
+  }
+  throw new Error(`TEST_SETUP: second QA account creation did not reach /join/${tripId} within 30s`);
 }
 
 test("single full KREW journey from zero to planning", async ({ page, browser }, testInfo) => {
@@ -77,26 +142,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   const participantEmail = "krew.qa.participant@gmail.com";
   const participantContext = await browser.newContext({ ...testInfo.project.use, baseURL: process.env.KREW_E2E_BASE_URL } as any);
   const participantPage = await participantContext.newPage();
-  await participantPage.goto(`/auth?next=${encodeURIComponent(`/join/${tripId}`)}`);
-  await handleNormalUserUi(participantPage);
-  await participantPage.locator("#email").fill(participantEmail);
-  await participantPage.locator("#password").fill(password);
-  await userClick(participantPage, participantPage.getByRole("button", { name: "Se connecter", exact: true }), "second participant sign in");
-
-  const reachedJoin = await participantPage.waitForURL(new RegExp(`/join/${tripId}`), { timeout: 8_000 }).then(() => true).catch(() => false);
-  if (!reachedJoin) {
-    await participantPage.goto(`/auth?next=${encodeURIComponent(`/join/${tripId}`)}`);
-    await handleNormalUserUi(participantPage);
-    await userClick(participantPage, participantPage.getByRole("tab", { name: "Créer un compte", exact: true }), "open signup");
-    await participantPage.locator("#name").fill("QA Participant");
-    await participantPage.locator("#email2").fill(participantEmail);
-    await participantPage.locator("#password2").fill(password);
-    await userClick(participantPage, participantPage.getByRole("button", { name: "Créer mon compte", exact: true }), "create second QA account");
-    if (await participantPage.getByText("Vérifie ta boîte mail pour confirmer ton adresse e-mail.", { exact: true }).isVisible().catch(() => false)) {
-      throw new Error("TEST_SETUP: second QA account requires one-time email confirmation; no provider API reached");
-    }
-    await participantPage.waitForURL(new RegExp(`/join/${tripId}`), { timeout: 30_000 });
-  }
+  await authenticateSecondParticipant(participantPage, tripId!, participantEmail, password);
 
   stage = "second-participant-join";
   await handleNormalUserUi(participantPage);

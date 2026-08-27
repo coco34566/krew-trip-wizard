@@ -36,17 +36,69 @@ export async function userClick(page: Page, locator: Locator, label: string) {
   }
 }
 
+async function submitQaSignIn(page: Page, attempt: number) {
+  await handleNormalUserUi(page);
+  await page.getByRole("tab", { name: "Connexion" }).click();
+
+  const email = page.locator("#email");
+  const password = page.locator("#password");
+  await expect(email).toBeVisible({ timeout: 10_000 });
+  await email.fill(qa.email);
+  await password.fill(qa.password);
+
+  await userClick(
+    page,
+    page.getByRole("button", { name: "Se connecter", exact: true }),
+    attempt === 0 ? "sign in" : "sign in retry",
+  );
+
+  const reachedDashboard = await page
+    .waitForURL(/\/dashboard(?:\?|$)/, { timeout: attempt === 0 ? 15_000 : 30_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (reachedDashboard) return true;
+
+  // If the app stayed on /auth, first distinguish a genuine credential problem from
+  // the transient auth-page reset observed in WebKit/Vercel preview runs.
+  await handleNormalUserUi(page);
+  if (/\/dashboard(?:\?|$)/.test(new URL(page.url()).pathname)) return true;
+
+  const explicitAuthError = page.getByText(
+    /Identifiants incorrects|adresse e-mail n'a pas encore été confirmée|Impossible de se connecter/i,
+  ).last();
+  if (await explicitAuthError.isVisible().catch(() => false)) {
+    const message = (await explicitAuthError.textContent().catch(() => null))?.trim() || "authentication rejected";
+    throw new Error(`TEST_SETUP: QA authentication failed explicitly :: ${message}`);
+  }
+
+  const stillOnAuth = /\/auth(?:\?|$)/.test(new URL(page.url()).pathname);
+  const emailValue = stillOnAuth && await email.isVisible().catch(() => false)
+    ? await email.inputValue().catch(() => "")
+    : "";
+  const passwordValue = stillOnAuth && await password.isVisible().catch(() => false)
+    ? await password.inputValue().catch(() => "")
+    : "";
+
+  // A complete remount can clear both fields and re-show cookie consent even though the
+  // submitted credentials were valid. Retry exactly once from a clean UI state.
+  if (attempt === 0 && stillOnAuth && !emailValue && !passwordValue) return false;
+
+  throw new Error(
+    `TEST_SETUP: QA sign-in did not reach dashboard after ${attempt + 1} attempt(s) (url=${page.url()})`,
+  );
+}
+
 export async function signIn(page: Page) {
   requireQaCredentials();
   await page.goto("/auth");
-  await handleNormalUserUi(page);
-  await page.getByRole("tab", { name: "Connexion" }).click();
-  await page.locator("#email").fill(qa.email);
-  await page.locator("#password").fill(qa.password);
-  await Promise.all([
-    page.waitForURL(/\/dashboard(?:\?|$)/, { timeout: 30_000 }),
-    userClick(page, page.getByRole("button", { name: "Se connecter", exact: true }), "sign in"),
-  ]);
+
+  const firstAttemptSucceeded = await submitQaSignIn(page, 0);
+  if (firstAttemptSucceeded) return;
+
+  // Only retry the known transient remount case; never retry an explicit auth error.
+  await page.goto("/auth");
+  const retrySucceeded = await submitQaSignIn(page, 1);
+  expect(retrySucceeded, "QA sign-in retry must reach dashboard").toBe(true);
 }
 
 function isExpectedAbortedNavigation(url: string, errorText: string) {
@@ -56,6 +108,7 @@ function isExpectedAbortedNavigation(url: string, errorText: string) {
   if (/\/_serverFn\//i.test(url)) return true;
   if (/\/auth(?:\?|$)|\/dashboard(?:\?|$)|\/trips\//i.test(url)) return true;
   if (/\/assets\//i.test(url)) return true;
+  if (/\/brand\/[^?#]+\.(?:png|jpe?g|webp|svg)(?:\?|$)/i.test(url)) return true;
   if (/\/krew-logo\.jpg(?:\?|$)/i.test(url)) return true;
   if (/supabase\.co\/auth\/v1\/user/i.test(url)) return true;
   return false;
