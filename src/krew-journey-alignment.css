@@ -355,3 +355,120 @@ main[class*="max-w-[820px]"] > [data-krew-trip-name]::before {
   font-size: 13px !important;
   line-height: 1.35 !important;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Canonical journey chapter shell — same frame across every active page.      */
+/* -------------------------------------------------------------------------- */
+
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing) {
+  margin-top: 32px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+/* Active chapters whose title/subtitle live in a flex header get exactly the same header box. */
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type {
+  position: relative !important;
+  align-items: flex-start !important;
+  min-height: 84px !important;
+  margin: 0 0 var(--krew-journey-content-gap) !important;
+  padding: 0 92px 0 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type > div:first-child {
+  width: min(100%, 42rem);
+  min-width: 0;
+}
+
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type h2.font-display {
+  margin: 0 !important;
+  font-size: var(--krew-journey-page-title) !important;
+  line-height: 1 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.018em !important;
+}
+
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type p.text-muted-foreground {
+  margin-top: var(--krew-journey-header-gap) !important;
+  max-width: 42rem !important;
+  font-size: var(--krew-journey-subtitle) !important;
+  line-height: 1.5 !important;
+  font-weight: 400 !important;
+}
+
+/* Planning and Organisation had two local visual languages. Remove both local wrappers. */
+#hub-activities-plan,
+#hub-tasks-org {
+  padding-bottom: 0 !important;
+}
+
+#hub-activities-plan > div.flex:first-of-type,
+#hub-tasks-org > div.flex:first-of-type {
+  padding-bottom: 0 !important;
+  border-bottom: 0 !important;
+}
+
+/* Planning's title-side tape made it look like a different page family. */
+#hub-activities-plan [data-krew-note="tape"] {
+  display: none !important;
+}
+
+/* Local title pictograms are not part of chapter headers; the semantic otter is the visual anchor. */
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org,#hub-transports,#hub-packing) h2.font-display:first-of-type > :is(svg,[data-krew-icon]) {
+  display: none !important;
+}
+
+/* One otter slot: aligned top-right, same visual scale, never overlapping variable text. */
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org) > div.absolute:has(img[src*="/brand/otter-states/"]) {
+  top: 0 !important;
+  right: 0 !important;
+  width: 76px !important;
+  height: 76px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+}
+
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org) > div.absolute:has(img[src*="/brand/otter-states/"]) img {
+  width: 76px !important;
+  height: 76px !important;
+  object-fit: contain !important;
+}
+
+/* Content starts from the same baseline after the shared header, regardless of page. */
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type + * {
+  margin-top: 0 !important;
+}
+
+@media (min-width: 768px) {
+  main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type {
+    min-height: 96px !important;
+    padding-right: 112px !important;
+  }
+
+  main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org) > div.absolute:has(img[src*="/brand/otter-states/"]) {
+    width: 88px !important;
+    height: 88px !important;
+  }
+
+  main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org) > div.absolute:has(img[src*="/brand/otter-states/"]) img {
+    width: 88px !important;
+    height: 88px !important;
+  }
+}
+
+@media (max-width: 639px) {
+  main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type {
+    min-height: 78px !important;
+    padding-right: 84px !important;
+    margin-bottom: 24px !important;
+  }
+}
