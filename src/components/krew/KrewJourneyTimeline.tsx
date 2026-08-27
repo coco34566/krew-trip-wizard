@@ -30,305 +30,209 @@ function parseStepHref(href: string) {
   if (!queryString) return { to: path, search: undefined };
   const search: Record<string, string> = {};
   for (const pair of queryString.split("&")) {
-    const [k, v] = pair.split("=");
-    if (k) search[k] = decodeURIComponent(v || "");
+    const [key, value] = pair.split("=");
+    if (key) search[key] = decodeURIComponent(value || "");
   }
   return { to: path, search };
 }
 
-/* Hand-composed positions: deliberately neither alternating nor evenly spaced.
- * The route should feel drawn in a travel notebook, while every label remains readable. */
-const DESKTOP_POINTS = [
-  { x: 18, y: 7, side: "right" },
-  { x: 47, y: 13, side: "right" },
-  { x: 73, y: 21, side: "left" },
-  { x: 57, y: 30, side: "left" },
-  { x: 25, y: 37, side: "right" },
-  { x: 36, y: 47, side: "right" },
-  { x: 69, y: 53, side: "left" },
-  { x: 77, y: 63, side: "left" },
-  { x: 49, y: 70, side: "right" },
-  { x: 22, y: 77, side: "right" },
-  { x: 31, y: 87, side: "right" },
-  { x: 62, y: 91, side: "left" },
-  { x: 79, y: 97, side: "left" },
-] as const;
+const offsets = ["md:-translate-x-5", "md:translate-x-7", "md:-translate-x-1", "md:translate-x-11", "md:-translate-x-8"];
 
-const MOBILE_POINTS = [
-  { x: 22, y: 6, side: "right" },
-  { x: 60, y: 13, side: "left" },
-  { x: 72, y: 21, side: "left" },
-  { x: 42, y: 29, side: "right" },
-  { x: 20, y: 37, side: "right" },
-  { x: 37, y: 46, side: "right" },
-  { x: 72, y: 53, side: "left" },
-  { x: 68, y: 62, side: "left" },
-  { x: 38, y: 70, side: "right" },
-  { x: 19, y: 78, side: "right" },
-  { x: 38, y: 87, side: "right" },
-  { x: 70, y: 92, side: "left" },
-  { x: 57, y: 98, side: "left" },
-] as const;
-
-const desktopPath =
-  "M18 7 C27 5 39 9 47 13 C58 18 75 14 73 21 C71 27 61 25 57 30 C49 37 32 31 25 37 C18 43 28 47 36 47 C48 47 60 49 69 53 C79 57 83 60 77 63 C69 67 57 66 49 70 C38 75 28 72 22 77 C16 83 24 88 31 87 C43 85 53 89 62 91 C70 93 76 95 79 97";
-
-const mobilePath =
-  "M22 6 C35 6 51 9 60 13 C72 17 79 17 72 21 C64 26 49 24 42 29 C33 35 22 31 20 37 C18 43 29 45 37 46 C50 47 64 48 72 53 C80 58 76 62 68 62 C55 62 45 66 38 70 C29 75 18 73 19 78 C20 84 31 86 38 87 C49 88 61 89 70 92 C74 94 65 97 57 98";
-
-function StepLabel({
-  step,
-  side,
-}: {
-  step: TimelineStep;
-  side: "left" | "right";
-}) {
-  const isDone = step.status === "done";
-  const isAvailable = step.status === "available";
-  const isUpcoming = step.status === "upcoming";
-
+function StepConnector({ index, muted }: { index: number; muted: boolean }) {
+  const bendsRight = index % 4 === 0 || index % 4 === 3;
   return (
-    <div
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 64 116"
+      preserveAspectRatio="none"
       className={cn(
-        "absolute top-1/2 flex -translate-y-1/2 items-center gap-2.5",
-        side === "right" ? "left-[calc(100%+9px)]" : "right-[calc(100%+9px)] flex-row-reverse text-right",
+        "absolute left-[18px] top-9 h-[calc(100%+2px)] w-8 overflow-visible md:left-1/2 md:w-16 md:-translate-x-1/2",
+        muted ? "opacity-30" : "opacity-70",
       )}
     >
-      <div className="min-w-0 w-[116px] sm:w-[150px]">
-        <div
-          className={cn(
-            "font-display text-[15px] sm:text-[18px] leading-[1.05] transition-colors",
-            isDone && "text-foreground/85",
-            isAvailable && "text-primary",
-            isUpcoming && "text-muted-foreground/60",
-          )}
-        >
-          {step.title}
-        </div>
-        {step.category === "souvenirs" && step.subtitle ? (
-          <span className="mt-1 block max-w-[116px] sm:max-w-[150px] text-[10px] sm:text-[11px] leading-snug text-muted-foreground/75">{step.subtitle}</span>
-        ) : null}
-        {isDone ? (
-          <span className="mt-1 inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.08em] text-sage">
-            Terminé
-          </span>
-        ) : isAvailable ? (
-          <span className="mt-1 block text-[9px] sm:text-[10px] font-medium text-primary/65">Disponible</span>
-        ) : null}
-      </div>
+      <path
+        d={bendsRight ? "M25 0 C57 28 8 72 35 116" : "M35 0 C7 30 57 72 25 116"}
+        fill="none"
+        stroke="var(--sage)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}
+
+function JourneyNode({ step }: { step: TimelineStep }) {
+  const isCurrent = step.status === "next_action";
+  const isDone = step.status === "done";
+  const isAvailable = step.status === "available";
+
+  return (
+    <span
+      className={cn(
+        "relative z-20 flex shrink-0 items-center justify-center rounded-full bg-background transition duration-200 motion-reduce:transition-none",
+        isCurrent && "size-12 border-2 border-primary bg-primary text-primary-foreground shadow-[0_0_0_7px_color-mix(in_oklch,var(--sage)_22%,transparent)] md:size-14",
+        isDone && "size-9 border-2 border-sage text-primary md:size-10",
+        isAvailable && "size-10 border-2 border-primary/45 text-primary hover:border-primary",
+        step.status === "upcoming" && "size-8 border border-border/70 text-muted-foreground/50",
+      )}
+    >
+      <KrewIcon
+        name={step.iconName}
+        size="sm"
+        tone={isCurrent ? "cream" : isDone || isAvailable ? "plum" : "muted"}
+        className={cn(isCurrent ? "size-6" : step.status === "upcoming" ? "size-4" : "size-5")}
+      />
+      {isDone ? (
+        <span className="absolute -bottom-1.5 -right-1.5 flex size-[19px] items-center justify-center rounded-full bg-sage text-[11px] font-bold text-white shadow-sm" aria-label="Terminé">
+          ✓
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function StepCopy({ step }: { step: TimelineStep }) {
+  const isCurrent = step.status === "next_action";
+  const isDone = step.status === "done";
+  return (
+    <div className={cn("min-w-0", step.status === "upcoming" && "opacity-55")}>
+      <h2 className={cn("font-display font-normal leading-[1.02] text-foreground", isCurrent ? "text-[27px] md:text-[34px]" : "text-[21px] md:text-[25px]")}>
+        {step.title}
+      </h2>
+      {step.subtitle ? (
+        <p className={cn("mt-1.5 max-w-[32rem] text-[13px] leading-snug text-muted-foreground md:text-sm", isCurrent && "text-foreground/70")}>
+          {step.subtitle}
+        </p>
+      ) : null}
+      {isDone ? (
+        <span className="mt-2 inline-flex items-center gap-1.5 font-hand text-[15px] leading-none text-sage">
+          C’est fait
+          <KrewMark type="check" tone="sage" size="sm" className="h-4 w-5" />
+        </span>
+      ) : step.status === "available" ? (
+        <span className="mt-2 block text-xs font-medium text-primary/70">Accessible maintenant</span>
+      ) : step.status === "upcoming" && step.category !== "souvenirs" ? (
+        <span className="mt-2 block text-xs text-muted-foreground">La suite du parcours</span>
+      ) : null}
     </div>
   );
 }
 
-export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
+export function KrewJourneyTimeline({ tripId, tripName, steps, annotationText = "Prochaine étape" }: Props) {
+  const currentIndex = steps.findIndex((step) => step.status === "next_action");
+
   return (
-    <div className="w-full max-w-[900px] mx-auto px-1 py-1 font-sans">
-      <header className="relative mb-2 sm:mb-3 min-h-[105px] sm:min-h-[130px] pr-[92px] sm:pr-[150px]">
-        <KrewNote variant="margin" rotation={-2} className="mb-1 text-sage">
-          notre feuille de route
-        </KrewNote>
-        <div className="relative inline-block max-w-full">
-          <h1 className="font-display text-[31px] sm:text-[42px] font-normal leading-[.98] text-foreground">
-            Le parcours de {tripName}
+    <section className="relative mx-auto w-full max-w-[980px] overflow-hidden px-4 pb-12 pt-2 sm:px-6 md:overflow-visible md:px-8">
+      <header className="relative min-h-[185px] pr-0 md:min-h-[220px] md:pr-[190px]">
+        <div className="relative z-10 max-w-[660px]">
+          <h1 className="font-display text-[32px] font-normal leading-[.98] text-foreground sm:text-[38px] md:text-[44px]">
+            Parcours de {tripName}
           </h1>
-          <KrewMark
-            type="underline-wave"
-            tone="sage"
-            size="lg"
-            className="absolute -bottom-5 left-1 w-[170px] sm:w-[210px] opacity-75 pointer-events-none"
-          />
+          <KrewMark type="underline-wave" tone="sage" size="lg" className="mt-1 h-5 w-[170px] opacity-75 sm:w-[210px]" />
+          <p className="mt-3 max-w-[510px] text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+            De la première idée aux souvenirs, voici où en est votre voyage.
+          </p>
         </div>
-        <p className="pt-5 max-w-[460px] text-xs sm:text-sm leading-relaxed text-muted-foreground">
-          De la première idée aux souvenirs : le chemin se construit avec toute la KREW.
-        </p>
+
+        <div className="absolute right-1 top-[112px] z-20 sm:right-4 md:right-[126px] md:top-[106px]">
+          <KrewNote variant="torn" tone="cream" rotation={-2} className="px-3 py-2 font-hand text-[16px] shadow-sm">
+            Notre feuille de route
+          </KrewNote>
+          <KrewMark type="arrow-curved-right" tone="sage" size="sm" className="absolute -bottom-7 left-2 h-8 w-12 rotate-[18deg] opacity-70" />
+        </div>
         <img
           src="/brand/otter-states/trip-progress.png"
           alt=""
-          className="absolute right-0 top-0 w-[88px] sm:w-[132px] h-auto object-contain pointer-events-none select-none"
+          className="absolute right-0 top-0 hidden h-auto w-[122px] object-contain md:block lg:w-[145px]"
         />
       </header>
 
-      <div className="relative mx-auto h-[1080px] sm:h-[1160px] w-full overflow-visible">
-        <KrewOrganicBlob
-          tone="sage"
-          variant="soft"
-          className="absolute left-[4%] top-[15%] h-[145px] w-[210px] sm:h-[190px] sm:w-[310px] opacity-35"
-        />
-        <KrewOrganicBlob
-          tone="plum"
-          variant="soft"
-          className="absolute right-[2%] top-[55%] h-[120px] w-[180px] sm:h-[170px] sm:w-[260px] opacity-[.035]"
-        />
-
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 hidden h-full w-full sm:block pointer-events-none overflow-visible"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          fill="none"
-        >
-          <path
-            d={desktopPath}
-            stroke="var(--sage)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            opacity=".7"
-          />
-        </svg>
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 block h-full w-full sm:hidden pointer-events-none overflow-visible"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          fill="none"
-        >
-          <path
-            d={mobilePath}
-            stroke="var(--sage)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            opacity=".7"
-          />
-        </svg>
-
-        <div className="absolute left-[6%] top-[24%] hidden sm:block pointer-events-none">
-          <KrewNote variant="torn" tone="cream" rotation={-4} className="px-3 py-2 shadow-sm">
-            on avance ensemble
-          </KrewNote>
-        </div>
-        <KrewMark
-          type="arrow-curved-right"
-          tone="sage"
-          size="lg"
-          rotation={-2}
-          className="absolute left-[18%] top-[28%] hidden w-20 sm:block opacity-55 pointer-events-none"
-        />
-        <div className="absolute right-[5%] top-[74%] hidden sm:block pointer-events-none">
-          <KrewNote variant="margin" rotation={2}>la suite se dessine ici</KrewNote>
-        </div>
-        <KrewMark
-          type="sparkle"
-          tone="plum"
-          size="sm"
-          rotation={4}
-          className="absolute right-[14%] top-[84%] hidden sm:block opacity-45 pointer-events-none"
-        />
+      <div className="relative mt-2 md:mt-0">
+        <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-20 top-[22%] h-52 w-72 opacity-25" />
+        <KrewOrganicBlob tone="plum" variant="soft" className="absolute -right-16 top-[60%] hidden h-48 w-64 opacity-[.035] md:block" />
 
         {steps.map((step, index) => {
-          const desktopPoint = DESKTOP_POINTS[index] ?? DESKTOP_POINTS[DESKTOP_POINTS.length - 1];
-          const mobilePoint = MOBILE_POINTS[index] ?? MOBILE_POINTS[MOBILE_POINTS.length - 1];
-          const isDone = step.status === "done";
-          const isNextAction = step.status === "next_action";
-          const isAvailable = step.status === "available";
-          const isUpcoming = step.status === "upcoming";
-          const directHref =
-            step.id === "preferences"
-              ? `/trips/${tripId}/questionnaire`
-              : step.id === "profile"
-                ? `/trips/${tripId}?view=voyage&section=profile`
-                : null;
+          const isCurrent = step.status === "next_action";
+          const isMemories = step.category === "souvenirs";
+          const isLast = index === steps.length - 1;
           const parsed = step.href ? parseStepHref(step.href) : null;
+          const directHref = step.id === "preferences"
+            ? `/trips/${tripId}/questionnaire`
+            : step.id === "profile"
+              ? `/trips/${tripId}?view=voyage&section=profile`
+              : null;
 
-          const node = (
+          const row = (
             <div
               className={cn(
-                "relative flex items-center justify-center rounded-full bg-background transition-transform duration-150",
-                isDone && "size-10 sm:size-11 border-[2px] border-sage text-primary shadow-[0_2px_10px_rgba(60,35,50,.06)]",
-                isAvailable && "size-10 sm:size-11 border-[2px] border-primary/55 text-primary shadow-[0_2px_10px_rgba(60,35,50,.06)]",
-                isUpcoming && "size-8 sm:size-9 border border-border text-muted-foreground/45",
+                "group relative grid min-h-[116px] grid-cols-[48px_minmax(0,1fr)] items-start gap-3 py-4 md:grid-cols-[minmax(0,1fr)_80px_minmax(0,1fr)] md:items-center md:gap-6 md:py-5",
+                offsets[index % offsets.length],
+                isCurrent && "min-h-[190px] py-7 md:min-h-[220px] md:py-8",
+                isMemories && "mt-4 min-h-[180px] py-8 md:mt-8 md:min-h-[210px]",
               )}
             >
-              <KrewIcon
-                name={step.iconName}
-                size="sm"
-                tone={isDone || isAvailable ? "plum" : "muted"}
-                className={isUpcoming ? "size-4" : "size-5"}
-              />
-              {isDone ? (
-                <span className="absolute -bottom-1 -right-1 flex size-[17px] items-center justify-center rounded-full bg-sage text-white text-[9px] font-bold">
-                  ✓
-                </span>
-              ) : null}
-            </div>
-          );
+              {!isLast ? <StepConnector index={index} muted={index >= currentIndex && currentIndex >= 0} /> : null}
 
-          const regularContent = (
-            <div className="group relative hover:-translate-y-0.5 transition-transform duration-150">
-              {node}
-              <div className="hidden sm:block">
-                <StepLabel step={step} side={desktopPoint.side} />
+              <div className="col-start-1 row-start-1 flex justify-center pt-0.5 md:col-start-2 md:items-center md:pt-0">
+                <JourneyNode step={step} />
               </div>
-              <div className="block sm:hidden">
-                <StepLabel step={step} side={mobilePoint.side} />
-              </div>
-            </div>
-          );
 
-          const nextContent = (
-            <div className="relative w-[174px] sm:w-[228px] -translate-x-1/2 -translate-y-1/2">
-              <KrewNote
-                variant="label"
-                tone="plum"
-                rotation={-2}
-                className="relative z-10 mb-2 text-[.76rem] sm:text-[.88rem]"
+              <div
+                className={cn(
+                  "col-start-2 row-start-1 min-w-0 pt-0.5 md:pt-0",
+                  index % 2 === 0 ? "md:col-start-3 md:text-left" : "md:col-start-1 md:text-right",
+                  isCurrent && "relative",
+                )}
               >
-                Prochaine étape
-              </KrewNote>
-              <KrewMark
-                type="arrow-curved-right"
-                tone="sage"
-                size="sm"
-                className="absolute left-8 top-7 z-20 h-7 w-10 rotate-[18deg] pointer-events-none"
-              />
-              <div className="relative z-10 flex items-center gap-2.5 sm:gap-3 rounded-[46%_54%_48%_52%/54%_46%_56%_44%] bg-background/95 px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-[0_4px_16px_rgba(60,35,50,.05)]">
-                <div className="flex size-10 sm:size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/10">
-                  <KrewIcon name={step.iconName} size="sm" tone="cream" className="size-5 sm:size-6" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-display text-[20px] sm:text-[25px] leading-[1] text-foreground">{step.title}</h3>
-                  {step.subtitle ? (
-                    <p className="mt-1 text-[10px] sm:text-[11px] leading-snug text-muted-foreground">{step.subtitle}</p>
-                  ) : null}
-                  <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-primary">
-                    Continuer
-                    <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6" />
-                  </span>
-                </div>
+                {isCurrent ? (
+                  <div className="relative max-w-[500px] py-2 md:inline-block md:min-w-[330px] md:py-5 md:text-left">
+                    <KrewOrganicBlob tone="sage" variant="soft" className="absolute -inset-x-8 -inset-y-5 -z-10 opacity-55 md:-inset-x-12" />
+                    <KrewNote variant="label" tone="plum" rotation={-2} className="mb-3 inline-flex px-3 py-1.5 font-hand text-[16px]">
+                      {annotationText}
+                    </KrewNote>
+                    <KrewMark type={index % 2 === 0 ? "arrow-curved-left" : "arrow-curved-right"} tone="sage" size="sm" className="absolute -left-10 top-4 hidden h-10 w-12 opacity-70 md:block" />
+                    <StepCopy step={step} />
+                    <span className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition duration-150 group-hover:-translate-y-0.5 group-hover:shadow-md group-active:translate-y-0 motion-reduce:transform-none motion-reduce:transition-none">
+                      Continuer
+                      <KrewMark type="arrow-right" tone="cream" size="sm" className="h-4 w-7" />
+                    </span>
+                    <img src="/brand/otter-states/trip-progress.png" alt="" className="absolute -right-[118px] bottom-0 hidden w-[105px] object-contain lg:block" />
+                  </div>
+                ) : isMemories ? (
+                  <div className="relative inline-block max-w-[360px] rotate-[-1deg] bg-background px-4 pb-5 pt-4 shadow-[0_10px_28px_rgba(60,35,50,.08)] ring-1 ring-border/45 md:px-5 md:pb-6">
+                    <div className="mb-4 flex h-20 items-center justify-center bg-sage/10 md:h-24">
+                      <KrewIcon name="camera" tone="plum" size="lg" className="size-9 opacity-65" />
+                    </div>
+                    <StepCopy step={step} />
+                    <KrewNote variant="margin" rotation={2} className="absolute -bottom-5 right-2 text-[15px] text-sage">
+                      À vivre bientôt
+                    </KrewNote>
+                  </div>
+                ) : (
+                  <div className="inline-block max-w-[390px] transition duration-150 group-hover:-translate-y-0.5 motion-reduce:transform-none motion-reduce:transition-none">
+                    <StepCopy step={step} />
+                  </div>
+                )}
               </div>
             </div>
           );
 
-          const content = isNextAction ? nextContent : regularContent;
-          const wrapper = (child: React.ReactNode) =>
-            directHref ? (
-              <a href={directHref} className="block no-underline">{child}</a>
-            ) : parsed && !isUpcoming ? (
-              <Link to={parsed.to as any} search={parsed.search as any} className="block no-underline">{child}</Link>
-            ) : (
-              child
+          if (directHref && step.status !== "upcoming") {
+            return <a key={step.id} href={directHref} className="block no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4">{row}</a>;
+          }
+          if (parsed && step.status !== "upcoming") {
+            return (
+              <Link key={step.id} to={parsed.to as any} search={parsed.search as any} className="block no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-4">
+                {row}
+              </Link>
             );
-
-          return (
-            <div key={step.id}>
-              <div
-                className={cn("absolute z-10 hidden sm:block", isNextAction ? "z-30" : "-translate-x-1/2 -translate-y-1/2")}
-                style={{ left: `${desktopPoint.x}%`, top: `${desktopPoint.y}%` }}
-              >
-                {wrapper(content)}
-              </div>
-              <div
-                className={cn("absolute z-10 block sm:hidden", isNextAction ? "z-30" : "-translate-x-1/2 -translate-y-1/2")}
-                style={{ left: `${mobilePoint.x}%`, top: `${mobilePoint.y}%` }}
-              >
-                {wrapper(content)}
-              </div>
-            </div>
-          );
+          }
+          return <div key={step.id}>{row}</div>;
         })}
 
+        <KrewMark type="arrow-down" tone="sage" size="sm" className="ml-[7px] mt-1 h-9 w-10 rotate-[-8deg] opacity-65 md:mx-auto" />
       </div>
-    </div>
+    </section>
   );
 }
