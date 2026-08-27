@@ -18,6 +18,7 @@ import journeyPagesCss from "../krew-journey-pages.css?url";
 import journeyPagesPolishCss from "../krew-journey-pages-polish.css?url";
 import journeyPagesRefinementCss from "../krew-journey-pages-refinement.css?url";
 import journeyPagesRefinementWavefixCss from "../krew-journey-pages-refinement-wavefix.css?url";
+import visualBaselineCss from "../krew-visual-baseline.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/krew/CookieConsent";
@@ -127,21 +128,21 @@ function JourneyLockedFallbackPortal() {
     <section
       data-journey-locked-section={lockedSection}
       aria-labelledby={`locked-${lockedSection}-title`}
-      className="relative mt-6 sm:mt-8 min-h-[220px] overflow-hidden rounded-[20px] border border-sage/25 bg-sage/[0.055] p-5 sm:p-7"
+      className="relative mt-6 overflow-hidden rounded-[24px] border border-sage/25 bg-sage/[0.045] px-6 py-7 sm:mt-8 sm:px-8 sm:py-8"
     >
       <img
         src={config.otter}
         alt=""
-        className="pointer-events-none absolute right-4 top-4 w-[72px] h-auto object-contain opacity-75 sm:right-5 sm:top-5 sm:w-[88px]"
+        className="pointer-events-none absolute right-5 top-5 w-[80px] h-auto object-contain opacity-90 sm:right-7 sm:top-7 sm:w-[96px] lg:w-[104px]"
       />
-      <div className="max-w-2xl pr-20 sm:pr-24">
-        <p className="font-mono text-[11px] sm:text-xs font-semibold uppercase tracking-[0.08em] text-primary/70">
+      <div className="max-w-[640px] pr-[92px] sm:pr-[120px]">
+        <p className="font-sans text-[13px] font-semibold uppercase tracking-[0.08em] text-primary/75 sm:text-sm">
           Étape verrouillée
         </p>
-        <div className="relative mt-2 inline-block">
+        <div className="relative mt-2 inline-block pb-2">
           <h2
             id={`locked-${lockedSection}-title`}
-            className="font-display text-[36px] sm:text-[44px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground/75"
+            className="font-display text-[40px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground/80 sm:text-[52px] lg:text-[60px]"
           >
             {config.title}
           </h2>
@@ -149,13 +150,13 @@ function JourneyLockedFallbackPortal() {
             type="underline-wave"
             tone="sage"
             size="md"
-            className="absolute left-1 -bottom-2 pointer-events-none opacity-55"
+            className="absolute left-1 -bottom-1 pointer-events-none opacity-65"
           />
         </div>
-        <p className="mt-5 text-[15px] sm:text-base leading-relaxed text-muted-foreground">
+        <p className="mt-5 max-w-[540px] text-[18px] leading-[1.5] text-muted-foreground sm:text-[20px]">
           {config.description}
         </p>
-        <div className="mt-5 rounded-2xl border border-sage/25 bg-background/75 px-4 py-3.5 text-sm sm:text-[15px] leading-relaxed text-muted-foreground">
+        <div className="mt-6 max-w-[520px] rounded-[20px] border border-sage/25 bg-background/80 px-5 py-4 text-[16px] leading-[1.5] text-muted-foreground sm:text-[17px]">
           {config.requirement}
         </div>
       </div>
@@ -182,6 +183,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: journeyPagesPolishCss },
       { rel: "stylesheet", href: journeyPagesRefinementCss },
       { rel: "stylesheet", href: journeyPagesRefinementWavefixCss },
+      { rel: "stylesheet", href: visualBaselineCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" },
