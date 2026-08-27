@@ -17,6 +17,7 @@
   --krew-inset-radius: 20px;
   --krew-control-radius: 18px;
   --krew-control-height: 56px;
+  --krew-frame-border: color-mix(in oklch, var(--border) 72%, transparent);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -127,7 +128,7 @@ main.max-w-5xl :is(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Chapter surfaces                                                           */
+/* Chapter surfaces — one frame contract across every journey page            */
 /* -------------------------------------------------------------------------- */
 
 main.max-w-5xl :is(
@@ -137,9 +138,21 @@ main.max-w-5xl :is(
   #hub-logistics,
   #hub-transports,
   #hub-activities-plan
-) {
+),
+[data-journey-locked-section] {
+  border: 1px solid var(--krew-frame-border) !important;
   border-radius: var(--krew-card-radius) !important;
   padding: 24px !important;
+  box-shadow: none !important;
+}
+
+/* Top-level functional frames on dedicated journey pages follow the exact same
+ * border/radius contract. Inner controls/cards keep their own inset hierarchy. */
+main[class*="max-w-[820px]"] > section,
+main.space-y-8:has(> div.space-y-2 > p.font-mono) > section {
+  border-color: var(--krew-frame-border) !important;
+  border-width: 1px !important;
+  border-radius: var(--krew-card-radius) !important;
   box-shadow: none !important;
 }
 
@@ -151,7 +164,8 @@ main.max-w-5xl :is(
     #hub-logistics,
     #hub-transports,
     #hub-activities-plan
-  ) {
+  ),
+  [data-journey-locked-section] {
     padding: 28px !important;
   }
 }
@@ -164,7 +178,8 @@ main.max-w-5xl :is(
     #hub-logistics,
     #hub-transports,
     #hub-activities-plan
-  ) {
+  ),
+  [data-journey-locked-section] {
     padding: 32px !important;
   }
 }
@@ -231,7 +246,8 @@ main.max-w-5xl :is(
   max-width: 680px;
   margin: 28px auto 8px !important;
   padding: 28px 24px !important;
-  border-radius: var(--krew-card-radius) !important;
+  border: 1px solid var(--krew-frame-border) !important;
+  border-radius: var(--krew-inset-radius) !important;
   text-align: left !important;
 }
 
@@ -277,4 +293,14 @@ main.max-w-5xl :is(
   #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > p {
     font-size: 18px !important;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Overview budget frame                                                      */
+/* -------------------------------------------------------------------------- */
+
+.krew-overview-budget {
+  border: 1px solid var(--krew-frame-border);
+  border-radius: var(--krew-card-radius);
+  box-shadow: none;
 }
