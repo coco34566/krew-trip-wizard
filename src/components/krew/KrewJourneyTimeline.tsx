@@ -4,7 +4,6 @@ import {
   KrewIcon,
   KrewMark,
   KrewNote,
-  KrewOrganicBlob,
   type KrewIconName,
 } from "@/components/krew/visual-language";
 
@@ -121,6 +120,17 @@ function StepLabel({
 }
 
 export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
+  const nextActionIndex = steps.findIndex((step) => step.status === "next_action");
+  const lastDoneIndex = steps.reduce(
+    (latest, step, index) => (step.status === "done" ? index : latest),
+    -1,
+  );
+  const progressIndex = nextActionIndex >= 0 ? nextActionIndex : lastDoneIndex;
+  const routeProgress =
+    steps.length > 1 && progressIndex >= 0
+      ? Math.min(100, Math.max(0, (progressIndex / (steps.length - 1)) * 100))
+      : 0;
+
   return (
     <div className="w-full max-w-[900px] mx-auto px-1 py-1 font-sans">
       <header className="relative mb-2 sm:mb-3 min-h-[105px] sm:min-h-[130px] pr-[92px] sm:pr-[150px]">
@@ -153,12 +163,6 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </header>
 
       <div className="relative -mt-8 mx-auto h-[1080px] sm:-mt-10 sm:h-[1160px] w-full overflow-visible">
-        <KrewOrganicBlob
-          tone="plum"
-          variant="soft"
-          className="absolute right-[2%] top-[55%] h-[120px] w-[180px] sm:h-[170px] sm:w-[260px] opacity-[.035]"
-        />
-
         <svg
           aria-hidden="true"
           className="absolute inset-0 hidden h-full w-full sm:block pointer-events-none overflow-visible"
@@ -172,7 +176,19 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             strokeWidth="2"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
-            opacity=".7"
+            opacity=".24"
+          />
+          <path
+            d={desktopPath}
+            pathLength="100"
+            stroke="var(--sage)"
+            strokeWidth="2.75"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            strokeDasharray="100"
+            strokeDashoffset={100 - routeProgress}
+            className="transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none"
+            opacity=".9"
           />
         </svg>
         <svg
@@ -188,7 +204,19 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             strokeWidth="2"
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
-            opacity=".7"
+            opacity=".24"
+          />
+          <path
+            d={mobilePath}
+            pathLength="100"
+            stroke="var(--sage)"
+            strokeWidth="2.75"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+            strokeDasharray="100"
+            strokeDashoffset={100 - routeProgress}
+            className="transition-[stroke-dashoffset] duration-700 ease-out motion-reduce:transition-none"
+            opacity=".9"
           />
         </svg>
 
@@ -266,12 +294,12 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
           );
 
           const nextContent = (
-            <div className="relative w-[174px] sm:w-[228px] -translate-x-1/2 -translate-y-1/2">
+            <div className="group relative w-[184px] sm:w-[224px] -translate-x-1/2 -translate-y-1/2">
               <KrewNote
                 variant="label"
                 tone="plum"
                 rotation={-2}
-                className="relative z-10 mb-2 text-[.76rem] sm:text-[.88rem]"
+                className="absolute -top-12 left-1/2 z-20 -translate-x-[42%] whitespace-nowrap text-[.76rem] sm:-top-14 sm:text-[.88rem]"
               >
                 Prochaine étape
               </KrewNote>
@@ -279,25 +307,32 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 type="arrow-curved-right"
                 tone="sage"
                 size="sm"
-                className="absolute left-8 top-7 z-20 h-7 w-10 rotate-[18deg] pointer-events-none"
+                className="absolute left-[calc(50%+30px)] -top-8 z-20 h-7 w-10 rotate-[72deg] pointer-events-none sm:left-[calc(50%+37px)] sm:-top-9"
               />
-              <div className="relative z-10 flex items-center gap-3 py-2 sm:gap-4 sm:py-3">
-                <div className="flex size-11 sm:size-14 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                  <KrewIcon name={step.iconName} size="sm" tone="cream" className="size-5 sm:size-6" />
+              <div className="relative z-20 mx-auto flex size-12 sm:size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_3px_12px_rgba(60,35,50,.16)] ring-[5px] ring-background">
+                <KrewIcon name={step.iconName} size="sm" tone="cream" className="size-5 sm:size-6" />
+              </div>
+              <div className="relative z-10 mt-2.5 text-center">
+                <div className="relative inline-block bg-background px-2">
+                  <h3 className="relative z-10 font-display text-[23px] sm:text-[29px] leading-[1] text-foreground">
+                    {step.title}
+                  </h3>
+                  <KrewMark
+                    type="underline-wave"
+                    tone="sage"
+                    size="sm"
+                    className="absolute -bottom-3 left-1/2 h-3.5 w-24 -translate-x-1/2 opacity-55"
+                  />
                 </div>
-                <div className="min-w-0">
-                  <div className="relative inline-block">
-                    <h3 className="relative z-10 font-display text-[23px] sm:text-[29px] leading-[1] text-foreground">{step.title}</h3>
-                    <KrewMark type="underline-wave" tone="sage" size="sm" className="absolute -bottom-3 left-0 h-3.5 w-24 opacity-55" />
-                  </div>
-                  {step.subtitle ? (
-                    <p className="mt-2 text-[12px] sm:text-[13px] leading-snug text-muted-foreground">{step.subtitle}</p>
-                  ) : null}
-                  <span className="mt-3 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-[12px] sm:text-[13px] font-semibold text-primary-foreground shadow-sm transition-transform duration-150 group-hover:-translate-y-0.5 group-active:translate-y-0 motion-reduce:transform-none">
-                    Continuer
-                    <KrewMark type="arrow-right" tone="cream" size="sm" className="h-3.5 w-6" />
-                  </span>
-                </div>
+                {step.subtitle ? (
+                  <p className="mx-auto mt-2 max-w-[190px] bg-background/95 px-1 text-[12px] sm:text-[13px] leading-snug text-muted-foreground">
+                    {step.subtitle}
+                  </p>
+                ) : null}
+                <span className="mt-3 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-[12px] sm:text-[13px] font-semibold text-primary-foreground shadow-sm transition-transform duration-150 group-hover:-translate-y-0.5 group-active:translate-y-0 motion-reduce:transform-none">
+                  Continuer
+                  <KrewMark type="arrow-right" tone="cream" size="sm" className="h-3.5 w-6" />
+                </span>
               </div>
             </div>
           );
