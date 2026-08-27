@@ -128,37 +128,41 @@ function JourneyLockedFallbackPortal() {
     <section
       data-journey-locked-state={lockedSection}
       aria-labelledby={`locked-${lockedSection}-title`}
-      className="relative mt-6 py-2 sm:mt-8 sm:py-3"
+      className="mt-6 py-2 sm:mt-8 sm:py-3"
     >
-      <img
-        src={config.otter}
-        alt=""
-        className="pointer-events-none absolute right-0 top-0 w-[80px] h-auto object-contain opacity-90 sm:w-[96px] lg:w-[104px]"
-      />
-      <div className="max-w-[640px] pr-[92px] sm:pr-[120px]">
-        <p className="font-sans text-[13px] font-semibold uppercase tracking-[0.08em] text-primary/75 sm:text-sm">
-          Étape verrouillée
-        </p>
-        <div className="relative mt-2 inline-block pb-2">
-          <h2
-            id={`locked-${lockedSection}-title`}
-            className="font-display text-[40px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground/80 sm:text-[52px] lg:text-[60px]"
-          >
-            {config.title}
-          </h2>
-          <KrewMark
-            type="underline-wave"
-            tone="sage"
-            size="md"
-            className="absolute left-1 -bottom-1 pointer-events-none opacity-65"
-          />
+      <div className="grid max-w-[860px] grid-cols-[minmax(0,1fr)_76px] items-start gap-x-4 gap-y-5 sm:grid-cols-[minmax(0,1fr)_108px] sm:gap-x-8 lg:grid-cols-[minmax(0,1fr)_120px] lg:gap-x-10">
+        <div className="min-w-0">
+          <p className="font-sans text-[13px] font-semibold uppercase tracking-[0.08em] text-primary/75 sm:text-sm">
+            Étape verrouillée
+          </p>
+          <div className="relative mt-2 inline-block max-w-full pb-2">
+            <h2
+              id={`locked-${lockedSection}-title`}
+              className="font-display text-[40px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground/80 sm:text-[52px] lg:text-[60px]"
+            >
+              {config.title}
+            </h2>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="pointer-events-none absolute -bottom-1 left-1 max-w-[80%] opacity-65"
+            />
+          </div>
+          <p className="mt-5 max-w-[590px] text-[17px] leading-[1.5] text-muted-foreground sm:text-[19px] lg:text-[20px]">
+            {config.description}
+          </p>
         </div>
-        <p className="mt-5 max-w-[540px] text-[18px] leading-[1.5] text-muted-foreground sm:text-[20px]">
-          {config.description}
-        </p>
+
+        <img
+          src={config.otter}
+          alt=""
+          className="pointer-events-none mt-1 h-auto w-full max-w-[76px] justify-self-end object-contain opacity-90 sm:max-w-[108px] lg:max-w-[120px]"
+        />
+
         <div
           data-journey-locked-section={lockedSection}
-          className="mt-6 max-w-[520px] rounded-[16px] border border-sage/20 bg-sage/[0.07] px-4 py-3 text-[15px] leading-[1.5] text-muted-foreground sm:text-[16px]"
+          className="col-span-2 mt-1 max-w-[560px] rounded-[16px] border border-sage/20 bg-sage/[0.07] px-4 py-3 text-[15px] leading-[1.5] text-muted-foreground sm:text-[16px]"
         >
           {config.requirement}
         </div>
