@@ -555,6 +555,49 @@ export function TripHubDashboard({
         hasItinerary={hasItinerary}
       />
 
+      {/* BUDGET DU VOYAGE — restored overview section using already-computed values only */}
+      <section className="krew-overview-budget relative overflow-hidden bg-background p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <KrewIcon name="budget" tone="plum" size="sm" className="size-5 shrink-0" />
+              <h2 className="font-display text-[28px] sm:text-[30px] font-normal leading-[1.02] text-foreground">
+                Budget du voyage
+              </h2>
+            </div>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Une vue simple du budget actuel par personne et de ce qui reste à prévoir.
+            </p>
+          </div>
+          <KrewMark type="underline-wave" tone="sage" size="sm" className="mt-1 hidden sm:block w-20 shrink-0 opacity-70" />
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[18px] border border-border/40 bg-surface/20 p-4">
+            <p className="text-xs font-medium text-muted-foreground">Budget estimé / pers.</p>
+            <p className="mt-1 font-mono text-lg font-semibold text-primary">
+              {liveBudgetTotal != null && liveBudgetTotal > 0 ? `~${formatEuro(liveBudgetTotal)}` : "À définir"}
+            </p>
+          </div>
+          <div className="rounded-[18px] border border-border/40 bg-surface/20 p-4">
+            <p className="text-xs font-medium text-muted-foreground">Déjà réservé</p>
+            <p className="mt-1 font-mono text-lg font-semibold text-foreground">
+              {totalReserved != null ? formatEuro(totalReserved) : "—"}
+            </p>
+          </div>
+          <div className="rounded-[18px] border border-border/40 bg-surface/20 p-4">
+            <p className="text-xs font-medium text-muted-foreground">Reste estimé</p>
+            <p className="mt-1 font-mono text-lg font-semibold text-foreground">
+              {totalEstimated != null ? formatEuro(totalEstimated) : "—"}
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+          Les montants évoluent au fil des choix d’hébergement, de transport et d’activités du groupe.
+        </p>
+      </section>
+
       <nav aria-label="Accès aux informations du voyage" className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-sm">
         <Link
           to="/trips/$tripId/questionnaire"
