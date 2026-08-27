@@ -1,0 +1,112 @@
+/* KREW button contract
+ *
+ * This file is deliberately colocated with Button. It exists only to absorb
+ * legacy page-level Tailwind overrides while the app converges on the shared
+ * component. Functional controls (calendar cells, removable chips, avatars,
+ * timeline nodes) remain explicit exceptions and are not flattened into CTAs.
+ */
+
+/* Shared actions use one corner language. Icon controls keep their own geometry
+ * so circular trash/menu/avatar affordances stay intentional. */
+[data-krew-button="true"]:not([data-krew-size="icon"]):not([data-krew-variant="link"]) {
+  border-radius: 14px !important;
+  box-shadow: none;
+}
+
+/* Historical pages forced large CTAs back to 48–64px after Button had already
+ * chosen a size. Only neutralise those oversize overrides; intentional 40/44px
+ * header and compact utility controls are left untouched. */
+[data-krew-button="true"][class*="h-12"],
+[data-krew-button="true"][class*="h-14"],
+[data-krew-button="true"][class*="h-16"],
+[data-krew-button="true"][class*="min-h-12"],
+[data-krew-button="true"][class*="min-h-[48px]"],
+[data-krew-button="true"][class*="min-h-[56px]"],
+[data-krew-button="true"][class*="min-h-[64px]"] {
+  height: auto !important;
+  min-height: 44px !important;
+}
+
+/* Long CTA labels may wrap, but they must not become visually chunky. */
+[data-krew-button="true"][data-krew-size="lg"],
+[data-krew-button="true"][data-krew-size="xl"] {
+  padding-block: 0.5rem;
+}
+
+/* Legacy WhatsApp brand-green buttons are actions inside KREW, not WhatsApp UI.
+ * Keep the wording/channel but bring the control back into the KREW palette. */
+[data-krew-button="true"][class*="25D366"][data-krew-variant="default"] {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+[data-krew-button="true"][class*="25D366"][data-krew-variant="default"]:hover {
+  background: color-mix(in oklch, var(--primary) 92%, black) !important;
+}
+
+[data-krew-button="true"][class*="25D366"][data-krew-variant="outline"] {
+  background: var(--background) !important;
+  border-color: color-mix(in oklch, var(--border) 75%, transparent) !important;
+  color: var(--foreground) !important;
+}
+
+[data-krew-button="true"][class*="25D366"][data-krew-variant="outline"]:hover {
+  background: color-mix(in oklch, var(--sage) 8%, transparent) !important;
+  border-color: color-mix(in oklch, var(--primary) 30%, transparent) !important;
+  color: var(--primary) !important;
+}
+
+/* Native choice buttons predate the shared component. Their active classes are
+ * intentionally recognised here so creation, questionnaires and Star all read
+ * as the same selected state. Calendar availability cells are excluded because
+ * they use secondary/destructive semantics rather than bg-primary/5. */
+button[class*="bg-primary/5"][class*="border-primary"],
+button[aria-pressed="true"] {
+  border-color: color-mix(in oklch, var(--primary) 52%, transparent) !important;
+  background: color-mix(in oklch, var(--sage) 17%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--sage) 22%, transparent) !important;
+  font-weight: 650 !important;
+}
+
+button[class*="bg-primary/5"][class*="border-primary"]:hover,
+button[aria-pressed="true"]:hover {
+  border-color: color-mix(in oklch, var(--primary) 62%, transparent) !important;
+  background: color-mix(in oklch, var(--sage) 23%, transparent) !important;
+}
+
+/* Availability/Star mode selectors are choices, not pills. Their destructive
+ * "Impossible" state remains red because the colour has semantic meaning. */
+button[class*="rounded-full"][class*="border"][class*="px-4"][class*="py-2"][class*="gap-2"] {
+  border-radius: 14px !important;
+  min-height: 36px;
+}
+
+button[class*="border-sage/40"][class*="bg-sage/20"] {
+  border-color: color-mix(in oklch, var(--primary) 52%, transparent) !important;
+  background: color-mix(in oklch, var(--sage) 17%, transparent) !important;
+  color: var(--primary) !important;
+}
+
+/* A chosen transport is a selected option, not another primary CTA. Other
+ * legacy hero buttons (generate/select/task actions) stay primary. */
+#hub-transports [data-krew-button="true"][data-krew-variant="hero"] {
+  border-color: color-mix(in oklch, var(--primary) 52%, transparent) !important;
+  background: color-mix(in oklch, var(--sage) 17%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--sage) 22%, transparent) !important;
+}
+
+#hub-transports [data-krew-button="true"][data-krew-variant="hero"]:hover {
+  border-color: color-mix(in oklch, var(--primary) 62%, transparent) !important;
+  background: color-mix(in oklch, var(--sage) 23%, transparent) !important;
+}
+
+/* KrewActionStack's historical raw anchor is a real CTA. Keep it 44px, but not
+ * as a pill, so it belongs to the same action family as Button. */
+a[class*="min-h-[44px]"][class*="rounded-full"][class*="bg-primary"] {
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  padding-inline: 20px !important;
+}
