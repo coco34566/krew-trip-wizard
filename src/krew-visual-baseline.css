@@ -18,8 +18,8 @@
   --krew-section-title-desktop: 38px;
   --krew-card-radius: 24px;
   --krew-inset-radius: 20px;
-  --krew-control-radius: 18px;
-  --krew-control-height: 56px;
+  --krew-control-radius: 14px;
+  --krew-control-height: 40px;
   --krew-copy-mobile: 16px;
   --krew-copy-large: 18px;
   --krew-section-gap-mobile: 40px;
@@ -112,7 +112,6 @@ main.max-w-5xl :is(
   line-height: 1.5 !important;
 }
 
-/* Dedicated pages: same optical H1 scale, same left edge, same wave lane. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) h1.font-display,
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) h1.font-display {
   font-size: var(--krew-page-title-mobile) !important;
@@ -121,7 +120,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   letter-spacing: -.02em !important;
 }
 
-/* Back link should be supportive, never a second heading. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > a:first-child,
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > a:first-child {
   margin-bottom: 4px !important;
@@ -129,7 +127,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   line-height: 20px !important;
 }
 
-/* Lead/support copy shares one readable measure. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
   > div.relative p:not([class*="font-mono"]),
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
@@ -187,8 +184,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
 /* Zoom-page rule: the page itself is NOT a card                              */
 /* -------------------------------------------------------------------------- */
 
-/* Embedded journey chapters opened from Détail du voyage. Remove the outer
- * decorative frame/surface/padding while preserving all inner functional cards. */
 main.max-w-5xl :is(
   #hub-dates,
   #hub-profile,
@@ -205,25 +200,10 @@ main.max-w-5xl :is(
   box-shadow: none !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
-}
-
-/* Keep enough top/bottom rhythm once the card-like wrapper is removed. */
-main.max-w-5xl :is(
-  #hub-dates,
-  #hub-profile,
-  #hub-destination,
-  #hub-logistics,
-  #hub-transports,
-  #hub-activities-plan,
-  #hub-tasks-org,
-  #hub-packing
-) {
   padding-top: 8px !important;
   padding-bottom: 8px !important;
 }
 
-/* Availability is a dedicated zoom route. Its calendar is the content of the
- * page, not a card inside another page-sized card. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
   > section {
   border: 0 !important;
@@ -234,8 +214,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"
   padding-right: 0 !important;
 }
 
-/* Locked chapters remain a compact state component because the border carries
- * semantic grouping. They must never become a page-sized empty frame. */
 [data-journey-locked-section] {
   max-width: 720px;
   min-height: 0 !important;
@@ -282,7 +260,6 @@ main.max-w-5xl :is(
   right: 0 !important;
 }
 
-/* Dedicated page otters occupy exactly the same support lane. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
   img[src*="/brand/otter-states/availability.png"],
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
@@ -332,8 +309,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
 /* Questionnaire: create rhythm WITHOUT adding containers                     */
 /* -------------------------------------------------------------------------- */
 
-/* The questionnaire is intentionally a continuous page. Sections are separated
- * by whitespace and a tiny KREW accent, never by page-wide boxes. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 > section {
   position: relative;
@@ -350,8 +325,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   padding-top: 16px !important;
 }
 
-/* Short hand-drawn-feeling accent at section changes: enough hierarchy without
- * creating a visual cage around the content. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 > section:not(:first-child)::before {
   content: "";
@@ -381,17 +354,15 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   line-height: 1.5 !important;
 }
 
-/* Functional option cards stay cards, but become lighter and consistent. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 > section button.rounded-\[14px\] {
   border-color: color-mix(in oklch, var(--border) 62%, transparent) !important;
-  border-radius: 16px !important;
+  border-radius: 14px !important;
   box-shadow: none !important;
-  padding: 14px !important;
+  padding: 12px 14px !important;
+  min-height: 40px;
 }
 
-/* Inputs remain functional objects; standardise their corners without boxing
- * surrounding groups. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 > section :is(input, textarea) {
   border-radius: 14px !important;
@@ -419,7 +390,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"
   line-height: 1.02 !important;
 }
 
-/* Month grids / states remain local objects. The calendar shell itself stays open. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
   > section > .grid {
   margin-top: 4px;
@@ -462,10 +432,10 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"
 
 #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > a,
 #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > button {
-  min-height: var(--krew-control-height) !important;
+  min-height: 44px !important;
   margin-top: 22px !important;
-  border-radius: var(--krew-control-radius) !important;
-  padding-inline: 24px !important;
+  border-radius: 14px !important;
+  padding-inline: 20px !important;
   justify-content: center;
 }
 
@@ -492,4 +462,72 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"
   #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > p {
     font-size: 18px !important;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* KREW button/choice state contract                                           */
+/* -------------------------------------------------------------------------- */
+
+/* Local choice buttons existed before the shared Button component. Give them
+ * the same geometry and state language without forcing a risky rewrite. */
+button[class*="border-border/50"][class*="bg-background"],
+button[class*="border-border"][class*="bg-background"][class*="rounded"] {
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease,
+    transform 150ms ease !important;
+}
+
+button[class*="border-border/50"][class*="bg-background"]:hover,
+button[class*="border-border"][class*="bg-background"][class*="rounded"]:hover {
+  border-color: color-mix(in oklch, var(--primary) 28%, transparent) !important;
+  background: color-mix(in oklch, var(--sage) 8%, transparent) !important;
+}
+
+/* Same selected language everywhere: soft sage paper, readable plum edge/text.
+ * Covers native toggle semantics plus legacy selectable-option class patterns. */
+button[aria-pressed="true"],
+button[data-state="on"],
+button[data-state="checked"],
+button[class*="border-primary/40"][class*="bg-primary/5"] {
+  border-color: color-mix(in oklch, var(--primary) 52%, transparent) !important;
+  background: color-mix(in oklch, var(--sage) 17%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--sage) 22%, transparent) !important;
+  font-weight: 650 !important;
+}
+
+button[aria-pressed="true"]:hover,
+button[data-state="on"]:hover,
+button[data-state="checked"]:hover,
+button[class*="border-primary/40"][class*="bg-primary/5"]:hover {
+  background: color-mix(in oklch, var(--sage) 23%, transparent) !important;
+  border-color: color-mix(in oklch, var(--primary) 62%, transparent) !important;
+}
+
+/* Selected cards must not grow, jump, gain heavy shadows or change radius. */
+button[aria-pressed],
+button[data-state="on"],
+button[data-state="checked"] {
+  transform: none;
+}
+
+button[aria-pressed]:active,
+button[data-state="on"]:active,
+button[data-state="checked"]:active {
+  transform: translateY(1px);
+}
+
+/* Focus is the same quiet sage ring across both shared and legacy controls. */
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--sage) 55%, transparent),
+    0 0 0 4px var(--background);
+}
+
+/* Disabled should read as unavailable, not as another selected state. */
+button:disabled,
+button[aria-disabled="true"] {
+  opacity: .45;
+  filter: saturate(.65);
 }

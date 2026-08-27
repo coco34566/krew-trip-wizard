@@ -5,28 +5,35 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-center text-sm leading-none font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] text-center text-[14px] leading-none font-semibold cursor-pointer transition-[background-color,border-color,color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sage/55 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-45 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        default:
+          "border border-primary bg-primary text-primary-foreground shadow-none hover:bg-primary/92 hover:border-primary/92 active:translate-y-px",
+        destructive:
+          "border border-destructive bg-destructive text-destructive-foreground shadow-none hover:bg-destructive/90 active:translate-y-px",
         outline:
-          "border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
-        /* Legacy variants remapped to clean KREW styling for backwards compatibility */
-        hero: "bg-primary text-primary-foreground font-semibold hover:bg-primary/90",
-        lagoon: "bg-secondary text-secondary-foreground font-semibold hover:bg-secondary/80",
-        glass: "border border-border bg-card text-foreground hover:bg-muted",
+          "border border-border/75 bg-background text-foreground shadow-none hover:border-primary/30 hover:bg-sage/[0.08] hover:text-primary active:translate-y-px",
+        secondary:
+          "border border-sage/35 bg-sage/14 text-primary shadow-none hover:bg-sage/22 hover:border-sage/50 active:translate-y-px",
+        ghost:
+          "border border-transparent bg-transparent text-foreground shadow-none hover:bg-sage/[0.08] hover:text-primary active:translate-y-px",
+        link: "h-auto rounded-none border-0 p-0 text-primary underline-offset-4 hover:underline",
+        /* Legacy names kept for compatibility, visually mapped onto the KREW system. */
+        hero:
+          "border border-primary bg-primary text-primary-foreground shadow-none hover:bg-primary/92 hover:border-primary/92 active:translate-y-px",
+        lagoon:
+          "border border-sage/35 bg-sage/14 text-primary shadow-none hover:bg-sage/22 hover:border-sage/50 active:translate-y-px",
+        glass:
+          "border border-border/75 bg-background text-foreground shadow-none hover:border-primary/30 hover:bg-sage/[0.08] hover:text-primary active:translate-y-px",
       },
       size: {
-        default: "h-11 px-4 py-2",
-        sm: "h-10 px-3 text-xs",
-        lg: "h-12 px-6 text-sm",
-        xl: "h-14 px-7 text-base",
-        icon: "h-11 w-11 p-0",
+        sm: "h-9 px-3 text-[13px]",
+        default: "h-10 px-4",
+        lg: "h-11 px-5 text-[14px]",
+        xl: "h-11 px-6 text-[15px]",
+        icon: "h-10 w-10 p-0",
       },
     },
     defaultVariants: {
