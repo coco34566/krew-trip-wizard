@@ -879,3 +879,272 @@ Le résultat final doit donner envie de dire :
 > **« Ça va être fun. »**  
 > **« C’est vraiment beau. »**  
 > **« Ça a l’air hyper simple. »**
+
+---
+
+## 28. GRAMMAIRE COMMUNE DES PAGES PRODUIT
+
+Les pages du parcours doivent être reconnues comme appartenant au même produit **sans devenir des copies les unes des autres**.
+
+La structure de lecture commune est :
+
+1. contexte du voyage / retour ;
+2. titre de page ;
+3. vague ou soulignement KREW attaché au titre ;
+4. introduction courte si nécessaire ;
+5. contenu principal ;
+6. action principale clairement identifiable.
+
+Cette grammaire est commune, mais la composition du contenu doit rester adaptée au rôle réel de la page.
+
+### Niveaux de titre — clarification
+
+- **H1 éditorial / hero public ou dashboard principal** : 40–44px mobile, 48–58px desktop.
+- **H1 de chapitre produit / page du parcours** : 28–30px mobile, 30–34px tablette/desktop.
+- **H2 interne** : 26–32px selon le niveau de hiérarchie.
+
+Ne jamais choisir arbitrairement entre ces niveaux selon l’espace disponible : le niveau dépend du rôle sémantique de la page.
+
+### Largeur utile
+
+Un container officiel définit les gutters, mais **ne suffit pas à composer la page**.
+
+Sur tablette et desktop, une page ne doit pas laisser son contenu principal occuper une petite colonne au centre d’un grand écran si aucune raison fonctionnelle ne l’impose.
+
+- une page réellement formulaire peut rester `Product Narrow` ;
+- une page de comparaison, choix, logistique ou organisation doit exploiter une largeur plus généreuse lorsque cela améliore la lecture ;
+- le contenu peut être distribué en deux zones ou en composition asymétrique sans enfermer chaque zone dans une card ;
+- une grande zone vide doit être intentionnelle et structurée, pas simplement résulter d’un `max-width` trop faible.
+
+### Une seule priorité d’action
+
+Chaque page doit répondre immédiatement à : **« qu’est-ce que je dois faire maintenant ? »**
+
+- une seule action principale doit dominer visuellement ;
+- les actions secondaires doivent être clairement subordonnées ;
+- un CTA principal ne doit pas rivaliser avec un post-it, une illustration ou un CTA secondaire de même poids ;
+- l’action principale doit rester identifiable sans hover et sans devoir lire toute la page.
+
+---
+
+## 29. FAMILLES DE PAGES DU PARCOURS
+
+Les pages du parcours sont regroupées en familles de composition. Ces familles servent à assurer la cohérence sans imposer un template unique.
+
+### A. Questionnaire dense
+
+Exemple principal : Préférences.
+
+Objectif : permettre une longue saisie sans effet tunnel.
+
+Règles :
+
+- conserver strictement questions, réponses, ordre et logique métier ;
+- créer une scansion visuelle nette entre grands chapitres ;
+- mettre davantage d’espace **entre chapitres** qu’entre questions liées ;
+- éviter que toutes les questions aient exactement le même poids visuel ;
+- ne pas transformer chaque chapitre en card ;
+- rendre la position dans le questionnaire perceptible sans ajouter une navigation métier nouvelle.
+
+### B. Interaction structurée
+
+Exemples : Invite, Disponibilités, Transport.
+
+Objectif : faire accomplir une tâche principale claire.
+
+Règles :
+
+- hiérarchiser fortement action, résultat et informations secondaires ;
+- sur tablette/desktop, exploiter la largeur pour rapprocher les informations qui se répondent ;
+- éviter l’effet « petit widget au milieu d’une grande page » ;
+- conserver une colonne simple sur mobile lorsque c’est plus lisible.
+
+### C. Choix & propositions
+
+Exemples : Profil du voyage, Destination, Hébergement.
+
+Objectif : comparer puis choisir.
+
+Règles :
+
+- mettre d’abord en évidence l’objet du choix et sa pertinence ;
+- préserver photos et données existantes ;
+- différencier clairement sélectionné, disponible, verrouillé et secondaire ;
+- ne pas créer une grille SaaS générique ;
+- la personnalité de chaque chapitre doit venir de son contenu réel, pas d’une décoration gratuite.
+
+### D. Organisation du voyage
+
+Exemples : Planning, Tâches, À emporter.
+
+Objectif : transformer les décisions en plan concret.
+
+Règles :
+
+- privilégier chronologie, listes, regroupements et progression naturelle ;
+- ne pas transformer KREW en outil de gestion de projet ;
+- réduire les bordures et cards lorsque la structure du contenu suffit ;
+- conserver des signatures propres à chaque page : chronologie pour Planning, actions pour Tâches, catégories pour À emporter.
+
+---
+
+## 30. ÉTATS VIDES, VERROUILLÉS ET EN ATTENTE
+
+Un état verrouillé ou incomplet doit rester une **vraie page KREW**, jamais donner l’impression d’un écran non terminé.
+
+Il doit répondre visuellement à trois questions :
+
+1. **Pourquoi cette étape n’est-elle pas disponible ?**
+2. **Qu’attend-on maintenant ?**
+3. **Qu’est-ce qui apparaîtra ensuite ?**
+
+Autorisé :
+
+- message court et concret ;
+- progression réelle ;
+- nombre de réponses manquantes si la donnée existe ;
+- préfiguration visuelle très légère du futur contenu ;
+- loutre sémantiquement correcte ;
+- structure fantôme / exemple abstrait non présenté comme donnée réelle.
+
+Interdit :
+
+- fausses destinations, faux prix, fausses tâches, faux horaires ou faux statuts ;
+- énorme card grise générique comme seule composition ;
+- page composée uniquement d’un titre + deux lignes + un grand mur blanc ;
+- décoration aléatoire ajoutée uniquement pour remplir l’espace.
+
+Une préfiguration doit indiquer la **forme** du contenu futur, jamais inventer son **contenu**.
+
+---
+
+## 31. ZONES SÛRES & ANTI-CHEVAUCHEMENT
+
+La non-collision est une règle de structure, pas une correction visuelle ponctuelle.
+
+> **Aucun élément décoratif en position absolue ne doit dépendre d’une hauteur ou d’une largeur de texte dynamique pour ne pas chevaucher le contenu.**
+
+### Zones fonctionnelles protégées
+
+Les zones suivantes sont toujours prioritaires et doivent rester libres :
+
+- titre et sous-titre ;
+- paragraphes dynamiques ;
+- CTA ;
+- formulaires ;
+- données ;
+- listes ;
+- résultats générés ;
+- messages d’erreur, loading et success.
+
+Loutres, KrewMarks, blobs, post-it et annotations peuvent être absolus uniquement lorsqu’une zone décorative sûre est explicitement réservée ou lorsque leur ancrage dépend d’un élément de taille maîtrisée.
+
+### Règles pratiques
+
+- ne pas résoudre la présence d’une loutre avec un `padding-right` arbitraire important ;
+- si le titre peut passer sur deux ou trois lignes, la décoration doit rester valide ;
+- un post-it dynamique doit rester dans le flux ou dans une zone dont la hauteur est réservée ;
+- une flèche absolue doit conserver une cible claire sur tous les breakpoints ;
+- tout contenu utilisateur ou généré doit pouvoir s’allonger sans collision ;
+- une correction locale de chevauchement ne doit jamais introduire une nouvelle valeur magique uniquement valable pour un viewport.
+
+---
+
+## 32. TABLETTE — FORMAT DE PREMIER RANG
+
+La tablette n’est ni un mobile élargi ni un desktop réduit.
+
+Les contrôles visuels prioritaires sont **768px, 834px et 1024px** lorsque le layout change significativement.
+
+À largeur tablette :
+
+- les pages doivent exploiter l’espace sans étirer artificiellement les lignes de texte ;
+- les compositions à deux zones sont autorisées et souvent préférables pour les pages d’interaction ou logistique ;
+- les contenus `Product Narrow` ne doivent pas sembler perdus au centre d’un grand écran ;
+- les loutres et annotations doivent rester liées au contenu qu’elles commentent ;
+- aucune composition desktop absolue ne doit être simplement réduite proportionnellement ;
+- portrait et paysage doivent rester lisibles sans overflow ni grandes zones mortes accidentelles.
+
+Un écran validé en 390px et 1440px n’est **pas** considéré comme validé si sa version tablette est déséquilibrée.
+
+---
+
+## 33. DENSITÉ & RYTHME DE PAGE
+
+Deux erreurs sont à éviter avec la même vigilance :
+
+- **trop vide** : contenu minuscule entouré de murs blancs accidentels ;
+- **trop dense** : suite continue d’éléments de même poids sans respiration ni chapitre identifiable.
+
+### Page courte
+
+Une page courte peut rester sobre, mais son espace doit être structuré par le contenu réel, une composition, une préfiguration d’état ou un élément de marque pertinent.
+
+### Page longue
+
+Une page longue doit créer un rythme perceptible : chapitres, changements de densité, surfaces légères, photographie ou composition.
+
+Ne jamais ajouter des cards uniquement pour créer ce rythme.
+
+### Principe
+
+> **Espace respirant = espace qui améliore la compréhension. Vide accidentel = espace qui fait paraître le produit incomplet.**
+
+---
+
+## 34. INTERDITS STRUCTURELS
+
+En complément des règles anti-AI-slop, les pratiques suivantes sont interdites dans les pages produit :
+
+- créer un deuxième langage graphique local pour une seule page ;
+- ajouter une card pour résoudre un problème de composition qui peut être résolu par grille, espacement ou hiérarchie ;
+- ajouter une décoration uniquement pour combler un vide ;
+- positionner un élément décoratif absolu au-dessus d’un contenu dynamique sans zone sûre ;
+- choisir une largeur arbitraire page par page sans se rattacher à une famille de composition ;
+- répéter le même pattern visuel sur toutes les pages au nom de la cohérence ;
+- transformer une page simple en dashboard pour occuper l’espace ;
+- transformer une page dense en empilement de cards ;
+- ajouter un correctif CSS dont l’unique rôle est d’écraser un autre correctif CSS existant sans traiter la source du conflit.
+
+---
+
+## 35. GOUVERNANCE DU DESIGN & CSS
+
+`DESIGN.md` est la **source de vérité visuelle** du repository.
+
+Une correction UX/UI doit d’abord être rattachée à une règle de ce document ou à une exception explicitement justifiée.
+
+### Principe de correction
+
+> **Corriger à la source plutôt qu’empiler des overrides.**
+
+Avant d’ajouter une nouvelle feuille de style, une nouvelle classe de patch ou une nouvelle variante locale :
+
+1. identifier le composant ou la règle réellement responsable ;
+2. vérifier si le problème existe sur plusieurs pages ;
+3. corriger le composant partagé lorsque c’est bien la cause ;
+4. préserver les pages déjà correctes ;
+5. ne créer une exception locale que si le besoin est réellement propre à la page.
+
+Les couches successives de type `review`, `polish`, `refinement`, `wavefix`, `alignment` ne doivent pas devenir la méthode normale de correction.
+
+Une nouvelle couche CSS transverse n’est autorisée que si :
+
+- elle possède un rôle unique et documenté ;
+- elle remplace ou consolide les règles qu’elle rend obsolètes ;
+- elle ne sert pas seulement à gagner la cascade CSS ;
+- son impact mobile, tablette et desktop est vérifié.
+
+### Validation visuelle obligatoire
+
+Pour toute modification significative d’une page du parcours, vérifier au minimum :
+
+- 390×844 ;
+- 834×1112 ;
+- 1440×1000 ;
+- état pertinent parmi loading / empty / locked / loaded / error / success ;
+- absence d’overflow horizontal ;
+- absence de collision texte / loutre / post-it / KrewMark ;
+- cohérence avec les pages adjacentes du parcours.
+
+Une page n’est pas considérée terminée uniquement parce qu’elle est correcte isolément : **elle doit rester cohérente lorsqu’elle est comparée aux pages avant et après elle.**
