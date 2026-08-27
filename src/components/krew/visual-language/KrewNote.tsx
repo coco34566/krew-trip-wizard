@@ -27,6 +27,12 @@ const tapeTone: Record<KrewNoteTone, string> = {
   plum: "bg-[#dbe5df]/86",
 };
 
+function clampRotation(rotation: KrewNoteRotation): KrewNoteRotation {
+  if (rotation < -2) return -2;
+  if (rotation > 2) return 2;
+  return rotation;
+}
+
 function paperShape(variant: KrewNoteVariant, tone: KrewNoteTone, rotation: KrewNoteRotation) {
   if (variant === "torn") {
     return "[clip-path:polygon(1%_4%,97%_1%,99%_88%,93%_94%,85%_91%,76%_97%,65%_93%,54%_98%,43%_92%,31%_97%,20%_92%,8%_96%,2%_90%)]";
@@ -41,14 +47,14 @@ function paperShape(variant: KrewNoteVariant, tone: KrewNoteTone, rotation: Krew
 function tapeGeometry(tone: KrewNoteTone, rotation: KrewNoteRotation, variant: KrewNoteVariant) {
   const side = tone === "plum" ? "left-[42%]" : tone === "sage" ? "left-[56%]" : "left-1/2";
   const width = variant === "photo" ? "w-14 sm:w-16" : rotation === 0 ? "w-12 sm:w-14" : "w-11 sm:w-[3.25rem]";
-  const angle = rotation > 0 ? "rotate-[-4deg]" : rotation < 0 ? "rotate-[3deg]" : "rotate-[-2deg]";
+  const angle = rotation > 0 ? "rotate-[-3deg]" : rotation < 0 ? "rotate-[2deg]" : "rotate-[-2deg]";
   return cn(side, width, angle);
 }
 
 function defaultSize(variant: KrewNoteVariant, tone: KrewNoteTone, rotation: KrewNoteRotation): KrewNoteSize {
   if (variant === "tape" && tone === "sage") return "wide";
   if (variant === "torn") return "lg";
-  if (tone === "plum") return rotation > 0 ? "md" : "sm";
+  if (tone === "plum") return "sm";
   if (tone === "cream" && rotation >= 2) return "sm";
   return "md";
 }
@@ -57,7 +63,7 @@ export function KrewNote({
   children,
   variant = "sticky",
   tone = "cream",
-  rotation = -2,
+  rotation = -1,
   size,
   className,
 }: {
@@ -68,9 +74,11 @@ export function KrewNote({
   size?: KrewNoteSize;
   className?: string;
 }) {
+  const safeRotation = clampRotation(rotation);
+
   if (variant === "margin") {
     return (
-      <span className={cn("inline-block max-w-[15rem] font-handwriting text-[1.05rem] leading-[1.12] text-primary", className)} style={{ transform: `rotate(${rotation}deg)` }}>
+      <span className={cn("inline-block max-w-[15rem] font-handwriting text-[1.05rem] leading-[1.12] text-primary", className)} style={{ transform: `rotate(${safeRotation}deg)` }}>
         {children}
       </span>
     );
@@ -85,16 +93,13 @@ export function KrewNote({
           "rounded-[45%_55%_48%_52%/55%_45%_55%_45%]",
           className,
         )}
-        style={{ transform: `rotate(${rotation}deg)` }}
+        style={{ transform: `rotate(${safeRotation}deg)` }}
       >
         {children}
       </span>
     );
   }
 
-  // Backward-compatible: a few polaroids used variant="tape" with transparent helper text
-  // to render only a decorative strip. Keep those strips as strips while true taped notes
-  // (for example "Style & ambiance") remain real paper notes with tape above.
   const legacyStrip = variant === "tape" && /text-transparent|select-none/.test(className ?? "");
   const stripOnly = variant === "tape-strip" || legacyStrip;
 
@@ -104,7 +109,7 @@ export function KrewNote({
         aria-hidden
         className={cn(
           "inline-block h-[1.05rem] w-12 border-x border-white/25 bg-[#dce6df]/90 shadow-[0_2px_4px_rgba(60,35,50,.04)] sm:h-[1.15rem] sm:w-14",
-          rotation > 0 ? "rotate-[-4deg]" : rotation < 0 ? "rotate-[3deg]" : "rotate-[-2deg]",
+          safeRotation > 0 ? "rotate-[-3deg]" : safeRotation < 0 ? "rotate-[2deg]" : "rotate-[-2deg]",
           className,
         )}
       >
@@ -114,8 +119,8 @@ export function KrewNote({
   }
 
   const physicalPaper = variant === "sticky" || variant === "torn" || variant === "photo" || variant === "callout" || variant === "tape";
-  const shape = paperShape(variant, tone, rotation);
-  const resolvedSize = size ?? defaultSize(variant, tone, rotation);
+  const shape = paperShape(variant, tone, safeRotation);
+  const resolvedSize = size ?? defaultSize(variant, tone, safeRotation);
 
   return (
     <div
@@ -123,14 +128,14 @@ export function KrewNote({
       data-krew-note-tone={tone}
       data-krew-note-variant={variant}
       className={cn(
-        "relative isolate inline-block shadow-[0_7px_20px_rgba(60,35,50,.09)]",
+        "relative isolate inline-block shadow-[0_6px_16px_rgba(60,35,50,.075)]",
         tones[tone],
         sizes[resolvedSize],
         shape,
-        variant === "photo" && "shadow-[0_5px_16px_rgba(60,35,50,.12)]",
+        variant === "photo" && "shadow-[0_5px_14px_rgba(60,35,50,.10)]",
         className,
       )}
-      style={{ transform: `rotate(${rotation}deg)` }}
+      style={{ transform: `rotate(${safeRotation}deg)` }}
     >
       {physicalPaper ? (
         <span
@@ -138,7 +143,7 @@ export function KrewNote({
           className={cn(
             "absolute -top-2.5 z-20 h-[1.05rem] -translate-x-1/2 border-x border-white/25 shadow-[0_2px_4px_rgba(60,35,50,.04)] sm:-top-3 sm:h-[1.15rem]",
             tapeTone[tone],
-            tapeGeometry(tone, rotation, variant),
+            tapeGeometry(tone, safeRotation, variant),
           )}
         />
       ) : null}
@@ -156,7 +161,7 @@ export function KrewCallout({ children, direction = "right", className }: { chil
         : "arrow-curved-right";
 
   return <div className={cn("relative inline-flex items-center gap-1", direction === "left" && "flex-row-reverse", direction === "down" && "flex-col", className)}>
-    <KrewNote variant="margin" rotation={-2}>{children}</KrewNote>
+    <KrewNote variant="margin" rotation={-1}>{children}</KrewNote>
     <KrewMark type={arrowType} tone="sage" size="md" />
   </div>;
 }
