@@ -38,7 +38,7 @@ export function KrewMark({type,tone="plum",size="md",rotation=0,decorative=true,
   const isAbsoluteTitleUnderline = type === "underline-wave" && className?.includes("absolute");
   const style: CSSProperties = {
     ...(isAbsoluteTitleUnderline ? TITLE_UNDERLINE_STYLE[size] : null),
-    rotate: `${rotation}deg`,
+    transform: `rotate(${rotation}deg)`,
   };
   return <svg viewBox="0 0 100 64" preserveAspectRatio={isAbsoluteTitleUnderline ? "none" : undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}><MarkShape type={type} dashed={dashed}/></svg>
 }
