@@ -1,0 +1,22 @@
+name: design
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  memi:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: memi-design/memi@5fcbf39e1255af0c14c5a17ba6bde8cf1206e525 # v2.7.9
+        with:
+          version: "2.7.9"
+          report: true
+          upload-sarif: true
