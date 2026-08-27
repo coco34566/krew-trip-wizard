@@ -60,6 +60,15 @@ const LOCKED_JOURNEY_SECTIONS = {
     requirement: "Il se débloquera quand les préférences nécessaires du groupe auront été renseignées.",
     realSelector: "#hub-profile",
   },
+  destination: {
+    title: "Destination",
+    otter: "/brand/otter-states/destination.png",
+    description: "Les destinations seront proposées à partir du profil et des envies du groupe.",
+    requirement: "Choisis d’abord le profil du voyage pour débloquer les destinations.",
+    realSelector: "#hub-destination > div.flex.flex-wrap.items-end.justify-between",
+    actionSection: "profile",
+    actionLabel: "Choisir le profil du voyage",
+  },
   accommodation: {
     title: "Hébergement",
     otter: "/brand/otter-states/accommodation.png",
@@ -99,6 +108,21 @@ function getCachedTripName(queryClient: QueryClient, tripId: string | null) {
   return null;
 }
 
+function deriveTripNameFromVisibleHeader() {
+  const questionnaireHeading = document.querySelector<HTMLElement>(
+    'main[class*="max-w-[820px]"] > div.space-y-3.relative h1',
+  );
+  const text = questionnaireHeading?.textContent?.trim() ?? "";
+  const quoted = text.match(/«\s*(.+?)\s*»/);
+  if (quoted?.[1]) return quoted[1].trim();
+
+  const availabilityMain = document.querySelector<HTMLElement>(
+    'main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])',
+  );
+  if (availabilityMain && text && !/questionnaire|réponses/i.test(text)) return text;
+  return null;
+}
+
 function JourneyChapterDomMetadata({ queryClient }: { queryClient: QueryClient }) {
   const location = useRouterState({ select: (state) => state.location });
 
@@ -111,7 +135,7 @@ function JourneyChapterDomMetadata({ queryClient }: { queryClient: QueryClient }
     let observer: MutationObserver | null = null;
 
     const sync = () => {
-      const tripName = getCachedTripName(queryClient, tripId);
+      const tripName = getCachedTripName(queryClient, tripId) ?? deriveTripNameFromVisibleHeader();
       if (!tripName) return;
 
       document
@@ -120,10 +144,11 @@ function JourneyChapterDomMetadata({ queryClient }: { queryClient: QueryClient }
         )
         .forEach((section) => section.setAttribute("data-krew-trip-name", tripName));
 
-      const starHeader = document.querySelector<HTMLElement>(
-        'main[class*="max-w-[820px]"] > div.space-y-2.relative:has(h1 > span.relative.inline-block)',
-      );
-      starHeader?.setAttribute("data-krew-trip-name", tripName);
+      document
+        .querySelectorAll<HTMLElement>(
+          'main[class*="max-w-[820px]"] > div.space-y-3.relative, main[class*="max-w-[820px]"] > div.space-y-2.relative:has(h1 > span.relative.inline-block)',
+        )
+        .forEach((header) => header.setAttribute("data-krew-trip-name", tripName));
     };
 
     frame = window.requestAnimationFrame(() => {
@@ -197,7 +222,7 @@ function JourneyLockedFallbackPortal({ queryClient }: { queryClient: QueryClient
           <div className="relative mt-2 inline-block max-w-full pb-2">
             <h2
               id={`locked-${lockedSection}-title`}
-              className="font-display text-[40px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground/80 sm:text-[52px] lg:text-[60px]"
+              className="font-display font-normal leading-[0.98] tracking-[-0.02em] text-foreground"
             >
               {config.title}
             </h2>
@@ -205,10 +230,10 @@ function JourneyLockedFallbackPortal({ queryClient }: { queryClient: QueryClient
               type="underline-wave"
               tone="sage"
               size="md"
-              className="pointer-events-none absolute -bottom-1 left-1 max-w-[80%] opacity-65"
+              className="pointer-events-none absolute -bottom-1 left-0 max-w-[80%] opacity-70"
             />
           </div>
-          <p className="mt-5 max-w-[590px] text-[17px] leading-[1.5] text-muted-foreground sm:text-[19px] lg:text-[20px]">
+          <p className="mt-5 max-w-[590px] text-[17px] leading-[1.5] text-muted-foreground sm:text-[19px]">
             {config.description}
           </p>
         </div>
@@ -219,11 +244,21 @@ function JourneyLockedFallbackPortal({ queryClient }: { queryClient: QueryClient
           className="pointer-events-none mt-1 h-auto w-full max-w-[76px] justify-self-end object-contain opacity-90 sm:max-w-[108px] lg:max-w-[120px]"
         />
 
-        <div
-          data-journey-locked-section={lockedSection}
-          className="col-span-2 mt-1 max-w-[560px] rounded-[16px] border border-sage/20 bg-sage/[0.07] px-4 py-3 text-[15px] leading-[1.5] text-muted-foreground sm:text-[16px]"
-        >
-          {config.requirement}
+        <div className="col-span-2 max-w-[560px] space-y-3">
+          <div
+            data-journey-locked-section={lockedSection}
+            className="rounded-[16px] border border-sage/20 bg-sage/[0.07] px-4 py-3 text-[15px] leading-[1.5] text-muted-foreground sm:text-[16px]"
+          >
+            {config.requirement}
+          </div>
+          {"actionSection" in config && tripId ? (
+            <a
+              href={`/trips/${tripId}?view=voyage&section=${config.actionSection}`}
+              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              {config.actionLabel}
+            </a>
+          ) : null}
         </div>
       </div>
     </section>,
