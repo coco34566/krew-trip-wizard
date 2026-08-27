@@ -19,6 +19,7 @@ import journeyPagesPolishCss from "../krew-journey-pages-polish.css?url";
 import journeyPagesRefinementCss from "../krew-journey-pages-refinement.css?url";
 import journeyPagesRefinementWavefixCss from "../krew-journey-pages-refinement-wavefix.css?url";
 import visualBaselineCss from "../krew-visual-baseline.css?url";
+import journeyAlignmentCss from "../krew-journey-alignment.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/krew/CookieConsent";
@@ -84,7 +85,63 @@ const LOCKED_JOURNEY_SECTIONS = {
 
 type LockedJourneySection = keyof typeof LOCKED_JOURNEY_SECTIONS;
 
-function JourneyLockedFallbackPortal() {
+function getCachedTripName(queryClient: QueryClient, tripId: string | null) {
+  if (!tripId) return null;
+  const candidates = [
+    queryClient.getQueryData<any>(["trip", tripId]),
+    queryClient.getQueryData<any>(["trip-availability", tripId]),
+    queryClient.getQueryData<any>(["star-prefs", tripId]),
+  ];
+  for (const candidate of candidates) {
+    const name = candidate?.trip?.name;
+    if (typeof name === "string" && name.trim()) return name.trim();
+  }
+  return null;
+}
+
+function JourneyChapterDomMetadata({ queryClient }: { queryClient: QueryClient }) {
+  const location = useRouterState({ select: (state) => state.location });
+
+  useEffect(() => {
+    const match = location.pathname.match(/^\/trips\/([^/]+)/);
+    const tripId = match?.[1] ?? null;
+    if (!tripId) return;
+
+    let frame = 0;
+    let observer: MutationObserver | null = null;
+
+    const sync = () => {
+      const tripName = getCachedTripName(queryClient, tripId);
+      if (!tripName) return;
+
+      document
+        .querySelectorAll<HTMLElement>(
+          "#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing",
+        )
+        .forEach((section) => section.setAttribute("data-krew-trip-name", tripName));
+
+      const starHeader = document.querySelector<HTMLElement>(
+        'main[class*="max-w-[820px]"] > div.space-y-2.relative:has(h1 > span.relative.inline-block)',
+      );
+      starHeader?.setAttribute("data-krew-trip-name", tripName);
+    };
+
+    frame = window.requestAnimationFrame(() => {
+      sync();
+      observer = new MutationObserver(sync);
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, [location.href, location.pathname, queryClient]);
+
+  return null;
+}
+
+function JourneyLockedFallbackPortal({ queryClient }: { queryClient: QueryClient }) {
   const location = useRouterState({ select: (state) => state.location });
   const [host, setHost] = useState<HTMLElement | null>(null);
 
@@ -94,6 +151,8 @@ function JourneyLockedFallbackPortal() {
     : null;
   const config = lockedSection ? LOCKED_JOURNEY_SECTIONS[lockedSection] : null;
   const isTripJourneyRoute = /^\/trips\/[^/]+\/?$/.test(location.pathname);
+  const tripId = location.pathname.match(/^\/trips\/([^/]+)/)?.[1] ?? null;
+  const tripName = getCachedTripName(queryClient, tripId);
 
   useEffect(() => {
     if (!config || !lockedSection || !isTripJourneyRoute) {
@@ -132,8 +191,8 @@ function JourneyLockedFallbackPortal() {
     >
       <div className="grid max-w-[860px] grid-cols-[minmax(0,1fr)_76px] items-start gap-x-4 gap-y-5 sm:grid-cols-[minmax(0,1fr)_108px] sm:gap-x-8 lg:grid-cols-[minmax(0,1fr)_120px] lg:gap-x-10">
         <div className="min-w-0">
-          <p className="font-sans text-[13px] font-semibold uppercase tracking-[0.08em] text-primary/75 sm:text-sm">
-            Étape verrouillée
+          <p className="font-sans text-[13px] font-semibold tracking-[0.02em] text-muted-foreground">
+            {tripName ?? "Étape verrouillée"}
           </p>
           <div className="relative mt-2 inline-block max-w-full pb-2">
             <h2
@@ -191,6 +250,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: journeyPagesRefinementCss },
       { rel: "stylesheet", href: journeyPagesRefinementWavefixCss },
       { rel: "stylesheet", href: visualBaselineCss },
+      { rel: "stylesheet", href: journeyAlignmentCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" },
@@ -206,5 +266,5 @@ function RootShell({ children }: { children: ReactNode }) { return <html lang="f
 function RootComponent() {
   const { queryClient } = Route.useRouteContext(); const router = useRouter();
   useEffect(() => { const { data } = supabase.auth.onAuthStateChange((event) => { if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return; router.invalidate(); if (event !== "SIGNED_OUT") queryClient.invalidateQueries(); }); return () => data.subscription.unsubscribe(); }, [router, queryClient]);
-  return <QueryClientProvider client={queryClient}><Outlet /><JourneyLockedFallbackPortal /><CookieConsent /><Toaster position="top-center" richColors /></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><Outlet /><JourneyChapterDomMetadata queryClient={queryClient} /><JourneyLockedFallbackPortal queryClient={queryClient} /><CookieConsent /><Toaster position="top-center" richColors /></QueryClientProvider>;
 }
