@@ -19,6 +19,7 @@ import journeyPagesPolishCss from "../krew-journey-pages-polish.css?url";
 import journeyPagesRefinementCss from "../krew-journey-pages-refinement.css?url";
 import journeyPagesRefinementWavefixCss from "../krew-journey-pages-refinement-wavefix.css?url";
 import visualBaselineCss from "../krew-visual-baseline.css?url";
+import journeyAlignmentCss from "../krew-journey-alignment.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/krew/CookieConsent";
@@ -84,7 +85,63 @@ const LOCKED_JOURNEY_SECTIONS = {
 
 type LockedJourneySection = keyof typeof LOCKED_JOURNEY_SECTIONS;
 
-function JourneyLockedFallbackPortal() {
+function getCachedTripName(queryClient: QueryClient, tripId: string | null) {
+  if (!tripId) return null;
+  const candidates = [
+    queryClient.getQueryData<any>(["trip", tripId]),
+    queryClient.getQueryData<any>(["trip-availability", tripId]),
+    queryClient.getQueryData<any>(["star-prefs", tripId]),
+  ];
+  for (const candidate of candidates) {
+    const name = candidate?.trip?.name;
+    if (typeof name === "string" && name.trim()) return name.trim();
+  }
+  return null;
+}
+
+function JourneyChapterDomMetadata({ queryClient }: { queryClient: QueryClient }) {
+  const location = useRouterState({ select: (state) => state.location });
+
+  useEffect(() => {
+    const match = location.pathname.match(/^\/trips\/([^/]+)/);
+    const tripId = match?.[1] ?? null;
+    if (!tripId) return;
+
+    let frame = 0;
+    let observer: MutationObserver | null = null;
+
+    const sync = () => {
+      const tripName = getCachedTripName(queryClient, tripId);
+      if (!tripName) return;
+
+      document
+        .querySelectorAll<HTMLElement>(
+          "#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing",
+        )
+        .forEach((section) => section.setAttribute("data-krew-trip-name", tripName));
+
+      const starHeader = document.querySelector<HTMLElement>(
+        'main[class*="max-w-[820px]"] > div.space-y-2.relative:has(h1 > span.relative.inline-block)',
+      );
+      starHeader?.setAttribute("data-krew-trip-name", tripName);
+    };
+
+    frame = window.requestAnimationFrame(() => {
+      sync();
+      observer = new MutationObserver(sync);
+      observer.observe(document.body, { childList: true, subtree: true });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, [location.href, location.pathname, queryClient]);
+
+  return null;
+}
+
+function JourneyLockedFallbackPortal({ queryClient }: { queryClient: QueryClient }) {
   const location = useRouterState({ select: (state) => state.location });
   const [host, setHost] = useState<HTMLElement | null>(null);
 
@@ -94,6 +151,8 @@ function JourneyLockedFallbackPortal() {
     : null;
   const config = lockedSection ? LOCKED_JOURNEY_SECTIONS[lockedSection] : null;
   const isTripJourneyRoute = /^\/trips\/[^/]+\/?$/.test(location.pathname);
+  const tripId = location.pathname.match(/^\/trips\/([^/]+)/)?.[1] ?? null;
+  const tripName = getCachedTripName(queryClient, tripId);
 
   useEffect(() => {
     if (!config || !lockedSection || !isTripJourneyRoute) {
@@ -126,37 +185,44 @@ function JourneyLockedFallbackPortal() {
 
   return createPortal(
     <section
-      data-journey-locked-section={lockedSection}
+      data-journey-locked-state={lockedSection}
       aria-labelledby={`locked-${lockedSection}-title`}
-      className="relative mt-6 overflow-hidden rounded-[24px] border border-sage/25 bg-sage/[0.045] px-6 py-7 sm:mt-8 sm:px-8 sm:py-8"
+      className="mt-6 py-2 sm:mt-8 sm:py-3"
     >
-      <img
-        src={config.otter}
-        alt=""
-        className="pointer-events-none absolute right-5 top-5 w-[80px] h-auto object-contain opacity-90 sm:right-7 sm:top-7 sm:w-[96px] lg:w-[104px]"
-      />
-      <div className="max-w-[640px] pr-[92px] sm:pr-[120px]">
-        <p className="font-sans text-[13px] font-semibold uppercase tracking-[0.08em] text-primary/75 sm:text-sm">
-          Étape verrouillée
-        </p>
-        <div className="relative mt-2 inline-block pb-2">
-          <h2
-            id={`locked-${lockedSection}-title`}
-            className="font-display text-[40px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground/80 sm:text-[52px] lg:text-[60px]"
-          >
-            {config.title}
-          </h2>
-          <KrewMark
-            type="underline-wave"
-            tone="sage"
-            size="md"
-            className="absolute left-1 -bottom-1 pointer-events-none opacity-65"
-          />
+      <div className="grid max-w-[860px] grid-cols-[minmax(0,1fr)_76px] items-start gap-x-4 gap-y-5 sm:grid-cols-[minmax(0,1fr)_108px] sm:gap-x-8 lg:grid-cols-[minmax(0,1fr)_120px] lg:gap-x-10">
+        <div className="min-w-0">
+          <p className="font-sans text-[13px] font-semibold tracking-[0.02em] text-muted-foreground">
+            {tripName ?? "Étape verrouillée"}
+          </p>
+          <div className="relative mt-2 inline-block max-w-full pb-2">
+            <h2
+              id={`locked-${lockedSection}-title`}
+              className="font-display text-[40px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground/80 sm:text-[52px] lg:text-[60px]"
+            >
+              {config.title}
+            </h2>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="md"
+              className="pointer-events-none absolute -bottom-1 left-1 max-w-[80%] opacity-65"
+            />
+          </div>
+          <p className="mt-5 max-w-[590px] text-[17px] leading-[1.5] text-muted-foreground sm:text-[19px] lg:text-[20px]">
+            {config.description}
+          </p>
         </div>
-        <p className="mt-5 max-w-[540px] text-[18px] leading-[1.5] text-muted-foreground sm:text-[20px]">
-          {config.description}
-        </p>
-        <div className="mt-6 max-w-[520px] rounded-[20px] border border-sage/25 bg-background/80 px-5 py-4 text-[16px] leading-[1.5] text-muted-foreground sm:text-[17px]">
+
+        <img
+          src={config.otter}
+          alt=""
+          className="pointer-events-none mt-1 h-auto w-full max-w-[76px] justify-self-end object-contain opacity-90 sm:max-w-[108px] lg:max-w-[120px]"
+        />
+
+        <div
+          data-journey-locked-section={lockedSection}
+          className="col-span-2 mt-1 max-w-[560px] rounded-[16px] border border-sage/20 bg-sage/[0.07] px-4 py-3 text-[15px] leading-[1.5] text-muted-foreground sm:text-[16px]"
+        >
           {config.requirement}
         </div>
       </div>
@@ -184,6 +250,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: journeyPagesRefinementCss },
       { rel: "stylesheet", href: journeyPagesRefinementWavefixCss },
       { rel: "stylesheet", href: visualBaselineCss },
+      { rel: "stylesheet", href: journeyAlignmentCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" },
@@ -199,5 +266,5 @@ function RootShell({ children }: { children: ReactNode }) { return <html lang="f
 function RootComponent() {
   const { queryClient } = Route.useRouteContext(); const router = useRouter();
   useEffect(() => { const { data } = supabase.auth.onAuthStateChange((event) => { if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return; router.invalidate(); if (event !== "SIGNED_OUT") queryClient.invalidateQueries(); }); return () => data.subscription.unsubscribe(); }, [router, queryClient]);
-  return <QueryClientProvider client={queryClient}><Outlet /><JourneyLockedFallbackPortal /><CookieConsent /><Toaster position="top-center" richColors /></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><Outlet /><JourneyChapterDomMetadata queryClient={queryClient} /><JourneyLockedFallbackPortal queryClient={queryClient} /><CookieConsent /><Toaster position="top-center" richColors /></QueryClientProvider>;
 }
