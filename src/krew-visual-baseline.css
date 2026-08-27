@@ -1,6 +1,9 @@
 /* KREW visual baseline — explicit, measured rules derived from Memi + Codex Design Audit
- * and the real Playwright captures. This file intentionally centralises the first
- * cross-page visual contract instead of adding page-by-page patches.
+ * and the real Playwright captures. This file centralises the cross-page visual contract.
+ *
+ * IMPORTANT — zoom pages are content canvases, not cards.
+ * A whole page/section must not be enclosed in a decorative frame by default.
+ * Borders are reserved for local functional units: choices, alerts, summaries, controls.
  */
 
 :root {
@@ -17,7 +20,6 @@
   --krew-inset-radius: 20px;
   --krew-control-radius: 18px;
   --krew-control-height: 56px;
-  --krew-frame-border: color-mix(in oklch, var(--border) 72%, transparent);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -63,6 +65,7 @@ main.max-w-5xl :is(
   #hub-logistics,
   #hub-transports,
   #hub-activities-plan,
+  #hub-tasks-org,
   #hub-packing
 ) h2.font-display:first-of-type {
   font-size: var(--krew-page-title-mobile) !important;
@@ -79,6 +82,7 @@ main.max-w-5xl :is(
   #hub-logistics,
   #hub-transports,
   #hub-activities-plan,
+  #hub-tasks-org,
   #hub-packing
 ) h2.font-display:first-of-type ~ p {
   margin-top: 20px !important;
@@ -95,6 +99,7 @@ main.max-w-5xl :is(
     #hub-logistics,
     #hub-transports,
     #hub-activities-plan,
+    #hub-tasks-org,
     #hub-packing
   ) h2.font-display:first-of-type {
     font-size: var(--krew-page-title-tablet) !important;
@@ -107,6 +112,7 @@ main.max-w-5xl :is(
     #hub-logistics,
     #hub-transports,
     #hub-activities-plan,
+    #hub-tasks-org,
     #hub-packing
   ) h2.font-display:first-of-type ~ p {
     font-size: 20px !important;
@@ -121,6 +127,7 @@ main.max-w-5xl :is(
     #hub-logistics,
     #hub-transports,
     #hub-activities-plan,
+    #hub-tasks-org,
     #hub-packing
   ) h2.font-display:first-of-type {
     font-size: var(--krew-page-title-desktop) !important;
@@ -128,59 +135,70 @@ main.max-w-5xl :is(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Chapter surfaces — one frame contract across every journey page            */
+/* Zoom-page rule: the page itself is NOT a card                              */
 /* -------------------------------------------------------------------------- */
 
+/* Embedded journey chapters opened from Détail du voyage. Remove the outer
+ * decorative frame/surface/padding while preserving all inner functional cards. */
 main.max-w-5xl :is(
   #hub-dates,
   #hub-profile,
   #hub-destination,
   #hub-logistics,
   #hub-transports,
-  #hub-activities-plan
-),
-[data-journey-locked-section] {
-  border: 1px solid var(--krew-frame-border) !important;
-  border-radius: var(--krew-card-radius) !important;
-  padding: 24px !important;
+  #hub-activities-plan,
+  #hub-tasks-org,
+  #hub-packing
+) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
-/* Top-level functional frames on dedicated journey pages follow the exact same
- * border/radius contract. Inner controls/cards keep their own inset hierarchy. */
-main[class*="max-w-[820px]"] > section,
-main.space-y-8:has(> div.space-y-2 > p.font-mono) > section {
-  border-color: var(--krew-frame-border) !important;
-  border-width: 1px !important;
-  border-radius: var(--krew-card-radius) !important;
+/* Keep enough top/bottom rhythm once the card-like wrapper is removed. */
+main.max-w-5xl :is(
+  #hub-dates,
+  #hub-profile,
+  #hub-destination,
+  #hub-logistics,
+  #hub-transports,
+  #hub-activities-plan,
+  #hub-tasks-org,
+  #hub-packing
+) {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+/* Availability is a dedicated zoom route. Its calendar is the content of the
+ * page, not a card inside another page-sized card. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > section {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Locked chapters remain a compact state component because the border carries
+ * semantic grouping. They must never become a page-sized empty frame. */
+[data-journey-locked-section] {
+  max-width: 720px;
+  min-height: 0 !important;
+  border: 1px solid color-mix(in oklch, var(--sage) 30%, transparent) !important;
+  border-radius: var(--krew-inset-radius) !important;
+  box-shadow: none !important;
+  padding: 20px !important;
 }
 
 @media (min-width: 768px) {
-  main.max-w-5xl :is(
-    #hub-dates,
-    #hub-profile,
-    #hub-destination,
-    #hub-logistics,
-    #hub-transports,
-    #hub-activities-plan
-  ),
   [data-journey-locked-section] {
-    padding: 28px !important;
-  }
-}
-
-@media (min-width: 1200px) {
-  main.max-w-5xl :is(
-    #hub-dates,
-    #hub-profile,
-    #hub-destination,
-    #hub-logistics,
-    #hub-transports,
-    #hub-activities-plan
-  ),
-  [data-journey-locked-section] {
-    padding: 32px !important;
+    padding: 24px !important;
   }
 }
 
@@ -193,7 +211,9 @@ main.max-w-5xl :is(
   #hub-destination,
   #hub-logistics,
   #hub-transports,
-  #hub-activities-plan
+  #hub-activities-plan,
+  #hub-tasks-org,
+  #hub-packing
 ) img[src*="/brand/otter-states/"] {
   width: 80px !important;
   max-width: 80px !important;
@@ -206,10 +226,11 @@ main.max-w-5xl :is(
   #hub-destination,
   #hub-logistics,
   #hub-transports,
-  #hub-activities-plan
+  #hub-activities-plan,
+  #hub-tasks-org
 ) > div.absolute:has(img[src*="/brand/otter-states/"]) {
-  top: 20px !important;
-  right: 20px !important;
+  top: 12px !important;
+  right: 0 !important;
 }
 
 @media (min-width: 768px) {
@@ -218,7 +239,9 @@ main.max-w-5xl :is(
     #hub-destination,
     #hub-logistics,
     #hub-transports,
-    #hub-activities-plan
+    #hub-activities-plan,
+    #hub-tasks-org,
+    #hub-packing
   ) img[src*="/brand/otter-states/"] {
     width: 96px !important;
     max-width: 96px !important;
@@ -231,7 +254,9 @@ main.max-w-5xl :is(
     #hub-destination,
     #hub-logistics,
     #hub-transports,
-    #hub-activities-plan
+    #hub-activities-plan,
+    #hub-tasks-org,
+    #hub-packing
   ) img[src*="/brand/otter-states/"] {
     width: 104px !important;
     max-width: 104px !important;
@@ -239,15 +264,16 @@ main.max-w-5xl :is(
 }
 
 /* -------------------------------------------------------------------------- */
-/* Destination precondition: compact, intentional, aligned                    */
+/* Destination precondition: semantic block, but not another heavy frame      */
 /* -------------------------------------------------------------------------- */
 
 #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
   max-width: 680px;
-  margin: 28px auto 8px !important;
-  padding: 28px 24px !important;
-  border: 1px solid var(--krew-frame-border) !important;
+  margin: 28px 0 8px !important;
+  padding: 24px !important;
+  border: 0 !important;
   border-radius: var(--krew-inset-radius) !important;
+  background: color-mix(in oklch, var(--sage) 8%, transparent) !important;
   text-align: left !important;
 }
 
@@ -275,6 +301,10 @@ main.max-w-5xl :is(
 }
 
 @media (max-width: 639px) {
+  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
+    padding: 20px !important;
+  }
+
   #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > a,
   #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > button {
     width: 100%;
@@ -283,7 +313,7 @@ main.max-w-5xl :is(
 
 @media (min-width: 768px) {
   #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
-    padding: 32px !important;
+    padding: 28px !important;
   }
 
   #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > h2 {
@@ -293,14 +323,4 @@ main.max-w-5xl :is(
   #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > p {
     font-size: 18px !important;
   }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Overview budget frame                                                      */
-/* -------------------------------------------------------------------------- */
-
-.krew-overview-budget {
-  border: 1px solid var(--krew-frame-border);
-  border-radius: var(--krew-card-radius);
-  box-shadow: none;
 }
