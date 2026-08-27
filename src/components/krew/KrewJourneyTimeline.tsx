@@ -97,7 +97,7 @@ function StepLabel({
       <div className="min-w-0 w-[116px] sm:w-[150px]">
         <div
           className={cn(
-            "font-display text-[15px] sm:text-[18px] leading-[1.05] transition-colors",
+            "font-display text-[16px] sm:text-[19px] leading-[1.05] transition-colors",
             isDone && "text-foreground/85",
             isAvailable && "text-primary",
             isUpcoming && "text-muted-foreground/60",
@@ -106,14 +106,14 @@ function StepLabel({
           {step.title}
         </div>
         {step.category === "souvenirs" && step.subtitle ? (
-          <span className="mt-1 block max-w-[116px] sm:max-w-[150px] text-[10px] sm:text-[11px] leading-snug text-muted-foreground/75">{step.subtitle}</span>
+          <span className="mt-1 block max-w-[116px] sm:max-w-[150px] text-[11px] sm:text-xs leading-snug text-muted-foreground/75">{step.subtitle}</span>
         ) : null}
         {isDone ? (
-          <span className="mt-1 inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.08em] text-sage">
+          <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-sage">
             Terminé
           </span>
         ) : isAvailable ? (
-          <span className="mt-1 block text-[9px] sm:text-[10px] font-medium text-primary/65">Disponible</span>
+          <span className="mt-1.5 block text-[11px] font-medium text-primary/70">Disponible</span>
         ) : null}
       </div>
     </div>
@@ -124,8 +124,12 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
   return (
     <div className="w-full max-w-[900px] mx-auto px-1 py-1 font-sans">
       <header className="relative mb-2 sm:mb-3 min-h-[105px] sm:min-h-[130px] pr-[92px] sm:pr-[150px]">
-        <KrewNote variant="margin" rotation={-2} className="mb-1 text-sage">
-          notre feuille de route
+        <KrewNote
+          variant="margin"
+          rotation={-2}
+          className="journey-header-note absolute bottom-0 right-1 z-20 mb-0 text-[16px] text-sage sm:right-4"
+        >
+          Notre feuille de route
         </KrewNote>
         <div className="relative inline-block max-w-full">
           <h1 className="font-display text-[31px] sm:text-[42px] font-normal leading-[.98] text-foreground">
@@ -148,12 +152,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
         />
       </header>
 
-      <div className="relative mx-auto h-[1080px] sm:h-[1160px] w-full overflow-visible">
-        <KrewOrganicBlob
-          tone="sage"
-          variant="soft"
-          className="absolute left-[4%] top-[15%] h-[145px] w-[210px] sm:h-[190px] sm:w-[310px] opacity-35"
-        />
+      <div className="relative -mt-8 mx-auto h-[1080px] sm:-mt-10 sm:h-[1160px] w-full overflow-visible">
         <KrewOrganicBlob
           tone="plum"
           variant="soft"
@@ -192,29 +191,6 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             opacity=".7"
           />
         </svg>
-
-        <div className="absolute left-[6%] top-[24%] hidden sm:block pointer-events-none">
-          <KrewNote variant="torn" tone="cream" rotation={-4} className="px-3 py-2 shadow-sm">
-            on avance ensemble
-          </KrewNote>
-        </div>
-        <KrewMark
-          type="arrow-curved-right"
-          tone="sage"
-          size="lg"
-          rotation={-2}
-          className="absolute left-[18%] top-[28%] hidden w-20 sm:block opacity-55 pointer-events-none"
-        />
-        <div className="absolute right-[5%] top-[74%] hidden sm:block pointer-events-none">
-          <KrewNote variant="margin" rotation={2}>la suite se dessine ici</KrewNote>
-        </div>
-        <KrewMark
-          type="sparkle"
-          tone="plum"
-          size="sm"
-          rotation={4}
-          className="absolute right-[14%] top-[84%] hidden sm:block opacity-45 pointer-events-none"
-        />
 
         {steps.map((step, index) => {
           const desktopPoint = DESKTOP_POINTS[index] ?? DESKTOP_POINTS[DESKTOP_POINTS.length - 1];
@@ -267,7 +243,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
           );
 
           const memoriesContent = (
-            <div className="relative w-[190px] sm:w-[238px] -translate-x-1/2 -translate-y-1/2 rotate-[-1deg] bg-background px-3 pb-4 pt-3 shadow-[0_10px_28px_rgba(60,35,50,.08)] ring-1 ring-border/45 sm:px-4 sm:pb-5">
+            <div className="relative w-[190px] sm:w-[238px] rotate-[-1deg] bg-background px-3 pb-4 pt-3 shadow-[0_10px_28px_rgba(60,35,50,.08)] ring-1 ring-border/45 sm:px-4 sm:pb-5">
               <div className="mb-3 flex h-[68px] items-center justify-center bg-sage/10 sm:h-[82px]">
                 <KrewIcon name="camera" tone="plum" size="lg" className="size-8 opacity-65" />
               </div>
@@ -305,18 +281,21 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 size="sm"
                 className="absolute left-8 top-7 z-20 h-7 w-10 rotate-[18deg] pointer-events-none"
               />
-              <div className="relative z-10 flex items-center gap-2.5 sm:gap-3 rounded-[46%_54%_48%_52%/54%_46%_56%_44%] bg-background/95 px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-[0_4px_16px_rgba(60,35,50,.05)]">
-                <div className="flex size-10 sm:size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/10">
+              <div className="relative z-10 flex items-center gap-3 py-2 sm:gap-4 sm:py-3">
+                <div className="flex size-11 sm:size-14 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
                   <KrewIcon name={step.iconName} size="sm" tone="cream" className="size-5 sm:size-6" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-display text-[20px] sm:text-[25px] leading-[1] text-foreground">{step.title}</h3>
+                  <div className="relative inline-block">
+                    <h3 className="relative z-10 font-display text-[23px] sm:text-[29px] leading-[1] text-foreground">{step.title}</h3>
+                    <KrewMark type="underline-wave" tone="sage" size="sm" className="absolute -bottom-3 left-0 h-3.5 w-24 opacity-55" />
+                  </div>
                   {step.subtitle ? (
-                    <p className="mt-1 text-[10px] sm:text-[11px] leading-snug text-muted-foreground">{step.subtitle}</p>
+                    <p className="mt-2 text-[12px] sm:text-[13px] leading-snug text-muted-foreground">{step.subtitle}</p>
                   ) : null}
-                  <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-primary">
+                  <span className="mt-3 inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-[12px] sm:text-[13px] font-semibold text-primary-foreground shadow-sm transition-transform duration-150 group-hover:-translate-y-0.5 group-active:translate-y-0 motion-reduce:transform-none">
                     Continuer
-                    <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6" />
+                    <KrewMark type="arrow-right" tone="cream" size="sm" className="h-3.5 w-6" />
                   </span>
                 </div>
               </div>
