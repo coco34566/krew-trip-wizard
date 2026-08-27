@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
+import { KrewMark } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
 import {
   getTripDetail,
@@ -30,7 +31,7 @@ import {
   finalizeInvitationStep,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
-import { STAR_EVENT_TYPES, eventTypeLabel } from "@/lib/krew/constants";
+import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
@@ -237,19 +238,31 @@ function InvitePage() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
-          Étape collaborative · {eventTypeLabel(trip.event_type)}
+      <div className="relative min-h-[84px] pr-[84px] md:min-h-[96px] md:pr-[112px]">
+        <p className="mb-[7px] text-[13px] font-semibold leading-[1.35] text-muted-foreground">
+          {trip.name}
         </p>
-        <h1 className="font-display text-[38px] sm:text-[48px] font-normal leading-[0.95] tracking-tight text-foreground">
-          Inviter le groupe
-        </h1>
-        <p className="text-sm text-muted-foreground">
+        <div className="relative inline-block">
+          <h1 className="font-display text-[30px] font-normal leading-none tracking-[-0.018em] text-foreground md:text-[34px]">
+            Inviter le groupe
+          </h1>
+          <KrewMark
+            type="underline-wave"
+            tone="sage"
+            size="md"
+            className="pointer-events-none absolute left-0 -bottom-2 w-[118px]"
+          />
+        </div>
+        <p className="mt-[14px] max-w-[42rem] text-[15px] font-normal leading-[1.5] text-muted-foreground md:mt-[16px] md:text-[16px]">
           Partage le lien ou ajoute des emails. Suis qui a rejoint et qui doit encore répondre.
         </p>
+        <img
+          src="/brand/otter-states/next-action.png"
+          alt=""
+          className="pointer-events-none absolute right-0 top-0 h-auto w-[76px] object-contain md:w-[88px]"
+        />
       </div>
 
-      {/* BLOC LIEN : bg-sage/8 rounded-[24px] p-6 */}
       <section className="rounded-[24px] bg-sage/8 border border-sage/20 p-6 space-y-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Link2 className="size-4 text-primary" /> Lien d&apos;invitation
@@ -355,7 +368,6 @@ function InvitePage() {
         </section>
       ) : null}
 
-      {/* PARTICIPANTS LIST AS CLEAN ROWS (NO CARDS) */}
       <section className="space-y-4 pt-2">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
           <h2 className="font-display text-2xl font-normal text-foreground flex items-center gap-2">
@@ -436,7 +448,6 @@ function InvitePage() {
         </div>
       </section>
 
-      {/* Rôle & Comportement de la Star (EVG, EVJF, Anniversaire, Retraite) */}
       {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
         <section className="mt-6 rounded-3xl border border-border bg-card p-5">
           <h2 className="flex items-center gap-2 font-semibold text-foreground">
