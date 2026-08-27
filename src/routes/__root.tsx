@@ -126,14 +126,14 @@ function JourneyLockedFallbackPortal() {
 
   return createPortal(
     <section
-      data-journey-locked-section={lockedSection}
+      data-journey-locked-state={lockedSection}
       aria-labelledby={`locked-${lockedSection}-title`}
-      className="relative mt-6 overflow-hidden rounded-[24px] border border-sage/25 bg-sage/[0.045] px-6 py-7 sm:mt-8 sm:px-8 sm:py-8"
+      className="relative mt-6 py-2 sm:mt-8 sm:py-3"
     >
       <img
         src={config.otter}
         alt=""
-        className="pointer-events-none absolute right-5 top-5 w-[80px] h-auto object-contain opacity-90 sm:right-7 sm:top-7 sm:w-[96px] lg:w-[104px]"
+        className="pointer-events-none absolute right-0 top-0 w-[80px] h-auto object-contain opacity-90 sm:w-[96px] lg:w-[104px]"
       />
       <div className="max-w-[640px] pr-[92px] sm:pr-[120px]">
         <p className="font-sans text-[13px] font-semibold uppercase tracking-[0.08em] text-primary/75 sm:text-sm">
@@ -156,7 +156,10 @@ function JourneyLockedFallbackPortal() {
         <p className="mt-5 max-w-[540px] text-[18px] leading-[1.5] text-muted-foreground sm:text-[20px]">
           {config.description}
         </p>
-        <div className="mt-6 max-w-[520px] rounded-[20px] border border-sage/25 bg-background/80 px-5 py-4 text-[16px] leading-[1.5] text-muted-foreground sm:text-[17px]">
+        <div
+          data-journey-locked-section={lockedSection}
+          className="mt-6 max-w-[520px] rounded-[16px] border border-sage/20 bg-sage/[0.07] px-4 py-3 text-[15px] leading-[1.5] text-muted-foreground sm:text-[16px]"
+        >
           {config.requirement}
         </div>
       </div>
