@@ -276,3 +276,199 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics,#hub-transports,#hub-activiti
     margin-top: 8px;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Canonical journey hierarchy — one scale across every chapter.               */
+/* -------------------------------------------------------------------------- */
+
+:root {
+  --krew-journey-page-title: 30px;
+  --krew-journey-section-title: 24px;
+  --krew-journey-subtitle: 15px;
+  --krew-journey-header-gap: 14px;
+  --krew-journey-content-gap: 28px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --krew-journey-page-title: 34px;
+    --krew-journey-section-title: 26px;
+    --krew-journey-subtitle: 16px;
+    --krew-journey-header-gap: 16px;
+    --krew-journey-content-gap: 34px;
+  }
+}
+
+/* Page / chapter titles: embedded chapters, locked states, availability, preferences and Star. */
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing) h2.font-display:first-of-type,
+[data-journey-locked-state] h2.font-display,
+main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) h1,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > div.space-y-3.relative > div.flex.items-start > div.relative::before,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.space-y-3.relative > div.flex.items-start > div.relative::before,
+#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > h2::after {
+  font-size: var(--krew-journey-page-title) !important;
+  line-height: 1 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.018em !important;
+}
+
+/* Page subtitles / intro copy: same weight, measure and rhythm everywhere. */
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing) h2.font-display:first-of-type ~ p:first-of-type,
+[data-journey-locked-state] h2.font-display ~ p:first-of-type,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > div.space-y-3.relative p.text-muted-foreground,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.space-y-3.relative p.text-muted-foreground,
+main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.space-y-2.relative > p.text-muted-foreground,
+#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > p {
+  margin-top: var(--krew-journey-header-gap) !important;
+  max-width: 42rem !important;
+  font-size: var(--krew-journey-subtitle) !important;
+  line-height: 1.5 !important;
+  font-weight: 400 !important;
+}
+
+/* Internal questionnaire chapter titles remain one level below page titles, identically for participant and Star. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section h2.font-display,
+main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section h2.font-display {
+  font-size: var(--krew-journey-section-title) !important;
+  line-height: 1.04 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.012em !important;
+}
+
+/* Shared vertical rhythm from header to first meaningful content. */
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing) {
+  row-gap: 0;
+}
+
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing) > :is(h2.font-display:first-of-type,div.flex:first-of-type) + *,
+[data-journey-locked-state] > div.grid > .col-span-2,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section:first-of-type,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4,
+main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 {
+  margin-top: var(--krew-journey-content-gap) !important;
+}
+
+/* Trip context above titles uses one fixed rhythm. */
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing)[data-krew-trip-name]::before,
+main[class*="max-w-[820px]"] > [data-krew-trip-name]::before {
+  margin-bottom: 7px !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Canonical journey chapter shell — same frame across every active page.      */
+/* -------------------------------------------------------------------------- */
+
+main.max-w-5xl :is(#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing) {
+  margin-top: 32px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+/* Active chapters whose title/subtitle live in a flex header get exactly the same header box. */
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type {
+  position: relative !important;
+  align-items: flex-start !important;
+  min-height: 84px !important;
+  margin: 0 0 var(--krew-journey-content-gap) !important;
+  padding: 0 92px 0 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type > div:first-child {
+  width: min(100%, 42rem);
+  min-width: 0;
+}
+
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type h2.font-display {
+  margin: 0 !important;
+  font-size: var(--krew-journey-page-title) !important;
+  line-height: 1 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.018em !important;
+}
+
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type p.text-muted-foreground {
+  margin-top: var(--krew-journey-header-gap) !important;
+  max-width: 42rem !important;
+  font-size: var(--krew-journey-subtitle) !important;
+  line-height: 1.5 !important;
+  font-weight: 400 !important;
+}
+
+/* Planning and Organisation had two local visual languages. Remove both local wrappers. */
+#hub-activities-plan,
+#hub-tasks-org {
+  padding-bottom: 0 !important;
+}
+
+#hub-activities-plan > div.flex:first-of-type,
+#hub-tasks-org > div.flex:first-of-type {
+  padding-bottom: 0 !important;
+  border-bottom: 0 !important;
+}
+
+/* Planning's title-side tape made it look like a different page family. */
+#hub-activities-plan [data-krew-note="tape"] {
+  display: none !important;
+}
+
+/* Local title pictograms are not part of chapter headers; the semantic otter is the visual anchor. */
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org,#hub-transports,#hub-packing) h2.font-display:first-of-type > :is(svg,[data-krew-icon]) {
+  display: none !important;
+}
+
+/* One otter slot: aligned top-right, same visual scale, never overlapping variable text. */
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org) > div.absolute:has(img[src*="/brand/otter-states/"]) {
+  top: 0 !important;
+  right: 0 !important;
+  width: 76px !important;
+  height: 76px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: flex-end !important;
+}
+
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org) > div.absolute:has(img[src*="/brand/otter-states/"]) img {
+  width: 76px !important;
+  height: 76px !important;
+  object-fit: contain !important;
+}
+
+/* Content starts from the same baseline after the shared header, regardless of page. */
+main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type + * {
+  margin-top: 0 !important;
+}
+
+@media (min-width: 768px) {
+  main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type {
+    min-height: 96px !important;
+    padding-right: 112px !important;
+  }
+
+  main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org) > div.absolute:has(img[src*="/brand/otter-states/"]) {
+    width: 88px !important;
+    height: 88px !important;
+  }
+
+  main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org) > div.absolute:has(img[src*="/brand/otter-states/"]) img {
+    width: 88px !important;
+    height: 88px !important;
+  }
+}
+
+@media (max-width: 639px) {
+  main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-logistics,#hub-activities-plan,#hub-tasks-org) > div.flex:first-of-type {
+    min-height: 78px !important;
+    padding-right: 84px !important;
+    margin-bottom: 24px !important;
+  }
+}
