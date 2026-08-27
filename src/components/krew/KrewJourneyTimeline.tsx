@@ -294,7 +294,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
           );
 
           const nextContent = (
-            <div className="group relative w-[184px] sm:w-[224px] -translate-x-1/2 -translate-y-1/2">
+            <div className="group relative w-[166px] sm:w-[224px] -translate-x-1/2 -translate-y-1/2">
               <KrewNote
                 variant="label"
                 tone="plum"
