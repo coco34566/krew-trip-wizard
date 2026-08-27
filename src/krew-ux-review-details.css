@@ -116,14 +116,13 @@ main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relativ
   }
 }
 
-/* Journey: normal French capitalization for the secondary note. */
-div[class*="max-w-[900px]"] > header > div:first-child {
-  font-size: 0 !important;
-}
-
-div[class*="max-w-[900px]"] > header > div:first-child::after {
-  content: "Notre feuille de route";
-  font-family: "Caveat", cursive;
+/* Journey: keep the notebook annotation attached to the start of the route. */
+div[class*="max-w-[900px]"] > header > .journey-header-note {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.15rem;
+  margin: 0 !important;
+  z-index: 2;
   font-size: 1rem;
   line-height: 1;
   color: var(--sage);
@@ -184,7 +183,7 @@ div[class*="max-w-[900px]"] div[class*="top-[74%]"] > div {
     font-size: 0.9rem;
   }
 
-  div[class*="max-w-[900px]"] > header > div:first-child {
+  div[class*="max-w-[900px]"] > header > .journey-header-note {
     right: 0;
   }
 }
