@@ -1,0 +1,280 @@
+/* KREW visual baseline — explicit, measured rules derived from Memi + Codex Design Audit
+ * and the real Playwright captures. This file intentionally centralises the first
+ * cross-page visual contract instead of adding page-by-page patches.
+ */
+
+:root {
+  --krew-gutter-mobile: 24px;
+  --krew-gutter-tablet: 32px;
+  --krew-gutter-desktop: 48px;
+  --krew-page-title-mobile: 40px;
+  --krew-page-title-tablet: 52px;
+  --krew-page-title-desktop: 60px;
+  --krew-section-title-mobile: 28px;
+  --krew-section-title-tablet: 34px;
+  --krew-section-title-desktop: 38px;
+  --krew-card-radius: 24px;
+  --krew-inset-radius: 20px;
+  --krew-control-radius: 18px;
+  --krew-control-height: 56px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Journey canvas and left-edge alignment                                      */
+/* -------------------------------------------------------------------------- */
+
+main.max-w-5xl:has(> div.space-y-6 > a:first-child) {
+  padding-left: var(--krew-gutter-mobile) !important;
+  padding-right: var(--krew-gutter-mobile) !important;
+}
+
+main.max-w-5xl:has(> div.space-y-6 > a:first-child) > div.space-y-6 {
+  max-width: 860px;
+  margin-inline: auto;
+}
+
+main.max-w-5xl:has(> div.space-y-6 > a:first-child) > div.space-y-6 > a:first-child {
+  margin-bottom: 24px;
+}
+
+@media (min-width: 768px) {
+  main.max-w-5xl:has(> div.space-y-6 > a:first-child) {
+    padding-left: var(--krew-gutter-tablet) !important;
+    padding-right: var(--krew-gutter-tablet) !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  main.max-w-5xl:has(> div.space-y-6 > a:first-child) {
+    padding-left: var(--krew-gutter-desktop) !important;
+    padding-right: var(--krew-gutter-desktop) !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared journey chapter title scale and rhythm                              */
+/* -------------------------------------------------------------------------- */
+
+main.max-w-5xl :is(
+  #hub-dates,
+  #hub-profile,
+  #hub-destination,
+  #hub-logistics,
+  #hub-transports,
+  #hub-activities-plan,
+  #hub-packing
+) h2.font-display:first-of-type {
+  font-size: var(--krew-page-title-mobile) !important;
+  line-height: .98 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.02em !important;
+  margin: 0 !important;
+}
+
+main.max-w-5xl :is(
+  #hub-dates,
+  #hub-profile,
+  #hub-destination,
+  #hub-logistics,
+  #hub-transports,
+  #hub-activities-plan,
+  #hub-packing
+) h2.font-display:first-of-type ~ p {
+  margin-top: 20px !important;
+  max-width: 42rem;
+  font-size: 18px !important;
+  line-height: 1.5 !important;
+}
+
+@media (min-width: 768px) {
+  main.max-w-5xl :is(
+    #hub-dates,
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan,
+    #hub-packing
+  ) h2.font-display:first-of-type {
+    font-size: var(--krew-page-title-tablet) !important;
+  }
+
+  main.max-w-5xl :is(
+    #hub-dates,
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan,
+    #hub-packing
+  ) h2.font-display:first-of-type ~ p {
+    font-size: 20px !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  main.max-w-5xl :is(
+    #hub-dates,
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan,
+    #hub-packing
+  ) h2.font-display:first-of-type {
+    font-size: var(--krew-page-title-desktop) !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Chapter surfaces                                                           */
+/* -------------------------------------------------------------------------- */
+
+main.max-w-5xl :is(
+  #hub-dates,
+  #hub-profile,
+  #hub-destination,
+  #hub-logistics,
+  #hub-transports,
+  #hub-activities-plan
+) {
+  border-radius: var(--krew-card-radius) !important;
+  padding: 24px !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 768px) {
+  main.max-w-5xl :is(
+    #hub-dates,
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan
+  ) {
+    padding: 28px !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  main.max-w-5xl :is(
+    #hub-dates,
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan
+  ) {
+    padding: 32px !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Otter support lane                                                         */
+/* -------------------------------------------------------------------------- */
+
+main.max-w-5xl :is(
+  #hub-profile,
+  #hub-destination,
+  #hub-logistics,
+  #hub-transports,
+  #hub-activities-plan
+) img[src*="/brand/otter-states/"] {
+  width: 80px !important;
+  max-width: 80px !important;
+  height: auto !important;
+  opacity: .9 !important;
+}
+
+main.max-w-5xl :is(
+  #hub-profile,
+  #hub-destination,
+  #hub-logistics,
+  #hub-transports,
+  #hub-activities-plan
+) > div.absolute:has(img[src*="/brand/otter-states/"]) {
+  top: 20px !important;
+  right: 20px !important;
+}
+
+@media (min-width: 768px) {
+  main.max-w-5xl :is(
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan
+  ) img[src*="/brand/otter-states/"] {
+    width: 96px !important;
+    max-width: 96px !important;
+  }
+}
+
+@media (min-width: 1200px) {
+  main.max-w-5xl :is(
+    #hub-profile,
+    #hub-destination,
+    #hub-logistics,
+    #hub-transports,
+    #hub-activities-plan
+  ) img[src*="/brand/otter-states/"] {
+    width: 104px !important;
+    max-width: 104px !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Destination precondition: compact, intentional, aligned                    */
+/* -------------------------------------------------------------------------- */
+
+#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
+  max-width: 680px;
+  margin: 28px auto 8px !important;
+  padding: 28px 24px !important;
+  border-radius: var(--krew-card-radius) !important;
+  text-align: left !important;
+}
+
+#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > h2 {
+  max-width: 520px;
+  font-size: 36px !important;
+  line-height: 1 !important;
+  letter-spacing: -.02em;
+}
+
+#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > p {
+  max-width: 520px;
+  margin-top: 18px !important;
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > a,
+#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > button {
+  min-height: var(--krew-control-height) !important;
+  margin-top: 22px !important;
+  border-radius: var(--krew-control-radius) !important;
+  padding-inline: 24px !important;
+  justify-content: center;
+}
+
+@media (max-width: 639px) {
+  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > a,
+  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 768px) {
+  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
+    padding: 32px !important;
+  }
+
+  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > h2 {
+    font-size: 44px !important;
+  }
+
+  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > p {
+    font-size: 18px !important;
+  }
+}
