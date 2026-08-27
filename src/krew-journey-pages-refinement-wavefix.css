@@ -1,6 +1,156 @@
-/* Intentionally empty.
- * The former wave-fix rules were consolidated into krew-journey-pages-refinement.css
- * without changing their cascade position relative to the visual baseline.
- * Kept temporarily as an inert compatibility import to avoid touching root stylesheet wiring
- * in the same stabilization step.
+/* KREW journey late-layout refinements.
+ * Keep this layer visual-only. No data, validation, permissions or business logic.
+ *
+ * The former wave-fix rules were consolidated into krew-journey-pages-refinement.css.
+ * This compatibility import now carries only the questionnaire composition rules that
+ * must sit after the base journey styles and before the final alignment layer.
  */
+
+/* -------------------------------------------------------------------------- */
+/* Preferences questionnaire — editorial scansion without extra cards.         */
+/* -------------------------------------------------------------------------- */
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 {
+  counter-reset: krew-preferences-section;
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section {
+  counter-increment: krew-preferences-section;
+}
+
+/* A small mono chapter index makes the long form scannable without adding UI chrome. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section > div:first-child::before {
+  content: "0" counter(krew-preferences-section);
+  display: block;
+  margin-bottom: 6px;
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: color-mix(in oklch, var(--sage) 82%, var(--primary));
+}
+
+/* Keep chapter headings visually stronger than individual questions. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section > div:first-child h2.font-display {
+  margin: 0 !important;
+  font-size: 28px !important;
+  line-height: 1 !important;
+  letter-spacing: -.015em !important;
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section > div:first-child h2.font-display + p {
+  margin-top: 7px !important;
+  max-width: 34rem;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+/* Mobile stays deliberately linear. Increase separation between chapters, not questions. */
+@media (max-width: 767px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section {
+    padding-top: 32px !important;
+    padding-bottom: 30px !important;
+  }
+
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section:first-child {
+    padding-top: 12px !important;
+  }
+
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section > div:first-child {
+    margin-bottom: 18px;
+  }
+}
+
+/* Tablet and desktop: chapter identity on the left, answers on the right.
+ * This uses the available canvas without turning the questionnaire into a dashboard grid. */
+@media (min-width: 768px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section {
+    display: grid !important;
+    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+    align-items: start !important;
+    padding-top: 38px !important;
+    padding-bottom: 38px !important;
+  }
+
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section:first-child {
+    padding-top: 20px !important;
+  }
+
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section > div:first-child {
+    grid-column: 1;
+    grid-row: 1 / span 20;
+    min-width: 0;
+    margin-right: 24px;
+    padding-top: 2px;
+  }
+
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section > :not(:first-child) {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section > div:first-child h2.font-display {
+    font-size: 30px !important;
+  }
+
+  /* Related questions remain compact inside the answer column. */
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section > :not(:first-child) + :not(:first-child) {
+    margin-top: 14px;
+  }
+}
+
+@media (min-width: 1024px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section {
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  }
+
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section > div:first-child {
+    margin-right: 32px;
+  }
+}
+
+/* Secondary help copy should support the question, never compete with it. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section p.text-xs.text-muted-foreground {
+  max-width: 38rem;
+  line-height: 1.45 !important;
+}
+
+/* The final action reads as the clear end of the questionnaire. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > div.pt-2.pb-12 {
+  margin-top: 12px;
+  padding-top: 24px !important;
+  border-top: 1px solid color-mix(in oklch, var(--sage) 34%, transparent);
+}
+
+@media (min-width: 768px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > div.pt-2.pb-12 {
+    margin-left: 204px;
+  }
+}
+
+@media (min-width: 1024px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > div.pt-2.pb-12 {
+    margin-left: 238px;
+  }
+}
