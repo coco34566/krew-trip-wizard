@@ -20,6 +20,10 @@
   --krew-inset-radius: 20px;
   --krew-control-radius: 18px;
   --krew-control-height: 56px;
+  --krew-copy-mobile: 16px;
+  --krew-copy-large: 18px;
+  --krew-section-gap-mobile: 40px;
+  --krew-section-gap-large: 48px;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -51,6 +55,23 @@ main.max-w-5xl:has(> div.space-y-6 > a:first-child) > div.space-y-6 > a:first-ch
   main.max-w-5xl:has(> div.space-y-6 > a:first-child) {
     padding-left: var(--krew-gutter-desktop) !important;
     padding-right: var(--krew-gutter-desktop) !important;
+  }
+}
+
+/* Dedicated zoom routes share the same horizontal canvas as embedded chapters. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) {
+  padding-left: var(--krew-gutter-mobile) !important;
+  padding-right: var(--krew-gutter-mobile) !important;
+  padding-top: 32px !important;
+}
+
+@media (min-width: 768px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) {
+    padding-left: var(--krew-gutter-tablet) !important;
+    padding-right: var(--krew-gutter-tablet) !important;
+    padding-top: 40px !important;
   }
 }
 
@@ -91,6 +112,32 @@ main.max-w-5xl :is(
   line-height: 1.5 !important;
 }
 
+/* Dedicated pages: same optical H1 scale, same left edge, same wave lane. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) h1.font-display,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) h1.font-display {
+  font-size: var(--krew-page-title-mobile) !important;
+  line-height: .98 !important;
+  font-weight: 400 !important;
+  letter-spacing: -.02em !important;
+}
+
+/* Back link should be supportive, never a second heading. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > a:first-child,
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > a:first-child {
+  margin-bottom: 4px !important;
+  font-size: 14px !important;
+  line-height: 20px !important;
+}
+
+/* Lead/support copy shares one readable measure. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > div.relative p:not([class*="font-mono"]),
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.relative > p {
+  max-width: 42rem;
+  line-height: 1.55 !important;
+}
+
 @media (min-width: 768px) {
   main.max-w-5xl :is(
     #hub-dates,
@@ -101,7 +148,9 @@ main.max-w-5xl :is(
     #hub-activities-plan,
     #hub-tasks-org,
     #hub-packing
-  ) h2.font-display:first-of-type {
+  ) h2.font-display:first-of-type,
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) h1.font-display,
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) h1.font-display {
     font-size: var(--krew-page-title-tablet) !important;
   }
 
@@ -233,6 +282,18 @@ main.max-w-5xl :is(
   right: 0 !important;
 }
 
+/* Dedicated page otters occupy exactly the same support lane. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  img[src*="/brand/otter-states/availability.png"],
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  img[src*="/brand/otter-states/preferences.png"] {
+  width: 80px !important;
+  max-width: 80px !important;
+  height: auto !important;
+  object-fit: contain;
+  opacity: .92 !important;
+}
+
 @media (min-width: 768px) {
   main.max-w-5xl :is(
     #hub-profile,
@@ -242,7 +303,11 @@ main.max-w-5xl :is(
     #hub-activities-plan,
     #hub-tasks-org,
     #hub-packing
-  ) img[src*="/brand/otter-states/"] {
+  ) img[src*="/brand/otter-states/"],
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+    img[src*="/brand/otter-states/availability.png"],
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    img[src*="/brand/otter-states/preferences.png"] {
     width: 96px !important;
     max-width: 96px !important;
   }
@@ -260,6 +325,110 @@ main.max-w-5xl :is(
   ) img[src*="/brand/otter-states/"] {
     width: 104px !important;
     max-width: 104px !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Questionnaire: create rhythm WITHOUT adding containers                     */
+/* -------------------------------------------------------------------------- */
+
+/* The questionnaire is intentionally a continuous page. Sections are separated
+ * by whitespace and a tiny KREW accent, never by page-wide boxes. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section {
+  position: relative;
+  margin: 0 !important;
+  padding: var(--krew-section-gap-mobile) 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section:first-child {
+  padding-top: 16px !important;
+}
+
+/* Short hand-drawn-feeling accent at section changes: enough hierarchy without
+ * creating a visual cage around the content. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 72px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--sage) 70%, transparent);
+  transform: rotate(-1deg);
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section h2.font-display {
+  font-size: var(--krew-section-title-mobile) !important;
+  line-height: 1.02 !important;
+  letter-spacing: -.015em !important;
+  margin-bottom: 4px !important;
+}
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section h2.font-display + p {
+  max-width: 38rem;
+  margin-top: 6px !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+/* Functional option cards stay cards, but become lighter and consistent. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section button.rounded-\[14px\] {
+  border-color: color-mix(in oklch, var(--border) 62%, transparent) !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+  padding: 14px !important;
+}
+
+/* Inputs remain functional objects; standardise their corners without boxing
+ * surrounding groups. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+  > div.pt-4 > section :is(input, textarea) {
+  border-radius: 14px !important;
+}
+
+@media (min-width: 768px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section {
+    padding: var(--krew-section-gap-large) 0 !important;
+  }
+
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
+    > div.pt-4 > section h2.font-display {
+    font-size: var(--krew-section-title-tablet) !important;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Availability: functional hierarchy without an outer card                   */
+/* -------------------------------------------------------------------------- */
+
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > section > div:first-child h2.font-display {
+  font-size: var(--krew-section-title-mobile) !important;
+  line-height: 1.02 !important;
+}
+
+/* Month grids / states remain local objects. The calendar shell itself stays open. */
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+  > section > .grid {
+  margin-top: 4px;
+}
+
+@media (min-width: 768px) {
+  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])
+    > section > div:first-child h2.font-display {
+    font-size: var(--krew-section-title-tablet) !important;
   }
 }
 
