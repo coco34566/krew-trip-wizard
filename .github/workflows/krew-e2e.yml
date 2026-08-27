@@ -107,7 +107,7 @@ jobs:
       - name: Run customer journey
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npm run test:e2e -- tests/e2e/full-trip-flow.spec.ts tests/e2e/journey-visual-audit.spec.ts --project=mobile-safari
+            npm run test:e2e -- tests/e2e/full-trip-flow.spec.ts tests/e2e/journey-visual-audit.spec.ts tests/e2e/reference-surfaces-visual-audit.spec.ts --project=mobile-safari
           else
             npm run test:e2e
           fi
