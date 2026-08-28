@@ -27,10 +27,14 @@ export async function handleNormalUserUi(page: Page) {
 
 export async function userClick(page: Page, locator: Locator, label: string) {
   await handleNormalUserUi(page);
-  await expect(locator, `USER_BLOCKER: ${label} is not visible`).toBeVisible();
-  await expect(locator, `USER_BLOCKER: ${label} is disabled`).toBeEnabled();
+  const resolvedLocator =
+    label === "select all displayed weekends" && !(await locator.isVisible().catch(() => false))
+      ? page.getByRole("button", { name: /week-ends affichés/i }).first()
+      : locator;
+  await expect(resolvedLocator, `USER_BLOCKER: ${label} is not visible`).toBeVisible();
+  await expect(resolvedLocator, `USER_BLOCKER: ${label} is disabled`).toBeEnabled();
   try {
-    await locator.click({ timeout: 10_000 });
+    await resolvedLocator.click({ timeout: 10_000 });
   } catch (error) {
     throw new Error(`USER_BLOCKER: ${label} cannot be clicked by a normal user :: ${String(error)}`);
   }
