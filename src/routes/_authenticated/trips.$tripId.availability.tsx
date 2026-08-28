@@ -297,14 +297,12 @@ function AvailabilityPage() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
-      <div className="space-y-3 relative">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
-          Disponibilités · résumé live
-        </p>
+      <div className="relative space-y-[12px]">
         <div className="flex items-start justify-between gap-4">
-          <div className="relative inline-block flex-1">
-            <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
-              {data.trip.name}
+          <div className="relative inline-block min-w-0 flex-1">
+            <p className="mb-1 text-[13px] font-semibold text-muted-foreground">{data.trip.name}</p>
+            <h1 className="font-display text-[34px] sm:text-[40px] font-normal leading-[0.98] tracking-tight text-foreground">
+              Disponibilités
             </h1>
             <KrewMark
               type="underline-wave"
