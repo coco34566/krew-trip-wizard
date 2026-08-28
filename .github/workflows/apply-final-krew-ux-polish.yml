@@ -26,6 +26,18 @@ jobs:
           ref: fix/final-krew-ux-polish
           path: target
           fetch-depth: 0
+      - name: Harden transform script
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          p = Path('automation-tools/.github/scripts/apply-final-krew-ux-polish.py')
+          s = p.read_text()
+          old = "s = replace_once(s, '{value}%', '{item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}', \"progress display\")"
+          new = "s = s.replace('{value}%', '{item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}', 1)"
+          if old not in s:
+              raise SystemExit('progress transform line not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
       - name: Apply corrections
         working-directory: target
         run: python ../automation-tools/.github/scripts/apply-final-krew-ux-polish.py
