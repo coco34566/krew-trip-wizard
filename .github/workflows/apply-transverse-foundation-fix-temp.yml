@@ -1,68 +1,11 @@
-name: Apply transverse foundation fixes (temporary)
+name: Apply transverse foundation fixes (temporary disabled)
 
 on:
-  push:
-    paths:
-      - '.github/workflows/apply-transverse-foundation-fix-temp.yml'
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
-  apply:
+  disabled:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: fix/transverse-foundation-responsive
-          fetch-depth: 0
-      - name: Apply targeted foundation and responsive fixes
-        shell: python
-        run: |
-          from pathlib import Path
-
-          def replace(path, old, new):
-              p = Path(path)
-              s = p.read_text()
-              if old not in s:
-                  raise SystemExit(f'Expected block not found in {path}')
-              p.write_text(s.replace(old, new, 1))
-
-          # 1) Mes voyages: clip only horizontal decorative overflow at the page shell.
-          replace(
-              'src/routes/_authenticated/dashboard.tsx',
-              'overflow-hidden sm:overflow-visible',
-              'overflow-x-clip overflow-y-visible',
-          )
-          replace(
-              'src/routes/_authenticated/dashboard.tsx',
-              'className="relative z-10 h-10 min-h-10 shrink-0 rounded-xl px-4 sm:px-5 py-0 font-medium leading-none"',
-              'className="relative z-10 shrink-0 px-4 sm:px-5 font-medium"',
-          )
-          replace(
-              'src/routes/_authenticated/dashboard.tsx',
-              'className="inline-flex h-full min-w-max items-center justify-center gap-1.5 whitespace-nowrap text-center leading-none"',
-              'className="inline-flex min-w-max items-center justify-center gap-1.5 whitespace-nowrap text-center"',
-          )
-
-          # 2) Disponibilites: render the semantic page title in React instead of the CSS pseudo-title.
-          replace(
-              'src/routes/_authenticated/trips.$tripId.availability.tsx',
-              '<div className="space-y-3 relative">\n        <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">\n          Disponibilités · résumé live\n        </p>\n        <div className="flex items-start justify-between gap-4">\n          <div className="relative inline-block flex-1">\n            <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">\n              {data.trip.name}\n            </h1>',
-              '<div className="relative space-y-[12px]">\n        <div className="flex items-start justify-between gap-4">\n          <div className="relative inline-block min-w-0 flex-1">\n            <p className="mb-1 text-[13px] font-semibold text-muted-foreground">{data.trip.name}</p>\n            <h1 className="font-display text-[34px] sm:text-[40px] font-normal leading-[0.98] tracking-tight text-foreground">\n              Disponibilités\n            </h1>',
-          )
-
-          # 3) Preferences: same native semantic header; keep trip context separate from H1.
-          replace(
-              'src/routes/_authenticated/trips.$tripId.questionnaire.tsx',
-              '<div className="space-y-3 relative">\n        <div className="flex items-start justify-between gap-4">\n          <div className="relative inline-block flex-1">\n            <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">\n              {isEditing ? "Modifier mes réponses" : "Ton questionnaire"} pour « {tripName} »\n            </h1>',
-              '<div className="relative space-y-[12px]">\n        <div className="flex items-start justify-between gap-4">\n          <div className="relative inline-block min-w-0 flex-1">\n            <p className="mb-1 text-[13px] font-semibold text-muted-foreground">{tripName}</p>\n            <h1 className="font-display text-[34px] sm:text-[40px] font-normal leading-[0.98] tracking-tight text-foreground">\n              Préférences\n            </h1>',
-          )
-
-      - name: Commit target branch changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/routes/_authenticated/dashboard.tsx 'src/routes/_authenticated/trips.$tripId.availability.tsx' 'src/routes/_authenticated/trips.$tripId.questionnaire.tsx'
-          git commit -m "fix: harden transverse layout and responsive shell"
-          git push origin HEAD:fix/transverse-foundation-responsive
+      - run: echo disabled
