@@ -1,0 +1,16 @@
+{
+  "detector": {
+    "designSystem": {
+      "enabled": true
+    },
+    "ignoreFiles": [
+      "archive/**",
+      "docs/archive/**",
+      ".lovable/**"
+    ]
+  },
+  "hook": {
+    "enabled": false,
+    "quiet": false
+  }
+}
