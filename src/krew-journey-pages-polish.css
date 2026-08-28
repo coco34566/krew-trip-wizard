@@ -1,10 +1,7 @@
 /* KREW journey polish — local-only compatibility rules.
- * Cross-page hierarchy (titles, subtitles, waves, otter slots, chapter shells,
- * borders and spacing) is owned exclusively by krew-journey-alignment.css.
- * Keep this file limited to behaviours that are genuinely page-specific.
+ * Cross-page hierarchy and Button geometry are owned by shared primitives.
  */
 
-/* A chapter opened from the journey is a page, not a technical tab inside the trip. */
 main.max-w-5xl:has(:is(
   #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
   #hub-activities-plan,#hub-tasks-org,#hub-packing
@@ -12,17 +9,15 @@ main.max-w-5xl:has(:is(
   display: none;
 }
 
-/* Keep the back action usable without participating in page hierarchy. */
+/* Back-to-trip remains a plain text link; do not give it button dimensions. */
 main.max-w-5xl:has(:is(
   #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
   #hub-activities-plan,#hub-tasks-org,#hub-packing
 )) > div.space-y-6 > a:first-child {
-  min-height: 44px;
   display: inline-flex;
   align-items: center;
 }
 
-/* Packing owns its internal content structure; avoid a nested outer card only. */
 #hub-packing {
   background: transparent !important;
   border: 0 !important;
@@ -30,7 +25,6 @@ main.max-w-5xl:has(:is(
   box-shadow: none !important;
 }
 
-/* Mobile task rows keep their semantic ordering despite the table source. */
 @media (max-width: 767px) {
   #hub-tasks-org table[class*="min-w-[600px]"] td:nth-child(1) {
     color: var(--muted-foreground);

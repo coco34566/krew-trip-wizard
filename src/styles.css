@@ -12,8 +12,6 @@
  * - Blanc (#FFFFFF) = background / card
  * - Encre Prune (#1C151B) = foreground / text
  * - Gris Neutre (#F7F8F7) = surface / muted
- *
- * All colors use OKLCH format for precision and consistency.
  */
 
 @theme inline {
@@ -126,7 +124,6 @@
   .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
 }
 
-/* Caveat is intentionally scoped to KrewNote/KrewCallout annotations only. */
 .font-handwriting { font-family: "Caveat", cursive; }
 
 @utility bg-hero-gradient { background-image: var(--gradient-hero); }
@@ -136,66 +133,107 @@
 @utility shadow-glow { box-shadow: var(--shadow-glow); }
 @utility glass-panel { background-color: var(--color-card); border: 1px solid var(--color-border); }
 
-/* Rich trip sub-pages that are not journey chapters retain their wider header scale. */
+/* Canonical KREW button geometry. Pages own placement/width, never height/radius. */
+[data-slot="button"] {
+  position: relative;
+  height: 40px !important;
+  min-height: 40px !important;
+  border-radius: 10px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 1.15 !important;
+  text-align: center !important;
+}
+[data-slot="button"][data-size="sm"] { height: 36px !important; min-height: 36px !important; }
+[data-slot="button"][data-size="lg"] { height: 40px !important; min-height: 40px !important; }
+[data-slot="button"][data-size="xl"] { height: 44px !important; min-height: 44px !important; }
+[data-slot="button"][data-size="icon"] {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+}
+[data-slot="button"].whitespace-normal {
+  height: auto !important;
+  min-height: 40px !important;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+  line-height: 1.25 !important;
+}
+[data-slot="button"][data-variant="link"] {
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* A leading/trailing icon lives in a reserved lane so the label itself stays centered. */
+[data-slot="button"]:not([data-size="icon"]):has(> svg:first-child) {
+  padding-left: 38px !important;
+  padding-right: 38px !important;
+}
+[data-slot="button"]:not([data-size="icon"]) > svg:first-child {
+  position: absolute !important;
+  left: 12px !important;
+  top: 50% !important;
+  margin: 0 !important;
+  transform: translateY(-50%) !important;
+}
+[data-slot="button"]:not([data-size="icon"]):has(> svg:last-child) {
+  padding-left: 38px !important;
+  padding-right: 38px !important;
+}
+[data-slot="button"]:not([data-size="icon"]) > svg:last-child {
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  margin: 0 !important;
+  transform: translateY(-50%) !important;
+}
+
 main[class*="max-w-[1020px]"] > header h1 {
   font-size: 2.125rem;
   line-height: 0.98;
   letter-spacing: -0.025em;
 }
 
-/* Dashboard: the primary creation CTA must stay compact on every viewport. */
+/* Creation CTA width rules only. */
 main[class*="max-w-[1280px]"] > div:first-child > a[href="/trips/new"] {
   width: auto;
   max-width: max-content;
-  min-height: 2.75rem;
-  padding-inline: 1.25rem;
   white-space: nowrap;
   text-align: center;
   justify-content: center;
 }
-
-/* Landing creation CTAs: never crop their label. */
 main > section:first-child a[href="/trips/new"],
 header a[href="/trips/new"] {
-  height: auto;
-  min-height: 2.75rem;
   max-width: 100%;
-  padding-block: 0.625rem;
-  line-height: 1.25;
   overflow: visible;
   text-align: center;
   justify-content: center;
 }
-
-main > section:first-child a[href="/trips/new"] {
-  min-height: 3rem;
-  padding-inline: 2rem;
-  white-space: nowrap;
-}
+main > section:first-child a[href="/trips/new"] { white-space: nowrap; }
 
 /* New-trip form: breathing rhythm only. */
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] {
   margin-bottom: 2rem;
   padding-bottom: 2rem;
 }
-
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > label {
   display: block;
   margin-bottom: 0.75rem;
 }
-
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > p {
   margin-top: 0.5rem;
   line-height: 1.5;
 }
-
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > div.grid,
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > input {
   margin-top: 0;
 }
 
 @media (min-width: 640px) {
-  main[class*="max-w-[1020px]"] > header h1 {
-    font-size: 2.75rem;
-  }
+  main[class*="max-w-[1020px]"] > header h1 { font-size: 2.75rem; }
 }

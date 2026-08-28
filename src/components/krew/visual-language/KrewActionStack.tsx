@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { KrewIcon, type KrewIconName } from "./KrewIcon";
 import { KrewMark } from "./KrewMark";
@@ -28,15 +29,11 @@ type Props = {
 };
 
 export function KrewActionStack({ primary, secondary = [], progress = [], className }: Props) {
-  const PrimaryTag = primary.href ? "a" : "div";
-
   return (
     <section className={cn("space-y-6", className)}>
-      {/* ZONE 3 — ÉTAT DU GROUPE (DISPONIBILITÉS / PRÉFÉRENCES) : AVANT LA PROCHAINE ACTION */}
       {progress.length > 0 ? (
         <div className="pt-1 pb-2">
           <div className="grid grid-cols-2 gap-4">
-            {/* Disponibilités (GAUCHE) */}
             {progress[0] ? (
               <div className="flex flex-col items-center text-center gap-2">
                 <div className="flex items-center gap-1.5">
@@ -49,7 +46,6 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
               </div>
             ) : null}
 
-            {/* Préférences (DROITE) */}
             {progress[1] ? (
               <div className="flex flex-col items-center text-center gap-2">
                 <div className="flex items-center gap-1.5">
@@ -65,7 +61,6 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
         </div>
       ) : null}
 
-      {/* ZONE 2 — PROCHAINE ACTION (VRAIE SURFACE ORGANIQUE KREWORGANICBLOB) */}
       <div className="relative p-6 sm:p-7 overflow-visible">
         <KrewOrganicBlob
           tone="sage"
@@ -74,37 +69,27 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
         />
 
         <div className="relative z-10 flex min-w-0 flex-col gap-2 pr-[68px] sm:pr-[76px]">
-          {/* Label */}
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/70">
             Prochaine action
           </p>
-
-          {/* Titre */}
           <h2 className="font-display text-[32px] sm:text-[36px] font-normal leading-[0.98] tracking-tight text-primary break-words">
             {primary.title}
           </h2>
-
-          {/* Description */}
           {primary.description ? (
             <p className="text-sm leading-relaxed text-foreground/80 font-sans mt-1">
               {primary.description}
             </p>
           ) : null}
 
-          {/* CTA */}
           {primary.href ? (
             <div className="pt-3">
-              <PrimaryTag
-                href={primary.href}
-                className="inline-flex min-h-[44px] items-center justify-center rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 active:scale-[0.99]"
-              >
-                Continuer
-              </PrimaryTag>
+              <Button asChild>
+                <a href={primary.href}>Continuer</a>
+              </Button>
             </div>
           ) : null}
         </div>
 
-        {/* LOUTRE NEXT-ACTION (SANS FLÈCHE KREWMARK) */}
         <div className="absolute bottom-3 right-2.5 z-20 flex items-end pointer-events-none">
           <img
             src="/brand/otter-states/next-action.png"
@@ -115,10 +100,9 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
         </div>
       </div>
 
-      {/* ZONE 4 — LES 3 ACTIONS SUIVANTES : STRICTEMENT ALIGNÉES SANS DÉCALAGES MARGE */}
       {secondary.slice(0, 3).length > 0 ? (
         <div className="relative pt-2 space-y-1">
-          {secondary.slice(0, 3).map((action, index) => {
+          {secondary.slice(0, 3).map((action) => {
             const Tag = action.href ? "a" : "div";
             const knownIcons: Record<string, KrewIconName> = {
               avail: "availability",
@@ -147,14 +131,11 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                   action.href && "cursor-pointer",
                 )}
               >
-                {/* COLONNE 1 : KrewIcon 20px directement sur fond (pas de cercle) */}
                 <div className="relative z-10 flex items-center justify-center">
                   {iconName ? (
                     <KrewIcon name={iconName} tone="plum" size="sm" className="size-[20px]" />
                   ) : null}
                 </div>
-
-                {/* COLONNE 2 : Titre avec flèche KrewMark en continuation directe + Description */}
                 <div className="min-w-0 pr-1">
                   <p className="text-sm font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors inline-flex flex-wrap items-center gap-1.5">
                     <span>{action.title}</span>
