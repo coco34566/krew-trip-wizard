@@ -149,7 +149,7 @@ export function CookieConsent() {
               checked={consent.affiliate}
               onChange={(value) => updateCategory("affiliate", value)}
             />
-            <p className="pt-1 text-[10px] leading-relaxed text-muted-foreground">
+            <p className="pt-1 text-xs leading-relaxed text-muted-foreground">
               Les cookies liés à la personnalisation publicitaire et aux réseaux sociaux suivent le même choix.
             </p>
           </div>
@@ -189,14 +189,14 @@ export function CookieConsent() {
               <button
                 type="button"
                 onClick={() => setShowCustomize(true)}
-                className="mt-1 flex items-center justify-center gap-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-primary"
+                className="mt-1 flex min-h-10 items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
               >
-                <Settings className="size-3" />
+                <Settings className="size-4" />
                 Personnaliser mes choix
               </button>
             </>
           )}
-          <p className="text-center text-[10px] leading-relaxed text-muted-foreground">
+          <p className="text-center text-xs leading-relaxed text-muted-foreground">
             Les cookies non essentiels ne sont pas activés avant ton choix.
           </p>
         </footer>
@@ -225,7 +225,7 @@ function CategoryRow({
         <p className="leading-normal text-muted-foreground">{description}</p>
       </div>
       {alwaysOn ? (
-        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">
+        <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-xs font-bold uppercase text-muted-foreground">
           Toujours actifs
         </span>
       ) : (
@@ -233,7 +233,7 @@ function CategoryRow({
           type="checkbox"
           checked={checked === true}
           onChange={(event) => onChange?.(event.target.checked)}
-          className="mt-1 cursor-pointer accent-primary"
+          className="mt-0.5 size-5 cursor-pointer accent-primary"
           aria-label={`Activer ${title}`}
         />
       )}
