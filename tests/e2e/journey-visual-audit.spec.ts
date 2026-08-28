@@ -2,9 +2,13 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { handleNormalUserUi, signIn, userClick } from "./helpers";
 
 const VIEWPORTS = [
-  { name: "mobile", width: 390, height: 844 },
-  { name: "tablet", width: 834, height: 1112 },
-  { name: "desktop", width: 1440, height: 1000 },
+  { name: "narrow-mobile", width: 320, height: 568, screenshot: false },
+  { name: "mobile", width: 390, height: 844, screenshot: true },
+  { name: "mobile-landscape", width: 844, height: 390, screenshot: false },
+  { name: "tablet", width: 834, height: 1112, screenshot: true },
+  { name: "tablet-landscape", width: 1112, height: 834, screenshot: false },
+  { name: "desktop", width: 1440, height: 1000, screenshot: true },
+  { name: "wide-desktop", width: 1728, height: 1100, screenshot: false },
 ] as const;
 
 type VisualMetric = {
@@ -103,7 +107,7 @@ async function waitForRenderedChapter(page: Page, name: string) {
   if (marker) await expect(marker, `${name}: real or locked chapter content must render before screenshot`).toBeVisible({ timeout: 20_000 });
 
   await waitForVisibleImages(page);
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(100);
 }
 
 async function capture(
@@ -113,6 +117,7 @@ async function capture(
   viewportName: string,
   name: string,
   path: string,
+  screenshot: boolean,
 ) {
   await page.goto(path);
   await handleNormalUserUi(page);
@@ -154,6 +159,7 @@ async function capture(
     ).toEqual([]);
   }
 
+  if (!screenshot) return;
   const screenshotPath = testInfo.outputPath(`${viewportName}-${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   await testInfo.attach(`${viewportName}-${name}`, { path: screenshotPath, contentType: "image/png" });
@@ -163,7 +169,7 @@ async function captureJourney(
   page: Page,
   testInfo: TestInfo,
   metrics: VisualMetric[],
-  viewportName: string,
+  viewport: (typeof VIEWPORTS)[number],
   tripId: string,
 ) {
   const pages = [
@@ -180,22 +186,25 @@ async function captureJourney(
     ["packing", `/trips/${tripId}?view=voyage&section=packing`],
   ] as const;
 
-  for (const [name, path] of pages) await capture(page, testInfo, metrics, viewportName, name, path);
+  for (const [name, path] of pages) {
+    await capture(page, testInfo, metrics, viewport.name, name, path, viewport.screenshot);
+  }
 
+  if (!viewport.screenshot) return;
   await page.goto(`/trips/${tripId}/star`);
   await handleNormalUserUi(page);
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
   await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 20_000 }).catch(() => undefined);
   await waitForVisibleImages(page);
   if (await page.locator("main h1").isVisible().catch(() => false)) {
-    const screenshotPath = testInfo.outputPath(`${viewportName}-star.png`);
+    const screenshotPath = testInfo.outputPath(`${viewport.name}-star.png`);
     await page.screenshot({ path: screenshotPath, fullPage: true });
-    await testInfo.attach(`${viewportName}-star`, { path: screenshotPath, contentType: "image/png" });
+    await testInfo.attach(`${viewport.name}-star`, { path: screenshotPath, contentType: "image/png" });
   }
 }
 
 test("visual audit of every customer-journey chapter without provider calls", async ({ page }, testInfo) => {
-  test.setTimeout(360_000);
+  test.setTimeout(600_000);
   test.skip(testInfo.project.name !== "mobile-safari", "Visual audit runs once and creates all target viewports itself.");
   const metrics: VisualMetric[] = [];
 
@@ -205,7 +214,7 @@ test("visual audit of every customer-journey chapter without provider calls", as
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await captureJourney(page, testInfo, metrics, viewport.name, tripId);
+    await captureJourney(page, testInfo, metrics, viewport, tripId);
   }
 
   await testInfo.attach("visual-audit-metrics", {

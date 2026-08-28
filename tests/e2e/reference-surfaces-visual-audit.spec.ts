@@ -2,23 +2,42 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { handleNormalUserUi, signIn } from "./helpers";
 
 const VIEWPORTS = [
-  { name: "mobile", width: 390, height: 844 },
-  { name: "tablet", width: 834, height: 1112 },
-  { name: "desktop", width: 1440, height: 1000 },
+  { name: "narrow-mobile", width: 320, height: 568, screenshot: false },
+  { name: "mobile", width: 390, height: 844, screenshot: true },
+  { name: "mobile-landscape", width: 844, height: 390, screenshot: false },
+  { name: "tablet", width: 834, height: 1112, screenshot: true },
+  { name: "tablet-landscape", width: 1112, height: 834, screenshot: false },
+  { name: "desktop", width: 1440, height: 1000, screenshot: true },
+  { name: "wide-desktop", width: 1728, height: 1100, screenshot: false },
 ] as const;
 
 const MAX_FULL_PAGE_HEIGHT = 30_000;
 const LONG_PAGE_CAPTURE_HEIGHT = 12_000;
+
+type ReferenceMetric = {
+  viewport: string;
+  page: string;
+  width: number;
+  scrollWidth: number;
+  scrollHeight: number;
+};
 
 async function settle(page: Page) {
   await handleNormalUserUi(page);
   await expect(page.locator("main")).toBeVisible({ timeout: 20_000 });
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
   await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 20_000 }).catch(() => undefined);
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(150);
 }
 
-async function capture(page: Page, testInfo: TestInfo, viewport: string, name: string, path: string) {
+async function capture(
+  page: Page,
+  testInfo: TestInfo,
+  metrics: ReferenceMetric[],
+  viewport: (typeof VIEWPORTS)[number],
+  name: string,
+  path: string,
+) {
   await page.goto(path);
   await settle(page);
   const geometry = await page.evaluate(() => ({
@@ -26,9 +45,11 @@ async function capture(page: Page, testInfo: TestInfo, viewport: string, name: s
     scrollWidth: document.documentElement.scrollWidth,
     scrollHeight: document.documentElement.scrollHeight,
   }));
-  expect(geometry.scrollWidth, `${viewport}/${name}: no horizontal overflow`).toBeLessThanOrEqual(geometry.width + 1);
+  metrics.push({ viewport: viewport.name, page: name, ...geometry });
+  expect(geometry.scrollWidth, `${viewport.name}/${name}: no horizontal overflow`).toBeLessThanOrEqual(geometry.width + 1);
 
-  const screenshotPath = testInfo.outputPath(`${viewport}-${name}.png`);
+  if (!viewport.screenshot) return;
+  const screenshotPath = testInfo.outputPath(`${viewport.name}-${name}.png`);
   if (geometry.scrollHeight <= MAX_FULL_PAGE_HEIGHT) {
     await page.screenshot({ path: screenshotPath, fullPage: true });
   } else {
@@ -42,7 +63,7 @@ async function capture(page: Page, testInfo: TestInfo, viewport: string, name: s
       },
     });
   }
-  await testInfo.attach(`${viewport}-${name}`, { path: screenshotPath, contentType: "image/png" });
+  await testInfo.attach(`${viewport.name}-${name}`, { path: screenshotPath, contentType: "image/png" });
 }
 
 async function firstTripId(page: Page) {
@@ -59,8 +80,9 @@ async function firstTripId(page: Page) {
 }
 
 test("reference surfaces visual audit", async ({ page }, testInfo) => {
-  test.setTimeout(240_000);
+  test.setTimeout(480_000);
   test.skip(testInfo.project.name !== "mobile-safari", "Reference audit creates all target viewports itself.");
+  const metrics: ReferenceMetric[] = [];
 
   const publicPages = [
     ["landing", "/"],
@@ -72,7 +94,7 @@ test("reference surfaces visual audit", async ({ page }, testInfo) => {
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    for (const [name, path] of publicPages) await capture(page, testInfo, viewport.name, name, path);
+    for (const [name, path] of publicPages) await capture(page, testInfo, metrics, viewport, name, path);
   }
 
   await page.setViewportSize({ width: VIEWPORTS[0].width, height: VIEWPORTS[0].height });
@@ -89,6 +111,11 @@ test("reference surfaces visual audit", async ({ page }, testInfo) => {
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    for (const [name, path] of authenticatedPages) await capture(page, testInfo, viewport.name, name, path);
+    for (const [name, path] of authenticatedPages) await capture(page, testInfo, metrics, viewport, name, path);
   }
+
+  await testInfo.attach("reference-surface-metrics", {
+    body: Buffer.from(JSON.stringify(metrics, null, 2)),
+    contentType: "application/json",
+  });
 });
