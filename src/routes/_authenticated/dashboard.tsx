@@ -98,7 +98,7 @@ function FeaturedTrip({ trip, onCancel }: { trip: Trip; onCancel: (tripId: strin
       <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-5 top-8 h-[300px] w-[72%] opacity-45 -z-10" />
       <KrewOrganicBlob tone="plum" variant="soft" className="absolute right-0 bottom-0 h-[220px] w-[48%] opacity-[.045] -z-10" />
       <div className="relative mx-auto w-[94%] max-w-[560px] rotate-[-1.25deg] bg-[#fffefa] p-3 pb-5 shadow-[0_16px_32px_-18px_rgba(42,25,37,.28)] ring-1 ring-black/[.06] sm:mx-0 sm:w-full">
-        <div className="absolute -top-3 left-[38%] z-10 hidden sm:block"><KrewNote variant="tape" tone="cream" rotation={1} className="min-w-[74px] px-3 py-1 text-transparent select-none">tape</KrewNote></div>
+        <div className="absolute -top-3 left-[38%] z-10 hidden sm:block"><KrewNote variant="tape" tone="cream" rotation={1} className="min-w-[74px] px-3 py-1 text-transparent select-none">Tape</KrewNote></div>
         <div className="absolute right-5 top-5 z-30" onClick={(event) => event.stopPropagation()}><ArchiveControl trip={trip} onCancel={onCancel} compact /></div>
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block">
           <div className="aspect-[4/3] overflow-hidden bg-surface/60 sm:aspect-[16/11]">
@@ -139,7 +139,7 @@ function NotebookTrip({ trip, invited = false, onCancel, index = 0 }: { trip: Tr
   return (
     <article className={`group relative w-full max-w-[280px] sm:w-[250px] lg:w-[260px] px-1 py-2 ${rotation}`}>
       <div className="relative bg-[#fffefa] p-2 pb-4 shadow-[0_11px_24px_-18px_rgba(42,25,37,.26)] ring-1 ring-black/[.05] transition-transform duration-200 group-hover:-translate-y-1">
-        {index % 3 === 1 ? <div className="absolute -top-3 left-[34%] z-10"><KrewNote variant="tape" tone="cream" rotation={-2} className="min-w-[52px] px-2 py-0.5 text-transparent select-none">tape</KrewNote></div> : null}
+        {index % 3 === 1 ? <div className="absolute -top-3 left-[34%] z-10"><KrewNote variant="tape" tone="cream" rotation={-2} className="min-w-[52px] px-2 py-0.5 text-transparent select-none">Tape</KrewNote></div> : null}
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
           <div className="relative aspect-[4/3] overflow-hidden bg-surface/50">
             {image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="4/3" />}

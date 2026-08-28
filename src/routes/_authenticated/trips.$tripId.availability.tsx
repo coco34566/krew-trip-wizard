@@ -262,7 +262,7 @@ function AvailabilityPage() {
             <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
             {data.expected - data.answered > 0 ? (
               <KrewNote variant="label" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">
-                {data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}
+                {Data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}
               </KrewNote>
             ) : null}
           </div>

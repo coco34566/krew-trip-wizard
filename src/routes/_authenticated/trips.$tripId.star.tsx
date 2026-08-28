@@ -388,8 +388,8 @@ function StarQuestionnaire() {
 
       <section className="space-y-5 border-y border-border/50 py-6">
         <div className="space-y-1.5">
-          <h2 className="font-display text-2xl font-normal text-foreground">Rôle de la Star</h2>
-          <p className="text-sm leading-relaxed text-muted-foreground">Ces choix ont été définis lors de l’invitation et servent de cadre au questionnaire.</p>
+          <h2 className="font-display text-2xl font-normal text-foreground">Pour commencer</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">On reprend d’abord les choix définis pour la Star, comme les premières réponses de son questionnaire.</p>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 sm:gap-7">
           <div className="space-y-2">

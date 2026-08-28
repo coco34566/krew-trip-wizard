@@ -2419,7 +2419,7 @@ function TripDetail() {
                 <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
                 Destination
               </h2>
-              <KrewNote variant="sticky" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+              <KrewNote variant="tape" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
                 Où on va ?
               </KrewNote>
             </div>
@@ -2933,7 +2933,7 @@ function TripDetail() {
                 <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
                 Transport
               </h2>
-              <KrewNote variant="sticky" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+              <KrewNote variant="tape" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
                 Comment on vient ✈️
               </KrewNote>
             </div>

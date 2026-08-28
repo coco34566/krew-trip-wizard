@@ -162,7 +162,7 @@ function Landing() {
               <div className="lg:col-span-7 space-y-5 relative">
                 <div className="absolute -top-3 right-2 z-20 hidden sm:block pointer-events-none">
                   <KrewNote variant="sticky" tone="cream" rotation={3} className="text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[130px]">
-                    100% validé par l’équipe ✨
+                    100% Validé par l’équipe ✨
                   </KrewNote>
                 </div>
                 <div className="p-4 sm:p-5 rounded-2xl bg-background border border-border/60 shadow-2xs space-y-3.5">
