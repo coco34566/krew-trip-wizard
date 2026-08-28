@@ -1,4 +1,4 @@
-name: Apply KREW polish
+name: Align KREW E2E wording
 
 on:
   push:
@@ -14,49 +14,39 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout automation tools
-        uses: actions/checkout@v4
-        with:
-          ref: automation/apply-final-krew-ux-polish
-          path: automation-tools
-          fetch-depth: 1
       - name: Checkout target branch
         uses: actions/checkout@v4
         with:
-          ref: fix/final-krew-ux-polish
-          path: target
+          ref: fix/final-krew-ux-polish-pr
           fetch-depth: 0
-      - name: Harden transform script
+      - name: Align exact CTA selectors
+        shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
-          p = Path('automation-tools/.github/scripts/apply-final-krew-ux-polish.py')
-          s = p.read_text()
-          replacements = [
-            (
-              "s = replace_once(s, '{value}%', '{item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}', \"progress display\")",
-              "s = s.replace('{value}%', '{item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}', 1)",
-            ),
-            (
-              "s = replace_once(s, 'const starMode = (trip.data.group_logistics as any)?.star_mode ?? \"secret\";\\n    const isAdmin = isTripAdmin(trip.data, userId);', 'const starMode = (trip.data.group_logistics as any)?.star_mode ?? \"secret\";\\n    const starPaysShare = (trip.data.group_logistics as any)?.star_pays_share !== false;\\n    const isAdmin = isTripAdmin(trip.data, userId);', \"star pays read\")",
-              "s = s.replace('const starMode = (trip.data.group_logistics as any)?.star_mode ?? \"secret\";\\n    const isAdmin = isTripAdmin(trip.data, userId);', 'const starMode = (trip.data.group_logistics as any)?.star_mode ?? \"secret\";\\n    const starPaysShare = (trip.data.group_logistics as any)?.star_pays_share !== false;\\n    const isAdmin = isTripAdmin(trip.data, userId);', 1)",
-            ),
+
+          paths = [
+            Path('tests/e2e/full-trip-flow.spec.ts'),
+            Path('tests/e2e/golden-trip-flow.spec.ts'),
           ]
-          for old, new in replacements:
-            if old not in s:
-              raise SystemExit(f'transform patch not found: {old[:50]}')
-            s = s.replace(old, new, 1)
-          p.write_text(s)
+          changed = 0
+          for path in paths:
+            text = path.read_text()
+            updated = text.replace('"Générer des propositions"', '"Trouver les trajets"')
+            updated = updated.replace('"Générer le planning"', '"Préparer le planning"')
+            if updated != text:
+              path.write_text(updated)
+              changed += 1
+          if changed == 0:
+            raise SystemExit('No stale CTA selector found')
+          print(f'Updated {changed} E2E file(s)')
           PY
-      - name: Apply corrections
-        working-directory: target
-        run: python ../automation-tools/.github/scripts/apply-final-krew-ux-polish.py
-      - name: Commit once
-        working-directory: target
+          git diff --check
+      - name: Commit test alignment
+        shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src
-          git diff --cached --check
-          git commit -m "fix: polish final KREW journey surfaces"
-          git push origin HEAD:fix/final-krew-ux-polish
+          git add tests/e2e/full-trip-flow.spec.ts tests/e2e/golden-trip-flow.spec.ts
+          git commit -m "test: align journey selectors with KREW wording"
+          git push origin HEAD:fix/final-krew-ux-polish-pr
