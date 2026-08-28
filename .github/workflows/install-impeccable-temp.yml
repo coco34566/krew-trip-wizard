@@ -1,0 +1,41 @@
+name: Install Impeccable (temporary)
+
+on:
+  push:
+    branches:
+      - chore/impeccable-design-audit
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: ${{ !contains(github.event.head_commit.message, '[impeccable-installed]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: chore/impeccable-design-audit
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Use Node 24 for Impeccable CLI only
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install official Impeccable Codex skill
+        run: npx --yes impeccable@latest install --providers=codex --scope=project --no-hooks
+
+      - name: Commit generated project files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: install official Impeccable Codex skill [impeccable-installed]"
+          git push origin HEAD:chore/impeccable-design-audit
