@@ -22,7 +22,6 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   const [earliest, setEarliest] = useState("");
   const [latest, setLatest] = useState("");
 
-  // 1. Fetch current user's preferences
   const { data: myPrefs, isLoading: isMyPrefsLoading } = useQuery({
     queryKey: ["my-transport-time-prefs", tripId],
     queryFn: async () => {
@@ -49,7 +48,6 @@ export function TransportTimePrefsCard({ tripId }: Props) {
     enabled: !!tripId,
   });
 
-  // 2. Fetch all transport time preferences for the group
   const { data: groupPrefs } = useQuery({
     queryKey: ["group-transport-time-prefs", tripId],
     queryFn: async () => {
@@ -63,9 +61,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
     enabled: !!tripId,
   });
 
-  const groupWindow = useMemo(() => {
-    return computeGroupTimeWindow(groupPrefs ?? []);
-  }, [groupPrefs]);
+  const groupWindow = useMemo(() => computeGroupTimeWindow(groupPrefs ?? []), [groupPrefs]);
 
   useEffect(() => {
     if (myPrefs) {
@@ -96,48 +92,44 @@ export function TransportTimePrefsCard({ tripId }: Props) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="flex items-center gap-2">
           <KrewIcon name="time" tone="plum" size="sm" className="size-5 shrink-0" />
-          <h3 className="font-display text-xl font-normal text-foreground">
-            Mes créneaux horaires
-          </h3>
+          <h3 className="font-display text-xl font-normal text-foreground">Mes créneaux horaires</h3>
         </div>
-        <p className="text-sm text-muted-foreground font-sans sm:max-w-[320px] sm:text-right">
+        <p className="text-[13px] leading-relaxed text-muted-foreground font-sans sm:max-w-[320px] sm:text-right">
           Mes disponibilités pour les trajets aller et retour
         </p>
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
-        {/* Zone ALLER */}
         <div className="space-y-2 border-t border-border/50 pt-4">
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary font-mono">
+          <div className="flex items-center gap-1.5 font-mono text-[12px] font-semibold uppercase tracking-wider text-primary">
             <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5 shrink-0" />
-            <span>ALLER · Départ</span>
+            <span>Aller · départ</span>
           </div>
-          <p className="text-xs text-muted-foreground font-sans">
+          <p className="text-[13px] leading-relaxed text-muted-foreground font-sans">
             Disponible au plus tôt à partir de :
           </p>
           <Input
             type="time"
-            className="h-10 w-full rounded-[10px] border-border/50 text-sm font-mono focus:border-primary"
+            className="min-h-10 w-full rounded-[10px] border-border/50 text-sm font-mono focus:border-primary"
             value={earliest}
             onChange={(e) => setEarliest(e.target.value)}
           />
         </div>
 
-        {/* Zone RETOUR */}
         <div className="space-y-2 border-t border-border/50 pt-4">
-          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary font-mono">
+          <div className="flex items-center gap-1.5 font-mono text-[12px] font-semibold uppercase tracking-wider text-primary">
             <KrewIcon name="train" tone="plum" size="sm" className="size-3.5 shrink-0" />
-            <span>RETOUR · Arrivée</span>
+            <span>Retour · arrivée</span>
           </div>
-          <p className="text-xs text-muted-foreground font-sans">
+          <p className="text-[13px] leading-relaxed text-muted-foreground font-sans">
             Impératif de rentrer au plus tard avant :
           </p>
           <Input
             type="time"
-            className="h-10 w-full rounded-[10px] border-border/50 text-sm font-mono focus:border-primary"
+            className="min-h-10 w-full rounded-[10px] border-border/50 text-sm font-mono focus:border-primary"
             value={latest}
             onChange={(e) => setLatest(e.target.value)}
           />
@@ -145,7 +137,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
       </div>
 
       <div className="flex flex-col gap-3 border-t border-border/50 pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-muted-foreground font-sans sm:max-w-[620px]">
+        <p className="text-[13px] leading-relaxed text-muted-foreground font-sans sm:max-w-[620px]">
           {groupWindow.earliestDeparture || groupWindow.latestReturn ? (
             <span className="font-mono">
               Synthèse groupe :
@@ -155,9 +147,7 @@ export function TransportTimePrefsCard({ tripId }: Props) {
             </span>
           ) : (
             <span>
-              Aucune contrainte horaire définie pour le groupe. Tant que KREW ne connaît pas
-              les horaires de transport réels, le planning utilise des repères estimés
-              (arrivée 18:30 · départ 16:30), à confirmer.
+              Aucune contrainte horaire définie pour le groupe. Tant que KREW ne connaît pas les horaires de transport réels, le planning utilise des repères estimés (arrivée 18:30 · départ 16:30), à confirmer.
             </span>
           )}
         </p>
@@ -166,12 +156,12 @@ export function TransportTimePrefsCard({ tripId }: Props) {
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending || isMyPrefsLoading}
           size="sm"
-          className="self-end shrink-0 sm:self-auto"
+          className="min-h-10 shrink-0 self-end text-[13px] sm:self-auto"
         >
           {saveMutation.isPending ? (
-            <Loader2 className="size-3.5 animate-spin mr-1.5" />
+            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
           ) : (
-            <KrewIcon name="check" tone="plum" size="sm" className="size-3.5 mr-1.5" />
+            <KrewIcon name="check" tone="plum" size="sm" className="mr-1.5 size-3.5" />
           )}
           Enregistrer mes créneaux
         </Button>
