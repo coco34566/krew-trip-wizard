@@ -7,16 +7,30 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { getTripRecap, watchPrice, getCostSplit, reactToRecommendation } from "@/lib/trips.functions";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 import { KrewIcon, KrewMark, KrewHighlight, KrewSectionWave } from "@/components/krew/visual-language";
+
+const RECAP_LOAD_TIMEOUT_MS = 15_000;
+
+function withRecapTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      window.setTimeout(
+        () => reject(new Error("Le récap met plus de temps que prévu à se charger.")),
+        RECAP_LOAD_TIMEOUT_MS,
+      );
+    }),
+  ]);
+}
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/recap")({
   head: () => ({
@@ -114,7 +128,8 @@ function TripRecapPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["trip-recap", tripId],
-    queryFn: () => fetchRecap({ data: { tripId } }),
+    queryFn: () => withRecapTimeout(fetchRecap({ data: { tripId } })),
+    retry: false,
   });
 
   const googleCalendarUrl = useMemo(() => {
@@ -130,10 +145,12 @@ function TripRecapPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-4xl space-y-4 px-4 sm:px-6 py-10">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-48 w-full rounded-3xl" />
-        <Skeleton className="h-48 w-full rounded-3xl" />
+      <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+        <KrewThinkingState
+          context="generic"
+          customMessage="KREW rassemble les choix du groupe pour préparer le récap…"
+          delayMs={300}
+        />
       </main>
     );
   }
@@ -141,14 +158,28 @@ function TripRecapPage() {
   if (error || !data) {
     return (
       <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10 text-center">
-        <p className="text-sm sm:text-base text-muted-foreground">
-          {(error as Error)?.message ?? "Impossible de charger le récap."}
+        <img
+          src="/brand/otter-states/searching.png"
+          alt=""
+          className="mx-auto mb-4 h-auto w-[72px] object-contain sm:w-[88px]"
+        />
+        <h1 className="font-display text-3xl font-normal text-foreground">Le récap n’a pas pu se charger</h1>
+        <p className="mx-auto mt-2 max-w-md text-sm sm:text-base text-muted-foreground">
+          {(error as Error)?.message ?? "Impossible de charger le récap."} Tu peux réessayer sans perdre tes choix.
         </p>
-        <Button asChild variant="outline" className="mt-4 min-h-[44px]">
-          <Link to="/trips/$tripId" params={{ tripId }}>
-            Retour au voyage
-          </Link>
-        </Button>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <Button
+            type="button"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["trip-recap", tripId] })}
+          >
+            Réessayer
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/trips/$tripId" params={{ tripId }}>
+              Retour au voyage
+            </Link>
+          </Button>
+        </div>
       </main>
     );
   }

@@ -112,12 +112,24 @@ function MemoriesPage(){
 
       <section className="rounded-[24px] border border-dashed border-border bg-surface/30 p-8 text-center space-y-3">
         <input type="file" multiple accept="image/*" ref={fileInputRef} onChange={upload} className="hidden" />
-        <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <KrewIcon name="plus" tone="plum" size="sm" className="size-6" />
-        </div>
+        {!isLoading && !photos.length ? (
+          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
+            <img src="/brand/otter-states/trip-progress.png" alt="" className="w-[72px] sm:w-[80px] h-auto object-contain" />
+          </div>
+        ) : (
+          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <KrewIcon name="plus" tone="plum" size="sm" className="size-6" />
+          </div>
+        )}
         <div>
-          <p className="font-semibold text-sm text-foreground">Ajoute tes photos de voyage</p>
-          <p className="text-[13px] text-muted-foreground font-sans mt-0.5">Stockage privé, accessible uniquement aux participants autorisés.</p>
+          <p className="font-display text-2xl font-normal text-foreground">
+            {!isLoading && !photos.length ? "L'album est encore vide" : "Ajoute tes photos de voyage"}
+          </p>
+          <p className="text-[13px] text-muted-foreground font-sans mt-1 max-w-sm mx-auto">
+            {!isLoading && !photos.length
+              ? "Importe les premières photos pour constituer l'album du voyage. Elles restent privées et accessibles uniquement aux participants autorisés."
+              : "Stockage privé, accessible uniquement aux participants autorisés."}
+          </p>
         </div>
         <div className="pt-1">
           <Button size="sm" className="rounded-xl font-medium" disabled={uploading} onClick={() => permission === "granted" ? fileInputRef.current?.click() : setShowModal(true)}>
@@ -130,15 +142,7 @@ function MemoriesPage(){
         <div className="py-12 text-center">
           <Loader2 className="mx-auto animate-spin text-primary size-6" />
         </div>
-      ) : !photos.length ? (
-        <div className="py-12 text-center border border-dashed border-border rounded-[24px] p-8 space-y-3">
-          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
-            <img src="/brand/otter-states/trip-progress.png" alt="" className="w-[72px] sm:w-[80px] h-auto object-contain" />
-          </div>
-          <h2 className="font-display text-2xl font-normal text-foreground">L&apos;album est encore vide</h2>
-          <p className="text-sm text-muted-foreground font-sans max-w-sm mx-auto">Importe les premières photos pour constituer l'album du voyage.</p>
-        </div>
-      ) : (
+      ) : !photos.length ? null : (
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
           {photos.map((p, idx) => {
             const hasRotation = idx % 5 === 1 ? "rotate-[1deg]" : idx % 5 === 3 ? "-rotate-[1deg]" : "";
