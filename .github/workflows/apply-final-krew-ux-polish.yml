@@ -1,4 +1,4 @@
-name: Align KREW E2E wording
+name: Finish KREW UX polish
 
 on:
   push:
@@ -19,34 +19,74 @@ jobs:
         with:
           ref: fix/final-krew-ux-polish-pr
           fetch-depth: 0
-      - name: Align exact CTA selectors
+      - name: Finish scoped visual corrections
         shell: bash
         run: |
           python <<'PY'
           from pathlib import Path
+          import re
 
-          paths = [
-            Path('tests/e2e/full-trip-flow.spec.ts'),
-            Path('tests/e2e/golden-trip-flow.spec.ts'),
-          ]
-          changed = 0
-          for path in paths:
-            text = path.read_text()
-            updated = text.replace('"Générer des propositions"', '"Trouver les trajets"')
-            updated = updated.replace('"Générer le planning"', '"Préparer le planning"')
-            if updated != text:
+          journey = Path('src/routes/_authenticated/trips.$tripId.index.tsx')
+          text = journey.read_text()
+          old = 'variant="sticky" tone="cream"'
+          count = text.count(old)
+          if count != 2:
+            raise SystemExit(f'Expected exactly 2 residual cream sticky notes, found {count}')
+          text = text.replace(old, 'variant="tape" tone="cream"')
+          journey.write_text(text)
+
+          star = Path('src/routes/_authenticated/trips.$tripId.star.tsx')
+          text = star.read_text()
+          text = text.replace(
+            '<h2 className="font-display text-2xl font-normal text-foreground">Rôle de la Star</h2>\n          <p className="text-sm leading-relaxed text-muted-foreground">Ces choix ont été définis lors de l’invitation et servent de cadre au questionnaire.</p>',
+            '<h2 className="font-display text-2xl font-normal text-foreground">Pour commencer</h2>\n          <p className="text-sm leading-relaxed text-muted-foreground">On reprend d’abord les choix définis pour la Star, comme les premières réponses de son questionnaire.</p>',
+          )
+          star.write_text(text)
+
+          # Normalize the first visible character of every static KrewNote label.
+          # Dynamic JSX children are intentionally untouched.
+          pattern = re.compile(r'(<KrewNote\b[^>]*>)(\s*)([^<{][^<]*?)(\s*)(</KrewNote>)', re.S)
+          changed_files = []
+          for path in Path('src').rglob('*.tsx'):
+            source = path.read_text()
+            def cap(match):
+              body = match.group(3)
+              chars = list(body)
+              for i, ch in enumerate(chars):
+                if ch.isalpha():
+                  chars[i] = ch.upper()
+                  break
+              return match.group(1) + match.group(2) + ''.join(chars) + match.group(4) + match.group(5)
+            updated = pattern.sub(cap, source)
+            if updated != source:
               path.write_text(updated)
-              changed += 1
-          if changed == 0:
-            raise SystemExit('No stale CTA selector found')
-          print(f'Updated {changed} E2E file(s)')
+              changed_files.append(str(path))
+
+          # Verify no static KrewNote starts with a lowercase letter anymore.
+          offenders = []
+          for path in Path('src').rglob('*.tsx'):
+            source = path.read_text()
+            for match in pattern.finditer(source):
+              body = match.group(3).strip()
+              first = next((ch for ch in body if ch.isalpha()), '')
+              if first and first.islower():
+                offenders.append(f'{path}: {body[:60]}')
+          if offenders:
+            raise SystemExit('Lowercase KrewNote labels remain:\n' + '\n'.join(offenders))
+
+          print('Residual journey notes normalized to KREW tape format.')
+          print(f'Capitalization normalized in {len(changed_files)} file(s).')
           PY
           git diff --check
-      - name: Commit test alignment
+      - name: Commit final polish
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add tests/e2e/full-trip-flow.spec.ts tests/e2e/golden-trip-flow.spec.ts
-          git commit -m "test: align journey selectors with KREW wording"
+          git add src
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 1
+          fi
+          git commit -m "fix: finish KREW visual polish residuals"
           git push origin HEAD:fix/final-krew-ux-polish-pr
