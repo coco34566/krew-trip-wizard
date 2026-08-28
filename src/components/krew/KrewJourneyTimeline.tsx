@@ -96,7 +96,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       <header className="relative mb-8 grid grid-cols-[minmax(0,1fr)_76px] items-start gap-4 sm:mb-10 sm:grid-cols-[minmax(0,1fr)_104px] sm:gap-8">
         <div className="min-w-0">
           <KrewNote variant="margin" rotation={-1} className="mb-1 text-sage">
-            notre feuille de route
+            Notre feuille de route
           </KrewNote>
           <div className="relative inline-block max-w-full pb-2">
             <h1 className="font-display text-[34px] font-normal leading-[.96] tracking-[-0.02em] text-foreground sm:text-[44px]">

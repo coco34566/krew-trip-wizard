@@ -255,7 +255,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
   await handleNormalUserUi(page);
   const transports = page.locator("#hub-transports");
-  const transportButton = transports.getByRole("button", { name: "Générer des propositions", exact: true });
+  const transportButton = transports.getByRole("button", { name: "Trouver les trajets", exact: true });
   await expect(transportButton).toBeEnabled();
   await userClick(page, transportButton, "generate transport");
   const chooseTransport = transports.getByRole("button", { name: "Choisir ce trajet", exact: true }).first();
@@ -266,7 +266,7 @@ test("single full KREW journey from zero to planning", async ({ page, browser },
   await page.goto(`/trips/${tripId}?view=voyage&section=planning`);
   await handleNormalUserUi(page);
   const planning = page.locator("#hub-activities-plan");
-  const planningButton = planning.getByRole("button", { name: "Générer le planning", exact: true });
+  const planningButton = planning.getByRole("button", { name: "Préparer le planning", exact: true });
   await userClick(page, planningButton, "generate planning");
   await expect(planning.getByRole("heading", { name: /Jour 1/ }).first(), "USER_BLOCKER: planning returned no Day 1").toBeVisible({ timeout: 120_000 });
 

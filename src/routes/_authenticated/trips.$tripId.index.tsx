@@ -2419,7 +2419,7 @@ function TripDetail() {
                 <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
                 Destination
               </h2>
-              <KrewNote variant="sticky" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+              <KrewNote variant="tape" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
                 Où on va ?
               </KrewNote>
             </div>
@@ -2933,7 +2933,7 @@ function TripDetail() {
                 <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
                 Transport
               </h2>
-              <KrewNote variant="sticky" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+              <KrewNote variant="tape" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
                 Comment on vient ✈️
               </KrewNote>
             </div>
@@ -2941,19 +2941,6 @@ function TripDetail() {
               Des trajets adaptés au point de départ et aux contraintes de chacun.
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="rounded-xl text-sm font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
-            disabled={!destinationSelected || logisticsMutation.isPending}
-            onClick={() => logisticsMutation.mutate()}
-          >
-            {logisticsMutation.isPending ? (
-              <Loader2 className="animate-spin size-4 shrink-0" />
-            ) : (
-              <KrewIcon name="transport" tone="plum" size="sm" className="size-4 shrink-0" />
-            )}
-            {logisticsMutation.isPending ? "Recherche en cours…" : "Générer des propositions"}
-          </Button>
         </div>
 
         <TransportTimePrefsCard tripId={tripId} />
@@ -2981,17 +2968,10 @@ function TripDetail() {
           <KrewThinkingState context="transport" />
         ) : !(trip as any).group_logistics?.transports?.length ? (
           <p className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Génère des propositions de transport pour le groupe.
+            Les trajets du groupe seront proposés ici.
           </p>
         ) : (
           <div className="space-y-6">
-            <div className="flex justify-end">
-              <Button asChild size="sm" className="rounded-xl font-medium text-xs">
-                <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }}>
-                  Organiser le planning <KrewMark type="arrow-right" tone="cream" size="sm" className="size-3.5 ml-1" />
-                </Link>
-              </Button>
-            </div>
 
             {(() => {
               const transports = ((trip as any).group_logistics.transports ?? []) as any[];
@@ -3142,12 +3122,20 @@ function TripDetail() {
           </div>
         )}
         {destinationSelected ? (
-          <div className="pt-4 border-t border-border/40 flex justify-end">
-            <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
-              <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }}>
-                Organiser le planning <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
-              </Link>
-            </Button>
+          <div className="flex flex-col gap-2 border-t border-border/40 pt-4 sm:flex-row sm:items-center sm:justify-end">
+            {data.isOwner ? (
+              <Button disabled={logisticsMutation.isPending} onClick={() => logisticsMutation.mutate()} className="w-full sm:w-auto">
+                {logisticsMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="transport" tone="plum" size="sm" className="size-4" />}
+                {(trip as any).group_logistics?.transports?.length ? "Actualiser les trajets" : "Trouver les trajets"}
+              </Button>
+            ) : null}
+            {(trip as any).group_logistics?.transports?.length ? (
+              <Button asChild variant="ghost" className="w-full sm:w-auto">
+                <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "planning" }}>
+                  Continuer vers le planning <KrewMark type="arrow-right" tone="plum" size="sm" className="ml-1 size-4" />
+                </Link>
+              </Button>
+            ) : null}
           </div>
         ) : null}
       </section>
@@ -3205,7 +3193,7 @@ function TripDetail() {
             </div>
             {data.isOwner ? (
               <Button
-                className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
+                className="w-full sm:w-auto"
                 disabled={itineraryMutation.isPending}
                 onClick={() => itineraryMutation.mutate()}
               >
@@ -3215,8 +3203,8 @@ function TripDetail() {
                   <KrewIcon name="planning" tone="plum" size="sm" className="size-4 shrink-0" />
                 )}
                 {(trip as any).group_itinerary?.days?.length
-                  ? "Régénérer tout le planning"
-                  : "Générer le planning"}
+                  ? "Revoir le planning"
+                  : "Préparer le planning"}
               </Button>
             ) : null}
           </div>
@@ -3472,10 +3460,8 @@ function TripDetail() {
               <p>Aucune tâche pour le moment.</p>
               {data.isOwner ? (
                 <Button
-                  variant="hero"
-                  size="sm"
                   onClick={() => generateTasksMutation.mutate()}
-                  className="mt-4 gap-1.5"
+                  className="mt-4 w-full sm:w-auto"
                   disabled={generateTasksMutation.isPending}
                 >
                   {generateTasksMutation.isPending ? (

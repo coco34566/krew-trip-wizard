@@ -151,6 +151,11 @@ function InvitePage() {
   const celebratedPerson = trip?.celebrated_person;
   const starUid = trip?.star_user_id || "star-virtual-uid";
   const hasStar = Boolean(trip?.has_star || celebratedPerson);
+  const inviteStepCompleted = Boolean(
+    (trip?.group_logistics as any)?.inviteStepCompleted ||
+      (trip?.group_logistics as any)?.invite_step_completed ||
+      (trip as any)?.invite_step_completed,
+  );
 
   const combinedParticipants = (() => {
     if (!hasStar) return rawParticipants;
@@ -232,10 +237,11 @@ function InvitePage() {
         waveClassName="w-[140px]"
       >
         <p className="max-w-[42rem] text-[15px] leading-[1.55] text-muted-foreground sm:text-[16px]">
-          Partage le lien, invite la team et vois en un coup d’œil qui doit encore répondre.
+          {inviteStepCompleted ? "La team est réunie. Tu peux relancer doucement les réponses qui manquent." : "Partage le lien, invite la team et vois en un coup d’œil qui doit encore répondre."}
         </p>
       </KrewJourneyPageHeader>
 
+      {!inviteStepCompleted ? (
       <section className="space-y-4 border-b border-border/55 pb-7">
         <div className="space-y-1">
           <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
@@ -266,6 +272,7 @@ function InvitePage() {
           </button>
         </div>
       </section>
+      ) : null}
 
       {data.isOwner ? (
         <section className="space-y-4 border-b border-border/55 pb-7">
@@ -395,20 +402,20 @@ function InvitePage() {
         {data.isOwner && missingParticipants.length > 0 ? (
           <div className="flex flex-col gap-1 border-t border-border/45 pt-4 text-[14px] sm:flex-row sm:items-center sm:justify-between">
             <p className="text-muted-foreground">
-              {missingParticipants.length} personne{missingParticipants.length > 1 ? "s" : ""} doivent encore répondre.
+              On avance bien : {missingParticipants.length} personne{missingParticipants.length > 1 ? "s" : ""} doivent encore répondre.
             </p>
             <button
               type="button"
               onClick={remindGroup}
               className="inline-flex min-h-10 items-center self-start font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"
             >
-              Relancer sur WhatsApp <span aria-hidden="true" className="ml-1">→</span>
+              Relancer gentiment via WhatsApp <span aria-hidden="true" className="ml-1">→</span>
             </button>
           </div>
         ) : null}
       </section>
 
-      {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
+      {!inviteStepCompleted && (trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type)) ? (
         <section className="space-y-5 border-t border-border/55 pt-7">
           <div className="space-y-1">
             <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">

@@ -8,7 +8,6 @@ import {
   Lock,
   ChevronLeft,
   ChevronRight,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,7 +20,7 @@ import {
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
-import { KrewIcon, KrewNote, KrewProgressRing } from "@/components/krew/visual-language";
+import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { cn } from "@/lib/utils";
@@ -232,7 +231,7 @@ function AvailabilityPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto w-full max-w-[820px] px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8">
         <KrewThinkingState context="generic" customMessage="Chargement des disponibilités…" delayMs={0} />
       </main>
     );
@@ -240,7 +239,7 @@ function AvailabilityPage() {
 
   if (error || !data) {
     return (
-      <main className="mx-auto w-full max-w-[820px] space-y-4 px-4 py-10 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-[820px] space-y-4 px-5 py-10 sm:px-7 lg:px-8">
         <p className="text-destructive">{(error as any)?.message ?? "Impossible de charger"}</p>
         <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary hover:underline">Retour au voyage</Link>
       </main>
@@ -251,14 +250,14 @@ function AvailabilityPage() {
   const lockedLabel = data.trip.lockedStart && data.trip.lockedEnd ? formatRange(data.trip.lockedStart, data.trip.lockedEnd) : null;
 
   return (
-    <main className="mx-auto w-full max-w-[820px] space-y-8 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+    <main className="mx-auto w-full max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary">
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
       <KrewJourneyPageHeader tripName={data.trip.name} title="Disponibilités" otterSrc="/brand/otter-states/availability.png">
         <div className="flex items-center gap-3">
-          <KrewProgressRing value={data.answered} total={data.expected || 1} size={56} tone="sage" />
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sage/18"><KrewIcon name="group" tone="sage" size="sm" className="size-5" /></div>
           <div className="space-y-0.5">
             <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
             {data.expected - data.answered > 0 ? (
@@ -299,39 +298,12 @@ function AvailabilityPage() {
 
         <div className="flex items-center justify-end gap-2 sm:pr-2">
           <KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" />
-          <KrewNote variant="sticky" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote>
+          <KrewNote variant="tape" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]">
           <button type="button" onClick={selectWeekendsInView} className="inline-flex min-h-10 items-center font-semibold text-primary underline-offset-4 hover:underline">Sélectionner tous les week-ends affichés</button>
           <button type="button" onClick={clearSelection} className="inline-flex min-h-10 items-center font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Tout effacer</button>
-        </div>
-
-        <div className="space-y-3 border-y border-border/45 py-4">
-          <div>
-            <p className="text-[12px] font-semibold text-secondary sm:text-[13px]">Dispo ({availableDates.length})</p>
-            {availableDates.length === 0 ? <p className="mt-1 text-[13px] text-muted-foreground">Aucune date sélectionnée</p> : (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {availableDates.map((d) => (
-                  <button key={d} type="button" onClick={() => toggleDay(d)} className="inline-flex min-h-10 items-center gap-1 rounded-full bg-secondary/20 px-3 text-[12px] font-mono text-foreground">
-                    {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}<X className="size-3 opacity-60" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {blockedDates.length > 0 ? (
-            <div>
-              <p className="text-[12px] font-semibold text-destructive sm:text-[13px]">Impossible ({blockedDates.length})</p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {blockedDates.map((d) => (
-                  <button key={d} type="button" onClick={() => toggleDay(d)} className="inline-flex min-h-10 items-center gap-1 rounded-full bg-destructive/10 px-3 text-[12px] font-mono">
-                    {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}<X className="size-3 opacity-60" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </div>
 
         <div className="space-y-2">
