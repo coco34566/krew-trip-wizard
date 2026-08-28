@@ -2,16 +2,24 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Copy, Crown, Loader2, Shield, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, Crown, Loader2, MoreHorizontal, Shield, Sparkles, Star } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
+import { KrewIcon } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
 import {
   finalizeInvitationStep,
@@ -28,6 +36,9 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/invite")({
   head: () => ({ meta: [{ title: "Inviter le groupe — KREW" }] }),
   component: InvitePage,
 });
+
+const FORM_INPUT_CLASS =
+  "h-11 rounded-[10px] border-border/70 bg-background px-3 text-[15px] shadow-none transition-colors focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
 
 function InvitePage() {
   const { tripId } = Route.useParams();
@@ -54,7 +65,6 @@ function InvitePage() {
   });
 
   const [email, setEmail] = useState("");
-  const [copied, setCopied] = useState(false);
   const [starMode, setStarMode] = useState<"secret" | "participant">("secret");
   const [starPaysShare, setStarPaysShare] = useState(true);
 
@@ -120,7 +130,7 @@ function InvitePage() {
 
   if (isError && !data) {
     return (
-      <main className="mx-auto max-w-[820px] space-y-4 px-4 py-10 text-center sm:px-6">
+      <main className="mx-auto w-full max-w-[820px] space-y-4 px-4 py-10 text-center sm:px-6 lg:px-8">
         <h1 className="font-display text-[30px] font-normal text-foreground">Impossible de charger l’invitation</h1>
         <p className="text-sm text-muted-foreground">Les détails du voyage ne sont pas disponibles pour le moment.</p>
         <Button onClick={() => { refetch(); refetchProgress(); }}>Réessayer</Button>
@@ -130,7 +140,7 @@ function InvitePage() {
 
   if (isLoading || !data) {
     return (
-      <main className="mx-auto max-w-[820px] px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-[820px] px-4 py-10 sm:px-6 lg:px-8">
         <KrewThinkingState context="generic" customMessage="Chargement de l’invitation…" delayMs={0} />
       </main>
     );
@@ -182,12 +192,35 @@ function InvitePage() {
   const missingParticipants =
     progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
 
+  function shareInvitation() {
+    const text = `Salut ! On organise « ${trip.name} » avec KREW ✈️\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n👉 ${shareUrl}`;
+    shareOnWhatsApp(text);
+  }
+
+  function remindGroup() {
+    const lines = [
+      `Petit point KREW pour « ${trip.name} » ✈️`,
+      "",
+      "Il reste quelques petites choses à faire :",
+    ];
+    for (const p of missingParticipants) {
+      const name = p.display_name || p.email?.split("@")[0] || "Ami";
+      const missing = [
+        !p.hasAnsweredAvailability ? "disponibilités" : null,
+        !p.hasAnswered ? "préférences" : null,
+      ].filter(Boolean);
+      lines.push(`• ${name} : ${missing.join(" + ")}`);
+    }
+    lines.push("", `👉 ${window.location.origin}/trips/${trip.id}`);
+    shareOnWhatsApp(lines.join("\n"));
+  }
+
   return (
-    <main className="space-y-8">
+    <main className="mx-auto w-full max-w-[820px] space-y-8 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
@@ -203,236 +236,259 @@ function InvitePage() {
         </p>
       </KrewJourneyPageHeader>
 
-      <section className="space-y-3 border-y border-sage/25 bg-sage/[0.05] px-4 py-5 sm:px-5">
-        <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
-          Lien d’invitation
+      <section className="space-y-4 border-b border-border/55 pb-7">
+        <div className="space-y-1">
+          <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
+            <KrewIcon name="invite" tone="plum" size="sm" className="size-5" />
+            Partager le voyage
+          </h2>
+          <p className="text-[14px] leading-relaxed text-muted-foreground">Envoie ce lien à la team : chacun rejoint le même voyage.</p>
         </div>
-        <p className="break-all font-mono text-[12px] leading-relaxed text-foreground sm:text-[13px]">{shareUrl || "…"}</p>
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(shareUrl);
-              setCopied(true);
-              toast.success("Lien copié");
-              setTimeout(() => setCopied(false), 2000);
-            } catch {
-              toast.error("Impossible de copier le lien.");
-            }
-          }}
-        >
-          {copied ? <KrewMark type="check" tone="sage" size="sm" className="size-4" /> : <Copy className="size-4" />}
-          {copied ? "Copié" : "Copier le lien"}
-        </Button>
+
+        <p className="break-all font-mono text-[12px] leading-relaxed text-foreground/80 sm:text-[13px]">{shareUrl || "…"}</p>
+
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+          <KrewStatefulButton
+            variant="outline"
+            className="w-full sm:w-auto"
+            idleLabel="Copier le lien"
+            loadingLabel="Copie…"
+            successLabel="Lien copié"
+            errorLabel="Réessayer"
+            onAction={() => navigator.clipboard.writeText(shareUrl)}
+          />
+          <button
+            type="button"
+            onClick={shareInvitation}
+            className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-semibold text-primary underline-offset-4 transition-colors hover:underline"
+          >
+            Partager sur WhatsApp <span aria-hidden="true">→</span>
+          </button>
+        </div>
       </section>
 
       {data.isOwner ? (
-        <section className="space-y-5 border-b border-border/60 pb-7">
+        <section className="space-y-4 border-b border-border/55 pb-7">
           <div className="space-y-1">
-            <h2 className="flex items-center gap-2 font-display text-[24px] font-normal text-foreground sm:text-[27px]">
+            <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
               <KrewIcon name="plus" tone="plum" size="sm" className="size-5" />
-              Ajouter ou relancer la team
+              Ajouter quelqu’un
             </h2>
-            <p className="text-sm text-muted-foreground">Un email pour inviter directement, ou WhatsApp pour partager le lien au groupe.</p>
+            <p className="text-[14px] text-muted-foreground">Invite directement une personne avec son adresse e-mail.</p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-[13px] text-muted-foreground">Ajouter une adresse e-mail</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <Label htmlFor="invite-email" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <Input
+                id="invite-email"
                 type="email"
+                autoComplete="email"
                 placeholder="ami@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="min-h-10"
+                className={FORM_INPUT_CLASS}
               />
               <Button
                 disabled={!email.trim() || inviteMutation.isPending}
                 onClick={() => inviteMutation.mutate()}
-                className="shrink-0"
+                className="w-full shrink-0 sm:w-auto"
               >
                 {inviteMutation.isPending ? <Loader2 className="animate-spin" /> : null}
                 Inviter
               </Button>
             </div>
           </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const text = `Salut ! On organise « ${trip.name} » avec KREW ✈️\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n👉 ${shareUrl}`;
-                shareOnWhatsApp(text);
-              }}
-            >
-              Inviter via WhatsApp
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={missingParticipants.length === 0}
-              onClick={() => {
-                const lines = [
-                  `Petit point KREW pour « ${trip.name} » ✈️`,
-                  "",
-                  "Il reste quelques petites choses à faire :",
-                ];
-                for (const p of missingParticipants) {
-                  const name = p.display_name || p.email?.split("@")[0] || "Ami";
-                  const missing = [
-                    !p.hasAnsweredAvailability ? "disponibilités" : null,
-                    !p.hasAnswered ? "préférences" : null,
-                  ].filter(Boolean);
-                  lines.push(`• ${name} : ${missing.join(" + ")}`);
-                }
-                lines.push("", `👉 ${window.location.origin}/trips/${trip.id}`);
-                shareOnWhatsApp(lines.join("\n"));
-              }}
-            >
-              Relancer sur WhatsApp
-            </Button>
-          </div>
         </section>
       ) : null}
 
       <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/50 pb-3">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/45 pb-3">
           <h2 className="flex items-center gap-2 font-display text-[26px] font-normal text-foreground sm:text-[29px]">
             <KrewIcon name="group" tone="plum" size="sm" className="size-5" />
-            Participants
+            La team
           </h2>
           <p className="font-mono text-[12px] text-muted-foreground sm:text-[13px]">{answered}/{total} ont renseigné leurs préférences</p>
         </div>
 
-        <div className="divide-y divide-border/50">
+        <div className="divide-y divide-border/45">
           {participants.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">Personne n’a encore rejoint le groupe.</p>
           ) : (
-            participants.map((p) => (
-              <div key={p.id} className="grid gap-3 py-4 first:pt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-base font-medium text-foreground">{p.display_name ?? p.email}</span>
-                    {p.user_id === trip.owner_id ? (
-                      <Badge variant="sun" className="gap-1 px-2 py-0.5 text-[12px] bg-amber-500/10 text-amber-700 border-amber-500/20">
-                        <Crown className="size-3" /> Organisateur·rice
-                      </Badge>
-                    ) : p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                      <Badge variant="secondary" className="gap-1 px-2 py-0.5 text-[12px]">
-                        <Shield className="size-3" /> Co-organisateur·rice
-                      </Badge>
-                    ) : null}
-                    {p.isStar ? (
-                      <Badge variant="sun" className="gap-1 px-2 py-0.5 text-[12px] bg-amber-500/10 text-amber-700 border-amber-500/20">
-                        <Star className="size-3 fill-amber-500 text-amber-500" /> Star
-                      </Badge>
+            participants.map((p) => {
+              const canChangeRole = Boolean(
+                data.isCreator &&
+                p.user_id &&
+                !p.placeholder &&
+                !p.isStar &&
+                p.user_id !== "star-virtual-uid" &&
+                p.user_id !== trip.owner_id,
+              );
+              const canRemove = Boolean(data.isOwner && !p.placeholder);
+              const showMenu = canChangeRole || canRemove;
+              const isCoOrg = p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId);
+
+              return (
+                <div key={p.id} className="grid gap-3 py-4 first:pt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[15px] font-medium text-foreground sm:text-base">{p.display_name ?? p.email}</span>
+                      {p.user_id === trip.owner_id ? (
+                        <Badge variant="sun" className="gap-1 px-2 py-0.5 text-[12px] bg-amber-500/10 text-amber-700 border-amber-500/20">
+                          <Crown className="size-3" /> Organisateur·rice
+                        </Badge>
+                      ) : isCoOrg ? (
+                        <Badge variant="secondary" className="gap-1 px-2 py-0.5 text-[12px]">
+                          <Shield className="size-3" /> Co-organisateur·rice
+                        </Badge>
+                      ) : null}
+                      {p.isStar ? (
+                        <Badge variant="sun" className="gap-1 px-2 py-0.5 text-[12px] bg-amber-500/10 text-amber-700 border-amber-500/20">
+                          <Star className="size-3 fill-amber-500 text-amber-500" /> Star
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {p.email ? <p className="break-all text-[13px] text-muted-foreground">{p.email}</p> : null}
+                  </div>
+
+                  <div className="flex items-center gap-2 sm:justify-end">
+                    <Badge variant={p.status === "accepte" ? "success" : "muted"} className="font-normal">
+                      {p.status === "accepte" ? "Participe" : p.status}
+                    </Badge>
+
+                    {showMenu ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" aria-label={`Plus d’options pour ${p.display_name ?? p.email ?? "ce participant"}`}>
+                            <MoreHorizontal className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-[190px]">
+                          {canChangeRole ? (
+                            <DropdownMenuItem
+                              disabled={setCoOrgMutation.isPending}
+                              onSelect={() => setCoOrgMutation.mutate({ coOrganizerId: isCoOrg ? null : p.user_id || null })}
+                            >
+                              {isCoOrg ? "Retirer le rôle de co-org" : "Nommer co-organisateur·rice"}
+                            </DropdownMenuItem>
+                          ) : null}
+                          {canChangeRole && canRemove ? <DropdownMenuSeparator /> : null}
+                          {canRemove ? (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              disabled={removeMutation.isPending}
+                              onSelect={() => removeMutation.mutate(p.id)}
+                            >
+                              Retirer du voyage
+                            </DropdownMenuItem>
+                          ) : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     ) : null}
                   </div>
-                  {p.email ? <p className="break-all text-[13px] text-muted-foreground">{p.email}</p> : null}
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <Badge variant={p.status === "accepte" ? "success" : "muted"} className="font-normal">
-                    {p.status === "accepte" ? "Participe" : p.status}
-                  </Badge>
-                  {data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id ? (
-                    p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId) ? (
-                      <Button
-                        variant="ghost"
-                        className="text-[13px] font-normal text-destructive hover:bg-destructive/5"
-                        disabled={setCoOrgMutation.isPending}
-                        onClick={() => setCoOrgMutation.mutate({ coOrganizerId: null })}
-                      >
-                        Retirer co-org
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        className="text-[13px] font-normal text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                        disabled={setCoOrgMutation.isPending}
-                        onClick={() => setCoOrgMutation.mutate({ coOrganizerId: p.user_id || null })}
-                      >
-                        Nommer co-org
-                      </Button>
-                    )
-                  ) : null}
-                  {data.isOwner && !p.placeholder ? (
-                    <Button
-                      variant="ghost"
-                      className="text-[13px]"
-                      onClick={() => removeMutation.mutate(p.id)}
-                    >
-                      Retirer
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
+
+        {data.isOwner && missingParticipants.length > 0 ? (
+          <div className="flex flex-col gap-1 border-t border-border/45 pt-4 text-[14px] sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-muted-foreground">
+              {missingParticipants.length} personne{missingParticipants.length > 1 ? "s" : ""} doivent encore répondre.
+            </p>
+            <button
+              type="button"
+              onClick={remindGroup}
+              className="inline-flex min-h-10 items-center self-start font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"
+            >
+              Relancer sur WhatsApp <span aria-hidden="true" className="ml-1">→</span>
+            </button>
+          </div>
+        ) : null}
       </section>
 
       {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
-        <section className="space-y-4 border-t border-border/60 pt-6">
+        <section className="space-y-5 border-t border-border/55 pt-7">
           <div className="space-y-1">
-            <h2 className="flex items-center gap-2 font-display text-[24px] font-normal text-foreground sm:text-[27px]">
-              <Star className="size-5 text-primary" /> Rôle de la Star ({trip.celebrated_person || "Star"})
+            <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
+              <KrewIcon name="favorite" tone="plum" size="sm" className="size-5" />
+              Rôle de la Star ({trip.celebrated_person || "Star"})
             </h2>
-            <p className="text-sm text-muted-foreground">Choisis simplement si l’organisation doit rester secrète pour la Star.</p>
+            <p className="text-[14px] leading-relaxed text-muted-foreground">Choisis simplement si l’organisation doit rester secrète pour la Star.</p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              disabled={!data.isOwner}
-              onClick={() => setStarMode("secret")}
-              className={cn(
-                "min-h-[96px] rounded-[16px] border px-4 py-3 text-left transition-colors",
-                starMode === "secret"
-                  ? "border-primary/45 bg-primary/[0.06] text-foreground"
-                  : "border-border/70 bg-background text-foreground hover:border-primary/30",
-              )}
-            >
-              <span className="block text-base font-semibold">🤫 Mode secret</span>
-              <span className="mt-1 block text-[13px] font-normal leading-relaxed text-muted-foreground">La Star ne voit pas l’organisation et tu renseignes ses préférences à sa place.</span>
-            </button>
-            <button
-              type="button"
-              disabled={!data.isOwner}
-              onClick={() => setStarMode("participant")}
-              className={cn(
-                "min-h-[96px] rounded-[16px] border px-4 py-3 text-left transition-colors",
-                starMode === "participant"
-                  ? "border-primary/45 bg-primary/[0.06] text-foreground"
-                  : "border-border/70 bg-background text-foreground hover:border-primary/30",
-              )}
-            >
-              <span className="block text-base font-semibold">🎂 Mode participant</span>
-              <span className="mt-1 block text-[13px] font-normal leading-relaxed text-muted-foreground">La Star rejoint le groupe et répond comme les autres participants.</span>
-            </button>
-          </div>
+          <fieldset className="divide-y divide-border/45" disabled={!data.isOwner}>
+            <legend className="sr-only">Mode de participation de la Star</legend>
+            <label className="grid cursor-pointer grid-cols-[24px_minmax(0,1fr)] gap-3 py-4 first:pt-0">
+              <input
+                type="radio"
+                name="star-mode"
+                value="secret"
+                checked={starMode === "secret"}
+                onChange={() => setStarMode("secret")}
+                className="mt-1 size-4 accent-primary"
+              />
+              <span className="min-w-0">
+                <span className="block text-[15px] font-semibold text-foreground">Mode secret</span>
+                <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">La Star ne voit pas l’organisation et tu renseignes ses préférences à sa place.</span>
+              </span>
+            </label>
+            <label className="grid cursor-pointer grid-cols-[24px_minmax(0,1fr)] gap-3 py-4">
+              <input
+                type="radio"
+                name="star-mode"
+                value="participant"
+                checked={starMode === "participant"}
+                onChange={() => setStarMode("participant")}
+                className="mt-1 size-4 accent-primary"
+              />
+              <span className="min-w-0">
+                <span className="block text-[15px] font-semibold text-foreground">Mode participant</span>
+                <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">La Star rejoint le groupe et répond comme les autres participants.</span>
+              </span>
+            </label>
+          </fieldset>
 
-          <div className="border-t border-border/40 pt-4">
-            <Label className="text-sm">La Star participe aux frais</Label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <Button type="button" variant={starPaysShare ? "default" : "outline"} onClick={() => setStarPaysShare(true)}>Oui</Button>
-              <Button type="button" variant={!starPaysShare ? "default" : "outline"} onClick={() => setStarPaysShare(false)}>Non, sa part est répartie entre les autres</Button>
+          <div className="border-t border-border/45 pt-4">
+            <Label className="text-[14px] font-semibold text-foreground">La Star participe aux frais</Label>
+            <div className="mt-3 inline-flex rounded-[10px] border border-border/65 p-1" role="group" aria-label="Participation de la Star aux frais">
+              <button
+                type="button"
+                disabled={!data.isOwner}
+                aria-pressed={starPaysShare}
+                onClick={() => setStarPaysShare(true)}
+                className={cn(
+                  "min-h-9 rounded-[8px] px-3 text-[13px] font-semibold transition-colors",
+                  starPaysShare ? "bg-sage/20 text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Oui
+              </button>
+              <button
+                type="button"
+                disabled={!data.isOwner}
+                aria-pressed={!starPaysShare}
+                onClick={() => setStarPaysShare(false)}
+                className={cn(
+                  "min-h-9 rounded-[8px] px-3 text-[13px] font-semibold transition-colors",
+                  !starPaysShare ? "bg-sage/20 text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Non, sa part est répartie
+              </button>
             </div>
           </div>
         </section>
       ) : null}
 
       {data.isOwner ? (
-        <section className="space-y-3 border-t border-primary/20 pt-6">
+        <section className="space-y-3 border-t border-primary/20 pt-7">
           <div>
             <h3 className="font-display text-[24px] font-normal text-foreground">Tout est prêt ?</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Une fois le lien partagé et le rôle de la Star configuré, retourne au voyage pour poursuivre l’organisation.</p>
+            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">Une fois le lien partagé et le rôle de la Star configuré, retourne au voyage pour poursuivre l’organisation.</p>
           </div>
           <Button
-            size="lg"
             className="w-full sm:w-auto"
             disabled={finishInviteMutation.isPending}
             onClick={() => finishInviteMutation.mutate()}
@@ -442,9 +498,17 @@ function InvitePage() {
           </Button>
         </section>
       ) : (
-        <div className="flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row">
-          <Button asChild variant="outline" className="flex-1"><Link to="/trips/$tripId" params={{ tripId }}>Voir le hub</Link></Button>
-          <Button asChild className="flex-1"><Link to="/trips/$tripId/availability" params={{ tripId }}>Continuer → disponibilités</Link></Button>
+        <div className="flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center">
+          <Link
+            to="/trips/$tripId"
+            params={{ tripId }}
+            className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground hover:text-primary"
+          >
+            Voir le hub
+          </Link>
+          <Button asChild className="w-full sm:w-auto">
+            <Link to="/trips/$tripId/availability" params={{ tripId }}>Continuer → disponibilités</Link>
+          </Button>
         </div>
       )}
     </main>
