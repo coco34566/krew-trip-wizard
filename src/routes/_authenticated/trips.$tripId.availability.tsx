@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Loader2,
   Lock,
-  Unlock,
   ChevronLeft,
   ChevronRight,
   X,
@@ -16,7 +15,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   getTripAvailability,
   submitMyAvailability,
@@ -25,6 +23,7 @@ import {
 } from "@/lib/availability.functions";
 import { KrewIcon, KrewNote, KrewProgressRing } from "@/components/krew/visual-language";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/availability")({
@@ -62,7 +61,6 @@ function monthLabel(d: Date) {
   return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
-/** Grille calendrier d'un mois — clic pour basculer disponible / impossible */
 function MonthGrid({
   month,
   selection,
@@ -73,23 +71,19 @@ function MonthGrid({
   onToggle: (iso: string) => void;
 }) {
   const first = startOfMonth(month);
-  const startWeekday = (first.getDay() + 6) % 7; // lundi = 0
+  const startWeekday = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const todayISO = toISO(new Date());
 
   const cells: (Date | null)[] = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    cells.push(new Date(month.getFullYear(), month.getMonth(), d));
-  }
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(month.getFullYear(), month.getMonth(), d));
 
   return (
-    <div className="rounded-2xl border border-border/40 bg-card p-3.5 shadow-none">
-      <p className="mb-2 text-center text-sm font-semibold capitalize font-sans">{monthLabel(month)}</p>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
-        {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
-          <span key={i}>{d}</span>
-        ))}
+    <div className="rounded-[16px] border border-border/45 bg-background p-3.5">
+      <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[12px] font-medium uppercase text-muted-foreground">
+        {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => <span key={i}>{d}</span>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((date, i) => {
@@ -104,11 +98,11 @@ function MonthGrid({
               disabled={isPast}
               onClick={() => onToggle(iso)}
               className={cn(
-                "aspect-square rounded-xl text-sm font-mono font-medium transition min-h-[38px] flex items-center justify-center",
-                isPast && "cursor-not-allowed opacity-30",
-                !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary border border-border/40",
-                mode === "available" && "bg-secondary text-secondary-foreground shadow-sm hover:opacity-90 font-bold",
-                mode === "blocked" && "bg-destructive/90 text-destructive-foreground hover:bg-destructive font-bold",
+                "flex aspect-square min-h-10 items-center justify-center rounded-[10px] border text-[13px] font-mono font-medium transition-colors",
+                isPast && "cursor-not-allowed border-transparent opacity-30",
+                !isPast && !mode && "border-border/40 bg-background hover:border-primary/25 hover:bg-primary/[0.05] hover:text-primary",
+                mode === "available" && "border-sage/45 bg-sage/25 font-bold text-foreground",
+                mode === "blocked" && "border-destructive/60 bg-destructive/90 font-bold text-destructive-foreground",
                 iso === todayISO && !mode && "ring-1 ring-primary/50",
               )}
             >
@@ -135,12 +129,10 @@ function AvailabilityPage() {
     queryFn: () => fetchAvail({ data: { tripId } }),
   });
 
-  /** iso → available | blocked */
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
   const [notes, setNotes] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [monthOffset, setMonthOffset] = useState(0);
-  /** Mode de clic : dispo (vert) ou impossible (rouge) */
   const [paintMode, setPaintMode] = useState<"available" | "blocked">("available");
 
   useEffect(() => {
@@ -157,19 +149,11 @@ function AvailabilityPage() {
   }, [data, hydrated]);
 
   const availableDates = useMemo(
-    () =>
-      [...selection.entries()]
-        .filter(([, v]) => v === "available")
-        .map(([k]) => k)
-        .sort(),
+    () => [...selection.entries()].filter(([, v]) => v === "available").map(([k]) => k).sort(),
     [selection],
   );
   const blockedDates = useMemo(
-    () =>
-      [...selection.entries()]
-        .filter(([, v]) => v === "blocked")
-        .map(([k]) => k)
-        .sort(),
+    () => [...selection.entries()].filter(([, v]) => v === "blocked").map(([k]) => k).sort(),
     [selection],
   );
 
@@ -216,22 +200,9 @@ function AvailabilityPage() {
   const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
 
   const mutation = useMutation({
-    mutationFn: () =>
-      submit({
-        data: {
-          tripId,
-          availableDates,
-          blockedDates,
-          flexDays: 0,
-          notes: notes || undefined,
-        },
-      }),
+    mutationFn: () => submit({ data: { tripId, availableDates, blockedDates, flexDays: 0, notes: notes || undefined } }),
     onSuccess: () => {
-      toast.success(
-        availableDates.length
-          ? `${availableDates.length} date(s) dispo enregistrée(s)`
-          : "Disponibilités enregistrées",
-      );
+      toast.success(availableDates.length ? `${availableDates.length} date(s) dispo enregistrée(s)` : "Disponibilités enregistrées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
     },
@@ -239,8 +210,7 @@ function AvailabilityPage() {
   });
 
   const chooseMutation = useMutation({
-    mutationFn: (payload: { start: string; end: string }) =>
-      choose({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
+    mutationFn: (payload: { start: string; end: string }) => choose({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
     onSuccess: () => {
       toast.success("Dates du voyage validées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
@@ -262,177 +232,89 @@ function AvailabilityPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-6">
-        <Skeleton className="h-10 w-48 rounded-xl" />
-        <Skeleton className="mt-6 h-60 w-full rounded-[24px]" />
+      <main className="mx-auto w-full max-w-[820px] px-4 py-10 sm:px-6 lg:px-8">
+        <KrewThinkingState context="generic" customMessage="Chargement des disponibilités…" delayMs={0} />
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-4">
+      <main className="mx-auto w-full max-w-[820px] space-y-4 px-4 py-10 sm:px-6 lg:px-8">
         <p className="text-destructive">{(error as any)?.message ?? "Impossible de charger"}</p>
-        <Button asChild className="mt-4 rounded-xl" variant="outline">
-          <Link to="/trips/$tripId" params={{ tripId }}>
-            Retour
-          </Link>
-        </Button>
+        <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary hover:underline">Retour au voyage</Link>
       </main>
     );
   }
 
   const datesLocked = Boolean(data.trip.datesLocked);
-  const lockedLabel =
-    data.trip.lockedStart && data.trip.lockedEnd
-      ? formatRange(data.trip.lockedStart, data.trip.lockedEnd)
-      : null;
+  const lockedLabel = data.trip.lockedStart && data.trip.lockedEnd ? formatRange(data.trip.lockedStart, data.trip.lockedEnd) : null;
 
   return (
-    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
-      <Link
-        to="/trips/$tripId"
-        params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-      >
+    <main className="mx-auto w-full max-w-[820px] space-y-8 px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary">
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
-      <KrewJourneyPageHeader
-        tripName={data.trip.name}
-        title="Disponibilités"
-        otterSrc="/brand/otter-states/availability.png"
-      >
+      <KrewJourneyPageHeader tripName={data.trip.name} title="Disponibilités" otterSrc="/brand/otter-states/availability.png">
         <div className="flex items-center gap-3">
-          <KrewProgressRing
-            value={data.answered}
-            total={data.expected || 1}
-            size={56}
-            tone="sage"
-          />
+          <KrewProgressRing value={data.answered} total={data.expected || 1} size={56} tone="sage" />
           <div className="space-y-0.5">
-            <p className="text-sm sm:text-base font-medium text-foreground font-sans">
-              <span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates
-            </p>
+            <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
             {data.expected - data.answered > 0 ? (
-              <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
-                {data.expected - data.answered === 1
-                  ? "1 réponse manque"
-                  : `${data.expected - data.answered} réponses manquent`}
+              <KrewNote variant="label" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">
+                {data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}
               </KrewNote>
             ) : null}
           </div>
         </div>
       </KrewJourneyPageHeader>
 
-      {/* CALENDRIER DEVENU L'OBJET PRINCIPAL */}
-      <section className="w-full rounded-[24px] bg-background border border-border/40 p-5 sm:p-6 space-y-6 shadow-none">
+      <section className="w-full space-y-6">
         <div>
-          <h2 className="font-display text-xl font-normal text-foreground flex items-center gap-2">
-            <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" />
-            Mes disponibilités
+          <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
+            <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" /> Mes disponibilités
           </h2>
-          <p className="mt-1.5 text-sm sm:text-base text-muted-foreground font-sans leading-relaxed">
-            Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes
-            réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les
-            modifier.
-          </p>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les modifier.</p>
         </div>
 
-        {/* Mode peinture */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPaintMode("available")}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition",
-              paintMode === "available"
-                ? "border-sage/40 bg-sage/20 text-primary font-semibold"
-                : "border-border bg-background text-muted-foreground hover:border-primary/25",
-            )}
-          >
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Mode de sélection des dates">
+          <button type="button" onClick={() => setPaintMode("available")} aria-pressed={paintMode === "available"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors", paintMode === "available" ? "border-sage/40 bg-sage/20 font-semibold text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/25")}>
             <span className="size-2.5 rounded-full bg-current" /> Je suis dispo
           </button>
-          <button
-            type="button"
-            onClick={() => setPaintMode("blocked")}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition",
-              paintMode === "blocked"
-                ? "border-destructive bg-destructive text-white"
-                : "border-border bg-background text-muted-foreground hover:border-destructive/50",
-            )}
-          >
+          <button type="button" onClick={() => setPaintMode("blocked")} aria-pressed={paintMode === "blocked"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors", paintMode === "blocked" ? "border-destructive bg-destructive font-semibold text-white" : "border-border bg-background text-muted-foreground hover:border-destructive/50")}>
             <span className="size-2.5 rounded-full bg-current" /> Impossible
           </button>
         </div>
 
-        {/* Navigation mois */}
         <div className="flex items-center justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}
-            disabled={monthOffset <= 0}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <p className="text-xs text-muted-foreground">Fais défiler les mois →</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setMonthOffset((o) => o + 1)}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
+          <Button type="button" variant="ghost" size="icon" aria-label="Mois précédents" onClick={() => setMonthOffset((o) => Math.max(0, o - 1))} disabled={monthOffset <= 0}><ChevronLeft className="size-4" /></Button>
+          <p className="text-[12px] text-muted-foreground sm:text-[13px]">Fais défiler les mois →</p>
+          <Button type="button" variant="ghost" size="icon" aria-label="Mois suivants" onClick={() => setMonthOffset((o) => o + 1)}><ChevronRight className="size-4" /></Button>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {months.map((m) => (
-            <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />
-          ))}
+          {months.map((m) => <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />)}
         </div>
 
         <div className="flex items-center justify-end gap-2 sm:pr-2">
           <KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" />
-          <KrewNote variant="sticky" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
-            On cherche le bon créneau
-          </KrewNote>
+          <KrewNote variant="sticky" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote>
         </div>
 
-        {/* Actions rapides */}
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={selectWeekendsInView}>
-            Tous les week-ends affichés
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={clearSelection}>
-            Tout effacer
-          </Button>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]">
+          <button type="button" onClick={selectWeekendsInView} className="inline-flex min-h-10 items-center font-semibold text-primary underline-offset-4 hover:underline">Sélectionner tous les week-ends affichés</button>
+          <button type="button" onClick={clearSelection} className="inline-flex min-h-10 items-center font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Tout effacer</button>
         </div>
 
-        {/* Chips résumé */}
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3 border-y border-border/45 py-4">
           <div>
-            <p className="text-xs font-semibold text-secondary">Dispo ({availableDates.length})</p>
-            {availableDates.length === 0 ? (
-              <p className="text-xs text-muted-foreground mt-1">Aucune date sélectionnée</p>
-            ) : (
+            <p className="text-[12px] font-semibold text-secondary sm:text-[13px]">Dispo ({availableDates.length})</p>
+            {availableDates.length === 0 ? <p className="mt-1 text-[13px] text-muted-foreground">Aucune date sélectionnée</p> : (
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {availableDates.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => toggleDay(d)}
-                    className="inline-flex items-center gap-1 rounded-full bg-secondary/20 px-3 py-1 text-xs text-foreground font-mono"
-                  >
-                    {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                    })}
-                    <X className="size-3 opacity-60" />
+                  <button key={d} type="button" onClick={() => toggleDay(d)} className="inline-flex min-h-10 items-center gap-1 rounded-full bg-secondary/20 px-3 text-[12px] font-mono text-foreground">
+                    {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}<X className="size-3 opacity-60" />
                   </button>
                 ))}
               </div>
@@ -440,23 +322,11 @@ function AvailabilityPage() {
           </div>
           {blockedDates.length > 0 ? (
             <div>
-              <p className="text-xs font-semibold text-destructive">
-                Impossible ({blockedDates.length})
-              </p>
+              <p className="text-[12px] font-semibold text-destructive sm:text-[13px]">Impossible ({blockedDates.length})</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {blockedDates.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => toggleDay(d)}
-                    className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-3 py-1 text-xs font-mono"
-                  >
-                    {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
-                      weekday: "short",
-                      day: "numeric",
-                      month: "short",
-                    })}
-                    <X className="size-3 opacity-60" />
+                  <button key={d} type="button" onClick={() => toggleDay(d)} className="inline-flex min-h-10 items-center gap-1 rounded-full bg-destructive/10 px-3 text-[12px] font-mono">
+                    {new Date(d + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}<X className="size-3 opacity-60" />
                   </button>
                 ))}
               </div>
@@ -464,68 +334,36 @@ function AvailabilityPage() {
           ) : null}
         </div>
 
-        <div className="space-y-2 pt-2">
-          <Label className="font-semibold text-foreground">Notes (optionnel)</Label>
-          <Textarea
-            className="min-h-[120px] rounded-xl border-border focus-visible:ring-primary text-base"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Ex. : OK pour partir le jeudi soir, préfère un week-end…"
-          />
+        <div className="space-y-2">
+          <Label className="text-[14px] font-semibold text-foreground">Notes (optionnel)</Label>
+          <Textarea className="min-h-[112px] rounded-[10px] border-border/70 text-[15px] shadow-none focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex. : OK pour partir le jeudi soir, préfère un week-end…" />
         </div>
 
         {datesLocked ? (
-          <p className="rounded-2xl border border-secondary/40 bg-secondary/10 px-4 py-3 text-sm text-foreground">
-            <Lock className="mr-1.5 inline size-4 text-secondary" />
-            Dates validées par l&apos;organisateur·rice — tes disponibilités sont figées et ne
-            peuvent plus être modifiées.
-          </p>
+          <p className="border-l-2 border-sage/55 py-1 pl-3 text-[14px] leading-relaxed text-foreground"><Lock className="mr-1.5 inline size-4 text-secondary" />Dates validées par l&apos;organisateur·rice — tes disponibilités sont figées et ne peuvent plus être modifiées.</p>
         ) : null}
-        <Button
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending || availableDates.length === 0 || datesLocked}
-          className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
-          size="lg"
-        >
-          {mutation.isPending ? <Loader2 className="size-4 animate-spin shrink-0" /> : null}
+
+        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0 || datesLocked} className="w-full">
+          {mutation.isPending ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}
           {data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}
         </Button>
-        {availableDates.length === 0 ? (
-          <p className="text-center text-xs text-muted-foreground">
-            Sélectionne au moins une date verte pour enregistrer.
-          </p>
-        ) : null}
+        {availableDates.length === 0 ? <p className="text-center text-[13px] text-muted-foreground">Sélectionne au moins une date verte pour enregistrer.</p> : null}
       </section>
 
-      {/* Date verrouillée */}
       {datesLocked && lockedLabel ? (
-        <section className="mt-6 rounded-3xl border border-sage/40 bg-sage/15 p-5">
+        <section className="border-y border-sage/35 py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-3">
               <Lock className="mt-0.5 size-5 text-primary" />
               <div>
-                <h2 className="font-semibold">Date choisie (verrouillée)</h2>
-                <p className="mt-1 text-sm">
-                  <strong>{lockedLabel}</strong>
-                </p>
+                <h2 className="font-semibold text-foreground">Date choisie</h2>
+                <p className="mt-1 font-mono text-[14px] text-foreground">{lockedLabel}</p>
               </div>
             </div>
             {data.isOwner ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={unlockMutation.isPending}
-                onClick={() => {
-                  if (window.confirm("Déverrouiller la date ?")) unlockMutation.mutate();
-                }}
-              >
-                {unlockMutation.isPending ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Unlock className="size-4" />
-                )}
-                Déverrouiller
-              </Button>
+              <button type="button" disabled={unlockMutation.isPending} onClick={() => { if (window.confirm("Déverrouiller la date ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline">
+                {unlockMutation.isPending ? "Déverrouillage…" : "Déverrouiller"}
+              </button>
             ) : null}
           </div>
         </section>
