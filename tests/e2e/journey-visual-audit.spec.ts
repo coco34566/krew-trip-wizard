@@ -72,11 +72,7 @@ async function waitForVisibleImages(page: Page) {
         const img = node as HTMLImageElement;
         const box = img.getBoundingClientRect();
         const style = getComputedStyle(img);
-        const visible =
-          style.display !== "none" &&
-          style.visibility !== "hidden" &&
-          box.width > 0 &&
-          box.height > 0;
+        const visible = style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
         return !visible || img.complete;
       }),
     undefined,
@@ -87,16 +83,8 @@ async function waitForVisibleImages(page: Page) {
 async function waitForRenderedChapter(page: Page, name: string) {
   await expect(page.locator("main")).toBeVisible();
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 20_000 });
 
-  // Never approve a screenshot while KREW is still showing its page skeleton.
-  await page.waitForFunction(
-    () => !document.querySelector("main .animate-pulse"),
-    undefined,
-    { timeout: 20_000 },
-  );
-
-  // Every audited step must expose either its real chapter or an explicit locked state.
-  // A blank route can therefore never be approved as visually valid.
   const required: Record<string, () => ReturnType<Page["locator"]>> = {
     invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
     availability: () => page.locator('main img[src*="/brand/otter-states/availability.png"]'),
@@ -112,12 +100,9 @@ async function waitForRenderedChapter(page: Page, name: string) {
   };
 
   const marker = required[name]?.();
-  if (marker) {
-    await expect(marker, `${name}: real or locked chapter content must render before screenshot`).toBeVisible({ timeout: 20_000 });
-  }
+  if (marker) await expect(marker, `${name}: real or locked chapter content must render before screenshot`).toBeVisible({ timeout: 20_000 });
 
   await waitForVisibleImages(page);
-  // Give CSS background/decorative assets one frame after network/image settlement.
   await page.waitForTimeout(150);
 }
 
@@ -161,6 +146,13 @@ async function capture(
     geometry.scrollWidth,
     `${viewportName}/${name}: no horizontal overflow (${geometry.scrollWidth}px content for ${geometry.width}px viewport)`,
   ).toBeLessThanOrEqual(geometry.width + 1);
+
+  if (name === "invite") {
+    expect(
+      geometry.undersizedControls,
+      `${viewportName}/invite: every visible button/select must expose at least a 40px touch target`,
+    ).toEqual([]);
+  }
 
   const screenshotPath = testInfo.outputPath(`${viewportName}-${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
