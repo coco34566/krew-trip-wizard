@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { KrewIcon, type KrewIconName } from "./KrewIcon";
 import { KrewMark } from "./KrewMark";
 import { KrewOrganicBlob } from "./KrewOrganicBlob";
-import { KrewProgressRing } from "./KrewProgressRing";
 
 export type KrewActionItem = {
   key: string;
@@ -28,59 +27,72 @@ type Props = {
   className?: string;
 };
 
+const progressIcon = (label: string): KrewIconName =>
+  label.toLowerCase().includes("dispo") ? "availability" : "preferences";
+
 export function KrewActionStack({ primary, secondary = [], progress = [], className }: Props) {
   return (
     <section className={cn("space-y-6", className)}>
       {progress.length > 0 ? (
-        <div className="pt-1 pb-2">
-          <div className="grid grid-cols-2 gap-4">
-            {progress[0] ? (
-              <div className="flex flex-col items-center text-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <KrewIcon name="availability" tone="plum" size="sm" className="size-4 shrink-0" />
-                  <span className="font-mono text-[12px] uppercase tracking-[0.1em] text-foreground/75 font-medium">
-                    {progress[0].label}
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
+          {progress.slice(0, 2).map((item) => {
+            const value = Math.max(0, Math.min(100, item.value));
+            const fillClass = item.tone === "plum" ? "bg-primary/70" : "bg-sage";
+            return (
+              <div key={item.label} className="min-w-0 space-y-2 border-t border-border/50 pt-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <KrewIcon name={progressIcon(item.label)} tone="plum" size="sm" className="size-4 shrink-0" />
+                    <span className="truncate text-[13px] font-medium text-foreground/80">
+                      {item.label}
+                    </span>
+                  </div>
+                  <span className="shrink-0 font-mono text-[12px] font-semibold text-foreground/70">
+                    {value}%
                   </span>
                 </div>
-                <KrewProgressRing value={progress[0].value} tone={progress[0].tone ?? "sage"} size={72} />
-              </div>
-            ) : null}
-
-            {progress[1] ? (
-              <div className="flex flex-col items-center text-center gap-2">
-                <div className="flex items-center gap-1.5">
-                  <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
-                  <span className="font-mono text-[12px] uppercase tracking-[0.1em] text-foreground/75 font-medium">
-                    {progress[1].label}
-                  </span>
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted/70" aria-hidden="true">
+                  <div className={cn("h-full rounded-full transition-[width]", fillClass)} style={{ width: `${value}%` }} />
                 </div>
-                <KrewProgressRing value={progress[1].value} tone={progress[1].tone ?? "plum"} size={72} />
               </div>
-            ) : null}
-          </div>
+            );
+          })}
         </div>
       ) : null}
 
-      <div className="relative p-6 sm:p-7 overflow-visible">
-        <KrewOrganicBlob tone="sage" variant="soft" className="absolute inset-0 w-full h-full z-0 opacity-85 pointer-events-none" />
+      <div className="relative overflow-visible p-6 sm:p-7">
+        <KrewOrganicBlob tone="sage" variant="soft" className="absolute inset-0 z-0 h-full w-full opacity-85 pointer-events-none" />
 
         <div className="relative z-10 flex min-w-0 flex-col gap-2 pr-[68px] sm:pr-[76px]">
           <p className="font-mono text-[12px] uppercase tracking-[0.12em] text-foreground/70">Prochaine action</p>
-          <h2 className="font-display text-[32px] sm:text-[36px] font-normal leading-[0.98] tracking-tight text-primary break-words">{primary.title}</h2>
-          {primary.description ? <p className="text-sm leading-relaxed text-foreground/80 font-sans mt-1">{primary.description}</p> : null}
+          <h2 className="break-words font-display text-[32px] font-normal leading-[0.98] tracking-tight text-primary sm:text-[36px]">
+            {primary.title}
+          </h2>
+          {primary.description ? (
+            <p className="mt-1 text-sm leading-relaxed text-foreground/80 font-sans">{primary.description}</p>
+          ) : null}
 
           {primary.href ? (
-            <div className="pt-3"><Button asChild><a href={primary.href}>Continuer</a></Button></div>
+            <div className="pt-3">
+              <Button asChild>
+                <a href={primary.href}>Continuer</a>
+              </Button>
+            </div>
           ) : null}
         </div>
 
         <div className="absolute bottom-3 right-2.5 z-20 flex items-end pointer-events-none">
-          <img src="/brand/otter-states/next-action.png" alt="" className="w-[64px] h-auto object-contain filter drop-shadow-2xs" loading="lazy" />
+          <img
+            src="/brand/otter-states/next-action.png"
+            alt=""
+            className="h-auto w-[64px] object-contain filter drop-shadow-2xs"
+            loading="lazy"
+          />
         </div>
       </div>
 
       {secondary.slice(0, 3).length > 0 ? (
-        <div className="relative pt-2 space-y-1">
+        <div className="relative space-y-1 pt-2">
           {secondary.slice(0, 3).map((action) => {
             const Tag = action.href ? "a" : "div";
             const knownIcons: Record<string, KrewIconName> = {
@@ -106,7 +118,7 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                 key={action.key}
                 {...(action.href ? { href: action.href } : {})}
                 className={cn(
-                  "grid grid-cols-[40px_1fr] items-center min-h-[68px] border-b border-primary/10 py-2.5 transition-colors group",
+                  "group grid min-h-[68px] grid-cols-[40px_1fr] items-center border-b border-primary/10 py-2.5 transition-colors",
                   action.href && "cursor-pointer",
                 )}
               >
@@ -114,11 +126,22 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                   {iconName ? <KrewIcon name={iconName} tone="plum" size="sm" className="size-[20px]" /> : null}
                 </div>
                 <div className="min-w-0 pr-1">
-                  <p className="text-sm font-semibold leading-tight text-foreground/90 group-hover:text-primary transition-colors inline-flex flex-wrap items-center gap-1.5">
+                  <p className="inline-flex flex-wrap items-center gap-1.5 text-sm font-semibold leading-tight text-foreground/90 transition-colors group-hover:text-primary">
                     <span>{action.title}</span>
-                    {action.href ? <KrewMark type="arrow-right" tone="plum" size="sm" className="w-[18px] h-[11px] shrink-0 opacity-70 transition-transform group-hover:translate-x-1 group-hover:opacity-100" /> : null}
+                    {action.href ? (
+                      <KrewMark
+                        type="arrow-right"
+                        tone="plum"
+                        size="sm"
+                        className="h-[11px] w-[18px] shrink-0 opacity-70 transition-all group-hover:translate-x-1 group-hover:opacity-100"
+                      />
+                    ) : null}
                   </p>
-                  {action.description ? <p className="mt-0.5 line-clamp-1 text-[13px] leading-snug text-muted-foreground font-sans">{action.description}</p> : null}
+                  {action.description ? (
+                    <p className="mt-0.5 line-clamp-1 text-[13px] leading-snug text-muted-foreground font-sans">
+                      {action.description}
+                    </p>
+                  ) : null}
                 </div>
               </Tag>
             );
