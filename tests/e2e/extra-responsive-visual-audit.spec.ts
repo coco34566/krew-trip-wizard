@@ -7,6 +7,8 @@ const VIEWPORTS = [
   { name: "tablet-landscape", width: 1112, height: 834 },
   { name: "desktop-wide", width: 1728, height: 1000 },
 ] as const;
+const MAX_FULL_PAGE_HEIGHT = 30_000;
+const LONG_PAGE_CAPTURE_HEIGHT = 12_000;
 
 async function settle(page: Page) {
   await handleNormalUserUi(page);
@@ -22,10 +24,18 @@ async function capture(page: Page, testInfo: TestInfo, vp: string, name: string,
   const geometry = await page.evaluate(() => ({
     width: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
+    scrollHeight: document.documentElement.scrollHeight,
   }));
   expect(geometry.scrollWidth, `${vp}/${name}: no horizontal overflow`).toBeLessThanOrEqual(geometry.width + 1);
   const target = testInfo.outputPath(`${vp}-${name}.png`);
-  await page.screenshot({ path: target, fullPage: true });
+  if (geometry.scrollHeight <= MAX_FULL_PAGE_HEIGHT) {
+    await page.screenshot({ path: target, fullPage: true });
+  } else {
+    await page.screenshot({
+      path: target,
+      clip: { x: 0, y: 0, width: geometry.width, height: Math.min(geometry.scrollHeight, LONG_PAGE_CAPTURE_HEIGHT) },
+    });
+  }
   await testInfo.attach(`${vp}-${name}`, { path: target, contentType: "image/png" });
 }
 
@@ -63,7 +73,7 @@ test("landscape and wide responsive audit across customer surfaces", async ({ pa
 
   const authenticatedPages = [
     ["mes-voyages", "/dashboard"], ["account", "/account"], ["trip-create", "/trips/new"],
-    ["trip-dashboard", `/trips/${tripId}`], ["invite", `/trips/${tripId}/invite`],
+    ["trip-dashboard", `/trips/${tripId}`], ["parcours", `/trips/${tripId}?view=parcours`], ["invite", `/trips/${tripId}/invite`],
     ["availability", `/trips/${tripId}/availability`], ["preferences", `/trips/${tripId}/questionnaire`],
     ["dates", `/trips/${tripId}?view=voyage&section=dates`], ["profile", `/trips/${tripId}?view=voyage&section=profile`],
     ["destination", `/trips/${tripId}?view=voyage&section=destination`],
