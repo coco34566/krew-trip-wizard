@@ -59,22 +59,36 @@ async function firstTripId(page: Page) {
 }
 
 test("reference surfaces visual audit", async ({ page }, testInfo) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   test.skip(testInfo.project.name !== "mobile-safari", "Reference audit creates all target viewports itself.");
 
-  // Public marketing surface: capture before authentication.
+  const publicPages = [
+    ["landing", "/"],
+    ["faq", "/faq"],
+    ["tarifs", "/tarifs"],
+    ["a-propos", "/a-propos"],
+    ["auth", "/auth"],
+  ] as const;
+
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await capture(page, testInfo, viewport.name, "landing", "/");
+    for (const [name, path] of publicPages) await capture(page, testInfo, viewport.name, name, path);
   }
 
   await page.setViewportSize({ width: VIEWPORTS[0].width, height: VIEWPORTS[0].height });
   await signIn(page);
   const tripId = await firstTripId(page);
 
+  const authenticatedPages = [
+    ["mes-voyages", "/dashboard"],
+    ["trip-dashboard", `/trips/${tripId}`],
+    ["account", "/account"],
+    ["recap", `/trips/${tripId}/recap`],
+    ["memories", `/trips/${tripId}/memories`],
+  ] as const;
+
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await capture(page, testInfo, viewport.name, "mes-voyages", "/dashboard");
-    await capture(page, testInfo, viewport.name, "trip-dashboard", `/trips/${tripId}`);
+    for (const [name, path] of authenticatedPages) await capture(page, testInfo, viewport.name, name, path);
   }
 });
