@@ -94,48 +94,47 @@ function ArchiveControl({ trip, onCancel, compact = false }: { trip: Trip; onCan
 function FeaturedTrip({ trip, onCancel }: { trip: Trip; onCancel: (tripId: string) => void }) {
   const image = tripImage(trip);
   return (
-    <article className="relative isolate min-h-[500px] sm:min-h-[485px] lg:min-h-[510px] overflow-visible">
-      <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-5 top-10 h-[300px] w-[70%] opacity-45 -z-10" />
-      <KrewOrganicBlob tone="plum" variant="soft" className="absolute right-0 bottom-4 h-[220px] w-[48%] opacity-[.045] -z-10" />
-      <div className="absolute left-[2%] top-5 w-[82%] sm:w-[58%] lg:w-[55%] rotate-[-1.8deg] bg-[#fffefa] p-3 pb-5 shadow-[0_16px_32px_-18px_rgba(42,25,37,.28)] ring-1 ring-black/[.06]">
+    <article className="relative isolate grid gap-5 overflow-visible sm:grid-cols-[minmax(0,1.18fr)_minmax(220px,.82fr)] sm:items-center sm:gap-7 lg:gap-9">
+      <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-5 top-8 h-[300px] w-[72%] opacity-45 -z-10" />
+      <KrewOrganicBlob tone="plum" variant="soft" className="absolute right-0 bottom-0 h-[220px] w-[48%] opacity-[.045] -z-10" />
+      <div className="relative mx-auto w-[94%] max-w-[560px] rotate-[-1.25deg] bg-[#fffefa] p-3 pb-5 shadow-[0_16px_32px_-18px_rgba(42,25,37,.28)] ring-1 ring-black/[.06] sm:mx-0 sm:w-full">
         <div className="absolute -top-3 left-[38%] z-10 hidden sm:block"><KrewNote variant="tape" tone="cream" rotation={1} className="min-w-[74px] px-3 py-1 text-transparent select-none">tape</KrewNote></div>
         <div className="absolute right-5 top-5 z-30" onClick={(event) => event.stopPropagation()}><ArchiveControl trip={trip} onCancel={onCancel} compact /></div>
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block">
-          <div className="aspect-[4/3] sm:aspect-[16/11] overflow-hidden bg-surface/60">
+          <div className="aspect-[4/3] overflow-hidden bg-surface/60 sm:aspect-[16/11]">
             {image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />}
           </div>
           <div className="px-2 pb-1 pt-4">
-            <p className="font-handwriting text-[24px] sm:text-[28px] leading-none text-primary">{trip.name}</p>
-            <div className="mt-2 flex items-center justify-between gap-3 text-[12px] sm:text-[13px] text-muted-foreground">
+            <p className="break-words font-handwriting text-[24px] leading-[1.05] text-primary sm:text-[28px]">{trip.name}</p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[12px] text-muted-foreground sm:text-[13px]">
               <span className="font-mono uppercase tracking-[.08em]">{eventTypeLabel(trip.event_type)}</span>
-              <span className="font-handwriting text-[15px] text-sage">la KREW se prépare</span>
+              <span className="font-handwriting text-[15px] text-sage">La KREW se prépare</span>
             </div>
           </div>
         </Link>
       </div>
-      <div className="absolute right-[1%] top-[260px] sm:top-[92px] w-[61%] sm:w-[43%] lg:w-[42%] z-20 px-2 sm:px-4">
+      <div className="relative min-w-0 px-1 sm:px-0">
         <KrewNote variant="label" tone="sage" rotation={2} className="mb-3 inline-flex min-w-0 px-2.5 py-1 text-xs">À suivre maintenant</KrewNote>
-        <div className="mt-1 space-y-2 text-[12px] sm:text-sm text-muted-foreground">
-          {trip.destination_name ? <p className="flex items-center gap-2 font-medium text-foreground"><KrewIcon name="destination" tone="plum" size="sm" className="size-4" />{trip.destination_name}</p> : null}
-          {trip.start_date ? <p className="flex items-center gap-2"><KrewIcon name="calendar" tone="muted" size="sm" className="size-4" />{new Date(trip.start_date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p> : null}
-          <p className="flex items-center gap-2"><KrewIcon name="group" tone="muted" size="sm" className="size-4" />{trip.participants_count} participants</p>
-          {trip.star_name ? <p className="flex items-center gap-2"><KrewIcon name="star" tone="plum" size="sm" className="size-4" />Star : {trip.star_name}</p> : null}
+        <div className="space-y-2 text-[13px] text-muted-foreground sm:text-sm">
+          {trip.destination_name ? <p className="flex min-w-0 items-start gap-2 font-medium text-foreground"><KrewIcon name="destination" tone="plum" size="sm" className="mt-0.5 size-4 shrink-0" /><span className="break-words">{trip.destination_name}</span></p> : null}
+          {trip.start_date ? <p className="flex items-start gap-2"><KrewIcon name="calendar" tone="muted" size="sm" className="mt-0.5 size-4 shrink-0" /><span>{new Date(trip.start_date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</span></p> : null}
+          <p className="flex items-center gap-2"><KrewIcon name="group" tone="muted" size="sm" className="size-4 shrink-0" />{trip.participants_count} participants</p>
+          {trip.star_name ? <p className="flex min-w-0 items-start gap-2"><KrewIcon name="star" tone="plum" size="sm" className="mt-0.5 size-4 shrink-0" /><span className="break-words">Star : {trip.star_name}</span></p> : null}
         </div>
         <div className="relative mt-5 border-t border-dashed border-sage/45 pt-4">
           <KrewNote variant="margin" rotation={-2} className="mb-1 text-sage">Prochaine action</KrewNote>
-          <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group inline-flex items-center gap-2 font-display text-[19px] sm:text-[22px] leading-tight text-primary">{nextActionFor(trip)}<KrewMark type="arrow-right" tone="plum" size="md" className="h-5 w-8 transition-transform group-hover:translate-x-1" /></Link>
+          <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group inline-flex max-w-full items-center gap-2 font-display text-[19px] leading-tight text-primary sm:text-[22px]"><span className="break-words">{nextActionFor(trip)}</span><KrewMark type="arrow-right" tone="plum" size="md" className="h-5 w-8 shrink-0 transition-transform group-hover:translate-x-1" /></Link>
         </div>
       </div>
-      <KrewMark type="arrow-curved-right" tone="sage" size="lg" rotation={-7} className="absolute left-[52%] top-[34px] hidden sm:block h-16 w-24 opacity-55 pointer-events-none" />
-      <KrewMark type="sparkle" tone="plum" size="sm" rotation={6} className="absolute right-[4%] bottom-[8%] hidden sm:block opacity-35 pointer-events-none" />
-      <img src="/brand/otter-states/trip-progress.png" alt="" className="absolute bottom-0 left-[7%] w-[72px] sm:w-[92px] h-auto object-contain pointer-events-none" />
+      <KrewMark type="sparkle" tone="plum" size="sm" rotation={6} className="absolute right-[4%] bottom-[4%] hidden sm:block opacity-30 pointer-events-none" />
+      <img src="/brand/otter-states/trip-progress.png" alt="" className="absolute -bottom-5 left-[4%] hidden w-[82px] h-auto object-contain pointer-events-none lg:block" />
     </article>
   );
 }
 
 function NotebookTrip({ trip, invited = false, onCancel, index = 0 }: { trip: Trip; invited?: boolean; onCancel?: (tripId: string) => void; index?: number }) {
   const image = tripImage(trip);
-  const rotations = ["md:rotate-[-1.4deg]", "md:rotate-[1.1deg] md:translate-y-3", "md:rotate-[-.7deg] md:-translate-y-1"];
+  const rotations = ["rotate-[-1deg] md:rotate-[-1.4deg]", "rotate-[.8deg] translate-y-1 md:rotate-[1.1deg] md:translate-y-3", "rotate-[-.6deg] -translate-y-1 md:rotate-[-.7deg]"];
   const rotation = rotations[index % rotations.length];
   return (
     <article className={`group relative w-full max-w-[280px] sm:w-[250px] lg:w-[260px] px-1 py-2 ${rotation}`}>

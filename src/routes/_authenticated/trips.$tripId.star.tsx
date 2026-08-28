@@ -333,7 +333,7 @@ function StarQuestionnaire() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10">
+      <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10">
         <KrewThinkingState context="generic" customMessage="Chargement des préférences de la Star…" delayMs={0} />
       </main>
     );
@@ -341,7 +341,7 @@ function StarQuestionnaire() {
 
   if (!data?.trip.hasStar) {
     return (
-      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 text-center space-y-4">
+      <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 text-center space-y-4">
         <p className="text-muted-foreground">
           Ce type de voyage n’a pas de personne principale (star).
         </p>
@@ -357,7 +357,7 @@ function StarQuestionnaire() {
   const starName = data.trip.celebratedPerson || "la personne principale";
 
   return (
-    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+    <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -386,9 +386,26 @@ function StarQuestionnaire() {
         </p>
       </div>
 
-      <div className="pt-4">
+      <section className="space-y-5 border-y border-border/50 py-6">
+        <div className="space-y-1.5">
+          <h2 className="font-display text-2xl font-normal text-foreground">Rôle de la Star</h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">Ces choix ont été définis lors de l’invitation et servent de cadre au questionnaire.</p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 sm:gap-7">
+          <div className="space-y-2">
+            <p className="text-base font-semibold leading-snug text-foreground">Comment participe {starName} à l’organisation ?</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">Mode secret · tu complètes ses réponses à sa place.</p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-base font-semibold leading-snug text-foreground">La Star participe-t-elle aux frais ?</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{data.starPaysShare ? "Oui, sa part reste incluse." : "Non, sa part est répartie entre le groupe."}</p>
+          </div>
+        </div>
+      </section>
+
+      <div className="pt-2">
         {/* 1. Envies & ambiance */}
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
+        <section className="border-b border-border/50 pb-9 mb-9 space-y-8">
           <div className="space-y-4">
             <h2 className="font-display text-2xl font-normal text-foreground">Quelles activités plairaient à {starName} ?</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -400,7 +417,7 @@ function StarQuestionnaire() {
             </div>
           </div>
 
-          <div className="space-y-4 pt-2">
+          <div className="space-y-5 pt-3">
             <h2 className="font-display text-2xl font-normal text-foreground">Quelle ambiance {starName} apprécierait ?</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {AMBIANCES.map((a) => (
@@ -415,7 +432,7 @@ function StarQuestionnaire() {
             </div>
           </div>
 
-          <div className="space-y-4 pt-2">
+          <div className="space-y-5 pt-3">
             <h2 className="font-display text-2xl font-normal text-foreground">Que refuserait absolument {starName} ?</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {STAR_DEAL_BREAKERS.map((a) => (
@@ -432,7 +449,7 @@ function StarQuestionnaire() {
         </section>
 
         {/* 2. Destination & cadre (FOND SAUGE LÉGER) */}
-        <section className="pb-8 mb-8 space-y-4 font-sans border-b border-border/50">
+        <section className="pb-9 mb-9 space-y-6 font-sans border-b border-border/50">
           <h2 className="font-display text-2xl font-normal text-foreground">Les lieux qui plairaient à {starName}</h2>
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label>
@@ -505,7 +522,7 @@ function StarQuestionnaire() {
         </section>
 
         {/* 3. Hébergement (FOND CRÈME LÉGER) */}
-        <section className="bg-surface/50 rounded-[20px] p-5 sm:p-7 pb-8 mb-8 space-y-4 font-sans">
+        <section className="bg-surface/50 rounded-[20px] p-5 sm:p-7 pb-9 mb-9 space-y-6 font-sans">
           <h2 className="font-display text-2xl font-normal text-foreground">Hébergement</h2>
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label>
@@ -528,7 +545,7 @@ function StarQuestionnaire() {
         </section>
 
         {/* 4. Transport */}
-        <section className="border-b border-border/50 pb-8 mb-8 space-y-6">
+        <section className="border-b border-border/50 pb-9 mb-9 space-y-8">
           <h2 className="font-display text-2xl font-normal text-foreground">
             Transport
           </h2>
@@ -570,7 +587,7 @@ function StarQuestionnaire() {
         </section>
 
         {/* 5. Disponibilités Calendrier */}
-        <section className="space-y-4 pb-8 mb-8 border-b border-border/50">
+        <section className="space-y-6 pb-9 mb-9 border-b border-border/50">
           <h2 className="font-display text-2xl font-normal text-foreground">Disponibilités de {starName}</h2>
           <p className="text-[13px] text-muted-foreground leading-relaxed">
             Indique les dates où {starName} serait disponible ou indisponible.

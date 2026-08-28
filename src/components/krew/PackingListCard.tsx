@@ -11,10 +11,11 @@ import { Input } from "@/components/ui/input";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
+import { supabase } from "@/integrations/supabase/client";
 
 type Props = PackingListInput & {
   tripId?: string;
-  participants?: { id: string; display_name?: string | null; email?: string | null }[];
+  participants?: { id: string; user_id?: string | null; display_name?: string | null; email?: string | null }[];
   shoppingLinks?: Record<string, ShoppingLink | undefined>;
 };
 
@@ -39,8 +40,13 @@ export function PackingListCard({
     assigned: Record<string, string>;
     owned: Record<string, boolean>;
   }>({ checked: {}, manual: [], assigned: {}, owned: {} });
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [manualLabel, setManualLabel] = useState("");
   const [manualMode, setManualMode] = useState<"personal" | "group">("personal");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null)).catch(() => setCurrentUserId(null));
+  }, []);
 
   useEffect(() => {
     try {
@@ -146,7 +152,7 @@ export function PackingListCard({
                 >
                   <option value="">Qui s'en charge ?</option>
                   {item.purchasable ? <option value="__me__">Je m’en charge</option> : null}
-                  {assignableParticipants.map((p) => (
+                  {assignableParticipants.filter((p) => !currentUserId || p.user_id !== currentUserId).map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.display_name || p.email?.split("@")[0] || "Participant"}
                     </option>

@@ -303,7 +303,7 @@ function NextActionsPanel({
 
   if (actions.length === 0 && participantCaughtUp) {
     return (
-      <section className="-mx-4 sm:mx-0 rounded-3xl border border-sage/25 bg-sage/12 p-6 sm:p-7 relative overflow-hidden shadow-xs">
+      <section className="mx-0 rounded-3xl border border-sage/25 bg-sage/12 p-6 sm:p-7 relative overflow-hidden shadow-xs">
         <div className="flex items-start gap-4">
           <Logo variant="icon" size="sm" className="size-12 sm:size-14 shrink-0 pointer-events-none" />
           <div className="space-y-1">
@@ -338,6 +338,8 @@ function NextActionsPanel({
     progressItems.push({
       label: "Disponibilités",
       value: Math.round((availabilityAnswered / availabilityExpected) * 100),
+      current: availabilityAnswered,
+      total: availabilityExpected,
       tone: "sage" as const,
     });
   }
@@ -345,12 +347,14 @@ function NextActionsPanel({
     progressItems.push({
       label: "Préférences",
       value: Math.round((progressAnswered / progressTotal) * 100),
+      current: progressAnswered,
+      total: progressTotal,
       tone: "plum" as const,
     });
   }
 
   return (
-    <div className="-mx-4 sm:mx-0 my-4 sm:my-6 overflow-hidden relative space-y-3">
+    <div className="mx-0 my-4 sm:my-6 overflow-hidden relative space-y-3">
       {waitingOnOthers ? (
         <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
           Tout est bon pour le moment. L&apos;organisateur reviendra vers toi pour les prochaines étapes.
@@ -451,7 +455,7 @@ export function TripHubDashboard({
                 className="absolute right-0 bottom-0 w-[130px] sm:w-[160px] h-[65px] sm:h-[75px] text-primary opacity-20 pointer-events-none z-0"
               />
 
-              <h1 className="relative z-10 font-display text-[42px] sm:text-[56px] font-normal leading-[0.94] tracking-tight text-foreground max-w-full break-words">
+              <h1 className="relative z-10 inline-block max-w-full break-words rounded-[10px] bg-background/75 px-2.5 py-1.5 font-display text-[42px] font-normal leading-[0.94] tracking-tight text-foreground backdrop-blur-[2px] sm:text-[56px]">
                 <span className="relative inline-block max-w-full">
                   {destinationName || "Destination à définir"}
                   {destinationName ? (

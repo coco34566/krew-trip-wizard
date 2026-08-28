@@ -20,6 +20,7 @@ export const getStarPreferences = createServerFn({ method: "GET" })
     if (!trip.data) throw new Error("Voyage introuvable");
 
     const starMode = (trip.data.group_logistics as any)?.star_mode ?? "secret";
+    const starPaysShare = (trip.data.group_logistics as any)?.star_pays_share !== false;
     const isAdmin = isTripAdmin(trip.data, userId);
 
     if (starMode === "participant") {
@@ -34,6 +35,7 @@ export const getStarPreferences = createServerFn({ method: "GET" })
         },
         preferences: null,
         starMode,
+        starPaysShare,
       };
     }
 
@@ -85,6 +87,7 @@ export const getStarPreferences = createServerFn({ method: "GET" })
           }
         : null,
       starMode,
+      starPaysShare,
     };
   });
 

@@ -327,14 +327,14 @@ function ParticipantQuestionnaire() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-[820px] px-4 sm:px-6 py-20 flex justify-center">
+      <div className="mx-auto max-w-[820px] px-5 sm:px-7 py-20 flex justify-center">
         <Loader2 className="animate-spin text-primary size-6" />
       </div>
     );
   }
 
   return (
-    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+    <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}

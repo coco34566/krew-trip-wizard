@@ -17,6 +17,8 @@ export type KrewActionItem = {
 type Progress = {
   label: string;
   value: number;
+  current?: number;
+  total?: number;
   tone?: "sage" | "plum";
 };
 
@@ -48,7 +50,7 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                     </span>
                   </div>
                   <span className="shrink-0 font-mono text-[12px] font-semibold text-foreground/70">
-                    {value}%
+                    {item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-muted/70" aria-hidden="true">

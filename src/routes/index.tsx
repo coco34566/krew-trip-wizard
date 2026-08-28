@@ -64,7 +64,9 @@ function Landing() {
                   Disponibilités, envies, budget : KREW rassemble les réponses du groupe et t’aide à organiser le séjour, étape par étape.
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-2 relative">
-                  <KrewNote variant="margin" tone="cream" rotation={-1} className="absolute -top-7 right-0 sm:hidden text-sm px-2 py-1 pointer-events-none">le plan prend forme ici</KrewNote>
+                  <div className="basis-full sm:hidden">
+                    <KrewNote variant="tape" tone="cream" rotation={-1} size="sm" className="w-fit text-sm pointer-events-none">Le plan prend forme ici</KrewNote>
+                  </div>
                   <Button asChild size="xl" className="h-12 min-h-12 rounded-xl px-8 py-0 text-base font-medium leading-none shadow-none">
                     <Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link>
                   </Button>
@@ -193,7 +195,7 @@ function Landing() {
             <img src="/brand/otter-states/lets-go.png" alt="Loutre KREW départ" className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-xs mx-auto" />
             <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground leading-tight">Ta prochaine légende commence ici</h2>
             <p className="mx-auto max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed font-sans">Crée le voyage, invite le groupe et avancez ensemble, étape par étape.</p>
-            <div className="pt-2 relative"><KrewNote variant="tape" tone="sage" rotation={1} className="absolute -top-7 left-1/2 -translate-x-1/2 sm:hidden text-sm px-2 py-1 pointer-events-none">prêts à partir ?</KrewNote><Button asChild size="xl" className="h-12 min-h-12 rounded-xl px-8 py-0 text-base font-medium leading-none shadow-none"><Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link></Button></div>
+            <div className="pt-2 relative"><div className="mb-4 flex justify-center sm:hidden"><KrewNote variant="tape" tone="sage" rotation={1} size="sm" className="w-fit text-sm pointer-events-none">Prêts à partir ?</KrewNote></div><Button asChild size="xl" className="h-12 min-h-12 rounded-xl px-8 py-0 text-base font-medium leading-none shadow-none"><Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link></Button></div>
           </div>
         </section>
       </main>
