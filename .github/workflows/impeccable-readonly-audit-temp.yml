@@ -1,0 +1,51 @@
+name: Impeccable read-only audit (temporary)
+
+on:
+  push:
+    branches:
+      - audit/impeccable-readonly-2026-08-28
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 30
+    env:
+      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
+      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_API_MODE: safe
+      KREW_E2E_BASE_URL: https://krew-trip-wizard-inx89g0j7-coco34566s-projects.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - name: Install Playwright test runner without changing lockfile
+        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+      - name: Run Impeccable deterministic detector
+        shell: bash
+        run: |
+          mkdir -p audit-artifacts
+          node .agents/skills/impeccable/scripts/detect.mjs src --json > audit-artifacts/impeccable-detect.json || true
+      - name: Capture journey and reference surfaces
+        run: npm run test:e2e -- tests/e2e/journey-visual-audit.spec.ts tests/e2e/reference-surfaces-visual-audit.spec.ts --project=mobile-safari
+      - name: Preserve screenshots and metrics before cleanup
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p audit-artifacts
+          cp -R test-results audit-artifacts/test-results 2>/dev/null || true
+          cp -R playwright-report audit-artifacts/playwright-report 2>/dev/null || true
+      - name: Cleanup disposable audit trips
+        if: always()
+        run: npm run test:e2e -- tests/e2e/cleanup-e2e-trips.spec.ts --project=mobile-safari
+      - name: Upload read-only audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: impeccable-readonly-audit-evidence
+          path: audit-artifacts/
+          if-no-files-found: error
+          retention-days: 7
