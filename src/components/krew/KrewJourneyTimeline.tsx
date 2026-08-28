@@ -4,7 +4,6 @@ import {
   KrewIcon,
   KrewMark,
   KrewNote,
-  KrewOrganicBlob,
   type KrewIconName,
 } from "@/components/krew/visual-language";
 
@@ -36,300 +35,179 @@ function parseStepHref(href: string) {
   return { to: path, search };
 }
 
-/* Hand-composed positions: deliberately neither alternating nor evenly spaced.
- * The route should feel drawn in a travel notebook, while every label remains readable. */
-const DESKTOP_POINTS = [
-  { x: 18, y: 7, side: "right" },
-  { x: 47, y: 13, side: "right" },
-  { x: 73, y: 21, side: "left" },
-  { x: 57, y: 30, side: "left" },
-  { x: 25, y: 37, side: "right" },
-  { x: 36, y: 47, side: "right" },
-  { x: 69, y: 53, side: "left" },
-  { x: 77, y: 63, side: "left" },
-  { x: 49, y: 70, side: "right" },
-  { x: 22, y: 77, side: "right" },
-  { x: 31, y: 87, side: "right" },
-  { x: 62, y: 91, side: "left" },
-  { x: 79, y: 97, side: "left" },
-] as const;
+function StepMeta({ step }: { step: TimelineStep }) {
+  if (step.status === "done") {
+    return <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-sage">Terminé</span>;
+  }
+  if (step.status === "available") {
+    return <span className="text-[12px] font-medium text-primary/75">Disponible</span>;
+  }
+  if (step.status === "upcoming") {
+    return <span className="text-[12px] font-medium text-muted-foreground/65">À venir</span>;
+  }
+  return null;
+}
 
-const MOBILE_POINTS = [
-  { x: 22, y: 6, side: "right" },
-  { x: 60, y: 13, side: "left" },
-  { x: 72, y: 21, side: "left" },
-  { x: 42, y: 29, side: "right" },
-  { x: 20, y: 37, side: "right" },
-  { x: 37, y: 46, side: "right" },
-  { x: 72, y: 53, side: "left" },
-  { x: 68, y: 62, side: "left" },
-  { x: 38, y: 70, side: "right" },
-  { x: 19, y: 78, side: "right" },
-  { x: 38, y: 87, side: "right" },
-  { x: 70, y: 92, side: "left" },
-  { x: 57, y: 98, side: "left" },
-] as const;
-
-const desktopPath =
-  "M18 7 C27 5 39 9 47 13 C58 18 75 14 73 21 C71 27 61 25 57 30 C49 37 32 31 25 37 C18 43 28 47 36 47 C48 47 60 49 69 53 C79 57 83 60 77 63 C69 67 57 66 49 70 C38 75 28 72 22 77 C16 83 24 88 31 87 C43 85 53 89 62 91 C70 93 76 95 79 97";
-
-const mobilePath =
-  "M22 6 C35 6 51 9 60 13 C72 17 79 17 72 21 C64 26 49 24 42 29 C33 35 22 31 20 37 C18 43 29 45 37 46 C50 47 64 48 72 53 C80 58 76 62 68 62 C55 62 45 66 38 70 C29 75 18 73 19 78 C20 84 31 86 38 87 C49 88 61 89 70 92 C74 94 65 97 57 98";
-
-function StepLabel({
-  step,
-  side,
-}: {
-  step: TimelineStep;
-  side: "left" | "right";
-}) {
-  const isDone = step.status === "done";
-  const isAvailable = step.status === "available";
-  const isUpcoming = step.status === "upcoming";
-
+function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boolean }) {
   return (
-    <div
-      className={cn(
-        "absolute top-1/2 flex -translate-y-1/2 items-center gap-2.5",
-        side === "right" ? "left-[calc(100%+9px)]" : "right-[calc(100%+9px)] flex-row-reverse text-right",
+    <div className={cn("min-w-0", next ? "space-y-1.5" : "space-y-1")}> 
+      {next ? (
+        <KrewNote variant="label" tone="plum" rotation={-1} className="w-fit text-[13px]">
+          Prochaine étape
+        </KrewNote>
+      ) : null}
+      <h3
+        className={cn(
+          "font-display font-normal leading-[1.02] text-foreground",
+          next ? "text-[25px] sm:text-[29px]" : "text-[19px] sm:text-[22px]",
+          step.status === "upcoming" && "text-muted-foreground/70",
+        )}
+      >
+        {step.title}
+      </h3>
+      {step.subtitle ? (
+        <p className={cn("max-w-[310px] text-[13px] leading-relaxed", next ? "text-muted-foreground" : "text-muted-foreground/80")}>
+          {step.subtitle}
+        </p>
+      ) : null}
+      {next ? (
+        <span className="inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-primary">
+          Continuer
+          <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6" />
+        </span>
+      ) : (
+        <StepMeta step={step} />
       )}
-    >
-      <div className="min-w-0 w-[116px] sm:w-[150px]">
-        <div
-          className={cn(
-            "font-display text-[15px] sm:text-[18px] leading-[1.05] transition-colors",
-            isDone && "text-foreground/85",
-            isAvailable && "text-primary",
-            isUpcoming && "text-muted-foreground/60",
-          )}
-        >
-          {step.title}
-        </div>
-        {step.category === "souvenirs" && step.subtitle ? (
-          <span className="mt-1 block max-w-[116px] sm:max-w-[150px] text-xs sm:text-[13px] leading-snug text-muted-foreground/75">
-            {step.subtitle}
-          </span>
-        ) : null}
-        {isDone ? (
-          <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.06em] text-sage">
-            Terminé
-          </span>
-        ) : isAvailable ? (
-          <span className="mt-1 block text-xs font-medium text-primary/70">Disponible</span>
-        ) : null}
-      </div>
     </div>
   );
 }
 
 export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
+  const currentIndex = Math.max(
+    0,
+    steps.findIndex((step) => step.status === "next_action") >= 0
+      ? steps.findIndex((step) => step.status === "next_action")
+      : steps.reduce((last, step, index) => (step.status === "done" || step.status === "available" ? index : last), 0),
+  );
+  const progress = steps.length > 1 ? (currentIndex / (steps.length - 1)) * 100 : 100;
+
   return (
-    <div className="w-full max-w-[900px] mx-auto px-1 py-1 font-sans">
-      <header className="relative mb-2 sm:mb-3 min-h-[105px] sm:min-h-[130px] pr-[92px] sm:pr-[150px]">
-        <KrewNote variant="margin" rotation={-2} className="mb-1 text-sage">
-          notre feuille de route
-        </KrewNote>
-        <div className="relative inline-block max-w-full">
-          <h1 className="font-display text-[31px] sm:text-[42px] font-normal leading-[.98] text-foreground">
-            Le parcours de {tripName}
-          </h1>
-          <KrewMark
-            type="underline-wave"
-            tone="sage"
-            size="lg"
-            className="absolute -bottom-5 left-1 w-[170px] sm:w-[210px] opacity-75 pointer-events-none"
-          />
+    <div className="mx-auto w-full max-w-[940px] px-1 py-1 font-sans">
+      <header className="relative mb-8 grid grid-cols-[minmax(0,1fr)_76px] items-start gap-4 sm:mb-10 sm:grid-cols-[minmax(0,1fr)_104px] sm:gap-8">
+        <div className="min-w-0">
+          <KrewNote variant="margin" rotation={-1} className="mb-1 text-sage">
+            notre feuille de route
+          </KrewNote>
+          <div className="relative inline-block max-w-full pb-2">
+            <h1 className="font-display text-[34px] font-normal leading-[.96] tracking-[-0.02em] text-foreground sm:text-[44px]">
+              Le parcours de {tripName}
+            </h1>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="lg"
+              className="pointer-events-none absolute -bottom-2 left-1 w-[170px] opacity-75 sm:w-[210px]"
+            />
+          </div>
+          <p className="mt-4 max-w-[540px] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+            De la première idée aux souvenirs : chaque étape débloque naturellement la suivante.
+          </p>
         </div>
-        <p className="pt-5 max-w-[460px] text-xs sm:text-sm leading-relaxed text-muted-foreground">
-          De la première idée aux souvenirs : le chemin se construit avec toute la KREW.
-        </p>
         <img
           src="/brand/otter-states/trip-progress.png"
           alt=""
-          className="absolute right-0 top-0 w-[88px] sm:w-[132px] h-auto object-contain pointer-events-none select-none"
+          className="pointer-events-none h-auto w-full max-w-[76px] justify-self-end object-contain sm:max-w-[104px]"
         />
       </header>
 
-      <div className="relative mx-auto h-[1080px] sm:h-[1160px] w-full overflow-visible">
-        <KrewOrganicBlob
-          tone="sage"
-          variant="soft"
-          className="absolute left-[4%] top-[15%] h-[145px] w-[210px] sm:h-[190px] sm:w-[310px] opacity-35"
-        />
-        <KrewOrganicBlob
-          tone="plum"
-          variant="soft"
-          className="absolute right-[2%] top-[55%] h-[120px] w-[180px] sm:h-[170px] sm:w-[260px] opacity-[.035]"
-        />
-
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 hidden h-full w-full sm:block pointer-events-none overflow-visible"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          fill="none"
-        >
-          <path
-            d={desktopPath}
-            stroke="var(--sage)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            opacity=".7"
-          />
-        </svg>
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 block h-full w-full sm:hidden pointer-events-none overflow-visible"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          fill="none"
-        >
-          <path
-            d={mobilePath}
-            stroke="var(--sage)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-            opacity=".7"
-          />
-        </svg>
-
-        <div className="absolute left-[6%] top-[24%] hidden sm:block pointer-events-none">
-          <KrewNote variant="torn" tone="cream" rotation={-4} className="px-3 py-2 shadow-sm">
-            on avance ensemble
-          </KrewNote>
+      <div className="relative">
+        <div className="absolute bottom-6 left-[21px] top-6 w-px bg-border/70 sm:left-1/2 sm:-translate-x-1/2" aria-hidden="true">
+          <div className="w-full bg-sage transition-[height] duration-300" style={{ height: `${progress}%` }} />
         </div>
-        <KrewMark
-          type="arrow-curved-right"
-          tone="sage"
-          size="lg"
-          rotation={-2}
-          className="absolute left-[18%] top-[28%] hidden w-20 sm:block opacity-55 pointer-events-none"
-        />
-        <div className="absolute right-[5%] top-[74%] hidden sm:block pointer-events-none">
-          <KrewNote variant="margin" rotation={2}>la suite se dessine ici</KrewNote>
-        </div>
-        <KrewMark
-          type="sparkle"
-          tone="plum"
-          size="sm"
-          rotation={4}
-          className="absolute right-[14%] top-[84%] hidden sm:block opacity-45 pointer-events-none"
-        />
 
-        {steps.map((step, index) => {
-          const desktopPoint = DESKTOP_POINTS[index] ?? DESKTOP_POINTS[DESKTOP_POINTS.length - 1];
-          const mobilePoint = MOBILE_POINTS[index] ?? MOBILE_POINTS[MOBILE_POINTS.length - 1];
-          const isDone = step.status === "done";
-          const isNextAction = step.status === "next_action";
-          const isAvailable = step.status === "available";
-          const isUpcoming = step.status === "upcoming";
-          const directHref =
-            step.id === "preferences"
-              ? `/trips/${tripId}/questionnaire`
-              : step.id === "profile"
-                ? `/trips/${tripId}?view=voyage&section=profile`
-                : null;
-          const parsed = step.href ? parseStepHref(step.href) : null;
+        <ol className="space-y-3 sm:space-y-1">
+          {steps.map((step, index) => {
+            const isDone = step.status === "done";
+            const isNextAction = step.status === "next_action";
+            const isAvailable = step.status === "available";
+            const isUpcoming = step.status === "upcoming";
+            const directHref =
+              step.id === "preferences"
+                ? `/trips/${tripId}/questionnaire`
+                : step.id === "profile"
+                  ? `/trips/${tripId}?view=voyage&section=profile`
+                  : null;
+            const parsed = step.href ? parseStepHref(step.href) : null;
 
-          const node = (
-            <div
-              className={cn(
-                "relative flex items-center justify-center rounded-full bg-background transition-transform duration-150",
-                isDone && "size-10 sm:size-11 border-[2px] border-sage text-primary shadow-[0_2px_10px_rgba(60,35,50,.06)]",
-                isAvailable && "size-10 sm:size-11 border-[2px] border-primary/55 text-primary shadow-[0_2px_10px_rgba(60,35,50,.06)]",
-                isUpcoming && "size-8 sm:size-9 border border-border text-muted-foreground/45",
-              )}
-            >
-              <KrewIcon
-                name={step.iconName}
-                size="sm"
-                tone={isDone || isAvailable ? "plum" : "muted"}
-                className={isUpcoming ? "size-4" : "size-5"}
-              />
-              {isDone ? (
-                <span className="absolute -bottom-1 -right-1 flex size-[17px] items-center justify-center rounded-full bg-sage text-white text-[9px] font-bold">
-                  ✓
-                </span>
-              ) : null}
-            </div>
-          );
-
-          const regularContent = (
-            <div className="group relative hover:-translate-y-0.5 transition-transform duration-150">
-              {node}
-              <div className="hidden sm:block">
-                <StepLabel step={step} side={desktopPoint.side} />
-              </div>
-              <div className="block sm:hidden">
-                <StepLabel step={step} side={mobilePoint.side} />
-              </div>
-            </div>
-          );
-
-          const nextContent = (
-            <div className="relative w-[174px] sm:w-[228px] -translate-x-1/2 -translate-y-1/2">
-              <KrewNote
-                variant="label"
-                tone="plum"
-                rotation={-2}
-                className="relative z-10 mb-2 text-[.76rem] sm:text-[.88rem]"
+            const node = (
+              <div
+                className={cn(
+                  "relative z-10 flex shrink-0 items-center justify-center rounded-full bg-background",
+                  isDone && "size-[42px] border-2 border-sage text-primary",
+                  isAvailable && "size-[42px] border-2 border-primary/55 text-primary",
+                  isNextAction && "size-[46px] border-[3px] border-primary bg-primary text-primary-foreground ring-4 ring-primary/10",
+                  isUpcoming && "size-[34px] border border-border text-muted-foreground/50",
+                )}
               >
-                Prochaine étape
-              </KrewNote>
-              <KrewMark
-                type="arrow-curved-right"
-                tone="sage"
-                size="sm"
-                className="absolute left-8 top-7 z-20 h-7 w-10 rotate-[18deg] pointer-events-none"
-              />
-              <div className="relative z-10 flex items-center gap-2.5 sm:gap-3 rounded-[46%_54%_48%_52%/54%_46%_56%_44%] bg-background/95 px-2.5 py-2 sm:px-3 sm:py-2.5 shadow-[0_4px_16px_rgba(60,35,50,.05)]">
-                <div className="flex size-10 sm:size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-4 ring-primary/10">
-                  <KrewIcon name={step.iconName} size="sm" tone="cream" className="size-5 sm:size-6" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="font-display text-[20px] sm:text-[25px] leading-[1] text-foreground">{step.title}</h3>
-                  {step.subtitle ? (
-                    <p className="mt-1 text-xs sm:text-[13px] leading-snug text-muted-foreground">{step.subtitle}</p>
-                  ) : null}
-                  <span className="mt-1.5 inline-flex items-center gap-1 text-xs sm:text-[13px] font-semibold text-primary">
-                    Continuer
-                    <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6" />
+                <KrewIcon
+                  name={step.iconName}
+                  size="sm"
+                  tone={isNextAction ? "cream" : isDone || isAvailable ? "plum" : "muted"}
+                  className={isUpcoming ? "size-4" : "size-5"}
+                />
+                {isDone ? (
+                  <span className="absolute -bottom-1 -right-1 flex size-[18px] items-center justify-center rounded-full bg-sage text-[11px] font-bold text-white">
+                    ✓
                   </span>
-                </div>
+                ) : null}
               </div>
-            </div>
-          );
-
-          const content = isNextAction ? nextContent : regularContent;
-          const wrapper = (child: React.ReactNode) =>
-            directHref ? (
-              <a href={directHref} className="block no-underline">{child}</a>
-            ) : parsed && !isUpcoming ? (
-              <Link to={parsed.to as any} search={parsed.search as any} className="block no-underline">{child}</Link>
-            ) : (
-              child
             );
 
-          return (
-            <div key={step.id}>
+            const copy = (
               <div
-                className={cn("absolute z-10 hidden sm:block", isNextAction ? "z-30" : "-translate-x-1/2 -translate-y-1/2")}
-                style={{ left: `${desktopPoint.x}%`, top: `${desktopPoint.y}%` }}
+                className={cn(
+                  "min-w-0 rounded-[18px] px-3 py-3 transition-colors sm:px-4 sm:py-4",
+                  isNextAction && "border border-primary/15 bg-primary/[0.035] shadow-[0_5px_18px_rgba(60,35,50,.05)]",
+                  !isNextAction && !isUpcoming && "hover:bg-sage/[0.035]",
+                )}
               >
-                {wrapper(content)}
+                <TimelineCopy step={step} next={isNextAction} />
               </div>
-              <div
-                className={cn("absolute z-10 block sm:hidden", isNextAction ? "z-30" : "-translate-x-1/2 -translate-y-1/2")}
-                style={{ left: `${mobilePoint.x}%`, top: `${mobilePoint.y}%` }}
-              >
-                {wrapper(content)}
-              </div>
-            </div>
-          );
-        })}
+            );
 
+            const content = (
+              <div className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] sm:gap-5">
+                <div className={cn("hidden sm:block", index % 2 === 0 ? "text-right" : "order-3")}>{index % 2 === 0 ? copy : null}</div>
+                <div className="flex justify-center sm:col-start-2">{node}</div>
+                <div className={cn("min-w-0", index % 2 === 0 ? "sm:col-start-3" : "sm:col-start-1 sm:row-start-1 sm:text-right")}>
+                  {index % 2 === 0 ? <div className="sm:hidden">{copy}</div> : copy}
+                </div>
+              </div>
+            );
+
+            const wrapped = directHref ? (
+              <a href={directHref} className="block rounded-[18px] no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                {content}
+              </a>
+            ) : parsed && !isUpcoming ? (
+              <Link
+                to={parsed.to as any}
+                search={parsed.search as any}
+                className="block rounded-[18px] no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {content}
+              </Link>
+            ) : (
+              content
+            );
+
+            return (
+              <li key={step.id} className={cn("relative py-1 sm:py-2", isNextAction && "py-3 sm:py-4")}>
+                {wrapped}
+              </li>
+            );
+          })}
+        </ol>
       </div>
     </div>
   );
