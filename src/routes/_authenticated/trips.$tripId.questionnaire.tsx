@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import {
   getMyParticipantPreferences,
   submitParticipantPreferences,
@@ -342,28 +343,14 @@ function ParticipantQuestionnaire() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
-      <div className="relative space-y-[12px]">
-        <div className="flex items-start justify-between gap-4">
-          <div className="relative inline-block min-w-0 flex-1">
-            <p className="mb-1 text-[13px] font-semibold text-muted-foreground">{tripName}</p>
-            <h1 className="font-display text-[34px] sm:text-[40px] font-normal leading-[0.98] tracking-tight text-foreground">
-              Préférences
-            </h1>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="md"
-              className="absolute left-1 -bottom-2 w-[clamp(96px,38vw,160px)] max-w-[70%] pointer-events-none"
-            />
-          </div>
-          <img
-            src="/brand/otter-states/preferences.png"
-            alt=""
-            className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 pointer-events-none"
-          />
-        </div>
+      <KrewJourneyPageHeader
+        tripName={tripName}
+        title="Préférences"
+        otterSrc="/brand/otter-states/preferences.png"
+        waveClassName="w-[clamp(96px,38vw,160px)]"
+      >
         {isEditing ? (
-          <div className="space-y-1.5 pt-1">
+          <div className="space-y-1.5">
             <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-flex items-center gap-2">
               <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
               Réponse enregistrée
@@ -383,15 +370,15 @@ function ParticipantQuestionnaire() {
             </p>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground pt-1">
+          <p className="text-sm text-muted-foreground">
             Tes réponses individuelles ne sont pas visibles par les autres participants.
           </p>
         )}
-        <p className="text-sm sm:text-base text-muted-foreground font-sans">
+        <p className="mt-2 text-sm sm:text-base text-muted-foreground font-sans">
           Ces infos permettent à KREW de comprendre tes envies pour vous proposer le voyage qui
           correspond le mieux au groupe.
         </p>
-      </div>
+      </KrewJourneyPageHeader>
 
       <div className="pt-4">
         <Section

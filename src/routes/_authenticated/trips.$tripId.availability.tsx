@@ -23,7 +23,8 @@ import {
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
-import { KrewIcon, KrewMark, KrewNote, KrewProgressRing } from "@/components/krew/visual-language";
+import { KrewIcon, KrewNote, KrewProgressRing } from "@/components/krew/visual-language";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/availability")({
@@ -297,27 +298,12 @@ function AvailabilityPage() {
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
 
-      <div className="relative space-y-[12px]">
-        <div className="flex items-start justify-between gap-4">
-          <div className="relative inline-block min-w-0 flex-1">
-            <p className="mb-1 text-[13px] font-semibold text-muted-foreground">{data.trip.name}</p>
-            <h1 className="font-display text-[34px] sm:text-[40px] font-normal leading-[0.98] tracking-tight text-foreground">
-              Disponibilités
-            </h1>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="md"
-              className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
-            />
-          </div>
-          <img
-            src="/brand/otter-states/availability.png"
-            alt=""
-            className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 pointer-events-none"
-          />
-        </div>
-        <div className="flex items-center gap-3 pt-2">
+      <KrewJourneyPageHeader
+        tripName={data.trip.name}
+        title="Disponibilités"
+        otterSrc="/brand/otter-states/availability.png"
+      >
+        <div className="flex items-center gap-3">
           <KrewProgressRing
             value={data.answered}
             total={data.expected || 1}
@@ -337,7 +323,7 @@ function AvailabilityPage() {
             ) : null}
           </div>
         </div>
-      </div>
+      </KrewJourneyPageHeader>
 
       {/* CALENDRIER DEVENU L'OBJET PRINCIPAL */}
       <section className="w-full rounded-[24px] bg-background border border-border/40 p-5 sm:p-6 space-y-6 shadow-none">
