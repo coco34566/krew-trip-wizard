@@ -7,6 +7,9 @@ const VIEWPORTS = [
   { name: "desktop", width: 1440, height: 1000 },
 ] as const;
 
+const MAX_FULL_PAGE_HEIGHT = 30_000;
+const LONG_PAGE_CAPTURE_HEIGHT = 12_000;
+
 async function settle(page: Page) {
   await handleNormalUserUi(page);
   await expect(page.locator("main")).toBeVisible({ timeout: 20_000 });
@@ -21,10 +24,24 @@ async function capture(page: Page, testInfo: TestInfo, viewport: string, name: s
   const geometry = await page.evaluate(() => ({
     width: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
+    scrollHeight: document.documentElement.scrollHeight,
   }));
   expect(geometry.scrollWidth, `${viewport}/${name}: no horizontal overflow`).toBeLessThanOrEqual(geometry.width + 1);
+
   const screenshotPath = testInfo.outputPath(`${viewport}-${name}.png`);
-  await page.screenshot({ path: screenshotPath, fullPage: true });
+  if (geometry.scrollHeight <= MAX_FULL_PAGE_HEIGHT) {
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+  } else {
+    await page.screenshot({
+      path: screenshotPath,
+      clip: {
+        x: 0,
+        y: 0,
+        width: geometry.width,
+        height: Math.min(geometry.scrollHeight, LONG_PAGE_CAPTURE_HEIGHT),
+      },
+    });
+  }
   await testInfo.attach(`${viewport}-${name}`, { path: screenshotPath, contentType: "image/png" });
 }
 
