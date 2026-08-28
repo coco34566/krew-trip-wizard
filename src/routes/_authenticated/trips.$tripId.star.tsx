@@ -2,14 +2,14 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
 import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
 import { KrewIcon, KrewMark, KrewHighlight } from "@/components/krew/visual-language";
@@ -86,7 +86,7 @@ function MonthGrid({
   return (
     <div className="rounded-2xl border border-border/40 bg-card p-3.5 shadow-none">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-medium uppercase text-muted-foreground">
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[12px] font-medium uppercase text-muted-foreground">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => (
           <span key={i}>{d}</span>
         ))}
@@ -104,7 +104,7 @@ function MonthGrid({
               disabled={isPast}
               onClick={() => onToggle(iso)}
               className={cn(
-                "aspect-square rounded-xl text-sm font-mono font-medium transition min-h-[38px] flex items-center justify-center",
+                "aspect-square min-h-10 rounded-xl text-sm font-mono font-medium transition flex items-center justify-center",
                 isPast && "cursor-not-allowed opacity-30",
                 !isPast && !mode && "bg-background hover:bg-primary/10 hover:text-primary border border-border/40",
                 mode === "available" && "bg-secondary text-secondary-foreground shadow-sm hover:opacity-90 font-bold",
@@ -144,7 +144,7 @@ function SelectableOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
+        "min-h-10 cursor-pointer rounded-[14px] border p-4 text-left text-sm sm:text-base font-medium transition-colors select-none",
         active
           ? "border-primary/40 bg-primary/5 text-foreground"
           : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
@@ -333,9 +333,8 @@ function StarQuestionnaire() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10 space-y-4">
-        <Skeleton className="h-8 w-48 rounded-xl" />
-        <Skeleton className="h-40 w-full rounded-[24px]" />
+      <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-8 sm:py-10">
+        <KrewThinkingState context="generic" customMessage="Chargement des préférences de la Star…" delayMs={0} />
       </main>
     );
   }
@@ -573,7 +572,7 @@ function StarQuestionnaire() {
         {/* 5. Disponibilités Calendrier */}
         <section className="space-y-4 pb-8 mb-8 border-b border-border/50">
           <h2 className="font-display text-2xl font-normal text-foreground">Disponibilités de {starName}</h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-[13px] text-muted-foreground leading-relaxed">
             Indique les dates où {starName} serait disponible ou indisponible.
           </p>
 
@@ -583,7 +582,7 @@ function StarQuestionnaire() {
               type="button"
               onClick={() => setPaintMode("available")}
               className={cn(
-                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
+                "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium transition",
                 paintMode === "available"
                     ? "border-sage/40 bg-sage/20 text-primary font-semibold"
                     : "border-border bg-background text-muted-foreground hover:border-primary/25",
@@ -595,7 +594,7 @@ function StarQuestionnaire() {
               type="button"
               onClick={() => setPaintMode("blocked")}
               className={cn(
-                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-medium transition",
+                "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2 text-[13px] font-medium transition",
                 paintMode === "blocked"
                   ? "border-destructive bg-destructive text-white"
                   : "border-border bg-background text-muted-foreground hover:border-destructive/50",
@@ -606,21 +605,23 @@ function StarQuestionnaire() {
           </div>
 
           {/* Navigation mois */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="icon"
+              aria-label="Mois précédents"
               onClick={() => setMonthOffset((o) => Math.max(0, o - 1))}
               disabled={monthOffset <= 0}
             >
               <ChevronLeft className="size-4" />
             </Button>
-            <p className="text-[10px] text-muted-foreground">Fais défiler les mois →</p>
+            <p className="text-center text-[13px] text-muted-foreground">Fais défiler les mois →</p>
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="icon"
+              aria-label="Mois suivants"
               onClick={() => setMonthOffset((o) => o + 1)}
             >
               <ChevronRight className="size-4" />
@@ -637,8 +638,7 @@ function StarQuestionnaire() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              className="text-xs"
+              className="text-[13px]"
               onClick={selectWeekendsInView}
             >
               Tous les week-ends affichés
@@ -646,8 +646,7 @@ function StarQuestionnaire() {
             <Button
               type="button"
               variant="ghost"
-              size="sm"
-              className="text-xs"
+              className="text-[13px]"
               onClick={clearSelection}
             >
               Tout effacer
