@@ -106,14 +106,16 @@ function StepLabel({
           {step.title}
         </div>
         {step.category === "souvenirs" && step.subtitle ? (
-          <span className="mt-1 block max-w-[116px] sm:max-w-[150px] text-[10px] sm:text-[11px] leading-snug text-muted-foreground/75">{step.subtitle}</span>
+          <span className="mt-1 block max-w-[116px] sm:max-w-[150px] text-xs sm:text-[13px] leading-snug text-muted-foreground/75">
+            {step.subtitle}
+          </span>
         ) : null}
         {isDone ? (
-          <span className="mt-1 inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.08em] text-sage">
+          <span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.06em] text-sage">
             Terminé
           </span>
         ) : isAvailable ? (
-          <span className="mt-1 block text-[9px] sm:text-[10px] font-medium text-primary/65">Disponible</span>
+          <span className="mt-1 block text-xs font-medium text-primary/70">Disponible</span>
         ) : null}
       </div>
     </div>
@@ -289,9 +291,9 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 <div className="min-w-0">
                   <h3 className="font-display text-[20px] sm:text-[25px] leading-[1] text-foreground">{step.title}</h3>
                   {step.subtitle ? (
-                    <p className="mt-1 text-[10px] sm:text-[11px] leading-snug text-muted-foreground">{step.subtitle}</p>
+                    <p className="mt-1 text-xs sm:text-[13px] leading-snug text-muted-foreground">{step.subtitle}</p>
                   ) : null}
-                  <span className="mt-1.5 inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-primary">
+                  <span className="mt-1.5 inline-flex items-center gap-1 text-xs sm:text-[13px] font-semibold text-primary">
                     Continuer
                     <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6" />
                   </span>
