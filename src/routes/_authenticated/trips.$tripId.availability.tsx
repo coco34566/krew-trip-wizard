@@ -262,7 +262,7 @@ function AvailabilityPage() {
             <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
             {data.expected - data.answered > 0 ? (
               <KrewNote variant="label" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">
-                {Data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}
+                {data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}
               </KrewNote>
             ) : null}
           </div>
@@ -298,7 +298,7 @@ function AvailabilityPage() {
 
         <div className="flex items-center justify-end gap-2 sm:pr-2">
           <KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" />
-          <KrewNote variant="sticky" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote>
+          <KrewNote variant="tape" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]">
