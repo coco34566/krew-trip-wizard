@@ -2420,7 +2420,7 @@ function TripDetail() {
                 Destination
               </h2>
               <KrewNote variant="sticky" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
-                Où on va ? 🌍
+                Où on va ?
               </KrewNote>
             </div>
                 <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
@@ -2429,6 +2429,7 @@ function TripDetail() {
               </div>
               {data.isOwner ? (
                 <Button
+                  variant="outline"
                   className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
                   onClick={() => regenerateMutation.mutate(undefined)}
                   disabled={
@@ -2479,21 +2480,12 @@ function TripDetail() {
         ) : (
           <>
             {destinationSelected ? (
-              <div className="rounded-xl border border-sage/40 bg-sage/15 p-3 space-y-2 text-foreground">
-                <p className="text-xs text-foreground">
-                  Destination validée — {Math.max(0, recommendations.length - 1)} autre
-                  {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
-                  {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
-                  {data.isOwner ? " (change possible)." : "."}
-                </p>
-                <div>
-                  <Button asChild size="sm" className="rounded-xl font-medium text-xs">
-                    <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "accommodation" }}>
-                      Choisir l’hébergement <KrewMark type="arrow-right" tone="cream" size="sm" className="size-3.5 ml-1" />
-                    </Link>
-                  </Button>
-                </div>
-              </div>
+              <p className="border-y border-sage/35 py-3 text-xs text-foreground">
+                Destination validée — {Math.max(0, recommendations.length - 1)} autre
+                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""} encore visible
+                {Math.max(0, recommendations.length - 1) > 1 ? "s" : ""}
+                {data.isOwner ? " (change possible)." : "."}
+              </p>
             ) : null}
             <div className="grid gap-4 lg:grid-cols-1">
               {[...recommendations]
