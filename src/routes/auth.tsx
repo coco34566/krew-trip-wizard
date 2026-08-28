@@ -8,9 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/krew/Logo";
-import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
-import { KrewMark } from "@/components/krew/visual-language/KrewMark";
-import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewIcon, KrewMark, KrewOrganicBlob } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -28,6 +26,9 @@ export const Route = createFileRoute("/auth")({
   }),
   component: AuthPage,
 });
+
+const AUTH_INPUT_CLASS =
+  "h-11 rounded-[10px] border-border/70 bg-background px-3 text-[15px] shadow-none transition-colors focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
 
 function AuthPage() {
   const navigate = useNavigate();
@@ -120,46 +121,32 @@ function AuthPage() {
 
   if (showConfirmationSent) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-4 sm:px-6 py-10 sm:py-12 relative overflow-hidden">
-        <KrewOrganicBlob
-          tone="sage"
-          variant="soft"
-          className="absolute -top-10 -left-10 w-[240px] h-[180px] opacity-40 pointer-events-none"
-        />
-        <div className="w-full max-w-md relative z-10">
-          <Link to="/" className="mb-8 flex justify-center">
-            <Logo size="lg" withTagline />
-          </Link>
-          <div className="rounded-[24px] border border-border/40 bg-card p-6 sm:p-8 text-center space-y-6 shadow-2xs">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <KrewIcon name="message" tone="plum" size="md" className="size-6" />
+      <main className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+        <KrewOrganicBlob tone="sage" variant="soft" className="pointer-events-none absolute -left-16 -top-16 h-[260px] w-[340px] opacity-35" />
+        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[720px] flex-col justify-center">
+          <Link to="/" className="mb-10 w-fit"><Logo size="lg" withTagline /></Link>
+          <div className="max-w-[560px] space-y-6">
+            <div className="flex size-11 items-center justify-center rounded-full bg-sage/15 text-primary">
+              <KrewIcon name="message" tone="plum" size="md" className="size-5" />
             </div>
             <div className="space-y-2">
-              <h2 className="font-display text-3xl font-normal text-foreground">Compte créé !</h2>
-              <p className="text-sm sm:text-base text-muted-foreground font-sans">
-                Vérifie ta boîte mail pour confirmer ton adresse e-mail.
-              </p>
+              <h1 className="font-display text-[36px] font-normal leading-[0.98] text-foreground sm:text-[44px]">Compte créé !</h1>
+              <p className="text-[15px] leading-relaxed text-muted-foreground sm:text-[16px]">Vérifie ta boîte mail pour confirmer ton adresse e-mail.</p>
             </div>
-            <div className="rounded-xl border border-border/40 bg-muted/30 p-4 text-left text-sm sm:text-base text-muted-foreground leading-relaxed">
-              Un e-mail de confirmation a été envoyé à <strong className="text-foreground break-all">{email}</strong>. Clique sur le lien présent dans cet e-mail pour activer ton compte KREW.
-            </div>
-            <div className="space-y-3 pt-2">
-              <Button
-                size="lg"
-                className="w-full min-h-[48px] h-auto whitespace-normal text-center leading-tight py-2.5"
-                onClick={resendConfirmationEmail}
-                disabled={resending}
-              >
-                {resending ? "Renvoi en cours…" : "Renvoyer l'e-mail de confirmation"}
+            <p className="max-w-[520px] border-l-2 border-sage/50 pl-4 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+              Un e-mail de confirmation a été envoyé à <strong className="break-all text-foreground">{email}</strong>. Clique sur le lien présent dans cet e-mail pour activer ton compte KREW.
+            </p>
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+              <Button onClick={resendConfirmationEmail} disabled={resending}>
+                {resending ? "Renvoi en cours…" : "Renvoyer l'e-mail"}
               </Button>
-              <Button
-                variant="ghost"
-                size="lg"
-                className="w-full min-h-[44px] h-auto gap-2 whitespace-normal text-center leading-tight"
+              <button
+                type="button"
                 onClick={() => setShowConfirmationSent(false)}
+                className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary"
               >
-                <ArrowLeft className="h-4 w-4 shrink-0" /> Retour à la connexion
-              </Button>
+                <ArrowLeft className="size-4" /> Retour à la connexion
+              </button>
             </div>
           </div>
         </div>
@@ -168,56 +155,98 @@ function AuthPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 sm:px-6 py-10 sm:py-12 relative overflow-hidden">
-      <KrewOrganicBlob
-        tone="sage"
-        variant="soft"
-        className="absolute -top-10 -left-10 w-[260px] h-[200px] opacity-40 pointer-events-none"
-      />
-      <div className="w-full max-w-md relative z-10 space-y-6">
-        <Link to="/" className="flex justify-center"><Logo size="lg" withTagline /></Link>
-        <div className="text-center space-y-1 relative pr-10 sm:pr-0">
-          <div className="relative inline-block">
-            <h1 className="font-display text-[32px] sm:text-[34px] font-normal leading-tight text-foreground">
-              Bienvenue sur KREW
-            </h1>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="sm"
-              className="absolute left-1/2 -bottom-1.5 h-4 w-[clamp(110px,38%,150px)] -translate-x-1/2 opacity-70 pointer-events-none"
-            />
-          </div>
-          <div className="absolute top-0 right-0 sm:-right-8 pointer-events-none">
+    <main className="min-h-screen bg-background lg:grid lg:grid-cols-[minmax(300px,0.82fr)_minmax(480px,1.18fr)]">
+      <section className="relative overflow-hidden border-b border-border/45 bg-sage/[0.07] px-4 py-7 sm:px-6 lg:min-h-screen lg:border-b-0 lg:border-r lg:px-10 lg:py-10 xl:px-14">
+        <KrewOrganicBlob tone="sage" variant="soft" className="pointer-events-none absolute -left-24 top-[18%] h-[280px] w-[390px] opacity-45" />
+        <div className="relative z-10 mx-auto flex h-full w-full max-w-[520px] flex-col lg:justify-between">
+          <Link to="/" className="w-fit"><Logo size="lg" withTagline /></Link>
+
+          <div className="mt-9 grid grid-cols-[minmax(0,1fr)_82px] items-end gap-4 lg:mt-0 lg:block">
+            <div className="max-w-[420px]">
+              <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.12em] text-primary">La team. Le plan. Le moment.</p>
+              <h1 className="mt-2 font-display text-[34px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground sm:text-[42px] lg:text-[50px]">
+                Retrouve ton voyage, simplement.
+              </h1>
+              <p className="mt-4 max-w-[390px] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+                Connecte-toi pour retrouver tes voyages de groupe et poursuivre l’organisation là où tu l’as laissée.
+              </p>
+            </div>
             <img
               src="/brand/otter-states/lets-go.png"
               alt=""
-              className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-2xs opacity-90"
+              className="pointer-events-none w-[82px] justify-self-end object-contain lg:mt-10 lg:w-[118px]"
             />
           </div>
         </div>
+      </section>
 
-        <div className="rounded-[24px] border border-border/50 bg-card p-6 sm:p-8 shadow-2xs">
+      <section className="flex min-h-[calc(100vh-220px)] items-center px-4 py-10 sm:px-6 lg:min-h-screen lg:px-12 xl:px-16">
+        <div className="mx-auto w-full max-w-[520px]">
+          <div className="mb-8 space-y-2">
+            <div className="relative inline-block pb-2">
+              <h2 className="font-display text-[32px] font-normal leading-tight text-foreground sm:text-[36px]">Bienvenue sur KREW</h2>
+              <KrewMark type="underline-wave" tone="sage" size="sm" className="pointer-events-none absolute -bottom-1 left-0 h-3 w-[120px] opacity-70" />
+            </div>
+            <p className="text-[14px] text-muted-foreground sm:text-[15px]">Choisis simplement si tu veux te connecter ou créer ton compte.</p>
+          </div>
+
           <Tabs defaultValue="signin">
-            <TabsList className="grid w-full grid-cols-2 bg-muted/40 p-1"><TabsTrigger value="signin">Connexion</TabsTrigger><TabsTrigger value="signup">Créer un compte</TabsTrigger></TabsList>
-            <TabsContent value="signin" className="mt-6">
-              <form onSubmit={signIn} className="space-y-4">
-                <div className="space-y-2"><Label htmlFor="email">Adresse e-mail</Label><Input id="email" type="email" required className="h-12 rounded-xl border-border text-base" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="password">Mot de passe</Label><Input id="password" type="password" required className="h-12 rounded-xl border-border text-base" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" size="lg" className="w-full min-h-[48px] h-auto rounded-xl font-medium text-base py-2.5" disabled={busy}>{busy ? "Connexion…" : "Se connecter"}</Button>
+            <TabsList className="mb-7 flex h-auto w-full justify-start gap-7 rounded-none border-b border-border/55 bg-transparent p-0">
+              <TabsTrigger
+                value="signin"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-0 text-[14px] font-semibold text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+              >
+                Connexion
+              </TabsTrigger>
+              <TabsTrigger
+                value="signup"
+                className="relative rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-0 text-[14px] font-semibold text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
+              >
+                Créer un compte
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="signin" className="mt-0">
+              <form onSubmit={signIn} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
+                  <Input id="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-[13px] font-medium text-foreground">Mot de passe</Label>
+                  <Input id="password" type="password" required autoComplete="current-password" className={AUTH_INPUT_CLASS} value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+                <Button type="submit" className="w-full" disabled={busy}>{busy ? "Connexion…" : "Se connecter"}</Button>
               </form>
             </TabsContent>
-            <TabsContent value="signup" className="mt-6">
-              <form onSubmit={signUp} className="space-y-4">
-                <div className="space-y-2"><Label htmlFor="name">Prénom / pseudo</Label><Input id="name" className="h-12 rounded-xl border-border text-base" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="email2">Adresse e-mail</Label><Input id="email2" type="email" required className="h-12 rounded-xl border-border text-base" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-                <div className="space-y-2"><Label htmlFor="password2">Mot de passe</Label><Input id="password2" type="password" required minLength={6} className="h-12 rounded-xl border-border text-base" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-                <Button type="submit" size="lg" className="w-full min-h-[48px] h-auto rounded-xl font-medium text-base py-2.5" disabled={busy}>{busy ? "Création…" : "Créer mon compte"}</Button>
+
+            <TabsContent value="signup" className="mt-0">
+              <form onSubmit={signUp} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-[13px] font-medium text-foreground">Prénom / pseudo</Label>
+                  <Input id="name" autoComplete="name" className={AUTH_INPUT_CLASS} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email2" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
+                  <Input id="email2" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => setEmail(e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password2" className="text-[13px] font-medium text-foreground">Mot de passe</Label>
+                  <Input id="password2" type="password" required minLength={6} autoComplete="new-password" className={AUTH_INPUT_CLASS} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">6 caractères minimum.</p>
+                </div>
+                <Button type="submit" className="w-full" disabled={busy}>{busy ? "Création…" : "Créer mon compte"}</Button>
               </form>
             </TabsContent>
           </Tabs>
+
+          <div className="mt-8 border-t border-border/50 pt-5 text-[14px]">
+            <Link to="/" className="inline-flex min-h-10 items-center font-semibold text-muted-foreground transition-colors hover:text-primary">
+              Retour à l’accueil
+            </Link>
+          </div>
         </div>
-      </div>
+      </section>
     </main>
   );
 }

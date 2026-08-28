@@ -27,17 +27,20 @@ export const Route = createFileRoute("/join/$tripId")({
   }),
   component: JoinTripPage,
   errorComponent: ({ error }) => (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 sm:px-6 text-center">
-      <h1 className="font-display text-2xl sm:text-3xl font-normal">Impossible d&apos;ouvrir l&apos;invitation</h1>
-      <p className="max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-center sm:px-6">
+      <h1 className="font-display text-2xl font-normal sm:text-3xl">Impossible d&apos;ouvrir l&apos;invitation</h1>
+      <p className="max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
         {error?.message ?? "Erreur inattendue. Réessaie ou demande un nouveau lien."}
       </p>
-      <a href="/" className="text-sm font-medium text-primary underline underline-offset-4">
+      <a href="/" className="inline-flex min-h-10 items-center text-sm font-semibold text-primary underline underline-offset-4">
         Retour à l&apos;accueil
       </a>
     </main>
   ),
 });
+
+const JOIN_INPUT_CLASS =
+  "h-11 rounded-[10px] border-border/70 bg-background px-3 text-[15px] shadow-none transition-colors focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
 
 function normalizeTripId(raw: string): string {
   return decodeURIComponent(String(raw || ""))
@@ -158,114 +161,76 @@ function JoinTripPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 sm:px-6 py-10 sm:py-12 relative overflow-hidden">
-      <KrewOrganicBlob
-        tone="sage"
-        variant="soft"
-        className="absolute -top-10 -left-10 w-[260px] h-[200px] opacity-40 pointer-events-none"
-      />
-      <div className="flex w-full max-w-md flex-col items-center relative z-10">
-        <Link to="/" className="mb-7 sm:mb-8">
+    <main className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+      <KrewOrganicBlob tone="sage" variant="soft" className="pointer-events-none absolute -left-20 -top-20 h-[280px] w-[360px] opacity-35" />
+
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[760px] flex-col justify-center">
+        <Link to="/" className="mb-9 w-fit">
           <Logo size="lg" withTagline />
         </Link>
 
-        <div className="w-full rounded-[24px] border border-border/50 bg-card p-6 shadow-2xs sm:p-8">
-          {loading || authLoading || checkingStatus ? (
-            <div className="py-8">
-              <KrewThinkingState context="generic" customMessage="Chargement de l’invitation…" delayMs={0} />
+        {loading || authLoading || checkingStatus ? (
+          <div className="max-w-[560px] py-8">
+            <KrewThinkingState context="generic" customMessage="Chargement de l’invitation…" delayMs={0} />
+          </div>
+        ) : error ? (
+          <div className="max-w-[560px] space-y-5">
+            <h1 className="font-display text-[34px] font-normal leading-tight text-foreground sm:text-[40px]">Impossible d&apos;ouvrir l&apos;invitation</h1>
+            <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">{error}</p>
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+              <Button asChild><Link to="/">Retour à l&apos;accueil</Link></Button>
+              <Link to="/auth" search={{}} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary">Se connecter</Link>
             </div>
-          ) : error ? (
-            <div className="space-y-4 text-center">
-              <h1 className="font-display text-2xl font-normal">Impossible d&apos;ouvrir l&apos;invitation</h1>
-              <p className="text-sm text-muted-foreground leading-relaxed">{error}</p>
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                <Button asChild className="min-h-[44px]">
-                  <Link to="/">Retour à l&apos;accueil</Link>
-                </Button>
-                <Button asChild variant="outline" className="min-h-[44px]">
-                  <Link to="/auth" search={{}}>Se connecter</Link>
-                </Button>
+          </div>
+        ) : preview ? (
+          <div className="max-w-[620px] space-y-7">
+            <div className="space-y-2">
+              <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-primary">Tu es invité·e</p>
+              <div className="relative inline-block max-w-full pb-2">
+                <h1 className="break-words font-display text-[36px] font-normal leading-[0.98] text-foreground sm:text-[44px]">{preview.name}</h1>
+                <KrewMark type="underline-wave" tone="sage" size="sm" className="pointer-events-none absolute -bottom-1 left-0 h-3 w-[140px] opacity-70" />
               </div>
+              <p className="text-[14px] text-muted-foreground sm:text-[15px]">{eventTypeLabel(preview.eventType)}</p>
             </div>
-          ) : preview ? (
-            <div className="space-y-6">
-              <div className="text-center space-y-1.5">
-                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary font-mono">
-                  Tu es invité·e
-                </p>
-                <div className="relative inline-block max-w-full">
-                  <h1 className="font-display text-3xl sm:text-[34px] font-normal leading-tight text-foreground break-words">{preview.name}</h1>
-                  <KrewMark
-                    type="underline-wave"
-                    tone="sage"
-                    size="sm"
-                    className="absolute left-1/2 -bottom-1.5 h-4 w-[clamp(110px,38%,160px)] -translate-x-1/2 opacity-70 pointer-events-none"
-                  />
-                </div>
-                <p className="text-sm text-muted-foreground pt-1">
-                  {eventTypeLabel(preview.eventType)}
-                </p>
-              </div>
 
-              <ul className="space-y-2.5 border-y border-border/40 py-4 text-sm sm:text-base">
+            <ul className="space-y-3 border-y border-border/50 py-5 text-[14px] sm:text-[15px]">
+              <li className="flex items-start gap-2.5">
+                <KrewIcon name="group" tone="plum" size="sm" className="mt-0.5 size-4 shrink-0" />
+                <span>Groupe prévu : <span className="font-mono">~{preview.participantsCount || "?"} personnes</span></span>
+              </li>
+              {preview.startDate ? (
                 <li className="flex items-start gap-2.5">
-                  <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0 mt-0.5" />
-                  <span>Groupe prévu : <span className="font-mono">~{preview.participantsCount || "?"} personnes</span></span>
+                  <KrewIcon name="calendar" tone="sage" size="sm" className="mt-0.5 size-4 shrink-0" />
+                  <span>À partir du <span className="font-mono">{new Date(preview.startDate + "T12:00:00").toLocaleDateString("fr-FR")}</span></span>
                 </li>
-                {preview.startDate ? (
-                  <li className="flex items-start gap-2.5">
-                    <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0 mt-0.5" />
-                    <span>À partir du <span className="font-mono">{new Date(preview.startDate + "T12:00:00").toLocaleDateString("fr-FR")}</span></span>
-                  </li>
-                ) : null}
-              </ul>
-
-              <p className="text-center text-sm sm:text-base text-muted-foreground leading-relaxed">
-                Rejoins le groupe. KREW te demandera ensuite tes disponibilités et tes préférences pour préparer les propositions du voyage.
-              </p>
-
-              <div className="space-y-1.5 text-left">
-                <label htmlFor="join-firstname" className="text-sm font-semibold text-foreground">
-                  Ton prénom
-                </label>
-                <Input
-                  id="join-firstname"
-                  className="h-12 rounded-xl border-border text-base"
-                  placeholder="Ex. Léa"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  autoComplete="given-name"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Pour que le groupe sache qui tu es.
-                </p>
-              </div>
-
-              <Button
-                size="lg"
-                className="w-full min-h-[48px] h-auto rounded-xl font-medium text-base whitespace-normal text-center leading-tight py-2.5"
-                disabled={joining}
-                onClick={handleJoin}
-              >
-                {joining ? <Loader2 className="size-4 animate-spin shrink-0" /> : null}
-                {isAuthenticated ? "Rejoindre et indiquer mes dispos" : "Se connecter pour rejoindre le voyage"}
-              </Button>
-
-              {!isAuthenticated ? (
-                <p className="text-center text-sm text-muted-foreground">
-                  Pas encore de compte ? Tu pourras en créer un à l&apos;étape suivante.
-                </p>
               ) : null}
+            </ul>
+
+            <p className="max-w-[560px] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+              Rejoins le groupe. KREW te demandera ensuite tes disponibilités et tes préférences pour préparer les propositions du voyage.
+            </p>
+
+            <div className="max-w-[460px] space-y-2">
+              <label htmlFor="join-firstname" className="text-[13px] font-semibold text-foreground">Ton prénom</label>
+              <Input id="join-firstname" className={JOIN_INPUT_CLASS} placeholder="Ex. Léa" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" />
+              <p className="text-[13px] text-muted-foreground">Pour que le groupe sache qui tu es.</p>
             </div>
-          ) : (
-            <div className="space-y-4 text-center py-8">
-              <h1 className="font-display text-2xl font-normal">Invitation introuvable</h1>
-              <Button asChild className="min-h-[44px]">
-                <Link to="/">Retour à l&apos;accueil</Link>
-              </Button>
-            </div>
-          )}
-        </div>
+
+            <Button className="w-full max-w-[460px]" disabled={joining} onClick={handleJoin}>
+              {joining ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}
+              {isAuthenticated ? "Rejoindre et indiquer mes dispos" : "Se connecter pour rejoindre le voyage"}
+            </Button>
+
+            {!isAuthenticated ? (
+              <p className="max-w-[460px] text-[13px] text-muted-foreground">Pas encore de compte ? Tu pourras en créer un à l&apos;étape suivante.</p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="max-w-[560px] space-y-4 py-8">
+            <h1 className="font-display text-[34px] font-normal text-foreground">Invitation introuvable</h1>
+            <Button asChild><Link to="/">Retour à l&apos;accueil</Link></Button>
+          </div>
+        )}
       </div>
     </main>
   );
