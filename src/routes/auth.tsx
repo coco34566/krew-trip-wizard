@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ function AuthPage() {
   const { isAuthenticated, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
   const [showConfirmationSent, setShowConfirmationSent] = useState(false);
@@ -214,7 +215,18 @@ function AuthPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-[13px] font-medium text-foreground">Mot de passe</Label>
-                  <Input id="password" type="password" required autoComplete="current-password" className={AUTH_INPUT_CLASS} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <div className="relative">
+                    <Input id="password" type={showPassword ? "text" : "password"} required autoComplete="current-password" className={`${AUTH_INPUT_CLASS} pr-11`} value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <button
+                      type="button"
+                      aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                      aria-pressed={showPassword}
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={busy}>{busy ? "Connexion…" : "Se connecter"}</Button>
               </form>
@@ -232,7 +244,18 @@ function AuthPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password2" className="text-[13px] font-medium text-foreground">Mot de passe</Label>
-                  <Input id="password2" type="password" required minLength={6} autoComplete="new-password" className={AUTH_INPUT_CLASS} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <div className="relative">
+                    <Input id="password2" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" className={`${AUTH_INPUT_CLASS} pr-11`} value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <button
+                      type="button"
+                      aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                      aria-pressed={showPassword}
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
                   <p className="text-[13px] leading-relaxed text-muted-foreground">6 caractères minimum.</p>
                 </div>
                 <Button type="submit" className="w-full" disabled={busy}>{busy ? "Création…" : "Créer mon compte"}</Button>
