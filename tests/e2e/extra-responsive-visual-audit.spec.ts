@@ -9,6 +9,7 @@ const VIEWPORTS = [
 ] as const;
 const MAX_FULL_PAGE_HEIGHT = 30_000;
 const LONG_PAGE_CAPTURE_HEIGHT = 12_000;
+type OverflowFinding = { viewport: string; page: string; width: number; scrollWidth: number; overflowPx: number };
 
 async function settle(page: Page) {
   await handleNormalUserUi(page);
@@ -18,7 +19,14 @@ async function settle(page: Page) {
   await page.waitForTimeout(150);
 }
 
-async function capture(page: Page, testInfo: TestInfo, vp: string, name: string, path: string) {
+async function capture(
+  page: Page,
+  testInfo: TestInfo,
+  vp: string,
+  name: string,
+  path: string,
+  overflows: OverflowFinding[],
+) {
   await page.goto(path);
   await settle(page);
   const geometry = await page.evaluate(() => ({
@@ -26,7 +34,15 @@ async function capture(page: Page, testInfo: TestInfo, vp: string, name: string,
     scrollWidth: document.documentElement.scrollWidth,
     scrollHeight: document.documentElement.scrollHeight,
   }));
-  expect(geometry.scrollWidth, `${vp}/${name}: no horizontal overflow`).toBeLessThanOrEqual(geometry.width + 1);
+  if (geometry.scrollWidth > geometry.width + 1) {
+    overflows.push({
+      viewport: vp,
+      page: name,
+      width: geometry.width,
+      scrollWidth: geometry.scrollWidth,
+      overflowPx: geometry.scrollWidth - geometry.width,
+    });
+  }
   const target = testInfo.outputPath(`${vp}-${name}.png`);
   if (geometry.scrollHeight <= MAX_FULL_PAGE_HEIGHT) {
     await page.screenshot({ path: target, fullPage: true });
@@ -55,6 +71,7 @@ async function firstTripId(page: Page) {
 test("landscape and wide responsive audit across customer surfaces", async ({ page }, testInfo) => {
   test.setTimeout(600_000);
   test.skip(testInfo.project.name !== "mobile-safari", "Responsive audit creates target viewports itself.");
+  const overflows: OverflowFinding[] = [];
 
   const publicPages = [
     ["landing", "/"], ["auth", "/auth"], ["faq", "/faq"], ["tarifs", "/tarifs"],
@@ -64,7 +81,7 @@ test("landscape and wide responsive audit across customer surfaces", async ({ pa
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    for (const [name, path] of publicPages) await capture(page, testInfo, viewport.name, name, path);
+    for (const [name, path] of publicPages) await capture(page, testInfo, viewport.name, name, path, overflows);
   }
 
   await page.setViewportSize({ width: VIEWPORTS[0].width, height: VIEWPORTS[0].height });
@@ -86,6 +103,13 @@ test("landscape and wide responsive audit across customer surfaces", async ({ pa
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    for (const [name, path] of authenticatedPages) await capture(page, testInfo, viewport.name, name, path);
+    for (const [name, path] of authenticatedPages) await capture(page, testInfo, viewport.name, name, path, overflows);
   }
+
+  await testInfo.attach("responsive-overflows", {
+    body: Buffer.from(JSON.stringify(overflows, null, 2)),
+    contentType: "application/json",
+  });
+
+  expect(overflows, `Horizontal overflow findings:\n${JSON.stringify(overflows, null, 2)}`).toEqual([]);
 });
