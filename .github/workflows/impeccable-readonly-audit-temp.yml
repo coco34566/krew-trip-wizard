@@ -29,23 +29,20 @@ jobs:
         run: |
           mkdir -p audit-artifacts
           node .agents/skills/impeccable/scripts/detect.mjs src --json > audit-artifacts/impeccable-detect.json || true
-      - name: Capture all customer surfaces
-        run: npm run test:e2e -- tests/e2e/journey-visual-audit.spec.ts tests/e2e/reference-surfaces-visual-audit.spec.ts tests/e2e/secondary-surfaces-visual-audit.spec.ts --project=mobile-safari
-      - name: Preserve screenshots and metrics before cleanup
+      - name: Capture landscape and wide customer surfaces
+        run: npm run test:e2e -- tests/e2e/extra-responsive-visual-audit.spec.ts --project=mobile-safari
+      - name: Preserve screenshots and metrics
         if: always()
         shell: bash
         run: |
           mkdir -p audit-artifacts
           cp -R test-results audit-artifacts/test-results 2>/dev/null || true
           cp -R playwright-report audit-artifacts/playwright-report 2>/dev/null || true
-      - name: Cleanup disposable audit trips
-        if: always()
-        run: npm run test:e2e -- tests/e2e/cleanup-e2e-trips.spec.ts --project=mobile-safari
       - name: Upload read-only audit evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: impeccable-readonly-audit-evidence
+          name: impeccable-responsive-audit-evidence
           path: audit-artifacts/
           if-no-files-found: error
           retention-days: 7
