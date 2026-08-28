@@ -1,5 +1,6 @@
-/* KREW — shared visual system for every page/chapter reached from the journey.
- * Visual-only layer: no business logic, data, API or permissions.
+/* KREW journey pages — base canvas and interaction defaults only.
+ * Cross-page hierarchy (titles, subtitles, waves, otter slots, chapter shells,
+ * widths, borders and spacing) is owned exclusively by krew-journey-alignment.css.
  */
 
 :root {
@@ -11,30 +12,19 @@
   --krew-journey-border-soft: color-mix(in oklch, var(--border) 52%, transparent);
 }
 
-/* -------------------------------------------------------------------------- */
-/* Dedicated journey routes: invitation, availability, preferences and Star. */
-/* -------------------------------------------------------------------------- */
-
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]),
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block),
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) {
+main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) {
   width: min(100%, var(--krew-journey-form));
   margin-inline: auto;
   padding: 2rem 1rem 3rem !important;
   overflow-x: clip;
 }
 
-/* Invitation needs slightly more room for participant management. */
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) {
-  width: min(100%, var(--krew-journey-standard));
-}
-
 @media (min-width: 640px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]),
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block),
-  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) {
+  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) {
     padding: 2.5rem 1.5rem 3.5rem !important;
   }
 }
@@ -42,194 +32,31 @@ main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) {
 @media (min-width: 1024px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]),
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block),
-  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) {
+  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) {
     padding-inline: 2.5rem !important;
   }
 }
 
-/* Back-to-trip action has the same rhythm and touch target. */
-main[class*="max-w-[820px]"] > a:first-child,
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > a:first-child {
+main[class*="max-w-[820px]"] > a:first-child {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  margin-bottom: .25rem;
 }
 
-/* One H1 scale for journey chapters. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) h1,
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) h1,
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) h1,
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) h1 {
-  font-family: "Instrument Serif", serif !important;
-  font-size: 2.25rem !important;
-  font-weight: 400 !important;
-  line-height: .98 !important;
-  letter-spacing: -.02em !important;
-}
-
-@media (min-width: 640px) {
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) h1,
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) h1,
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) h1,
-  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) h1 {
-    font-size: 2.75rem !important;
-  }
-}
-
-/* Dedicated chapter otters: 72 mobile / 88 larger. */
-main[class*="max-w-[820px]"] img[src*="/brand/otter-states/availability.png"],
-main[class*="max-w-[820px]"] img[src*="/brand/otter-states/preferences.png"] {
-  width: 72px !important;
-  max-width: 72px !important;
-  height: auto !important;
-}
-
-@media (min-width: 640px) {
-  main[class*="max-w-[820px]"] img[src*="/brand/otter-states/availability.png"],
-  main[class*="max-w-[820px]"] img[src*="/brand/otter-states/preferences.png"] {
-    width: 88px !important;
-    max-width: 88px !important;
-  }
-}
-
-/* Availability: trip name becomes context; chapter name becomes the visible title. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > div.space-y-3.relative > p:first-child {
-  display: none;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > div.space-y-3.relative h1 {
-  font-family: "Plus Jakarta Sans", sans-serif !important;
-  font-size: .8125rem !important;
-  line-height: 1.25 !important;
-  font-weight: 600 !important;
-  letter-spacing: .08em !important;
-  text-transform: uppercase;
-  color: var(--muted-foreground) !important;
-  padding-top: .125rem;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > div.space-y-3.relative h1::after {
-  content: "Disponibilités";
-  display: block;
-  margin-top: .35rem;
-  font-family: "Instrument Serif", serif;
-  font-size: 2.25rem;
-  line-height: .98;
-  font-weight: 400;
-  letter-spacing: -.02em;
-  text-transform: none;
-  color: var(--foreground);
-}
-
-@media (min-width: 640px) {
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > div.space-y-3.relative h1::after {
-    font-size: 2.75rem;
-  }
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > div.space-y-3.relative h1 + svg {
-  bottom: -.85rem !important;
-  width: clamp(7.5rem, 42%, 10rem) !important;
-  height: 1rem !important;
-  opacity: .72 !important;
-}
-
-/* Questionnaire title is intentionally bounded so the otter never collides. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.space-y-3.relative h1 {
-  max-width: 620px;
-  text-wrap: balance;
-}
-
-/* Star page keeps its highlighted name but follows the same vertical rhythm. */
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.space-y-2.relative,
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.space-y-3.relative {
-  margin-bottom: .25rem;
-}
-
-/* Invitation: give the header the same editorial presence and a semantic otter. */
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2 {
-  position: relative;
-  min-height: 94px;
-  padding-right: 5.75rem;
-}
-
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 72px;
-  height: 72px;
-  background: url("/brand/otter-states/next-action.png") center / contain no-repeat;
-  pointer-events: none;
-}
-
-@media (min-width: 640px) {
-  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2 {
-    min-height: 104px;
-    padding-right: 7rem;
-  }
-  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2::after {
-    width: 88px;
-    height: 88px;
-  }
-}
-
-/* Invitation context should read as context, not as a competing headline. */
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > div.space-y-2 > p:first-child {
-  margin-bottom: .35rem;
-  font-size: .75rem;
-  letter-spacing: .1em;
-}
-
-/* Normalize the bright external-brand share treatments into KREW's palette. */
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) button[class*="#25D366"] {
+main.space-y-8 button[class*="#25D366"] {
   background: color-mix(in oklch, var(--sage) 18%, transparent) !important;
   color: var(--primary) !important;
   border-color: color-mix(in oklch, var(--sage) 38%, transparent) !important;
   box-shadow: none !important;
 }
 
-/* Main panels use one border/radius language. */
-main[class*="max-w-[820px]"] section.rounded-2xl,
-main[class*="max-w-[820px]"] section.rounded-3xl,
-main[class*="max-w-[820px]"] section[class*="rounded-[20px]"],
-main[class*="max-w-[820px]"] section[class*="rounded-[24px]"],
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) > section[class*="rounded"] {
-  border-radius: var(--krew-journey-main-radius) !important;
-  border-color: var(--krew-journey-border) !important;
-  box-shadow: none !important;
-}
-
-/* Questionnaires stay editorial instead of becoming a stack of generic cards. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) form > section:not([class*="bg-"]) {
   border-radius: 0 !important;
   padding-inline: 0 !important;
   box-shadow: none !important;
 }
 
-/* Shared section-title scale. */
-main[class*="max-w-[820px]"] section > div > h2.font-display,
-main[class*="max-w-[820px]"] section > h2.font-display,
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) section h2.font-display {
-  font-size: 1.75rem !important;
-  line-height: 1.05 !important;
-  font-weight: 400 !important;
-}
-
-@media (min-width: 640px) {
-  main[class*="max-w-[820px]"] section > div > h2.font-display,
-  main[class*="max-w-[820px]"] section > h2.font-display,
-  main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) section h2.font-display {
-    font-size: 2rem !important;
-  }
-}
-
-/* All important interactions are finger-friendly. */
-main[class*="max-w-[820px]"] :is(button:not([role="switch"]), select, a[class*="inline-flex"]),
-main.space-y-8:has(> div.space-y-2 > p.font-mono):has(> section.bg-sage\/8) :is(button, select, a[class*="inline-flex"]) {
+main[class*="max-w-[820px]"] :is(button:not([role="switch"]), select, a[class*="inline-flex"]) {
   min-height: 44px;
 }
 
@@ -244,10 +71,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Embedded chapters in the voyage detail view.                              */
-/* -------------------------------------------------------------------------- */
-
 main.max-w-5xl {
   width: min(100%, var(--krew-journey-standard));
   padding: 2rem 1rem 3.5rem !important;
@@ -256,191 +79,4 @@ main.max-w-5xl {
 
 @media (min-width: 640px) {
   main.max-w-5xl { padding: 2.5rem 1.5rem 3.5rem !important; }
-}
-
-@media (min-width: 1024px) {
-  main.max-w-5xl { padding-inline: 2.5rem !important; }
-}
-
-/* Actual section IDs from the route. */
-main.max-w-5xl :is(
-  #hub-dates,
-  #hub-profile,
-  #hub-destination,
-  #hub-logistics,
-  #hub-transports,
-  #hub-activities-plan,
-  #hub-tasks-org,
-  #hub-packing,
-  #hub-cost-split
-) {
-  scroll-margin-top: 7rem;
-  margin-top: 0 !important;
-  padding-top: 2rem;
-  padding-bottom: 2rem;
-}
-
-/* These chapters are siblings: keep their visual containers in one family. */
-main.max-w-5xl :is(#hub-profile,#hub-destination,#hub-transports,#hub-activities-plan,#hub-packing) {
-  border-radius: var(--krew-journey-main-radius) !important;
-}
-
-main.max-w-5xl :is(#hub-dates,#hub-logistics,#hub-tasks-org) {
-  border-color: var(--krew-journey-border-soft) !important;
-}
-
-/* Reserve the otter lane on narrow screens too, not only sm+. */
-main.max-w-5xl #hub-destination > div.flex,
-main.max-w-5xl #hub-logistics > div.flex,
-main.max-w-5xl #hub-transports > div.flex,
-main.max-w-5xl #hub-activities-plan > div.flex,
-main.max-w-5xl #hub-tasks-org > div.flex {
-  padding-right: 5rem !important;
-  min-height: 72px;
-}
-
-@media (min-width: 640px) {
-  main.max-w-5xl #hub-destination > div.flex,
-  main.max-w-5xl #hub-logistics > div.flex,
-  main.max-w-5xl #hub-transports > div.flex,
-  main.max-w-5xl #hub-activities-plan > div.flex,
-  main.max-w-5xl #hub-tasks-org > div.flex {
-    padding-right: 6rem !important;
-    min-height: 88px;
-  }
-}
-
-/* The primary chapter title always reads like the current page title. */
-main.max-w-5xl :is(
-  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
-  #hub-activities-plan,#hub-tasks-org,#hub-packing
-) h2.font-display:first-of-type {
-  font-family: "Instrument Serif", serif !important;
-  font-size: 1.875rem !important;
-  line-height: 1.02 !important;
-  font-weight: 400 !important;
-  letter-spacing: -.015em;
-  text-wrap: balance;
-}
-
-@media (min-width: 640px) {
-  main.max-w-5xl :is(
-    #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
-    #hub-activities-plan,#hub-tasks-org,#hub-packing
-  ) h2.font-display:first-of-type {
-    font-size: 2rem !important;
-  }
-}
-
-/* Every semantic chapter otter follows 72 / 88. */
-main.max-w-5xl :is(
-  #hub-profile,#hub-destination,#hub-logistics,#hub-transports,
-  #hub-activities-plan,#hub-tasks-org,#hub-packing
-) img[src*="/brand/otter-states/"] {
-  width: 72px !important;
-  max-width: 72px !important;
-  height: auto !important;
-}
-
-@media (min-width: 640px) {
-  main.max-w-5xl :is(
-    #hub-profile,#hub-destination,#hub-logistics,#hub-transports,
-    #hub-activities-plan,#hub-tasks-org,#hub-packing
-  ) img[src*="/brand/otter-states/"] {
-    width: 88px !important;
-    max-width: 88px !important;
-  }
-}
-
-/* Date chapter has no otter in source: add a subtle semantic one without changing logic. */
-main.max-w-5xl #hub-dates {
-  position: relative;
-  padding-right: 5.75rem !important;
-}
-
-main.max-w-5xl #hub-dates::after {
-  content: "";
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  width: 72px;
-  height: 72px;
-  background: url("/brand/otter-states/availability.png") center / contain no-repeat;
-  pointer-events: none;
-  opacity: .92;
-}
-
-@media (min-width: 640px) {
-  main.max-w-5xl #hub-dates { padding-right: 7rem !important; }
-  main.max-w-5xl #hub-dates::after { width: 88px; height: 88px; }
-}
-
-/* Cards inside each chapter share radius/border/shadow logic. */
-main.max-w-5xl :is(
-  #hub-profile,#hub-destination,#hub-logistics,#hub-transports,
-  #hub-activities-plan,#hub-tasks-org,#hub-packing
-) :is(article[class*="rounded"], li[class*="rounded"], div[class*="rounded-3xl"]) {
-  border-radius: var(--krew-journey-card-radius) !important;
-  box-shadow: none !important;
-}
-
-/* Generic emoji post-its in chapter headers are decorative noise: hide them. */
-main.max-w-5xl :is(#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan)
-  > div.flex > div > div.flex > :last-child:not(h2) {
-  display: none;
-}
-
-/* Important controls in embedded chapters are >= 44px. */
-main.max-w-5xl :is(
-  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
-  #hub-activities-plan,#hub-tasks-org,#hub-packing
-) :is(button, select, a[class*="inline-flex"]) {
-  min-height: 44px !important;
-}
-
-/* Tâches: mobile becomes stacked task cards instead of a forced 600px table. */
-@media (max-width: 767px) {
-  #hub-tasks-org .overflow-x-auto { overflow-x: visible !important; }
-  #hub-tasks-org table[class*="min-w-[600px]"] {
-    min-width: 0 !important;
-    width: 100% !important;
-    table-layout: fixed;
-  }
-  #hub-tasks-org table[class*="min-w-[600px]"] thead { display: none; }
-  #hub-tasks-org table[class*="min-w-[600px]"] :is(tbody,tr,td) {
-    display: block;
-    width: 100%;
-  }
-  #hub-tasks-org table[class*="min-w-[600px]"] tr {
-    margin-bottom: .75rem;
-    padding: .85rem .9rem;
-    border: 1px solid var(--krew-journey-border);
-    border-radius: var(--krew-journey-card-radius);
-    background: var(--background);
-  }
-  #hub-tasks-org table[class*="min-w-[600px]"] td {
-    border: 0 !important;
-    padding: .35rem 0 !important;
-    overflow-wrap: anywhere;
-    text-align: left !important;
-  }
-  #hub-tasks-org table[class*="min-w-[600px]"] :is(select,button,a) {
-    width: 100%;
-    min-height: 44px !important;
-    justify-content: center;
-  }
-}
-
-/* Handwritten notes remain annotations, never primary information. */
-main.max-w-5xl [class*="font-handwriting"],
-main[class*="max-w-[820px]"] [class*="font-handwriting"] {
-  line-height: 1.1;
-  max-width: 14rem;
-}
-
-@media (max-width: 479px) {
-  main.max-w-5xl [class*="font-handwriting"][class*="absolute"],
-  main[class*="max-w-[820px]"] [class*="font-handwriting"][class*="absolute"] {
-    max-width: 9rem;
-  }
 }
