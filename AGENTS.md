@@ -24,6 +24,8 @@ For route conventions, consult `src/routes/README.md` only when routing is in sc
 
 Read `DESIGN.md` when a change affects KREW visual language, layout, branding, responsive behavior, icons, KrewMarks, stickers or the otter mascot.
 
+For a repository-wide UX/UI audit or an Impeccable-driven review, also read `PRODUCT.md` and `docs/impeccable-audit-plan.md` before evaluating or changing any user-facing surface.
+
 ## Legal / privacy
 
 Read `README_LEGAL.md` and the relevant `docs/data-*` / `docs/legal-*` reference only when the change affects personal data, cookies, retention, external processors, affiliation tracking or legal copy.
