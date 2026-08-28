@@ -50,6 +50,7 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                     </span>
                   </div>
                   <span className="shrink-0 font-mono text-[12px] font-semibold text-foreground/70">
+                    {/* Keep response progress concrete for the group; percentage still drives the bar width. */}
                     {item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}
                   </span>
                 </div>
