@@ -29,8 +29,8 @@ jobs:
         run: |
           mkdir -p audit-artifacts
           node .agents/skills/impeccable/scripts/detect.mjs src --json > audit-artifacts/impeccable-detect.json || true
-      - name: Capture journey and reference surfaces
-        run: npm run test:e2e -- tests/e2e/journey-visual-audit.spec.ts tests/e2e/reference-surfaces-visual-audit.spec.ts --project=mobile-safari
+      - name: Capture all customer surfaces
+        run: npm run test:e2e -- tests/e2e/journey-visual-audit.spec.ts tests/e2e/reference-surfaces-visual-audit.spec.ts tests/e2e/secondary-surfaces-visual-audit.spec.ts --project=mobile-safari
       - name: Preserve screenshots and metrics before cleanup
         if: always()
         shell: bash
