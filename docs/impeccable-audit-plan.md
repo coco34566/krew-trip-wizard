@@ -2,6 +2,8 @@
 
 This protocol defines how Impeccable must be used on KREW. It is an audit and decision framework, not permission to redesign or change product behavior automatically.
 
+Integration status: the repo-local Codex skill is installed. The automatic design hook remains disabled during the initial audit-first phase.
+
 ## 1. Sources of truth
 
 Before any design review or visual change:
