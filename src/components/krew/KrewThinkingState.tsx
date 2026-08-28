@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/krew/Logo";
 
 export type KrewThinkingContext =
   | "destinations"
@@ -17,12 +16,35 @@ interface KrewThinkingStateProps {
   delayMs?: number;
 }
 
-const MESSAGES: Record<KrewThinkingContext, string> = {
-  destinations: "KREW cherche les meilleures idées pour votre groupe…",
-  accommodations: "KREW cherche où poser vos valises…",
-  transport: "KREW cherche les meilleurs moyens d’y aller…",
-  planning: "KREW prépare votre programme…",
-  generic: "KREW prépare la meilleure réponse pour votre groupe…",
+const CONTENT: Record<
+  KrewThinkingContext,
+  { title: string; description: string; otterSrc: string }
+> = {
+  destinations: {
+    title: "KREW prépare les idées qui collent au groupe",
+    description: "On croise les envies, les contraintes et le budget avant de te montrer la suite.",
+    otterSrc: "/brand/otter-states/destination.png",
+  },
+  accommodations: {
+    title: "KREW cherche où poser les valises",
+    description: "On garde les options qui ont du sens pour le groupe et pour le séjour.",
+    otterSrc: "/brand/otter-states/accommodation.png",
+  },
+  transport: {
+    title: "KREW prépare les trajets du groupe",
+    description: "On tient compte des points de départ et des contraintes déjà renseignées.",
+    otterSrc: "/brand/otter-states/transport.png",
+  },
+  planning: {
+    title: "KREW prépare le programme",
+    description: "On assemble une proposition cohérente avec les choix déjà faits par le groupe.",
+    otterSrc: "/brand/otter-states/planning.png",
+  },
+  generic: {
+    title: "KREW prépare la meilleure réponse pour votre groupe",
+    description: "Encore un instant, la suite arrive.",
+    otterSrc: "/brand/otter-states/searching.png",
+  },
 };
 
 export function KrewThinkingState({
@@ -46,87 +68,40 @@ export function KrewThinkingState({
     return () => clearTimeout(timer);
   }, [delayMs]);
 
-  if (!shouldShow) {
-    return null;
-  }
+  if (!shouldShow) return null;
 
-  const displayMessage = customMessage || MESSAGES[context] || MESSAGES.generic;
+  const content = CONTENT[context] ?? CONTENT.generic;
 
   return (
     <div
       role="status"
       aria-live="polite"
       className={cn(
-        "flex flex-col items-center justify-center text-center mx-auto py-10 px-6 gap-4 max-w-md transition-opacity duration-300 ease-in-out",
-        className
+        "mx-auto grid w-full max-w-[620px] grid-cols-[minmax(0,1fr)_72px] items-center gap-4 rounded-[20px] border border-sage/20 bg-sage/[0.06] px-4 py-4 text-left sm:grid-cols-[minmax(0,1fr)_92px] sm:gap-7 sm:px-5 sm:py-5",
+        className,
       )}
     >
-      {/* Official KREW Otter Asset with gentle CSS animation */}
-      <div className="relative flex items-center justify-center">
-        <img
-          src={
-            context === "destinations"
-              ? "/brand/otter-states/destination.png"
-              : context === "accommodations"
-                ? "/brand/otter-states/accommodation.png"
-                : context === "transport"
-                  ? "/brand/otter-states/transport.png"
-                  : context === "planning"
-                    ? "/brand/otter-states/planning.png"
-                    : "/brand/otter-states/searching.png"
-          }
-          alt=""
-          className="h-14 w-auto object-contain transition-transform motion-reduce:animate-none motion-reduce:transform-none"
-          style={{
-            animation: "krewOtterDance 1.8s ease-in-out infinite",
-          }}
-        />
-
-        <style>{`
-          @keyframes krewOtterDance {
-            0%, 100% {
-              transform: rotate(-4deg) translateY(0px);
-            }
-            50% {
-              transform: rotate(4deg) translateY(-3px);
-            }
-          }
-          @keyframes krewDotPulse {
-            0%, 20% {
-              opacity: 0.2;
-            }
-            50% {
-              opacity: 1;
-            }
-            80%, 100% {
-              opacity: 0.2;
-            }
-          }
-        `}</style>
-      </div>
-
-      {/* Message with 3 discrete animated dots */}
-      <div className="flex flex-col items-center gap-1.5">
-        <p className="font-sans text-sm sm:text-base font-medium text-foreground tracking-tight">
-          {displayMessage}
+      <div className="min-w-0">
+        <p className="font-display text-[25px] font-normal leading-[1.04] tracking-[-0.015em] text-foreground sm:text-[29px]">
+          {customMessage || content.title}
         </p>
-
-        {/* 3 discrete animated dots */}
-        <div className="flex items-center justify-center gap-1 text-primary motion-reduce:hidden" aria-hidden="true">
-          <span
-            className="size-1.5 rounded-full bg-primary inline-block"
-            style={{ animation: "krewDotPulse 1.4s infinite 0s" }}
-          />
-          <span
-            className="size-1.5 rounded-full bg-primary inline-block"
-            style={{ animation: "krewDotPulse 1.4s infinite 0.2s" }}
-          />
-          <span
-            className="size-1.5 rounded-full bg-primary inline-block"
-            style={{ animation: "krewDotPulse 1.4s infinite 0.4s" }}
-          />
+        {!customMessage ? (
+          <p className="mt-2 text-[14px] leading-[1.55] text-muted-foreground sm:text-[15px]">
+            {content.description}
+          </p>
+        ) : null}
+        <div className="mt-3 flex items-center gap-1.5" aria-hidden="true">
+          <span className="size-1.5 rounded-full bg-primary/70" />
+          <span className="size-1.5 rounded-full bg-primary/45" />
+          <span className="size-1.5 rounded-full bg-primary/25" />
         </div>
       </div>
+
+      <img
+        src={content.otterSrc}
+        alt=""
+        className="pointer-events-none h-auto w-full max-w-[72px] justify-self-end object-contain opacity-95 sm:max-w-[92px]"
+      />
     </div>
   );
 }
