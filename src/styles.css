@@ -169,23 +169,23 @@
   border-radius: 0 !important;
 }
 
-/* A leading/trailing icon lives in a reserved lane so the label itself stays centered. */
-[data-slot="button"]:not([data-size="icon"]):has(> svg:first-child) {
+/* A leading/trailing icon must not move the label away from the optical center. */
+[data-slot="button"]:not([data-size="icon"]):has(> svg:first-child:not(:only-child)) {
   padding-left: 38px !important;
   padding-right: 38px !important;
 }
-[data-slot="button"]:not([data-size="icon"]) > svg:first-child {
+[data-slot="button"]:not([data-size="icon"]) > svg:first-child:not(:only-child) {
   position: absolute !important;
   left: 12px !important;
   top: 50% !important;
   margin: 0 !important;
   transform: translateY(-50%) !important;
 }
-[data-slot="button"]:not([data-size="icon"]):has(> svg:last-child) {
+[data-slot="button"]:not([data-size="icon"]):has(> svg:last-child:not(:only-child)) {
   padding-left: 38px !important;
   padding-right: 38px !important;
 }
-[data-slot="button"]:not([data-size="icon"]) > svg:last-child {
+[data-slot="button"]:not([data-size="icon"]) > svg:last-child:not(:only-child) {
   position: absolute !important;
   right: 12px !important;
   top: 50% !important;
@@ -193,13 +193,13 @@
   transform: translateY(-50%) !important;
 }
 
+/* Rich trip sub-pages that are not journey chapters retain their wider header scale. */
 main[class*="max-w-[1020px]"] > header h1 {
   font-size: 2.125rem;
   line-height: 0.98;
   letter-spacing: -0.025em;
 }
 
-/* Creation CTA width rules only. */
 main[class*="max-w-[1280px]"] > div:first-child > a[href="/trips/new"] {
   width: auto;
   max-width: max-content;
@@ -207,6 +207,7 @@ main[class*="max-w-[1280px]"] > div:first-child > a[href="/trips/new"] {
   text-align: center;
   justify-content: center;
 }
+
 main > section:first-child a[href="/trips/new"],
 header a[href="/trips/new"] {
   max-width: 100%;
@@ -215,6 +216,52 @@ header a[href="/trips/new"] {
   justify-content: center;
 }
 main > section:first-child a[href="/trips/new"] { white-space: nowrap; }
+
+/* Mes voyages: never abbreviate the primary creation action to “Nouveau”. */
+@media (max-width: 639px) {
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] {
+    min-width: max-content;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    font-size: 12px !important;
+  }
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > span {
+    display: none !important;
+  }
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > svg:first-child,
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > [data-krew-icon]:first-child {
+    display: none !important;
+  }
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"]::after {
+    content: "Nouveau voyage";
+    display: inline;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+}
+
+/* Invite: WhatsApp is a lightweight sharing action, not another boxed CTA. */
+main.space-y-8 [data-slot="button"][class*="#25D366"] {
+  flex: 0 0 auto !important;
+  align-self: flex-start !important;
+  width: auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 4px 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--primary) !important;
+  font-weight: 500 !important;
+}
+main.space-y-8 [data-slot="button"][class*="#25D366"]:hover {
+  background: transparent !important;
+  color: var(--primary) !important;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
 
 /* New-trip form: breathing rhythm only. */
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] {

@@ -104,7 +104,6 @@ export function PackingListCard({
           item.purchasable && !state.owned[item.id]
             ? resolveShoppingLink(item.id, shoppingLinks)
             : null;
-        const participant = participants.find((p) => p.id === state.assigned[item.id]);
         return (
           <li key={item.id} className="py-3 flex flex-col gap-2">
             <div className="flex items-start gap-2.5">
@@ -134,52 +133,36 @@ export function PackingListCard({
               <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pl-0 sm:pl-10">
                 <select
                   aria-label={`Assigner ${item.label}`}
-                  className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
-                  value={state.assigned[item.id] || ""}
-                  onChange={(e) =>
+                  className="min-h-10 rounded-[10px] border border-border bg-background px-3 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
+                  value={state.owned[item.id] ? "__me__" : state.assigned[item.id] || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
                     setState((s) => ({
                       ...s,
-                      assigned: { ...s.assigned, [item.id]: e.target.value },
-                    }))
-                  }
+                      assigned: { ...s.assigned, [item.id]: value === "__me__" ? "" : value },
+                      owned: { ...s.owned, [item.id]: value === "__me__" },
+                    }));
+                  }}
                 >
                   <option value="">Qui s'en charge ?</option>
+                  {item.purchasable ? <option value="__me__">Je m’en charge</option> : null}
                   {assignableParticipants.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.display_name || p.email?.split("@")[0] || "Participant"}
                     </option>
                   ))}
                 </select>
-                {item.purchasable ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="min-h-11 h-auto text-sm rounded-xl"
-                    onClick={() =>
-                      setState((s) => ({
-                        ...s,
-                        owned: { ...s.owned, [item.id]: !s.owned[item.id] },
-                      }))
-                    }
-                  >
-                    {state.owned[item.id]
-                      ? `${participant?.display_name || "Quelqu'un"} l'apporte`
-                      : "Je m’en charge"}
-                  </Button>
-                ) : null}
                 {link ? (
-                  <Button asChild size="sm" variant="ghost" className="min-h-11 h-auto text-sm rounded-xl">
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      data-item={item.id}
-                      data-merchant={link.merchant}
-                    >
-                      Voir des options <ExternalLink className="size-3.5" />
-                    </a>
-                  </Button>
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-item={item.id}
+                    data-merchant={link.merchant}
+                    className="inline-flex items-center gap-1.5 self-start py-1 text-sm font-medium text-primary underline-offset-4 hover:underline sm:self-auto"
+                  >
+                    Voir des options <ExternalLink className="size-3.5" />
+                  </a>
                 ) : null}
               </div>
             ) : null}
@@ -269,12 +252,12 @@ export function PackingListCard({
           aria-label="Type de l'élément"
           value={manualMode}
           onChange={(e) => setManualMode(e.target.value as "personal" | "group")}
-          className="rounded-xl border border-border bg-background px-3 text-sm h-11 font-medium"
+          className="rounded-[10px] border border-border bg-background px-3 text-sm h-10 font-medium"
         >
           <option value="personal">Mes affaires</option>
           <option value="group">Pour le groupe</option>
         </select>
-        <Button type="button" variant="outline" size="sm" className="h-11 rounded-xl text-sm font-medium" onClick={addManual}>
+        <Button type="button" variant="outline" size="sm" className="text-sm font-medium" onClick={addManual}>
           <KrewIcon name="plus" size="sm" className="size-3.5 shrink-0" /> Ajouter
         </Button>
       </div>
