@@ -244,7 +244,7 @@ function JourneyLockedFallbackPortal({ queryClient }: { queryClient: QueryClient
           className="pointer-events-none mt-1 h-auto w-full max-w-[76px] justify-self-end object-contain opacity-90 sm:max-w-[108px] lg:max-w-[120px]"
         />
 
-        <div className="col-span-2 max-w-[560px] space-y-3">
+        <div className="col-[1/-1] max-w-[560px] space-y-3">
           <div
             data-journey-locked-section={lockedSection}
             className="rounded-[16px] border border-sage/20 bg-sage/[0.07] px-4 py-3 text-[15px] leading-[1.5] text-muted-foreground sm:text-[16px]"
