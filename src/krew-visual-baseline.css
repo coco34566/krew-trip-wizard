@@ -1,7 +1,6 @@
 /* KREW visual baseline — local canvas and density rules only.
- * The canonical journey hierarchy now lives in krew-journey-alignment.css.
- * This file must not redefine page-title scale, subtitle scale, otter slots,
- * chapter-shell borders or cross-page spacing.
+ * The canonical journey hierarchy lives in krew-journey-alignment.css.
+ * Button geometry lives in the shared Button primitive / styles.css.
  */
 
 :root {
@@ -10,8 +9,6 @@
   --krew-gutter-desktop: 48px;
   --krew-card-radius: 24px;
   --krew-inset-radius: 20px;
-  --krew-control-radius: 12px;
-  --krew-control-height: 44px;
 }
 
 main.max-w-5xl:has(> div.space-y-6 > a:first-child) {
@@ -61,7 +58,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   }
 }
 
-/* Zoom pages are content canvases, never page-sized cards. */
 main.max-w-5xl :is(
   #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
   #hub-activities-plan,#hub-tasks-org,#hub-packing
@@ -148,10 +144,11 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   line-height: 1.35 !important;
 }
 
+/* Choice controls are not CTA Buttons, but share the same 12px corner language. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section button.rounded-\[14px\] {
   min-height: 40px !important;
   border-color: color-mix(in oklch, var(--border) 62%, transparent) !important;
-  border-radius: 14px !important;
+  border-radius: 12px !important;
   box-shadow: none !important;
   padding: 9px 12px !important;
   font-size: 14px !important;
@@ -176,11 +173,8 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   padding-bottom: 32px !important;
 }
 
+/* Final questionnaire action inherits Button geometry; only typography stays local. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > div.pt-2.pb-12 > button {
-  min-height: 44px !important;
-  height: 44px !important;
-  padding-block: 8px !important;
-  border-radius: 12px !important;
   font-size: 14px !important;
 }
 
@@ -188,20 +182,16 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) {
     padding-top: 36px !important;
   }
-
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section {
     padding: 34px 0 !important;
     gap: 16px !important;
   }
-
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section h2.font-display + p {
     font-size: 14px !important;
   }
-
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section label {
     font-size: 15px !important;
   }
-
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section button.rounded-\[14px\] {
     font-size: 15px !important;
     padding: 10px 13px !important;
@@ -225,21 +215,13 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"
 
 #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > a,
 #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > button {
-  min-height: var(--krew-control-height) !important;
   margin-top: 22px !important;
-  border-radius: var(--krew-control-radius) !important;
-  padding-inline: 20px !important;
   justify-content: center;
 }
 
 @media (max-width: 639px) {
   #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
     padding: 20px !important;
-  }
-
-  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > a,
-  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > button {
-    width: 100%;
   }
 }
 

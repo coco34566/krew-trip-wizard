@@ -35,15 +35,9 @@ export function SiteHeader() {
 
   const publicLinks = (
     <>
-      <DropdownMenuItem asChild>
-        <Link to="/a-propos">À propos</Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link to="/tarifs">Tarifs</Link>
-      </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link to="/faq">FAQ</Link>
-      </DropdownMenuItem>
+      <DropdownMenuItem asChild><Link to="/a-propos">À propos</Link></DropdownMenuItem>
+      <DropdownMenuItem asChild><Link to="/tarifs">Tarifs</Link></DropdownMenuItem>
+      <DropdownMenuItem asChild><Link to="/faq">FAQ</Link></DropdownMenuItem>
     </>
   );
 
@@ -60,31 +54,16 @@ export function SiteHeader() {
             <Logo size={isInternalPage ? "sm" : "md"} className={cn(isInternalPage && "sm:h-10")} />
           </Link>
           <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-muted-foreground">
-            <Link to="/a-propos" className="hover:text-foreground transition-colors">
-              À propos
-            </Link>
-            <Link to="/tarifs" className="hover:text-foreground transition-colors">
-              Tarifs
-            </Link>
-            <Link to="/faq" className="hover:text-foreground transition-colors">
-              FAQ
-            </Link>
+            <Link to="/a-propos" className="hover:text-foreground transition-colors">À propos</Link>
+            <Link to="/tarifs" className="hover:text-foreground transition-colors">Tarifs</Link>
+            <Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link>
           </nav>
         </div>
 
         <nav className={cn("flex shrink-0 items-center", isInternalPage ? "gap-1 sm:gap-2.5" : "gap-1.5 sm:gap-2.5")}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "md:hidden rounded-xl text-muted-foreground hover:text-foreground",
-                  isInternalPage ? "size-10 min-h-10 min-w-10" : "size-11 min-h-11 min-w-11",
-                )}
-                aria-label="Ouvrir le menu"
-              >
+              <Button type="button" variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-foreground" aria-label="Ouvrir le menu">
                 <Menu className={cn(isInternalPage ? "size-[18px]" : "size-5")} />
               </Button>
             </DropdownMenuTrigger>
@@ -97,22 +76,14 @@ export function SiteHeader() {
 
           {loading ? null : user ? (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex min-h-11 text-muted-foreground hover:text-foreground">
-                <Link to="/dashboard">Mes voyages</Link>
-              </Button>
-              <Button
-                asChild
-                size="sm"
-                className={cn(
-                  "shrink-0 rounded-xl font-medium leading-none",
-                  isInternalPage
-                    ? "h-10 min-h-10 px-3 text-[12px] sm:h-11 sm:min-h-11 sm:px-4 sm:text-sm"
-                    : "h-11 min-h-11 px-3 text-xs sm:px-4 sm:text-sm",
-                )}
+              <Link
+                to="/dashboard"
+                className="hidden sm:inline-flex items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                <Link to="/trips/new" className="inline-flex min-w-max items-center justify-center whitespace-nowrap text-center leading-none">
-                  Nouveau voyage
-                </Link>
+                Mes voyages
+              </Link>
+              <Button asChild size="sm" className="shrink-0">
+                <Link to="/trips/new" className="min-w-max whitespace-nowrap">Nouveau voyage</Link>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -129,16 +100,10 @@ export function SiteHeader() {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </DropdownMenuLabel>
+                  <DropdownMenuLabel className="truncate text-xs text-muted-foreground">{user.email}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard">Mes voyages</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/account">Mon compte</Link>
-                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link to="/dashboard">Mes voyages</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link to="/account">Mon compte</Link></DropdownMenuItem>
                   <DropdownMenuSeparator className="md:hidden" />
                   <div className="md:hidden">{publicLinks}</div>
                   <DropdownMenuSeparator />
@@ -150,13 +115,15 @@ export function SiteHeader() {
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex min-h-11 px-2 text-xs text-muted-foreground hover:text-foreground sm:px-3 sm:text-sm">
-                <Link to="/auth" search={{}}>Connexion</Link>
-              </Button>
-              <Button asChild size="sm" className="h-11 min-h-11 shrink-0 rounded-xl px-3 sm:px-4 text-xs sm:text-sm font-medium leading-none">
-                <Link to="/auth" search={{}} className="inline-flex min-w-max items-center justify-center whitespace-nowrap text-center leading-none">
-                  Créer un voyage
-                </Link>
+              <Link
+                to="/auth"
+                search={{}}
+                className="hidden sm:inline-flex items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Connexion
+              </Link>
+              <Button asChild size="sm" className="shrink-0">
+                <Link to="/auth" search={{}} className="min-w-max whitespace-nowrap">Créer un voyage</Link>
               </Button>
             </>
           )}
