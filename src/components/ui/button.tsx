@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap text-center text-sm leading-none font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "relative inline-flex h-10 min-h-10 items-center justify-center whitespace-nowrap rounded-[10px] py-0 text-center text-sm leading-[1.15] font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -15,7 +15,7 @@ const buttonVariants = cva(
           "border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "h-auto min-h-0 rounded-none p-0 text-primary underline-offset-4 hover:underline",
         /* Legacy aliases kept only for backwards compatibility. */
         hero: "bg-primary text-primary-foreground hover:bg-primary/90",
         lagoon: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
@@ -23,10 +23,10 @@ const buttonVariants = cva(
       },
       size: {
         default: "px-4",
-        sm: "px-3 text-xs",
-        lg: "px-5 text-sm",
-        xl: "px-6 text-base",
-        icon: "p-0",
+        sm: "h-9 min-h-9 px-3 text-xs",
+        lg: "h-10 min-h-10 px-5 text-sm",
+        xl: "h-11 min-h-11 px-6 text-base",
+        icon: "size-10 min-h-10 min-w-10 p-0",
       },
     },
     defaultVariants: {
