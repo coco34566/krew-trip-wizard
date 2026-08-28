@@ -184,11 +184,11 @@ function Dashboard() {
   const otherTrips = trips.slice(1);
 
   return (
-    <main className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10 space-y-8 sm:space-y-12 overflow-hidden sm:overflow-visible">
+    <main className="max-w-[1180px] mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10 space-y-8 sm:space-y-12 overflow-x-clip overflow-y-visible">
       <header className="relative flex items-start justify-between gap-4 min-h-[118px] sm:min-h-[142px]">
         <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-8 -top-6 h-[110px] w-[300px] opacity-45 pointer-events-none" />
         <div className="relative z-10 max-w-[680px]"><div className="relative inline-block"><h1 className="font-display text-[42px] sm:text-[52px] lg:text-[58px] font-normal leading-[.92] tracking-tight text-foreground">Mes voyages</h1><KrewMark type="underline-wave" tone="sage" size="lg" className="absolute -bottom-5 left-1 h-5 w-[150px] sm:w-[190px] opacity-70" /></div><p className="mt-5 text-sm sm:text-base text-muted-foreground">Ce qui se prépare, ce qui approche, et les voyages où ta KREW t'attend.</p></div>
-        <Button asChild className="relative z-10 h-10 min-h-10 shrink-0 rounded-xl px-4 sm:px-5 py-0 font-medium leading-none"><Link to="/trips/new" className="inline-flex h-full min-w-max items-center justify-center gap-1.5 whitespace-nowrap text-center leading-none"><KrewIcon name="plus" size="sm" className="size-4" /><span className="hidden sm:inline">Nouveau voyage</span><span className="sm:hidden">Nouveau</span></Link></Button>
+        <Button asChild className="relative z-10 shrink-0 px-4 sm:px-5 font-medium"><Link to="/trips/new" className="inline-flex min-w-max items-center justify-center gap-1.5 whitespace-nowrap text-center"><KrewIcon name="plus" size="sm" className="size-4" /><span className="hidden sm:inline">Nouveau voyage</span><span className="sm:hidden">Nouveau</span></Link></Button>
         <KrewNote variant="margin" rotation={-2} className="absolute bottom-0 right-2 hidden sm:block text-sage">Le carnet de la KREW</KrewNote>
       </header>
 
