@@ -1158,3 +1158,76 @@ Le résultat final doit donner envie de dire :
 > **« Ça va être fun. »**  
 > **« C’est vraiment beau. »**  
 > **« Ça a l’air hyper simple. »**
+
+---
+
+## 29. SYSTÈME DE BOUTONS & ACTIONS — CONTRAT OFFICIEL
+
+Cette section est la source de vérité pour toutes les actions interactives KREW.
+
+### 29.1 Cliquable ≠ bouton
+
+Un élément reçoit une surface de bouton uniquement lorsqu’il représente une **commande ou un CTA qui doit être perçu immédiatement comme une action**.
+
+Doivent rester des liens ou actions textuelles lorsque c’est leur rôle :
+
+- `Retour au voyage` et retours comparables ;
+- liens GetYourGuide / Booking / partenaires / shopping ;
+- navigation simple ;
+- annulation ou archivage présenté comme action tertiaire ;
+- actions de partage légères comme WhatsApp lorsqu’elles ne sont pas l’action principale de la page.
+
+Ne jamais transformer un lien existant en rectangle bordé uniquement pour uniformiser.
+
+Quand plusieurs actions concernent le même objet, préférer si pertinent **un select, menu, dropdown ou action inline** à une rangée de boutons. Exemple : l’affectation d’un objet À emporter peut intégrer `Je m’en charge` dans `Qui s’en charge ?` plutôt que créer un bouton supplémentaire.
+
+### 29.2 Géométrie officielle
+
+- petit : **36px** ;
+- standard : **40px** ;
+- large applicatif : **40px** ;
+- `xl` : **44px maximum**, réservé aux rares CTA éditoriaux / landing ;
+- icon-only : **40 × 40px** ;
+- rayon standard : **10px** ;
+- padding horizontal standard : **14–16px**, adapté au libellé ;
+- texte : Plus Jakarta Sans, généralement **14px medium** ;
+- aucun gros CTA applicatif à 48–56px.
+
+Un libellé long peut produire une hauteur auto, mais ne doit pas récupérer artificiellement les anciennes hauteurs massives.
+
+### 29.3 Hiérarchie visuelle
+
+- primaire : prune plein, une action dominante par zone de décision ;
+- secondaire : outline / surface légère ;
+- tertiaire : texte / ghost / lien sans boîte lorsque la surface n’est pas nécessaire ;
+- destructif : discret / outline avant confirmation, plein uniquement dans la confirmation critique ;
+- sélection : contrôle dédié, distinct d’un CTA ;
+- externe : lien texte avec indicateur externe lorsque la boîte n’apporte rien.
+
+Les anciens aliases `hero`, `lagoon`, `glass` ne doivent pas créer un deuxième langage graphique.
+
+### 29.4 Centrage optique obligatoire
+
+Le libellé doit être **visuellement centré dans la surface entière**, y compris lorsqu’une icône est présente.
+
+Une icône à gauche ou à droite ne doit pas décaler le texte. Les paddings asymétriques, marges d’icône ou règles locales qui cassent ce centrage sont interdits.
+
+### 29.5 Responsive
+
+Mobile : pleine largeur uniquement lorsque cela facilite réellement l’action ou évite un libellé écrasé.
+
+Tablette : boutons compacts par défaut, pas de barres inutilement larges.
+
+Desktop : largeur intrinsèque par défaut.
+
+Un libellé important ne doit jamais être abrégé uniquement faute de place si une recomposition du header ou un padding plus compact permet de conserver le wording complet.
+
+Contrôle obligatoire à **390 / 834 / 1440** et, pour les headers serrés, à **360 / 430 / 768 / 1024**.
+
+### 29.6 Gouvernance
+
+La géométrie commune appartient au composant `Button` / à la primitive partagée. Une page peut gérer placement et largeur, mais ne doit pas réinventer localement hauteur ou rayon.
+
+Lors d’un audit boutons, rechercher et supprimer les anciens `h-*`, `min-h-*`, `rounded-*`, paddings et règles CSS spécifiques qui concurrencent le contrat officiel.
+
+Le but n’est pas d’avoir davantage de boutons cohérents : le but est d’avoir **moins de boutons, mieux hiérarchisés et plus lisibles**.
