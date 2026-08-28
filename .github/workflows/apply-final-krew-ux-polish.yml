@@ -32,11 +32,21 @@ jobs:
           from pathlib import Path
           p = Path('automation-tools/.github/scripts/apply-final-krew-ux-polish.py')
           s = p.read_text()
-          old = "s = replace_once(s, '{value}%', '{item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}', \"progress display\")"
-          new = "s = s.replace('{value}%', '{item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}', 1)"
-          if old not in s:
-              raise SystemExit('progress transform line not found')
-          p.write_text(s.replace(old, new, 1))
+          replacements = [
+            (
+              "s = replace_once(s, '{value}%', '{item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}', \"progress display\")",
+              "s = s.replace('{value}%', '{item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}', 1)",
+            ),
+            (
+              "s = replace_once(s, 'const starMode = (trip.data.group_logistics as any)?.star_mode ?? \"secret\";\\n    const isAdmin = isTripAdmin(trip.data, userId);', 'const starMode = (trip.data.group_logistics as any)?.star_mode ?? \"secret\";\\n    const starPaysShare = (trip.data.group_logistics as any)?.star_pays_share !== false;\\n    const isAdmin = isTripAdmin(trip.data, userId);', \"star pays read\")",
+              "s = s.replace('const starMode = (trip.data.group_logistics as any)?.star_mode ?? \"secret\";\\n    const isAdmin = isTripAdmin(trip.data, userId);', 'const starMode = (trip.data.group_logistics as any)?.star_mode ?? \"secret\";\\n    const starPaysShare = (trip.data.group_logistics as any)?.star_pays_share !== false;\\n    const isAdmin = isTripAdmin(trip.data, userId);', 1)",
+            ),
+          ]
+          for old, new in replacements:
+            if old not in s:
+              raise SystemExit(f'transform patch not found: {old[:50]}')
+            s = s.replace(old, new, 1)
+          p.write_text(s)
           PY
       - name: Apply corrections
         working-directory: target
