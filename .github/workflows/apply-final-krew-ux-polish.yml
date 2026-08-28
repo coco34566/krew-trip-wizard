@@ -14,13 +14,23 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout automation tools
+        uses: actions/checkout@v4
+        with:
+          ref: automation/apply-final-krew-ux-polish
+          path: automation-tools
+          fetch-depth: 1
+      - name: Checkout target branch
+        uses: actions/checkout@v4
         with:
           ref: fix/final-krew-ux-polish
+          path: target
           fetch-depth: 0
       - name: Apply corrections
-        run: python .github/scripts/apply-final-krew-ux-polish.py
+        working-directory: target
+        run: python ../automation-tools/.github/scripts/apply-final-krew-ux-polish.py
       - name: Commit once
+        working-directory: target
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
