@@ -50,17 +50,17 @@ export function SiteHeader() {
         )}
       >
         <div className={cn("flex min-w-0 items-center", isInternalPage ? "gap-4 sm:gap-8" : "gap-8")}>
-          <Link to="/" className="transition-opacity hover:opacity-85">
+          <Link to="/" aria-label="Accueil KREW" className="inline-flex min-h-10 items-center transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
             <Logo size={isInternalPage ? "sm" : "md"} className={cn(isInternalPage && "sm:h-10")} />
           </Link>
-          <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-muted-foreground">
+          <nav className="hidden md:flex items-center gap-5 text-sm font-medium text-muted-foreground" aria-label="Navigation principale">
             <Link to="/a-propos" className="hover:text-foreground transition-colors">À propos</Link>
             <Link to="/tarifs" className="hover:text-foreground transition-colors">Tarifs</Link>
             <Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link>
           </nav>
         </div>
 
-        <nav className={cn("flex shrink-0 items-center", isInternalPage ? "gap-1 sm:gap-2.5" : "gap-1.5 sm:gap-2.5")}>
+        <nav aria-label="Actions du compte" className={cn("flex shrink-0 items-center", isInternalPage ? "gap-1 sm:gap-2.5" : "gap-1.5 sm:gap-2.5")}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button type="button" variant="ghost" size="icon" className="md:hidden text-muted-foreground hover:text-foreground" aria-label="Ouvrir le menu">
@@ -78,18 +78,18 @@ export function SiteHeader() {
             <>
               <Link
                 to="/dashboard"
-                className="hidden sm:inline-flex items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="hidden sm:inline-flex min-h-10 items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 Mes voyages
               </Link>
-              <Button asChild size="sm" className="shrink-0">
+              <Button asChild size="sm" className="min-h-10 shrink-0">
                 <Link to="/trips/new" className="min-w-max whitespace-nowrap">Nouveau voyage</Link>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     className={cn(
-                      "ml-0.5 inline-flex items-center justify-center rounded-full cursor-pointer outline-none sm:ml-1 sm:size-11",
+                      "ml-0.5 inline-flex items-center justify-center rounded-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:ml-1 sm:size-11",
                       isInternalPage ? "size-10" : "size-11",
                     )}
                     aria-label="Menu du compte"
@@ -118,11 +118,11 @@ export function SiteHeader() {
               <Link
                 to="/auth"
                 search={{}}
-                className="hidden sm:inline-flex items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="hidden sm:inline-flex min-h-10 items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 Connexion
               </Link>
-              <Button asChild size="sm" className="shrink-0">
+              <Button asChild size="sm" className="min-h-10 shrink-0">
                 <Link to="/auth" search={{}} className="min-w-max whitespace-nowrap">Créer un voyage</Link>
               </Button>
             </>
