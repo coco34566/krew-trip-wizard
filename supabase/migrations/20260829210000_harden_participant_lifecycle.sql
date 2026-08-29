@@ -1,74 +1,66 @@
 -- KREW pre-launch participant lifecycle hardening.
--- Inactive participants must not keep influencing group calculations or retain
--- member-level write access. Task deletion remains an organizer responsibility.
+-- Inactive participants must stop influencing group calculations while an
+-- "absent" participant keeps read access to the trip and may rejoin later.
 
--- Treat both "absent" and "refuse" as inactive for all RLS helpers that rely on
--- is_trip_member. Owner/co-organizer access is preserved through the trips row.
-create or replace function public.is_trip_member(_trip_id uuid, _user_id uuid)
-returns boolean
-language sql
-stable
+-- Response writes are guarded independently from is_trip_member so that
+-- status = 'absent' can remain a read-only member state.
+create or replace function public.guard_inactive_participant_response_write()
+returns trigger
+language plpgsql
 security definer
 set search_path = public
 as $$
-  select _user_id is not null
-    and _user_id = (select auth.uid())
-    and (
-      exists (
-        select 1
-        from public.trips t
-        where t.id = _trip_id
-          and _user_id in (t.owner_id, t.co_organizer_id)
-      )
-      or exists (
-        select 1
-        from public.trip_participants p
-        where p.trip_id = _trip_id
-          and p.status not in ('refuse', 'absent')
-          and (
-            p.user_id = _user_id
-            or lower(p.email) = lower(coalesce((select auth.jwt()) ->> 'email', ''))
-          )
-      )
-    );
+declare
+  current_uid uuid := auth.uid();
+  current_status text;
+begin
+  -- Service-role / maintenance operations are not user-submitted responses.
+  if current_uid is null then
+    return new;
+  end if;
+
+  if new.user_id is distinct from current_uid then
+    raise exception '403 Forbidden';
+  end if;
+
+  if public.is_trip_admin(new.trip_id, current_uid) then
+    return new;
+  end if;
+
+  select p.status::text
+    into current_status
+  from public.trip_participants p
+  where p.trip_id = new.trip_id
+    and p.user_id = current_uid
+  limit 1;
+
+  if current_status is null or current_status in ('absent', 'refuse') then
+    raise exception 'Participant inactif';
+  end if;
+
+  return new;
+end;
 $$;
 
--- An inactive participant may delete their own historical answers, but cannot
--- create or update answers/time preferences until they are active again.
-alter policy "trip_availability insert own" on public.trip_availability
-  with check (
-    user_id = (select auth.uid())
-    and public.is_trip_member(trip_id, (select auth.uid()))
-  );
+revoke all on function public.guard_inactive_participant_response_write()
+  from public, anon, authenticated;
 
-alter policy "trip_availability update own" on public.trip_availability
-  using (
-    user_id = (select auth.uid())
-    and public.is_trip_member(trip_id, (select auth.uid()))
-  )
-  with check (
-    user_id = (select auth.uid())
-    and public.is_trip_member(trip_id, (select auth.uid()))
-  );
+drop trigger if exists guard_inactive_participant_preferences_write_trigger
+  on public.trip_participant_preferences;
+create trigger guard_inactive_participant_preferences_write_trigger
+before insert or update on public.trip_participant_preferences
+for each row
+execute function public.guard_inactive_participant_response_write();
 
-alter policy "participant prefs insert own" on public.trip_participant_preferences
-  with check (
-    user_id = (select auth.uid())
-    and public.is_trip_member(trip_id, (select auth.uid()))
-  );
+drop trigger if exists guard_inactive_participant_availability_write_trigger
+  on public.trip_availability;
+create trigger guard_inactive_participant_availability_write_trigger
+before insert or update on public.trip_availability
+for each row
+execute function public.guard_inactive_participant_response_write();
 
-alter policy "participant prefs update own" on public.trip_participant_preferences
-  using (
-    user_id = (select auth.uid())
-    and public.is_trip_member(trip_id, (select auth.uid()))
-  )
-  with check (
-    user_id = (select auth.uid())
-    and public.is_trip_member(trip_id, (select auth.uid()))
-  );
-
--- Transport time preferences were historically protected only by ownership of
--- participant_id. Also require that the participant is currently active.
+-- Transport time preferences are personal inputs too: an inactive participant
+-- may still read the trip, but cannot create/update/delete transport preferences.
 alter policy "Users can manage their own transport time preferences"
 on public.trip_transport_time_prefs
 using (
@@ -93,8 +85,8 @@ with check (
 );
 
 -- Task creation/deletion is structural organization work. Normal participants
--- can still change the status of their own assigned task through the already
--- hardened UPDATE policy, but cannot create or delete tasks directly.
+-- can still change the status of their own assigned task through the hardened
+-- UPDATE policy, but cannot create or delete tasks directly.
 alter policy "trip_tasks insert members" on public.trip_tasks
   with check (public.is_trip_admin(trip_id, (select auth.uid())));
 
@@ -102,8 +94,7 @@ alter policy "trip_tasks delete members" on public.trip_tasks
   using (public.is_trip_admin(trip_id, (select auth.uid())));
 
 -- Centralize cleanup when a participant becomes inactive or is removed. This
--- prevents stale answers, votes, tasks and transport choices from continuing to
--- affect group decisions even when application code misses a cleanup path.
+-- prevents stale answers, votes and choices from affecting group decisions.
 create or replace function public.cleanup_inactive_trip_participant()
 returns trigger
 language plpgsql
@@ -124,8 +115,8 @@ begin
     v_user_id := old.user_id;
   else
     -- Only act when crossing from an active state into an inactive state.
-    if new.status not in ('refuse', 'absent')
-       or old.status in ('refuse', 'absent') then
+    if new.status::text not in ('refuse', 'absent')
+       or old.status::text in ('refuse', 'absent') then
       return new;
     end if;
     v_participant_id := new.id;
@@ -156,8 +147,8 @@ begin
         updated_at = now()
     where assigned_participant_id = v_participant_id;
 
-  -- A co-organizer must be an active participant. Removing/declining/marking
-  -- them absent revokes the elevated role immediately.
+  -- A co-organizer must be actively participating. Inactivity/removal revokes
+  -- the elevated role immediately, while ownership is never changed here.
   if v_user_id is not null then
     update public.trips
       set co_organizer_id = null,
@@ -166,9 +157,8 @@ begin
         and co_organizer_id = v_user_id;
   end if;
 
-  -- Remove stale personal transport choices and hotel votes from group_logistics
-  -- so downstream planning/cost calculations no longer consume them. Keep the
-  -- selected hotel itself unchanged: it may already represent a booked decision.
+  -- Remove personal collaborative state stored in group_logistics. Keep the
+  -- selected hotel itself unchanged because it may already be booked.
   if v_user_id is not null then
     select coalesce(group_logistics, '{}'::jsonb)
       into v_logistics
@@ -181,7 +171,12 @@ begin
           into v_transport_picks
           from jsonb_array_elements(v_logistics -> 'transportPicks') as item
           where item ->> 'userId' is distinct from v_user_id::text;
-        v_logistics := jsonb_set(v_logistics, '{transportPicks}', coalesce(v_transport_picks, '[]'::jsonb), true);
+        v_logistics := jsonb_set(
+          v_logistics,
+          '{transportPicks}',
+          coalesce(v_transport_picks, '[]'::jsonb),
+          true
+        );
       end if;
 
       if jsonb_typeof(v_logistics -> 'hotelVotes') = 'array' then
@@ -189,7 +184,12 @@ begin
           into v_hotel_votes
           from jsonb_array_elements(v_logistics -> 'hotelVotes') as item
           where item ->> 'userId' is distinct from v_user_id::text;
-        v_logistics := jsonb_set(v_logistics, '{hotelVotes}', coalesce(v_hotel_votes, '[]'::jsonb), true);
+        v_logistics := jsonb_set(
+          v_logistics,
+          '{hotelVotes}',
+          coalesce(v_hotel_votes, '[]'::jsonb),
+          true
+        );
       end if;
 
       update public.trips
@@ -206,15 +206,18 @@ begin
 end;
 $$;
 
-revoke all on function public.cleanup_inactive_trip_participant() from public, anon, authenticated;
+revoke all on function public.cleanup_inactive_trip_participant()
+  from public, anon, authenticated;
 
-drop trigger if exists cleanup_inactive_trip_participant_on_status on public.trip_participants;
+drop trigger if exists cleanup_inactive_trip_participant_on_status
+  on public.trip_participants;
 create trigger cleanup_inactive_trip_participant_on_status
 after update of status on public.trip_participants
 for each row
 execute function public.cleanup_inactive_trip_participant();
 
-drop trigger if exists cleanup_inactive_trip_participant_on_delete on public.trip_participants;
+drop trigger if exists cleanup_inactive_trip_participant_on_delete
+  on public.trip_participants;
 create trigger cleanup_inactive_trip_participant_on_delete
 after delete on public.trip_participants
 for each row
