@@ -38,10 +38,27 @@ export function estimateGroupOriginDistanceKm(
   return Math.round(weighted / totalTravellers);
 }
 
+function resolveHardBudgetCap(ctx: ScoringContext): number | null {
+  const caps: number[] = [];
+
+  if (ctx.hasBudgetVeto && Number(ctx.vetoBudgetMax) > 0) {
+    caps.push(Number(ctx.vetoBudgetMax));
+  }
+
+  for (const preference of ctx.individualPreferences ?? []) {
+    const priority = String(preference.budgetPriority ?? "").toLowerCase().trim();
+    if (!["must_have", "veto", "high_priority"].includes(priority)) continue;
+    const budgetMax = Number(preference.budgetMax);
+    if (budgetMax > 0) caps.push(budgetMax);
+  }
+
+  return caps.length ? Math.min(...caps) : null;
+}
+
 /**
  * Public KREW recommendation entry point.
  *
- * Product invariants applied here before the historical deterministic scorer:
+ * Product invariants applied here before/after the historical deterministic scorer:
  * - hard budget vetoes stay hard when explicitly configured;
  * - distance heuristics use the group's actual departure origins when known.
  *
@@ -68,11 +85,20 @@ export function buildProposals(
     })),
   };
 
+  const hardBudgetCap = resolveHardBudgetCap(ctx);
   const proposals = buildLegacyProposals(adjustedCatalog, ctx, limit);
-  const restored = proposals.map((proposal) => ({
+  const eligibleProposals =
+    hardBudgetCap == null
+      ? proposals
+      : proposals.filter((proposal) => proposal.budget.totalPerPerson <= hardBudgetCap);
+
+  const restored = eligibleProposals.map((proposal) => ({
     ...proposal,
     destination: originalDestinations.get(proposal.destination.id) ?? proposal.destination,
   })) as Proposal[];
-  (restored as any).runnerUps = (proposals as any).runnerUps;
+  const runnerUps = ((proposals as any).runnerUps ?? []) as Proposal[];
+  (restored as any).runnerUps = runnerUps.filter(
+    (proposal) => hardBudgetCap == null || proposal.budget.totalPerPerson <= hardBudgetCap,
+  );
   return restored;
 }
