@@ -65,7 +65,7 @@ function Landing() {
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-2 relative">
                   <div className="basis-full sm:hidden">
-                    <KrewNote variant="tape" tone="cream" rotation={-1} size="sm" className="w-fit text-sm pointer-events-none">Le plan prend forme ici</KrewNote>
+                    <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="w-fit text-sm pointer-events-none">Le plan prend forme ici</KrewNote>
                   </div>
                   <Button asChild size="xl" className="h-12 min-h-12 rounded-xl px-8 py-0 text-base font-medium leading-none shadow-none">
                     <Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link>

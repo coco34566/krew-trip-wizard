@@ -1259,103 +1259,6 @@ function TripDetail() {
               <KrewMark type="underline-wave" tone="sage" size="sm" className="w-[100px] h-[8px] mt-1 opacity-85 pointer-events-none" />
             </div>
 
-            {/* PARAMÈTRES STAR SI VOYAGE STAR (PRÉSENTATION LÉGÈRE ET ÉLÉGANTE SANS CARRÉ VERT) */}
-            {hasStar ? (
-              <div className="py-2 px-1 border-b border-border/40 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                  <KrewIcon name="favorite" tone="plum" size="sm" className="size-3.5 shrink-0" />
-                  <span>Rôle de la Star ({celebratedPerson || "Secret"})</span>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2 text-xs font-sans">
-                  <div className="flex items-center justify-between gap-2 bg-surface/50 px-3 py-1.5 rounded-xl border border-border/40">
-                    <span className="font-medium text-muted-foreground text-[11px]">Visibilité :</span>
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        className={cn(
-                          "h-6 px-2 rounded-md text-[10px] font-medium border transition-colors",
-                          (logistics?.star_mode ?? "secret") === "secret"
-                            ? "bg-primary/10 text-primary border-primary/30 font-semibold"
-                            : "bg-transparent text-muted-foreground border-border/40 hover:text-foreground",
-                        )}
-                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
-                        onClick={() =>
-                          finalizeInviteStepMutation.mutate({
-                            starMode: "secret",
-                            starPaysShare: logistics?.star_pays_share !== false,
-                          })
-                        }
-                      >
-                        Voyage secret
-                      </button>
-                      <button
-                        type="button"
-                        className={cn(
-                          "h-6 px-2 rounded-md text-[10px] font-medium border transition-colors",
-                          logistics?.star_mode === "participant"
-                            ? "bg-primary/10 text-primary border-primary/30 font-semibold"
-                            : "bg-transparent text-muted-foreground border-border/40 hover:text-foreground",
-                        )}
-                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
-                        onClick={() =>
-                          finalizeInviteStepMutation.mutate({
-                            starMode: "participant",
-                            starPaysShare: logistics?.star_pays_share !== false,
-                          })
-                        }
-                      >
-                        Ordinaire
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 bg-surface/50 px-3 py-1.5 rounded-xl border border-border/40">
-                    <span className="font-medium text-muted-foreground text-[11px]">Frais :</span>
-                    <div className="flex gap-1">
-                      <button
-                        type="button"
-                        className={cn(
-                          "h-6 px-2 rounded-md text-[10px] font-medium border transition-colors",
-                          logistics?.star_pays_share !== false
-                            ? "bg-primary/10 text-primary border-primary/30 font-semibold"
-                            : "bg-transparent text-muted-foreground border-border/40 hover:text-foreground",
-                        )}
-                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
-                        onClick={() =>
-                          finalizeInviteStepMutation.mutate({
-                            starMode: logistics?.star_mode ?? "secret",
-                            starPaysShare: true,
-                          })
-                        }
-                      >
-                        Paie sa part
-                      </button>
-                      <button
-                        type="button"
-                        className={cn(
-                          "h-6 px-2 rounded-md text-[10px] font-medium border transition-colors",
-                          logistics?.star_pays_share === false
-                            ? "bg-primary/10 text-primary border-primary/30 font-semibold"
-                            : "bg-transparent text-muted-foreground border-border/40 hover:text-foreground",
-                        )}
-                        disabled={!data.isOwner || finalizeInviteStepMutation.isPending}
-                        onClick={() =>
-                          finalizeInviteStepMutation.mutate({
-                            starMode: logistics?.star_mode ?? "secret",
-                            starPaysShare: false,
-                          })
-                        }
-                      >
-                        Part offerte
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {/* LISTE DES MEMBRES */}
             <ul className="divide-y divide-border/40 pt-1">
               {participants.length === 0 ? (
                 <li className="text-sm text-muted-foreground py-4">
@@ -1577,60 +1480,8 @@ function TripDetail() {
                 </div>
             </div>
 
-            {/* ACTION INVITATION / PARTAGE SANS VERT WHATSAPP NI AMBER (UNIFIED 40px/12px/600/12px) */}
-            <div className="pt-4 border-t border-border/40 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-              <Button
-                type="button"
-                variant="ghost"
-                className="rounded-xl gap-2 border border-border/60 hover:bg-muted/30 h-10 px-4 text-xs font-semibold"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(shareUrl);
-                    setShareCopied(true);
-                    toast.success("Lien copié");
-                    setTimeout(() => setShareCopied(false), 2000);
-                  } catch {
-                    toast.error("Impossible de copier le lien.");
-                  }
-                }}
-              >
-                <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
-                <span className="whitespace-nowrap">{shareCopied ? "Copié" : "Copier le lien du voyage"}</span>
-              </Button>
-
-              <Button
-                type="button"
-                className="bg-sage/16 text-primary hover:bg-sage/25 border border-sage/30 rounded-xl h-10 px-4 text-xs font-semibold gap-2 shadow-none"
-                onClick={() => {
-                  const text = buildWhatsAppInviteMessage();
-                  shareOnWhatsApp(text);
-                }}
-              >
-                <KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />
-                <span className="whitespace-nowrap">Inviter via WhatsApp</span>
-              </Button>
-
-              {data.isOwner ? (() => {
-                const missingParticipants =
-                  progress?.participants?.filter(
-                    (p) => !p.hasAnswered || !p.hasAnsweredAvailability,
-                  ) || [];
-                return missingParticipants.length > 0 ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="rounded-xl bg-sage/12 text-primary hover:bg-sage/20 border border-sage/25 h-10 px-4 text-xs font-semibold gap-2"
-                    onClick={() => {
-                      const text = buildWhatsAppRemindMessage();
-                      shareOnWhatsApp(text);
-                    }}
-                  >
-                    <KrewIcon name="attention" tone="plum" size="sm" className="size-4 shrink-0" />
-                    <span>Relancer sur WhatsApp</span>
-                  </Button>
-                ) : null;
-              })() : null}
-            </div>
+            {/* ACTION UNIQUE : RELANCER LE GROUPE */}
+            {data.isOwner ? <div className="pt-4 border-t border-border/40"><Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={() => shareOnWhatsApp(buildWhatsAppRemindMessage())}><KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" /><span>Relancer le groupe</span></Button></div> : null}
           </section>
 
           {costSplitData?.split ? (
@@ -2430,7 +2281,7 @@ function TripDetail() {
               {data.isOwner ? (
                 <Button
                   variant="outline"
-                  className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
+                  className="w-full sm:w-auto"
                   onClick={() => regenerateMutation.mutate(undefined)}
                   disabled={
                     regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
@@ -2681,7 +2532,7 @@ function TripDetail() {
             </div>
             {data.isOwner ? (
               <Button
-                className="rounded-xl font-medium min-h-[40px] h-auto py-2 whitespace-normal text-center leading-tight"
+                className="w-full sm:w-auto"
                 disabled={hotelLogisticsMutation.isPending}
                 onClick={() => hotelLogisticsMutation.mutate()}
               >
@@ -2914,7 +2765,7 @@ function TripDetail() {
       {currentSection === "transport" ? (
       <section
         id="hub-transports"
-        className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
+        className="mt-6 sm:mt-8 space-y-5 scroll-mt-24 relative"
       >
         {/* Otter transport asset (top right) */}
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4 pointer-events-none">
@@ -3419,7 +3270,7 @@ function TripDetail() {
                 ) : (
                   <KrewIcon name="tasks" tone="plum" size="sm" className="size-4" />
                 )}
-                Préparer les tâches
+                <span className="text-center">Préparer les tâches</span>
               </Button>
             ) : null}
           </div>

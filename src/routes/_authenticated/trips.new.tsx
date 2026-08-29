@@ -119,7 +119,7 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[820px] px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+    <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-6 sm:py-8 space-y-6 sm:space-y-8">
       <Link
         to="/dashboard"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -149,9 +149,9 @@ function NewTripPage() {
         <p className="text-sm text-muted-foreground font-sans pt-1">Juste l'essentiel pour démarrer.</p>
       </div>
 
-      <form onSubmit={onSubmit} className="pt-2">
+      <form onSubmit={onSubmit} className="space-y-8 pt-2">
         {/* Question 1: Nom du voyage */}
-        <div className="border-b border-border/50 pb-6 mb-6 space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="name" className="text-base font-semibold text-foreground">
             Nom du voyage
           </Label>
@@ -166,7 +166,7 @@ function NewTripPage() {
         </div>
 
         {/* Question 2: Prénom organisateur */}
-        <div className="border-b border-border/50 pb-6 mb-6 space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="orga" className="text-base font-semibold text-foreground">
             Ton prénom (organisateur)
           </Label>
@@ -183,7 +183,7 @@ function NewTripPage() {
         </div>
 
         {/* Question 3: Type d'événement */}
-        <div className="border-b border-border/50 pb-6 mb-6 space-y-4">
+        <div className="space-y-4">
           <Label className="text-base font-semibold text-foreground block">Type d'événement</Label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {activeEventTypes.map((t) => {
@@ -229,11 +229,11 @@ function NewTripPage() {
             <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground block">
               À venir
             </span>
-            <div className="rounded-xl border border-border/30 bg-surface/20 p-3 sm:p-4 shadow-none flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
               {upcomingEventTypes.map((t) => (
                 <span
                   key={t.value}
-                  className="inline-flex items-center px-2.5 py-1 rounded-lg bg-background/50 border border-border/30 text-muted-foreground/80"
+                  className="inline-flex items-center rounded-full bg-surface/60 px-2.5 py-1 text-muted-foreground/80"
                 >
                   {t.label}
                 </span>
@@ -244,7 +244,7 @@ function NewTripPage() {
 
         {/* Question 4 (conditionnelle): Star (chapitre implicite: respiration accrue) */}
         {needsStar ? (
-          <div className="border-b border-border/50 pb-6 mb-6 space-y-2 pt-2 sm:pt-4">
+          <div className="space-y-2 pt-1">
             <Label htmlFor="star" className="text-base font-semibold text-foreground">
               Personne principale (Star)
             </Label>
@@ -262,7 +262,7 @@ function NewTripPage() {
         ) : null}
 
         {/* Question 5: Nombre estimé */}
-        <div className="border-b border-border/50 pb-6 mb-6 space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="n" className="text-base font-semibold text-foreground">
             Nombre estimé de participants
           </Label>
@@ -284,7 +284,7 @@ function NewTripPage() {
         </div>
 
         {/* Question 6: Tranche d'âge (chapitre implicite: respiration accrue) */}
-        <div className="border-b border-border/50 pb-6 mb-6 space-y-3 pt-2 sm:pt-4">
+        <div className="space-y-3">
           <Label className="text-base font-semibold text-foreground block">
             Tranche d’âge du groupe
           </Label>
@@ -308,7 +308,7 @@ function NewTripPage() {
         </div>
 
         {/* Question 7: Durée du voyage */}
-        <div className="border-b border-border/50 pb-6 mb-6 space-y-2">
+        <div className="space-y-2">
           <Label htmlFor="durationDays" className="text-base font-semibold text-foreground">
             Durée du voyage (en jours)
           </Label>

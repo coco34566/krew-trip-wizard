@@ -261,7 +261,7 @@ function AvailabilityPage() {
           <div className="space-y-0.5">
             <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
             {data.expected - data.answered > 0 ? (
-              <KrewNote variant="label" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">
+              <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block px-3 py-1.5 text-[14px]">
                 {data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}
               </KrewNote>
             ) : null}
@@ -269,7 +269,7 @@ function AvailabilityPage() {
         </div>
       </KrewJourneyPageHeader>
 
-      <section className="w-full space-y-6">
+      <section className="w-full space-y-7">
         <div>
           <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
             <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" /> Mes disponibilités
@@ -277,7 +277,7 @@ function AvailabilityPage() {
           <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les modifier.</p>
         </div>
 
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Mode de sélection des dates">
+        <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Mode de sélection des dates">
           <button type="button" onClick={() => setPaintMode("available")} aria-pressed={paintMode === "available"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors", paintMode === "available" ? "border-sage/40 bg-sage/20 font-semibold text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/25")}>
             <span className="size-2.5 rounded-full bg-current" /> Je suis dispo
           </button>
@@ -298,7 +298,7 @@ function AvailabilityPage() {
 
         <div className="flex items-center justify-end gap-2 sm:pr-2">
           <KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" />
-          <KrewNote variant="tape" tone="cream" rotation={-1} className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote>
+          <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]">

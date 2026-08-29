@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
+import { finalizeInvitationStep } from "@/lib/trips.functions";
 import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
 import { KrewIcon, KrewMark, KrewHighlight } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
@@ -166,18 +167,15 @@ function StarQuestionnaire() {
   const queryClient = useQueryClient();
   const fetchStar = useServerFn(getStarPreferences);
   const submit = useServerFn(submitStarPreferences);
+  const saveStarSetup = useServerFn(finalizeInvitationStep);
 
   const { data, isLoading } = useQuery({
     queryKey: ["star-prefs", tripId],
     queryFn: () => fetchStar({ data: { tripId } }),
   });
 
-  useEffect(() => {
-    if ((data as any)?.starMode === "participant") {
-      navigate({ to: "/trips/$tripId", params: { tripId }, replace: true });
-    }
-  }, [data, navigate, tripId]);
-
+  const [starMode, setStarMode] = useState<"secret" | "participant">("secret");
+  const [starPaysShare, setStarPaysShare] = useState(true);
   const [wanted, setWanted] = useState<string[]>([]);
   const [breakers, setBreakers] = useState<string[]>([]);
   const [ambiances, setAmbiances] = useState<string[]>([]);
@@ -203,6 +201,10 @@ function StarQuestionnaire() {
   const [monthOffset, setMonthOffset] = useState(0);
 
   const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (data) { setStarMode((data as any).starMode === "participant" ? "participant" : "secret"); setStarPaysShare((data as any).starPaysShare !== false); }
+  }, [data]);
 
   useEffect(() => {
     if (data && !hydrated) {
@@ -291,6 +293,12 @@ function StarQuestionnaire() {
 
   const baseMonth = startOfMonth(new Date());
   const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
+
+  const setupMutation = useMutation({
+    mutationFn: () => saveStarSetup({ data: { tripId, starMode, starPaysShare } }),
+    onSuccess: () => { toast.success("Choix de la Star enregistrés"); queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] }); queryClient.invalidateQueries({ queryKey: ["trip", tripId] }); },
+    onError: (e: any) => toast.error(String(e?.message ?? "Impossible d’enregistrer ces choix").slice(0, 140)),
+  });
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -386,21 +394,13 @@ function StarQuestionnaire() {
         </p>
       </div>
 
-      <section className="space-y-5 border-y border-border/50 py-6">
-        <div className="space-y-1.5">
-          <h2 className="font-display text-2xl font-normal text-foreground">Pour commencer</h2>
-          <p className="text-sm leading-relaxed text-muted-foreground">On reprend d’abord les choix définis pour la Star, comme les premières réponses de son questionnaire.</p>
+      <section className="space-y-6 border-b border-border/50 pb-8">
+        <div className="space-y-1.5"><h2 className="font-display text-2xl font-normal text-foreground">Pour commencer</h2><p className="text-sm leading-relaxed text-muted-foreground">Ces deux choix restent modifiables si l’organisation évolue.</p></div>
+        <div className="space-y-4">
+          <div className="space-y-3"><p className="text-base font-semibold leading-snug text-foreground">Comment participe {starName} à l’organisation ?</p><div className="grid gap-3 sm:grid-cols-2"><SelectableOption active={starMode === "secret"} onClick={() => data.trip.isOwner && setStarMode("secret")} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Mode secret · tu complètes ses réponses</SelectableOption><SelectableOption active={starMode === "participant"} onClick={() => data.trip.isOwner && setStarMode("participant")} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Mode participant · la Star répond elle-même</SelectableOption></div></div>
+          <div className="space-y-3"><p className="text-base font-semibold leading-snug text-foreground">La Star participe-t-elle aux frais ?</p><div className="grid gap-3 sm:grid-cols-2"><SelectableOption active={starPaysShare} onClick={() => data.trip.isOwner && setStarPaysShare(true)} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Oui, sa part reste incluse</SelectableOption><SelectableOption active={!starPaysShare} onClick={() => data.trip.isOwner && setStarPaysShare(false)} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Non, sa part est répartie</SelectableOption></div></div>
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 sm:gap-7">
-          <div className="space-y-2">
-            <p className="text-base font-semibold leading-snug text-foreground">Comment participe {starName} à l’organisation ?</p>
-            <p className="text-sm leading-relaxed text-muted-foreground">Mode secret · tu complètes ses réponses à sa place.</p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-base font-semibold leading-snug text-foreground">La Star participe-t-elle aux frais ?</p>
-            <p className="text-sm leading-relaxed text-muted-foreground">{data.starPaysShare ? "Oui, sa part reste incluse." : "Non, sa part est répartie entre le groupe."}</p>
-          </div>
-        </div>
+        {data.trip.isOwner ? <Button variant="outline" onClick={() => setupMutation.mutate()} disabled={setupMutation.isPending} className="w-full sm:w-auto">{setupMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}Enregistrer ces choix</Button> : null}
       </section>
 
       <div className="pt-2">
@@ -686,7 +686,7 @@ function StarQuestionnaire() {
           <Button
             className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
             size="lg"
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || starMode !== "secret"}
             onClick={() => mutation.mutate()}
           >
             {mutation.isPending ? (
@@ -694,7 +694,7 @@ function StarQuestionnaire() {
             ) : (
               <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
-            {data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
+            {starMode !== "secret" ? "Passe en mode secret pour compléter ce questionnaire" : data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
           </Button>
         </div>
       </div>

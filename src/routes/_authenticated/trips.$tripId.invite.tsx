@@ -241,37 +241,10 @@ function InvitePage() {
         </p>
       </KrewJourneyPageHeader>
 
-      {!inviteStepCompleted ? (
-      <section className="space-y-4 border-b border-border/55 pb-7">
-        <div className="space-y-1">
-          <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
-            <KrewIcon name="invite" tone="plum" size="sm" className="size-5" />
-            Partager le voyage
-          </h2>
-          <p className="text-[14px] leading-relaxed text-muted-foreground">Envoie ce lien à la team : chacun rejoint le même voyage.</p>
-        </div>
-
-        <p className="break-all font-mono text-[12px] leading-relaxed text-foreground/80 sm:text-[13px]">{shareUrl || "…"}</p>
-
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-          <KrewStatefulButton
-            variant="outline"
-            className="w-full sm:w-auto"
-            idleLabel="Copier le lien"
-            loadingLabel="Copie…"
-            successLabel="Lien copié"
-            errorLabel="Réessayer"
-            onAction={() => navigator.clipboard.writeText(shareUrl)}
-          />
-          <button
-            type="button"
-            onClick={shareInvitation}
-            className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-semibold text-primary underline-offset-4 transition-colors hover:underline"
-          >
-            Partager sur WhatsApp <span aria-hidden="true">→</span>
-          </button>
-        </div>
-      </section>
+      {data.isOwner ? (
+        <section className="border-b border-border/45 pb-5">
+          <button type="button" onClick={shareInvitation} className="inline-flex min-h-10 items-center gap-2 text-[14px] font-semibold text-primary underline-offset-4 hover:underline"><KrewIcon name="invite" tone="plum" size="sm" className="size-4" />Inviter via WhatsApp <span aria-hidden="true">→</span></button>
+        </section>
       ) : null}
 
       {data.isOwner ? (
@@ -309,8 +282,8 @@ function InvitePage() {
         </section>
       ) : null}
 
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/45 pb-3">
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/45 pb-2">
           <h2 className="flex items-center gap-2 font-display text-[26px] font-normal text-foreground sm:text-[29px]">
             <KrewIcon name="group" tone="plum" size="sm" className="size-5" />
             La team
@@ -336,12 +309,12 @@ function InvitePage() {
               const isCoOrg = p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId);
 
               return (
-                <div key={p.id} className="grid gap-3 py-4 first:pt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div key={p.id} className="grid gap-2 py-2.5 first:pt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[15px] font-medium text-foreground sm:text-base">{p.display_name ?? p.email}</span>
                       {p.user_id === trip.owner_id ? (
-                        <Badge variant="sun" className="gap-1 px-2 py-0.5 text-[12px] bg-amber-500/10 text-amber-700 border-amber-500/20">
+                        <Badge variant="sun" className="gap-1 border-primary/15 bg-primary/[0.07] px-2 py-0.5 text-[12px] text-primary">
                           <Crown className="size-3" /> Organisateur·rice
                         </Badge>
                       ) : isCoOrg ? (
@@ -350,12 +323,12 @@ function InvitePage() {
                         </Badge>
                       ) : null}
                       {p.isStar ? (
-                        <Badge variant="sun" className="gap-1 px-2 py-0.5 text-[12px] bg-amber-500/10 text-amber-700 border-amber-500/20">
-                          <Star className="size-3 fill-amber-500 text-amber-500" /> Star
+                        <Badge variant="sun" className="gap-1 border-primary/15 bg-primary/[0.07] px-2 py-0.5 text-[12px] text-primary">
+                          <Star className="size-3 text-primary" /> Star
                         </Badge>
                       ) : null}
                     </div>
-                    {p.email ? <p className="break-all text-[13px] text-muted-foreground">{p.email}</p> : null}
+                    {p.email && !p.display_name ? <p className="break-all text-[12px] text-muted-foreground">{p.email}</p> : null}
                   </div>
 
                   <div className="flex items-center gap-2 sm:justify-end">
@@ -415,7 +388,7 @@ function InvitePage() {
         ) : null}
       </section>
 
-      {!inviteStepCompleted && (trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type)) ? (
+      {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
         <section className="space-y-5 border-t border-border/55 pt-7">
           <div className="space-y-1">
             <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
@@ -493,7 +466,7 @@ function InvitePage() {
         <section className="space-y-3 border-t border-primary/20 pt-7">
           <div>
             <h3 className="font-display text-[24px] font-normal text-foreground">Tout est prêt ?</h3>
-            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">Une fois le lien partagé et le rôle de la Star configuré, retourne au voyage pour poursuivre l’organisation.</p>
+            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">Enregistre les choix de la Star puis retourne au voyage pour poursuivre l’organisation.</p>
           </div>
           <Button
             className="w-full sm:w-auto"
@@ -501,7 +474,7 @@ function InvitePage() {
             onClick={() => finishInviteMutation.mutate()}
           >
             {finishInviteMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}
-            Accéder au tableau de bord du voyage
+            {inviteStepCompleted ? "Enregistrer et revenir au voyage" : "Accéder au tableau de bord du voyage"}
           </Button>
         </section>
       ) : (
