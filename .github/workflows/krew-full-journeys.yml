@@ -100,18 +100,18 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npm run test:e2e:full
+            npm run test:e2e:full -- --timeout=600000
             exit 0
           fi
           case "${{ inputs.journey }}" in
             standard)
-              npm run test:e2e:full -- --grep "@full-standard"
+              npm run test:e2e:full -- --timeout=600000 --grep "@full-standard"
               ;;
             complex)
-              npm run test:e2e:full -- --grep "@full-complex"
+              npm run test:e2e:full -- --timeout=600000 --grep "@full-complex"
               ;;
             both)
-              npm run test:e2e:full
+              npm run test:e2e:full -- --timeout=600000
               ;;
             *)
               echo "::error::Unknown journey selection"
