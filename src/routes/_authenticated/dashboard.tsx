@@ -166,15 +166,16 @@ function FeaturedTrip({ trip, onCancel }: { trip: Trip; onCancel: (tripId: strin
 function NotebookTrip({ trip, invited = false, onCancel, index = 0 }: { trip: Trip; invited?: boolean; onCancel?: (tripId: string) => void; index?: number }) {
   const image = tripImage(trip);
   const mobileCompositions = [
-    "rotate-[-1.4deg] -translate-x-1 md:rotate-[-1.4deg] md:translate-x-0",
-    "rotate-[1.1deg] translate-x-1 translate-y-1 md:rotate-[1.1deg] md:translate-x-0 md:translate-y-3",
-    "rotate-[-.35deg] -translate-x-0.5 -translate-y-0.5 md:rotate-[-.7deg] md:translate-x-0 md:translate-y-0",
-    "rotate-[.65deg] translate-x-0.5 translate-y-1 md:rotate-[.8deg] md:translate-x-0 md:translate-y-2",
+    "rotate-[-2.5deg] -translate-x-2 translate-y-1 sm:rotate-[-1.4deg] sm:translate-x-0 sm:translate-y-0",
+    "rotate-[2.2deg] translate-x-2 translate-y-3 sm:rotate-[1.1deg] sm:translate-x-0 sm:translate-y-3",
+    "rotate-[-1.1deg] -translate-x-1 -translate-y-1 sm:rotate-[-.7deg] sm:translate-x-0 sm:translate-y-0",
+    "rotate-[1.8deg] translate-x-1 translate-y-2 sm:rotate-[.8deg] sm:translate-x-0 sm:translate-y-2",
+    "rotate-[-2deg] translate-x-1 translate-y-3 sm:rotate-[-1deg] sm:translate-x-0 sm:translate-y-1",
   ];
   const composition = mobileCompositions[index % mobileCompositions.length];
 
   return (
-    <article className={`group relative w-full max-w-[272px] px-1 py-3 sm:w-[250px] lg:w-[260px] ${composition}`}>
+    <article className={`group relative w-full max-w-[268px] px-1 py-4 sm:w-[250px] sm:max-w-none sm:py-3 lg:w-[260px] ${composition}`}>
       <div className="relative bg-[#fffefa] p-2 pb-4 shadow-[0_11px_24px_-18px_rgba(42,25,37,.26)] ring-1 ring-black/[.05] transition-transform duration-200 group-hover:-translate-y-1">
         {index % 3 === 1 ? <div className="absolute -top-3 left-[34%] z-10"><KrewNote variant="tape" tone="cream" rotation={-2} className="min-w-[52px] px-2 py-0.5 text-transparent select-none">Tape</KrewNote></div> : null}
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
@@ -233,7 +234,7 @@ function Dashboard() {
 
       {tripsError ? <div className="rounded-[28px] border border-destructive/30 bg-destructive/5 p-6"><h2 className="font-display text-lg font-normal text-destructive">Impossible de charger tes voyages</h2><p className="mt-2 text-sm text-muted-foreground">Erreur réelle du chargement : {String((tripsError as any)?.message ?? tripsError)}</p></div> : isLoading ? <div className="space-y-6"><Skeleton className="h-[430px] rounded-[28px]" /><div className="grid gap-6 sm:grid-cols-2"><Skeleton className="h-64 rounded-[24px]" /><Skeleton className="h-64 rounded-[24px]" /></div></div> : trips.length === 0 && invitations.length === 0 ? <div className="relative overflow-hidden rounded-[36px_28px_40px_30px] border border-dashed border-sage/50 bg-surface/30 p-10 text-center sm:p-16"><KrewOrganicBlob tone="sage" variant="soft" className="absolute inset-x-[15%] top-5 h-[150px] opacity-40" /><img src="/brand/otter-states/trip-progress.png" alt="" className="relative mx-auto mb-3 h-auto w-[82px] object-contain sm:w-[96px]" /><KrewNote variant="margin" rotation={-2} className="relative mb-1 text-sage">Première page à écrire</KrewNote><h2 className="relative font-display text-3xl font-normal text-foreground">Aucun voyage pour l'instant</h2><p className="relative mx-auto mt-2 max-w-md text-sm text-muted-foreground">Lance un voyage et construis le plan avec toute la KREW.</p><Button asChild size="lg" className="relative mt-6 rounded-xl"><Link to="/trips/new"><KrewIcon name="plus" size="sm" className="mr-1.5 size-4" />Créer mon premier voyage</Link></Button></div> : (
         <div className="space-y-14 sm:space-y-16">
-          {featuredTrip ? <section><SectionHeading note={otherTrips.length ? `${trips.length} voyages en préparation` : "le prochain à faire avancer"}>J'organise</SectionHeading><FeaturedTrip trip={featuredTrip} onCancel={(id) => cancelMutation.mutate(id)} />{otherTrips.length ? <div className="mt-7 flex flex-wrap items-start justify-center gap-x-9 gap-y-7 sm:mt-5 md:justify-center">{otherTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onCancel={(id) => cancelMutation.mutate(id)} />)}</div> : null}</section> : null}
+          {featuredTrip ? <section><SectionHeading note={otherTrips.length ? `${trips.length} voyages en préparation` : "le prochain à faire avancer"}>J'organise</SectionHeading><FeaturedTrip trip={featuredTrip} onCancel={(id) => cancelMutation.mutate(id)} />{otherTrips.length ? <div className="mt-8 border-t border-sage/25 pt-7 sm:mt-9 sm:pt-8"><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-8 md:justify-center">{otherTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onCancel={(id) => cancelMutation.mutate(id)} />)}</div></div> : null}</section> : null}
           {invitations.length ? <section className="relative pt-2"><KrewOrganicBlob tone="sage" variant="soft" className="absolute -right-16 top-0 -z-10 h-[180px] w-[320px] opacity-30" /><SectionHeading note="les plans où tu fais partie de la team">Je participe</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{invitations.filter((i) => i.trips).map((i, index) => <NotebookTrip key={i.id} trip={i.trips as Trip} invited index={index} />)}</div></section> : null}
           {archivedTrips.length ? <section className="border-t border-dashed border-border/70 pt-7 opacity-75"><SectionHeading note="rien n'est perdu">Voyages archivés</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{archivedTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} />)}</div></section> : null}
         </div>
