@@ -293,7 +293,10 @@ function StarQuestionnaire() {
   const setupMutation = useMutation({
     mutationFn: () => saveStarSetup({ data: { tripId, starMode, starPaysShare } }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] }); queryClient.invalidateQueries({ queryKey: ["trip", tripId] }); },
-    onError: (e: any) => toast.error(String(e?.message ?? "Impossible d’enregistrer ces choix").slice(0, 140)),
+    onError: (e: any) => {
+      console.error("Impossible d'enregistrer les choix de la Star:", e);
+      toast.error("Impossible d’enregistrer ces choix pour le moment.");
+    },
   });
 
   const mutation = useMutation({
@@ -332,7 +335,10 @@ function StarQuestionnaire() {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
     },
-    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 120)),
+    onError: (e: any) => {
+      console.error("Impossible d'enregistrer les préférences de la Star:", e);
+      toast.error("Impossible d’enregistrer les préférences de la Star pour le moment.");
+    },
   });
 
   if (isLoading) {
@@ -347,7 +353,7 @@ function StarQuestionnaire() {
     return (
       <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 text-center space-y-4">
         <p className="text-muted-foreground">
-          Ce type de voyage n’a pas de personne principale (star).
+          Ce voyage n’a pas de Star.
         </p>
         <Button asChild variant="outline" className="rounded-xl">
           <Link to="/trips/$tripId" params={{ tripId }}>
@@ -358,7 +364,7 @@ function StarQuestionnaire() {
     );
   }
 
-  const starName = data.trip.celebratedPerson || "la personne principale";
+  const starName = data.trip.celebratedPerson || "la Star";
 
   return (
     <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 space-y-8">
@@ -514,7 +520,7 @@ function StarQuestionnaire() {
         <section className="bg-surface/50 rounded-[20px] p-5 sm:p-7 pb-9 mb-9 space-y-6 font-sans">
           <h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground"><KrewIcon name="accommodation" tone="plum" size="sm" className="size-5 shrink-0" />Hébergement</h2>
           <div className="space-y-3">
-            <Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label>
+            <Label className="font-semibold block text-base text-foreground">Pour {starName}, l’hébergement serait plutôt…</Label>
             <div className="grid grid-cols-1 gap-3">
               {[
                 ["base_only", "Un point de chute"],
@@ -679,7 +685,7 @@ function StarQuestionnaire() {
             ) : (
               <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
-            {starMode !== "secret" ? "Passe en mode secret pour compléter ce questionnaire" : data.preferences ? "Modifier" : "Enregistrer les préférences de la star"}
+            {starMode !== "secret" ? "La Star répond elle-même en mode participant" : data.preferences ? "Enregistrer les modifications" : "Enregistrer les préférences de la Star"}
           </Button>
         </div>
       </div>
