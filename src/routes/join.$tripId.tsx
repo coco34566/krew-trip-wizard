@@ -60,6 +60,10 @@ function JoinTripPage() {
   const search = Route.useSearch();
   const tripId = normalizeTripId(params.tripId);
   const token = search.token?.trim() || undefined;
+  const invitePath = token
+    ? `/join/${tripId}?token=${encodeURIComponent(token)}`
+    : `/join/${tripId}`;
+  const authNext = encodeURIComponent(invitePath);
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const fetchPreview = useServerFn(getJoinPreview);
@@ -150,11 +154,7 @@ function JoinTripPage() {
 
   async function handleJoin() {
     if (!isAuthenticated) {
-      const invitePath = token
-        ? `/join/${tripId}?token=${encodeURIComponent(token)}`
-        : `/join/${tripId}`;
-      const next = encodeURIComponent(invitePath);
-      navigate({ to: "/auth", search: { next } as any });
+      navigate({ to: "/auth", search: { next: authNext } as any });
       return;
     }
     if (!firstName.trim()) {
@@ -202,7 +202,15 @@ function JoinTripPage() {
             <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">{error}</p>
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <Button asChild><Link to="/">Retour à l&apos;accueil</Link></Button>
-              <Link to="/auth" search={{}} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary">Se connecter</Link>
+              {!isAuthenticated ? (
+                <Link
+                  to="/auth"
+                  search={{ next: authNext } as any}
+                  className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary"
+                >
+                  Se connecter
+                </Link>
+              ) : null}
             </div>
           </div>
         ) : preview ? (
