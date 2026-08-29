@@ -67,6 +67,7 @@ jobs:
         run: npm run test:e2e:smoke
       - name: Upload Playwright report
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: krew-smoke-playwright-report
