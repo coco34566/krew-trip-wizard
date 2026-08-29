@@ -1,0 +1,1 @@
+This branch intentionally contains only the participant lifecycle hardening migration. No application code changes are required for this lot.
