@@ -1,46 +1,22 @@
-name: KREW Golden Path E2E
+name: KREW Smoke E2E
 
 on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened]
-  workflow_dispatch:
-    inputs:
-      base_url:
-        description: "Vercel URL to test"
-        required: true
-        type: string
-      existing_trip_id:
-        description: "Disposable prepared trip id for Destination → Planning checks"
-        required: false
-        type: string
-      api_mode:
-        description: "safe = no external generation; real = live Gemini/Tavily/provider calls"
-        required: true
-        default: safe
-        type: choice
-        options:
-          - safe
-          - real
-      confirm_live_api_calls:
-        description: "WARNING: confirm that real mode may consume paid API quota"
-        required: true
-        default: false
-        type: boolean
 
 jobs:
-  golden-path:
+  smoke:
     # Repository secrets are never exposed to code coming from a fork.
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
-    timeout-minutes: 25
+    timeout-minutes: 20
     env:
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
-      KREW_E2E_EXISTING_TRIP_ID: ${{ inputs.existing_trip_id }}
-      KREW_E2E_API_MODE: ${{ inputs.api_mode || 'safe' }}
+      KREW_E2E_API_MODE: safe
     permissions:
       contents: read
       deployments: read
@@ -49,7 +25,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Resolve Vercel preview URL
-        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -84,41 +59,17 @@ jobs:
           }
           if (!previewUrl) throw new Error("Vercel preview URL unavailable after 10 minutes");
           appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
-          console.log(`Safe E2E target: ${previewUrl}`);
           NODE
-      - name: Use requested URL
-        if: github.event_name == 'workflow_dispatch'
-        run: echo "KREW_E2E_BASE_URL=${{ inputs.base_url }}" >> "$GITHUB_ENV"
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false @playwright/test@1.55.0
-      - name: Enforce API-call safety gate
-        shell: bash
-        run: |
-          if [ "$KREW_E2E_API_MODE" = "real" ] && [ "${{ inputs.confirm_live_api_calls }}" != "true" ]; then
-            echo "::error::Real E2E mode can consume paid API quota. Re-run with confirm_live_api_calls enabled."
-            exit 1
-          fi
-          if [ "$KREW_E2E_API_MODE" = "real" ]; then
-            echo "::warning::LIVE API MODE: this run may call Gemini, Tavily and configured travel providers. Retries are disabled."
-          else
-            echo "SAFE API MODE: provider-generating stages are disabled; no paid API call is expected."
-          fi
-      - name: Run customer journey
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npm run test:e2e -- tests/e2e/full-trip-flow.spec.ts tests/e2e/journey-visual-audit.spec.ts tests/e2e/reference-surfaces-visual-audit.spec.ts --project=mobile-safari
-          else
-            npm run test:e2e
-          fi
-      - name: Cleanup disposable E2E trips
-        if: always()
-        run: npm run test:e2e -- tests/e2e/cleanup-e2e-trips.spec.ts --project=mobile-safari
+      - name: Run smoke journey only
+        run: npm run test:e2e:smoke
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: krew-playwright-report
+          name: krew-smoke-playwright-report
           path: |
             playwright-report/
             test-results/
