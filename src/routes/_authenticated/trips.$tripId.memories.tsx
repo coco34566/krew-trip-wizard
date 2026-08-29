@@ -14,14 +14,30 @@ const MAX_PHOTO_SIZE_BYTES = 20 * 1024 * 1024;
 const PHOTO_BOOK_PARTNER = { name: "CEWE", url: "https://www.cewe.fr/livres-photo-cewe.html", affiliateDisclosure: "KREW peut percevoir une rémunération si tu effectues un achat via un lien partenaire. Cela ne modifie pas le prix payé." };
 export const Route = createFileRoute("/_authenticated/trips/$tripId/memories")({ head: () => ({ meta: [{ title: "Souvenirs du voyage — KREW" }] }), component: MemoriesPage });
 type Photo = { id:string; trip_id:string; url:string; author:string; likes:number; likedByMe:boolean; created_at:string; storage_path?:string|null; owner_user_id?:string|null; original_filename?:string|null };
-async function signPhotoUrls(rows:any[]):Promise<Photo[]> { return Promise.all(rows.map(async row => { const photo={...row,likedByMe:Array.isArray(row.trip_photo_likes)&&row.trip_photo_likes.length>0};delete photo.trip_photo_likes;if(!row.storage_path)return {...photo,url:row.url||""} as Photo;const {data,error}=await supabase.storage.from("trip-photos").createSignedUrl(row.storage_path,3600);if(error)throw error;return {...photo,url:data.signedUrl} as Photo; })); }
+
+async function signPhotoUrls(rows:any[]):Promise<Photo[]> {
+ const photos=rows.map(row=>{const photo={...row,likedByMe:Array.isArray(row.trip_photo_likes)&&row.trip_photo_likes.length>0};delete photo.trip_photo_likes;return photo;});
+ const paths=photos.map(photo=>photo.storage_path).filter((path):path is string=>Boolean(path));
+ if(!paths.length)return photos.map(photo=>({...photo,url:photo.url||""})) as Photo[];
+ const {data,error}=await supabase.storage.from("trip-photos").createSignedUrls(paths,3600);
+ if(error)throw error;
+ const signedByPath=new Map<string,string>();
+ for(let i=0;i<(data||[]).length;i++){
+   const item=(data||[])[i] as any;
+   if(item?.error)throw new Error(String(item.error));
+   const path=item?.path||paths[i];
+   if(path&&item?.signedUrl)signedByPath.set(path,item.signedUrl);
+ }
+ return photos.map(photo=>photo.storage_path?{...photo,url:signedByPath.get(photo.storage_path)||""}:{...photo,url:photo.url||""}) as Photo[];
+}
 function fileName(p:Photo,i:number){return (p.original_filename?.trim()||`photo-${String(i+1).padStart(3,"0")}.jpg`).replace(/[\\/:*?"<>|]/g,"-");}
+function photoAlt(p:Photo){return p.original_filename?.trim()?`Souvenir : ${p.original_filename.trim()}`:`Souvenir partagé par ${p.author||"le groupe"}`;}
 function buildKrewSelection(photos:Photo[]){if(photos.length<=12)return [...photos];const target=Math.min(120,Math.max(12,Math.round(photos.length*.14)));const buckets=new Map<string,Photo[]>();for(const p of [...photos].sort((a,b)=>b.likes-a.likes)){const d=new Date(p.created_at).toISOString().slice(0,10);const b=buckets.get(d)||[];b.push(p);buckets.set(d,b);}const days=[...buckets.keys()].sort();const out:Photo[]=[];let i=0;while(out.length<target&&days.length){const d=days[i%days.length],b=buckets.get(d)!;const p=b.shift();if(p)out.push(p);if(!b.length){buckets.delete(d);days.splice(i%days.length,1);i=0;}else i++;}return out.sort((a,b)=>+new Date(a.created_at)-+new Date(b.created_at));}
 
 function MemoriesPage(){
  const {tripId}=Route.useParams();const fileInputRef=useRef<HTMLInputElement>(null);const qc=useQueryClient();const [userId,setUserId]=useState<string|null>(null);const [userName,setUserName]=useState("Moi");const [uploading,setUploading]=useState(false);const [downloading,setDownloading]=useState(false);const [showAlbum,setShowAlbum]=useState(false);const [showPartner,setShowPartner]=useState(false);const [permission,setPermission]=useState<"granted"|"denied"|"prompt">("prompt");const [showModal,setShowModal]=useState(false);
  useEffect(()=>{const saved=localStorage.getItem("krew_photo_permission");if(saved==="granted"||saved==="denied")setPermission(saved);supabase.auth.getUser().then(({data:{user}})=>{if(!user)return;setUserId(user.id);supabase.from("trip_participants").select("display_name").eq("trip_id",tripId).eq("user_id",user.id).maybeSingle().then(({data})=>{if(data?.display_name)setUserName(data.display_name);});});},[tripId]);
- const {data:photos=[],isLoading}=useQuery<Photo[]>({queryKey:["trip-photos",tripId],queryFn:async()=>{const {data,error}=await supabase.from("trip_photos" as any).select("*, trip_photo_likes(user_id)").eq("trip_id",tripId).is("deleted_at",null).order("created_at",{ascending:false});if(error)throw error;return signPhotoUrls(data||[]);}});const selection=buildKrewSelection(photos);
+ const {data:photos=[],isLoading,isError,refetch}=useQuery<Photo[]>({queryKey:["trip-photos",tripId],queryFn:async()=>{const {data,error}=await supabase.from("trip_photos" as any).select("*, trip_photo_likes(user_id)").eq("trip_id",tripId).is("deleted_at",null).order("created_at",{ascending:false});if(error)throw error;return signPhotoUrls(data||[]);}});const selection=buildKrewSelection(photos);
  const daysMap = new Map<string, Photo[]>();
  for (const p of selection) {
    const key = new Date(p.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -31,15 +47,28 @@ function MemoriesPage(){
  }
  const like=useMutation({mutationFn:async(id:string)=>{const {error}=await supabase.rpc("toggle_trip_photo_like" as any,{p_photo_id:id});if(error)throw error;},onSuccess:()=>qc.invalidateQueries({queryKey:["trip-photos",tripId]}),onError:e=>{console.error("Impossible d'enregistrer l'appréciation:",e);toast.error("Impossible d’enregistrer ton choix pour le moment.");}});
  const remove=useMutation({mutationFn:async(p:Photo)=>{if(p.storage_path){const {error}=await supabase.storage.from("trip-photos").remove([p.storage_path]);if(error)throw error;}const {error}=await supabase.from("trip_photos" as any).update({deleted_at:new Date().toISOString()}).eq("id",p.id);if(error)throw error;},onSuccess:()=>{qc.invalidateQueries({queryKey:["trip-photos",tripId]});toast.success("Photo supprimée");},onError:e=>{console.error("Impossible de supprimer la photo:",e);toast.error("Impossible de supprimer cette photo pour le moment.");}});
- const download=async(isSelection=false)=>{const source=isSelection?selection:photos;if(!source.length)return;setDownloading(true);try{const used=new Set<string>();const files=source.filter((p,i)=>{const n=fileName(p,i);if(used.has(n))return false;used.add(n);return true;}).map((p,i)=>({name:fileName(p,i),url:p.url}));const blob=await createPhotosZip(files);const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=`krew-${isSelection?"selection":"photos"}-${tripId}.zip`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);toast.success(`${files.length} photo${files.length>1?"s":""} prête${files.length>1?"s":""} à télécharger`);}catch(e){console.error("Impossible de préparer le téléchargement:",e);toast.error("Impossible de préparer le téléchargement pour le moment.");}finally{setDownloading(false);}};
+ const download=async(isSelection=false)=>{const source=isSelection?selection:photos;if(!source.length||downloading)return;setDownloading(true);try{const used=new Set<string>();const files=source.filter((p,i)=>{const n=fileName(p,i);if(used.has(n))return false;used.add(n);return true;}).map((p,i)=>({name:fileName(p,i),url:p.url}));const blob=await createPhotosZip(files);const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=`krew-${isSelection?"selection":"photos"}-${tripId}.zip`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);toast.success(`${files.length} photo${files.length>1?"s":""} prête${files.length>1?"s":""} à télécharger`);}catch(e){console.error("Impossible de préparer le téléchargement:",e);toast.error("Impossible de préparer le téléchargement pour le moment.");}finally{setDownloading(false);}};
  const upload=async(e:React.ChangeEvent<HTMLInputElement>)=>{const files=Array.from(e.target.files||[]);e.target.value="";if(!userId||!files.length){if(!userId&&files.length)toast.error("Tu dois être connecté pour importer une photo.");return;}setUploading(true);let added=0,duplicates=0;try{for(const file of files){if(!file.type.startsWith("image/")){toast.error(`${file.name} n'est pas une image prise en charge.`);continue;}if(file.size>MAX_PHOTO_SIZE_BYTES){toast.error(`${file.name} dépasse la limite de 20 Mo.`);continue;}const hash=await sha256File(file);const {data:dup,error:de}=await supabase.from("trip_photos" as any).select("id").eq("trip_id",tripId).eq("content_hash",hash).is("deleted_at",null).maybeSingle();if(de)throw de;if(dup){duplicates++;continue;}const id=crypto.randomUUID(),ext=file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg",path=`${tripId}/${userId}/${id}.${ext}`;const {error:ue}=await supabase.storage.from("trip-photos").upload(path,file,{contentType:file.type,upsert:false});if(ue)throw ue;const {error:ie}=await supabase.from("trip_photos" as any).insert({id,trip_id:tripId,owner_user_id:userId,storage_path:path,author:userName,likes:0,content_hash:hash,original_filename:file.name,mime_type:file.type,file_size_bytes:file.size});if(ie){await supabase.storage.from("trip-photos").remove([path]);throw ie;}added++;}await qc.invalidateQueries({queryKey:["trip-photos",tripId]});if(added)toast.success(`${added} photo${added>1?"s":""} ajoutée${added>1?"s":""} à l’album`);if(duplicates)toast.info(`${duplicates} doublon${duplicates>1?"s":""} ignoré${duplicates>1?"s":""}`);}catch(e){console.error("Impossible d'importer les photos:",e);toast.error("Impossible d’importer les photos pour le moment.");}finally{setUploading(false);}};
+
+ if(isError){
+   return (
+     <main className="mx-auto max-w-[1020px] space-y-6 px-4 py-8 sm:px-6 sm:py-12 lg:px-10">
+       <Link to="/trips/$tripId" params={{tripId}} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4"/> Retour au voyage</Link>
+       <section className="rounded-[24px] border border-border/60 bg-surface/30 p-6 text-center sm:p-8" role="alert">
+         <h1 className="font-display text-2xl font-normal text-foreground">Impossible de charger les souvenirs</h1>
+         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">L’album n’est pas disponible pour le moment. Tes photos n’ont pas été supprimées.</p>
+         <Button className="mt-5" onClick={()=>refetch()}>Réessayer</Button>
+       </section>
+     </main>
+   );
+ }
 
  return (
     <main className="mx-auto max-w-[1020px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
@@ -81,24 +110,24 @@ function MemoriesPage(){
         <div className="flex flex-wrap gap-2">
           {photos.length > 0 && (
             <>
-              <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => download(false)} disabled={downloading}>
-                <Download className="size-3.5 shrink-0" /> Toutes ({photos.length})
+              <Button variant="outline" size="sm" className="min-h-10 rounded-xl text-xs font-medium" onClick={() => download(false)} disabled={downloading} aria-busy={downloading}>
+                {downloading ? <Loader2 className="size-3.5 shrink-0 animate-spin" /> : <Download className="size-3.5 shrink-0" />} {downloading ? "Préparation…" : `Toutes (${photos.length})`}
               </Button>
-              <Button size="sm" className="rounded-xl text-xs font-medium" onClick={() => download(true)} disabled={downloading}>
-                <KrewIcon name="favorite" tone="cream" size="sm" className="size-3.5 shrink-0" /> Sélection KREW ({selection.length})
+              <Button size="sm" className="min-h-10 rounded-xl text-xs font-medium" onClick={() => download(true)} disabled={downloading} aria-busy={downloading}>
+                {downloading ? <Loader2 className="size-3.5 shrink-0 animate-spin" /> : <KrewIcon name="favorite" tone="cream" size="sm" className="size-3.5 shrink-0" />} {downloading ? "Préparation…" : `Sélection KREW (${selection.length})`}
               </Button>
-              <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => setShowAlbum(true)}>
+              <Button variant="outline" size="sm" className="min-h-10 rounded-xl text-xs font-medium" onClick={() => setShowAlbum(true)}>
                 <BookOpen className="size-3.5 shrink-0" /> Album
               </Button>
             </>
           )}
           {photos.length > 0 && (
-            <Button variant="outline" size="sm" className="rounded-xl text-xs font-medium" onClick={() => setShowPartner(true)}>
+            <Button variant="outline" size="sm" className="min-h-10 rounded-xl text-xs font-medium" onClick={() => setShowPartner(true)}>
               <ExternalLink className="size-3.5 shrink-0" /> Imprimer
             </Button>
           )}
           {permission !== "prompt" && (
-            <Button variant="ghost" size="sm" className="rounded-xl text-xs" onClick={() => { localStorage.removeItem("krew_photo_permission"); setPermission("prompt"); }}>
+            <Button variant="ghost" size="icon" className="rounded-xl" aria-label="Réinitialiser l’autorisation d’import de photos" onClick={() => { localStorage.removeItem("krew_photo_permission"); setPermission("prompt"); }}>
               <Settings className="size-3.5 shrink-0" />
             </Button>
           )}
@@ -133,15 +162,16 @@ function MemoriesPage(){
           </p>
         </div>
         <div className="pt-1">
-          <Button size="sm" className="rounded-xl font-medium" disabled={uploading} onClick={() => permission === "granted" ? fileInputRef.current?.click() : setShowModal(true)}>
+          <Button size="sm" className="min-h-10 rounded-xl font-medium" disabled={uploading} aria-busy={uploading} onClick={() => permission === "granted" ? fileInputRef.current?.click() : setShowModal(true)}>
             {uploading ? <><Loader2 className="size-3.5 animate-spin shrink-0" /> Importation…</> : "Choisir des photos"}
           </Button>
         </div>
       </section>
 
       {isLoading ? (
-        <div className="py-12 text-center">
+        <div className="py-12 text-center" role="status" aria-live="polite">
           <Loader2 className="mx-auto animate-spin text-primary size-6" />
+          <span className="sr-only">Chargement des souvenirs…</span>
         </div>
       ) : !photos.length ? null : (
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
@@ -150,7 +180,7 @@ function MemoriesPage(){
             return (
               <article key={p.id} className={cn("group overflow-hidden rounded-[18px] border border-border/40 bg-background transition-transform duration-200 hover:-translate-y-0.5 shadow-2xs", hasRotation)}>
                 <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-                  <img src={p.url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
+                  <img src={p.url} alt={photoAlt(p)} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
                   {p.likes > 0 ? (
                     <div className="absolute top-2.5 right-2.5 z-10">
                       <KrewMark type="heart" tone="plum" size="sm" className="size-5" />
@@ -159,13 +189,13 @@ function MemoriesPage(){
                 </div>
                 <div className="p-3.5 flex items-center justify-between text-[13px] sm:text-sm text-muted-foreground font-sans">
                   <span>Par <strong className="text-foreground font-semibold">{p.author}</strong></span>
-                  <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => like.mutate(p.id)} className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer" aria-label={p.likedByMe ? "Retirer mon appréciation" : "J’aime cette photo"}>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => like.mutate(p.id)} disabled={like.isPending} aria-busy={like.isPending} className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg px-2 hover:text-primary transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-60" aria-label={p.likedByMe ? "Retirer mon appréciation" : "J’aime cette photo"}>
                       <KrewIcon name="favorite" tone={p.likedByMe ? "plum" : "muted"} size="sm" className="size-3.5" />
                       <span className="font-mono text-xs font-semibold">{p.likes}</span>
                     </button>
                     {p.owner_user_id === userId && (
-                      <button type="button" onClick={() => remove.mutate(p)} className="hover:text-destructive transition-colors cursor-pointer" aria-label="Supprimer la photo">
+                      <button type="button" onClick={() => remove.mutate(p)} disabled={remove.isPending} aria-busy={remove.isPending} className="inline-flex size-10 items-center justify-center rounded-lg hover:text-destructive transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-60" aria-label="Supprimer la photo">
                         <Trash2 className="size-3.5" />
                       </button>
                     )}
@@ -178,20 +208,20 @@ function MemoriesPage(){
       )}
 
       {showModal && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="photo-permission-title">
           <div className="bg-card border border-border/60 rounded-2xl p-6 max-w-md space-y-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-normal text-foreground">Autoriser l’import de photos</h3>
-              <button type="button" onClick={() => setShowModal(false)} aria-label="Fermer"><X className="size-4" /></button>
+            <div className="flex items-center justify-between gap-3">
+              <h3 id="photo-permission-title" className="font-display text-xl font-normal text-foreground">Autoriser l’import de photos</h3>
+              <button type="button" onClick={() => setShowModal(false)} aria-label="Fermer" className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg"><X className="size-4" /></button>
             </div>
             <p className="text-[13px] text-muted-foreground font-sans leading-relaxed">
               Les photos sont stockées dans un espace privé et accessibles uniquement aux participants autorisés.
             </p>
             <div className="flex gap-2 pt-2">
-              <Button size="sm" className="rounded-xl font-medium w-full" onClick={() => { localStorage.setItem("krew_photo_permission", "granted"); setPermission("granted"); setShowModal(false); setTimeout(() => fileInputRef.current?.click(), 150); }}>
+              <Button size="sm" className="min-h-10 rounded-xl font-medium w-full" onClick={() => { localStorage.setItem("krew_photo_permission", "granted"); setPermission("granted"); setShowModal(false); setTimeout(() => fileInputRef.current?.click(), 150); }}>
                 Autoriser
               </Button>
-              <Button variant="outline" size="sm" className="rounded-xl font-medium w-full" onClick={() => { localStorage.setItem("krew_photo_permission", "denied"); setPermission("denied"); setShowModal(false); }}>
+              <Button variant="outline" size="sm" className="min-h-10 rounded-xl font-medium w-full" onClick={() => { localStorage.setItem("krew_photo_permission", "denied"); setPermission("denied"); setShowModal(false); }}>
                 Refuser
               </Button>
             </div>
@@ -200,19 +230,19 @@ function MemoriesPage(){
       )}
 
       {showAlbum && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 overflow-y-auto p-4 sm:p-8">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 overflow-y-auto p-4 sm:p-8" role="dialog" aria-modal="true" aria-labelledby="photo-album-title">
           <div className="mx-auto max-w-5xl rounded-[28px] bg-card border border-border/60 shadow-xl overflow-hidden">
-            <div className="p-5 sm:p-7 flex items-center justify-between border-b border-border/50">
+            <div className="p-5 sm:p-7 flex items-center justify-between border-b border-border/50 gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Souvenirs KREW</p>
-                <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">Notre voyage en images</h2>
+                <h2 id="photo-album-title" className="font-display text-2xl sm:text-3xl font-normal text-foreground">Notre voyage en images</h2>
                 <p className="text-[13px] text-muted-foreground font-sans mt-0.5">{selection.length} moments sélectionnés · {daysMap.size} journée(s)</p>
               </div>
-              <button type="button" onClick={() => setShowAlbum(false)} aria-label="Fermer"><X className="size-5" /></button>
+              <button type="button" onClick={() => setShowAlbum(false)} aria-label="Fermer" className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg"><X className="size-5" /></button>
             </div>
             <div className="p-5 sm:p-8 space-y-10">
               <div className="rounded-[24px] overflow-hidden border border-border/50 bg-muted aspect-[16/8] relative">
-                {selection[0] && <img src={selection[0].url} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+                {selection[0] && <img src={selection[0].url} alt={photoAlt(selection[0])} className="absolute inset-0 w-full h-full object-cover" />}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-6 sm:p-10">
                   <div className="text-white">
                     <p className="text-xs uppercase tracking-[0.2em] font-mono">KREW</p>
@@ -228,7 +258,7 @@ function MemoriesPage(){
                     {items.map((p, i) => (
                       <figure key={p.id} className="space-y-1">
                         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-muted border border-border/40">
-                          <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          <img src={p.url} alt={photoAlt(p)} className="w-full h-full object-cover" loading="lazy" />
                         </div>
                         <figcaption className="text-xs text-muted-foreground truncate font-sans">{p.original_filename || `Souvenir ${i + 1}`}</figcaption>
                       </figure>
@@ -238,9 +268,9 @@ function MemoriesPage(){
               ))}
             </div>
             <div className="p-5 sm:p-7 border-t border-border/50 flex flex-wrap justify-end gap-2">
-              <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setShowAlbum(false)}>Fermer</Button>
-              <Button size="sm" className="rounded-xl font-medium" onClick={() => download(true)} disabled={downloading}>
-                <Download className="size-3.5 shrink-0" /> Télécharger la sélection
+              <Button variant="outline" size="sm" className="min-h-10 rounded-xl" onClick={() => setShowAlbum(false)}>Fermer</Button>
+              <Button size="sm" className="min-h-10 rounded-xl font-medium" onClick={() => download(true)} disabled={downloading} aria-busy={downloading}>
+                {downloading ? <Loader2 className="size-3.5 shrink-0 animate-spin" /> : <Download className="size-3.5 shrink-0" />} {downloading ? "Préparation…" : "Télécharger la sélection"}
               </Button>
             </div>
           </div>
@@ -248,14 +278,14 @@ function MemoriesPage(){
       )}
 
       {showPartner && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="photo-partner-title">
           <div className="w-full max-w-md rounded-2xl bg-card border border-border/60 p-6 space-y-5 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">Prestataire externe</p>
-                <h2 className="font-display text-2xl font-normal text-foreground">Créer un album photo</h2>
+                <h2 id="photo-partner-title" className="font-display text-2xl font-normal text-foreground">Créer un album photo</h2>
               </div>
-              <button type="button" onClick={() => setShowPartner(false)} aria-label="Fermer"><X className="size-4" /></button>
+              <button type="button" onClick={() => setShowPartner(false)} aria-label="Fermer" className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg"><X className="size-4" /></button>
             </div>
             <p className="text-[13px] text-muted-foreground font-sans leading-relaxed">
               KREW ne vend ni n&apos;imprime l&apos;album. Tu vas être redirigé·e vers <strong>{PHOTO_BOOK_PARTNER.name}</strong>, un prestataire externe, pour créer et commander ton album.
@@ -268,8 +298,8 @@ function MemoriesPage(){
             </div>
             <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed font-sans">{PHOTO_BOOK_PARTNER.affiliateDisclosure}</p>
             <div className="flex gap-2 justify-end pt-1">
-              <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setShowPartner(false)}>Annuler</Button>
-              <Button size="sm" className="rounded-xl font-medium" asChild>
+              <Button variant="outline" size="sm" className="min-h-10 rounded-xl" onClick={() => setShowPartner(false)}>Annuler</Button>
+              <Button size="sm" className="min-h-10 rounded-xl font-medium" asChild>
                 <a href={PHOTO_BOOK_PARTNER.url} target="_blank" rel="noopener noreferrer">
                   Ouvrir {PHOTO_BOOK_PARTNER.name} <ExternalLink className="size-3.5 ml-1" />
                 </a>
