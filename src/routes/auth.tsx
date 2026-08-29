@@ -35,24 +35,28 @@ function AuthPage() {
   const { isAuthenticated, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
   const [showConfirmationSent, setShowConfirmationSent] = useState(false);
   const [resending, setResending] = useState(false);
-  const { next } = Route.useSearch();
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const { next, mode } = Route.useSearch();
 
-  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const safeNext = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const isRecovery = mode === "recovery";
   const returnUrl = () => typeof window === "undefined" ? undefined : safeNext ? `${window.location.origin}${safeNext}` : window.location.origin;
 
   function goAfterAuth() {
-    if (next && next.startsWith("/")) navigate({ to: next as any, replace: true });
+    if (safeNext) navigate({ to: safeNext as any, replace: true });
     else navigate({ to: "/dashboard", replace: true });
   }
 
   useEffect(() => {
-    if (!loading && isAuthenticated) goAfterAuth();
-  }, [isAuthenticated, loading, navigate, next]);
+    if (!isRecovery && !loading && isAuthenticated) goAfterAuth();
+  }, [isAuthenticated, isRecovery, loading, safeNext]);
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
@@ -69,6 +73,57 @@ function AuthPage() {
       return;
     }
     goAfterAuth();
+  }
+
+  async function requestPasswordReset() {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      toast.error("Renseigne ton adresse e-mail pour recevoir le lien de réinitialisation.");
+      return;
+    }
+
+    setResetBusy(true);
+    const redirectTo = typeof window === "undefined"
+      ? undefined
+      : `${window.location.origin}/auth?mode=recovery`;
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      normalizedEmail,
+      redirectTo ? { redirectTo } : undefined,
+    );
+    setResetBusy(false);
+
+    if (error) {
+      console.error("Erreur de réinitialisation du mot de passe Supabase:", error);
+      toast.error("Impossible d’envoyer le lien de réinitialisation pour le moment.");
+      return;
+    }
+
+    setResetEmailSent(true);
+    toast.success("Lien de réinitialisation envoyé");
+  }
+
+  async function updateRecoveredPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (password.length < 6) {
+      toast.error("Choisis un mot de passe d’au moins 6 caractères.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error("Les deux mots de passe ne correspondent pas.");
+      return;
+    }
+
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
+    if (error) {
+      console.error("Erreur de mise à jour du mot de passe Supabase:", error);
+      toast.error("Ce lien a peut-être expiré. Demande un nouveau lien de réinitialisation.");
+      return;
+    }
+
+    toast.success("Mot de passe mis à jour");
+    navigate({ to: "/dashboard", replace: true });
   }
 
   async function signUp(e: React.FormEvent) {
@@ -96,7 +151,7 @@ function AuthPage() {
       return;
     }
 
-    navigate({ to: "/dashboard" });
+    goAfterAuth();
   }
 
   async function resendConfirmationEmail() {
@@ -118,6 +173,42 @@ function AuthPage() {
     } else {
       toast.success("E-mail de confirmation envoyé");
     }
+  }
+
+  if (isRecovery) {
+    return (
+      <main className="relative min-h-screen overflow-hidden bg-background px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+        <KrewOrganicBlob tone="sage" variant="soft" className="pointer-events-none absolute -left-16 -top-16 h-[260px] w-[340px] opacity-35" />
+        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-[560px] flex-col justify-center">
+          <Link to="/" className="mb-10 w-fit"><Logo size="lg" withTagline /></Link>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="font-display text-[36px] font-normal leading-[0.98] text-foreground sm:text-[44px]">Choisis un nouveau mot de passe</h1>
+              <p className="text-[15px] leading-relaxed text-muted-foreground">Une fois enregistré, tu retrouveras directement tes voyages.</p>
+            </div>
+            <form onSubmit={updateRecoveredPassword} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="recovery-password" className="text-[13px] font-medium text-foreground">Nouveau mot de passe</Label>
+                <div className="relative">
+                  <Input id="recovery-password" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" className={`${AUTH_INPUT_CLASS} pr-11`} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <button type="button" aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="recovery-password-confirm" className="text-[13px] font-medium text-foreground">Confirmer le mot de passe</Label>
+                <Input id="recovery-password-confirm" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" className={AUTH_INPUT_CLASS} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+              </div>
+              <Button type="submit" className="w-full" disabled={busy}>{busy ? "Enregistrement…" : "Enregistrer mon mot de passe"}</Button>
+            </form>
+            <Link to="/auth" className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary">
+              <ArrowLeft className="size-4" /> Demander un nouveau lien
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   if (showConfirmationSent) {
@@ -211,10 +302,15 @@ function AuthPage() {
               <form onSubmit={signIn} className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
-                  <Input id="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Input id="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => { setEmail(e.target.value); setResetEmailSent(false); }} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-[13px] font-medium text-foreground">Mot de passe</Label>
+                  <div className="flex items-center justify-between gap-3">
+                    <Label htmlFor="password" className="text-[13px] font-medium text-foreground">Mot de passe</Label>
+                    <button type="button" onClick={requestPasswordReset} disabled={resetBusy} className="text-[12px] font-semibold text-primary hover:underline disabled:opacity-60">
+                      {resetBusy ? "Envoi…" : "Mot de passe oublié ?"}
+                    </button>
+                  </div>
                   <div className="relative">
                     <Input id="password" type={showPassword ? "text" : "password"} required autoComplete="current-password" className={`${AUTH_INPUT_CLASS} pr-11`} value={password} onChange={(e) => setPassword(e.target.value)} />
                     <button
@@ -227,6 +323,7 @@ function AuthPage() {
                       {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
+                  {resetEmailSent ? <p className="text-[12px] leading-relaxed text-muted-foreground">Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé.</p> : null}
                 </div>
                 <Button type="submit" className="w-full" disabled={busy}>{busy ? "Connexion…" : "Se connecter"}</Button>
               </form>
