@@ -1,0 +1,46 @@
+name: Run targeted KREW UX polish round 2
+
+on:
+  push:
+    branches:
+      - ops/krew-ux-polish-round2-applier
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/krew-ux-polish-round-2
+          fetch-depth: 0
+      - name: Apply corrected patch set
+        shell: bash
+        run: |
+          git fetch origin ops/krew-ux-polish-round2-applier
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess, textwrap
+
+          raw = subprocess.check_output([
+              'git','show','origin/ops/krew-ux-polish-round2-applier:.github/workflows/apply-krew-ux-polish-round2.yml'
+          ], text=True)
+          start = raw.index("          python - <<'PY'\n") + len("          python - <<'PY'\n")
+          end = raw.index("\n          PY\n", start)
+          code = textwrap.dedent(raw[start:end])
+
+          old = "s=must_replace(s,'className=\"mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden\"','className=\"mt-6 sm:mt-8 space-y-5 scroll-mt-24 relative\"','transport open')"
+          new = "old_transport='className=\"mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden\"'\nnew_transport='className=\"mt-6 sm:mt-8 space-y-5 scroll-mt-24 relative\"'\nanchor=s.index('id=\"hub-transports\"')\npos=s.index(old_transport, anchor)\ns=s[:pos]+new_transport+s[pos+len(old_transport):]"
+          if old not in code:
+              raise SystemExit('target transport replacement line not found')
+          code = code.replace(old, new, 1)
+          exec(compile(code, '<krew-ux-round2>', 'exec'), {'__name__':'__main__'})
+          PY
+          git config user.name "KREW UX Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: apply KREW UX polish round 2"
+          git push origin HEAD:fix/krew-ux-polish-round-2
