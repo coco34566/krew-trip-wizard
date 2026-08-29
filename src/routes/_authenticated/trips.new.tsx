@@ -150,7 +150,6 @@ function NewTripPage() {
       </div>
 
       <form onSubmit={onSubmit} className="space-y-8 pt-2">
-        {/* Question 1: Nom du voyage */}
         <div className="space-y-2">
           <Label htmlFor="name" className="text-base font-semibold text-foreground">
             Nom du voyage
@@ -165,7 +164,6 @@ function NewTripPage() {
           />
         </div>
 
-        {/* Question 2: Prénom organisateur */}
         <div className="space-y-2">
           <Label htmlFor="orga" className="text-base font-semibold text-foreground">
             Ton prénom (organisateur)
@@ -182,9 +180,11 @@ function NewTripPage() {
           </p>
         </div>
 
-        {/* Question 3: Type d'événement */}
         <div className="space-y-4">
-          <Label className="text-base font-semibold text-foreground block">Type d'événement</Label>
+          <Label className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <KrewIcon name="party" tone="plum" size="sm" className="size-4.5 shrink-0" />
+            Type d'événement
+          </Label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {activeEventTypes.map((t) => {
               const imgUrl = getTripTypeImage(t.value);
@@ -216,9 +216,7 @@ function NewTripPage() {
                       </div>
                     </>
                   ) : (
-                    <>
-                      <span className="font-medium text-sm leading-tight block">{t.label}</span>
-                    </>
+                    <span className="font-medium text-sm leading-tight block">{t.label}</span>
                   )}
                 </button>
               );
@@ -242,10 +240,10 @@ function NewTripPage() {
           </div>
         </div>
 
-        {/* Question 4 (conditionnelle): Star (chapitre implicite: respiration accrue) */}
         {needsStar ? (
           <div className="space-y-2 pt-1">
-            <Label htmlFor="star" className="text-base font-semibold text-foreground">
+            <Label htmlFor="star" className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4.5 shrink-0" />
               Personne principale (Star)
             </Label>
             <Input
@@ -261,9 +259,9 @@ function NewTripPage() {
           </div>
         ) : null}
 
-        {/* Question 5: Nombre estimé */}
         <div className="space-y-2">
-          <Label htmlFor="n" className="text-base font-semibold text-foreground">
+          <Label htmlFor="n" className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <KrewIcon name="group" tone="sage" size="sm" className="size-4.5 shrink-0" />
             Nombre estimé de participants
           </Label>
           <Input
@@ -283,9 +281,9 @@ function NewTripPage() {
           </p>
         </div>
 
-        {/* Question 6: Tranche d'âge (chapitre implicite: respiration accrue) */}
         <div className="space-y-3">
-          <Label className="text-base font-semibold text-foreground block">
+          <Label className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <KrewIcon name="group" tone="plum" size="sm" className="size-4.5 shrink-0" />
             Tranche d’âge du groupe
           </Label>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -307,9 +305,9 @@ function NewTripPage() {
           </div>
         </div>
 
-        {/* Question 7: Durée du voyage */}
         <div className="space-y-2">
-          <Label htmlFor="durationDays" className="text-base font-semibold text-foreground">
+          <Label htmlFor="durationDays" className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <KrewIcon name="calendar" tone="sage" size="sm" className="size-4.5 shrink-0" />
             Durée du voyage (en jours)
           </Label>
           <Input
@@ -330,7 +328,6 @@ function NewTripPage() {
           </p>
         </div>
 
-        {/* Actions */}
         <div className="pt-4">
           <Button type="submit" size="lg" className="w-full sm:w-auto min-h-[48px] h-auto rounded-xl text-base font-medium px-6 sm:px-8 py-2.5 whitespace-normal text-center leading-tight" disabled={submitting}>
             {submitting ? (
