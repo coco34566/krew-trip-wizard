@@ -8,8 +8,7 @@ describe("Questionnaire & Profile Access Unit Tests", () => {
   ): { authorized: boolean; isTripAdmin: boolean } {
     const isTripAdmin =
       trip.owner_id === userId ||
-      trip.co_organizer_id === userId ||
-      trip.group_logistics?.co_organizer_id === userId;
+      trip.co_organizer_id === userId;
 
     if (isTripAdmin) {
       return { authorized: true, isTripAdmin: true };
@@ -34,17 +33,17 @@ describe("Questionnaire & Profile Access Unit Tests", () => {
     expect(res.isTripAdmin).toBe(true);
   });
 
-  test("Co-organizer in group_logistics is authorized as trip admin without a trip_participants row", () => {
-    const coOrgUserId = "user-co-org-88";
+  test("Legacy group_logistics.co_organizer_id does not grant admin rights", () => {
+    const legacyCoOrgUserId = "user-co-org-88";
     const trip = {
       owner_id: "user-owner-1",
       co_organizer_id: null,
-      group_logistics: { co_organizer_id: coOrgUserId },
+      group_logistics: { co_organizer_id: legacyCoOrgUserId },
     };
 
-    const res = checkQuestionnaireAuthorization(trip, coOrgUserId, false);
-    expect(res.authorized).toBe(true);
-    expect(res.isTripAdmin).toBe(true);
+    const res = checkQuestionnaireAuthorization(trip, legacyCoOrgUserId, false);
+    expect(res.authorized).toBe(false);
+    expect(res.isTripAdmin).toBe(false);
   });
 
   test("Non-admin participant with a trip_participants row is authorized as non-admin", () => {
