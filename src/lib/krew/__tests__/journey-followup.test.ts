@@ -95,19 +95,19 @@ describe("compléments du parcours E2E", () => {
       "utf8",
     );
     const titles = [
-      'title="Envies & ambiance"',
-      'title="Destination & cadre"',
+      'title="Envies et ambiance"',
+      'title="Destination et cadre"',
       'title="Budget"',
       'title="Hébergement"',
       'title="Transport"',
-      'title="Contraintes & précisions"',
+      'title="Contraintes et précisions"',
     ];
     expect(titles.map((title) => questionnaire.indexOf(title))).toEqual(
       [...titles.map((title) => questionnaire.indexOf(title))].sort((a, b) => a - b),
     );
     const transportSection = questionnaire.slice(
       questionnaire.indexOf('title="Transport"'),
-      questionnaire.indexOf('title="Contraintes & précisions"'),
+      questionnaire.indexOf('title="Contraintes et précisions"'),
     );
     expect(transportSection).toContain("localMobility");
     const hub = readFileSync("src/routes/_authenticated/trips.$tripId.index.tsx", "utf8");
