@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page, type TestInfo } from "@playwright/test";
 import { installDiagnostics, signIn, userClick, handleNormalUserUi } from "./helpers";
 import { deleteDisposableTrip, disposableTripName } from "./test-lifecycle";
 
@@ -70,6 +70,21 @@ async function fillAvailability(page: Page, tripId: string) {
   await waitForTripHub(page, tripId);
 }
 
+async function fillTransportTimePrefs(page: Page, tripId: string, earliest: string, latest: string) {
+  await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
+  await handleNormalUserUi(page);
+  const transports = page.locator("#hub-transports");
+  await expect(transports.getByText("Mes créneaux", { exact: true })).toBeVisible({ timeout: 30_000 });
+  const timeInputs = transports.locator('input[type="time"]');
+  await expect(timeInputs).toHaveCount(2);
+  await timeInputs.nth(0).fill(earliest);
+  await timeInputs.nth(1).fill(latest);
+  const save = transports.getByRole("button", { name: "Enregistrer", exact: true });
+  await expect(save).toBeEnabled();
+  await userClick(page, save, "save transport time preferences");
+  await expect(transports.getByRole("button", { name: "Enregistré", exact: true })).toBeVisible({ timeout: 30_000 });
+}
+
 async function authenticateSecondParticipant(page: Page, tripId: string, email: string, password: string) {
   const authUrl = `/auth?next=${encodeURIComponent(`/join/${tripId}`)}`;
   const joinUrl = new RegExp(`/join/${tripId}(?:\\?|$)`);
@@ -123,6 +138,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
   let stage = "setup";
   let tripId: string | undefined;
   let tripName: string | undefined;
+  let participantContext: BrowserContext | undefined;
 
   page.on("response", async (response) => {
     if (!response.url().includes("/_serverFn/")) return;
@@ -161,25 +177,21 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     stage = "participant-auth";
     const password = process.env.KREW_E2E_PASSWORD;
     if (!password) throw new Error("TEST_SETUP: KREW_E2E_PASSWORD is required");
-    const participantContext = await browser.newContext({ ...testInfo.project.use, baseURL: process.env.KREW_E2E_BASE_URL } as any);
+    participantContext = await browser.newContext({ ...testInfo.project.use, baseURL: process.env.KREW_E2E_BASE_URL } as any);
     const participantPage = await participantContext.newPage();
-    try {
-      await authenticateSecondParticipant(participantPage, tripId!, "krew.qa.participant@gmail.com", password);
-      stage = "participant-join";
-      await handleNormalUserUi(participantPage);
-      await participantPage.locator("#join-firstname").fill(profile.kind === "complex" ? "QA Outdoor" : "QA2");
-      await userClick(participantPage, participantPage.getByRole("button", { name: "Rejoindre et indiquer mes dispos", exact: true }), "join trip");
-      await participantPage.waitForURL(new RegExp(`/trips/${tripId}/availability`), { timeout: 30_000 });
-      stage = "participant-availability";
-      await fillAvailability(participantPage, tripId!);
-      stage = "participant-preferences";
-      await participantPage.goto(`/trips/${tripId}/questionnaire`);
-      await handleNormalUserUi(participantPage);
-      await fillPreferences(participantPage, profile.participant);
-      await waitForTripHub(participantPage, tripId!);
-    } finally {
-      await participantContext.close();
-    }
+    await authenticateSecondParticipant(participantPage, tripId!, "krew.qa.participant@gmail.com", password);
+    stage = "participant-join";
+    await handleNormalUserUi(participantPage);
+    await participantPage.locator("#join-firstname").fill(profile.kind === "complex" ? "QA Outdoor" : "QA2");
+    await userClick(participantPage, participantPage.getByRole("button", { name: "Rejoindre et indiquer mes dispos", exact: true }), "join trip");
+    await participantPage.waitForURL(new RegExp(`/trips/${tripId}/availability`), { timeout: 30_000 });
+    stage = "participant-availability";
+    await fillAvailability(participantPage, tripId!);
+    stage = "participant-preferences";
+    await participantPage.goto(`/trips/${tripId}/questionnaire`);
+    await handleNormalUserUi(participantPage);
+    await fillPreferences(participantPage, profile.participant);
+    await waitForTripHub(participantPage, tripId!);
 
     stage = "lock-dates";
     await page.goto(`/trips/${tripId}?view=voyage&section=dates`);
@@ -233,6 +245,11 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     await expect(hotelVote, "USER_BLOCKER: accommodation search returned no usable hotel").toBeVisible({ timeout: 120_000 });
     await userClick(page, hotelVote, "vote hotel");
 
+    stage = "participant-transport-times";
+    await fillTransportTimePrefs(participantPage, tripId!, profile.kind === "complex" ? "07:30" : "08:00", profile.kind === "complex" ? "21:30" : "22:00");
+    stage = "organizer-transport-times";
+    await fillTransportTimePrefs(page, tripId!, profile.kind === "complex" ? "09:00" : "08:00", profile.kind === "complex" ? "23:00" : "22:00");
+
     await respectLiveProviderCooldown(page, testInfo, "transport generation");
     stage = "transport";
     await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
@@ -273,6 +290,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     });
     await assertDiagnostics();
   } finally {
+    await participantContext?.close().catch(() => undefined);
     await deleteDisposableTrip(page, tripId, tripName, testInfo);
   }
 }
