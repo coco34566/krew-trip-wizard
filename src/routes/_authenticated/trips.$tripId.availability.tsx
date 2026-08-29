@@ -60,6 +60,19 @@ function monthLabel(d: Date) {
   return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
+function dayAriaLabel(date: Date, mode: DayMode, isPast: boolean) {
+  const label = date.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  if (isPast) return `${label}, date passée`;
+  if (mode === "available") return `${label}, disponible`;
+  if (mode === "blocked") return `${label}, impossible`;
+  return `${label}, non renseigné`;
+}
+
 function MonthGrid({
   month,
   selection,
@@ -81,12 +94,12 @@ function MonthGrid({
   return (
     <div className="rounded-[16px] border border-border/45 bg-background p-3.5">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[12px] font-medium uppercase text-muted-foreground">
+      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[12px] font-medium uppercase text-muted-foreground" aria-hidden="true">
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => <span key={i}>{d}</span>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
         {cells.map((date, i) => {
-          if (!date) return <span key={`e-${i}`} />;
+          if (!date) return <span key={`e-${i}`} aria-hidden="true" />;
           const iso = toISO(date);
           const mode = selection.get(iso) ?? null;
           const isPast = iso < todayISO;
@@ -95,9 +108,11 @@ function MonthGrid({
               key={iso}
               type="button"
               disabled={isPast}
+              aria-label={dayAriaLabel(date, mode, isPast)}
+              aria-pressed={isPast ? undefined : mode !== null}
               onClick={() => onToggle(iso)}
               className={cn(
-                "flex aspect-square min-h-10 items-center justify-center rounded-[10px] border text-[13px] font-mono font-medium transition-colors",
+                "flex aspect-square min-h-10 items-center justify-center rounded-[10px] border text-[13px] font-mono font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                 isPast && "cursor-not-allowed border-transparent opacity-30",
                 !isPast && !mode && "border-border/40 bg-background hover:border-primary/25 hover:bg-primary/[0.05] hover:text-primary",
                 mode === "available" && "border-sage/45 bg-sage/25 font-bold text-foreground",
@@ -123,7 +138,7 @@ function AvailabilityPage() {
   const choose = useServerFn(chooseTripDates);
   const unlock = useServerFn(unlockTripDates);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ["trip-availability", tripId],
     queryFn: () => fetchAvail({ data: { tripId } }),
   });
@@ -249,9 +264,15 @@ function AvailabilityPage() {
   if (error || !data) {
     console.error("Impossible de charger les disponibilités:", error);
     return (
-      <main className="mx-auto w-full max-w-[820px] space-y-4 px-5 py-10 sm:px-7 lg:px-8">
-        <p className="text-destructive">Impossible de charger les disponibilités. Réessaie dans un instant.</p>
-        <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary hover:underline">Retour au voyage</Link>
+      <main className="mx-auto w-full max-w-[820px] space-y-4 px-5 py-10 text-center sm:px-7 lg:px-8" role="alert">
+        <h1 className="font-display text-[30px] font-normal text-foreground">Impossible de charger les disponibilités</h1>
+        <p className="text-sm text-muted-foreground">Les réponses du groupe ne sont pas disponibles pour le moment.</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching}>
+            {isFetching ? <><Loader2 className="size-4 animate-spin" /> Chargement…</> : "Réessayer"}
+          </Button>
+          <Button variant="outline" asChild><Link to="/trips/$tripId" params={{ tripId }}>Retour au voyage</Link></Button>
+        </div>
       </main>
     );
   }
@@ -317,17 +338,17 @@ function AvailabilityPage() {
         </div>
 
         <div className="space-y-2">
-          <Label className="text-[14px] font-semibold text-foreground">Notes (optionnel)</Label>
-          <Textarea className="min-h-[112px] rounded-[10px] border-border/70 text-[15px] shadow-none focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex. : OK pour partir le jeudi soir, préfère un week-end…" />
+          <Label htmlFor="availability-notes" className="text-[14px] font-semibold text-foreground">Notes (optionnel)</Label>
+          <Textarea id="availability-notes" className="min-h-[112px] rounded-[10px] border-border/70 text-[15px] shadow-none focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex. : OK pour partir le jeudi soir, préfère un week-end…" />
         </div>
 
         {datesLocked ? (
           <p className="border-l-2 border-sage/55 py-1 pl-3 text-[14px] leading-relaxed text-foreground"><Lock className="mr-1.5 inline size-4 text-secondary" />Dates confirmées par l&apos;organisateur·rice — tes disponibilités sont figées et ne peuvent plus être modifiées.</p>
         ) : null}
 
-        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0 || datesLocked} className="w-full">
+        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0 || datesLocked} className="w-full" aria-busy={mutation.isPending}>
           {mutation.isPending ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}
-          {data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}
+          {mutation.isPending ? "Enregistrement…" : data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}
         </Button>
         {availableDates.length === 0 ? <p className="text-center text-[13px] text-muted-foreground">Sélectionne au moins une date verte pour enregistrer.</p> : null}
       </section>
@@ -343,7 +364,7 @@ function AvailabilityPage() {
               </div>
             </div>
             {data.isOwner ? (
-              <button type="button" disabled={unlockMutation.isPending} onClick={() => { if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline">
+              <button type="button" disabled={unlockMutation.isPending} aria-busy={unlockMutation.isPending} onClick={() => { if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:cursor-wait disabled:opacity-60">
                 {unlockMutation.isPending ? "Modification…" : "Modifier les dates"}
               </button>
             ) : null}
