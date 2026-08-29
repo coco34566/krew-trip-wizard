@@ -14,7 +14,8 @@ set search_path = public
 as $$
 begin
   if old.owner_id is distinct from new.owner_id
-     and auth.uid() is not null then
+     and auth.uid() is not null
+     and current_user not in ('postgres', 'service_role') then
     raise exception 'trip owner cannot be changed by an authenticated user'
       using errcode = '42501';
   end if;
@@ -34,4 +35,4 @@ for each row
 execute function public.prevent_trip_owner_change_by_authenticated_user();
 
 comment on function public.prevent_trip_owner_change_by_authenticated_user() is
-  'Prevents authenticated users, including co-organizers, from changing trips.owner_id while preserving service-role and direct SQL maintenance.';
+  'Prevents end-user owner escalation while preserving controlled SECURITY DEFINER, service-role and direct SQL maintenance.';
