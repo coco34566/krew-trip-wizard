@@ -64,7 +64,7 @@ function AuthPage() {
       let userMessage = "Impossible de se connecter. Une erreur est survenue.";
       const msg = error.message.toLowerCase();
       if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials") || msg.includes("credentials")) userMessage = "Identifiants incorrects. Vérifie ton adresse e-mail et ton mot de passe.";
-      else if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) userMessage = "Ton adresse e-mail n'a pas encore été confirmée. Pense à valider ton inscription via le lien reçu.";
+      else if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) userMessage = "Ton adresse e-mail n'a pas encore été confirmée. Confirme ton inscription avec le lien reçu.";
       toast.error(userMessage);
       return;
     }
@@ -116,7 +116,7 @@ function AuthPage() {
       console.error("Erreur d'envoi d'email de confirmation:", error);
       toast.error("Impossible de renvoyer l'e-mail de confirmation pour le moment.");
     } else {
-      toast.success("Un nouvel e-mail de confirmation a été envoyé !");
+      toast.success("E-mail de confirmation envoyé");
     }
   }
 
@@ -131,7 +131,7 @@ function AuthPage() {
               <KrewIcon name="message" tone="plum" size="md" className="size-5" />
             </div>
             <div className="space-y-2">
-              <h1 className="font-display text-[36px] font-normal leading-[0.98] text-foreground sm:text-[44px]">Compte créé !</h1>
+              <h1 className="font-display text-[36px] font-normal leading-[0.98] text-foreground sm:text-[44px]">Compte créé</h1>
               <p className="text-[15px] leading-relaxed text-muted-foreground sm:text-[16px]">Vérifie ta boîte mail pour confirmer ton adresse e-mail.</p>
             </div>
             <p className="max-w-[520px] border-l-2 border-sage/50 pl-4 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
@@ -263,11 +263,9 @@ function AuthPage() {
             </TabsContent>
           </Tabs>
 
-          <div className="mt-8 border-t border-border/50 pt-5 text-[14px]">
-            <Link to="/" className="inline-flex min-h-10 items-center font-semibold text-muted-foreground transition-colors hover:text-primary">
-              Retour à l’accueil
-            </Link>
-          </div>
+          <p className="mt-7 text-center text-[12px] leading-relaxed text-muted-foreground">
+            En continuant, tu acceptes les <Link to="/cgu" className="underline underline-offset-2 hover:text-primary">conditions d’utilisation</Link> et la <Link to="/confidentialite" className="underline underline-offset-2 hover:text-primary">politique de confidentialité</Link>.
+          </p>
         </div>
       </section>
     </main>
