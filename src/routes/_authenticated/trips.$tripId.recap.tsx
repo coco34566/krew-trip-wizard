@@ -86,7 +86,8 @@ function TripRecapPage() {
       queryClient.invalidateQueries({ queryKey: ["trip-recap", tripId] });
     },
     onError: (e: any) => {
-      toast.error(String(e?.message ?? "Erreur lors de l'enregistrement de la réaction"));
+      console.error("Impossible d'enregistrer la réaction:", e);
+      toast.error("Impossible d’enregistrer ton choix pour le moment.");
     },
   });
 
@@ -105,18 +106,17 @@ function TripRecapPage() {
       }),
     onSuccess: (_r, vars) => {
       setWatched((w) => ({ ...w, [vars.recommendationId]: true }));
-      toast.success("Suivi activé — rappel sur ton tableau de bord");
+      toast.success("Prix suivi");
       queryClient.invalidateQueries({ queryKey: ["price-watches"] });
     },
     onError: (e: any) => {
       const msg = String(e?.message ?? e);
       if (msg.includes("price_watch") || msg.includes("schema cache")) {
         console.error("Table price_watch absente — applique la migration Supabase", msg);
-        toast.error("Une erreur est survenue, réessaie dans un instant");
       } else {
         console.error("Impossible d'activer le suivi:", e);
-        toast.error("Impossible d'activer le suivi");
       }
+      toast.error("Impossible de suivre ce prix pour le moment. Réessaie dans un instant.");
     },
   });
 
@@ -139,7 +139,7 @@ function TripRecapPage() {
     const endDateObj = new Date(tripObj.endDate);
     endDateObj.setDate(endDateObj.getDate() + 1);
     const nextDay = endDateObj.toISOString().slice(0, 10).replace(/[-]/g, "");
-    const title = encodeURIComponent(tripObj.name || "Mon Voyage KREW");
+    const title = encodeURIComponent(tripObj.name || "Voyage KREW");
     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${nextDay}`;
   }, [data?.trip?.startDate, data?.trip?.endDate, data?.trip?.name]);
 
@@ -156,6 +156,7 @@ function TripRecapPage() {
   }
 
   if (error || !data) {
+    console.error("Impossible de charger le récap:", error);
     return (
       <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10 text-center">
         <img
@@ -165,7 +166,7 @@ function TripRecapPage() {
         />
         <h1 className="font-display text-3xl font-normal text-foreground">Le récap n’a pas pu se charger</h1>
         <p className="mx-auto mt-2 max-w-md text-sm sm:text-base text-muted-foreground">
-          {(error as Error)?.message ?? "Impossible de charger le récap."} Tu peux réessayer sans perdre tes choix.
+          Réessaie dans un instant. Tes choix sont conservés.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button
@@ -195,7 +196,7 @@ function TripRecapPage() {
     };
     const icsContent = buildTripIcs(compliantTrip as any, groupItinerary);
     if (!icsContent) {
-      toast.error("Impossible d'exporter le calendrier.");
+      toast.error("Impossible d’exporter le calendrier pour le moment.");
       return;
     }
     const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
@@ -206,7 +207,7 @@ function TripRecapPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Calendrier .ics téléchargé !");
+    toast.success("Calendrier téléchargé");
   };
 
   const dateLabel =
@@ -353,7 +354,7 @@ function TripRecapPage() {
                         </KrewHighlight>
                         <p className="text-sm text-muted-foreground font-mono">soit {formatEuro(budget.totalGroup)} pour le groupe</p>
                         <p className="mt-1 text-sm text-muted-foreground font-mono">
-                          Transport moy. {formatEuro(budget.transport)}
+                          Transport moyen {formatEuro(budget.transport)}
                           {typeof budget.transportGroup === "number" ? ` · groupe ${formatEuro(budget.transportGroup)}` : ""}
                         </p>
                         <div className="mt-2 flex flex-wrap items-center justify-start sm:justify-end gap-2 text-sm font-mono text-muted-foreground">
@@ -367,10 +368,10 @@ function TripRecapPage() {
                           <span>·</span>
                           {budget.priceSource?.accommodation === "provider" || budget.priceSource?.accommodation === "web" ? (
                             <span className="inline-flex items-center gap-1 text-primary font-medium">
-                              <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" /> Tarif logement vérifié
+                              <KrewIcon name="check" tone="sage" size="sm" className="size-3.5" /> Tarif hébergement vérifié
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 opacity-80">Logement estimé</span>
+                            <span className="inline-flex items-center gap-1 opacity-80">Hébergement estimé</span>
                           )}
                         </div>
                       </div>
@@ -381,7 +382,7 @@ function TripRecapPage() {
                 <div className="space-y-5 p-5 sm:p-6">
                   <div>
                     <h4 className="text-base font-semibold text-foreground flex items-center gap-1.5 font-sans">
-                      <KrewIcon name="transport" tone="plum" size="sm" className="size-4" /> Transports
+                      <KrewIcon name="transport" tone="plum" size="sm" className="size-4" /> Transport
                     </h4>
                     <p className="mt-1 text-sm text-muted-foreground font-sans leading-relaxed">
                       Les options sont adaptées à chaque ville de départ. Vérifie les horaires et les tarifs avant de réserver.
@@ -492,7 +493,7 @@ function TripRecapPage() {
       {costSplitData?.split ? (
         <section className="space-y-4 pt-4">
           <h2 className="font-display text-2xl font-normal text-foreground">
-            {costSplitData.isSelected ? "Destination validée — qui paie quoi ?" : "Répartition estimée des coûts"}
+            {costSplitData.isSelected ? "Destination choisie — répartition des coûts" : "Répartition estimée des coûts"}
           </h2>
           <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
         </section>
@@ -505,7 +506,7 @@ function TripRecapPage() {
             <h2 className="font-display text-xl font-normal text-foreground">Ajouter le voyage à mon calendrier</h2>
           </div>
           <p className="text-sm sm:text-base text-muted-foreground font-sans leading-relaxed">
-            Télécharge l’itinéraire au format .ics ou ajoute le séjour à Google Calendar.
+            Télécharge le planning au format .ics ou ajoute le séjour à Google Calendar.
           </p>
           <div className="flex flex-wrap gap-2.5">
             <Button onClick={handleDownloadIcs} size="sm" className="rounded-xl gap-1.5 font-medium min-h-9 h-auto">
