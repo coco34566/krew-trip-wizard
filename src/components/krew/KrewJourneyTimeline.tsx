@@ -35,6 +35,24 @@ function parseStepHref(href: string) {
   return { to: path, search };
 }
 
+function stepActionLabel(step: TimelineStep) {
+  const labels: Record<string, string> = {
+    availability: "Voir les disponibilités",
+    preferences: "Voir les préférences",
+    star: `Voir ${step.title.toLocaleLowerCase("fr-FR")}`,
+    dates: "Voir les dates du groupe",
+    profile: "Voir le Profil du voyage",
+    destination: "Voir la destination",
+    accommodation: "Voir l’hébergement",
+    transport: "Voir le transport",
+    planning: "Voir le planning",
+    tasks: "Voir les tâches",
+    packing: "Voir À emporter",
+    memories: "Voir les souvenirs",
+  };
+  return labels[step.id] ?? `Voir ${step.title.toLocaleLowerCase("fr-FR")}`;
+}
+
 function StepMeta({ step }: { step: TimelineStep }) {
   if (step.status === "done") {
     return (
@@ -77,7 +95,7 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
       ) : null}
       {next ? (
         <span className="inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-primary">
-          Continuer
+          {stepActionLabel(step)}
           <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6" />
         </span>
       ) : (
@@ -105,7 +123,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
           </KrewNote>
           <div className="relative inline-block max-w-full pb-2">
             <h1 className="font-display text-[34px] font-normal leading-[.96] tracking-[-0.02em] text-foreground sm:text-[44px]">
-              Le parcours de {tripName}
+              Parcours de {tripName}
             </h1>
             <KrewMark
               type="underline-wave"

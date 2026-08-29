@@ -49,8 +49,29 @@ const KNOWN_ACTION_ICONS: Record<string, KrewIconName> = {
   nudge: "group",
 };
 
+const ACTION_CTA: Record<string, string> = {
+  avail: "Indiquer mes disponibilités",
+  prefs: "Renseigner mes préférences",
+  star: "Voir la Star",
+  hotel: "Voir les hébergements",
+  "search-hotels": "Voir les hébergements",
+  transport: "Voir le transport",
+  "search-transport": "Voir le transport",
+  "lock-dates": "Choisir les dates",
+  "choose-profile": "Choisir le profil du voyage",
+  gen: "Voir les destinations",
+  "pick-dest": "Choisir la destination",
+  plan: "Voir le planning",
+  refine: "Voir les tâches",
+  nudge: "Relancer le groupe",
+};
+
 function actionIcon(action: KrewActionItem): KrewIconName | null {
   return action.iconName || KNOWN_ACTION_ICONS[action.key] || null;
+}
+
+function actionCta(action: KrewActionItem) {
+  return ACTION_CTA[action.key] || action.title;
 }
 
 export function KrewActionStack({ primary, secondary = [], progress = [], className }: Props) {
@@ -105,7 +126,7 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
             <div className="pt-3">
               <Button asChild>
                 <a href={primary.href} className="gap-2">
-                  Continuer
+                  {actionCta(primary)}
                   <KrewMark type="arrow-right" tone="sage" size="sm" className="h-3.5 w-5" />
                 </a>
               </Button>

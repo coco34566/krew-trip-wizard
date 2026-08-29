@@ -201,32 +201,41 @@ function AvailabilityPage() {
   const mutation = useMutation({
     mutationFn: () => submit({ data: { tripId, availableDates, blockedDates, flexDays: 0, notes: notes || undefined } }),
     onSuccess: () => {
-      toast.success(availableDates.length ? `${availableDates.length} date(s) dispo enregistrée(s)` : "Disponibilités enregistrées");
+      toast.success("Disponibilités enregistrées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
     },
-    onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 160)),
+    onError: (e: any) => {
+      console.error("Impossible d'enregistrer les disponibilités:", e);
+      toast.error("Impossible d’enregistrer tes disponibilités. Réessaie dans un instant.");
+    },
   });
 
   const chooseMutation = useMutation({
     mutationFn: (payload: { start: string; end: string }) => choose({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
     onSuccess: () => {
-      toast.success("Dates du voyage validées");
+      toast.success("Dates du voyage confirmées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
-    onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 120)),
+    onError: (e: any) => {
+      console.error("Impossible de confirmer les dates:", e);
+      toast.error("Impossible de confirmer les dates pour le moment. Réessaie dans un instant.");
+    },
   });
 
   const unlockMutation = useMutation({
     mutationFn: () => unlock({ data: { tripId } }),
     onSuccess: () => {
-      toast.success("Date déverrouillée");
+      toast.success("Dates à nouveau modifiables");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
-    onError: (e: any) => toast.error(String(e?.message ?? "Erreur").slice(0, 120)),
+    onError: (e: any) => {
+      console.error("Impossible de rendre les dates modifiables:", e);
+      toast.error("Impossible de modifier les dates pour le moment. Réessaie dans un instant.");
+    },
   });
 
   if (isLoading) {
@@ -238,9 +247,10 @@ function AvailabilityPage() {
   }
 
   if (error || !data) {
+    console.error("Impossible de charger les disponibilités:", error);
     return (
       <main className="mx-auto w-full max-w-[820px] space-y-4 px-5 py-10 sm:px-7 lg:px-8">
-        <p className="text-destructive">{(error as any)?.message ?? "Impossible de charger"}</p>
+        <p className="text-destructive">Impossible de charger les disponibilités. Réessaie dans un instant.</p>
         <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary hover:underline">Retour au voyage</Link>
       </main>
     );
@@ -312,7 +322,7 @@ function AvailabilityPage() {
         </div>
 
         {datesLocked ? (
-          <p className="border-l-2 border-sage/55 py-1 pl-3 text-[14px] leading-relaxed text-foreground"><Lock className="mr-1.5 inline size-4 text-secondary" />Dates validées par l&apos;organisateur·rice — tes disponibilités sont figées et ne peuvent plus être modifiées.</p>
+          <p className="border-l-2 border-sage/55 py-1 pl-3 text-[14px] leading-relaxed text-foreground"><Lock className="mr-1.5 inline size-4 text-secondary" />Dates confirmées par l&apos;organisateur·rice — tes disponibilités sont figées et ne peuvent plus être modifiées.</p>
         ) : null}
 
         <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0 || datesLocked} className="w-full">
@@ -328,13 +338,13 @@ function AvailabilityPage() {
             <div className="flex items-start gap-3">
               <Lock className="mt-0.5 size-5 text-primary" />
               <div>
-                <h2 className="font-semibold text-foreground">Date choisie</h2>
+                <h2 className="font-semibold text-foreground">Dates choisies</h2>
                 <p className="mt-1 font-mono text-[14px] text-foreground">{lockedLabel}</p>
               </div>
             </div>
             {data.isOwner ? (
-              <button type="button" disabled={unlockMutation.isPending} onClick={() => { if (window.confirm("Déverrouiller la date ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline">
-                {unlockMutation.isPending ? "Déverrouillage…" : "Déverrouiller"}
+              <button type="button" disabled={unlockMutation.isPending} onClick={() => { if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline">
+                {unlockMutation.isPending ? "Modification…" : "Modifier les dates"}
               </button>
             ) : null}
           </div>

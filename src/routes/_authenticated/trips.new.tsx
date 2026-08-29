@@ -66,15 +66,15 @@ function NewTripPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (name.trim().length < 2) {
-      toast.error("Donne un nom au voyage (2 caractères min.)");
+      toast.error("Donne un nom au voyage (2 caractères minimum).");
       return;
     }
     if (!organizerFirstName.trim()) {
-      toast.error("Indique ton prénom (organisateur)");
+      toast.error("Indique ton prénom.");
       return;
     }
     if (needsStar && !celebratedPerson.trim()) {
-      toast.error("Indique le prénom de la personne principale (Star)");
+      toast.error("Indique le prénom de la Star.");
       return;
     }
     if (!groupAgeRange) {
@@ -109,10 +109,11 @@ function NewTripPage() {
       if (!id) throw new Error("Le voyage a été créé mais son identifiant est introuvable.");
 
       queryClient.invalidateQueries({ queryKey: ["my-trips"] });
-      toast.success("Voyage créé — invite ton groupe !");
+      toast.success("Voyage créé — invite ton groupe");
       await navigate({ to: "/trips/$tripId/invite", params: { tripId: id } });
     } catch (err: any) {
-      toast.error(err?.message?.slice?.(0, 140) ?? "Création impossible");
+      console.error("Impossible de créer le voyage:", err);
+      toast.error("Impossible de créer le voyage pour le moment. Réessaie dans un instant.");
     } finally {
       setSubmitting(false);
     }
@@ -124,7 +125,7 @@ function NewTripPage() {
         to="/dashboard"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
       >
-        <ArrowLeft className="size-4" /> Dashboard
+        <ArrowLeft className="size-4" /> Mes voyages
       </Link>
 
       <div className="space-y-2 relative">
@@ -166,7 +167,7 @@ function NewTripPage() {
 
         <div className="space-y-2">
           <Label htmlFor="orga" className="text-base font-semibold text-foreground">
-            Ton prénom (organisateur)
+            Ton prénom
           </Label>
           <Input
             id="orga"
@@ -244,7 +245,7 @@ function NewTripPage() {
           <div className="space-y-2 pt-1">
             <Label htmlFor="star" className="flex items-center gap-2 text-base font-semibold text-foreground">
               <KrewIcon name="favorite" tone="plum" size="sm" className="size-4.5 shrink-0" />
-              Personne principale (Star)
+              Prénom de la Star
             </Label>
             <Input
               id="star"
@@ -276,8 +277,8 @@ function NewTripPage() {
           />
           <p className="text-xs text-muted-foreground">
             {needsStar
-              ? `Inclus bien la star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans ce nombre total de participant·e·s.`
-              : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX} — tu pourras inviter ensuite.`}
+              ? `Compte bien la Star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans le nombre total de participants.`
+              : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX} — tu pourras inviter le groupe ensuite.`}
           </p>
         </div>
 
@@ -324,7 +325,7 @@ function NewTripPage() {
             }}
           />
           <p className="text-xs text-muted-foreground">
-            La durée du voyage commune à tout le groupe (ex : 3 jours correspond à 2 nuits).
+            La durée commune à tout le groupe. Par exemple, 3 jours correspondent à 2 nuits.
           </p>
         </div>
 

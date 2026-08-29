@@ -13,7 +13,6 @@ const PHOTO_BOOK_PARTNER = { name: "CEWE", url: "https://www.cewe.fr/livres-phot
 export const Route = createFileRoute("/_authenticated/trips/$tripId/memories")({ head: () => ({ meta: [{ title: "Souvenirs du voyage — KREW" }] }), component: MemoriesPage });
 type Photo = { id:string; trip_id:string; url:string; author:string; likes:number; likedByMe:boolean; created_at:string; storage_path?:string|null; owner_user_id?:string|null; original_filename?:string|null };
 async function signPhotoUrls(rows:any[]):Promise<Photo[]> { return Promise.all(rows.map(async row => { const photo={...row,likedByMe:Array.isArray(row.trip_photo_likes)&&row.trip_photo_likes.length>0};delete photo.trip_photo_likes;if(!row.storage_path)return {...photo,url:row.url||""} as Photo;const {data,error}=await supabase.storage.from("trip-photos").createSignedUrl(row.storage_path,3600);if(error)throw error;return {...photo,url:data.signedUrl} as Photo; })); }
-function err(e:unknown){if(e&&typeof e==="object"){const x=e as any;return [x.message,x.details,x.hint,x.code?`code ${x.code}`:""].filter(Boolean).join(" — ");}return String(e||"Erreur inconnue");}
 function fileName(p:Photo,i:number){return (p.original_filename?.trim()||`photo-${String(i+1).padStart(3,"0")}.jpg`).replace(/[\\/:*?"<>|]/g,"-");}
 function buildKrewSelection(photos:Photo[]){if(photos.length<=12)return [...photos];const target=Math.min(120,Math.max(12,Math.round(photos.length*.14)));const buckets=new Map<string,Photo[]>();for(const p of [...photos].sort((a,b)=>b.likes-a.likes)){const d=new Date(p.created_at).toISOString().slice(0,10);const b=buckets.get(d)||[];b.push(p);buckets.set(d,b);}const days=[...buckets.keys()].sort();const out:Photo[]=[];let i=0;while(out.length<target&&days.length){const d=days[i%days.length],b=buckets.get(d)!;const p=b.shift();if(p)out.push(p);if(!b.length){buckets.delete(d);days.splice(i%days.length,1);i=0;}else i++;}return out.sort((a,b)=>+new Date(a.created_at)-+new Date(b.created_at));}
 
@@ -28,10 +27,10 @@ function MemoriesPage(){
    list.push(p);
    daysMap.set(key, list);
  }
- const like=useMutation({mutationFn:async(id:string)=>{const {error}=await supabase.rpc("toggle_trip_photo_like" as any,{p_photo_id:id});if(error)throw error;},onSuccess:()=>qc.invalidateQueries({queryKey:["trip-photos",tripId]}),onError:()=>toast.error("Impossible d'enregistrer le like.")});
- const remove=useMutation({mutationFn:async(p:Photo)=>{if(p.storage_path){const {error}=await supabase.storage.from("trip-photos").remove([p.storage_path]);if(error)throw error;}const {error}=await supabase.from("trip_photos" as any).update({deleted_at:new Date().toISOString()}).eq("id",p.id);if(error)throw error;},onSuccess:()=>{qc.invalidateQueries({queryKey:["trip-photos",tripId]});toast.success("Photo supprimée.");},onError:e=>toast.error(`Impossible de supprimer la photo : ${err(e)}`)});
- const download=async(isSelection=false)=>{const source=isSelection?selection:photos;if(!source.length)return;setDownloading(true);try{const used=new Set<string>();const files=source.filter((p,i)=>{const n=fileName(p,i);if(used.has(n))return false;used.add(n);return true;}).map((p,i)=>({name:fileName(p,i),url:p.url}));const blob=await createPhotosZip(files);const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=`krew-${isSelection?"selection":"photos"}-${tripId}.zip`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);toast.success(`${files.length} photo(s) préparée(s) dans le ZIP.`);}catch(e){toast.error(`Impossible de préparer le téléchargement : ${err(e)}`);}finally{setDownloading(false);}};
- const upload=async(e:React.ChangeEvent<HTMLInputElement>)=>{const files=Array.from(e.target.files||[]);e.target.value="";if(!userId||!files.length){if(!userId&&files.length)toast.error("Tu dois être connecté pour importer une photo.");return;}setUploading(true);let added=0,duplicates=0;try{for(const file of files){if(!file.type.startsWith("image/")){toast.error(`${file.name} n'est pas une image prise en charge.`);continue;}const hash=await sha256File(file);const {data:dup,error:de}=await supabase.from("trip_photos" as any).select("id").eq("trip_id",tripId).eq("content_hash",hash).is("deleted_at",null).maybeSingle();if(de)throw de;if(dup){duplicates++;continue;}const id=crypto.randomUUID(),ext=file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg",path=`${tripId}/${userId}/${id}.${ext}`;const {error:ue}=await supabase.storage.from("trip-photos").upload(path,file,{contentType:file.type,upsert:false});if(ue)throw ue;const {error:ie}=await supabase.from("trip_photos" as any).insert({id,trip_id:tripId,owner_user_id:userId,storage_path:path,author:userName,likes:0,content_hash:hash,original_filename:file.name,mime_type:file.type,file_size_bytes:file.size});if(ie){await supabase.storage.from("trip-photos").remove([path]);throw ie;}added++;}await qc.invalidateQueries({queryKey:["trip-photos",tripId]});if(added)toast.success(`${added} photo(s) ajoutée(s) à l'album.`);if(duplicates)toast.info(`${duplicates} doublon(s) exact(s) ignoré(s).`);}catch(e){toast.error(`Impossible d'importer la photo : ${err(e)}`);}finally{setUploading(false);}};
+ const like=useMutation({mutationFn:async(id:string)=>{const {error}=await supabase.rpc("toggle_trip_photo_like" as any,{p_photo_id:id});if(error)throw error;},onSuccess:()=>qc.invalidateQueries({queryKey:["trip-photos",tripId]}),onError:e=>{console.error("Impossible d'enregistrer l'appréciation:",e);toast.error("Impossible d’enregistrer ton choix pour le moment.");}});
+ const remove=useMutation({mutationFn:async(p:Photo)=>{if(p.storage_path){const {error}=await supabase.storage.from("trip-photos").remove([p.storage_path]);if(error)throw error;}const {error}=await supabase.from("trip_photos" as any).update({deleted_at:new Date().toISOString()}).eq("id",p.id);if(error)throw error;},onSuccess:()=>{qc.invalidateQueries({queryKey:["trip-photos",tripId]});toast.success("Photo supprimée");},onError:e=>{console.error("Impossible de supprimer la photo:",e);toast.error("Impossible de supprimer cette photo pour le moment.");}});
+ const download=async(isSelection=false)=>{const source=isSelection?selection:photos;if(!source.length)return;setDownloading(true);try{const used=new Set<string>();const files=source.filter((p,i)=>{const n=fileName(p,i);if(used.has(n))return false;used.add(n);return true;}).map((p,i)=>({name:fileName(p,i),url:p.url}));const blob=await createPhotosZip(files);const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=`krew-${isSelection?"selection":"photos"}-${tripId}.zip`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);toast.success(`${files.length} photo${files.length>1?"s":""} prête${files.length>1?"s":""} à télécharger`);}catch(e){console.error("Impossible de préparer le téléchargement:",e);toast.error("Impossible de préparer le téléchargement pour le moment.");}finally{setDownloading(false);}};
+ const upload=async(e:React.ChangeEvent<HTMLInputElement>)=>{const files=Array.from(e.target.files||[]);e.target.value="";if(!userId||!files.length){if(!userId&&files.length)toast.error("Tu dois être connecté pour importer une photo.");return;}setUploading(true);let added=0,duplicates=0;try{for(const file of files){if(!file.type.startsWith("image/")){toast.error(`${file.name} n'est pas une image prise en charge.`);continue;}const hash=await sha256File(file);const {data:dup,error:de}=await supabase.from("trip_photos" as any).select("id").eq("trip_id",tripId).eq("content_hash",hash).is("deleted_at",null).maybeSingle();if(de)throw de;if(dup){duplicates++;continue;}const id=crypto.randomUUID(),ext=file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g,"")||"jpg",path=`${tripId}/${userId}/${id}.${ext}`;const {error:ue}=await supabase.storage.from("trip-photos").upload(path,file,{contentType:file.type,upsert:false});if(ue)throw ue;const {error:ie}=await supabase.from("trip_photos" as any).insert({id,trip_id:tripId,owner_user_id:userId,storage_path:path,author:userName,likes:0,content_hash:hash,original_filename:file.name,mime_type:file.type,file_size_bytes:file.size});if(ie){await supabase.storage.from("trip-photos").remove([path]);throw ie;}added++;}await qc.invalidateQueries({queryKey:["trip-photos",tripId]});if(added)toast.success(`${added} photo${added>1?"s":""} ajoutée${added>1?"s":""} à l’album`);if(duplicates)toast.info(`${duplicates} doublon${duplicates>1?"s":""} ignoré${duplicates>1?"s":""}`);}catch(e){console.error("Impossible d'importer les photos:",e);toast.error("Impossible d’importer les photos pour le moment.");}finally{setUploading(false);}};
 
  return (
     <main className="mx-auto max-w-[1020px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
@@ -66,7 +65,7 @@ function MemoriesPage(){
             />
           </div>
           <p className="text-sm text-muted-foreground font-sans">
-            Retrouve les meilleurs moments partagés avec le groupe.
+            Retrouve les moments partagés avec le groupe.
           </p>
           {selection.length > 0 ? (
             <div className="pt-1">
@@ -128,12 +127,12 @@ function MemoriesPage(){
           <p className="text-[13px] text-muted-foreground font-sans mt-1 max-w-sm mx-auto">
             {!isLoading && !photos.length
               ? "Importe les premières photos pour constituer l'album du voyage. Elles restent privées et accessibles uniquement aux participants autorisés."
-              : "Stockage privé, accessible uniquement aux participants autorisés."}
+              : "Les photos restent privées et accessibles uniquement aux participants autorisés."}
           </p>
         </div>
         <div className="pt-1">
           <Button size="sm" className="rounded-xl font-medium" disabled={uploading} onClick={() => permission === "granted" ? fileInputRef.current?.click() : setShowModal(true)}>
-            {uploading ? <><Loader2 className="size-3.5 animate-spin shrink-0" /> Importation...</> : "Choisir des photos"}
+            {uploading ? <><Loader2 className="size-3.5 animate-spin shrink-0" /> Importation…</> : "Choisir des photos"}
           </Button>
         </div>
       </section>
@@ -159,12 +158,12 @@ function MemoriesPage(){
                 <div className="p-3.5 flex items-center justify-between text-[13px] sm:text-sm text-muted-foreground font-sans">
                   <span>Par <strong className="text-foreground font-semibold">{p.author}</strong></span>
                   <div className="flex items-center gap-3">
-                    <button type="button" onClick={() => like.mutate(p.id)} className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer" aria-label={p.likedByMe ? "Retirer mon like" : "Liker la photo"}>
+                    <button type="button" onClick={() => like.mutate(p.id)} className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer" aria-label={p.likedByMe ? "Retirer mon appréciation" : "J’aime cette photo"}>
                       <KrewIcon name="favorite" tone={p.likedByMe ? "plum" : "muted"} size="sm" className="size-3.5" />
                       <span className="font-mono text-xs font-semibold">{p.likes}</span>
                     </button>
                     {p.owner_user_id === userId && (
-                      <button type="button" onClick={() => remove.mutate(p)} className="hover:text-destructive transition-colors cursor-pointer" aria-label="Supprimer photo">
+                      <button type="button" onClick={() => remove.mutate(p)} className="hover:text-destructive transition-colors cursor-pointer" aria-label="Supprimer la photo">
                         <Trash2 className="size-3.5" />
                       </button>
                     )}
@@ -180,7 +179,7 @@ function MemoriesPage(){
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-card border border-border/60 rounded-2xl p-6 max-w-md space-y-4 shadow-sm">
             <div className="flex items-center justify-between">
-              <h3 className="font-display text-xl font-normal text-foreground">Autorisation d&apos;import</h3>
+              <h3 className="font-display text-xl font-normal text-foreground">Autoriser l’import de photos</h3>
               <button type="button" onClick={() => setShowModal(false)} aria-label="Fermer"><X className="size-4" /></button>
             </div>
             <p className="text-[13px] text-muted-foreground font-sans leading-relaxed">
@@ -270,7 +269,7 @@ function MemoriesPage(){
               <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setShowPartner(false)}>Annuler</Button>
               <Button size="sm" className="rounded-xl font-medium" asChild>
                 <a href={PHOTO_BOOK_PARTNER.url} target="_blank" rel="noopener noreferrer">
-                  Continuer vers {PHOTO_BOOK_PARTNER.name} <ExternalLink className="size-3.5 ml-1" />
+                  Ouvrir {PHOTO_BOOK_PARTNER.name} <ExternalLink className="size-3.5 ml-1" />
                 </a>
               </Button>
             </div>

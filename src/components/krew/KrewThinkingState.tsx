@@ -36,12 +36,12 @@ const CONTENT: Record<
     otterSrc: "/brand/otter-states/transport.png",
   },
   planning: {
-    title: "KREW prépare le programme",
+    title: "KREW prépare le planning",
     description: "On assemble une proposition cohérente avec les choix déjà faits par le groupe.",
     otterSrc: "/brand/otter-states/planning.png",
   },
   generic: {
-    title: "KREW prépare la meilleure réponse pour votre groupe",
+    title: "KREW prépare la meilleure réponse pour le groupe",
     description: "Encore un instant, la suite arrive.",
     otterSrc: "/brand/otter-states/searching.png",
   },

@@ -46,7 +46,6 @@ export function TransportTimePrefsCard({ tripId }: Props) {
     enabled: !!tripId,
   });
 
-
   useEffect(() => {
     if (myPrefs) {
       setEarliest(myPrefs.earliest_departure_time || "");
@@ -68,7 +67,8 @@ export function TransportTimePrefsCard({ tripId }: Props) {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (e: any) => {
-      toast.error(String(e?.message ?? "Erreur lors de la sauvegarde."));
+      console.error("Impossible d'enregistrer les créneaux de transport:", e);
+      toast.error("Impossible d’enregistrer tes créneaux pour le moment.");
     },
   });
 

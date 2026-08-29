@@ -56,14 +56,14 @@ const LOCKED_JOURNEY_SECTIONS = {
   profile: {
     title: "Profil du voyage",
     otter: "/brand/otter-states/preferences.png",
-    description: "Le profil du groupe se construira à partir des réponses de chacun.",
+    description: "Le profil du voyage se construira à partir des réponses du groupe.",
     requirement: "Il se débloquera quand les préférences nécessaires du groupe auront été renseignées.",
     realSelector: "#hub-profile",
   },
   destination: {
     title: "Destination",
     otter: "/brand/otter-states/destination.png",
-    description: "Les destinations seront proposées à partir du profil et des envies du groupe.",
+    description: "Les destinations seront proposées à partir du profil du voyage et des envies du groupe.",
     requirement: "Choisis d’abord le profil du voyage pour débloquer les destinations.",
     realSelector: "#hub-destination > div.flex.flex-wrap.items-end.justify-between",
     actionSection: "profile",
@@ -72,15 +72,15 @@ const LOCKED_JOURNEY_SECTIONS = {
   accommodation: {
     title: "Hébergement",
     otter: "/brand/otter-states/accommodation.png",
-    description: "Les logements seront proposés une fois la destination du groupe choisie.",
+    description: "Les hébergements seront proposés une fois la destination du groupe choisie.",
     requirement: "Choisis d’abord la destination pour débloquer cette étape.",
     realSelector: "#hub-logistics",
   },
   planning: {
     title: "Planning",
     otter: "/brand/otter-states/planning.png",
-    description: "KREW construira le programme à partir de la destination et des choix du groupe.",
-    requirement: "Valide d’abord la destination pour débloquer le planning.",
+    description: "KREW construira le planning à partir de la destination et des choix du groupe.",
+    requirement: "Choisis d’abord la destination pour débloquer le planning.",
     realSelector: "#hub-activities-plan",
   },
   tasks: {

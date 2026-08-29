@@ -86,12 +86,19 @@ function InvitePage() {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
     },
-    onError: () => toast.error("Email invalide ou déjà invité"),
+    onError: (err) => {
+      console.error("Impossible d'envoyer l'invitation:", err);
+      toast.error("Cette adresse e-mail est invalide ou a déjà été invitée.");
+    },
   });
 
   const removeMutation = useMutation({
     mutationFn: (participantId: string) => removeGuest({ data: { participantId } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["trip", tripId] }),
+    onError: (err) => {
+      console.error("Impossible de retirer le participant:", err);
+      toast.error("Impossible de retirer cette personne du voyage pour le moment.");
+    },
   });
 
   const setCoOrgMutation = useMutation({
@@ -100,14 +107,14 @@ function InvitePage() {
     onSuccess: (_, variables) => {
       toast.success(
         variables.coOrganizerId
-          ? "Co-organisateur·rice nommé·e !"
-          : "Rôle co-organisateur·rice retiré.",
+          ? "Co-organisateur·rice nommé·e"
+          : "Rôle de co-organisateur·rice retiré",
       );
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (err) => {
-      console.error(err);
-      toast.error("Erreur lors de la mise à jour des rôles.");
+      console.error("Impossible de mettre à jour le rôle:", err);
+      toast.error("Impossible de mettre à jour ce rôle pour le moment.");
     },
   });
 
@@ -117,21 +124,21 @@ function InvitePage() {
         data: { tripId, starMode, inviteStepCompleted: true, starPaysShare },
       }),
     onSuccess: () => {
-      toast.success("Étape d'invitation validée !");
+      toast.success("Invitations enregistrées");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
     },
     onError: (err: any) => {
-      console.error(err);
-      toast.error("Erreur lors de la validation : " + (err?.message || ""));
+      console.error("Impossible d'enregistrer les invitations:", err);
+      toast.error("Impossible d’enregistrer les invitations pour le moment. Réessaie dans un instant.");
     },
   });
 
   if (isError && !data) {
     return (
       <main className="mx-auto w-full max-w-[820px] space-y-4 px-4 py-10 text-center sm:px-6 lg:px-8">
-        <h1 className="font-display text-[30px] font-normal text-foreground">Impossible de charger l’invitation</h1>
-        <p className="text-sm text-muted-foreground">Les détails du voyage ne sont pas disponibles pour le moment.</p>
+        <h1 className="font-display text-[30px] font-normal text-foreground">Impossible de charger les invitations</h1>
+        <p className="text-sm text-muted-foreground">Les informations du voyage ne sont pas disponibles pour le moment.</p>
         <Button onClick={() => { refetch(); refetchProgress(); }}>Réessayer</Button>
       </main>
     );
@@ -140,7 +147,7 @@ function InvitePage() {
   if (isLoading || !data) {
     return (
       <main className="mx-auto w-full max-w-[820px] px-4 py-10 sm:px-6 lg:px-8">
-        <KrewThinkingState context="generic" customMessage="Chargement de l’invitation…" delayMs={0} />
+        <KrewThinkingState context="generic" customMessage="Chargement des invitations…" delayMs={0} />
       </main>
     );
   }
@@ -197,25 +204,25 @@ function InvitePage() {
     progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
 
   function shareInvitation() {
-    const text = `Salut ! On organise « ${trip.name} » avec KREW ✈️\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n👉 ${shareUrl}`;
+    const text = `Salut ! On organise « ${trip.name} » avec KREW.\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n${shareUrl}`;
     shareOnWhatsApp(text);
   }
 
   function remindGroup() {
     const lines = [
-      `Petit point KREW pour « ${trip.name} » ✈️`,
+      `Petit point KREW pour « ${trip.name} »`,
       "",
-      "Il reste quelques petites choses à faire :",
+      "Il reste quelques réponses à compléter :",
     ];
     for (const p of missingParticipants) {
-      const name = p.display_name || p.email?.split("@")[0] || "Ami";
+      const name = p.display_name || p.email?.split("@")[0] || "Participant";
       const missing = [
         !p.hasAnsweredAvailability ? "disponibilités" : null,
         !p.hasAnswered ? "préférences" : null,
       ].filter(Boolean);
       lines.push(`• ${name} : ${missing.join(" + ")}`);
     }
-    lines.push("", `👉 ${window.location.origin}/trips/${trip.id}`);
+    lines.push("", `${window.location.origin}/trips/${trip.id}`);
     shareOnWhatsApp(lines.join("\n"));
   }
 
@@ -236,7 +243,7 @@ function InvitePage() {
         waveClassName="w-[140px]"
       >
         <p className="max-w-[42rem] text-[15px] leading-[1.55] text-muted-foreground sm:text-[16px]">
-          {inviteStepCompleted ? "La team est réunie. Tu peux relancer doucement les réponses qui manquent." : "Partage le lien, invite la team et vois en un coup d’œil qui doit encore répondre."}
+          {inviteStepCompleted ? "Le groupe est réuni. Tu peux relancer les réponses qui manquent." : "Partage le lien, invite le groupe et vois en un coup d’œil qui doit encore répondre."}
         </p>
       </KrewJourneyPageHeader>
 
@@ -286,7 +293,7 @@ function InvitePage() {
         <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/45 pb-2">
           <h2 className="flex items-center gap-2 font-display text-[26px] font-normal text-foreground sm:text-[29px]">
             <KrewIcon name="group" tone="plum" size="sm" className="size-5" />
-            La team
+            Le groupe
           </h2>
           <p className="font-mono text-[12px] text-muted-foreground sm:text-[13px]">{answered}/{total} ont renseigné leurs préférences</p>
         </div>
@@ -350,7 +357,7 @@ function InvitePage() {
                               disabled={setCoOrgMutation.isPending}
                               onSelect={() => setCoOrgMutation.mutate({ coOrganizerId: isCoOrg ? null : p.user_id || null })}
                             >
-                              {isCoOrg ? "Retirer le rôle de co-org" : "Nommer co-organisateur·rice"}
+                              {isCoOrg ? "Retirer le rôle de co-organisateur·rice" : "Nommer co-organisateur·rice"}
                             </DropdownMenuItem>
                           ) : null}
                           {canChangeRole && canRemove ? <DropdownMenuSeparator /> : null}
@@ -376,7 +383,7 @@ function InvitePage() {
         {data.isOwner && missingParticipants.length > 0 ? (
           <div className="flex flex-col gap-1 border-t border-border/45 pt-4 text-[14px] sm:flex-row sm:items-center sm:justify-between">
             <p className="text-muted-foreground">
-              On avance bien : {missingParticipants.length} personne{missingParticipants.length > 1 ? "s" : ""} doivent encore répondre.
+              {missingParticipants.length === 1 ? "1 réponse manque encore." : `${missingParticipants.length} réponses manquent encore.`}
             </p>
             <button
               type="button"
@@ -384,7 +391,7 @@ function InvitePage() {
               className="inline-flex min-h-10 items-center gap-1.5 self-start font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"
             >
               <KrewIcon name="message" tone="plum" size="sm" className="size-4" />
-              Relancer gentiment via WhatsApp <span aria-hidden="true" className="ml-1">→</span>
+              Relancer via WhatsApp <span aria-hidden="true" className="ml-1">→</span>
             </button>
           </div>
         ) : null}
@@ -397,7 +404,7 @@ function InvitePage() {
               <KrewIcon name="favorite" tone="plum" size="sm" className="size-5" />
               Rôle de la Star ({trip.celebrated_person || "Star"})
             </h2>
-            <p className="text-[14px] leading-relaxed text-muted-foreground">Choisis simplement si l’organisation doit rester secrète pour la Star.</p>
+            <p className="text-[14px] leading-relaxed text-muted-foreground">Choisis si l’organisation doit rester secrète pour la Star.</p>
           </div>
 
           <fieldset className="divide-y divide-border/45" disabled={!data.isOwner}>
@@ -479,7 +486,7 @@ function InvitePage() {
             onClick={() => finishInviteMutation.mutate()}
           >
             {finishInviteMutation.isPending ? <Loader2 className="animate-spin" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4" />}
-            {inviteStepCompleted ? "Enregistrer et revenir au voyage" : "Accéder au tableau de bord du voyage"}
+            {inviteStepCompleted ? "Enregistrer et revenir au voyage" : "Enregistrer les invitations"}
           </Button>
         </section>
       ) : (
@@ -489,10 +496,10 @@ function InvitePage() {
             params={{ tripId }}
             className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground hover:text-primary"
           >
-            Voir le hub
+            Voir le voyage
           </Link>
           <Button asChild className="w-full sm:w-auto">
-            <Link to="/trips/$tripId/availability" params={{ tripId }}>Continuer → disponibilités</Link>
+            <Link to="/trips/$tripId/availability" params={{ tripId }}>Indiquer mes disponibilités</Link>
           </Button>
         </div>
       )}

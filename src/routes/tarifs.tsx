@@ -56,7 +56,7 @@ function PricingPage() {
                 {[
                   "Création de voyages de groupe",
                   "Invitations pour tout le groupe",
-                  "Questionnaires de préférences et disponibilités",
+                  "Préférences et disponibilités du groupe",
                   "Propositions de destinations adaptées au groupe",
                   "Planning collaboratif jour par jour",
                   "Répartition des coûts",

@@ -26,17 +26,20 @@ export const Route = createFileRoute("/join/$tripId")({
     ],
   }),
   component: JoinTripPage,
-  errorComponent: ({ error }) => (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-center sm:px-6">
-      <h1 className="font-display text-2xl font-normal sm:text-3xl">Impossible d&apos;ouvrir l&apos;invitation</h1>
-      <p className="max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-        {error?.message ?? "Erreur inattendue. Réessaie ou demande un nouveau lien."}
-      </p>
-      <a href="/" className="inline-flex min-h-10 items-center text-sm font-semibold text-primary underline underline-offset-4">
-        Retour à l&apos;accueil
-      </a>
-    </main>
-  ),
+  errorComponent: ({ error }) => {
+    console.error("Impossible d'ouvrir l'invitation:", error);
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-center sm:px-6">
+        <h1 className="font-display text-2xl font-normal sm:text-3xl">Impossible d&apos;ouvrir l&apos;invitation</h1>
+        <p className="max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+          Ce lien n’est pas disponible. Demande un nouveau lien d’invitation si besoin.
+        </p>
+        <a href="/" className="inline-flex min-h-10 items-center text-sm font-semibold text-primary underline underline-offset-4">
+          Retour à l&apos;accueil
+        </a>
+      </main>
+    );
+  },
 });
 
 const JOIN_INPUT_CLASS =
@@ -106,7 +109,7 @@ function JoinTripPage() {
     setError(null);
 
     if (!tripId || tripId.length < 8) {
-      setError("Lien d'invitation incomplet.");
+      setError("Ce lien d’invitation est incomplet.");
       setLoading(false);
       return;
     }
@@ -116,12 +119,13 @@ function JoinTripPage() {
         if (!cancelled) setPreview(p);
       })
       .catch((e: any) => {
+        console.error("Impossible de charger l'invitation:", e);
         if (!cancelled) {
-          const msg = String(e?.message ?? e ?? "Lien invalide");
+          const msg = String(e?.message ?? e ?? "");
           setError(
             msg.includes("uuid") || msg.includes("UUID")
-              ? "Lien d'invitation invalide (identifiant incorrect)."
-              : msg.slice(0, 200),
+              ? "Ce lien d’invitation est invalide."
+              : "Cette invitation n’est pas disponible. Demande un nouveau lien si besoin.",
           );
         }
       })
@@ -141,20 +145,21 @@ function JoinTripPage() {
       return;
     }
     if (!firstName.trim()) {
-      toast.error("Indique ton prénom pour que le groupe sache qui tu es");
+      toast.error("Indique ton prénom pour que le groupe sache qui tu es.");
       return;
     }
     setJoining(true);
     try {
       const res = await doJoin({ data: { tripId, firstName: firstName.trim() } });
-      toast.success("Bienvenue dans le voyage !");
+      toast.success("Voyage rejoint");
       if (res?.alreadyMember && res?.myAvailabilityDone && res?.myPreferencesDone) {
         window.location.assign(`/trips/${tripId}`);
       } else {
         window.location.assign(`/trips/${tripId}/availability`);
       }
     } catch (e: any) {
-      toast.error(e?.message ?? "Impossible de rejoindre ce voyage");
+      console.error("Impossible de rejoindre le voyage:", e);
+      toast.error("Impossible de rejoindre ce voyage pour le moment. Réessaie dans un instant.");
     } finally {
       setJoining(false);
     }
@@ -218,7 +223,7 @@ function JoinTripPage() {
 
             <Button className="w-full max-w-[460px]" disabled={joining} onClick={handleJoin}>
               {joining ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}
-              {isAuthenticated ? "Rejoindre et indiquer mes dispos" : "Se connecter pour rejoindre le voyage"}
+              {isAuthenticated ? "Rejoindre le voyage" : "Se connecter pour rejoindre le voyage"}
             </Button>
 
             {!isAuthenticated ? (
@@ -228,6 +233,7 @@ function JoinTripPage() {
         ) : (
           <div className="max-w-[560px] space-y-4 py-8">
             <h1 className="font-display text-[34px] font-normal text-foreground">Invitation introuvable</h1>
+            <p className="text-[14px] text-muted-foreground">Demande un nouveau lien d’invitation pour rejoindre le voyage.</p>
             <Button asChild><Link to="/">Retour à l&apos;accueil</Link></Button>
           </div>
         )}

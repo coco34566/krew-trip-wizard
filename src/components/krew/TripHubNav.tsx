@@ -152,7 +152,7 @@ export function TripHubNav({
       </ol>
 
       <ol className="relative block space-y-2 sm:hidden">
-        {steps.map((step, i) => {
+        {steps.map((step) => {
           const isDone = step.status === "done";
           const isActive = step.status === "active";
           const isSoon = step.status === "soon";
@@ -214,15 +214,15 @@ export function TripHubNav({
 
 export function ComingSoonGrid() {
   const items: Array<{ label: string; icon: KrewIconName }> = [
-    { label: "Planning du séjour", icon: "planning" },
+    { label: "Planning", icon: "planning" },
     { label: "Hébergements", icon: "accommodation" },
     { label: "Activités réservées", icon: "booked" },
-    { label: "Dépenses communes", icon: "budget" },
+    { label: "Dépenses du groupe", icon: "budget" },
     { label: "Répartition des chambres", icon: "accommodation" },
-    { label: "Check-list", icon: "tasks" },
-    { label: "Documents & billets", icon: "packing" },
+    { label: "À emporter", icon: "tasks" },
+    { label: "Documents et billets", icon: "packing" },
     { label: "Sondages", icon: "vote" },
-    { label: "Chat de groupe", icon: "message" },
+    { label: "Chat du groupe", icon: "message" },
   ];
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
