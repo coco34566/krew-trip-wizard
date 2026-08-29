@@ -18,25 +18,35 @@ function formatRemainingTime(seconds: number): string {
   return secs === 0 ? `${mins} min` : `${mins} min ${secs} sec`;
 }
 
+function rateLimitRpcClient(testClient: SupabaseClient): SupabaseClient {
+  // Production must always use the server-side admin client. Vitest injects a
+  // deterministic mock so the rate-limit state machine can be tested without
+  // exposing or requiring service-role credentials in CI.
+  return process.env.NODE_ENV === "test" ? testClient : supabaseAdmin;
+}
+
 /**
  * Atomically checks the rate limit.
  * User-level checks are read-only; trip-level checks consume the slot.
  * Fails closed if the database cannot evaluate the limit.
  */
 export async function assertNotRateLimited(
-  _supabase: SupabaseClient,
+  supabase: SupabaseClient,
   options: RateLimitOptions,
 ): Promise<void> {
   const { tripId, userId, kind, windowSeconds, maxCalls, isUserCheck = false } = options;
 
-  const { data, error } = await (supabaseAdmin as any).rpc("consume_generation_rate_limit_server", {
-    p_trip_id: tripId,
-    p_user_id: userId,
-    p_kind: kind,
-    p_window_seconds: windowSeconds,
-    p_max_calls: maxCalls,
-    p_is_user_check: isUserCheck,
-  });
+  const { data, error } = await (rateLimitRpcClient(supabase) as any).rpc(
+    "consume_generation_rate_limit_server",
+    {
+      p_trip_id: tripId,
+      p_user_id: userId,
+      p_kind: kind,
+      p_window_seconds: windowSeconds,
+      p_max_calls: maxCalls,
+      p_is_user_check: isUserCheck,
+    },
+  );
 
   if (error) {
     console.error("[RateLimit] Impossible de vérifier le rate limit", error);
@@ -58,14 +68,17 @@ export async function assertNotRateLimited(
  * producing a usable result. The database function re-checks the caller identity.
  */
 export async function releaseRateLimit(
-  _supabase: SupabaseClient,
+  supabase: SupabaseClient,
   options: Pick<RateLimitOptions, "tripId" | "userId" | "kind">,
 ): Promise<void> {
-  const { error } = await (supabaseAdmin as any).rpc("release_generation_rate_limit_server", {
-    p_trip_id: options.tripId,
-    p_user_id: options.userId,
-    p_kind: options.kind,
-  });
+  const { error } = await (rateLimitRpcClient(supabase) as any).rpc(
+    "release_generation_rate_limit_server",
+    {
+      p_trip_id: options.tripId,
+      p_user_id: options.userId,
+      p_kind: options.kind,
+    },
+  );
 
   if (error) {
     console.error("[RateLimit] Impossible de libérer la réservation", error);
