@@ -214,15 +214,24 @@ export function PackingListCard({
 
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
         <section className="space-y-2 border-t border-border/50 pt-4">
-          <h3 className="font-sans font-semibold text-base sm:text-lg text-foreground">Mes affaires</h3>
+          <h3 className="flex items-center gap-2 font-sans font-semibold text-base sm:text-lg text-foreground">
+            <KrewIcon name="packing" tone="plum" size="sm" className="size-4.5 shrink-0" />
+            Mes affaires
+          </h3>
           {renderItems(result.personal)}
         </section>
         <section className="space-y-2 border-t border-border/50 pt-4">
-          <h3 className="font-sans font-semibold text-base sm:text-lg text-foreground">Pour le groupe</h3>
+          <h3 className="flex items-center gap-2 font-sans font-semibold text-base sm:text-lg text-foreground">
+            <KrewIcon name="group" tone="sage" size="sm" className="size-4.5 shrink-0" />
+            Pour le groupe
+          </h3>
           {renderItems(result.group, true)}
         </section>
         <section className="space-y-2 border-t border-border/50 pt-4">
-          <h3 className="font-sans font-semibold text-base sm:text-lg text-foreground">Courses</h3>
+          <h3 className="flex items-center gap-2 font-sans font-semibold text-base sm:text-lg text-foreground">
+            <KrewIcon name="food" tone="plum" size="sm" className="size-4.5 shrink-0" />
+            Courses
+          </h3>
           <ul className="divide-y divide-border/40 text-sm sm:text-base">
             {result.groceries.map((g) => (
               <li key={g.id} className="py-3 flex items-start justify-between gap-3">
@@ -235,7 +244,10 @@ export function PackingListCard({
           </ul>
         </section>
         <section className="space-y-2 border-t border-border/50 pt-4">
-          <h3 className="font-sans font-semibold text-base sm:text-lg text-foreground">À faire</h3>
+          <h3 className="flex items-center gap-2 font-sans font-semibold text-base sm:text-lg text-foreground">
+            <KrewIcon name="tasks" tone="sage" size="sm" className="size-4.5 shrink-0" />
+            À faire
+          </h3>
           <ul className="divide-y divide-border/40 text-sm sm:text-base">
             {result.tasks.map((t) => (
               <li key={t.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">

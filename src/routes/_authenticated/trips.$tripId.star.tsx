@@ -74,7 +74,7 @@ function MonthGrid({
   onToggle: (iso: string) => void;
 }) {
   const first = startOfMonth(month);
-  const startWeekday = (first.getDay() + 6) % 7; // lundi = 0
+  const startWeekday = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const todayISO = toISO(new Date());
 
@@ -180,8 +180,6 @@ function StarQuestionnaire() {
   const [breakers, setBreakers] = useState<string[]>([]);
   const [ambiances, setAmbiances] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
-
-  // Nouveaux champs pour la star
   const [departureCity, setDepartureCity] = useState("");
   const [departureAirportOrStation, setDepartureAirportOrStation] = useState("");
   const [desiredDestination, setDesiredDestination] = useState("");
@@ -194,12 +192,9 @@ function StarQuestionnaire() {
   const [accommodationRole, setAccommodationRole] = useState<
     "base_only" | "part_of_stay" | "centerpiece" | null
   >(null);
-
-  // Disponibilités de la star (iso → DayMode)
   const [selection, setSelection] = useState<Map<string, DayMode>>(new Map());
   const [paintMode, setPaintMode] = useState<"available" | "blocked">("available");
   const [monthOffset, setMonthOffset] = useState(0);
-
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -395,19 +390,18 @@ function StarQuestionnaire() {
       </div>
 
       <section className="space-y-6 border-b border-border/50 pb-8">
-        <div className="space-y-1.5"><h2 className="font-display text-2xl font-normal text-foreground">Pour commencer</h2><p className="text-sm leading-relaxed text-muted-foreground">Ces deux choix restent modifiables si l’organisation évolue.</p></div>
+        <div className="space-y-1.5"><h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground"><KrewIcon name="favorite" tone="plum" size="sm" className="size-5 shrink-0" />Pour commencer</h2><p className="text-sm leading-relaxed text-muted-foreground">Ces deux choix restent modifiables si l’organisation évolue.</p></div>
         <div className="space-y-4">
           <div className="space-y-3"><p className="text-base font-semibold leading-snug text-foreground">Comment participe {starName} à l’organisation ?</p><div className="grid gap-3 sm:grid-cols-2"><SelectableOption active={starMode === "secret"} onClick={() => data.trip.isOwner && setStarMode("secret")} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Mode secret · tu complètes ses réponses</SelectableOption><SelectableOption active={starMode === "participant"} onClick={() => data.trip.isOwner && setStarMode("participant")} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Mode participant · la Star répond elle-même</SelectableOption></div></div>
           <div className="space-y-3"><p className="text-base font-semibold leading-snug text-foreground">La Star participe-t-elle aux frais ?</p><div className="grid gap-3 sm:grid-cols-2"><SelectableOption active={starPaysShare} onClick={() => data.trip.isOwner && setStarPaysShare(true)} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Oui, sa part reste incluse</SelectableOption><SelectableOption active={!starPaysShare} onClick={() => data.trip.isOwner && setStarPaysShare(false)} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Non, sa part est répartie</SelectableOption></div></div>
         </div>
-        {data.trip.isOwner ? <Button variant="outline" onClick={() => setupMutation.mutate()} disabled={setupMutation.isPending} className="w-full sm:w-auto">{setupMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}Enregistrer ces choix</Button> : null}
+        {data.trip.isOwner ? <Button variant="outline" onClick={() => setupMutation.mutate()} disabled={setupMutation.isPending} className="w-full sm:w-auto">{setupMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="check" tone="sage" size="sm" className="size-4" />}Enregistrer ces choix</Button> : null}
       </section>
 
       <div className="pt-2">
-        {/* 1. Envies & ambiance */}
         <section className="border-b border-border/50 pb-9 mb-9 space-y-8">
           <div className="space-y-4">
-            <h2 className="font-display text-2xl font-normal text-foreground">Quelles activités plairaient à {starName} ?</h2>
+            <h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground"><KrewIcon name="preferences" tone="plum" size="sm" className="size-5 shrink-0" />Quelles activités plairaient à {starName} ?</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {STAR_WANTED_ACTIVITIES.map((a) => (
                 <SelectableOption key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
@@ -418,7 +412,7 @@ function StarQuestionnaire() {
           </div>
 
           <div className="space-y-5 pt-3">
-            <h2 className="font-display text-2xl font-normal text-foreground">Quelle ambiance {starName} apprécierait ?</h2>
+            <h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground"><KrewIcon name="party" tone="plum" size="sm" className="size-5 shrink-0" />Quelle ambiance {starName} apprécierait ?</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {AMBIANCES.map((a) => (
                 <SelectableOption
@@ -433,7 +427,7 @@ function StarQuestionnaire() {
           </div>
 
           <div className="space-y-5 pt-3">
-            <h2 className="font-display text-2xl font-normal text-foreground">Que refuserait absolument {starName} ?</h2>
+            <h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground"><KrewIcon name="attention" tone="plum" size="sm" className="size-5 shrink-0" />Que refuserait absolument {starName} ?</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {STAR_DEAL_BREAKERS.map((a) => (
                 <SelectableOption
@@ -448,9 +442,8 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-        {/* 2. Destination & cadre (FOND SAUGE LÉGER) */}
         <section className="pb-9 mb-9 space-y-6 font-sans border-b border-border/50">
-          <h2 className="font-display text-2xl font-normal text-foreground">Les lieux qui plairaient à {starName}</h2>
+          <h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground"><KrewIcon name="destination" tone="plum" size="sm" className="size-5 shrink-0" />Les lieux qui plairaient à {starName}</h2>
           <div className="space-y-2">
             <Label htmlFor="destination" className="font-semibold block text-base text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label>
             <Input
@@ -501,11 +494,7 @@ function StarQuestionnaire() {
             </Label>
             <div className="grid grid-cols-1 gap-3">
               {[
-                {
-                  v: 2,
-                  label:
-                    "☀️ Je veux privilégier une destination avec de bonnes chances de beau temps",
-                },
+                { v: 2, label: "☀️ Je veux privilégier une destination avec de bonnes chances de beau temps" },
                 { v: 1, label: "🌤️ C’est un plus, mais ce n’est pas déterminant" },
                 { v: 0, label: "🌍 La météo n’est pas un critère pour moi" },
               ].map((opt) => (
@@ -521,9 +510,8 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-        {/* 3. Hébergement (FOND CRÈME LÉGER) */}
         <section className="bg-surface/50 rounded-[20px] p-5 sm:p-7 pb-9 mb-9 space-y-6 font-sans">
-          <h2 className="font-display text-2xl font-normal text-foreground">Hébergement</h2>
+          <h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground"><KrewIcon name="accommodation" tone="plum" size="sm" className="size-5 shrink-0" />Hébergement</h2>
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Pour {starName}, le logement serait plutôt…</Label>
             <div className="grid grid-cols-1 gap-3">
@@ -544,9 +532,9 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-        {/* 4. Transport */}
         <section className="border-b border-border/50 pb-9 mb-9 space-y-8">
-          <h2 className="font-display text-2xl font-normal text-foreground">
+          <h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground">
+            <KrewIcon name="transport" tone="plum" size="sm" className="size-5 shrink-0" />
             Transport
           </h2>
           <div className="space-y-2">
@@ -579,21 +567,19 @@ function StarQuestionnaire() {
                   active={localMobility === value}
                   onClick={() => setLocalMobility(value as typeof localMobility)}
                 >
-                  {label}
+                  <span className="flex items-center gap-2"><KrewIcon name={value === "walk_transit" ? "walk" : "car"} tone={localMobility === value ? "plum" : "muted"} size="sm" className="size-4 shrink-0" />{label}</span>
                 </SelectableOption>
               ))}
             </div>
           </div>
         </section>
 
-        {/* 5. Disponibilités Calendrier */}
         <section className="space-y-6 pb-9 mb-9 border-b border-border/50">
-          <h2 className="font-display text-2xl font-normal text-foreground">Disponibilités de {starName}</h2>
+          <h2 className="flex items-center gap-2.5 font-display text-2xl font-normal text-foreground"><KrewIcon name="calendar" tone="plum" size="sm" className="size-5 shrink-0" />Disponibilités de {starName}</h2>
           <p className="text-[13px] text-muted-foreground leading-relaxed">
             Indique les dates où {starName} serait disponible ou indisponible.
           </p>
 
-          {/* Mode peinture */}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
@@ -621,7 +607,6 @@ function StarQuestionnaire() {
             </button>
           </div>
 
-          {/* Navigation mois */}
           <div className="flex items-center justify-between gap-3">
             <Button
               type="button"
@@ -671,9 +656,8 @@ function StarQuestionnaire() {
           </div>
         </section>
 
-        {/* 6. Précisions */}
         <section className="space-y-2 pb-8">
-          <Label className="font-semibold block text-base text-foreground">Autres précisions utiles sur les préférences de {starName}</Label>
+          <Label className="flex items-center gap-2 font-semibold text-base text-foreground"><KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />Autres précisions utiles sur les préférences de {starName}</Label>
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}

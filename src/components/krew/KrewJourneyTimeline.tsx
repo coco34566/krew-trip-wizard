@@ -37,7 +37,12 @@ function parseStepHref(href: string) {
 
 function StepMeta({ step }: { step: TimelineStep }) {
   if (step.status === "done") {
-    return <span className="text-[12px] font-semibold uppercase tracking-[0.06em] text-sage">Terminé</span>;
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-sage">
+        <KrewMark type="check" tone="sage" size="sm" className="h-3 w-4" />
+        Terminé
+      </span>
+    );
   }
   if (step.status === "available") {
     return <span className="text-[12px] font-medium text-primary/75">Disponible</span>;
@@ -50,7 +55,7 @@ function StepMeta({ step }: { step: TimelineStep }) {
 
 function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boolean }) {
   return (
-    <div className={cn("min-w-0", next ? "space-y-1.5" : "space-y-1")}> 
+    <div className={cn("min-w-0", next ? "space-y-1.5" : "space-y-1")}>
       {next ? (
         <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="w-fit text-[13px]">
           Prochaine étape
@@ -152,12 +157,12 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 <KrewIcon
                   name={step.iconName}
                   size="sm"
-                  tone={isNextAction ? "cream" : isDone || isAvailable ? "plum" : "muted"}
-                  className={isUpcoming ? "size-4" : "size-5"}
+                  tone={isDone || isAvailable || isNextAction ? "plum" : "muted"}
+                  className={cn(isUpcoming ? "size-4" : "size-5", isNextAction && "text-primary-foreground")}
                 />
                 {isDone ? (
-                  <span className="absolute -bottom-1 -right-1 flex size-[18px] items-center justify-center rounded-full bg-sage text-[11px] font-bold text-white">
-                    ✓
+                  <span className="absolute -bottom-1 -right-1 flex size-[18px] items-center justify-center rounded-full bg-sage text-white">
+                    <KrewMark type="check" tone="ink" size="sm" className="h-2.5 w-3.5 text-white" />
                   </span>
                 ) : null}
               </div>
