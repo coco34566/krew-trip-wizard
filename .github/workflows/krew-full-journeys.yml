@@ -1,0 +1,78 @@
+name: KREW Full Journeys (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL KREW à tester (production ou preview Vercel)"
+        required: true
+        type: string
+      journey:
+        description: "Parcours à exécuter"
+        required: true
+        default: both
+        type: choice
+        options:
+          - standard
+          - complex
+          - both
+      confirm_live_api_calls:
+        description: "Je confirme que ces tests peuvent consommer les quotas Gemini/Tavily/providers"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  full-journeys:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 45
+    env:
+      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
+      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_API_MODE: real
+      KREW_E2E_BASE_URL: ${{ inputs.base_url }}
+    permissions:
+      contents: read
+    steps:
+      - name: Enforce explicit live-API confirmation
+        shell: bash
+        run: |
+          if [ "${{ inputs.confirm_live_api_calls }}" != "true" ]; then
+            echo "::error::Les parcours complets appellent les providers réels. Relance avec la confirmation activée."
+            exit 1
+          fi
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - run: npm ci
+      - name: Install Playwright test runner without changing the lockfile
+        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+      - name: Run selected full journey
+        shell: bash
+        run: |
+          case "${{ inputs.journey }}" in
+            standard)
+              npm run test:e2e:full -- --timeout=600000 --grep "@full-standard"
+              ;;
+            complex)
+              npm run test:e2e:full -- --timeout=600000 --grep "@full-complex"
+              ;;
+            both)
+              npm run test:e2e:full -- --timeout=600000
+              ;;
+            *)
+              echo "::error::Unknown journey selection"
+              exit 1
+              ;;
+          esac
+      - name: Upload full-journey diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: krew-full-journeys-${{ inputs.journey }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
