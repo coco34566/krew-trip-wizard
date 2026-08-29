@@ -18,6 +18,7 @@ describe("group travel profile normalization", () => {
       maxTravelDurationHours: 4,
       wantedEnvTypes: ["Centre-ville / urbain"],
       groupAgeRange: "20-25",
+      hasBudgetVeto: true,
       vetoBudgetMax: 300,
     });
 
