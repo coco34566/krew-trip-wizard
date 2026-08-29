@@ -29,6 +29,7 @@ import {
   setCoOrganizer,
 } from "@/lib/trips.functions";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
+import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 
@@ -50,6 +51,8 @@ function InvitePage() {
   const removeGuest = useServerFn(removeParticipant);
   const setCoOrg = useServerFn(setCoOrganizer);
   const finishInvite = useServerFn(finalizeInvitationStep);
+  const fetchInviteLink = useServerFn(getTripInviteLink);
+  const rotateInviteLink = useServerFn(rotateTripInviteLink);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["trip", tripId],
@@ -63,6 +66,16 @@ function InvitePage() {
     retry: 3,
     retryDelay: 1000,
   });
+  const {
+    data: inviteLink,
+    isLoading: inviteLinkLoading,
+    isError: inviteLinkError,
+  } = useQuery({
+    queryKey: ["trip-invite-link", tripId],
+    queryFn: () => fetchInviteLink({ data: { tripId } }),
+    enabled: Boolean(data?.isOwner),
+    retry: 2,
+  });
 
   const [email, setEmail] = useState("");
   const [starMode, setStarMode] = useState<"secret" | "participant">("secret");
@@ -75,9 +88,21 @@ function InvitePage() {
   }, [savedMode, data?.trip?.group_logistics]);
 
   const shareUrl = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}/join/${tripId}`;
-  }, [tripId]);
+    if (typeof window === "undefined" || !inviteLink?.token) return "";
+    return `${window.location.origin}/join/${tripId}?token=${encodeURIComponent(inviteLink.token)}`;
+  }, [tripId, inviteLink?.token]);
+
+  const rotateLinkMutation = useMutation({
+    mutationFn: () => rotateInviteLink({ data: { tripId } }),
+    onSuccess: (nextLink) => {
+      queryClient.setQueryData(["trip-invite-link", tripId], nextLink);
+      toast.success("Nouveau lien créé. L’ancien lien ne permet plus de rejoindre le groupe.");
+    },
+    onError: (err) => {
+      console.error("Impossible de renouveler le lien d'invitation:", err);
+      toast.error("Impossible de renouveler le lien pour le moment.");
+    },
+  });
 
   const inviteMutation = useMutation({
     mutationFn: () => invite({ data: { tripId, email: email.trim() } }),
@@ -204,6 +229,10 @@ function InvitePage() {
     progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
 
   function shareInvitation() {
+    if (!shareUrl) {
+      toast.error("Le lien d’invitation n’est pas encore disponible.");
+      return;
+    }
     const text = `Salut ! On organise « ${trip.name} » avec KREW.\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n${shareUrl}`;
     shareOnWhatsApp(text);
   }
@@ -249,7 +278,30 @@ function InvitePage() {
 
       {data.isOwner ? (
         <section className="border-b border-border/45 pb-5">
-          <button type="button" onClick={shareInvitation} className="inline-flex min-h-10 items-center gap-2 text-[14px] font-semibold text-primary underline-offset-4 hover:underline"><KrewIcon name="invite" tone="plum" size="sm" className="size-4" />Inviter via WhatsApp <span aria-hidden="true">→</span></button>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <button
+              type="button"
+              onClick={shareInvitation}
+              disabled={!shareUrl || inviteLinkLoading}
+              className="inline-flex min-h-10 items-center gap-2 text-[14px] font-semibold text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
+              Inviter via WhatsApp <span aria-hidden="true">→</span>
+            </button>
+            <button
+              type="button"
+              disabled={inviteLinkLoading || rotateLinkMutation.isPending}
+              onClick={() => rotateLinkMutation.mutate()}
+              className="inline-flex min-h-10 items-center text-[13px] font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {rotateLinkMutation.isPending ? "Renouvellement…" : "Renouveler le lien"}
+            </button>
+          </div>
+          {inviteLinkError ? (
+            <p className="mt-1 text-[13px] text-destructive">Impossible de préparer le lien d’invitation pour le moment.</p>
+          ) : (
+            <p className="mt-1 text-[12px] text-muted-foreground">Renouveler le lien désactive immédiatement le précédent.</p>
+          )}
         </section>
       ) : null}
 
