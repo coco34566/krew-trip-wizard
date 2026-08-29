@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveDesiredDestination } from "@/lib/krew/trip-service";
 import { normalizeActivityCategory } from "@/lib/krew/discovery-enrichment";
+import { getExternalSearchParticipantsCount } from "@/lib/krew/external-group-size";
 
 export async function refreshExternalCatalogForTrip(
   supabase: any,
@@ -25,9 +26,8 @@ export async function refreshExternalCatalogForTrip(
   const checkin = (trip.start_date as string | null) ?? null;
   const checkout = (trip.end_date as string | null) ?? null;
   const partsRes = await supabaseAdmin.from("trip_participants").select("id, user_id, email, display_name, status").eq("trip_id", tripId);
-  const participantsList = (partsRes.data ?? []).filter((p: any) => p.status !== "absent");
-  const { getEffectiveParticipantsCount } = await import("@/lib/krew/trip-service");
-  const participants = Math.max(1, getEffectiveParticipantsCount(trip, participantsList));
+  const participantsList = partsRes.data ?? [];
+  const participants = getExternalSearchParticipantsCount(trip, participantsList);
   const climate = await fetchClimate(place.latitude, place.longitude, checkin && checkout ? { startDate: checkin, endDate: checkout } : {});
   const normalizedQuery = destinationQuery.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const slugQuery = normalizedQuery.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
