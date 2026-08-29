@@ -21,14 +21,9 @@ on:
         required: true
         default: false
         type: boolean
-  # TEMPORARY: validate PR #242 once. Remove before merge.
-  pull_request:
-    branches: [main]
-    types: [opened, synchronize, reopened]
 
 jobs:
   full-journeys:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'chore/test-suite-cleanup'
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
@@ -37,13 +32,11 @@ jobs:
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
       KREW_E2E_API_MODE: real
+      KREW_E2E_BASE_URL: ${{ inputs.base_url }}
     permissions:
       contents: read
-      deployments: read
-      pull-requests: read
     steps:
       - name: Enforce explicit live-API confirmation
-        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           if [ "${{ inputs.confirm_live_api_calls }}" != "true" ]; then
@@ -52,57 +45,12 @@ jobs:
           fi
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Resolve Vercel preview URL for temporary PR validation
-        if: github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          node <<'NODE'
-          const { appendFileSync } = await import("node:fs");
-          const headers = {
-            Accept: "application/vnd.github+json",
-            Authorization: `Bearer ${process.env.GH_TOKEN}`,
-            "X-GitHub-Api-Version": "2022-11-28",
-          };
-          const api = async (path) => {
-            const response = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}${path}`, { headers });
-            if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
-            return response.json();
-          };
-          let previewUrl = "";
-          for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
-            const deployments = await api(`/deployments?sha=${process.env.HEAD_SHA}&per_page=20`);
-            for (const deployment of deployments) {
-              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
-              const ready = statuses.find((status) =>
-                status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
-              );
-              if (ready) {
-                previewUrl = ready.environment_url.replace(/\/$/, "");
-                break;
-              }
-            }
-            if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
-          }
-          if (!previewUrl) throw new Error("Vercel preview URL unavailable after 10 minutes");
-          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
-          console.log(`Full journey target: ${previewUrl}`);
-          NODE
-      - name: Use requested URL
-        if: github.event_name == 'workflow_dispatch'
-        run: echo "KREW_E2E_BASE_URL=${{ inputs.base_url }}" >> "$GITHUB_ENV"
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false @playwright/test@1.55.0
       - name: Run selected full journey
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npm run test:e2e:full -- --timeout=600000
-            exit 0
-          fi
           case "${{ inputs.journey }}" in
             standard)
               npm run test:e2e:full -- --timeout=600000 --grep "@full-standard"
@@ -122,7 +70,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: krew-full-journeys-${{ github.event_name == 'pull_request' && 'pr-validation' || inputs.journey }}
+          name: krew-full-journeys-${{ inputs.journey }}
           path: |
             playwright-report/
             test-results/
