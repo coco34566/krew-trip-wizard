@@ -188,8 +188,8 @@ function NextActionsPanel({
     if (myAvailabilityDone && myPreferencesDone && !datesLocked) {
       push({
         key: "lock-dates",
-        title: "Valider les dates du groupe",
-        description: "Cette validation débloque la suite du voyage.",
+        title: "Choisir les dates du groupe",
+        description: "Ce choix débloque la suite du voyage.",
         href: `/trips/${tripId}?view=voyage&section=dates`,
         iconName: "calendar",
       });
@@ -198,7 +198,7 @@ function NextActionsPanel({
       push({
         key: "choose-profile",
         title: "Choisir le profil du voyage",
-        description: "Choisis 1 à 3 profils qui correspondent au séjour du groupe.",
+        description: "Choisis 1 à 3 options pour définir le Profil du voyage.",
         href: `/trips/${tripId}?view=voyage&section=profile`,
         iconName: "profile",
       });
@@ -215,8 +215,8 @@ function NextActionsPanel({
       } else {
         push({
           key: "pick-dest",
-          title: "Valider une destination",
-          description: "Cette validation débloque les hébergements, les trajets et le planning.",
+          title: "Choisir la destination",
+          description: "Ce choix débloque les hébergements, les trajets et le planning.",
           href: `/trips/${tripId}?view=voyage&section=destination`,
           iconName: "destination",
         });
@@ -272,7 +272,7 @@ function NextActionsPanel({
         title: "Relancer le groupe",
         description: [
           missingAvail > 0
-            ? `${missingAvail} dispo${missingAvail > 1 ? "s" : ""} manquante${missingAvail > 1 ? "s" : ""}`
+            ? `${missingAvail} disponibilité${missingAvail > 1 ? "s" : ""} manquante${missingAvail > 1 ? "s" : ""}`
             : null,
           missingPrefs > 0
             ? `${missingPrefs} préférence${missingPrefs > 1 ? "s" : ""} manquante${missingPrefs > 1 ? "s" : ""}`
@@ -319,7 +319,7 @@ function NextActionsPanel({
                   ? "Le planning est en place. Les choix restent modifiables si nécessaire."
                   : destinationSelected
                     ? "L’hébergement, le transport et le planning restent à finaliser."
-                    : "Dès que le groupe a assez répondu, valide dates et destination."
+                    : "Dès que le groupe a assez répondu, choisis les dates puis la destination."
                 : "Tout est bon pour le moment. L’organisateur reviendra vers toi pour les prochaines étapes."}
             </p>
           </div>
