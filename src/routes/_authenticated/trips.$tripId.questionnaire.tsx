@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewMark, KrewHighlight, KrewNote, type KrewIconName } from "@/components/krew/visual-language";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import {
   getMyParticipantPreferences,
@@ -49,6 +49,13 @@ const BUDGET_PRIORITIES = [
   { value: "nice_to_have", label: "Peu importe, je m'adapte" },
 ] as const;
 
+const TRANSPORT_MODE_ICON: Record<string, KrewIconName> = {
+  avion: "plane",
+  train: "train",
+  voiture: "car",
+  "peu importe": "transport",
+};
+
 function SelectableOption({
   active,
   onClick,
@@ -79,11 +86,13 @@ function SelectableOption({
 
 function Section({
   title,
+  iconName,
   hint,
   bgClass,
   children,
 }: {
   title: string;
+  iconName: KrewIconName;
   hint?: string;
   bgClass?: string;
   children: React.ReactNode;
@@ -91,7 +100,10 @@ function Section({
   return (
     <section className={cn("pb-6 mb-6 space-y-4", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-6` : "border-b border-border/50")}>
       <div>
-        <h2 className="font-display text-2xl sm:text-3xl font-normal text-foreground">{title}</h2>
+        <h2 className="flex items-center gap-2.5 font-display text-2xl sm:text-3xl font-normal text-foreground">
+          <KrewIcon name={iconName} tone="plum" size="sm" className="size-5 shrink-0" />
+          {title}
+        </h2>
         {hint ? <p className="mt-1 text-sm text-muted-foreground font-sans">{hint}</p> : null}
       </div>
       {children}
@@ -383,6 +395,7 @@ function ParticipantQuestionnaire() {
       <div className="pt-4">
         <Section
           title="Envies & ambiance"
+          iconName="preferences"
           hint="Choisis les envies et l’ambiance qui te correspondent."
         >
           <div className="space-y-2">
@@ -473,6 +486,7 @@ function ParticipantQuestionnaire() {
 
         <Section
           title="Destination & cadre"
+          iconName="destination"
           hint="Indique les destinations et le cadre qui te correspondent."
         >
           <div className="space-y-2">
@@ -550,6 +564,7 @@ function ParticipantQuestionnaire() {
 
         <Section
           title="Budget"
+          iconName="budget"
           hint="Indique le budget qui te convient pour ce voyage."
         >
           <div className="space-y-3">
@@ -594,6 +609,7 @@ function ParticipantQuestionnaire() {
 
         <Section
           title="Hébergement"
+          iconName="accommodation"
           hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
         >
           <div className="space-y-3">
@@ -651,6 +667,7 @@ function ParticipantQuestionnaire() {
 
         <Section
           title="Transport"
+          iconName="transport"
           hint="Indique ton point de départ et tes contraintes : les trajets seront proposés pour chacun selon sa situation."
         >
           <div className="space-y-2">
@@ -675,19 +692,22 @@ function ParticipantQuestionnaire() {
                       if (m === "peu importe") return ["peu importe"];
                       const without = prev.filter((x) => x !== "peu importe" && x !== m);
                       const next = prev.includes(m) ? without : [...without, m];
-                      return next.length ? next : ["peu importe"];
+                      return next.length ? next : ["peu_importe"];
                     });
                   }}
                   className="text-center"
                 >
-                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                  <span className="flex items-center justify-center gap-2">
+                    <KrewIcon name={TRANSPORT_MODE_ICON[m]} tone={transportModeAccepted.includes(m) ? "plum" : "muted"} size="sm" className="size-4 shrink-0" />
+                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                  </span>
                 </SelectableOption>
               ))}
             </div>
           </div>
           <div className="space-y-3 pt-4">
             <Label className="font-semibold block text-base text-foreground">
-              Durée de trajet max : <span className="font-mono text-primary">{maxTravelDurationHours} h</span>
+              Durée de trajet max : <span className="inline-flex items-center gap-1 font-mono text-primary"><KrewIcon name="time" tone="sage" size="sm" className="size-3.5" />{maxTravelDurationHours} h</span>
             </Label>
             <Slider
               min={2}
@@ -711,14 +731,17 @@ function ParticipantQuestionnaire() {
             <div className="grid grid-cols-1 gap-3">
               {[["walk_transit", "Tout faire à pied / transports"], ["car_if_worth_it", "Une voiture si ça vaut vraiment le coup"], ["car_ok", "Aucun problème pour se déplacer en voiture"]].map(([value, label]) => (
                 <SelectableOption key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>
-                  {label}
+                  <span className="flex items-center gap-2">
+                    <KrewIcon name={value === "walk_transit" ? "walk" : "car"} tone={localMobility === value ? "plum" : "muted"} size="sm" className="size-4 shrink-0" />
+                    {label}
+                  </span>
                 </SelectableOption>
               ))}
             </div>
           </div>
         </Section>
 
-        <Section title="Contraintes & précisions">
+        <Section title="Contraintes & précisions" iconName="attention">
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Alimentation</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

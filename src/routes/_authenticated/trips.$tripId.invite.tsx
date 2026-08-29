@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Crown, Loader2, MoreHorizontal, Shield, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, Crown, Loader2, MoreHorizontal, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -153,8 +153,8 @@ function InvitePage() {
   const hasStar = Boolean(trip?.has_star || celebratedPerson);
   const inviteStepCompleted = Boolean(
     (trip?.group_logistics as any)?.inviteStepCompleted ||
-      (trip?.group_logistics as any)?.invite_step_completed ||
-      (trip as any)?.invite_step_completed,
+    (trip?.group_logistics as any)?.invite_step_completed ||
+    (trip as any)?.invite_step_completed,
   );
 
   const combinedParticipants = (() => {
@@ -274,7 +274,7 @@ function InvitePage() {
                 onClick={() => inviteMutation.mutate()}
                 className="w-full shrink-0 sm:w-auto"
               >
-                {inviteMutation.isPending ? <Loader2 className="animate-spin" /> : null}
+                {inviteMutation.isPending ? <Loader2 className="animate-spin" /> : <KrewIcon name="invite" tone="cream" size="sm" className="size-4" />}
                 Inviter
               </Button>
             </div>
@@ -324,7 +324,7 @@ function InvitePage() {
                       ) : null}
                       {p.isStar ? (
                         <Badge variant="sun" className="gap-1 border-primary/15 bg-primary/[0.07] px-2 py-0.5 text-[12px] text-primary">
-                          <Star className="size-3 text-primary" /> Star
+                          <KrewIcon name="favorite" tone="plum" size="sm" className="size-3" /> Star
                         </Badge>
                       ) : null}
                     </div>
@@ -332,7 +332,8 @@ function InvitePage() {
                   </div>
 
                   <div className="flex items-center gap-2 sm:justify-end">
-                    <Badge variant={p.status === "accepte" ? "success" : "muted"} className="font-normal">
+                    <Badge variant={p.status === "accepte" ? "success" : "muted"} className="gap-1 font-normal">
+                      {p.status === "accepte" ? <KrewIcon name="check" tone="sage" size="sm" className="size-3" /> : null}
                       {p.status === "accepte" ? "Participe" : p.status}
                     </Badge>
 
@@ -380,8 +381,9 @@ function InvitePage() {
             <button
               type="button"
               onClick={remindGroup}
-              className="inline-flex min-h-10 items-center self-start font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"
+              className="inline-flex min-h-10 items-center gap-1.5 self-start font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"
             >
+              <KrewIcon name="message" tone="plum" size="sm" className="size-4" />
               Relancer gentiment via WhatsApp <span aria-hidden="true" className="ml-1">→</span>
             </button>
           </div>
@@ -465,7 +467,10 @@ function InvitePage() {
       {data.isOwner ? (
         <section className="space-y-3 border-t border-primary/20 pt-7">
           <div>
-            <h3 className="font-display text-[24px] font-normal text-foreground">Tout est prêt ?</h3>
+            <h3 className="flex items-center gap-2 font-display text-[24px] font-normal text-foreground">
+              <KrewIcon name="check" tone="sage" size="sm" className="size-5" />
+              Tout est prêt ?
+            </h3>
             <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">Enregistre les choix de la Star puis retourne au voyage pour poursuivre l’organisation.</p>
           </div>
           <Button
@@ -473,7 +478,7 @@ function InvitePage() {
             disabled={finishInviteMutation.isPending}
             onClick={() => finishInviteMutation.mutate()}
           >
-            {finishInviteMutation.isPending ? <Loader2 className="animate-spin" /> : <Sparkles className="size-4" />}
+            {finishInviteMutation.isPending ? <Loader2 className="animate-spin" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4" />}
             {inviteStepCompleted ? "Enregistrer et revenir au voyage" : "Accéder au tableau de bord du voyage"}
           </Button>
         </section>
