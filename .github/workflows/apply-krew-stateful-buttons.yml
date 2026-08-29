@@ -28,11 +28,13 @@ jobs:
       - name: Fetch applier scripts
         run: |
           git show origin/ops/krew-stateful-buttons-applier:.github/scripts/apply-krew-stateful-buttons.py > /tmp/apply-krew-stateful-buttons.py
+          git show origin/ops/krew-stateful-buttons-applier:.github/scripts/fix-krew-stateful-runtime.py > /tmp/fix-krew-stateful-runtime.py
           git show origin/ops/krew-stateful-buttons-applier:.github/scripts/fix-krew-stateful-tests.py > /tmp/fix-krew-stateful-tests.py
 
       - name: Apply targeted changes
         run: |
           python /tmp/apply-krew-stateful-buttons.py
+          python /tmp/fix-krew-stateful-runtime.py
           python /tmp/fix-krew-stateful-tests.py
 
       - name: Install dependencies
