@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { setMyTransportTimePrefs } from "@/lib/trips.functions";
 
@@ -65,7 +64,6 @@ export function TransportTimePrefsCard({ tripId }: Props) {
         },
       }),
     onSuccess: () => {
-      toast.success("Horaires de transport enregistrés !");
       queryClient.invalidateQueries({ queryKey: ["my-transport-time-prefs", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
@@ -83,7 +81,16 @@ export function TransportTimePrefsCard({ tripId }: Props) {
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
         <label className="space-y-1.5"><span className="block text-[12px] font-semibold text-foreground">Aller · disponible dès</span><Input type="time" className="h-9 min-h-9 rounded-[9px] border-border/55 text-sm font-mono" value={earliest} onChange={(e) => setEarliest(e.target.value)} /></label>
         <label className="space-y-1.5"><span className="block text-[12px] font-semibold text-foreground">Retour · rentré avant</span><Input type="time" className="h-9 min-h-9 rounded-[9px] border-border/55 text-sm font-mono" value={latest} onChange={(e) => setLatest(e.target.value)} /></label>
-        <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isMyPrefsLoading} className="w-full sm:w-auto">{saveMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="check" tone="plum" size="sm" className="size-4" />}Enregistrer</Button>
+        <KrewStatefulButton
+          size="sm"
+          className="w-full sm:w-auto"
+          idleLabel="Enregistrer"
+          loadingLabel="Enregistrement…"
+          successLabel="Enregistré"
+          errorLabel="Réessayer"
+          disabled={isMyPrefsLoading}
+          onAction={() => saveMutation.mutateAsync()}
+        />
       </div>
     </section>
   );

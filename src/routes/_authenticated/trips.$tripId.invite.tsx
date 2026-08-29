@@ -82,7 +82,6 @@ function InvitePage() {
   const inviteMutation = useMutation({
     mutationFn: () => invite({ data: { tripId, email: email.trim() } }),
     onSuccess: () => {
-      toast.success("Invitation ajoutée");
       setEmail("");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
@@ -269,14 +268,15 @@ function InvitePage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className={FORM_INPUT_CLASS}
               />
-              <Button
-                disabled={!email.trim() || inviteMutation.isPending}
-                onClick={() => inviteMutation.mutate()}
+              <KrewStatefulButton
                 className="w-full shrink-0 sm:w-auto"
-              >
-                {inviteMutation.isPending ? <Loader2 className="animate-spin" /> : <KrewIcon name="invite" tone="cream" size="sm" className="size-4" />}
-                Inviter
-              </Button>
+                idleLabel="Inviter"
+                loadingLabel="Invitation…"
+                successLabel="Invitation envoyée"
+                errorLabel="Réessayer"
+                disabled={!email.trim()}
+                onAction={() => inviteMutation.mutateAsync()}
+              />
             </div>
           </div>
         </section>

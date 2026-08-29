@@ -12,7 +12,7 @@ type KrewStatefulButtonProps = Omit<ComponentProps<typeof Button>, "onClick" | "
   loadingLabel?: string;
   successLabel?: string;
   errorLabel?: string;
-  onAction: () => void | Promise<void>;
+  onAction: () => void | Promise<unknown>;
   resetAfterMs?: number;
 };
 
@@ -34,6 +34,7 @@ export function KrewStatefulButton({
 }: KrewStatefulButtonProps) {
   const [status, setStatus] = useState<StatefulStatus>("idle");
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const actionLabels = useRef({ loadingLabel, successLabel, errorLabel });
 
   useEffect(
     () => () => {
@@ -43,9 +44,10 @@ export function KrewStatefulButton({
   );
 
   async function run() {
-    if (status === "loading" || disabled) return;
+    if (status === "loading" || status === "success" || disabled) return;
     if (resetTimer.current) clearTimeout(resetTimer.current);
 
+    actionLabels.current = { loadingLabel, successLabel, errorLabel };
     setStatus("loading");
     try {
       await onAction();
@@ -60,8 +62,9 @@ export function KrewStatefulButton({
     <Button
       {...props}
       type={props.type ?? "button"}
-      disabled={disabled || status === "loading"}
+      disabled={status === "loading" || (Boolean(disabled) && status !== "success")}
       aria-busy={status === "loading"}
+      aria-disabled={status === "success" || undefined}
       data-stateful-status={status}
       onClick={run}
       className={cn(
@@ -76,11 +79,11 @@ export function KrewStatefulButton({
         {status === "success" ? <KrewMark type="check" tone="sage" size="sm" className="size-4" /> : null}
         <span>
           {status === "loading"
-            ? loadingLabel
+            ? actionLabels.current.loadingLabel
             : status === "success"
-              ? successLabel
+              ? actionLabels.current.successLabel
               : status === "error"
-                ? errorLabel
+                ? actionLabels.current.errorLabel
                 : idleLabel}
         </span>
       </span>
