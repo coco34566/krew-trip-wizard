@@ -55,11 +55,18 @@ function resolveHardBudgetCap(ctx: ScoringContext): number | null {
   return caps.length ? Math.min(...caps) : null;
 }
 
+function canProveHardBudgetExceeded(proposal: Proposal): boolean {
+  // Property-web prices are discovery hints, not booking-provider quotes. Even
+  // when the page reports a price, KREW must not turn that hint into a hard veto.
+  // Other catalogue sources keep the historical hard-budget behaviour.
+  return proposal.budget.priceSource?.accommodation !== "web";
+}
+
 /**
  * Public KREW recommendation entry point.
  *
  * Product invariants applied here before/after the historical deterministic scorer:
- * - hard budget vetoes stay hard when explicitly configured;
+ * - hard budget vetoes stay hard when explicitly configured and sufficiently sourced;
  * - distance heuristics use the group's actual departure origins when known.
  *
  * All other scoring rules, including age, transport compatibility and hard
@@ -87,18 +94,17 @@ export function buildProposals(
 
   const hardBudgetCap = resolveHardBudgetCap(ctx);
   const proposals = buildLegacyProposals(adjustedCatalog, ctx, limit);
-  const eligibleProposals =
-    hardBudgetCap == null
-      ? proposals
-      : proposals.filter((proposal) => proposal.budget.totalPerPerson <= hardBudgetCap);
+  const keepWithinHardBudget = (proposal: Proposal) =>
+    hardBudgetCap == null ||
+    !canProveHardBudgetExceeded(proposal) ||
+    proposal.budget.totalPerPerson <= hardBudgetCap;
+  const eligibleProposals = proposals.filter(keepWithinHardBudget);
 
   const restored = eligibleProposals.map((proposal) => ({
     ...proposal,
     destination: originalDestinations.get(proposal.destination.id) ?? proposal.destination,
   })) as Proposal[];
   const runnerUps = ((proposals as any).runnerUps ?? []) as Proposal[];
-  (restored as any).runnerUps = runnerUps.filter(
-    (proposal) => hardBudgetCap == null || proposal.budget.totalPerPerson <= hardBudgetCap,
-  );
+  (restored as any).runnerUps = runnerUps.filter(keepWithinHardBudget);
   return restored;
 }
