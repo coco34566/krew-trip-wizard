@@ -354,7 +354,7 @@ function NextActionsPanel({
   }
 
   return (
-    <div className="mx-0 my-4 sm:my-6 overflow-hidden relative space-y-3">
+    <div className="mx-0 mt-2 mb-4 sm:mt-3 sm:mb-5 overflow-hidden relative space-y-3">
       {waitingOnOthers ? (
         <div className="rounded-2xl border border-border/70 bg-card/90 px-4 py-3.5 text-sm text-foreground/90 font-sans shadow-2xs">
           Tout est bon pour le moment. L&apos;organisateur reviendra vers toi pour les prochaines étapes.

@@ -75,57 +75,16 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   });
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-        <div className="flex items-center gap-2">
-          <KrewIcon name="time" tone="plum" size="sm" className="size-5 shrink-0" />
-          <h3 className="font-display text-xl font-normal text-foreground">Mes créneaux horaires</h3>
-        </div>
-        <p className="text-[13px] leading-relaxed text-muted-foreground font-sans sm:max-w-[320px] sm:text-right">
-          Mes disponibilités pour les trajets aller et retour
-        </p>
+    <section className="space-y-3 border-y border-border/45 py-4">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+        <div className="flex items-center gap-2"><KrewIcon name="time" tone="plum" size="sm" className="size-4 shrink-0" /><h3 className="font-display text-[19px] font-normal text-foreground">Mes créneaux</h3></div>
+        <p className="text-[12px] leading-relaxed text-muted-foreground">Les deux horaires utiles pour chercher tes trajets.</p>
       </div>
-
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
-        <div className="space-y-2 border-t border-border/50 pt-4">
-          <div className="flex items-center gap-1.5 font-mono text-[12px] font-semibold uppercase tracking-wider text-primary">
-            <KrewIcon name="plane" tone="plum" size="sm" className="size-3.5 shrink-0" />
-            <span>Aller · départ</span>
-          </div>
-          <p className="text-[13px] leading-relaxed text-muted-foreground font-sans">
-            Disponible au plus tôt à partir de :
-          </p>
-          <Input
-            type="time"
-            className="min-h-10 w-full rounded-[10px] border-border/50 text-sm font-mono focus:border-primary"
-            value={earliest}
-            onChange={(e) => setEarliest(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2 border-t border-border/50 pt-4">
-          <div className="flex items-center gap-1.5 font-mono text-[12px] font-semibold uppercase tracking-wider text-primary">
-            <KrewIcon name="train" tone="plum" size="sm" className="size-3.5 shrink-0" />
-            <span>Retour · arrivée</span>
-          </div>
-          <p className="text-[13px] leading-relaxed text-muted-foreground font-sans">
-            Impératif de rentrer au plus tard avant :
-          </p>
-          <Input
-            type="time"
-            className="min-h-10 w-full rounded-[10px] border-border/50 text-sm font-mono focus:border-primary"
-            value={latest}
-            onChange={(e) => setLatest(e.target.value)}
-          />
-        </div>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+        <label className="space-y-1.5"><span className="block text-[12px] font-semibold text-foreground">Aller · disponible dès</span><Input type="time" className="h-9 min-h-9 rounded-[9px] border-border/55 text-sm font-mono" value={earliest} onChange={(e) => setEarliest(e.target.value)} /></label>
+        <label className="space-y-1.5"><span className="block text-[12px] font-semibold text-foreground">Retour · rentré avant</span><Input type="time" className="h-9 min-h-9 rounded-[9px] border-border/55 text-sm font-mono" value={latest} onChange={(e) => setLatest(e.target.value)} /></label>
+        <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isMyPrefsLoading} className="w-full sm:w-auto">{saveMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="check" tone="plum" size="sm" className="size-4" />}Enregistrer</Button>
       </div>
-
-      <div className="flex justify-end border-t border-border/50 pt-4">
-        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || isMyPrefsLoading} className="w-full sm:w-auto">
-          {saveMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="check" tone="plum" size="sm" className="size-4" />}
-          Enregistrer mes créneaux
-        </Button>
-      </div>
-    </div>
+    </section>
   );
 }

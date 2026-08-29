@@ -52,7 +52,7 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
   return (
     <div className={cn("min-w-0", next ? "space-y-1.5" : "space-y-1")}> 
       {next ? (
-        <KrewNote variant="label" tone="plum" rotation={-1} className="w-fit text-[13px]">
+        <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="w-fit text-[13px]">
           Prochaine étape
         </KrewNote>
       ) : null}
