@@ -12,7 +12,7 @@ export type QuestionnaireSignalUse = {
 };
 
 export const QUESTIONNAIRE_SIGNAL_MAPPING: QuestionnaireSignalUse[] = [
-  { field: "budget_max + budget_priority", source: "trip_participant_preferences", hardConstraint: false, scoringFactor: true, apiQuery: true, tieBreaker: true, explanation: true, currentUse: "médiane groupe, signal du budget le plus serré, pénalité et avertissement sans veto individuel" },
+  { field: "budget_max + budget_priority", source: "trip_participant_preferences", hardConstraint: true, scoringFactor: true, apiQuery: true, tieBreaker: true, explanation: true, currentUse: "médiane groupe et veto dur lorsqu'un budget est explicitement déclaré bloquant" },
   { field: "transport_mode_accepted", source: "trip_participant_preferences", hardConstraint: true, scoringFactor: true, apiQuery: true, tieBreaker: true, explanation: true, currentUse: "intersection/union des modes acceptés et compatibilité par mode" },
   { field: "max_travel_duration_hours", source: "trip_participant_preferences", hardConstraint: true, scoringFactor: true, apiQuery: true, tieBreaker: true, explanation: true, currentUse: "plafond dur évalué sur chaque mode accepté, pas uniquement voiture" },
   { field: "departure_city + departure_airport_or_station", source: "trip_participant_preferences", hardConstraint: false, scoringFactor: true, apiQuery: true, tieBreaker: true, explanation: true, currentUse: "origines pondérées pour transport multi-départs" },
@@ -57,6 +57,7 @@ export function buildGroupTravelProfile(ctx: ScoringContext): GroupTravelProfile
     groupAgeRange: ctx.groupAgeRange,
     individualPreferences: ctx.individualPreferences,
     hardConstraints: {
+      budgetVeto: ctx.hasBudgetVeto ? (ctx.vetoBudgetMax ?? ctx.minGroupBudget ?? null) : null,
       maxTravelDurationHours: ctx.maxTravelDurationHours ?? null,
       transportModes: ctx.transportModes ?? [],
       excludedDestinations: ctx.dealBreakerDestinations ?? [],
@@ -71,7 +72,7 @@ export function buildGroupTravelProfile(ctx: ScoringContext): GroupTravelProfile
       accommodation: ctx.requiredAmenities ?? [],
       pace: ctx.travelPace ?? null,
       ageRange: ctx.groupAgeRange ?? null,
-      budgetWarningMax: ctx.vetoBudgetMax ?? ctx.minGroupBudget ?? null,
+      budgetWarningMax: ctx.hasBudgetVeto ? null : (ctx.vetoBudgetMax ?? ctx.minGroupBudget ?? null),
       star: { activities: ctx.starWantedActivities ?? [], environment: ctx.starWantedEnvType ?? null },
     },
     mapping: QUESTIONNAIRE_SIGNAL_MAPPING,
