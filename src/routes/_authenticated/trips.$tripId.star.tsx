@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
 import { finalizeInvitationStep } from "@/lib/trips.functions";
 import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
@@ -291,7 +292,7 @@ function StarQuestionnaire() {
 
   const setupMutation = useMutation({
     mutationFn: () => saveStarSetup({ data: { tripId, starMode, starPaysShare } }),
-    onSuccess: () => { toast.success("Choix de la Star enregistrés"); queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] }); queryClient.invalidateQueries({ queryKey: ["trip", tripId] }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] }); queryClient.invalidateQueries({ queryKey: ["trip", tripId] }); },
     onError: (e: any) => toast.error(String(e?.message ?? "Impossible d’enregistrer ces choix").slice(0, 140)),
   });
 
@@ -395,7 +396,7 @@ function StarQuestionnaire() {
           <div className="space-y-3"><p className="text-base font-semibold leading-snug text-foreground">Comment participe {starName} à l’organisation ?</p><div className="grid gap-3 sm:grid-cols-2"><SelectableOption active={starMode === "secret"} onClick={() => data.trip.isOwner && setStarMode("secret")} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Mode secret · tu complètes ses réponses</SelectableOption><SelectableOption active={starMode === "participant"} onClick={() => data.trip.isOwner && setStarMode("participant")} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Mode participant · la Star répond elle-même</SelectableOption></div></div>
           <div className="space-y-3"><p className="text-base font-semibold leading-snug text-foreground">La Star participe-t-elle aux frais ?</p><div className="grid gap-3 sm:grid-cols-2"><SelectableOption active={starPaysShare} onClick={() => data.trip.isOwner && setStarPaysShare(true)} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Oui, sa part reste incluse</SelectableOption><SelectableOption active={!starPaysShare} onClick={() => data.trip.isOwner && setStarPaysShare(false)} className={!data.trip.isOwner ? "pointer-events-none opacity-60" : undefined}>Non, sa part est répartie</SelectableOption></div></div>
         </div>
-        {data.trip.isOwner ? <Button variant="outline" onClick={() => setupMutation.mutate()} disabled={setupMutation.isPending} className="w-full sm:w-auto">{setupMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="check" tone="sage" size="sm" className="size-4" />}Enregistrer ces choix</Button> : null}
+        {data.trip.isOwner ? <KrewStatefulButton variant="outline" className="w-full sm:w-auto" idleLabel="Enregistrer ces choix" loadingLabel="Enregistrement…" successLabel="Choix enregistrés" errorLabel="Réessayer" onAction={() => setupMutation.mutateAsync()} /> : null}
       </section>
 
       <div className="pt-2">

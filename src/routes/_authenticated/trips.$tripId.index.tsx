@@ -102,6 +102,7 @@ import { isFinalTripPreparationReady } from "@/lib/krew/packing-list";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewHighlight, KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
@@ -2279,26 +2280,18 @@ function TripDetail() {
                 </p>
               </div>
               {data.isOwner ? (
-                <Button
+                <KrewStatefulButton
                   variant="outline"
                   className="w-full sm:w-auto"
-                  onClick={() => regenerateMutation.mutate(undefined)}
-                  disabled={
-                    regenerateMutation.isPending || (readiness ? !readiness.canGenerate : false)
-                  }
-                  title={
-                    readiness && !readiness.canGenerate
-                      ? (readiness.message ?? "Questionnaires incomplets")
-                      : undefined
-                  }
-                >
-                  {regenerateMutation.isPending ? (
-                    <Loader2 className="animate-spin size-4 shrink-0" />
-                  ) : (
-                    <KrewIcon name="destination" tone="plum" size="sm" className="size-4 shrink-0" />
-                  )}
-                  {recommendations.length ? "Voir d’autres propositions" : "Générer les propositions"}
-                </Button>
+                  idleLabel={recommendations.length ? "Voir d’autres propositions" : "Générer les propositions"}
+                  loadingLabel="Recherche en cours…"
+                  successLabel="Propositions actualisées"
+                  errorLabel="Réessayer"
+                  resetAfterMs={1400}
+                  onAction={() => regenerateMutation.mutateAsync(undefined)}
+                  disabled={readiness ? !readiness.canGenerate : false}
+                  title={readiness && !readiness.canGenerate ? (readiness.message ?? "Questionnaires incomplets") : undefined}
+                />
               ) : null}
             </div>
         {regenerateMutation.isPending ? (
@@ -2531,20 +2524,15 @@ function TripDetail() {
               </p>
             </div>
             {data.isOwner ? (
-              <Button
+              <KrewStatefulButton
                 className="w-full sm:w-auto"
-                disabled={hotelLogisticsMutation.isPending}
-                onClick={() => hotelLogisticsMutation.mutate()}
-              >
-                {hotelLogisticsMutation.isPending ? (
-                  <Loader2 className="animate-spin size-4 shrink-0" />
-                ) : (
-                  <KrewIcon name="accommodation" tone="plum" size="sm" className="size-4 shrink-0" />
-                )}
-                {(trip as any).group_logistics?.hotels?.length
-                  ? "Actualiser les offres"
-                  : "Rechercher des hébergements"}
-              </Button>
+                idleLabel={(trip as any).group_logistics?.hotels?.length ? "Actualiser les offres" : "Rechercher des hébergements"}
+                loadingLabel="Recherche en cours…"
+                successLabel="Hébergements actualisés"
+                errorLabel="Réessayer"
+                resetAfterMs={1400}
+                onAction={() => hotelLogisticsMutation.mutateAsync()}
+              />
             ) : null}
           </div>
 
@@ -2975,10 +2963,15 @@ function TripDetail() {
         {destinationSelected ? (
           <div className="flex flex-col gap-2 border-t border-border/40 pt-4 sm:flex-row sm:items-center sm:justify-end">
             {data.isOwner ? (
-              <Button disabled={logisticsMutation.isPending} onClick={() => logisticsMutation.mutate()} className="w-full sm:w-auto">
-                {logisticsMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="transport" tone="plum" size="sm" className="size-4" />}
-                {(trip as any).group_logistics?.transports?.length ? "Actualiser les trajets" : "Trouver les trajets"}
-              </Button>
+              <KrewStatefulButton
+                className="w-full sm:w-auto"
+                idleLabel={(trip as any).group_logistics?.transports?.length ? "Actualiser les trajets" : "Trouver les trajets"}
+                loadingLabel={(trip as any).group_logistics?.transports?.length ? "Actualisation…" : "Recherche en cours…"}
+                successLabel={(trip as any).group_logistics?.transports?.length ? "Trajets actualisés" : "Trajets trouvés"}
+                errorLabel="Réessayer"
+                resetAfterMs={1400}
+                onAction={() => logisticsMutation.mutateAsync()}
+              />
             ) : null}
             {(trip as any).group_logistics?.transports?.length ? (
               <Button asChild variant="ghost" className="w-full sm:w-auto">
@@ -3043,20 +3036,15 @@ function TripDetail() {
               })()}
             </div>
             {data.isOwner ? (
-              <Button
+              <KrewStatefulButton
                 className="w-full sm:w-auto"
-                disabled={itineraryMutation.isPending}
-                onClick={() => itineraryMutation.mutate()}
-              >
-                {itineraryMutation.isPending ? (
-                  <Loader2 className="animate-spin size-4 shrink-0" />
-                ) : (
-                  <KrewIcon name="planning" tone="plum" size="sm" className="size-4 shrink-0" />
-                )}
-                {(trip as any).group_itinerary?.days?.length
-                  ? "Revoir le planning"
-                  : "Préparer le planning"}
-              </Button>
+                idleLabel={(trip as any).group_itinerary?.days?.length ? "Revoir le planning" : "Préparer le planning"}
+                loadingLabel={(trip as any).group_itinerary?.days?.length ? "Mise à jour…" : "Préparation…"}
+                successLabel={(trip as any).group_itinerary?.days?.length ? "Planning actualisé" : "Planning prêt"}
+                errorLabel="Réessayer"
+                resetAfterMs={1400}
+                onAction={() => itineraryMutation.mutateAsync()}
+              />
             ) : null}
           </div>
 
@@ -3310,18 +3298,15 @@ function TripDetail() {
             <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
               <p>Aucune tâche pour le moment.</p>
               {data.isOwner ? (
-                <Button
-                  onClick={() => generateTasksMutation.mutate()}
+                <KrewStatefulButton
                   className="mt-4 w-full sm:w-auto"
-                  disabled={generateTasksMutation.isPending}
-                >
-                  {generateTasksMutation.isPending ? (
-                    <Loader2 className="animate-spin size-4" />
-                  ) : (
-                    <Sparkles className="size-4" />
-                  )}
-                  Préparer les tâches
-                </Button>
+                  idleLabel="Préparer les tâches"
+                  loadingLabel="Préparation…"
+                  successLabel="Tâches prêtes"
+                  errorLabel="Réessayer"
+                  resetAfterMs={1400}
+                  onAction={() => generateTasksMutation.mutateAsync()}
+                />
               ) : null}
             </div>
           ) : (
