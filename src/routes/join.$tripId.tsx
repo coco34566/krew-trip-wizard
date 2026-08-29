@@ -16,6 +16,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { eventTypeLabel } from "@/lib/krew/constants";
 
 export const Route = createFileRoute("/join/$tripId")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    token: typeof search.token === "string" ? search.token : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Rejoindre le voyage — KREW" },
@@ -54,7 +57,13 @@ function normalizeTripId(raw: string): string {
 
 function JoinTripPage() {
   const params = Route.useParams();
+  const search = Route.useSearch();
   const tripId = normalizeTripId(params.tripId);
+  const token = search.token?.trim() || undefined;
+  const invitePath = token
+    ? `/join/${tripId}?token=${encodeURIComponent(token)}`
+    : `/join/${tripId}`;
+  const authNext = encodeURIComponent(invitePath);
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const fetchPreview = useServerFn(getJoinPreview);
@@ -113,8 +122,13 @@ function JoinTripPage() {
       setLoading(false);
       return;
     }
+    if (!token) {
+      setError("Ce lien d’invitation a été remplacé ou est incomplet. Demande le lien actuel à l’organisateur.");
+      setLoading(false);
+      return;
+    }
 
-    fetchPreview({ data: { tripId } })
+    fetchPreview({ data: { tripId, token } })
       .then((p) => {
         if (!cancelled) setPreview(p);
       })
@@ -125,7 +139,7 @@ function JoinTripPage() {
           setError(
             msg.includes("uuid") || msg.includes("UUID")
               ? "Ce lien d’invitation est invalide."
-              : "Cette invitation n’est pas disponible. Demande un nouveau lien si besoin.",
+              : "Cette invitation n’est plus disponible. Demande le lien actuel à l’organisateur.",
           );
         }
       })
@@ -136,12 +150,11 @@ function JoinTripPage() {
     return () => {
       cancelled = true;
     };
-  }, [tripId, fetchPreview]);
+  }, [tripId, token, fetchPreview]);
 
   async function handleJoin() {
     if (!isAuthenticated) {
-      const next = encodeURIComponent(`/join/${tripId}`);
-      navigate({ to: "/auth", search: { next } as any });
+      navigate({ to: "/auth", search: { next: authNext } as any });
       return;
     }
     if (!firstName.trim()) {
@@ -150,7 +163,7 @@ function JoinTripPage() {
     }
     setJoining(true);
     try {
-      const res = await doJoin({ data: { tripId, firstName: firstName.trim() } });
+      const res = await doJoin({ data: { tripId, token, firstName: firstName.trim() } });
       toast.success("Voyage rejoint");
       if (res?.alreadyMember && res?.myAvailabilityDone && res?.myPreferencesDone) {
         window.location.assign(`/trips/${tripId}`);
@@ -159,7 +172,12 @@ function JoinTripPage() {
       }
     } catch (e: any) {
       console.error("Impossible de rejoindre le voyage:", e);
-      toast.error("Impossible de rejoindre ce voyage pour le moment. Réessaie dans un instant.");
+      const msg = String(e?.message ?? e ?? "");
+      toast.error(
+        msg.includes("Invitation invalide") || msg.includes("renouvelée")
+          ? "Ce lien n’est plus valide. Demande le lien actuel à l’organisateur."
+          : "Impossible de rejoindre ce voyage pour le moment. Réessaie dans un instant.",
+      );
     } finally {
       setJoining(false);
     }
@@ -184,7 +202,15 @@ function JoinTripPage() {
             <p className="text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">{error}</p>
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <Button asChild><Link to="/">Retour à l&apos;accueil</Link></Button>
-              <Link to="/auth" search={{}} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary">Se connecter</Link>
+              {!isAuthenticated ? (
+                <Link
+                  to="/auth"
+                  search={{ next: authNext } as any}
+                  className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary"
+                >
+                  Se connecter
+                </Link>
+              ) : null}
             </div>
           </div>
         ) : preview ? (

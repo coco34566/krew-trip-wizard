@@ -21,10 +21,112 @@ function parseTripId(data: unknown): string {
   return tripId;
 }
 
-/** Aperçu public d'un voyage (lien d'invitation) — pas d'auth requise. */
+const inviteTokenSchema = z.string().uuid();
+
+async function getInviteLinkRow(tripId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const admin = supabaseAdmin as any;
+  const link = await admin
+    .from("trip_invite_links")
+    .select("trip_id, token, created_at, rotated_at")
+    .eq("trip_id", tripId)
+    .maybeSingle();
+  if (link.error) throw link.error;
+  return link.data as
+    | { trip_id: string; token: string; created_at: string; rotated_at: string }
+    | null;
+}
+
+async function hasValidInviteToken(tripId: string, token: string | null | undefined) {
+  if (!token) return false;
+  const parsed = inviteTokenSchema.safeParse(token);
+  if (!parsed.success) return false;
+  const link = await getInviteLinkRow(tripId);
+  return Boolean(link && link.token === parsed.data);
+}
+
+async function requireTripAdminForInviteLink(
+  supabase: any,
+  userId: string,
+  tripId: string,
+) {
+  const trip = await supabase
+    .from("trips")
+    .select("id, owner_id, co_organizer_id")
+    .eq("id", tripId)
+    .maybeSingle();
+  if (trip.error) throw trip.error;
+  if (!trip.data) throw new Error("Voyage introuvable");
+  const isAdmin = trip.data.owner_id === userId || trip.data.co_organizer_id === userId;
+  if (!isAdmin) throw new Error("403 Forbidden");
+  return trip.data;
+}
+
+export const getTripInviteLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await requireTripAdminForInviteLink(context.supabase, context.userId, data.tripId);
+
+    const existing = await getInviteLinkRow(data.tripId);
+    if (existing) return { token: existing.token, rotatedAt: existing.rotated_at };
+
+    const { randomUUID } = await import("node:crypto");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const now = new Date().toISOString();
+    const created = await admin
+      .from("trip_invite_links")
+      .insert({ trip_id: data.tripId, token: randomUUID(), created_at: now, rotated_at: now })
+      .select("token, rotated_at")
+      .single();
+    if (created.error) {
+      // Deux admins peuvent ouvrir la page en même temps. Si l'autre a créé le lien,
+      // relire la ligne plutôt que retourner une erreur à l'utilisateur.
+      const raced = await getInviteLinkRow(data.tripId);
+      if (raced) return { token: raced.token, rotatedAt: raced.rotated_at };
+      throw created.error;
+    }
+    return { token: created.data.token as string, rotatedAt: created.data.rotated_at as string };
+  });
+
+export const rotateTripInviteLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ tripId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    await requireTripAdminForInviteLink(context.supabase, context.userId, data.tripId);
+
+    const { randomUUID } = await import("node:crypto");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const now = new Date().toISOString();
+    const rotated = await admin
+      .from("trip_invite_links")
+      .upsert(
+        { trip_id: data.tripId, token: randomUUID(), rotated_at: now },
+        { onConflict: "trip_id" },
+      )
+      .select("token, rotated_at")
+      .single();
+    if (rotated.error) throw rotated.error;
+    return { token: rotated.data.token as string, rotatedAt: rotated.data.rotated_at as string };
+  });
+
+/** Aperçu public d'un voyage : le secret d'invitation est obligatoire. */
 export const getJoinPreview = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => ({ tripId: parseTripId(data) }))
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        token: z.string().uuid(),
+      })
+      .parse(data),
+  )
   .handler(async ({ data }) => {
+    if (!(await hasValidInviteToken(data.tripId, data.token))) {
+      throw new Error("Invitation invalide ou renouvelée");
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const trip = await supabaseAdmin
       .from("trips")
@@ -58,6 +160,7 @@ export const joinTrip = createServerFn({ method: "POST" })
     z
       .object({
         tripId: z.string().uuid(),
+        token: z.string().uuid().optional().nullable(),
         firstName: z.string().min(1).max(80).optional(),
       })
       .parse(data),
@@ -72,11 +175,14 @@ export const joinTrip = createServerFn({ method: "POST" })
 
     const trip = await supabaseAdmin
       .from("trips")
-      .select("id, owner_id, name, celebrated_person, star_user_id")
+      .select("id, owner_id, name, celebrated_person, star_user_id, status")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
     if (!trip.data) throw new Error("Voyage introuvable");
+    if (String((trip.data as any).status ?? "") === "annule") {
+      throw new Error("Ce voyage a été annulé.");
+    }
 
     if (trip.data.owner_id === userId) {
       if (firstName) {
@@ -109,7 +215,8 @@ export const joinTrip = createServerFn({ method: "POST" })
       };
     }
 
-    // Si déjà participant par email ou user_id → rattacher
+    // Un ancien lien sans token reste compatible uniquement pour une personne déjà
+    // rattachée au voyage ou explicitement invitée par e-mail.
     const byUser = await supabaseAdmin
       .from("trip_participants")
       .select("id, user_id, status")
@@ -127,8 +234,13 @@ export const joinTrip = createServerFn({ method: "POST" })
     const existing = byUser.data ? byUser : byEmail;
 
     if (existing.data) {
-      const patch: { user_id?: string | null; email?: string; status?: "invite" | "accepte" | "refuse" | "absent"; display_name?: string | null } = { user_id: userId, email, status: "accepte" };
-      if (firstName) patch["display_name"] = firstName;
+      const patch: {
+        user_id?: string | null;
+        email?: string;
+        status?: "invite" | "accepte" | "refuse" | "absent";
+        display_name?: string | null;
+      } = { user_id: userId, email, status: "accepte" };
+      if (firstName) patch.display_name = firstName;
       const updated = await supabaseAdmin
         .from("trip_participants")
         .update(patch)
@@ -171,6 +283,10 @@ export const joinTrip = createServerFn({ method: "POST" })
       };
     }
 
+    if (!(await hasValidInviteToken(data.tripId, data.token))) {
+      throw new Error("Invitation invalide ou renouvelée");
+    }
+
     const inserted = await supabaseAdmin
       .from("trip_participants")
       .insert({
@@ -200,7 +316,6 @@ export const joinTrip = createServerFn({ method: "POST" })
 
     return { tripId: data.tripId, alreadyMember: false, isOwner: false };
   });
-
 
 export const checkJoinStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -243,9 +358,13 @@ export const checkJoinStatus = createServerFn({ method: "POST" })
 
       if (existing.data) {
         isParticipant = true;
-        // Si le user_id n'est pas lié ou statut pas accepté, on le met à jour
         if (existing.data.user_id !== userId || existing.data.status !== "accepte") {
-          const patch: { user_id?: string | null; email?: string; status?: "invite" | "accepte" | "refuse" | "absent"; display_name?: string | null } = { user_id: userId, email, status: "accepte" };
+          const patch: {
+            user_id?: string | null;
+            email?: string;
+            status?: "invite" | "accepte" | "refuse" | "absent";
+            display_name?: string | null;
+          } = { user_id: userId, email, status: "accepte" };
           const updated = await supabaseAdmin
             .from("trip_participants")
             .update(patch)
@@ -286,6 +405,5 @@ export const checkJoinStatus = createServerFn({ method: "POST" })
       myPreferencesDone: false,
     };
   });
-
 
 /** Données pour la page Récap du groupe (propositions + origines départ). */
