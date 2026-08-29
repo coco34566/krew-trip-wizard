@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: krew-pr-build-${{ github.event.pull_request.number }}
@@ -19,15 +19,45 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
+      - name: Apply remaining editorial wording
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('src/components/krew/TripHubDashboard.tsx')
+          text = path.read_text()
+          replacements = {
+            'title: "Valider les dates du groupe",': 'title: "Choisir les dates du groupe",',
+            'description: "Cette validation débloque la suite du voyage.",': 'description: "Ce choix débloque la suite du voyage.",',
+            'title: "Valider une destination",': 'title: "Choisir la destination",',
+            'description: "Cette validation débloque les hébergements, les trajets et le planning.",': 'description: "Ce choix débloque les hébergements, les trajets et le planning.",',
+            'description: "Choisis 1 à 3 profils qui correspondent au séjour du groupe.",': 'description: "Choisis 1 à 3 options pour définir le Profil du voyage.",',
+            '? `${missingAvail} dispo${missingAvail > 1 ? "s" : ""} manquante${missingAvail > 1 ? "s" : ""}`': '? `${missingAvail} disponibilité${missingAvail > 1 ? "s" : ""} manquante${missingAvail > 1 ? "s" : ""}`',
+            ': "Dès que le groupe a assez répondu, valide dates et destination."': ': "Dès que le groupe a assez répondu, choisis les dates puis la destination."',
+          }
+          for old, new in replacements.items():
+            text = text.replace(old, new)
+          path.write_text(text)
+      - name: Commit remaining wording if needed
+        run: |
+          if git diff --quiet -- 'src/components/krew/TripHubDashboard.tsx'; then
+            echo "No remaining shared wording changes"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add 'src/components/krew/TripHubDashboard.tsx'
+            git commit -m "Harmonize remaining dashboard wording"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
       - name: Build application
         run: npm run build
