@@ -123,15 +123,18 @@ export function TripHubNav({
                   ) : isSoon ? (
                     <Lock className="size-2.5" />
                   ) : (
-                    <KrewIcon name={krewIconName} tone={isActive ? "cream" : "plum"} size="sm" className={isActive ? "size-4.5" : "size-3.5"} />
+                    <KrewIcon name={krewIconName} tone="plum" size="sm" className={cn(isActive ? "size-4.5 text-primary-foreground" : "size-3.5")} />
                   )}
                 </span>
 
                 {!isLast ? (
                   <div className="hidden flex-1 items-center justify-center px-0.5 sm:flex" aria-hidden="true">
-                    <svg viewBox="0 0 60 16" fill="none" className={cn("h-3 w-full max-w-[60px]", isDone ? "text-sage/60" : "text-border/50")}>
-                      <path d="M2,8 C18,3 42,13 58,8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" fill="none" strokeDasharray={isDone ? undefined : "3 3"} />
-                    </svg>
+                    <KrewMark
+                      type={isDone ? "connector" : "connector-dotted"}
+                      tone={isDone ? "sage" : "ink"}
+                      size="sm"
+                      className={cn("h-3 w-full max-w-[60px]", !isDone && "opacity-20")}
+                    />
                   </div>
                 ) : null}
               </div>
@@ -175,7 +178,7 @@ export function TripHubNav({
                   ) : isSoon ? (
                     <Lock className="size-3" />
                   ) : (
-                    <KrewIcon name={krewIconName} tone={isActive ? "cream" : "plum"} size="sm" className="size-4" />
+                    <KrewIcon name={krewIconName} tone="plum" size="sm" className={cn("size-4", isActive && "text-primary-foreground")} />
                   )}
                 </span>
                 <div className="min-w-0">
@@ -210,23 +213,28 @@ export function TripHubNav({
 }
 
 export function ComingSoonGrid() {
-  const items = [
-    "Planning du séjour",
-    "Hébergements",
-    "Activités réservées",
-    "Dépenses communes",
-    "Répartition des chambres",
-    "Check-list",
-    "Documents & billets",
-    "Sondages",
-    "Chat de groupe",
+  const items: Array<{ label: string; icon: KrewIconName }> = [
+    { label: "Planning du séjour", icon: "planning" },
+    { label: "Hébergements", icon: "accommodation" },
+    { label: "Activités réservées", icon: "booked" },
+    { label: "Dépenses communes", icon: "budget" },
+    { label: "Répartition des chambres", icon: "accommodation" },
+    { label: "Check-list", icon: "tasks" },
+    { label: "Documents & billets", icon: "packing" },
+    { label: "Sondages", icon: "vote" },
+    { label: "Chat de groupe", icon: "message" },
   ];
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((label) => (
+      {items.map(({ label, icon }) => (
         <div key={label} className="rounded-2xl border border-dashed border-border bg-surface/30 px-4 py-5 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground/80">{label}</span>
-          <span className="mt-1 block text-xs">À venir</span>
+          <div className="flex items-start gap-2.5">
+            <KrewIcon name={icon} tone="sage" size="sm" className="mt-0.5 size-4 shrink-0" />
+            <div>
+              <span className="font-medium text-foreground/80">{label}</span>
+              <span className="mt-1 block text-xs">À venir</span>
+            </div>
+          </div>
         </div>
       ))}
     </div>
