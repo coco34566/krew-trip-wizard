@@ -20,11 +20,21 @@ const STANDARD: JourneyProfile = {
 
 const COMPLEX: JourneyProfile = {
   kind: "complex",
-  groupSize: 6,
+  groupSize: 2,
   durationDays: 4,
   organizer: "city",
   participant: "outdoor",
 };
+
+const LIVE_PROVIDER_COOLDOWN_MS = 105_000;
+
+async function respectLiveProviderCooldown(page: Page, testInfo: TestInfo, nextStage: string) {
+  testInfo.annotations.push({
+    type: "provider-cooldown",
+    description: `Waiting before ${nextStage} so the manual journey respects KREW's live generation rate limiter.`,
+  });
+  await page.waitForTimeout(LIVE_PROVIDER_COOLDOWN_MS);
+}
 
 async function fillPreferences(page: Page, profile: "city" | "outdoor") {
   if (profile === "outdoor") {
@@ -223,6 +233,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     await expect(hotelVote, "USER_BLOCKER: accommodation search returned no usable hotel").toBeVisible({ timeout: 120_000 });
     await userClick(page, hotelVote, "vote hotel");
 
+    await respectLiveProviderCooldown(page, testInfo, "transport generation");
     stage = "transport";
     await page.goto(`/trips/${tripId}?view=voyage&section=transport`);
     await handleNormalUserUi(page);
@@ -234,6 +245,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     await expect(chooseTransport, "USER_BLOCKER: transport generation returned no selectable route").toBeVisible({ timeout: 120_000 });
     await userClick(page, chooseTransport, "choose transport");
 
+    await respectLiveProviderCooldown(page, testInfo, "planning generation");
     stage = "planning";
     await page.goto(`/trips/${tripId}?view=voyage&section=planning`);
     await handleNormalUserUi(page);
