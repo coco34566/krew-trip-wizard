@@ -62,7 +62,7 @@ const context = (overrides: Partial<ScoringContext> = {}): ScoringContext => ({
 });
 
 describe("hard constraints remain blocking", () => {
-  it("keeps a proposal above an individual budget and exposes the overrun instead of vetoing the group", () => {
+  it("rejects a proposal above an explicitly blocking individual budget", () => {
     const proposals = buildProposals(
       catalog([destination()]),
       context({
@@ -81,8 +81,7 @@ describe("hard constraints remain blocking", () => {
       }),
       4,
     );
-    expect(proposals).toHaveLength(1);
-    expect(proposals[0]?.budget.hardBudgetFits).toBe(false);
+    expect(proposals).toHaveLength(0);
   });
 
   it("uses the group's actual departure origin for distance heuristics when known", () => {
