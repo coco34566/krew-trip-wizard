@@ -1,12 +1,23 @@
 import { expect, test } from "@playwright/test";
 import { installDiagnostics, openTrip, qa, signIn } from "./helpers";
+import { deleteDisposableTrip, disposableTripName } from "./test-lifecycle";
 
 test.describe("KREW golden customer journey", () => {
+  let createdTripId: string | undefined;
+  let createdTripName: string | undefined;
+
+  test.afterEach(async ({ page }, testInfo) => {
+    await deleteDisposableTrip(page, createdTripId, createdTripName, testInfo);
+    createdTripId = undefined;
+    createdTripName = undefined;
+  });
+
   test("QA account can sign in, create a trip and persist it after reload", async ({ page }, testInfo) => {
     const assertDiagnostics = installDiagnostics(page, testInfo);
     await signIn(page);
     await page.goto("/trips/new");
-    const tripName = `E2E-KREW-${Date.now()}`;
+    const tripName = disposableTripName("KREW");
+    createdTripName = tripName;
     await page.locator("#name").fill(tripName);
     await page.locator("#orga").fill("QA");
     await page.getByRole("button", { name: /25-35 ans/ }).click();
@@ -19,6 +30,7 @@ test.describe("KREW golden customer journey", () => {
     const match = page.url().match(/\/trips\/([^/]+)\/invite/);
     expect(match?.[1], "Created trip id should be present in the URL").toBeTruthy();
     const tripId = match![1];
+    createdTripId = tripId;
     await page.reload();
     await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/invite`));
     await page.goto("/dashboard");
