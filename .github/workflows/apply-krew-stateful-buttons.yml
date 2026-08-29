@@ -25,12 +25,15 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Fetch applier script
+      - name: Fetch applier scripts
         run: |
           git show origin/ops/krew-stateful-buttons-applier:.github/scripts/apply-krew-stateful-buttons.py > /tmp/apply-krew-stateful-buttons.py
+          git show origin/ops/krew-stateful-buttons-applier:.github/scripts/fix-krew-stateful-tests.py > /tmp/fix-krew-stateful-tests.py
 
       - name: Apply targeted changes
-        run: python /tmp/apply-krew-stateful-buttons.py
+        run: |
+          python /tmp/apply-krew-stateful-buttons.py
+          python /tmp/fix-krew-stateful-tests.py
 
       - name: Install dependencies
         run: npm ci
