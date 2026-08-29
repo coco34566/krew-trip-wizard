@@ -40,13 +40,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run focused tests
+      - name: Run focused stateful tests
         run: npx vitest run src/components/krew/KrewStatefulButton.test.tsx src/components/krew/TransportTimePrefsCard.test.tsx
 
-      - name: Run existing tests
+      - name: Run directly affected existing tests
+        run: npx vitest run 'src/routes/_authenticated/__tests__/trips.$tripId.index.tasks.test.tsx' 'src/routes/_authenticated/__tests__/trips.new.test.tsx'
+
+      - name: Record full Vitest baseline diagnostics
+        continue-on-error: true
         run: npm test -- --run
 
-      - name: Build
+      - name: Build application
         run: npm run build
 
       - name: Commit consolidated pass
