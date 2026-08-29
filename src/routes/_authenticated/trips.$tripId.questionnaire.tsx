@@ -28,14 +28,14 @@ import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/questionnaire")({
   head: () => ({
-    meta: [{ title: "Mon questionnaire — KREW" }],
+    meta: [{ title: "Mes préférences — KREW" }],
   }),
   component: ParticipantQuestionnaire,
 });
 
 const LODGING_TYPES = [
   { value: "hotel", label: "Hôtel" },
-  { value: "logement_entier", label: "Logement entier" },
+  { value: "logement_entier", label: "Maison ou appartement entier" },
   { value: "peu_importe", label: "Peu importe" },
 ] as const;
 
@@ -219,12 +219,12 @@ function ParticipantQuestionnaire() {
       })
       .catch((e: any) => {
         if (typeof e?.message === "string" && e.message.startsWith("403 Forbidden")) {
-          toast.error("Tu n'es pas autorisé·e à accéder à ce questionnaire.");
+          toast.error("Tu n’as pas accès à ces préférences.");
           navigate({ to: "/dashboard" });
           return;
         }
-        console.error("Impossible de charger le questionnaire:", e);
-        toast.error("Une erreur est survenue lors du chargement, réessaie dans un instant.");
+        console.error("Impossible de charger les préférences:", e);
+        toast.error("Impossible de charger tes préférences. Réessaie dans un instant.");
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -240,7 +240,7 @@ function ParticipantQuestionnaire() {
     if (!departureCity.trim()) return "Indique ta ville de départ (nécessaire pour les vols).";
     if (budgetMax < 50) return "Le budget minimum est de 50 €.";
     if (wantedEnvTypes.length === 0)
-      return "Choisis au moins un type de lieu / environnement recherché.";
+      return "Choisis au moins un environnement recherché.";
     return null;
   }
 
@@ -291,18 +291,12 @@ function ParticipantQuestionnaire() {
       });
       setIsEditing(true);
       setLastSavedAt(new Date().toISOString());
-      if (res.isUpdate) {
-        toast.success("Tes réponses ont été mises à jour.");
-      } else {
-        toast.success(
-          `Tes réponses sont enregistrées ! (${res.progress.answered}/${res.progress.total} ont répondu) · prochaine étape : profil du voyage`,
-        );
-      }
+      toast.success(res.isUpdate ? "Réponses mises à jour" : "Réponses enregistrées");
       navigate({ to: "/trips/$tripId", params: { tripId } });
     } catch (e: any) {
       const msg = String(e?.message ?? e ?? "");
       if (msg.includes("403 Forbidden")) {
-        toast.error("Tu n'es pas autorisé·e à soumettre ce questionnaire.");
+        toast.error("Tu n’as pas accès à ces préférences.");
         navigate({ to: "/dashboard" });
         return;
       }
@@ -315,11 +309,11 @@ function ParticipantQuestionnaire() {
           "Base incomplète : exécute le SQL « trip_participant_preferences » dans l'éditeur Supabase.",
           msg,
         );
-        toast.error("Une erreur est survenue, réessaie dans un instant.");
+        toast.error("Impossible d’enregistrer tes réponses. Réessaie dans un instant.");
         return;
       }
-      console.error("Erreur enregistrement questionnaire:", e);
-      toast.error("Une erreur est survenue lors de l'enregistrement, réessaie dans un instant.");
+      console.error("Erreur enregistrement préférences:", e);
+      toast.error("Impossible d’enregistrer tes réponses. Réessaie dans un instant.");
     } finally {
       setSubmitting(false);
     }
@@ -358,7 +352,7 @@ function ParticipantQuestionnaire() {
             <p className="text-sm text-muted-foreground">
               Tu as déjà répondu
               {lastSavedAt
-                ? ` (dernière enreg. ${new Date(lastSavedAt).toLocaleString("fr-FR", {
+                ? ` (mise à jour le ${new Date(lastSavedAt).toLocaleString("fr-FR", {
                     day: "numeric",
                     month: "short",
                     hour: "2-digit",
@@ -375,14 +369,14 @@ function ParticipantQuestionnaire() {
           </p>
         )}
         <p className="mt-2 text-sm sm:text-base text-muted-foreground font-sans">
-          Ces infos permettent à KREW de comprendre tes envies pour vous proposer le voyage qui
-          correspond le mieux au groupe.
+          Ces infos permettent à KREW de comprendre tes envies pour proposer au groupe un voyage qui
+          lui correspond.
         </p>
       </KrewJourneyPageHeader>
 
       <div className="pt-4">
         <Section
-          title="Envies & ambiance"
+          title="Envies et ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
         >
           <div className="space-y-2">
@@ -400,11 +394,11 @@ function ParticipantQuestionnaire() {
             </div>
             <div className="mt-6 space-y-2">
               <Label className="font-semibold block text-base text-foreground">
-                Deal-breakers — ambiances que tu refuses absolument
+                Ambiances que tu refuses
               </Label>
               <p className="text-xs text-muted-foreground">
-                Exclusion dure : une destination trop typée sur ces ambiances sera écartée, même si
-                le reste du groupe les veut.
+                Si une destination correspond trop à l’une de ces ambiances, elle sera écartée même
+                si elle plaît au reste du groupe.
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-1">
                 {AMBIANCES.map((a) => (
@@ -418,7 +412,7 @@ function ParticipantQuestionnaire() {
                       toggle(dealBreakerAmbiances, setDealBreakerAmbiances, a.value);
                     }}
                   >
-                    <span className="mr-1.5">🚫 {a.emoji}</span> {a.label}
+                    <span className="mr-1.5">{a.emoji}</span> {a.label}
                   </SelectableOption>
                 ))}
               </div>
@@ -472,7 +466,7 @@ function ParticipantQuestionnaire() {
         </Section>
 
         <Section
-          title="Destination & cadre"
+          title="Destination et cadre"
           hint="Indique les destinations et le cadre qui te correspondent."
         >
           <div className="space-y-2">
@@ -500,8 +494,9 @@ function ParticipantQuestionnaire() {
           </div>
           <div className="space-y-3 pt-4">
             <Label className="font-semibold block text-base text-foreground">
-              Type de lieu / environnement recherché * (plusieurs choix possibles)
+              Environnement recherché *
             </Label>
+            <p className="text-xs text-muted-foreground">Tu peux en choisir plusieurs.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
                 { v: "Centre-ville / urbain", label: "🏢 Centre-ville / urbain" },
@@ -594,10 +589,10 @@ function ParticipantQuestionnaire() {
 
         <Section
           title="Hébergement"
-          hint="Tes préférences nous aident à proposer l’hébergement le plus adapté au groupe."
+          hint="Tes préférences aident KREW à proposer l’hébergement le plus adapté au groupe."
         >
           <div className="space-y-3">
-            <Label className="font-semibold block text-base text-foreground">Type de logement</Label>
+            <Label className="font-semibold block text-base text-foreground">Type d’hébergement</Label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {LODGING_TYPES.map((a) => (
                 <SelectableOption
@@ -624,7 +619,7 @@ function ParticipantQuestionnaire() {
             </div>
           </div>
           <div className="space-y-3 pt-4">
-            <Label className="font-semibold block text-base text-foreground">Le logement, pour toi, c’est plutôt…</Label>
+            <Label className="font-semibold block text-base text-foreground">L’hébergement, pour toi, c’est plutôt…</Label>
             <div className="grid grid-cols-1 gap-3">
               {[["base_only", "Un point de chute"], ["part_of_stay", "Un lieu où on aime aussi passer du temps"], ["centerpiece", "Une vraie partie du voyage"]].map(([value, label]) => (
                 <SelectableOption key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>
@@ -718,7 +713,7 @@ function ParticipantQuestionnaire() {
           </div>
         </Section>
 
-        <Section title="Contraintes & précisions">
+        <Section title="Contraintes et précisions">
           <div className="space-y-3">
             <Label className="font-semibold block text-base text-foreground">Alimentation</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -762,7 +757,7 @@ function ParticipantQuestionnaire() {
             ) : (
               <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
-            {isEditing ? "Enregistrer mes modifications" : "Envoyer mes réponses"}
+            {isEditing ? "Enregistrer mes modifications" : "Enregistrer mes réponses"}
           </Button>
         </div>
       </div>
