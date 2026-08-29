@@ -27,6 +27,7 @@ export function useAuth() {
       if (
         event === "INITIAL_SESSION" ||
         event === "SIGNED_IN" ||
+        event === "PASSWORD_RECOVERY" ||
         event === "TOKEN_REFRESHED" ||
         event === "USER_UPDATED"
       ) {
