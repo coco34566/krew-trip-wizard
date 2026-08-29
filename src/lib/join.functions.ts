@@ -81,8 +81,6 @@ export const getTripInviteLink = createServerFn({ method: "POST" })
       .select("token, rotated_at")
       .single();
     if (created.error) {
-      // Deux admins peuvent ouvrir la page en même temps. Si l'autre a créé le lien,
-      // relire la ligne plutôt que retourner une erreur à l'utilisateur.
       const raced = await getInviteLinkRow(data.tripId);
       if (raced) return { token: raced.token, rotatedAt: raced.rotated_at };
       throw created.error;
@@ -193,18 +191,8 @@ export const joinTrip = createServerFn({ method: "POST" })
           .eq("user_id", userId);
       }
       const [avail, prefs] = await Promise.all([
-        supabaseAdmin
-          .from("trip_availability")
-          .select("id")
-          .eq("trip_id", data.tripId)
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabaseAdmin
-          .from("trip_participant_preferences")
-          .select("user_id")
-          .eq("trip_id", data.tripId)
-          .eq("user_id", userId)
-          .maybeSingle(),
+        supabaseAdmin.from("trip_availability").select("id").eq("trip_id", data.tripId).eq("user_id", userId).maybeSingle(),
+        supabaseAdmin.from("trip_participant_preferences").select("user_id").eq("trip_id", data.tripId).eq("user_id", userId).maybeSingle(),
       ]);
       return {
         tripId: data.tripId,
@@ -215,8 +203,6 @@ export const joinTrip = createServerFn({ method: "POST" })
       };
     }
 
-    // Un ancien lien sans token reste compatible uniquement pour une personne déjà
-    // rattachée au voyage ou explicitement invitée par e-mail.
     const byUser = await supabaseAdmin
       .from("trip_participants")
       .select("id, user_id, status")
@@ -261,18 +247,8 @@ export const joinTrip = createServerFn({ method: "POST" })
         }
       }
       const [avail, prefs] = await Promise.all([
-        supabaseAdmin
-          .from("trip_availability")
-          .select("id")
-          .eq("trip_id", data.tripId)
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabaseAdmin
-          .from("trip_participant_preferences")
-          .select("user_id")
-          .eq("trip_id", data.tripId)
-          .eq("user_id", userId)
-          .maybeSingle(),
+        supabaseAdmin.from("trip_availability").select("id").eq("trip_id", data.tripId).eq("user_id", userId).maybeSingle(),
+        supabaseAdmin.from("trip_participant_preferences").select("user_id").eq("trip_id", data.tripId).eq("user_id", userId).maybeSingle(),
       ]);
       return {
         tripId: data.tripId,
@@ -357,39 +333,16 @@ export const checkJoinStatus = createServerFn({ method: "POST" })
       const existing = byUser.data ? byUser : byEmail;
 
       if (existing.data) {
-        isParticipant = true;
-        if (existing.data.user_id !== userId || existing.data.status !== "accepte") {
-          const patch: {
-            user_id?: string | null;
-            email?: string;
-            status?: "invite" | "accepte" | "refuse" | "absent";
-            display_name?: string | null;
-          } = { user_id: userId, email, status: "accepte" };
-          const updated = await supabaseAdmin
-            .from("trip_participants")
-            .update(patch)
-            .eq("id", existing.data.id);
-          if (updated.error) {
-            console.error("checkJoinStatus: update user_id failed", updated.error.message);
-          }
-        }
+        const status = String(existing.data.status ?? "");
+        const isClaimedByCurrentUser = existing.data.user_id === userId;
+        isParticipant = isClaimedByCurrentUser && (status === "accepte" || status === "absent");
       }
     }
 
     if (isParticipant) {
       const [avail, prefs] = await Promise.all([
-        supabaseAdmin
-          .from("trip_availability")
-          .select("id")
-          .eq("trip_id", data.tripId)
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabaseAdmin
-          .from("trip_participant_preferences")
-          .select("user_id")
-          .eq("trip_id", data.tripId)
-          .eq("user_id", userId)
-          .maybeSingle(),
+        supabaseAdmin.from("trip_availability").select("id").eq("trip_id", data.tripId).eq("user_id", userId).maybeSingle(),
+        supabaseAdmin.from("trip_participant_preferences").select("user_id").eq("trip_id", data.tripId).eq("user_id", userId).maybeSingle(),
       ]);
 
       return {
