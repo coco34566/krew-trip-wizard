@@ -92,11 +92,13 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
   const starParticipant = starUserId
     ? activeParticipants.find(p => p.user_id === starUserId) || null
     : null;
+  const starIsInactive = Boolean(starUserId && inactiveUserIds.has(starUserId));
 
   // Resolve starUid safely (never use the form-filler's user ID, e.g. organizer, unless it's the actual star)
   const starUid = starParticipant?.user_id || starUserId || "star-virtual-uid";
 
-  // Prendre en compte les disponibilités de la star si remplies dans trip_star_preferences
+  // Prendre en compte les disponibilités de la star si remplies dans trip_star_preferences.
+  // Les anciennes Stars virtuelles restent supportées tant qu'aucune ligne participant inactive ne les remplace.
   try {
     const starPrefs = await supabase
       .from("trip_star_preferences")
@@ -104,7 +106,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
       .eq("trip_id", tripId)
       .maybeSingle();
 
-    if (!starPrefs.error && starPrefs.data && starParticipant) {
+    if (!starPrefs.error && starPrefs.data && !starIsInactive) {
       const starHasAvail = (starPrefs.data.available_dates && starPrefs.data.available_dates.length > 0) ||
                           (starPrefs.data.blocked_dates && starPrefs.data.blocked_dates.length > 0);
       if (starHasAvail) {
@@ -143,7 +145,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     nameByUser.set(uid, label);
   }
 
-  if (celebratedPerson && starParticipant) {
+  if (celebratedPerson && !starIsInactive) {
     if (starUserId) nameByUser.set(starUserId, celebratedPerson);
     if (starUid) nameByUser.set(starUid, celebratedPerson);
   }
@@ -151,7 +153,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
   // Inclure les user_id qui ont répondu même sans ligne participants (ex. owner)
   for (const e of entries) {
     if (!nameByUser.has(e.userId)) {
-      if (celebratedPerson && starParticipant && (e.userId === starUserId || e.userId === starUid)) {
+      if (celebratedPerson && !starIsInactive && (e.userId === starUserId || e.userId === starUid)) {
         nameByUser.set(e.userId, celebratedPerson);
       } else {
         nameByUser.set(e.userId, "Participant");
