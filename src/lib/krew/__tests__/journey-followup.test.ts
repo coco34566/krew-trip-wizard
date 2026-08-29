@@ -34,6 +34,20 @@ describe("compléments du parcours E2E", () => {
     expect(steps[3]?.status).toBe("done");
   });
 
+  it("utilise le même nom pour l'étape des dates que le parcours principal", () => {
+    const steps = buildTripSteps({
+      tripId: "trip",
+      participantsJoined: 2,
+      participantsExpected: 3,
+      availabilityAnswered: 2,
+      questionnaireAnswered: 2,
+      datesLocked: true,
+      hasRecommendations: false,
+      destinationSelected: false,
+    });
+    expect(steps.find((step) => step.id === "dates")?.label).toBe("Dates du groupe");
+  });
+
   it("ne crée aucune étape Star en mode participant", () => {
     const steps = buildTripSteps({
       tripId: "trip",
