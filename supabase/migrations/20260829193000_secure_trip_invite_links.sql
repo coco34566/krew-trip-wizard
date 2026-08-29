@@ -16,8 +16,5 @@ alter table public.trip_invite_links enable row level security;
 revoke all on table public.trip_invite_links from anon, authenticated;
 grant select, insert, update, delete on table public.trip_invite_links to service_role;
 
-create index if not exists trip_invite_links_token_idx
-  on public.trip_invite_links(token);
-
 comment on table public.trip_invite_links is
   'Revocable shared invitation secrets. Trip IDs are identifiers, not join credentials.';
