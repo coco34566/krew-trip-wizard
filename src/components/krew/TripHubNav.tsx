@@ -211,32 +211,3 @@ export function TripHubNav({
     </nav>
   );
 }
-
-export function ComingSoonGrid() {
-  const items: Array<{ label: string; icon: KrewIconName }> = [
-    { label: "Planning", icon: "planning" },
-    { label: "Hébergements", icon: "accommodation" },
-    { label: "Activités réservées", icon: "booked" },
-    { label: "Dépenses du groupe", icon: "budget" },
-    { label: "Répartition des chambres", icon: "accommodation" },
-    { label: "À emporter", icon: "tasks" },
-    { label: "Documents et billets", icon: "packing" },
-    { label: "Sondages", icon: "vote" },
-    { label: "Chat du groupe", icon: "message" },
-  ];
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map(({ label, icon }) => (
-        <div key={label} className="rounded-2xl border border-dashed border-border bg-surface/30 px-4 py-5 text-sm text-muted-foreground">
-          <div className="flex items-start gap-2.5">
-            <KrewIcon name={icon} tone="sage" size="sm" className="mt-0.5 size-4 shrink-0" />
-            <div>
-              <span className="font-medium text-foreground/80">{label}</span>
-              <span className="mt-1 block text-xs">À venir</span>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
