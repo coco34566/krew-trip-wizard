@@ -77,7 +77,7 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
       ) : null}
       {next ? (
         <span className="inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-primary">
-          Continuer
+          Voir {step.title.toLocaleLowerCase("fr-FR")}
           <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6" />
         </span>
       ) : (
