@@ -1,0 +1,679 @@
+[
+  {
+    "file": "public/brand/apple-touch-icon.png",
+    "mode": "RGB",
+    "size": [
+      180,
+      180
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 32400,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          251,
+          249
+        ],
+        "count": 720
+      }
+    ],
+    "corners": [
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/favicon-16x16.png",
+    "mode": "RGB",
+    "size": [
+      16,
+      16
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 256,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          251,
+          249
+        ],
+        "count": 53
+      },
+      {
+        "rgb": [
+          251,
+          250,
+          248
+        ],
+        "count": 5
+      },
+      {
+        "rgb": [
+          250,
+          249,
+          247
+        ],
+        "count": 2
+      },
+      {
+        "rgb": [
+          252,
+          250,
+          249
+        ],
+        "count": 2
+      },
+      {
+        "rgb": [
+          251,
+          249,
+          248
+        ],
+        "count": 1
+      },
+      {
+        "rgb": [
+          250,
+          248,
+          247
+        ],
+        "count": 1
+      }
+    ],
+    "corners": [
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/favicon-32x32.png",
+    "mode": "RGB",
+    "size": [
+      32,
+      32
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 1024,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          251,
+          249
+        ],
+        "count": 128
+      }
+    ],
+    "corners": [
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/icon-192.png",
+    "mode": "RGB",
+    "size": [
+      192,
+      192
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 36864,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          251,
+          249
+        ],
+        "count": 768
+      }
+    ],
+    "corners": [
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/icon-512.png",
+    "mode": "RGB",
+    "size": [
+      512,
+      512
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 262144,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          251,
+          249
+        ],
+        "count": 2048
+      }
+    ],
+    "corners": [
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/krew-logo-compact-dark.png",
+    "mode": "RGB",
+    "size": [
+      393,
+      156
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 61308,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          81,
+          40,
+          71
+        ],
+        "count": 1098
+      }
+    ],
+    "corners": [
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/krew-logo-compact-light.png",
+    "mode": "RGB",
+    "size": [
+      393,
+      160
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 62880,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          251,
+          249
+        ],
+        "count": 1106
+      }
+    ],
+    "corners": [
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/krew-logo-full-dark.png",
+    "mode": "RGB",
+    "size": [
+      445,
+      167
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 74315,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          81,
+          40,
+          71
+        ],
+        "count": 1224
+      }
+    ],
+    "corners": [
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/krew-logo-full-light.png",
+    "mode": "RGB",
+    "size": [
+      447,
+      170
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 75990,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          250,
+          249
+        ],
+        "count": 1234
+      }
+    ],
+    "corners": [
+      [
+        252,
+        250,
+        249,
+        255
+      ],
+      [
+        252,
+        250,
+        249,
+        255
+      ],
+      [
+        252,
+        250,
+        249,
+        255
+      ],
+      [
+        252,
+        250,
+        249,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/krew-otter-dark.png",
+    "mode": "RGB",
+    "size": [
+      201,
+      192
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 38592,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          81,
+          40,
+          71
+        ],
+        "count": 786
+      }
+    ],
+    "corners": [
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/krew-otter-light.png",
+    "mode": "RGB",
+    "size": [
+      171,
+      175
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 29925,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          251,
+          249
+        ],
+        "count": 692
+      }
+    ],
+    "corners": [
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/krew-wordmark-dark.png",
+    "mode": "RGB",
+    "size": [
+      303,
+      116
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 35148,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          81,
+          40,
+          71
+        ],
+        "count": 838
+      }
+    ],
+    "corners": [
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ],
+      [
+        81,
+        40,
+        71,
+        255
+      ]
+    ]
+  },
+  {
+    "file": "public/brand/krew-wordmark-light.png",
+    "mode": "RGB",
+    "size": [
+      297,
+      114
+    ],
+    "alpha_min": 255,
+    "alpha_max": 255,
+    "opaque_pixels": 33858,
+    "transparent_pixels": 0,
+    "partial_alpha_pixels": 0,
+    "border_colors": [
+      {
+        "rgb": [
+          252,
+          251,
+          249
+        ],
+        "count": 822
+      }
+    ],
+    "corners": [
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ],
+      [
+        252,
+        251,
+        249,
+        255
+      ]
+    ]
+  }
+]
