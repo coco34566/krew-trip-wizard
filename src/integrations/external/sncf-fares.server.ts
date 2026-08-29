@@ -1,3 +1,5 @@
+import { fetchExternal } from "./fetch-timeout.server";
+
 export type FareRange = { min: number; max: number };
 export type SncfRoundTripFares = {
   outboundFareRange: FareRange;
@@ -48,7 +50,7 @@ async function fetchDirection(
     "where",
     `classe=2 AND search(gare_origine, "${escapeQuery(origin)}") AND search(gare_destination, "${escapeQuery(destination)}")`,
   );
-  const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+  const response = await fetchExternal(url, { method: "GET", headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`SNCF Open Data ${response.status}`);
   const payload = (await response.json()) as { results?: Record<string, unknown>[] };
   return (payload.results ?? []).filter(

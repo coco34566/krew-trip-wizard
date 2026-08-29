@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { checkTransportTimeCompatibility, type TransportQuote } from "./transport.server";
 import { CITY_IATA, normalizeCityKey } from "@/lib/krew/deep-links";
+import { fetchExternal } from "./fetch-timeout.server";
 
 const SEARCH_ENDPOINT = "https://www.searchapi.io/api/v1/search";
 
@@ -26,7 +27,7 @@ async function searchApi(params: Record<string, string>): Promise<any> {
   const apiKey = process.env["SEARCHAPI_API"];
   if (!apiKey) throw new Error("SEARCHAPI_API manquante");
   const query = new URLSearchParams({ ...params, api_key: apiKey });
-  const response = await fetch(`${SEARCH_ENDPOINT}?${query.toString()}`, {
+  const response = await fetchExternal(`${SEARCH_ENDPOINT}?${query.toString()}`, {
     headers: { Accept: "application/json" },
   });
   const body = await response.json().catch(() => null);

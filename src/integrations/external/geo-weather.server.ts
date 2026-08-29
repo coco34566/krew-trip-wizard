@@ -3,6 +3,8 @@
  * https://open-meteo.com/
  */
 
+import { fetchExternal } from "./fetch-timeout.server";
+
 export type GeoPlace = {
   name: string;
   country: string;
@@ -49,7 +51,7 @@ export async function geocodeDestination(query: string): Promise<GeoPlace | null
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
     query,
   )}&count=1&language=fr&format=json`;
-  const res = await fetch(url);
+  const res = await fetchExternal(url);
   if (!res.ok) return null;
   const payload = (await res.json()) as { results?: any[] };
   const hit = payload.results?.[0];
@@ -93,7 +95,7 @@ export async function fetchClimate(
     `&start_date=${lastYear - 2}-01-01&end_date=${lastYear}-12-31` +
     `&daily=temperature_2m_max,precipitation_sum&timezone=UTC`;
 
-  const res = await fetch(url);
+  const res = await fetchExternal(url);
   const months: MonthClimate[] = [];
   if (res.ok) {
     const payload = (await res.json()) as {
@@ -145,7 +147,7 @@ export async function fetchClimate(
     const start = new Date(opts.startDate);
     const diffDays = (start.getTime() - Date.now()) / 86_400_000;
     if (diffDays >= -1 && diffDays <= 15) {
-      const fRes = await fetch(
+      const fRes = await fetchExternal(
         `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
           `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto` +
           `&start_date=${opts.startDate}&end_date=${opts.endDate ?? opts.startDate}`,

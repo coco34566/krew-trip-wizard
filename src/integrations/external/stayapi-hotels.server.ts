@@ -1,5 +1,6 @@
 import type { HotelOffer, SearchParams } from "./travel-providers.server";
 import { lookupStayApiDestination } from "./stayapi-destination.server";
+import { fetchExternal } from "./fetch-timeout.server";
 
 const STAYAPI_SEARCH_ENDPOINT = "https://api.stayapi.com/v1/booking/search";
 
@@ -120,7 +121,7 @@ export async function searchHotelsStayApi(params: SearchParams & { destId?: stri
   if (params.checkin) query.set("checkin", String(params.checkin));
   if (params.checkout) query.set("checkout", String(params.checkout));
 
-  const response = await fetch(`${STAYAPI_SEARCH_ENDPOINT}?${query.toString()}`, {
+  const response = await fetchExternal(`${STAYAPI_SEARCH_ENDPOINT}?${query.toString()}`, {
     method: "GET",
     headers: { "x-api-key": key, Accept: "application/json" },
   });
