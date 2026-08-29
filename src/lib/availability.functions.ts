@@ -6,6 +6,10 @@ import { isTripAdmin } from "@/lib/krew/engine";
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}/);
 
+function isInactiveParticipantStatus(status: unknown) {
+  return status === "absent" || status === "refuse";
+}
+
 export async function getTripAvailabilityHelper(supabase: any, userId: string, tripId: string) {
   const trip = await supabase.from("trips").select("*").eq("id", tripId).maybeSingle();
   if (trip.error) throw trip.error;
@@ -23,6 +27,19 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
       .eq("trip_id", tripId)
       .maybeSingle(),
   ]);
+  if (participants.error) throw participants.error;
+
+  const rawParticipants = participants.data ?? [];
+  const inactiveParticipants = rawParticipants.filter((p: any) => isInactiveParticipantStatus(p.status));
+  const activeParticipants = rawParticipants.filter((p: any) => !isInactiveParticipantStatus(p.status));
+  const inactiveUserIds = new Set(
+    inactiveParticipants.map((p: any) => p.user_id).filter(Boolean),
+  );
+  const plannedActiveCount = Math.max(
+    (Number(trip.data.participants_count) || 0) - inactiveParticipants.length,
+    0,
+  );
+
   if (rows.error) {
     const msg = String(rows.error.message || rows.error);
     if (msg.includes("schema cache") || msg.includes("Could not find") || msg.includes("does not exist")) {
@@ -44,7 +61,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
         },
         isOwner: isTripAdmin(trip.data, userId),
         answered: 0,
-        expected: Math.max(Number(trip.data.participants_count) || 1, (participants.data ?? []).length, 1),
+        expected: Math.max(plannedActiveCount, activeParticipants.length, 1),
         windows: [],
         mine: null,
         participants: participants.data ?? [],
@@ -53,7 +70,6 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     }
     throw new Error(`Lecture dispos impossible: ${msg}`);
   }
-  if (participants.error) throw participants.error;
 
   // The duration entered when creating the trip is the group-wide source of truth.
   // Falls back to trip_preferences.duration_nights if trips.duration_nights is missing (for older trips), then default 2.
@@ -61,16 +77,15 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
   const tripDurationNights = rawTripDuration != null ? Number(rawTripDuration) : NaN;
   const nights = Number.isFinite(tripDurationNights) ? Math.max(0, tripDurationNights) : 2;
 
-  const entries: AvailabilityEntry[] = (rows.data ?? []).map((r: any) => ({
-    userId: r.user_id as string,
-    availableDates: (r.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
-    blockedDates: (r.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
-    flexDays: Number(r.flex_days ?? 0),
-    durationNights: Number(r.duration_nights ?? 2) || 2,
-  }));
-
-  const rawParticipants = participants.data ?? [];
-  const activeParticipants = rawParticipants.filter((p: any) => p.status !== "absent");
+  const entries: AvailabilityEntry[] = (rows.data ?? [])
+    .filter((r: any) => !inactiveUserIds.has(r.user_id))
+    .map((r: any) => ({
+      userId: r.user_id as string,
+      availableDates: (r.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+      blockedDates: (r.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+      flexDays: Number(r.flex_days ?? 0),
+      durationNights: Number(r.duration_nights ?? 2) || 2,
+    }));
 
   // Find the star in the participants list strictly via star_user_id
   const starUserId = (trip.data as any)?.star_user_id || null;
@@ -89,7 +104,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
       .eq("trip_id", tripId)
       .maybeSingle();
 
-    if (!starPrefs.error && starPrefs.data) {
+    if (!starPrefs.error && starPrefs.data && starParticipant) {
       const starHasAvail = (starPrefs.data.available_dates && starPrefs.data.available_dates.length > 0) ||
                           (starPrefs.data.blocked_dates && starPrefs.data.blocked_dates.length > 0);
       if (starHasAvail) {
@@ -113,7 +128,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
   const celebratedPerson = (trip.data.celebrated_person as string | null)?.trim() || null;
 
   const nameByUser = new Map<string, string>();
-  for (const p of participants.data ?? []) {
+  for (const p of activeParticipants) {
     const uid = p.user_id as string | null;
     if (!uid) continue;
     const isStar = Boolean(
@@ -128,7 +143,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     nameByUser.set(uid, label);
   }
 
-  if (celebratedPerson) {
+  if (celebratedPerson && starParticipant) {
     if (starUserId) nameByUser.set(starUserId, celebratedPerson);
     if (starUid) nameByUser.set(starUid, celebratedPerson);
   }
@@ -136,7 +151,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
   // Inclure les user_id qui ont répondu même sans ligne participants (ex. owner)
   for (const e of entries) {
     if (!nameByUser.has(e.userId)) {
-      if (celebratedPerson && (e.userId === starUserId || e.userId === starUid)) {
+      if (celebratedPerson && starParticipant && (e.userId === starUserId || e.userId === starUid)) {
         nameByUser.set(e.userId, celebratedPerson);
       } else {
         nameByUser.set(e.userId, "Participant");
@@ -159,9 +174,10 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
   const mine = (rows.data ?? []).find((r: any) => r.user_id === userId) ?? null;
 
   const answered = entries.length;
-  const joined = (participants.data ?? []).length;
-  // Dénominateur = taille de groupe prévue (ex. 6), pas seulement les déjà rejoints
-  const expected = Math.max(Number(trip.data.participants_count) || 0, joined, 1);
+  const joined = activeParticipants.length;
+  // Dénominateur = taille de groupe prévue moins les participants explicitement inactifs.
+  // Les places pas encore invitées restent attendues.
+  const expected = Math.max(plannedActiveCount, joined, 1);
 
   const datesLocked = Boolean((trip.data as any).dates_locked);
 
@@ -185,7 +201,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     answered,
     expected,
     windows,
-    mine: mine
+    mine: mine && !inactiveUserIds.has(userId)
       ? {
           availableDates: (mine.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
           blockedDates: (mine.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
@@ -293,15 +309,26 @@ export const submitMyAvailability = createServerFn({ method: "POST" })
     }
 
     // Recalcule fenêtres → met à jour UNIQUEMENT provisional_* (jamais start/end si locked)
-    const all = await supabase.from("trip_availability").select("*").eq("trip_id", data.tripId);
-    if (!all.error && all.data) {
-      const entries: AvailabilityEntry[] = all.data.map((r: any) => ({
-        userId: r.user_id,
-        availableDates: (r.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
-        blockedDates: (r.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
-        flexDays: Number(r.flex_days ?? 0),
-        durationNights: Number(r.duration_nights ?? 2) || 2,
-      }));
+    const [all, allParticipants] = await Promise.all([
+      supabase.from("trip_availability").select("*").eq("trip_id", data.tripId),
+      supabase.from("trip_participants").select("user_id, status").eq("trip_id", data.tripId),
+    ]);
+    if (!all.error && all.data && !allParticipants.error) {
+      const inactiveIds = new Set(
+        (allParticipants.data ?? [])
+          .filter((p: any) => isInactiveParticipantStatus(p.status))
+          .map((p: any) => p.user_id)
+          .filter(Boolean),
+      );
+      const entries: AvailabilityEntry[] = all.data
+        .filter((r: any) => !inactiveIds.has(r.user_id))
+        .map((r: any) => ({
+          userId: r.user_id,
+          availableDates: (r.available_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+          blockedDates: (r.blocked_dates ?? []).map((d: string) => String(d).slice(0, 10)),
+          flexDays: Number(r.flex_days ?? 0),
+          durationNights: Number(r.duration_nights ?? 2) || 2,
+        }));
       // Always use the trip creation duration for group date proposals.
       // Falls back to trip_preferences.duration_nights if trips.duration_nights is missing (for older trips), then default 2.
       const prefRow = await supabase.from("trip_preferences").select("duration_nights").eq("trip_id", data.tripId).maybeSingle();
