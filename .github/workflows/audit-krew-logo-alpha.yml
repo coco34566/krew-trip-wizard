@@ -1,0 +1,68 @@
+name: Audit KREW logo alpha
+
+on:
+  push:
+    branches:
+      - fix/transparent-krew-logo-assets
+    paths:
+      - .github/workflows/audit-krew-logo-alpha.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/transparent-krew-logo-assets
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --quiet pillow
+      - name: Audit PNG assets
+        run: |
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          import json
+          from collections import Counter
+
+          root = Path('public/brand')
+          files = sorted(p for p in root.glob('*.png'))
+          out = []
+          for p in files:
+              im = Image.open(p)
+              rgba = im.convert('RGBA')
+              px = rgba.load()
+              w,h = rgba.size
+              alphas = [a for *_,a in rgba.getdata()]
+              border = []
+              for x in range(w):
+                  border.append(px[x,0]); border.append(px[x,h-1])
+              for y in range(h):
+                  border.append(px[0,y]); border.append(px[w-1,y])
+              border_rgb = Counter((r,g,b) for r,g,b,a in border if a > 0)
+              most = border_rgb.most_common(8)
+              opaque = sum(1 for a in alphas if a == 255)
+              transparent = sum(1 for a in alphas if a == 0)
+              partial = len(alphas)-opaque-transparent
+              out.append({
+                  'file': str(p), 'mode': im.mode, 'size': [w,h],
+                  'alpha_min': min(alphas), 'alpha_max': max(alphas),
+                  'opaque_pixels': opaque, 'transparent_pixels': transparent,
+                  'partial_alpha_pixels': partial,
+                  'border_colors': [{'rgb': list(rgb), 'count': n} for rgb,n in most],
+                  'corners': [list(px[0,0]), list(px[w-1,0]), list(px[0,h-1]), list(px[w-1,h-1])],
+              })
+          Path('logo-alpha-audit.json').write_text(json.dumps(out, indent=2), encoding='utf-8')
+          PY
+      - name: Commit audit and remove temporary workflow
+        run: |
+          rm .github/workflows/audit-krew-logo-alpha.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add logo-alpha-audit.json .github/workflows/audit-krew-logo-alpha.yml
+          git commit -m "chore: audit KREW logo alpha assets"
+          git push origin HEAD:fix/transparent-krew-logo-assets
