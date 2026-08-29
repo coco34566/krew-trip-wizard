@@ -287,7 +287,7 @@ export function buildTripSteps(input: {
     },
     {
       id: "dates",
-      label: "Dates validées",
+      label: "Dates du groupe",
       description: "",
       href: "",
       status: statusFor(datesDone, questDone),
@@ -352,16 +352,3 @@ export function buildTripSteps(input: {
   }
   return steps;
 }
-
-/** Modules post-destination (architecture extensible). */
-export const HUB_COMING_SOON = [
-  { id: "planning", label: "Planning du séjour", icon: "calendar" },
-  { id: "stays", label: "Hébergements", icon: "hotel" },
-  { id: "activities", label: "Activités réservées", icon: "ticket" },
-  { id: "expenses", label: "Dépenses communes", icon: "wallet" },
-  { id: "rooms", label: "Répartition des chambres", icon: "bed" },
-  { id: "checklist", label: "Check-list", icon: "check" },
-  { id: "docs", label: "Documents & billets", icon: "file" },
-  { id: "polls", label: "Sondages", icon: "bar" },
-  { id: "chat", label: "Chat de groupe", icon: "chat" },
-] as const;
