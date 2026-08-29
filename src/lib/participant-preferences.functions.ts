@@ -67,6 +67,10 @@ function normalizeEmail(email: string | undefined | null) {
   return typeof email === "string" ? email.trim().toLowerCase() : undefined;
 }
 
+function isInactiveParticipantStatus(status: unknown) {
+  return status === "absent" || status === "refuse";
+}
+
 export const getMyParticipantPreferences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { tripId: string }) => z.object({ tripId: z.string().uuid() }).parse(data))
@@ -85,8 +89,7 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
     // Other participants are authorized by user_id or email match in trip_participants.
     const isTripAdmin =
       trip.data.owner_id === userId ||
-      trip.data.co_organizer_id === userId ||
-      (trip.data.group_logistics as any)?.co_organizer_id === userId;
+      trip.data.co_organizer_id === userId;
 
     const emailRaw = context.claims?.email as string | undefined;
     const email = normalizeEmail(emailRaw);
@@ -181,8 +184,9 @@ export async function attachParticipantToTrip(
 }
 
 /**
- * Return participants (id, user_id, email, display_name, status) who have not answered the questionnaire yet.
- * Includes both claimed participants (user_id present but no preferences) and unclaimed invites (user_id null).
+ * Return active participants (id, user_id, email, display_name, status) who have not answered the questionnaire yet.
+ * Includes both claimed participants (user_id present but no preferences) and unclaimed invites (user_id null),
+ * but never participants who are absent or have refused the trip.
  */
 export async function listUnansweredParticipants(supabase: any, tripId: string) {
   const [participantsRes, prefsRes] = await Promise.all([
@@ -195,7 +199,9 @@ export async function listUnansweredParticipants(supabase: any, tripId: string) 
   if (participantsRes.error) throw participantsRes.error;
   if (prefsRes.error) throw prefsRes.error;
 
-  const participants = participantsRes.data ?? [];
+  const participants = (participantsRes.data ?? []).filter(
+    (p: any) => !isInactiveParticipantStatus(p.status),
+  );
   const answeredUserIds = new Set((prefsRes.data ?? []).map((p: any) => p.user_id).filter(Boolean));
 
   const unanswered = participants.filter((p: any) => {
@@ -268,8 +274,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
 
     const isTripAdmin =
       tripRes.data.owner_id === userId ||
-      tripRes.data.co_organizer_id === userId ||
-      (tripRes.data.group_logistics as any)?.co_organizer_id === userId;
+      tripRes.data.co_organizer_id === userId;
 
     const emailRaw = context.claims?.email as string | undefined;
     const email = normalizeEmail(emailRaw);
@@ -423,13 +428,15 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     }
 
     const [participants, preferences] = await Promise.all([
-      supabase.from("trip_participants").select("id").eq("trip_id", data.tripId),
+      supabase.from("trip_participants").select("id, status").eq("trip_id", data.tripId),
       supabase.from("trip_participant_preferences").select("user_id").eq("trip_id", data.tripId),
     ]);
     if (participants.error) throw participants.error;
     if (preferences.error) throw preferences.error;
 
-    const total = participants.data?.length ?? 0;
+    const total = (participants.data ?? []).filter(
+      (participant: { status?: unknown }) => !isInactiveParticipantStatus(participant.status),
+    ).length;
     const answered = new Set((preferences.data ?? []).map((preference: { user_id: string | null }) => preference.user_id).filter(Boolean)).size;
     // Questionnaire completion unlocks the profile step. Destination discovery
     // only starts after explicit organizer profile validation.
@@ -470,11 +477,10 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   const availSet = new Set(availRows.map((r: any) => r.user_id).filter(Boolean));
 
   const celebratedPerson = tripRes.data?.celebrated_person;
-  const hasStar = Boolean(tripRes.data?.has_star || celebratedPerson);
 
   const rawParticipants = participants.data ?? [];
-  // Filter out absent participants
-  const activeParticipants = rawParticipants.filter((p: any) => p.status !== "absent");
+  const inactiveParticipants = rawParticipants.filter((p: any) => isInactiveParticipantStatus(p.status));
+  const activeParticipants = rawParticipants.filter((p: any) => !isInactiveParticipantStatus(p.status));
 
   // Find the star in the participants list strictly via star_user_id
   const starUserId = tripRes.data?.star_user_id || null;
@@ -498,9 +504,8 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   );
 
   const partsList: any[] = [];
-  const processedUserIds = new Set();
 
-  // 1. Add active participants from DB
+  // Add active participants from DB
   for (const p of activeParticipants) {
     const isStar = p === starParticipant;
     let hasAnswered = p.user_id ? prefMap.has(p.user_id) : false;
@@ -521,12 +526,13 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
         ? (starPrefs.data.updated_at || starPrefs.data.submitted_at)
         : (p.user_id && prefMap.has(p.user_id) ? (prefMap.get(p.user_id).updated_at || prefMap.get(p.user_id).submitted_at) : null),
     });
-
-    if (p.user_id) processedUserIds.add(p.user_id);
   }
 
-  const baseExpected = Math.max(Number(tripRes.data?.participants_count) || 0, partsList.length, 1);
-  const expected = baseExpected; // No extra counting for star!
+  const plannedActiveCount = Math.max(
+    (Number(tripRes.data?.participants_count) || 0) - inactiveParticipants.length,
+    0,
+  );
+  const expected = Math.max(plannedActiveCount, partsList.length, 1);
 
   const joined = activeParticipants.length;
   const answered = partsList.filter((p) => p.hasAnswered).length;
