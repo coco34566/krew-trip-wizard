@@ -265,13 +265,9 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
 
     // Authorization: ensure the user is trip admin (owner/co-organizer) or listed participant (by user_id or email)
-    const tripRes = await supabase.from("trips").select("id, owner_id, co_organizer_id, dates_locked, group_logistics").eq("id", data.tripId).maybeSingle();
+    const tripRes = await supabase.from("trips").select("id, owner_id, co_organizer_id, group_logistics").eq("id", data.tripId).maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
-    if (tripRes.data.dates_locked) {
-      throw new Error("Le voyage est verrouillé par l'organisateur, tes réponses ne peuvent plus être modifiées.");
-    }
-
     const isTripAdmin =
       tripRes.data.owner_id === userId ||
       tripRes.data.co_organizer_id === userId;
