@@ -52,4 +52,19 @@ describe("getKrewAwardResult", () => {
       ).revealed,
     ).toBe(false);
   });
+
+  it("hides a result again when removing a vote drops the category below the reveal threshold", () => {
+    const beforeRemoval = [
+      { category: "premier-debout", nominee_participant_id: "participant-a" },
+      { category: "premier-debout", nominee_participant_id: "participant-b" },
+    ];
+    expect(getKrewAwardResult(beforeRemoval, "premier-debout").revealed).toBe(true);
+
+    const afterRemoval = beforeRemoval.slice(0, 1);
+    expect(getKrewAwardResult(afterRemoval, "premier-debout")).toEqual({
+      revealed: false,
+      winnerParticipantIds: [],
+      isTie: false,
+    });
+  });
 });
