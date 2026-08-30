@@ -50,8 +50,11 @@ function AuthPage() {
   const returnUrl = () => typeof window === "undefined" ? undefined : safeNext ? `${window.location.origin}${safeNext}` : window.location.origin;
 
   function goAfterAuth() {
-    if (safeNext) navigate({ to: safeNext as any, replace: true });
-    else navigate({ to: "/dashboard", replace: true });
+    if (safeNext) {
+      window.location.assign(safeNext);
+      return;
+    }
+    navigate({ to: "/dashboard", replace: true });
   }
 
   useEffect(() => {
