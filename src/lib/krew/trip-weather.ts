@@ -2,6 +2,15 @@ import type { ClimateSummary } from "@/integrations/external/geo-weather.server"
 
 export type TripWeatherKind = "clear" | "cloudy" | "rain" | "storm" | "snow" | "unknown";
 
+export type TripWeatherDay = {
+  date: string;
+  kind: TripWeatherKind;
+  label: string;
+  tempMin: number | null;
+  tempMax: number | null;
+  precipitationMm: number;
+};
+
 export type TripWeatherSummary = {
   mode: "forecast" | "seasonal";
   kind: TripWeatherKind;
@@ -11,6 +20,7 @@ export type TripWeatherSummary = {
   rainRelevant: boolean;
   rainyDays: number;
   microcopy: string | null;
+  days?: TripWeatherDay[];
 };
 
 const WEATHER_LABELS: Record<TripWeatherKind, string> = {
@@ -81,6 +91,17 @@ export function buildTripWeatherSummary(
     const kind = dominantKind(kinds);
     const tempMin = validTempsMin.length ? Math.round(Math.min(...validTempsMin)) : null;
     const tempMax = validTempsMax.length ? Math.round(Math.max(...validTempsMax)) : null;
+    const days: TripWeatherDay[] = forecast.map((day) => {
+      const dayKind = weatherKindFromCode(day.weatherCode);
+      return {
+        date: day.date,
+        kind: dayKind,
+        label: WEATHER_LABELS[dayKind],
+        tempMin: Number.isFinite(day.tempMin) ? Math.round(day.tempMin) : null,
+        tempMax: Number.isFinite(day.tempMax) ? Math.round(day.tempMax) : null,
+        precipitationMm: Number.isFinite(day.precipitationMm) ? Math.max(0, day.precipitationMm) : 0,
+      };
+    });
 
     return {
       mode: "forecast",
@@ -91,6 +112,7 @@ export function buildTripWeatherSummary(
       rainRelevant,
       rainyDays,
       microcopy: forecastMicrocopy(kind, tempMax, rainRelevant),
+      days,
     };
   }
 
