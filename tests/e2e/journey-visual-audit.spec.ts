@@ -90,6 +90,7 @@ async function waitForRenderedChapter(page: Page, name: string) {
   await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 20_000 });
 
   const required: Record<string, () => ReturnType<Page["locator"]>> = {
+    journey: () => page.getByRole("heading", { name: /^Parcours de / }),
     invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
     availability: () => page.locator('main img[src*="/brand/otter-states/availability.png"]'),
     preferences: () => page.getByRole("heading", { name: "Envies & ambiance", exact: true }),
@@ -173,6 +174,7 @@ async function captureJourney(
   tripId: string,
 ) {
   const pages = [
+    ["journey", `/trips/${tripId}`],
     ["invite", `/trips/${tripId}/invite`],
     ["availability", `/trips/${tripId}/availability`],
     ["preferences", `/trips/${tripId}/questionnaire`],
