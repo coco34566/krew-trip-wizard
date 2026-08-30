@@ -8,6 +8,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { sha256File } from "@/lib/souvenirs-photo-upload";
 import { createPhotosZip } from "@/lib/souvenirs-download";
 import { KrewIcon, KrewMark, KrewNote, KrewOrganicBlob } from "@/components/krew/visual-language";
+import { KrewRecapCard } from "@/components/krew/KrewRecapCard";
+import { buildTripRecap } from "@/lib/krew/trip-recap";
 import { cn } from "@/lib/utils";
 
 const MAX_PHOTO_SIZE_BYTES = 20 * 1024 * 1024;
@@ -38,6 +40,23 @@ function MemoriesPage(){
  const {tripId}=Route.useParams();const fileInputRef=useRef<HTMLInputElement>(null);const qc=useQueryClient();const [userId,setUserId]=useState<string|null>(null);const [userName,setUserName]=useState("Moi");const [uploading,setUploading]=useState(false);const [downloading,setDownloading]=useState(false);const [showAlbum,setShowAlbum]=useState(false);const [showPartner,setShowPartner]=useState(false);const [permission,setPermission]=useState<"granted"|"denied"|"prompt">("prompt");const [showModal,setShowModal]=useState(false);
  useEffect(()=>{const saved=localStorage.getItem("krew_photo_permission");if(saved==="granted"||saved==="denied")setPermission(saved);supabase.auth.getUser().then(({data:{user}})=>{if(!user)return;setUserId(user.id);supabase.from("trip_participants").select("display_name").eq("trip_id",tripId).eq("user_id",user.id).maybeSingle().then(({data})=>{if(data?.display_name)setUserName(data.display_name);});});},[tripId]);
  const {data:photos=[],isLoading,isError,refetch}=useQuery<Photo[]>({queryKey:["trip-photos",tripId],queryFn:async()=>{const {data,error}=await supabase.from("trip_photos" as any).select("*, trip_photo_likes(user_id)").eq("trip_id",tripId).is("deleted_at",null).order("created_at",{ascending:false});if(error)throw error;return signPhotoUrls(data||[]);}});const selection=buildKrewSelection(photos);
+ const {data:recapSource}=useQuery({
+   queryKey:["trip-recap-source",tripId],
+   queryFn:async()=>{
+     const [tripResult,recoResult]=await Promise.all([
+       supabase.from("trips").select("id,name,start_date,end_date,participants_count,selected_activity_ids,group_itinerary,group_logistics").eq("id",tripId).single(),
+       supabase.from("recommendations").select("destinations(name,country)").eq("trip_id",tripId).eq("is_selected",true).maybeSingle(),
+     ]);
+     if(tripResult.error)throw tripResult.error;
+     if(recoResult.error)throw recoResult.error;
+     const rawDestination=(recoResult.data as any)?.destinations;
+     const destination=Array.isArray(rawDestination)?rawDestination[0]??null:rawDestination??null;
+     return {trip:tripResult.data as any,destination};
+   },
+   enabled:Boolean(tripId),
+   retry:false,
+ });
+ const recap=recapSource?buildTripRecap({trip:recapSource.trip,destination:recapSource.destination,photoCount:photos.length}):null;
  const daysMap = new Map<string, Photo[]>();
  for (const p of selection) {
    const key = new Date(p.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -72,6 +91,14 @@ function MemoriesPage(){
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
+
+      {recap?.eligible ? (
+        <KrewRecapCard
+          recap={recap}
+          tripName={recapSource?.trip?.name}
+          photos={selection.slice(0,3).map((photo)=>({id:photo.id,url:photo.url,alt:photoAlt(photo)}))}
+        />
+      ) : null}
 
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 relative">
         <div className="space-y-2 relative">
