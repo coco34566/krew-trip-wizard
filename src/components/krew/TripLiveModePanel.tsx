@@ -1,10 +1,6 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
 
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
-import { regenerateItinerarySlot } from "@/lib/trips.functions";
 import {
   buildPlanningMapModel,
   buildPlanningMapsUrl,
@@ -55,19 +51,7 @@ function eventTone(status: LiveSlotState["status"], featured: boolean) {
   return "border-border/60 bg-card/75";
 }
 
-export function TripLiveModePanel({ tripId, trip, destinationName = null, weather = null, isOwner }: Props) {
-  const queryClient = useQueryClient();
-  const regenerateSlot = useServerFn(regenerateItinerarySlot);
-  const planBMutation = useMutation({
-    mutationFn: (payload: { day: number; state: LiveSlotState }) =>
-      regenerateSlot({ data: { tripId, day: payload.day, slotIndex: payload.state.slotIndex } }),
-    onSuccess: () => {
-      toast.success("Une autre option a été intégrée au planning");
-      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-    },
-    onError: () => toast.error("Impossible de proposer une autre option pour le moment."),
-  });
-
+export function TripLiveModePanel({ tripId, trip, destinationName = null, weather = null }: Props) {
   const now = new Date();
   const datesLocked = Boolean(trip?.dates_locked || trip?.datesLocked);
   const live = isTripLiveMode({
@@ -100,7 +84,7 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
   });
   const todayKey = localCalendarDateKey(now);
   const weatherToday = weather?.days?.find((day) => day.date === todayKey) ?? null;
-  const planBState = states.find((state) => isPlanBCandidate(state, weatherToday, now)) ?? null;
+  const weatherConflictState = states.find((state) => isPlanBCandidate(state, weatherToday, now)) ?? null;
 
   const lodgingAddress = text(lodging?.address) || text(lodging?.location?.address) || null;
   const lodgingMapsUrl = lodging
@@ -242,29 +226,21 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
           </div>
         ) : null}
 
-        {planBState && dayNumber != null ? (
-          <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4">
-            <div className="flex items-start gap-3">
-              <KrewIcon name="planning" tone="plum" size="sm" className="mt-0.5 size-5 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="font-display text-xl font-normal text-foreground">Plan B KREW</p>
-                <p className="mt-1 text-sm leading-relaxed text-foreground/80">
-                  La météo peut vraiment gêner {text(planBState.slot.label) || "cette activité extérieure"}. Aucun changement n’est fait automatiquement.
-                </p>
-                {isOwner ? (
-                  <button
-                    type="button"
-                    disabled={planBMutation.isPending}
-                    onClick={() => planBMutation.mutate({ day: dayNumber, state: planBState })}
-                    className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-primary/25 bg-background px-4 text-sm font-semibold text-primary disabled:opacity-50"
-                  >
-                    {planBMutation.isPending ? "Recherche d’une autre option…" : "Intégrer une autre option"}
-                  </button>
-                ) : (
-                  <p className="mt-2 text-xs font-medium text-muted-foreground">L’organisateur·rice peut proposer une autre option pour ce créneau.</p>
-                )}
-              </div>
-            </div>
+        {weatherConflictState ? (
+          <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3.5">
+            <p className="text-xs font-bold uppercase tracking-wide text-primary/70">Météo à surveiller</p>
+            <p className="mt-1 text-sm leading-relaxed text-foreground/85">
+              Les conditions prévues peuvent réellement gêner {text(weatherConflictState.slot.label) || "cette activité extérieure"}.
+            </p>
+            <Link
+              to="/trips/$tripId"
+              params={{ tripId }}
+              search={{ view: "voyage", section: "planning" }}
+              className="mt-2 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+            >
+              Vérifier ce créneau
+              <KrewMark type="arrow-right" tone="sage" size="sm" className="h-3.5 w-5" />
+            </Link>
           </div>
         ) : null}
 
