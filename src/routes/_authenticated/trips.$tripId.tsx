@@ -1,5 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
+import { PlanningStayMapPortal } from "@/components/krew/PlanningStayMapPortal";
+
 /**
  * Layout parent du voyage : obligatoire pour que les routes enfants
  * (availability, questionnaire, invite, star, recap) s'affichent via <Outlet />.
@@ -9,5 +11,11 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId")({
 });
 
 function TripLayout() {
-  return <Outlet />;
+  const { tripId } = Route.useParams();
+  return (
+    <>
+      <Outlet />
+      <PlanningStayMapPortal tripId={tripId} />
+    </>
+  );
 }
