@@ -9,7 +9,7 @@ import {
 } from "@/lib/krew/planning-map";
 
 describe("planning map adapter", () => {
-  it("keeps planning continuity rules without exposing numbering gaps", () => {
+  it("connects consecutive visible map points even when an intermediate planning slot has no coordinates", () => {
     const model = buildPlanningMapModel({
       destination: "Lisbonne",
       days: [{
@@ -24,10 +24,13 @@ describe("planning map adapter", () => {
 
     expect(model.activityPoints.map((point) => point.label)).toEqual(["A", "C"]);
     expect(model.activityPoints.map((point) => point.orderInDay)).toEqual([1, 2]);
-    expect(model.segments).toHaveLength(0);
+    expect(model.segments).toHaveLength(1);
+    expect(model.segments[0]?.fromId).toBe(model.activityPoints[0]?.id);
+    expect(model.segments[0]?.toId).toBe(model.activityPoints[1]?.id);
+    expect(model.activityPoints[1]?.distanceFromPreviousKm).toBeGreaterThan(0);
   });
 
-  it("links only consecutive mappable activities and excludes transport slots", () => {
+  it("links consecutive mappable activities and excludes transport slots", () => {
     const model = buildPlanningMapModel({
       destination: "Paris",
       days: [{

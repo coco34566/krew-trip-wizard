@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Home, LocateFixed, MapPin, Minus, Plus, X } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +7,7 @@ import {
   buildPlanningMapModel,
   findPlanningMapGeographicOutlierIds,
   formatMapSegmentDistance,
+  haversineKm,
   type PlanningMapPoint,
   type PlanningMapSegment,
 } from "@/lib/krew/planning-map";
@@ -39,6 +41,7 @@ function latToY(latitude: number) {
 
 function fitView(points: PlanningMapPoint[], size: Size): ViewState {
   if (!points.length) return { centerX: 0.5, centerY: 0.5, zoom: 3 };
+
   const xs = points.map((point) => lonToX(point.longitude));
   const ys = points.map((point) => latToY(point.latitude));
   const minX = Math.min(...xs);
@@ -55,14 +58,17 @@ function fitView(points: PlanningMapPoint[], size: Size): ViewState {
   const usableHeight = Math.max(120, size.height - padding * 2);
   const spanX = Math.max(maxX - minX, 0.000001);
   const spanY = Math.max(maxY - minY, 0.000001);
+
   return {
     centerX,
     centerY,
     zoom: clamp(
-      Math.floor(Math.min(
-        Math.log2(usableWidth / (spanX * TILE_SIZE)),
-        Math.log2(usableHeight / (spanY * TILE_SIZE)),
-      )),
+      Math.floor(
+        Math.min(
+          Math.log2(usableWidth / (spanX * TILE_SIZE)),
+          Math.log2(usableHeight / (spanY * TILE_SIZE)),
+        ),
+      ),
       MIN_ZOOM,
       16,
     ),
@@ -90,8 +96,10 @@ function useElementSize<T extends HTMLElement>() {
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
+
     const update = () => setSize({ width: element.clientWidth, height: element.clientHeight });
     update();
+
     const observer = new ResizeObserver(update);
     observer.observe(element);
     return () => observer.disconnect();
@@ -123,12 +131,17 @@ async function loadTripMapPayload(tripId: string): Promise<TripMapPayload | null
     return Number.isFinite(lat) && Number.isFinite(lon);
   };
 
-  if (selectedHotelId && (!selectedLodging || !hasCoords(selectedLodging)) && !selectedHotelId.startsWith("portal-")) {
+  if (
+    selectedHotelId &&
+    (!selectedLodging || !hasCoords(selectedLodging)) &&
+    !selectedHotelId.startsWith("portal-")
+  ) {
     const accommodationResult = await supabase
       .from("accommodations")
       .select("id, name, type, latitude, longitude")
       .eq("id", selectedHotelId)
       .maybeSingle();
+
     if (!accommodationResult.error && accommodationResult.data) {
       selectedLodging = { ...(selectedLodging ?? {}), ...accommodationResult.data };
     }
@@ -148,6 +161,7 @@ function PointCard({ point, onClose }: { point: PlanningMapPoint; onClose: () =>
       >
         <X className="size-3.5" />
       </button>
+
       <div className="flex items-start gap-2.5">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           {point.kind === "lodging" ? <Home className="size-4" /> : <MapPin className="size-4" />}
@@ -158,7 +172,9 @@ function PointCard({ point, onClose }: { point: PlanningMapPoint; onClose: () =>
             {point.time ? ` · ${point.time}` : ""}
           </p>
           <p className="mt-0.5 text-sm font-semibold leading-snug text-foreground">{point.label}</p>
-          {point.address ? <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{point.address}</p> : null}
+          {point.address ? (
+            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{point.address}</p>
+          ) : null}
           {point.mapsUrl ? (
             <a
               href={point.mapsUrl}
@@ -188,7 +204,13 @@ function KrewRasterMap({
   const fitted = useMemo(() => fitView(points, size), [points, size.width, size.height]);
   const [view, setView] = useState<ViewState>(fitted);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const dragRef = useRef<{ pointerId: number; x: number; y: number; centerX: number; centerY: number } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    centerX: number;
+    centerY: number;
+  } | null>(null);
 
   useEffect(() => {
     setView(fitted);
@@ -202,21 +224,34 @@ function KrewRasterMap({
       const key = `${point.latitude.toFixed(6)}:${point.longitude.toFixed(6)}`;
       const duplicateIndex = duplicates.get(key) ?? 0;
       duplicates.set(key, duplicateIndex + 1);
+
       if (!duplicateIndex) return { point, ...base };
+
       const angle = duplicateIndex * 2.2;
       const radius = Math.min(18, 7 + duplicateIndex * 3);
-      return { point, x: base.x + Math.cos(angle) * radius, y: base.y + Math.sin(angle) * radius };
+      return {
+        point,
+        x: base.x + Math.cos(angle) * radius,
+        y: base.y + Math.sin(angle) * radius,
+      };
     });
   }, [points, view, size.width, size.height]);
 
-  const positionsById = useMemo(() => new Map(positioned.map((item) => [item.point.id, item])), [positioned]);
+  const positionsById = useMemo(
+    () => new Map(positioned.map((item) => [item.point.id, item])),
+    [positioned],
+  );
+
   const scale = TILE_SIZE * 2 ** view.zoom;
   const centerWorldX = view.centerX * scale;
   const centerWorldY = view.centerY * scale;
   const minTileX = Math.floor((centerWorldX - size.width / 2) / TILE_SIZE) - 1;
   const maxTileX = Math.floor((centerWorldX + size.width / 2) / TILE_SIZE) + 1;
   const minTileY = Math.max(0, Math.floor((centerWorldY - size.height / 2) / TILE_SIZE) - 1);
-  const maxTileY = Math.min(2 ** view.zoom - 1, Math.floor((centerWorldY + size.height / 2) / TILE_SIZE) + 1);
+  const maxTileY = Math.min(
+    2 ** view.zoom - 1,
+    Math.floor((centerWorldY + size.height / 2) / TILE_SIZE) + 1,
+  );
   const tiles: { key: string; x: number; y: number; left: number; top: number }[] = [];
 
   for (let y = minTileY; y <= maxTileY; y += 1) {
@@ -232,8 +267,12 @@ function KrewRasterMap({
   }
 
   const zoomBy = (delta: number) => {
-    setView((current) => ({ ...current, zoom: clamp(current.zoom + delta, MIN_ZOOM, MAX_ZOOM) }));
+    setView((current) => ({
+      ...current,
+      zoom: clamp(current.zoom + delta, MIN_ZOOM, MAX_ZOOM),
+    }));
   };
+
   const activePoint = points.find((point) => point.id === activeId) ?? null;
 
   return (
@@ -298,10 +337,26 @@ function KrewRasterMap({
           const from = positionsById.get(segment.fromId);
           const to = positionsById.get(segment.toId);
           if (!from || !to) return null;
+
           return (
             <g key={`${segment.fromId}-${segment.toId}`}>
-              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="white" strokeWidth="7" strokeOpacity="0.94" />
-              <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="stroke-primary/80" strokeWidth="3" />
+              <line
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                stroke="white"
+                strokeWidth="7"
+                strokeOpacity="0.94"
+              />
+              <line
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                className="stroke-primary/80"
+                strokeWidth="3"
+              />
             </g>
           );
         })}
@@ -311,32 +366,40 @@ function KrewRasterMap({
         const from = positionsById.get(segment.fromId);
         const to = positionsById.get(segment.toId);
         if (!from || !to) return null;
-        const fromOrder = from.point.orderInDay;
-        const toOrder = to.point.orderInDay;
+
         const dayPrefix = showDayPrefix && from.point.day != null ? `J${from.point.day} · ` : "";
         return (
           <span
             key={`distance-${segment.fromId}-${segment.toId}`}
             className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-primary/15 bg-white/95 px-2 py-1 font-mono text-[9px] font-bold text-primary shadow-sm sm:text-[10px]"
-            style={{ left: (from.x + to.x) / 2, top: (from.y + to.y) / 2 }}
+            style={{
+              left: (from.x + to.x) / 2,
+              top: (from.y + to.y) / 2,
+            }}
           >
-            {dayPrefix}{fromOrder} → {toOrder} · {formatMapSegmentDistance(segment.distanceKm)}
+            {dayPrefix}{from.point.orderInDay} → {to.point.orderInDay} · {formatMapSegmentDistance(segment.distanceKm)}
           </span>
         );
       })}
 
       {positioned.map(({ point, x, y }) => {
         const active = point.id === activeId;
-        const markerText = point.kind === "lodging"
-          ? null
-          : showDayPrefix
-            ? `J${point.day} · ${point.orderInDay}`
-            : String(point.orderInDay);
+        const markerText =
+          point.kind === "lodging"
+            ? null
+            : showDayPrefix
+              ? `J${point.day} · ${point.orderInDay}`
+              : String(point.orderInDay);
+
         return (
           <button
             key={point.id}
             type="button"
-            aria-label={point.kind === "lodging" ? `Logement : ${point.label}` : `Point ${point.orderInDay} : ${point.label}`}
+            aria-label={
+              point.kind === "lodging"
+                ? `Logement : ${point.label}`
+                : `Point ${point.orderInDay} : ${point.label}`
+            }
             aria-expanded={active}
             onClick={(event) => {
               event.stopPropagation();
@@ -346,7 +409,9 @@ function KrewRasterMap({
               point.kind === "lodging"
                 ? `absolute z-20 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-white bg-primary text-white shadow-[0_5px_16px_rgba(55,34,50,0.24)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${active ? "scale-110" : ""}`
                 : `absolute z-20 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center border-[3px] border-white bg-primary font-mono font-bold text-white shadow-[0_5px_16px_rgba(55,34,50,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-                    showDayPrefix ? "h-9 min-w-9 rounded-full px-2 text-[9px]" : "size-9 rounded-full text-sm"
+                    showDayPrefix
+                      ? "h-9 min-w-9 rounded-full px-2 text-[9px]"
+                      : "size-9 rounded-full text-sm"
                   } ${active ? "scale-110 ring-2 ring-primary/25" : ""}`
             }
             style={{ left: x, top: y }}
@@ -357,9 +422,40 @@ function KrewRasterMap({
       })}
 
       <div className="absolute right-3 top-3 z-30 flex flex-col gap-1.5">
-        <button type="button" onClick={(event) => { event.stopPropagation(); zoomBy(1); }} className="flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-foreground shadow-sm" aria-label="Zoomer"><Plus className="size-4" /></button>
-        <button type="button" onClick={(event) => { event.stopPropagation(); zoomBy(-1); }} className="flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-foreground shadow-sm" aria-label="Dézoomer"><Minus className="size-4" /></button>
-        <button type="button" onClick={(event) => { event.stopPropagation(); setView(fitted); setActiveId(null); }} className="mt-1 flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-primary shadow-sm" aria-label="Recentrer sur le parcours"><LocateFixed className="size-4" /></button>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            zoomBy(1);
+          }}
+          className="flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-foreground shadow-sm"
+          aria-label="Zoomer"
+        >
+          <Plus className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            zoomBy(-1);
+          }}
+          className="flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-foreground shadow-sm"
+          aria-label="Dézoomer"
+        >
+          <Minus className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setView(fitted);
+            setActiveId(null);
+          }}
+          className="mt-1 flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-primary shadow-sm"
+          aria-label="Recentrer sur le parcours"
+        >
+          <LocateFixed className="size-4" />
+        </button>
       </div>
 
       {activePoint ? (
@@ -376,29 +472,50 @@ function KrewRasterMap({
 }
 
 export function PlanningMapSection({ tripId }: { tripId: string }) {
+  const queryClient = useQueryClient();
   const [payload, setPayload] = useState<TripMapPayload | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [dayFilter, setDayFilter] = useState<number | "all">("all");
+  const [mapRevision, setMapRevision] = useState(0);
+
+  useEffect(() => {
+    let wasInvalidated = Boolean(queryClient.getQueryState(["trip", tripId])?.isInvalidated);
+
+    return queryClient.getQueryCache().subscribe((event: any) => {
+      const key = event?.query?.queryKey;
+      if (!Array.isArray(key) || key[0] !== "trip" || key[1] !== tripId) return;
+
+      const isInvalidated = Boolean(event.query.state?.isInvalidated);
+      if (isInvalidated && !wasInvalidated) {
+        setMapRevision((value) => value + 1);
+      }
+      wasInvalidated = isInvalidated;
+    });
+  }, [queryClient, tripId]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoaded(false);
+
     loadTripMapPayload(tripId)
       .then((result) => {
-        if (!cancelled) setPayload(result);
+        if (!cancelled && result) setPayload(result);
       })
       .finally(() => {
         if (!cancelled) setLoaded(true);
       });
-    return () => { cancelled = true; };
-  }, [tripId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId, mapRevision]);
 
   const rawModel = useMemo(
-    () => buildPlanningMapModel({
-      days: payload?.itinerary?.days ?? [],
-      destination: payload?.itinerary?.destination ?? null,
-      selectedLodging: payload?.selectedLodging,
-    }),
+    () =>
+      buildPlanningMapModel({
+        days: payload?.itinerary?.days ?? [],
+        destination: payload?.itinerary?.destination ?? null,
+        selectedLodging: payload?.selectedLodging,
+      }),
     [payload],
   );
 
@@ -410,86 +527,191 @@ export function PlanningMapSection({ tripId }: { tripId: string }) {
   const cleanModel = useMemo(() => {
     const keptActivities = rawModel.activityPoints.filter((point) => !outlierIds.has(point.id));
     const counters = new Map<number, number>();
-    const renumberedActivities = keptActivities.map((point) => {
+    const previousByDay = new Map<number, PlanningMapPoint>();
+    const segments: PlanningMapSegment[] = [];
+
+    const activities = keptActivities.map((point) => {
       const day = point.day ?? 0;
       const next = (counters.get(day) ?? 0) + 1;
       counters.set(day, next);
-      return { ...point, orderInDay: next };
+
+      const renumbered = {
+        ...point,
+        orderInDay: next,
+        distanceFromPreviousKm: null as number | null,
+      };
+
+      const previous = previousByDay.get(day);
+      if (previous) {
+        const distanceKm = haversineKm(previous, renumbered);
+        renumbered.distanceFromPreviousKm = distanceKm;
+        segments.push({
+          fromId: previous.id,
+          toId: renumbered.id,
+          distanceKm,
+        });
+      }
+
+      previousByDay.set(day, renumbered);
+      return renumbered;
     });
-    const keptIds = new Set(renumberedActivities.map((point) => point.id));
-    const cleanSegments = rawModel.segments.filter(
-      (segment) => keptIds.has(segment.fromId) && keptIds.has(segment.toId),
-    );
-    const distanceByTarget = new Map(cleanSegments.map((segment) => [segment.toId, segment.distanceKm]));
-    const activities = renumberedActivities.map((point) => ({
-      ...point,
-      distanceFromPreviousKm: distanceByTarget.get(point.id) ?? null,
-    }));
+
     const points = rawModel.lodgingPoint ? [rawModel.lodgingPoint, ...activities] : activities;
-    return { points, activities, segments: cleanSegments };
+    return { points, activities, segments };
   }, [rawModel, outlierIds]);
 
   const days = useMemo(
-    () => Array.from(new Set(cleanModel.activities.map((point) => point.day).filter((day): day is number => day != null))).sort((a, b) => a - b),
+    () =>
+      Array.from(
+        new Set(
+          cleanModel.activities
+            .map((point) => point.day)
+            .filter((day): day is number => day != null),
+        ),
+      ).sort((a, b) => a - b),
     [cleanModel.activities],
   );
 
+  useEffect(() => {
+    if (dayFilter !== "all" && !days.includes(dayFilter)) {
+      setDayFilter("all");
+    }
+  }, [days, dayFilter]);
+
   const visiblePoints = useMemo(
-    () => dayFilter === "all"
-      ? cleanModel.points
-      : cleanModel.points.filter((point) => point.kind === "lodging" || point.day === dayFilter),
+    () =>
+      dayFilter === "all"
+        ? cleanModel.points
+        : cleanModel.points.filter(
+            (point) => point.kind === "lodging" || point.day === dayFilter,
+          ),
     [cleanModel.points, dayFilter],
   );
-  const visibleIds = useMemo(() => new Set(visiblePoints.map((point) => point.id)), [visiblePoints]);
+
+  const visibleIds = useMemo(
+    () => new Set(visiblePoints.map((point) => point.id)),
+    [visiblePoints],
+  );
+
   const visibleSegments = useMemo(
-    () => cleanModel.segments.filter((segment) => visibleIds.has(segment.fromId) && visibleIds.has(segment.toId)),
+    () =>
+      cleanModel.segments.filter(
+        (segment) => visibleIds.has(segment.fromId) && visibleIds.has(segment.toId),
+      ),
     [cleanModel.segments, visibleIds],
   );
 
   const destination = payload?.itinerary?.destination?.trim();
+
   if (!loaded || cleanModel.points.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-5xl px-4 pb-12" aria-labelledby="planning-map-title">
       <div className="overflow-hidden rounded-[24px] border border-primary/10 bg-card shadow-[0_18px_48px_rgba(55,34,50,0.06)]">
         <div className="relative px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
-          <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute right-5 top-4 hidden opacity-60 sm:block" />
+          <KrewMark
+            type="sparkle"
+            tone="sage"
+            size="sm"
+            className="pointer-events-none absolute right-5 top-4 hidden opacity-60 sm:block"
+          />
+
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
                 <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
-                <h2 id="planning-map-title" className="font-display text-[26px] font-normal text-foreground sm:text-[30px]">Notre terrain de jeu</h2>
-                <KrewNote variant="tape" tone="sage" rotation={-1} className="hidden px-2.5 py-1 text-xs sm:inline-block">Le voyage prend forme</KrewNote>
+                <h2
+                  id="planning-map-title"
+                  className="font-display text-[26px] font-normal text-foreground sm:text-[30px]"
+                >
+                  Notre terrain de jeu
+                </h2>
+                <KrewNote
+                  variant="tape"
+                  tone="sage"
+                  rotation={-1}
+                  className="hidden px-2.5 py-1 text-xs sm:inline-block"
+                >
+                  Le voyage prend forme
+                </KrewNote>
               </div>
-              <KrewMark type="underline-wave" tone="sage" size="sm" className="mt-1 h-[7px] w-[112px] opacity-85" />
+
+              <KrewMark
+                type="underline-wave"
+                tone="sage"
+                size="sm"
+                className="mt-1 h-[7px] w-[112px] opacity-85"
+              />
+
               <p className="mt-2 text-sm font-medium text-foreground/80">
-                {days.length ? `${days.length} jour${days.length > 1 ? "s" : ""}` : "Le séjour"} · {cleanModel.activities.length} étape{cleanModel.activities.length > 1 ? "s" : ""}{destination ? ` · ${destination}` : ""}
+                {days.length
+                  ? `${days.length} jour${days.length > 1 ? "s" : ""}`
+                  : "Le séjour"}
+                {" · "}
+                {cleanModel.activities.length} étape{cleanModel.activities.length > 1 ? "s" : ""}
+                {destination ? ` · ${destination}` : ""}
               </p>
               <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Chaque journée se lit simplement : point 1, puis 2, puis 3. La distance entre deux points consécutifs est indiquée directement sur leur liaison.
+                Chaque journée se lit simplement : point 1, puis 2, puis 3. La distance entre chaque paire de points visibles consécutifs est indiquée directement sur leur liaison.
               </p>
             </div>
+
             {rawModel.lodgingPoint ? (
-              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary"><Home className="size-3.5" />Notre camp de base</span>
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary">
+                <Home className="size-3.5" />
+                Notre camp de base
+              </span>
             ) : null}
           </div>
 
           {days.length > 1 ? (
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Filtrer la carte par jour">
-              <button type="button" onClick={() => setDayFilter("all")} className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${dayFilter === "all" ? "bg-primary text-primary-foreground shadow-sm" : "bg-surface text-muted-foreground hover:text-foreground"}`}>Tout le séjour</button>
+            <div
+              className="mt-4 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              aria-label="Filtrer la carte par jour"
+            >
+              <button
+                type="button"
+                onClick={() => setDayFilter("all")}
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                  dayFilter === "all"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-surface text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Tout le séjour
+              </button>
+
               {days.map((day) => (
-                <button key={day} type="button" onClick={() => setDayFilter(day)} className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${dayFilter === day ? "bg-primary text-primary-foreground shadow-sm" : "bg-surface text-muted-foreground hover:text-foreground"}`}>Jour {day}</button>
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setDayFilter(day)}
+                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
+                    dayFilter === day
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-surface text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Jour {day}
+                </button>
               ))}
             </div>
           ) : null}
         </div>
 
         <div className="px-2 pb-3 sm:px-4 sm:pb-4">
-          <KrewRasterMap points={visiblePoints} segments={visibleSegments} showDayPrefix={dayFilter === "all"} />
+          <KrewRasterMap
+            points={visiblePoints}
+            segments={visibleSegments}
+            showDayPrefix={dayFilter === "all"}
+          />
+
           <div className="mt-2 flex flex-wrap items-start justify-between gap-2 px-1 text-[10px] leading-relaxed text-muted-foreground">
             <p>Distances approximatives à vol d’oiseau ; les traits ne représentent pas un itinéraire routier.</p>
             {outlierIds.size > 0 ? (
-              <p className="font-medium text-primary">{outlierIds.size} lieu{outlierIds.size > 1 ? "x" : ""} non affiché{outlierIds.size > 1 ? "s" : ""} car sa position semble incohérente avec le reste du séjour.</p>
+              <p className="font-medium text-primary">
+                {outlierIds.size} lieu{outlierIds.size > 1 ? "x" : ""} non affiché{outlierIds.size > 1 ? "s" : ""} car sa position semble incohérente avec le reste du séjour.
+              </p>
             ) : null}
           </div>
         </div>

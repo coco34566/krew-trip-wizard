@@ -47,6 +47,7 @@ export function isGoogleMapsUrl(value: unknown): value is string {
   return (
     normalized.startsWith("https://www.google.com/maps/") ||
     normalized.startsWith("https://google.com/maps/") ||
+    normalized.startsWith("https://maps.google.com/maps/") ||
     normalized.startsWith("https://maps.google.com/")
   );
 }
@@ -151,8 +152,7 @@ export function buildPlanningMapModel(input: {
     const dayNumber = Number.isFinite(day) ? day : activityPoints.length + 1;
     const slots = Array.isArray(rawDay?.slots) ? (rawDay.slots as RawSlot[]) : [];
     let visibleOrderInDay = 0;
-    let previousEligiblePoint: PlanningMapPoint | null = null;
-    let previousEligibleWasMappable = false;
+    let previousVisiblePoint: PlanningMapPoint | null = null;
 
     for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
       const slot = slots[slotIndex] ?? {};
@@ -160,13 +160,7 @@ export function buildPlanningMapModel(input: {
 
       const latitude = finiteCoordinate(slot.latitude);
       const longitude = finiteCoordinate(slot.longitude);
-      const isMappable = latitude != null && longitude != null;
-
-      if (!isMappable) {
-        previousEligiblePoint = null;
-        previousEligibleWasMappable = false;
-        continue;
-      }
+      if (latitude == null || longitude == null) continue;
 
       visibleOrderInDay += 1;
       const id = `activity-${dayNumber}-${slotIndex}`;
@@ -192,15 +186,14 @@ export function buildPlanningMapModel(input: {
         distanceFromPreviousKm: null,
       };
 
-      if (previousEligibleWasMappable && previousEligiblePoint) {
-        const distanceKm = haversineKm(previousEligiblePoint, point);
+      if (previousVisiblePoint) {
+        const distanceKm = haversineKm(previousVisiblePoint, point);
         point.distanceFromPreviousKm = distanceKm;
-        segments.push({ fromId: previousEligiblePoint.id, toId: point.id, distanceKm });
+        segments.push({ fromId: previousVisiblePoint.id, toId: point.id, distanceKm });
       }
 
       activityPoints.push(point);
-      previousEligiblePoint = point;
-      previousEligibleWasMappable = true;
+      previousVisiblePoint = point;
     }
   }
 
