@@ -87,6 +87,10 @@ const MONTH_LABELS = [
   "décembre",
 ];
 
+function isoUtcDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
 /**
  * Normales mensuelles calculées sur les 3 dernières années complètes (ERA5),
  * puis déduction des meilleurs mois (température agréable, peu de pluie).
@@ -162,24 +166,30 @@ export async function fetchClimate(
 
   let forecast: ClimateSummary["forecast"];
   if (opts.startDate) {
-    const start = new Date(opts.startDate);
+    const start = new Date(`${opts.startDate}T12:00:00Z`);
     const diffDays = (start.getTime() - Date.now()) / 86_400_000;
     if (diffDays >= -1 && diffDays <= 15) {
-      const fRes = await fetchExternal(
-        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
-          `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto` +
-          `&start_date=${opts.startDate}&end_date=${opts.endDate ?? opts.startDate}`,
-      );
-      if (fRes.ok) {
-        const fp = (await fRes.json()) as { daily?: any };
-        forecast = (fp.daily?.time ?? []).map((date: string, i: number) => ({
-          date,
-          tempMax: Number(fp.daily.temperature_2m_max?.[i] ?? 0),
-          tempMin: Number(fp.daily.temperature_2m_min?.[i] ?? 0),
-          precipitationMm: Number(fp.daily.precipitation_sum?.[i] ?? 0),
-          weatherCode:
-            typeof fp.daily.weather_code?.[i] === "number" ? Number(fp.daily.weather_code[i]) : null,
-        }));
+      const forecastLimit = new Date();
+      forecastLimit.setUTCDate(forecastLimit.getUTCDate() + 15);
+      const requestedEnd = opts.endDate ?? opts.startDate;
+      const forecastEnd = requestedEnd < isoUtcDate(forecastLimit) ? requestedEnd : isoUtcDate(forecastLimit);
+      if (forecastEnd >= opts.startDate) {
+        const fRes = await fetchExternal(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
+            `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto` +
+            `&start_date=${opts.startDate}&end_date=${forecastEnd}`,
+        );
+        if (fRes.ok) {
+          const fp = (await fRes.json()) as { daily?: any };
+          forecast = (fp.daily?.time ?? []).map((date: string, i: number) => ({
+            date,
+            tempMax: Number(fp.daily.temperature_2m_max?.[i] ?? 0),
+            tempMin: Number(fp.daily.temperature_2m_min?.[i] ?? 0),
+            precipitationMm: Number(fp.daily.precipitation_sum?.[i] ?? 0),
+            weatherCode:
+              typeof fp.daily.weather_code?.[i] === "number" ? Number(fp.daily.weather_code[i]) : null,
+          }));
+        }
       }
     }
   }
