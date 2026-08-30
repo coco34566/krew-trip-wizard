@@ -11,6 +11,7 @@ export type GeoPlace = {
   latitude: number;
   longitude: number;
   population: number | null;
+  timezone: string | null;
 };
 
 export type MonthClimate = {
@@ -24,11 +25,20 @@ export type ClimateSummary = {
   months: MonthClimate[];
   bestMonths: number[];
   summary: string;
+  timezone?: string | null;
   forecast?:
     | {
         date: string;
         tempMax: number;
         tempMin: number;
+        precipitationMm: number;
+        weatherCode?: number | null;
+      }[]
+    | undefined;
+  hourlyForecast?:
+    | {
+        time: string;
+        temperature: number | null;
         precipitationMm: number;
         weatherCode?: number | null;
       }[]
@@ -71,6 +81,7 @@ export async function geocodeDestination(query: string): Promise<GeoPlace | null
     latitude: Number(hit.latitude),
     longitude: Number(hit.longitude),
     population: hit.population ? Number(hit.population) : null,
+    timezone: typeof hit.timezone === "string" && hit.timezone.trim() ? hit.timezone.trim() : null,
   };
 }
 
@@ -96,7 +107,7 @@ const MONTH_LABELS = [
 export async function fetchClimate(
   latitude: number,
   longitude: number,
-  opts: { startDate?: string | null; endDate?: string | null } = {},
+  opts: { startDate?: string | null; endDate?: string | null; timezone?: string | null } = {},
 ): Promise<ClimateSummary> {
   const lastYear = new Date().getUTCFullYear() - 1;
   const url =
@@ -164,6 +175,7 @@ export async function fetchClimate(
     : "Données climatiques indisponibles";
 
   let forecast: ClimateSummary["forecast"];
+  let hourlyForecast: ClimateSummary["hourlyForecast"];
   if (opts.startDate) {
     const today = new Date().toISOString().slice(0, 10);
     const forecastLimit = new Date();
@@ -179,13 +191,15 @@ export async function fetchClimate(
     // Pour un séjour plus long, on affiche la portion fiable disponible (J+15)
     // plutôt que de retomber artificiellement sur une tendance saisonnière.
     if (forecastEnd >= forecastStart && forecastStart <= forecastLimitDate) {
+      const timezone = opts.timezone ? encodeURIComponent(opts.timezone) : "auto";
       const fRes = await fetchExternal(
         `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
-          `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto` +
+          `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code` +
+          `&hourly=temperature_2m,precipitation,weather_code&timezone=${timezone}` +
           `&start_date=${forecastStart}&end_date=${forecastEnd}`,
       );
       if (fRes.ok) {
-        const fp = (await fRes.json()) as { daily?: any };
+        const fp = (await fRes.json()) as { daily?: any; hourly?: any; timezone?: string };
         forecast = (fp.daily?.time ?? []).map((date: string, i: number) => ({
           date,
           tempMax: Number(fp.daily.temperature_2m_max?.[i] ?? 0),
@@ -194,9 +208,17 @@ export async function fetchClimate(
           weatherCode:
             typeof fp.daily.weather_code?.[i] === "number" ? Number(fp.daily.weather_code[i]) : null,
         }));
+        hourlyForecast = (fp.hourly?.time ?? []).map((time: string, i: number) => ({
+          time,
+          temperature:
+            typeof fp.hourly.temperature_2m?.[i] === "number" ? Number(fp.hourly.temperature_2m[i]) : null,
+          precipitationMm: Number(fp.hourly.precipitation?.[i] ?? 0),
+          weatherCode:
+            typeof fp.hourly.weather_code?.[i] === "number" ? Number(fp.hourly.weather_code[i]) : null,
+        }));
       }
     }
   }
 
-  return { months, bestMonths, summary, forecast };
+  return { months, bestMonths, summary, timezone: opts.timezone ?? null, forecast, hourlyForecast };
 }
