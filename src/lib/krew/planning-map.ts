@@ -28,7 +28,6 @@ export type PlanningMapModel = {
 
 type RawSlot = Record<string, unknown>;
 type RawDay = { day?: unknown; slots?: unknown };
-
 type RawLodging = Record<string, unknown> | null | undefined;
 
 const GOOGLE_MAPS_SEARCH_PREFIX = "https://www.google.com/maps/search/?api=1&query=";
@@ -52,11 +51,6 @@ export function isGoogleMapsUrl(value: unknown): value is string {
   );
 }
 
-/**
- * Same verified-place fallback convention already used by KREW planning:
- * name + address, then name + destination, then name/address, and coordinates last.
- * An existing Maps URL always wins so the map does not invent another destination.
- */
 export function buildPlanningMapsUrl(input: {
   existingUrl?: unknown;
   name?: unknown;
@@ -92,10 +86,40 @@ export function haversineKm(
   const dLon = rad(b.longitude - a.longitude);
   const lat1 = rad(a.latitude);
   const lat2 = rad(b.latitude);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function median(values: number[]) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+/**
+ * Detects a clearly isolated place without treating normal regional trips as outliers.
+ * The guard only activates when the overall trip is compact, then requires a point to
+ * be at least 100 km from its nearest neighbour and far beyond the trip's normal spacing.
+ */
+export function findPlanningMapGeographicOutlierIds(points: PlanningMapPoint[]): string[] {
+  const activityPoints = points.filter((point) => point.kind === "activity");
+  if (activityPoints.length < 4) return [];
+
+  const nearestDistances = activityPoints.map((point) => {
+    const distances = activityPoints
+      .filter((candidate) => candidate.id !== point.id)
+      .map((candidate) => haversineKm(point, candidate));
+    return Math.min(...distances);
+  });
+
+  const typicalNearestKm = median(nearestDistances);
+  if (typicalNearestKm > 25) return [];
+
+  const thresholdKm = Math.max(100, typicalNearestKm * 12);
+  return activityPoints
+    .filter((_, index) => nearestDistances[index] > thresholdKm)
+    .map((point) => point.id);
 }
 
 function isActivityLikeSlot(slot: RawSlot): boolean {
@@ -121,14 +145,14 @@ export function buildPlanningMapModel(input: {
 }): PlanningMapModel {
   const activityPoints: PlanningMapPoint[] = [];
   const segments: PlanningMapSegment[] = [];
-  let previousEligiblePoint: PlanningMapPoint | null = null;
-  let previousEligibleWasMappable = false;
 
   for (const rawDay of Array.isArray(input.days) ? input.days : []) {
     const day = Number(rawDay?.day);
     const dayNumber = Number.isFinite(day) ? day : activityPoints.length + 1;
     const slots = Array.isArray(rawDay?.slots) ? (rawDay.slots as RawSlot[]) : [];
     let visibleOrderInDay = 0;
+    let previousEligiblePoint: PlanningMapPoint | null = null;
+    let previousEligibleWasMappable = false;
 
     for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
       const slot = slots[slotIndex] ?? {};
@@ -188,11 +212,8 @@ export function buildPlanningMapModel(input: {
     if (latitude != null && longitude != null) {
       const name = safeText(lodging.name) ?? "Hébergement";
       const location = lodging.location;
-      const address =
-        safeText(lodging.address) ??
-        (location && typeof location === "object"
-          ? safeText((location as Record<string, unknown>).address)
-          : null);
+      const address = safeText(lodging.address) ??
+        (location && typeof location === "object" ? safeText((location as Record<string, unknown>).address) : null);
       lodgingPoint = {
         id: `lodging-${safeText(lodging.id) ?? "selected"}`,
         kind: "lodging",
@@ -227,6 +248,13 @@ export function buildPlanningMapModel(input: {
 
 export function formatAirDistance(distanceKm: number): string {
   if (!Number.isFinite(distanceKm)) return "";
+  if (distanceKm < 1) return `≈ ${Math.max(50, Math.round((distanceKm * 1000) / 50) * 50)} m à vol d’oiseau`;
   const rounded = distanceKm < 10 ? distanceKm.toFixed(1).replace(".", ",") : Math.round(distanceKm).toString();
   return `≈ ${rounded} km à vol d’oiseau`;
+}
+
+export function formatMapSegmentDistance(distanceKm: number): string {
+  if (!Number.isFinite(distanceKm)) return "";
+  if (distanceKm < 1) return `≈ ${Math.max(50, Math.round((distanceKm * 1000) / 50) * 50)} m`;
+  return `≈ ${distanceKm < 10 ? distanceKm.toFixed(1).replace(".", ",") : Math.round(distanceKm)} km`;
 }
