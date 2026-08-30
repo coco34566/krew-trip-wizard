@@ -31,6 +31,13 @@ type AwardVote = {
   voter_user_id: string;
 };
 
+type VoteChange = {
+  category: KrewAwardCategoryId;
+  nomineeParticipantId: string | null;
+};
+
+const NO_AWARD_CHOICE = "__no_award_choice__";
+
 function participantName(participant: Participant) {
   const displayName = participant.display_name?.trim();
   if (displayName) return displayName;
@@ -41,7 +48,7 @@ function participantName(participant: Participant) {
 export function KrewAwards() {
   const { tripId } = useParams({ from: "/_authenticated/trips/$tripId/memories" });
   const queryClient = useQueryClient();
-  const [savingCategory, setSavingCategory] = useState<KrewAwardCategoryId | null>(null);
+  const [savingCategories, setSavingCategories] = useState<Set<KrewAwardCategoryId>>(() => new Set());
 
   const { data: userId = null } = useQuery({
     queryKey: ["krew-awards-user"],
@@ -97,9 +104,20 @@ export function KrewAwards() {
   }, [userId, votes]);
 
   const saveVote = useMutation({
-    mutationFn: async ({ category, nomineeParticipantId }: { category: KrewAwardCategoryId; nomineeParticipantId: string }) => {
+    mutationFn: async ({ category, nomineeParticipantId }: VoteChange) => {
       if (!userId) throw new Error("Utilisateur non connecté");
-      setSavingCategory(category);
+
+      if (nomineeParticipantId === null) {
+        const { error } = await supabase
+          .from("trip_award_votes" as any)
+          .delete()
+          .eq("trip_id", tripId)
+          .eq("category", category)
+          .eq("voter_user_id", userId);
+        if (error) throw error;
+        return;
+      }
+
       const { error } = await supabase.from("trip_award_votes" as any).upsert(
         {
           trip_id: tripId,
@@ -112,6 +130,13 @@ export function KrewAwards() {
       );
       if (error) throw error;
     },
+    onMutate: ({ category }) => {
+      setSavingCategories((current) => {
+        const next = new Set(current);
+        next.add(category);
+        return next;
+      });
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["krew-awards-votes", tripId] });
     },
@@ -119,7 +144,13 @@ export function KrewAwards() {
       console.error("Impossible d'enregistrer le Krew Award:", error);
       toast.error("Impossible d’enregistrer ce choix pour le moment.");
     },
-    onSettled: () => setSavingCategory(null),
+    onSettled: (_data, _error, { category }) => {
+      setSavingCategories((current) => {
+        const next = new Set(current);
+        next.delete(category);
+        return next;
+      });
+    },
   });
 
   if (participants.length < 2 || !userId) return null;
@@ -153,7 +184,7 @@ export function KrewAwards() {
             .map((id) => participantById.get(id))
             .filter((participant): participant is Participant => Boolean(participant))
             .map(participantName);
-          const isSaving = savingCategory === category.id && saveVote.isPending;
+          const isSaving = savingCategories.has(category.id);
 
           return (
             <div
@@ -167,14 +198,20 @@ export function KrewAwards() {
               </div>
 
               <Select
-                value={currentChoice}
-                onValueChange={(nomineeParticipantId) => saveVote.mutate({ category: category.id, nomineeParticipantId })}
+                value={currentChoice ?? NO_AWARD_CHOICE}
+                onValueChange={(value) =>
+                  saveVote.mutate({
+                    category: category.id,
+                    nomineeParticipantId: value === NO_AWARD_CHOICE ? null : value,
+                  })
+                }
                 disabled={isSaving}
               >
                 <SelectTrigger className="mt-3 min-h-11 rounded-xl bg-background text-left" aria-label={`Attribuer ${category.label}`}>
                   <SelectValue placeholder="Choisir quelqu’un" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NO_AWARD_CHOICE}>Pas de choix</SelectItem>
                   {participants.map((participant) => (
                     <SelectItem key={participant.id} value={participant.id}>
                       {participantName(participant)}
