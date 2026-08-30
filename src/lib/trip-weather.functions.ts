@@ -43,3 +43,5 @@ export const getTripWeather = createServerFn({ method: "GET" })
       return null;
     }
   });
+
+// Intentionally keep this module deployment-visible: Vercel production follows main.
