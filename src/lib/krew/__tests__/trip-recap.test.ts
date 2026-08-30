@@ -4,6 +4,7 @@ import { buildTripRecap } from "@/lib/krew/trip-recap";
 const now = new Date("2026-08-30T12:00:00Z");
 
 function source(overrides: Record<string, unknown> = {}) {
+  const { trip: tripOverrides, ...rootOverrides } = overrides;
   return {
     trip: {
       name: "Lisbonne entre amis",
@@ -16,11 +17,11 @@ function source(overrides: Record<string, unknown> = {}) {
         selectedHotelId: "hotel-1",
         hotels: [{ id: "hotel-1", name: "Casa Krew" }],
       },
-      ...(overrides.trip as Record<string, unknown> | undefined),
+      ...(tripOverrides as Record<string, unknown> | undefined),
     },
     destination: { name: "Lisbonne", country: "Portugal" },
     photoCount: 0,
-    ...overrides,
+    ...rootOverrides,
   };
 }
 
