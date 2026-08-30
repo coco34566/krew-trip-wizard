@@ -75,8 +75,14 @@ export function classifyLiveSlots(slots: LiveTripSlot[], now = new Date()): Live
     if (startMinutes == null) {
       return { slot, slotIndex, status: "untimed", startMinutes: null, endMinutes: null };
     }
+    const explicitEndMinutes = parseClockMinutes(slot.endTime ?? slot.end_time);
     const duration = durationMinutes(slot);
-    const endMinutes = duration != null ? startMinutes + duration : null;
+    const endMinutes =
+      explicitEndMinutes != null
+        ? explicitEndMinutes
+        : duration != null
+          ? startMinutes + duration
+          : null;
     const status =
       nowMinutes < startMinutes
         ? "upcoming"
@@ -93,7 +99,9 @@ export function isActivityLikeSlot(slot: LiveTripSlot): boolean {
 }
 
 export function isExplicitOutdoorSlot(slot: LiveTripSlot): boolean {
+  const category = String(slot.category ?? "").toLowerCase();
   return (
+    category === "sport_outdoor" ||
     slot.outdoor === true ||
     slot.isOutdoor === true ||
     slot.weatherSensitive === true ||
