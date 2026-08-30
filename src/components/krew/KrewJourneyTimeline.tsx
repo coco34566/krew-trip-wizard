@@ -24,6 +24,15 @@ type Props = {
   annotationText?: string | null;
 };
 
+type StepCategory = NonNullable<TimelineStep["category"]>;
+
+const CATEGORY_LABELS: Record<StepCategory, string> = {
+  questionnaire: "La Krew se rassemble",
+  prepare: "Le voyage prend forme",
+  organisation: "On prépare le départ",
+  souvenirs: "Et après le voyage…",
+};
+
 function parseStepHref(href: string) {
   const [path, queryString] = href.split("?");
   if (!queryString) return { to: path, search: undefined };
@@ -57,7 +66,7 @@ function StepMeta({ step }: { step: TimelineStep }) {
   if (step.status === "done") {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-sage">
-        <KrewMark type="check" tone="sage" size="sm" className="h-3 w-4" />
+        <KrewMark type="stamp-circle" tone="sage" size="sm" className="h-4 w-5" />
         Terminé
       </span>
     );
@@ -72,6 +81,11 @@ function StepMeta({ step }: { step: TimelineStep }) {
 }
 
 function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boolean }) {
+  const visibleSubtitle =
+    step.id === "memories" && step.status === "upcoming"
+      ? "Les souvenirs se débloqueront au moment du voyage."
+      : step.subtitle;
+
   return (
     <div className={cn("min-w-0", next ? "space-y-2" : "space-y-1")}>
       {next ? (
@@ -82,7 +96,13 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
             className="pointer-events-none w-[46px] shrink-0 object-contain sm:w-[54px]"
           />
           <div className="min-w-0">
-            <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="w-fit text-[12px] sm:text-[13px]">
+            <KrewNote
+              variant="tape"
+              tone="sage"
+              rotation={-1}
+              size="sm"
+              className="w-fit text-[12px] sm:text-[13px]"
+            >
               On en est ici
             </KrewNote>
             <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground/75">
@@ -101,7 +121,7 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
       >
         {step.title}
       </h3>
-      {step.subtitle ? (
+      {visibleSubtitle ? (
         <p
           className={cn(
             "max-w-[320px] text-[13px] leading-relaxed",
@@ -109,17 +129,50 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
             step.status === "upcoming" && "text-muted-foreground/55",
           )}
         >
-          {step.subtitle}
+          {visibleSubtitle}
         </p>
       ) : null}
       {next ? (
         <span className="inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-primary">
           {stepActionLabel(step)}
-          <KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-6 transition-transform group-hover:translate-x-0.5" />
+          <KrewMark
+            type="arrow-right"
+            tone="plum"
+            size="sm"
+            className="h-3.5 w-6 transition-transform group-hover:translate-x-0.5"
+          />
         </span>
       ) : (
         <StepMeta step={step} />
       )}
+    </div>
+  );
+}
+
+function ChapterMarker({ category, index }: { category: StepCategory; index: number }) {
+  return (
+    <div
+      className="pointer-events-none relative z-20 grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3 py-1.5 sm:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] sm:gap-5 sm:py-2"
+      aria-hidden="true"
+    >
+      <div className="col-start-2 flex min-w-0 items-center gap-2 sm:col-span-2 sm:col-start-2">
+        <KrewNote
+          variant="label"
+          tone={category === "souvenirs" ? "plum" : "sage"}
+          rotation={index % 2 === 0 ? -1 : 1}
+          size="xs"
+          className="shrink-0 whitespace-nowrap text-[12px] sm:text-[13px]"
+        >
+          {CATEGORY_LABELS[category]}
+        </KrewNote>
+        <KrewMark
+          type={category === "souvenirs" ? "sparkle" : "connector-curve"}
+          tone={category === "souvenirs" ? "plum" : "sage"}
+          size="sm"
+          rotation={index % 2 === 0 ? -2 : 2}
+          className="hidden h-5 w-12 opacity-40 min-[360px]:block sm:h-6 sm:w-14"
+        />
+      </div>
     </div>
   );
 }
@@ -130,7 +183,10 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
     0,
     nextActionIndex >= 0
       ? nextActionIndex
-      : steps.reduce((last, step, index) => (step.status === "done" || step.status === "available" ? index : last), 0),
+      : steps.reduce(
+          (last, step, index) => (step.status === "done" || step.status === "available" ? index : last),
+          0,
+        ),
   );
   const progress = steps.length > 1 ? (currentIndex / (steps.length - 1)) * 100 : 100;
 
@@ -175,12 +231,15 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
           </div>
         </div>
 
-        <ol className="space-y-2 sm:space-y-0">
+        <ol className="space-y-1 sm:space-y-0">
           {steps.map((step, index) => {
             const isDone = step.status === "done";
             const isNextAction = step.status === "next_action";
             const isAvailable = step.status === "available";
             const isUpcoming = step.status === "upcoming";
+            const startsCategory = Boolean(
+              step.category && (index === 0 || step.category !== steps[index - 1]?.category),
+            );
             const directHref =
               step.id === "preferences"
                 ? `/trips/${tripId}/questionnaire`
@@ -198,7 +257,8 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                     "relative flex items-center justify-center rounded-full bg-background transition-transform",
                     isDone && "size-[42px] border-2 border-sage text-primary",
                     isAvailable && "size-[42px] border-2 border-primary/50 text-primary",
-                    isNextAction && "size-[46px] border-[3px] border-primary bg-background text-primary shadow-[0_0_0_5px_hsl(var(--background))]",
+                    isNextAction &&
+                      "size-[46px] border-[3px] border-primary bg-background text-primary shadow-[0_0_0_5px_hsl(var(--background))]",
                     isUpcoming && "size-[34px] border border-border/80 text-muted-foreground/45",
                   )}
                 >
@@ -240,7 +300,9 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
 
             const content = (
               <div className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] sm:gap-5">
-                <div className={cn("hidden sm:block", index % 2 === 0 ? "text-right" : "order-3")}>{index % 2 === 0 ? copy : null}</div>
+                <div className={cn("hidden sm:block", index % 2 === 0 ? "text-right" : "order-3")}>
+                  {index % 2 === 0 ? copy : null}
+                </div>
                 <div className="flex justify-center sm:col-start-2">{node}</div>
                 <div
                   className={cn(
@@ -272,13 +334,17 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
 
             return (
               <li key={step.id} className={cn("relative py-1 sm:py-2", isNextAction && "py-2 sm:py-3")}>
+                {startsCategory && step.category ? <ChapterMarker category={step.category} index={index} /> : null}
                 {wrapped}
               </li>
             );
           })}
         </ol>
 
-        <div className="pointer-events-none ml-[8px] mt-1 flex items-center gap-2 pl-[44px] sm:ml-0 sm:justify-center sm:pl-0" aria-hidden="true">
+        <div
+          className="pointer-events-none ml-[8px] mt-1 flex items-center gap-2 pl-[44px] sm:ml-0 sm:justify-center sm:pl-0"
+          aria-hidden="true"
+        >
           <KrewMark type="arrow-down" tone="sage" size="sm" className="h-7 w-5 opacity-55" />
           <span className="text-[11px] font-medium text-muted-foreground/55">La suite s’écrit avec la Krew</span>
         </div>
