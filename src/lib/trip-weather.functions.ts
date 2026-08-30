@@ -26,21 +26,28 @@ export const getTripWeather = createServerFn({ method: "GET" })
     const today = new Date().toISOString().slice(0, 10);
     if (endDate && endDate < today) return null;
 
-    try {
-      const place = await geocodeDestination(data.destinationName);
-      if (!place) return null;
+    const place = await geocodeDestination(data.destinationName).catch((error) => {
+      console.warn("[trip-weather] géocodage indisponible", error);
+      return null;
+    });
+    if (!place) return null;
 
-      // Une date affichée proche suffit pour demander la vraie prévision.
-      // Le verrouillage des dates ne doit pas forcer artificiellement la tendance saisonnière.
+    try {
       const climate = await fetchClimate(place.latitude, place.longitude, {
         startDate,
         endDate,
       });
-
       return buildTripWeatherSummary(climate, startDate, endDate, true);
     } catch (error) {
-      console.warn("[trip-weather] météo indisponible", error);
-      return null;
+      console.warn("[trip-weather] prévision indisponible, repli saisonnier", error);
+
+      try {
+        const seasonalClimate = await fetchClimate(place.latitude, place.longitude);
+        return buildTripWeatherSummary(seasonalClimate, startDate, endDate, false);
+      } catch (fallbackError) {
+        console.warn("[trip-weather] météo indisponible", fallbackError);
+        return null;
+      }
     }
   });
 
