@@ -10,9 +10,10 @@ import {
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 
-const MAPLIBRE_JS = "https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl.js";
-const MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@6.6.0/dist/maplibre-gl.css";
+const MAPLIBRE_JS = "https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js";
+const MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css";
 const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/positron";
+const MAP_LOAD_TIMEOUT_MS = 10000;
 
 type TripMapPayload = {
   itinerary: { destination?: string; days?: { day?: unknown; slots?: unknown }[] } | null;
@@ -43,18 +44,39 @@ function ensureMapLibre() {
       document.head.appendChild(css);
     }
 
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      if (window.maplibregl) resolve(window.maplibregl);
+      else reject(new Error("MapLibre loaded without exposing maplibregl"));
+    };
+    const fail = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      mapLibrePromise = null;
+      reject(new Error("MapLibre failed to load"));
+    };
+    const timeoutId = window.setTimeout(fail, MAP_LOAD_TIMEOUT_MS);
+
     const existing = document.querySelector<HTMLScriptElement>(`script[src="${MAPLIBRE_JS}"]`);
     if (existing) {
-      existing.addEventListener("load", () => resolve(window.maplibregl), { once: true });
-      existing.addEventListener("error", () => reject(new Error("MapLibre failed to load")), { once: true });
+      if (window.maplibregl) {
+        finish();
+        return;
+      }
+      existing.addEventListener("load", finish, { once: true });
+      existing.addEventListener("error", fail, { once: true });
       return;
     }
 
     const script = document.createElement("script");
     script.src = MAPLIBRE_JS;
     script.async = true;
-    script.onload = () => resolve(window.maplibregl);
-    script.onerror = () => reject(new Error("MapLibre failed to load"));
+    script.onload = finish;
+    script.onerror = fail;
     document.head.appendChild(script);
   });
 
@@ -209,6 +231,11 @@ function KrewVectorMap({
 
   useEffect(() => {
     let disposed = false;
+    let mapLoadTimeout: number | null = null;
+
+    setMapFailed(false);
+    setMapReady(false);
+
     ensureMapLibre()
       .then((maplibregl) => {
         if (disposed || !containerRef.current) return;
@@ -227,8 +254,14 @@ function KrewVectorMap({
         });
         map.touchZoomRotate.disableRotation();
         mapRef.current = map;
+
+        mapLoadTimeout = window.setTimeout(() => {
+          if (!disposed && !map.loaded()) setMapFailed(true);
+        }, MAP_LOAD_TIMEOUT_MS);
+
         map.on("load", () => {
           if (disposed) return;
+          if (mapLoadTimeout != null) window.clearTimeout(mapLoadTimeout);
           map.addSource("krew-route", {
             type: "geojson",
             data: routeGeoJson(points, segments),
@@ -255,6 +288,7 @@ function KrewVectorMap({
             },
           });
           fitMap(map, maplibregl, points, false);
+          setMapFailed(false);
           setMapReady(true);
         });
       })
@@ -264,6 +298,7 @@ function KrewVectorMap({
 
     return () => {
       disposed = true;
+      if (mapLoadTimeout != null) window.clearTimeout(mapLoadTimeout);
       markersRef.current.forEach((marker) => marker.remove());
       distanceMarkersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
@@ -361,11 +396,11 @@ function KrewVectorMap({
         />
 
         {mapFailed ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-surface px-6 text-center text-sm text-muted-foreground">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface px-6 text-center text-sm text-muted-foreground">
             La carte n’a pas pu se charger. Les étapes restent accessibles juste en dessous.
           </div>
         ) : !mapReady ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-surface/80">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/80">
             <span className="rounded-full bg-background/90 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm">
               La carte se dessine…
             </span>

@@ -128,12 +128,11 @@ export function buildPlanningMapModel(input: {
     const day = Number(rawDay?.day);
     const dayNumber = Number.isFinite(day) ? day : activityPoints.length + 1;
     const slots = Array.isArray(rawDay?.slots) ? (rawDay.slots as RawSlot[]) : [];
-    let orderInDay = 0;
+    let visibleOrderInDay = 0;
 
     for (let slotIndex = 0; slotIndex < slots.length; slotIndex += 1) {
       const slot = slots[slotIndex] ?? {};
       if (!isActivityLikeSlot(slot)) continue;
-      orderInDay += 1;
 
       const latitude = finiteCoordinate(slot.latitude);
       const longitude = finiteCoordinate(slot.longitude);
@@ -145,15 +144,16 @@ export function buildPlanningMapModel(input: {
         continue;
       }
 
+      visibleOrderInDay += 1;
       const id = `activity-${dayNumber}-${slotIndex}`;
       const point: PlanningMapPoint = {
         id,
         kind: "activity",
-        label: safeText(slot.label) ?? `Étape ${orderInDay}`,
+        label: safeText(slot.label) ?? `Étape ${visibleOrderInDay}`,
         latitude,
         longitude,
         day: dayNumber,
-        orderInDay,
+        orderInDay: visibleOrderInDay,
         time: safeText(slot.time),
         type: safeText(slot.type),
         address: safeText(slot.address),

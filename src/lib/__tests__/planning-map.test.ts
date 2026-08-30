@@ -7,7 +7,7 @@ import {
 } from "@/lib/krew/planning-map";
 
 describe("planning map adapter", () => {
-  it("keeps planning order and does not bridge over an unmappable activity", () => {
+  it("keeps planning continuity rules without exposing numbering gaps", () => {
     const model = buildPlanningMapModel({
       destination: "Lisbonne",
       days: [
@@ -23,7 +23,7 @@ describe("planning map adapter", () => {
     });
 
     expect(model.activityPoints.map((point) => point.label)).toEqual(["A", "C"]);
-    expect(model.activityPoints.map((point) => point.orderInDay)).toEqual([1, 3]);
+    expect(model.activityPoints.map((point) => point.orderInDay)).toEqual([1, 2]);
     expect(model.segments).toHaveLength(0);
     expect(model.activityPoints[1]?.distanceFromPreviousKm).toBeNull();
   });
@@ -44,6 +44,7 @@ describe("planning map adapter", () => {
     });
 
     expect(model.activityPoints).toHaveLength(2);
+    expect(model.activityPoints.map((point) => point.orderInDay)).toEqual([1, 2]);
     expect(model.segments).toHaveLength(1);
     expect(model.segments[0]?.fromId).toBe(model.activityPoints[0]?.id);
     expect(model.segments[0]?.toId).toBe(model.activityPoints[1]?.id);
