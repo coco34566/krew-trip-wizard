@@ -88,29 +88,6 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
 
   return (
     <div className={cn("min-w-0", next ? "space-y-2" : "space-y-1")}>
-      {next ? (
-        <div className="mb-1 flex min-h-[50px] items-center gap-2.5 sm:gap-3">
-          <img
-            src="/brand/otter-states/trip-progress.png"
-            alt=""
-            className="pointer-events-none w-[46px] shrink-0 object-contain sm:w-[54px]"
-          />
-          <div className="min-w-0">
-            <KrewNote
-              variant="tape"
-              tone="sage"
-              rotation={-1}
-              size="sm"
-              className="w-fit text-[12px] sm:text-[13px]"
-            >
-              On en est ici
-            </KrewNote>
-            <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground/75">
-              Prochaine étape de la Krew
-            </span>
-          </div>
-        </div>
-      ) : null}
       <h3
         className={cn(
           "font-display font-normal leading-[1.02] text-foreground transition-colors",
@@ -152,27 +129,41 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
 function ChapterMarker({ category, index }: { category: StepCategory; index: number }) {
   return (
     <div
-      className="pointer-events-none relative z-20 grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3 py-1.5 sm:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] sm:gap-5 sm:py-2"
+      className="pointer-events-none relative z-20 mb-1 ml-[56px] flex min-h-[46px] items-center sm:mb-0 sm:ml-0 sm:grid sm:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] sm:gap-5"
       aria-hidden="true"
     >
-      <div className="col-start-2 flex min-w-0 items-center gap-2 sm:col-span-2 sm:col-start-2">
+      <div className={cn("sm:col-start-3", index % 2 === 1 && "sm:col-start-1 sm:justify-self-end")}>
         <KrewNote
-          variant="label"
+          variant="sticky"
           tone={category === "souvenirs" ? "plum" : "sage"}
           rotation={index % 2 === 0 ? -1 : 1}
           size="xs"
-          className="shrink-0 whitespace-nowrap text-[12px] sm:text-[13px]"
+          className="min-w-0 max-w-[10rem] px-3 py-2 text-[12px] sm:text-[13px]"
         >
           {CATEGORY_LABELS[category]}
         </KrewNote>
-        <KrewMark
-          type={category === "souvenirs" ? "sparkle" : "connector-curve"}
-          tone={category === "souvenirs" ? "plum" : "sage"}
-          size="sm"
-          rotation={index % 2 === 0 ? -2 : 2}
-          className="hidden h-5 w-12 opacity-40 min-[360px]:block sm:h-6 sm:w-14"
-        />
       </div>
+    </div>
+  );
+}
+
+function CurrentPositionMarker() {
+  return (
+    <div className="pointer-events-none absolute left-1/2 top-[-54px] z-30 flex -translate-x-[22%] items-end gap-1.5 sm:left-full sm:top-1/2 sm:ml-3 sm:-translate-x-0 sm:-translate-y-1/2 sm:items-center sm:gap-2">
+      <img
+        src="/brand/otter-states/trip-progress.png"
+        alt=""
+        className="w-[38px] shrink-0 object-contain sm:w-[46px]"
+      />
+      <KrewNote
+        variant="sticky"
+        tone="sage"
+        rotation={-1}
+        size="xs"
+        className="min-w-[6.5rem] max-w-[8rem] px-2.5 py-1.5 text-[12px] sm:min-w-[7rem] sm:text-[13px]"
+      >
+        On en est ici
+      </KrewNote>
     </div>
   );
 }
@@ -193,9 +184,6 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
   return (
     <div className="mx-auto w-full max-w-[940px] px-1 py-1 font-sans">
       <header className="relative mb-7 sm:mb-9">
-        <KrewNote variant="margin" rotation={-1} className="mb-1 text-sage">
-          Notre feuille de route
-        </KrewNote>
         <div className="relative inline-block max-w-full pb-2 pr-2">
           <h1 className="font-display text-[34px] font-normal leading-[.96] tracking-[-0.02em] text-foreground sm:text-[44px]">
             Parcours de {tripName}
@@ -210,6 +198,9 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
         <p className="mt-4 max-w-[560px] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
           De la première idée aux souvenirs : chaque étape raconte un bout du voyage et débloque naturellement la suivante.
         </p>
+        <KrewNote variant="margin" rotation={-1} className="mt-3 text-sage">
+          Notre feuille de route
+        </KrewNote>
         <KrewMark
           type="route"
           tone="plum"
@@ -274,13 +265,16 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                     </span>
                   ) : null}
                   {isNextAction ? (
-                    <KrewMark
-                      type="scribble"
-                      tone="sage"
-                      size="sm"
-                      rotation={-2}
-                      className="pointer-events-none absolute -inset-x-4 -bottom-5 h-4 w-[74px] opacity-55"
-                    />
+                    <>
+                      <KrewMark
+                        type="scribble"
+                        tone="sage"
+                        size="sm"
+                        rotation={-2}
+                        className="pointer-events-none absolute -inset-x-4 -bottom-5 h-4 w-[74px] opacity-55"
+                      />
+                      <CurrentPositionMarker />
+                    </>
                   ) : null}
                 </div>
               </div>
@@ -333,7 +327,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             );
 
             return (
-              <li key={step.id} className={cn("relative py-1 sm:py-2", isNextAction && "py-2 sm:py-3")}>
+              <li
+                key={step.id}
+                className={cn(
+                  "relative py-1 sm:py-2",
+                  isNextAction && "pt-14 sm:py-3",
+                )}
+              >
                 {startsCategory && step.category ? <ChapterMarker category={step.category} index={index} /> : null}
                 {wrapped}
               </li>
