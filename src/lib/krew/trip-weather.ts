@@ -55,11 +55,12 @@ function dominantKind(kinds: TripWeatherKind[]) {
 }
 
 function forecastMicrocopy(kind: TripWeatherKind, tempMax: number | null) {
-  if (kind === "storm" || kind === "rain") return "On garde un plan B sous le coude.";
-  if (kind === "snow") return "Le pull gagne sa place dans le sac.";
-  if (tempMax != null && tempMax >= 30) return "Ça va chauffer.";
+  if (kind === "storm") return "Gardez les parapluies à portée de main.";
+  if (kind === "rain") return "Pensez aux parapluies.";
+  if (kind === "snow") return "Le gros pull gagne sa place dans le sac.";
+  if (tempMax != null && tempMax >= 30) return "Crème solaire et bouteilles d’eau au programme.";
   if (tempMax != null && tempMax <= 10) return "Le pull gagne sa place dans le sac.";
-  if (kind === "clear") return "Les lunettes peuvent sortir.";
+  if (kind === "clear") return "C’est le moment de sortir les lunettes de soleil.";
   return null;
 }
 

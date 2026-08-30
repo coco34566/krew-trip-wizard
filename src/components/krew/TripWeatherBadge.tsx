@@ -74,7 +74,7 @@ export function TripWeatherBadge({ weather, className }: { weather: TripWeatherS
   const temp = temperatureText(weather);
   if (!temp) return null;
 
-  const accessible = `${weather.mode === "forecast" ? "Prévision météo" : "Tendance météo habituelle"} : ${weather.label}, ${temp}${weather.rainRelevant ? ", pluie probable pendant le séjour" : ""}`;
+  const accessible = `${weather.mode === "forecast" ? "Prévision météo" : "Tendance météo habituelle"} : ${weather.label}, ${temp}${weather.rainRelevant ? ", pluie probable pendant le séjour" : ""}${weather.microcopy ? `. ${weather.microcopy}` : ""}`;
 
   return (
     <aside
@@ -87,23 +87,27 @@ export function TripWeatherBadge({ weather, className }: { weather: TripWeatherS
     >
       <span className="absolute -left-1 top-3 h-8 w-2 rotate-[-7deg] rounded-full bg-sage/45" aria-hidden="true" />
       <div className="flex items-center gap-2 sm:gap-2.5">
-        <div className="grid size-9 shrink-0 place-items-center sm:size-10 rounded-[14px_11px_13px_10px] bg-sage/20">
+        <div className="grid size-9 shrink-0 place-items-center rounded-[14px_11px_13px_10px] bg-sage/20 sm:size-10">
           <WeatherGlyph kind={weather.kind} />
         </div>
         <div className="min-w-0">
-          <p className="font-sans text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.11em] text-primary/75">
+          <p className="font-sans text-[9px] font-semibold uppercase tracking-[0.11em] text-primary/75 sm:text-[10px]">
             {weather.mode === "forecast" ? weather.label : "En général à cette période"}
           </p>
-          <p className="font-display text-[21px] sm:text-[23px] leading-none tracking-tight text-foreground">{temp}</p>
+          <p className="font-display text-[21px] leading-none tracking-tight text-foreground sm:text-[23px]">{temp}</p>
           {weather.mode === "forecast" && weather.rainRelevant ? (
             <p className="mt-0.5 font-sans text-[10.5px] font-semibold text-primary">Pluie à prévoir</p>
           ) : null}
         </div>
       </div>
+
       {weather.mode === "forecast" && weather.microcopy ? (
-        <p className="mt-1.5 hidden max-w-[190px] pl-0.5 font-sans text-[10.5px] leading-snug text-foreground/70 sm:block">
-          {weather.microcopy}
-        </p>
+        <div className="relative mt-2 -mb-1 ml-auto w-fit max-w-[124px] rotate-[-2deg] rounded-[3px_6px_4px_5px] bg-[#F3E8B6] px-2.5 py-2 shadow-[0_4px_10px_rgba(75,40,68,0.10)] sm:max-w-[176px] sm:px-3">
+          <span className="absolute -top-1.5 left-1/2 h-3 w-9 -translate-x-1/2 rotate-[2deg] bg-sage/35" aria-hidden="true" />
+          <p className="font-sans text-[10px] font-semibold leading-[1.2] text-foreground/85 sm:text-[11px]">
+            {weather.microcopy}
+          </p>
+        </div>
       ) : null}
     </aside>
   );
