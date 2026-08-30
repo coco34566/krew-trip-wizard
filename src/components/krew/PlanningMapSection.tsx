@@ -10,10 +10,13 @@ import {
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 
-const MAPLIBRE_JS = "https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js";
-const MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css";
-const OPENFREEMAP_STYLE = "https://tiles.openfreemap.org/styles/positron";
-const MAP_LOAD_TIMEOUT_MS = 10000;
+const TILE_SIZE = 256;
+const MIN_ZOOM = 3;
+const MAX_ZOOM = 18;
+
+type ViewState = { centerX: number; centerY: number; zoom: number };
+type Size = { width: number; height: number };
+type Segment = { fromId: string; toId: string };
 
 type TripMapPayload = {
   itinerary: { destination?: string; days?: { day?: unknown; slots?: unknown }[] } | null;
@@ -21,66 +24,76 @@ type TripMapPayload = {
   selectedLodging: Record<string, any> | null;
 };
 
-type Segment = { fromId: string; toId: string };
-
-declare global {
-  interface Window {
-    maplibregl?: any;
-  }
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
-let mapLibrePromise: Promise<any> | null = null;
+function lonToX(longitude: number) {
+  return (longitude + 180) / 360;
+}
 
-function ensureMapLibre() {
-  if (typeof window === "undefined") return Promise.reject(new Error("MapLibre requires the browser"));
-  if (window.maplibregl) return Promise.resolve(window.maplibregl);
-  if (mapLibrePromise) return mapLibrePromise;
+function latToY(latitude: number) {
+  const latRad = (clamp(latitude, -85.05112878, 85.05112878) * Math.PI) / 180;
+  return (1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2;
+}
 
-  mapLibrePromise = new Promise((resolve, reject) => {
-    if (!document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) {
-      const css = document.createElement("link");
-      css.rel = "stylesheet";
-      css.href = MAPLIBRE_CSS;
-      document.head.appendChild(css);
-    }
+function fitView(points: PlanningMapPoint[], size: Size): ViewState {
+  if (!points.length) return { centerX: 0.5, centerY: 0.5, zoom: 3 };
 
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timeoutId);
-      if (window.maplibregl) resolve(window.maplibregl);
-      else reject(new Error("MapLibre loaded without exposing maplibregl"));
-    };
-    const fail = () => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timeoutId);
-      mapLibrePromise = null;
-      reject(new Error("MapLibre failed to load"));
-    };
-    const timeoutId = window.setTimeout(fail, MAP_LOAD_TIMEOUT_MS);
+  const xs = points.map((point) => lonToX(point.longitude));
+  const ys = points.map((point) => latToY(point.latitude));
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
 
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${MAPLIBRE_JS}"]`);
-    if (existing) {
-      if (window.maplibregl) {
-        finish();
-        return;
-      }
-      existing.addEventListener("load", finish, { once: true });
-      existing.addEventListener("error", fail, { once: true });
-      return;
-    }
+  if (points.length === 1) return { centerX, centerY, zoom: 14 };
 
-    const script = document.createElement("script");
-    script.src = MAPLIBRE_JS;
-    script.async = true;
-    script.onload = finish;
-    script.onerror = fail;
-    document.head.appendChild(script);
-  });
+  const padding = size.width < 520 ? 62 : 90;
+  const usableWidth = Math.max(120, size.width - padding * 2);
+  const usableHeight = Math.max(120, size.height - padding * 2);
+  const spanX = Math.max(maxX - minX, 0.000001);
+  const spanY = Math.max(maxY - minY, 0.000001);
+  const zoomX = Math.log2(usableWidth / (spanX * TILE_SIZE));
+  const zoomY = Math.log2(usableHeight / (spanY * TILE_SIZE));
+  return {
+    centerX,
+    centerY,
+    zoom: clamp(Math.floor(Math.min(zoomX, zoomY)), MIN_ZOOM, 16),
+  };
+}
 
-  return mapLibrePromise;
+function pointToScreen(point: PlanningMapPoint, view: ViewState, size: Size) {
+  const scale = TILE_SIZE * 2 ** view.zoom;
+  return {
+    x: (lonToX(point.longitude) - view.centerX) * scale + size.width / 2,
+    y: (latToY(point.latitude) - view.centerY) * scale + size.height / 2,
+  };
+}
+
+function tileUrl(z: number, x: number, y: number) {
+  const count = 2 ** z;
+  const wrappedX = ((x % count) + count) % count;
+  return `https://tile.openstreetmap.org/${z}/${wrappedX}/${y}.png`;
+}
+
+function useElementSize<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [size, setSize] = useState<Size>({ width: 760, height: 390 });
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const update = () => setSize({ width: element.clientWidth, height: element.clientHeight });
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, size };
 }
 
 async function loadTripMapPayload(tripId: string): Promise<TripMapPayload | null> {
@@ -122,9 +135,7 @@ async function loadTripMapPayload(tripId: string): Promise<TripMapPayload | null
 
 function markerLabel(point: PlanningMapPoint) {
   if (point.kind === "lodging") return "Logement";
-  return point.day != null && point.orderInDay != null
-    ? `J${point.day} · ${point.orderInDay}`
-    : "Étape";
+  return point.day != null && point.orderInDay != null ? `J${point.day} · ${point.orderInDay}` : "Étape";
 }
 
 function PointCard({ point }: { point: PlanningMapPoint }) {
@@ -140,14 +151,10 @@ function PointCard({ point }: { point: PlanningMapPoint }) {
             {point.time ? ` · ${point.time}` : ""}
           </p>
           <p className="mt-0.5 text-sm font-semibold leading-snug text-foreground">{point.label}</p>
-          {point.address ? (
-            <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{point.address}</p>
-          ) : null}
+          {point.address ? <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{point.address}</p> : null}
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             {point.distanceFromPreviousKm != null ? (
-              <span className="text-[11px] font-medium text-muted-foreground">
-                {formatAirDistance(point.distanceFromPreviousKm)}
-              </span>
+              <span className="text-[11px] font-medium text-muted-foreground">{formatAirDistance(point.distanceFromPreviousKm)}</span>
             ) : null}
             {point.mapsUrl ? (
               <a
@@ -166,210 +173,18 @@ function PointCard({ point }: { point: PlanningMapPoint }) {
   );
 }
 
-function routeGeoJson(points: PlanningMapPoint[], segments: Segment[]) {
-  const byId = new Map(points.map((point) => [point.id, point]));
-  return {
-    type: "FeatureCollection",
-    features: segments.flatMap((segment) => {
-      const from = byId.get(segment.fromId);
-      const to = byId.get(segment.toId);
-      if (!from || !to) return [];
-      return [{
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "LineString",
-          coordinates: [
-            [from.longitude, from.latitude],
-            [to.longitude, to.latitude],
-          ],
-        },
-      }];
-    }),
-  };
-}
-
-function fitMap(map: any, maplibregl: any, points: PlanningMapPoint[], animate = true) {
-  if (!points.length) return;
-  if (points.length === 1) {
-    map.flyTo({
-      center: [points[0].longitude, points[0].latitude],
-      zoom: 14,
-      duration: animate ? 450 : 0,
-    });
-    return;
-  }
-
-  const bounds = new maplibregl.LngLatBounds();
-  points.forEach((point) => bounds.extend([point.longitude, point.latitude]));
-  const mobile = window.matchMedia("(max-width: 640px)").matches;
-  map.fitBounds(bounds, {
-    padding: mobile ? { top: 68, right: 46, bottom: 72, left: 46 } : { top: 76, right: 84, bottom: 78, left: 84 },
-    maxZoom: 15,
-    duration: animate ? 500 : 0,
-  });
-}
-
-function KrewVectorMap({
-  points,
-  segments,
-}: {
-  points: PlanningMapPoint[];
-  segments: Segment[];
-}) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<any>(null);
-  const maplibreRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-  const distanceMarkersRef = useRef<any[]>([]);
-  const markerElementsRef = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const [mapReady, setMapReady] = useState(false);
-  const [mapFailed, setMapFailed] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(points.find((point) => point.kind !== "lodging")?.id ?? points[0]?.id ?? null);
-
-  const activePoint = points.find((point) => point.id === activeId) ?? null;
+function KrewRasterMap({ points, segments }: { points: PlanningMapPoint[]; segments: Segment[] }) {
+  const { ref, size } = useElementSize<HTMLDivElement>();
+  const fitted = useMemo(() => fitView(points, size), [points, size.width, size.height]);
+  const [view, setView] = useState<ViewState>(fitted);
+  const [activeId, setActiveId] = useState<string | null>(
+    points.find((point) => point.kind !== "lodging")?.id ?? points[0]?.id ?? null,
+  );
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; centerX: number; centerY: number } | null>(null);
 
   useEffect(() => {
-    let disposed = false;
-    let mapLoadTimeout: number | null = null;
-
-    setMapFailed(false);
-    setMapReady(false);
-
-    ensureMapLibre()
-      .then((maplibregl) => {
-        if (disposed || !containerRef.current) return;
-        maplibreRef.current = maplibregl;
-        const first = points[0];
-        const map = new maplibregl.Map({
-          container: containerRef.current,
-          style: OPENFREEMAP_STYLE,
-          center: first ? [first.longitude, first.latitude] : [2.35, 48.86],
-          zoom: first ? 12 : 4,
-          attributionControl: false,
-          maxZoom: 18,
-          minZoom: 2,
-          dragRotate: false,
-          pitchWithRotate: false,
-        });
-        map.touchZoomRotate.disableRotation();
-        mapRef.current = map;
-
-        mapLoadTimeout = window.setTimeout(() => {
-          if (!disposed && !map.loaded()) setMapFailed(true);
-        }, MAP_LOAD_TIMEOUT_MS);
-
-        map.on("load", () => {
-          if (disposed) return;
-          if (mapLoadTimeout != null) window.clearTimeout(mapLoadTimeout);
-          map.addSource("krew-route", {
-            type: "geojson",
-            data: routeGeoJson(points, segments),
-          });
-          map.addLayer({
-            id: "krew-route-halo",
-            type: "line",
-            source: "krew-route",
-            paint: {
-              "line-color": "#ffffff",
-              "line-width": 6,
-              "line-opacity": 0.86,
-            },
-          });
-          map.addLayer({
-            id: "krew-route",
-            type: "line",
-            source: "krew-route",
-            paint: {
-              "line-color": "#6B3A5D",
-              "line-width": 2.5,
-              "line-opacity": 0.72,
-              "line-dasharray": [1.4, 2.2],
-            },
-          });
-          fitMap(map, maplibregl, points, false);
-          setMapFailed(false);
-          setMapReady(true);
-        });
-      })
-      .catch(() => {
-        if (!disposed) setMapFailed(true);
-      });
-
-    return () => {
-      disposed = true;
-      if (mapLoadTimeout != null) window.clearTimeout(mapLoadTimeout);
-      markersRef.current.forEach((marker) => marker.remove());
-      distanceMarkersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-      distanceMarkersRef.current = [];
-      markerElementsRef.current.clear();
-      mapRef.current?.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!mapReady || !mapRef.current || !maplibreRef.current) return;
-    const map = mapRef.current;
-    const maplibregl = maplibreRef.current;
-
-    markersRef.current.forEach((marker) => marker.remove());
-    distanceMarkersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-    distanceMarkersRef.current = [];
-    markerElementsRef.current.clear();
-
-    points.forEach((point) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.active = String(point.id === activeId);
-      button.setAttribute("aria-label", `${markerLabel(point)} : ${point.label}`);
-      button.className = point.kind === "lodging"
-        ? "flex size-10 items-center justify-center rounded-full border-[3px] border-white bg-primary text-[13px] font-bold text-white shadow-[0_5px_16px_rgba(55,34,50,0.22)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 data-[active=true]:scale-110 data-[active=true]:shadow-[0_7px_20px_rgba(55,34,50,0.3)]"
-        : "whitespace-nowrap rounded-full border-2 border-white bg-[#EEF3EF] px-2.5 py-1.5 font-mono text-[10px] font-bold tracking-tight text-[#43283E] shadow-[0_4px_13px_rgba(55,34,50,0.18)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 data-[active=true]:scale-110 data-[active=true]:bg-[#6B3A5D] data-[active=true]:text-white";
-      button.textContent = point.kind === "lodging" ? "⌂" : markerLabel(point);
-      button.onclick = (event) => {
-        event.stopPropagation();
-        setActiveId(point.id);
-        map.flyTo({ center: [point.longitude, point.latitude], zoom: Math.max(map.getZoom(), 14), duration: 420 });
-      };
-      button.onmouseenter = () => setActiveId(point.id);
-      button.onfocus = () => setActiveId(point.id);
-
-      markerElementsRef.current.set(point.id, button);
-      markersRef.current.push(
-        new maplibregl.Marker({ element: button, anchor: "center" })
-          .setLngLat([point.longitude, point.latitude])
-          .addTo(map),
-      );
-    });
-
-    const byId = new Map(points.map((point) => [point.id, point]));
-    segments.forEach((segment) => {
-      const from = byId.get(segment.fromId);
-      const to = byId.get(segment.toId);
-      if (!from || !to || to.distanceFromPreviousKm == null) return;
-      const distance = document.createElement("span");
-      distance.className = "rounded-full border border-white/90 bg-white/90 px-1.5 py-0.5 font-mono text-[8px] font-bold text-[#6B3A5D] shadow-sm backdrop-blur";
-      distance.textContent = `≈ ${to.distanceFromPreviousKm < 10 ? to.distanceFromPreviousKm.toFixed(1).replace(".", ",") : Math.round(to.distanceFromPreviousKm)} km`;
-      distanceMarkersRef.current.push(
-        new maplibregl.Marker({ element: distance, anchor: "center" })
-          .setLngLat([(from.longitude + to.longitude) / 2, (from.latitude + to.latitude) / 2])
-          .addTo(map),
-      );
-    });
-
-    const source = map.getSource("krew-route");
-    if (source?.setData) source.setData(routeGeoJson(points, segments));
-    fitMap(map, maplibregl, points);
-  }, [mapReady, points, segments]);
-
-  useEffect(() => {
-    markerElementsRef.current.forEach((element, id) => {
-      element.dataset.active = String(id === activeId);
-    });
-  }, [activeId]);
+    setView(fitted);
+  }, [fitted.centerX, fitted.centerY, fitted.zoom]);
 
   useEffect(() => {
     if (activeId && !points.some((point) => point.id === activeId)) {
@@ -377,76 +192,230 @@ function KrewVectorMap({
     }
   }, [points, activeId]);
 
+  const positioned = useMemo(() => {
+    const duplicates = new Map<string, number>();
+    return points.map((point) => {
+      const base = pointToScreen(point, view, size);
+      const key = `${point.latitude.toFixed(6)}:${point.longitude.toFixed(6)}`;
+      const duplicateIndex = duplicates.get(key) ?? 0;
+      duplicates.set(key, duplicateIndex + 1);
+      if (!duplicateIndex) return { point, ...base };
+      const angle = duplicateIndex * 2.2;
+      const radius = Math.min(18, 7 + duplicateIndex * 3);
+      return {
+        point,
+        x: base.x + Math.cos(angle) * radius,
+        y: base.y + Math.sin(angle) * radius,
+      };
+    });
+  }, [points, view, size.width, size.height]);
+
+  const positionsById = useMemo(() => new Map(positioned.map((item) => [item.point.id, item])), [positioned]);
+
+  const scale = TILE_SIZE * 2 ** view.zoom;
+  const centerWorldX = view.centerX * scale;
+  const centerWorldY = view.centerY * scale;
+  const minTileX = Math.floor((centerWorldX - size.width / 2) / TILE_SIZE) - 1;
+  const maxTileX = Math.floor((centerWorldX + size.width / 2) / TILE_SIZE) + 1;
+  const minTileY = Math.max(0, Math.floor((centerWorldY - size.height / 2) / TILE_SIZE) - 1);
+  const maxTileY = Math.min(2 ** view.zoom - 1, Math.floor((centerWorldY + size.height / 2) / TILE_SIZE) + 1);
+  const tiles: { key: string; x: number; y: number; left: number; top: number }[] = [];
+
+  for (let y = minTileY; y <= maxTileY; y += 1) {
+    for (let x = minTileX; x <= maxTileX; x += 1) {
+      tiles.push({
+        key: `${view.zoom}-${x}-${y}`,
+        x,
+        y,
+        left: x * TILE_SIZE - centerWorldX + size.width / 2,
+        top: y * TILE_SIZE - centerWorldY + size.height / 2,
+      });
+    }
+  }
+
+  const zoomBy = (delta: number) => {
+    setView((current) => ({ ...current, zoom: clamp(current.zoom + delta, MIN_ZOOM, MAX_ZOOM) }));
+  };
+
   const focusPoint = (point: PlanningMapPoint) => {
     setActiveId(point.id);
-    mapRef.current?.flyTo({
-      center: [point.longitude, point.latitude],
-      zoom: Math.max(mapRef.current.getZoom(), 14),
-      duration: 420,
-    });
+    setView((current) => ({
+      centerX: lonToX(point.longitude),
+      centerY: latToY(point.latitude),
+      zoom: Math.max(current.zoom, 14),
+    }));
   };
+
+  const activePoint = points.find((point) => point.id === activeId) ?? null;
 
   return (
     <div className="space-y-2.5">
-      <div className="relative h-[330px] w-full overflow-hidden rounded-[22px] border border-primary/10 bg-[#F7F8F7] shadow-[0_12px_34px_rgba(55,34,50,0.08)] sm:h-[390px] lg:h-[430px]">
-        <div ref={containerRef} className="absolute inset-0" aria-label="Carte interactive du séjour" />
-        <div
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.11),rgba(143,168,155,0.05))]"
-          aria-hidden="true"
-        />
+      <div
+        ref={ref}
+        className="relative h-[330px] w-full overflow-hidden rounded-[22px] border border-primary/10 bg-[#F3F5F3] shadow-[0_12px_34px_rgba(55,34,50,0.08)] sm:h-[390px] lg:h-[430px]"
+        style={{ touchAction: "pan-y" }}
+        onPointerDown={(event) => {
+          if ((event.target as HTMLElement).closest("button,a")) return;
+          dragRef.current = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
+            centerX: view.centerX,
+            centerY: view.centerY,
+          };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          const worldScale = TILE_SIZE * 2 ** view.zoom;
+          setView((current) => ({
+            ...current,
+            centerX: drag.centerX - (event.clientX - drag.x) / worldScale,
+            centerY: clamp(drag.centerY - (event.clientY - drag.y) / worldScale, 0, 1),
+          }));
+        }}
+        onPointerUp={(event) => {
+          if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+        }}
+        onPointerCancel={() => {
+          dragRef.current = null;
+        }}
+        onDoubleClick={() => zoomBy(1)}
+        aria-label="Carte interactive du séjour"
+      >
+        <div className="absolute inset-0 select-none bg-[#eef2ef]" aria-hidden="true">
+          {tiles.map((tile) => (
+            <img
+              key={tile.key}
+              src={tileUrl(view.zoom, tile.x, tile.y)}
+              alt=""
+              draggable={false}
+              className="absolute max-w-none select-none"
+              style={{
+                width: TILE_SIZE,
+                height: TILE_SIZE,
+                left: tile.left,
+                top: tile.top,
+                filter: "grayscale(1) saturate(.35) contrast(.82) brightness(1.12)",
+                opacity: 0.72,
+              }}
+            />
+          ))}
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.18),rgba(143,168,155,0.12))]" />
+          <div className="pointer-events-none absolute inset-0 bg-white/10" />
+        </div>
 
-        {mapFailed ? (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface px-6 text-center text-sm text-muted-foreground">
-            La carte n’a pas pu se charger. Les étapes restent accessibles juste en dessous.
-          </div>
-        ) : !mapReady ? (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/80">
-            <span className="rounded-full bg-background/90 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm">
-              La carte se dessine…
+        <svg className="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
+          {segments.map((segment) => {
+            const from = positionsById.get(segment.fromId);
+            const to = positionsById.get(segment.toId);
+            if (!from || !to) return null;
+            return (
+              <g key={`${segment.fromId}-${segment.toId}`}>
+                <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="white" strokeWidth="6" strokeOpacity="0.9" />
+                <line
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  className="stroke-primary/65"
+                  strokeWidth="2.5"
+                  strokeDasharray="5 7"
+                />
+              </g>
+            );
+          })}
+        </svg>
+
+        {segments.map((segment) => {
+          const from = positionsById.get(segment.fromId);
+          const to = positionsById.get(segment.toId);
+          const target = to?.point;
+          if (!from || !to || !target || target.distanceFromPreviousKm == null) return null;
+          return (
+            <span
+              key={`distance-${segment.fromId}-${segment.toId}`}
+              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/90 bg-white/90 px-1.5 py-0.5 font-mono text-[8px] font-bold text-primary shadow-sm"
+              style={{ left: (from.x + to.x) / 2, top: (from.y + to.y) / 2 }}
+            >
+              ≈ {target.distanceFromPreviousKm < 10 ? target.distanceFromPreviousKm.toFixed(1).replace(".", ",") : Math.round(target.distanceFromPreviousKm)} km
             </span>
+          );
+        })}
+
+        {positioned.map(({ point, x, y }) => {
+          const active = point.id === activeId;
+          return (
+            <button
+              key={point.id}
+              type="button"
+              aria-label={`${markerLabel(point)} : ${point.label}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                focusPoint(point);
+              }}
+              onMouseEnter={() => setActiveId(point.id)}
+              onFocus={() => setActiveId(point.id)}
+              className={
+                point.kind === "lodging"
+                  ? `absolute z-20 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-white bg-primary text-white shadow-[0_5px_16px_rgba(55,34,50,0.24)] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${active ? "scale-110" : "hover:scale-105"}`
+                  : `absolute z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border-2 border-white px-2.5 py-1.5 font-mono text-[10px] font-bold tracking-tight shadow-[0_4px_13px_rgba(55,34,50,0.18)] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                      active ? "scale-110 bg-primary text-primary-foreground" : "bg-[#EEF3EF] text-[#43283E] hover:scale-105"
+                    }`
+              }
+              style={{ left: x, top: y }}
+            >
+              {point.kind === "lodging" ? <Home className="size-4" /> : markerLabel(point)}
+            </button>
+          );
+        })}
+
+        <div className="absolute right-3 top-3 z-30 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              zoomBy(1);
+            }}
+            className="flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-foreground shadow-sm backdrop-blur hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Zoomer"
+          >
+            <Plus className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              zoomBy(-1);
+            }}
+            className="flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-foreground shadow-sm backdrop-blur hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Dézoomer"
+          >
+            <Minus className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setView(fitted);
+            }}
+            className="mt-1 flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-primary shadow-sm backdrop-blur hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Recentrer sur le parcours"
+          >
+            <LocateFixed className="size-4" />
+          </button>
+        </div>
+
+        {activePoint ? (
+          <div className="absolute bottom-3 left-3 z-30 w-[min(285px,calc(100%-24px))] sm:bottom-4 sm:left-4 sm:w-[300px]">
+            <PointCard point={activePoint} />
           </div>
         ) : null}
 
-        {mapReady ? (
-          <>
-            <div className="absolute right-3 top-3 z-20 flex flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={() => mapRef.current?.zoomIn({ duration: 220 })}
-                className="flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-foreground shadow-sm backdrop-blur hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                aria-label="Zoomer"
-              >
-                <Plus className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => mapRef.current?.zoomOut({ duration: 220 })}
-                className="flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-foreground shadow-sm backdrop-blur hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                aria-label="Dézoomer"
-              >
-                <Minus className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => fitMap(mapRef.current, maplibreRef.current, points)}
-                className="mt-1 flex size-9 items-center justify-center rounded-full border border-white/90 bg-white/95 text-primary shadow-sm backdrop-blur hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                aria-label="Recentrer sur le parcours"
-              >
-                <LocateFixed className="size-4" />
-              </button>
-            </div>
-
-            {activePoint ? (
-              <div className="absolute bottom-3 left-3 z-20 w-[min(285px,calc(100%-24px))] sm:bottom-4 sm:left-4 sm:w-[300px]">
-                <PointCard point={activePoint} />
-              </div>
-            ) : null}
-
-            <div className="absolute bottom-1.5 right-2 z-10 rounded-full bg-white/80 px-2 py-0.5 text-[8px] text-muted-foreground backdrop-blur-sm">
-              OpenFreeMap · © OpenMapTiles · OpenStreetMap
-            </div>
-          </>
-        ) : null}
+        <div className="absolute bottom-1.5 right-2 z-20 rounded-full bg-white/85 px-2 py-0.5 text-[8px] text-muted-foreground backdrop-blur-sm">
+          © OpenStreetMap
+        </div>
       </div>
 
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -464,7 +433,7 @@ function KrewVectorMap({
               }`}
             >
               <span className="font-mono text-[10px] opacity-75">{markerLabel(point)}</span>
-              <span className="ml-1.5 max-w-[150px] truncate align-bottom inline-block">{point.label}</span>
+              <span className="ml-1.5 inline-block max-w-[150px] truncate align-bottom">{point.label}</span>
             </button>
           ))}
       </div>
@@ -537,12 +506,7 @@ export function PlanningMapSection({ tripId }: { tripId: string }) {
     <section className="mx-auto max-w-5xl px-4 pb-12" aria-labelledby="planning-map-title">
       <div className="overflow-hidden rounded-[24px] border border-primary/10 bg-card shadow-[0_18px_48px_rgba(55,34,50,0.06)]">
         <div className="relative px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
-          <KrewMark
-            type="sparkle"
-            tone="sage"
-            size="sm"
-            className="pointer-events-none absolute right-5 top-4 hidden opacity-60 sm:block"
-          />
+          <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute right-5 top-4 hidden opacity-60 sm:block" />
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
@@ -580,9 +544,7 @@ export function PlanningMapSection({ tripId }: { tripId: string }) {
                 type="button"
                 onClick={() => setDayFilter("all")}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                  dayFilter === "all"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-surface text-muted-foreground hover:text-foreground"
+                  dayFilter === "all" ? "bg-primary text-primary-foreground shadow-sm" : "bg-surface text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Tout le séjour
@@ -593,9 +555,7 @@ export function PlanningMapSection({ tripId }: { tripId: string }) {
                   type="button"
                   onClick={() => setDayFilter(day)}
                   className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition ${
-                    dayFilter === day
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-surface text-muted-foreground hover:text-foreground"
+                    dayFilter === day ? "bg-primary text-primary-foreground shadow-sm" : "bg-surface text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Jour {day}
@@ -606,7 +566,7 @@ export function PlanningMapSection({ tripId }: { tripId: string }) {
         </div>
 
         <div className="px-2 pb-3 sm:px-4 sm:pb-4">
-          <KrewVectorMap points={visiblePoints} segments={visibleSegments} />
+          <KrewRasterMap points={visiblePoints} segments={visibleSegments} />
           <p className="mt-2 px-1 text-[10px] leading-relaxed text-muted-foreground">
             Les distances affichées sont approximatives et calculées à vol d’oiseau ; le tracé ne représente pas un itinéraire routier.
           </p>
