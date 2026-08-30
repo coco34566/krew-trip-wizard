@@ -35,6 +35,18 @@ function parseTripDate(value?: string | null) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function calendarDayNumber(value?: string | null) {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const utc = Date.UTC(year, month - 1, day);
+  if (!Number.isFinite(utc)) return null;
+  return Math.floor(utc / 86_400_000);
+}
+
 function formatDateRange(start: Date | null, end: Date | null) {
   if (!start || !end) return null;
   const sameYear = start.getFullYear() === end.getFullYear();
@@ -64,13 +76,13 @@ export function buildTripRecap(source: TripRecapSource, now = new Date()): TripR
   const { trip, destination, photoCount = 0 } = source;
   const start = parseTripDate(trip.start_date);
   const end = parseTripDate(trip.end_date);
+  const startDay = calendarDayNumber(trip.start_date);
+  const endDay = calendarDayNumber(trip.end_date);
   const destinationName = destination?.name?.trim() || null;
   const country = destination?.country?.trim() || null;
 
   const durationDays =
-    start && end && end.getTime() >= start.getTime()
-      ? Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1
-      : null;
+    startDay != null && endDay != null && endDay >= startDay ? endDay - startDay + 1 : null;
 
   const participants = Number(trip.participants_count);
   const participantsCount = Number.isFinite(participants) && participants > 0 ? participants : null;
