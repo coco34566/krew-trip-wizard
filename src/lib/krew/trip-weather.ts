@@ -54,9 +54,9 @@ function dominantKind(kinds: TripWeatherKind[]) {
   })[0][0];
 }
 
-function forecastMicrocopy(kind: TripWeatherKind, tempMax: number | null) {
+function forecastMicrocopy(kind: TripWeatherKind, tempMax: number | null, rainRelevant: boolean) {
   if (kind === "storm") return "Gardez les parapluies à portée de main.";
-  if (kind === "rain") return "Pensez aux parapluies.";
+  if (rainRelevant || kind === "rain") return "Pensez aux parapluies.";
   if (kind === "snow") return "Le gros pull gagne sa place dans le sac.";
   if (tempMax != null && tempMax >= 30) return "Crème solaire et bouteilles d’eau au programme.";
   if (tempMax != null && tempMax <= 10) return "Le pull gagne sa place dans le sac.";
@@ -90,7 +90,7 @@ export function buildTripWeatherSummary(
       tempMax,
       rainRelevant,
       rainyDays,
-      microcopy: forecastMicrocopy(kind, tempMax),
+      microcopy: forecastMicrocopy(kind, tempMax, rainRelevant),
     };
   }
 

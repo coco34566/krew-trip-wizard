@@ -38,6 +38,30 @@ describe("trip weather", () => {
       tempMax: 24,
       rainRelevant: true,
       rainyDays: 2,
+      microcopy: "Pensez aux parapluies.",
+    });
+  });
+
+  it("conseille le parapluie si la pluie est notable même quand le ciel dominant est nuageux", () => {
+    const summary = buildTripWeatherSummary(
+      {
+        ...base,
+        forecast: [
+          { date: "2026-09-05", tempMin: 15, tempMax: 22, precipitationMm: 2, weatherCode: 3 },
+          { date: "2026-09-06", tempMin: 14, tempMax: 21, precipitationMm: 0, weatherCode: 3 },
+          { date: "2026-09-07", tempMin: 15, tempMax: 22, precipitationMm: 4, weatherCode: 61 },
+        ],
+      },
+      "2026-09-05",
+      "2026-09-07",
+      true,
+    );
+
+    expect(summary).toMatchObject({
+      mode: "forecast",
+      kind: "cloudy",
+      rainRelevant: true,
+      microcopy: "Pensez aux parapluies.",
     });
   });
 
@@ -52,7 +76,7 @@ describe("trip weather", () => {
       false,
     );
 
-    expect(summary).toMatchObject({ mode: "seasonal", kind: "unknown", tempMin: 14, tempMax: 23 });
+    expect(summary).toMatchObject({ mode: "seasonal", kind: "unknown", tempMin: 14, tempMax: 23, microcopy: null });
   });
 
   it("ne plante pas avec une forecast vide ou des normales absentes", () => {
@@ -69,9 +93,10 @@ describe("weather dashboard guards", () => {
     expect(dashboard).toContain("destinationSelected && destinationName && weatherStartDate");
     expect(dashboard).toContain("staleTime: 6 * 60 * 60 * 1000");
     expect(dashboard).toContain("refetchOnWindowFocus: false");
-    expect(server).toContain("catch (error)");
+    expect(server).toContain("repli saisonnier");
     expect(server).toContain("return null");
     expect(integration).toContain("weather_code");
-    expect(integration).toContain("endDiffDays <= 15");
+    expect(integration).toContain("forecastLimitDate");
+    expect(integration).toContain("forecastStart");
   });
 });
