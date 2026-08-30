@@ -5,15 +5,12 @@ import {
   getDestinationBriefContext as getLegacyDestinationBriefContext,
 } from "./trip-service-legacy";
 
-function softenAggregatedBudget<T extends Record<string, any>>(aggregated: T): T {
+function softenDiscoveryBudget<T extends Record<string, any>>(aggregated: T): T {
   return {
     ...aggregated,
-    // Product rule: an individual participant budget can lower the score and
-    // trigger a warning, but it must never remove a destination for the group.
+    // External discovery/provider queries must not treat one participant's
+    // personal ceiling as a group-level hard filter.
     hasBudgetVeto: false,
-    // Prevent downstream accommodation search from treating the lowest personal
-    // budget as a hard provider-side ceiling. Keep vetoBudgetMax as an indicative
-    // warning threshold for explanations where it is already consumed softly.
     minGroupBudget: null,
   };
 }
@@ -22,23 +19,22 @@ export async function aggregateParticipantPreferences(
   ...args: Parameters<typeof aggregateLegacyParticipantPreferences>
 ): Promise<Awaited<ReturnType<typeof aggregateLegacyParticipantPreferences>>> {
   const aggregated = await aggregateLegacyParticipantPreferences(...args);
-  return softenAggregatedBudget(aggregated);
+  return softenDiscoveryBudget(aggregated);
 }
 
 export async function getDestinationBriefContext(
   ...args: Parameters<typeof getLegacyDestinationBriefContext>
 ): Promise<Awaited<ReturnType<typeof getLegacyDestinationBriefContext>>> {
   const context = await getLegacyDestinationBriefContext(...args);
-  const aggregated = softenAggregatedBudget(context.aggregated as Record<string, any>);
 
   return {
     ...context,
-    aggregated,
-    scoringContext: {
-      ...context.scoringContext,
-      hasBudgetVeto: false,
-      minGroupBudget: null,
-    },
+    // Preserve the original aggregated/scoring budget signal so the final
+    // recommender can apply the strong penalty and explicit warning.
+    aggregated: context.aggregated,
+    scoringContext: context.scoringContext,
+    // Only discovery constraints are softened: a provider/LLM must not discard
+    // a destination before KREW has a chance to score and explain it.
     discoveryInput: {
       ...context.discoveryInput,
       scoringSignals: {
