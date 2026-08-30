@@ -22,9 +22,15 @@ describe("group travel profile normalization", () => {
       vetoBudgetMax: 300,
     });
 
-    expect(profile.hardConstraints.budgetVeto).toBe(300);
+    expect(profile.hardConstraints.budgetVeto).toBeUndefined();
+    expect(profile.softPreferences.budgetWarningMax).toBe(300);
     expect(profile.hardConstraints.maxTravelDurationHours).toBe(4);
     expect(profile.softPreferences.environment).toContain("Centre-ville / urbain");
+    expect(
+      QUESTIONNAIRE_SIGNAL_MAPPING.some(
+        (m) => m.field.includes("budget_max") && !m.hardConstraint && m.scoringFactor && m.explanation,
+      ),
+    ).toBe(true);
     expect(QUESTIONNAIRE_SIGNAL_MAPPING.some((m) => m.field.includes("transport_mode_accepted") && m.hardConstraint && m.apiQuery)).toBe(true);
   });
 });
