@@ -165,15 +165,24 @@ export async function fetchClimate(
 
   let forecast: ClimateSummary["forecast"];
   if (opts.startDate) {
-    const start = new Date(opts.startDate);
-    const end = new Date(opts.endDate ?? opts.startDate);
-    const diffDays = (start.getTime() - Date.now()) / 86_400_000;
-    const endDiffDays = (end.getTime() - Date.now()) / 86_400_000;
-    if (diffDays >= -1 && diffDays <= 15 && endDiffDays <= 15) {
+    const today = new Date().toISOString().slice(0, 10);
+    const forecastLimit = new Date();
+    forecastLimit.setUTCDate(forecastLimit.getUTCDate() + 15);
+    const forecastLimitDate = forecastLimit.toISOString().slice(0, 10);
+
+    const requestedEnd = opts.endDate ?? opts.startDate;
+    const forecastStart = opts.startDate < today ? today : opts.startDate;
+    const forecastEnd = requestedEnd > forecastLimitDate ? forecastLimitDate : requestedEnd;
+
+    // Un voyage déjà commencé doit continuer à afficher la vraie météo :
+    // on demande alors la prévision d'aujourd'hui jusqu'à la fin du séjour.
+    // Pour un séjour plus long, on affiche la portion fiable disponible (J+15)
+    // plutôt que de retomber artificiellement sur une tendance saisonnière.
+    if (forecastEnd >= forecastStart && forecastStart <= forecastLimitDate) {
       const fRes = await fetchExternal(
         `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
           `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weather_code&timezone=auto` +
-          `&start_date=${opts.startDate}&end_date=${opts.endDate ?? opts.startDate}`,
+          `&start_date=${forecastStart}&end_date=${forecastEnd}`,
       );
       if (fRes.ok) {
         const fp = (await fRes.json()) as { daily?: any };
