@@ -2,20 +2,11 @@ export * from "./engine-legacy";
 
 import {
   buildProposals as buildLegacyProposals,
-  type IndividualPreference,
   type Proposal,
   type ScoringContext,
   type TravelCatalog,
 } from "./engine-legacy";
 import { estimateDistanceKm } from "./deep-links";
-
-function softenBudgetPriority(preference: IndividualPreference): IndividualPreference {
-  const priority = String(preference.budgetPriority ?? "").toLowerCase().trim();
-  if (["must_have", "veto", "high_priority"].includes(priority)) {
-    return { ...preference, budgetPriority: "nice_to_have" };
-  }
-  return preference;
-}
 
 /**
  * Distance de scoring depuis les vraies villes de départ du groupe.
@@ -51,7 +42,7 @@ export function estimateGroupOriginDistanceKm(
  * Public KREW recommendation entry point.
  *
  * Product invariants applied here before the historical deterministic scorer:
- * - an individual participant budget is a strong preference/warning, never a group veto;
+ * - an individual participant budget remains a strong preference/warning, never a group veto;
  * - distance heuristics use the group's actual departure origins when known.
  *
  * All other scoring rules, including transport compatibility and hard
@@ -77,13 +68,7 @@ export function buildProposals(
     })),
   };
 
-  const adjustedContext: ScoringContext = {
-    ...ctx,
-    hasBudgetVeto: false,
-    individualPreferences: (ctx.individualPreferences ?? []).map(softenBudgetPriority),
-  };
-
-  const proposals = buildLegacyProposals(adjustedCatalog, adjustedContext, limit);
+  const proposals = buildLegacyProposals(adjustedCatalog, ctx, limit);
   const restored = proposals.map((proposal) => ({
     ...proposal,
     destination: originalDestinations.get(proposal.destination.id) ?? proposal.destination,
