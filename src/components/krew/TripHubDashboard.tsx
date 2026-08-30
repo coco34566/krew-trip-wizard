@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { Logo } from "@/components/krew/Logo";
 import { TripWeatherBadge } from "@/components/krew/TripWeatherBadge";
+import { TripLiveModePanel, isTripLiveMode } from "@/components/krew/TripLiveModePanel";
 import { getTripWeather } from "@/lib/trip-weather.functions";
 import { getKrewPulse, getTripCountdown, type KrewPulse, type TripCountdown } from "@/lib/krew/trip-dashboard-pulse";
 import {
@@ -509,6 +510,11 @@ export function TripHubDashboard({
     startDate: trip.start_date || null,
     endDate: trip.end_date || null,
   });
+  const liveMode = isTripLiveMode({
+    datesLocked,
+    startDate: trip.start_date || null,
+    endDate: trip.end_date || null,
+  });
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -525,7 +531,9 @@ export function TripHubDashboard({
 
           {/* C1. PHOTO (z10) : largeur ~calc(100% - 8px), hauteur 260-280px, alignée gauche */}
           <div
-            className="relative z-10 w-[calc(100%_-_8px)] h-[260px] sm:h-[280px] overflow-hidden"
+            className={`relative z-10 w-[calc(100%_-_8px)] overflow-hidden ${
+              liveMode ? "h-[180px] sm:h-[220px]" : "h-[260px] sm:h-[280px]"
+            }`}
             style={{ clipPath: "polygon(0% 0%, 100% 0%, 100% 88%, 88% 100%, 0% 93%)" }}
           >
             <img
@@ -639,35 +647,47 @@ export function TripHubDashboard({
           ) : null}
         </div>
 
-        <KrewPulseLine pulse={pulse} />
+        {!liveMode ? <KrewPulseLine pulse={pulse} /> : null}
 
         {/* E. 32px RESPIRATION APRES METADATAS (PAS DE LOUTRE, PAS DE FLÈCHE, PAS DE DIVIDER) */}
-        <div className="h-8" />
+        <div className={liveMode ? "h-4" : "h-8"} />
       </header>
 
+      {liveMode ? (
+        <TripLiveModePanel
+          tripId={tripId}
+          trip={trip}
+          destinationName={destinationName}
+          weather={weatherQuery.data ?? null}
+          isOwner={isOwner}
+        />
+      ) : null}
+
       {/* PROCHAINES ACTIONS VIA KREW ACTION STACK */}
-      <NextActionsPanel
-        tripId={tripId}
-        isOwner={isOwner}
-        trip={trip}
-        myAvailabilityDone={myAvailabilityDone}
-        myPreferencesDone={myPreferencesDone}
-        starDone={starDone}
-        availabilityAnswered={availabilityAnswered}
-        availabilityExpected={availabilityExpected}
-        progressAnswered={progressAnswered}
-        progressTotal={progressTotal || trip.participants_count || 1}
-        hasRecommendations={hasRecommendations}
-        destinationSelected={destinationSelected}
-        datesLocked={datesLocked}
-        profileReady={profileReady}
-        profileValidated={profileValidated}
-        myHotelVoted={myHotelVoted}
-        myTransportPicked={myTransportPicked}
-        hotelOffersReady={hotelOffersReady}
-        transportOffersReady={transportOffersReady}
-        hasItinerary={hasItinerary}
-      />
+      {!liveMode ? (
+        <NextActionsPanel
+          tripId={tripId}
+          isOwner={isOwner}
+          trip={trip}
+          myAvailabilityDone={myAvailabilityDone}
+          myPreferencesDone={myPreferencesDone}
+          starDone={starDone}
+          availabilityAnswered={availabilityAnswered}
+          availabilityExpected={availabilityExpected}
+          progressAnswered={progressAnswered}
+          progressTotal={progressTotal || trip.participants_count || 1}
+          hasRecommendations={hasRecommendations}
+          destinationSelected={destinationSelected}
+          datesLocked={datesLocked}
+          profileReady={profileReady}
+          profileValidated={profileValidated}
+          myHotelVoted={myHotelVoted}
+          myTransportPicked={myTransportPicked}
+          hotelOffersReady={hotelOffersReady}
+          transportOffersReady={transportOffersReady}
+          hasItinerary={hasItinerary}
+        />
+      ) : null}
 
       <nav aria-label="Accès aux informations du voyage" className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-sm">
         <Link
