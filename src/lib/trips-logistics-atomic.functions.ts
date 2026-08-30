@@ -53,12 +53,13 @@ export const voteHotelAtomic = createServerFn({ method: "POST" })
     const selectedHotelId = result.selectedHotelId ?? null;
 
     if (selectedHotelId && !selectedHotelId.startsWith("portal-")) {
-      const recommendationUpdate = await admin
+      // Preserve the legacy best-effort sync: the vote itself is authoritative,
+      // and a recommendation sync failure must not turn a successful vote into an error.
+      await admin
         .from("recommendations")
         .update({ accommodation_id: selectedHotelId })
         .eq("trip_id", data.tripId)
         .eq("is_selected", true);
-      if (recommendationUpdate.error) throw recommendationUpdate.error;
     }
 
     return { ok: true, hotelVotes, selectedHotelId };
