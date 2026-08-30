@@ -320,7 +320,7 @@ function AvailabilityPage() {
             </p>
             {!data.isOwner ? (
               <Button asChild className="w-full">
-                <Link to="/trips/$tripId/questionnaire" params={{ tripId }}>Renseigner mes préférences</Link>
+                <Link to="/trips/$tripId/questionnaire" params={{ tripId }}>Voir mes préférences</Link>
               </Button>
             ) : null}
           </div>

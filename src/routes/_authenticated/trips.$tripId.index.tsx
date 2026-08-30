@@ -2196,7 +2196,7 @@ function TripDetail() {
                 const label = PROFILE_LABELS[profileId] || concept.title;
                 const selected = profile?.validated
                   ? profile.selectedConcepts.some((item) => item.id === concept.id)
-                  : selectedConceptIds.includes(concept.id);
+                  : data.isOwner && selectedConceptIds.includes(concept.id);
                 return (
                   <button
                     key={concept.id}
