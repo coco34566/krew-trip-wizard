@@ -114,7 +114,7 @@ export function KrewRecapCard({ recap, tripName, photos = [] }: Props) {
           </div>
         ) : (
           <div className="relative mx-auto flex min-h-[230px] w-full max-w-[360px] items-center justify-center rounded-[28px_34px_24px_38px] border border-dashed border-sage/45 bg-sage/[.07] px-8 text-center md:min-h-[280px]">
-            <KrewMark type="sparkles" tone="sage" size="lg" className="absolute right-7 top-6 h-8 w-8 opacity-60" />
+            <KrewMark type="sparkle" tone="sage" size="lg" className="absolute right-7 top-6 h-8 w-8 opacity-60" />
             <div className="max-w-[220px]">
               <img src="/brand/otter-states/trip-progress.png" alt="" className="mx-auto mb-3 h-auto w-[72px] object-contain opacity-90" />
               <p className="font-display text-[24px] font-normal leading-tight text-foreground">Un souvenir qui tient aussi sans photo</p>
