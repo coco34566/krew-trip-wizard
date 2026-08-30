@@ -55,6 +55,19 @@ function normalizeTripId(raw: string): string {
     .trim();
 }
 
+function nextParticipationPath(
+  tripId: string,
+  status: {
+    myAvailabilityDone?: boolean;
+    myPreferencesDone?: boolean;
+    datesLocked?: boolean;
+  },
+) {
+  if (!status.myAvailabilityDone && !status.datesLocked) return `/trips/${tripId}/availability`;
+  if (!status.myPreferencesDone) return `/trips/${tripId}/questionnaire`;
+  return `/trips/${tripId}`;
+}
+
 function JoinTripPage() {
   const params = Route.useParams();
   const search = Route.useSearch();
@@ -63,7 +76,7 @@ function JoinTripPage() {
   const invitePath = token
     ? `/join/${tripId}?token=${encodeURIComponent(token)}`
     : `/join/${tripId}`;
-  const authNext = encodeURIComponent(invitePath);
+  const authNext = invitePath;
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const fetchPreview = useServerFn(getJoinPreview);
@@ -81,7 +94,10 @@ function JoinTripPage() {
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
-  const [firstName, setFirstName] = useState("");
+  const pendingNameKey = `krew:join-name:${tripId}`;
+  const [firstName, setFirstName] = useState(() =>
+    typeof window === "undefined" ? "" : window.sessionStorage.getItem(pendingNameKey) ?? "",
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -93,11 +109,7 @@ function JoinTripPage() {
       .then((res) => {
         if (cancelled) return;
         if (res?.alreadyJoined) {
-          if (res.myAvailabilityDone && res.myPreferencesDone) {
-            window.location.assign(`/trips/${tripId}`);
-          } else {
-            window.location.assign(`/trips/${tripId}/availability`);
-          }
+          window.location.assign(nextParticipationPath(tripId, res));
         }
       })
       .catch((e) => {
@@ -154,6 +166,7 @@ function JoinTripPage() {
 
   async function handleJoin() {
     if (!isAuthenticated) {
+      if (firstName.trim()) window.sessionStorage.setItem(pendingNameKey, firstName.trim());
       navigate({ to: "/auth", search: { next: authNext } as any });
       return;
     }
@@ -165,11 +178,8 @@ function JoinTripPage() {
     try {
       const res = await doJoin({ data: { tripId, token, firstName: firstName.trim() } });
       toast.success("Voyage rejoint");
-      if (res?.alreadyMember && res?.myAvailabilityDone && res?.myPreferencesDone) {
-        window.location.assign(`/trips/${tripId}`);
-      } else {
-        window.location.assign(`/trips/${tripId}/availability`);
-      }
+      window.sessionStorage.removeItem(pendingNameKey);
+      window.location.assign(nextParticipationPath(tripId, res ?? {}));
     } catch (e: any) {
       console.error("Impossible de rejoindre le voyage:", e);
       const msg = String(e?.message ?? e ?? "");
