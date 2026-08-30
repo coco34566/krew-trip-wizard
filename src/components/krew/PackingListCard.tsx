@@ -5,6 +5,11 @@ import {
   type PackingItem,
   type PackingListInput,
 } from "@/lib/krew/packing-list";
+import {
+  buildMusicContext,
+  recommendSpotifyPlaylists,
+  type MusicContextInput,
+} from "@/lib/krew/spotify-playlists";
 import { resolveShoppingLink, type ShoppingLink } from "@/lib/krew/shopping";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +22,7 @@ type Props = PackingListInput & {
   tripId?: string;
   participants?: { id: string; user_id?: string | null; display_name?: string | null; email?: string | null }[];
   shoppingLinks?: Record<string, ShoppingLink | undefined>;
+  musicContext?: MusicContextInput;
 };
 
 export function getAssignablePackingParticipants<T extends { id: string }>(participants: T[]): T[] {
@@ -27,6 +33,7 @@ export function PackingListCard({
   tripId = "preview",
   participants = [],
   shoppingLinks = {},
+  musicContext,
   ...input
 }: Props) {
   const assignableParticipants = useMemo(
@@ -80,6 +87,27 @@ export function PackingListCard({
       JSON.stringify(state.manual),
     ],
   );
+
+  const musicRecommendations = useMemo(() => {
+    const context = buildMusicContext({
+      ...musicContext,
+      selectedActivities: [
+        ...(musicContext?.selectedActivities ?? []),
+        ...(input.activities ?? []),
+      ],
+      accommodationType: musicContext?.accommodationType ?? input.accommodation ?? null,
+      requiredAmenities:
+        musicContext?.requiredAmenities ?? input.accommodationAmenities ?? [],
+      eventType: musicContext?.eventType ?? input.eventType ?? null,
+    });
+    return recommendSpotifyPlaylists(context);
+  }, [
+    input.eventType,
+    input.accommodation,
+    JSON.stringify(input.activities),
+    JSON.stringify(input.accommodationAmenities),
+    JSON.stringify(musicContext),
+  ]);
 
   const toggle = (id: string) =>
     setState((s) => ({ ...s, checked: { ...s.checked, [id]: !s.checked[id] } }));
@@ -279,6 +307,50 @@ export function PackingListCard({
           <KrewIcon name="plus" size="sm" className="size-3.5 shrink-0" /> Ajouter
         </Button>
       </div>
+
+      {musicRecommendations.length > 0 ? (
+        <section className="border-t border-border/50 pt-5 sm:pt-6 space-y-3">
+          <div className="relative inline-block pr-4">
+            <h3 className="font-display text-[24px] sm:text-[28px] font-normal text-foreground">
+              La bande-son du Krew
+            </h3>
+            <KrewMark
+              type="underline-wave"
+              tone="sage"
+              size="sm"
+              className="absolute left-0 -bottom-1.5 w-[118px] pointer-events-none"
+            />
+          </div>
+          <p className="text-sm text-muted-foreground font-sans">
+            Trois ambiances pour accompagner le voyage.
+          </p>
+          <div className="divide-y divide-border/40 border-y border-border/40">
+            {musicRecommendations.map((recommendation) => (
+              <div
+                key={recommendation.id}
+                className="py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              >
+                <div className="min-w-0">
+                  <p className="font-mono text-xs font-semibold uppercase tracking-wide text-primary">
+                    {recommendation.slotLabel}
+                  </p>
+                  <p className="mt-0.5 font-sans text-sm sm:text-base font-semibold text-foreground break-words">
+                    {recommendation.name}
+                  </p>
+                </div>
+                <a
+                  href={recommendation.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-xl px-0 text-sm font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"
+                >
+                  Écouter sur Spotify <ExternalLink className="size-3.5" />
+                </a>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }
