@@ -5,6 +5,7 @@ import { formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { Logo } from "@/components/krew/Logo";
 import { TripWeatherBadge } from "@/components/krew/TripWeatherBadge";
 import { getTripWeather } from "@/lib/trip-weather.functions";
+import { getKrewPulse, getTripCountdown, type KrewPulse, type TripCountdown } from "@/lib/krew/trip-dashboard-pulse";
 import {
   KrewIcon,
   KrewMark,
@@ -373,6 +374,52 @@ function NextActionsPanel({
   );
 }
 
+function CountdownInline({ countdown }: { countdown: TripCountdown }) {
+  const muted = countdown.state === "ended";
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <span
+        className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold leading-none ${
+          muted
+            ? "border-border/70 bg-muted/55 text-muted-foreground"
+            : "border-sage/35 bg-sage/15 text-foreground"
+        }`}
+      >
+        {countdown.label}
+      </span>
+      {countdown.microcopy ? (
+        <span className="hidden text-[11px] font-medium text-muted-foreground min-[390px]:inline sm:text-xs">
+          {countdown.microcopy}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function KrewPulseLine({ pulse }: { pulse: KrewPulse }) {
+  return (
+    <div className="mt-4 px-4">
+      <div className="flex min-w-0 items-start gap-2.5 border-t border-sage/25 pt-3">
+        <span
+          aria-hidden="true"
+          className={`mt-[7px] size-2 shrink-0 rounded-full ${pulse.state === "ready" ? "bg-sage" : "bg-primary/70"}`}
+        />
+        <div className="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-2.5">
+          <span className="block shrink-0 font-sans text-[10px] font-bold uppercase tracking-[0.14em] text-primary/75">
+            Krew Pulse
+          </span>
+          <p className="mt-0.5 font-sans text-[13px] font-medium leading-snug text-foreground sm:mt-0 sm:text-sm">
+            {pulse.message}
+          </p>
+        </div>
+        {pulse.state === "ready" ? (
+          <KrewMark type="check" tone="sage" size="sm" className="mt-0.5 size-4 shrink-0" />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function TripHubDashboard({
   tripId,
   trip,
@@ -433,7 +480,35 @@ export function TripHubDashboard({
     viewerUserId && (logistics.transportPicks ?? []).some((v: any) => v.userId === viewerUserId),
   );
   const hotelOffersReady = Boolean(logistics.hotels?.length);
+  const hotelSelected = Boolean(logistics.selectedHotelId);
   const transportOffersReady = Boolean(logistics.transports?.length);
+  const transportPickedCount = new Set(
+    (logistics.transportPicks ?? []).map((pick: any) => pick?.userId).filter(Boolean),
+  ).size;
+  const transportExpectedCount = progressTotal || availabilityExpected || participantsCount || trip.participants_count || 0;
+
+  const pulse = getKrewPulse({
+    availabilityAnswered,
+    availabilityExpected,
+    preferencesAnswered: progressAnswered,
+    preferencesExpected: progressTotal || trip.participants_count || 1,
+    datesLocked,
+    profileReady,
+    profileValidated,
+    destinationSelected,
+    hotelOffersReady,
+    hotelSelected,
+    transportOffersReady,
+    transportPickedCount,
+    transportExpectedCount,
+    hasItinerary,
+  });
+
+  const countdown = getTripCountdown({
+    datesLocked,
+    startDate: trip.start_date || null,
+    endDate: trip.end_date || null,
+  });
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -502,33 +577,36 @@ export function TripHubDashboard({
         {/* D. INFORMATIONS PRATIQUES + PETIT OBJET MÉTÉO, PENSÉS COMME UN SEUL ENSEMBLE */}
         <div className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5 px-4 sm:gap-5">
           <div className="min-w-0 space-y-2.5 font-sans text-[13px] font-medium leading-[1.2] text-foreground">
-            {/* D1. DATES (accent sauge sur les dates uniquement) */}
+            {/* D1. DATES + COMPTE À REBOURS */}
             <div className="flex items-start gap-2 text-foreground min-w-0">
               <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0 mt-[1px]" />
-              {datesLocked && (trip.start_date || provisionalStart) ? (
-                <p className="min-w-0">
-                  <span className="text-foreground">Dates validées · </span>
-                  <KrewHighlight tone="sage" className="px-1 py-0.5 font-medium">
-                    {trip.start_date
-                      ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                        })
-                      : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                        })}
-                    {trip.end_date
-                      ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                        })}`
-                      : ""}
-                  </KrewHighlight>
-                </p>
-              ) : (
-                <span className="text-muted-foreground">Date à définir</span>
-              )}
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                {datesLocked && (trip.start_date || provisionalStart) ? (
+                  <p className="min-w-0">
+                    <span className="text-foreground">Dates validées · </span>
+                    <KrewHighlight tone="sage" className="px-1 py-0.5 font-medium">
+                      {trip.start_date
+                        ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "short",
+                          })
+                        : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                      {trip.end_date
+                        ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "short",
+                          })}`
+                        : ""}
+                    </KrewHighlight>
+                  </p>
+                ) : (
+                  <span className="text-muted-foreground">Date à définir</span>
+                )}
+                {countdown ? <CountdownInline countdown={countdown} /> : null}
+              </div>
             </div>
 
             {/* D2. PARTICIPANTS */}
@@ -560,6 +638,8 @@ export function TripHubDashboard({
             </div>
           ) : null}
         </div>
+
+        <KrewPulseLine pulse={pulse} />
 
         {/* E. 32px RESPIRATION APRES METADATAS (PAS DE LOUTRE, PAS DE FLÈCHE, PAS DE DIVIDER) */}
         <div className="h-8" />
