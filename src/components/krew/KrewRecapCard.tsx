@@ -1,3 +1,4 @@
+import { KrewAwards } from "@/components/krew/KrewAwards";
 import { KrewIcon, KrewMark, KrewNote, KrewOrganicBlob } from "@/components/krew/visual-language";
 import type { TripRecap } from "@/lib/krew/trip-recap";
 
@@ -122,6 +123,10 @@ export function KrewRecapCard({ recap, tripName, photos = [] }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      <div className="relative z-10">
+        <KrewAwards />
       </div>
     </section>
   );
