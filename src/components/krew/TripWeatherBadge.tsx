@@ -102,8 +102,8 @@ export function TripWeatherBadge({ weather, className }: { weather: TripWeatherS
       </div>
 
       {weather.mode === "forecast" && weather.microcopy ? (
-        <div className="relative mt-2 -mb-1 ml-auto w-fit max-w-[124px] rotate-[-2deg] rounded-[3px_6px_4px_5px] bg-[#F3E8B6] px-2.5 py-2 shadow-[0_4px_10px_rgba(75,40,68,0.10)] sm:max-w-[176px] sm:px-3">
-          <span className="absolute -top-1.5 left-1/2 h-3 w-9 -translate-x-1/2 rotate-[2deg] bg-sage/35" aria-hidden="true" />
+        <div className="relative mt-2 -mb-1 ml-auto w-fit max-w-[124px] rotate-[-2deg] rounded-[3px_6px_4px_5px] border border-sage/30 bg-sage/18 px-2.5 py-2 shadow-[0_4px_10px_rgba(75,40,68,0.08)] sm:max-w-[176px] sm:px-3">
+          <span className="absolute -top-1.5 left-1/2 h-3 w-9 -translate-x-1/2 rotate-[2deg] bg-primary/12" aria-hidden="true" />
           <p className="font-sans text-[10px] font-semibold leading-[1.2] text-foreground/85 sm:text-[11px]">
             {weather.microcopy}
           </p>
