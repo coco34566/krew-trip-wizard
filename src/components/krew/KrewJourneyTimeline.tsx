@@ -159,7 +159,9 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 ? `/trips/${tripId}/questionnaire`
                 : step.id === "profile"
                   ? `/trips/${tripId}?view=voyage&section=profile`
-                  : null;
+                  : step.id === "memories" && !isUpcoming
+                    ? `/trips/${tripId}/memories`
+                    : null;
             const parsed = step.href ? parseStepHref(step.href) : null;
 
             const node = (
