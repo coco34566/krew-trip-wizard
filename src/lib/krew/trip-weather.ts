@@ -11,6 +11,13 @@ export type TripWeatherDay = {
   precipitationMm: number;
 };
 
+export type TripWeatherHour = {
+  time: string;
+  kind: TripWeatherKind;
+  temperature: number | null;
+  precipitationMm: number;
+};
+
 export type TripWeatherSummary = {
   mode: "forecast" | "seasonal";
   kind: TripWeatherKind;
@@ -20,7 +27,9 @@ export type TripWeatherSummary = {
   rainRelevant: boolean;
   rainyDays: number;
   microcopy: string | null;
+  timezone?: string | null;
   days?: TripWeatherDay[];
+  hours?: TripWeatherHour[];
 };
 
 const WEATHER_LABELS: Record<TripWeatherKind, string> = {
@@ -102,6 +111,12 @@ export function buildTripWeatherSummary(
         precipitationMm: Number.isFinite(day.precipitationMm) ? Math.max(0, day.precipitationMm) : 0,
       };
     });
+    const hours: TripWeatherHour[] = (climate.hourlyForecast ?? []).map((hour) => ({
+      time: hour.time,
+      kind: weatherKindFromCode(hour.weatherCode),
+      temperature: hour.temperature != null && Number.isFinite(hour.temperature) ? Math.round(hour.temperature) : null,
+      precipitationMm: Number.isFinite(hour.precipitationMm) ? Math.max(0, hour.precipitationMm) : 0,
+    }));
 
     return {
       mode: "forecast",
@@ -112,7 +127,9 @@ export function buildTripWeatherSummary(
       rainRelevant,
       rainyDays,
       microcopy: forecastMicrocopy(kind, tempMax, rainRelevant),
+      timezone: climate.timezone ?? null,
       days,
+      hours,
     };
   }
 
@@ -139,5 +156,6 @@ export function buildTripWeatherSummary(
     rainRelevant: false,
     rainyDays: 0,
     microcopy: null,
+    timezone: climate.timezone ?? null,
   };
 }
