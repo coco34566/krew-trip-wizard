@@ -36,13 +36,16 @@ export const getTripWeather = createServerFn({ method: "GET" })
       const climate = await fetchClimate(place.latitude, place.longitude, {
         startDate,
         endDate,
+        timezone: place.timezone,
       });
       return buildTripWeatherSummary(climate, startDate, endDate, true);
     } catch (error) {
       console.warn("[trip-weather] prévision indisponible, repli saisonnier", error);
 
       try {
-        const seasonalClimate = await fetchClimate(place.latitude, place.longitude);
+        const seasonalClimate = await fetchClimate(place.latitude, place.longitude, {
+          timezone: place.timezone,
+        });
         return buildTripWeatherSummary(seasonalClimate, startDate, endDate, false);
       } catch (fallbackError) {
         console.warn("[trip-weather] météo indisponible", fallbackError);
