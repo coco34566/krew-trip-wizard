@@ -1,7 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
-import { cn } from "@/lib/utils";
+import { useServerFn } from "@tanstack/react-start";
+import { formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { Logo } from "@/components/krew/Logo";
+import { TripWeatherBadge } from "@/components/krew/TripWeatherBadge";
+import { getTripWeather } from "@/lib/trip-weather.functions";
 import {
   KrewIcon,
   KrewMark,
@@ -400,6 +403,28 @@ export function TripHubDashboard({
   const datesLocked = Boolean((trip as any).dates_locked || (trip as any).datesLocked);
   const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const logistics = ((trip as any).group_logistics || {}) as any;
+  const weatherStartDate = (
+    datesLocked ? trip.start_date || provisionalStart || null : provisionalStart || trip.start_date || null
+  ) as string | null;
+  const weatherEndDate = (datesLocked ? trip.end_date || weatherStartDate : weatherStartDate) as string | null;
+  const fetchTripWeather = useServerFn(getTripWeather);
+  const weatherQuery = useQuery({
+    queryKey: ["trip-weather", tripId, destinationName, weatherStartDate, weatherEndDate, datesLocked],
+    queryFn: () =>
+      fetchTripWeather({
+        data: {
+          destinationName: destinationName!,
+          startDate: weatherStartDate,
+          endDate: weatherEndDate,
+          datesLocked,
+        },
+      }),
+    enabled: Boolean(destinationSelected && destinationName && weatherStartDate),
+    staleTime: 6 * 60 * 60 * 1000,
+    gcTime: 12 * 60 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   const myHotelVoted = Boolean(
     viewerUserId && (logistics.hotelVotes ?? []).some((v: any) => v.userId === viewerUserId),
@@ -409,8 +434,6 @@ export function TripHubDashboard({
   );
   const hotelOffersReady = Boolean(logistics.hotels?.length);
   const transportOffersReady = Boolean(logistics.transports?.length);
-
-  const theme = eventTypeLabel(trip.event_type);
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -437,7 +460,6 @@ export function TripHubDashboard({
               loading="eager"
             />
           </div>
-
 
           {/* ZONE DE TITRE ÉDITORIAL SANS BLOB ENFERMANT */}
           <div className="relative z-20 -mt-10 px-4 pt-2">
@@ -477,58 +499,66 @@ export function TripHubDashboard({
           </div>
         </div>
 
-        {/* D. MÉTADONNÉES SOUS LE HERO (3 LIGNES SANS WRAP A 390PX) */}
-        <div className="mt-6 space-y-2.5 px-4 font-sans text-[13px] font-medium leading-[1.2] text-foreground">
-          {/* D1. DATES (accent sauge sur les dates uniquement) */}
-          <div className="flex items-start gap-2 text-foreground min-w-0">
-            <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0 mt-[1px]" />
-            {datesLocked && (trip.start_date || provisionalStart) ? (
-              <p className="min-w-0">
-                <span className="text-foreground">Dates validées · </span>
-                <KrewHighlight tone="sage" className="px-1 py-0.5 font-medium">
-                  {trip.start_date
-                    ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                      })
-                    : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                  {trip.end_date
-                    ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
-                        day: "numeric",
-                        month: "short",
-                      })}`
-                    : ""}
-                </KrewHighlight>
-              </p>
-            ) : (
-              <span className="text-muted-foreground">Date à définir</span>
-            )}
-          </div>
-
-          {/* D2. PARTICIPANTS */}
-          <div className="flex items-center gap-2 text-foreground/90">
-            <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
-            <p className="whitespace-nowrap">
-              <span>{trip.participants_count || 1} participants</span>
-            </p>
-          </div>
-
-          {/* D3. BUDGET (WORDING RACCOURCI POUR ÉVITER TOUT WRAP) */}
-          <div className="flex items-center gap-2 text-primary font-semibold text-[12.5px] min-w-0">
-            <KrewIcon name="budget" tone="plum" size="sm" className="size-4 shrink-0" />
-            <div className="min-w-0">
-              {totalReserved != null && totalEstimated != null ? (
-                <span>Réservé {formatEuro(totalReserved)} · Reste estimé {formatEuro(totalEstimated)}</span>
-              ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
-                <span>~{formatEuro(liveBudgetTotal)} / pers.</span>
+        {/* D. INFORMATIONS PRATIQUES + PETIT OBJET MÉTÉO, PENSÉS COMME UN SEUL ENSEMBLE */}
+        <div className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5 px-4 sm:gap-5">
+          <div className="min-w-0 space-y-2.5 font-sans text-[13px] font-medium leading-[1.2] text-foreground">
+            {/* D1. DATES (accent sauge sur les dates uniquement) */}
+            <div className="flex items-start gap-2 text-foreground min-w-0">
+              <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0 mt-[1px]" />
+              {datesLocked && (trip.start_date || provisionalStart) ? (
+                <p className="min-w-0">
+                  <span className="text-foreground">Dates validées · </span>
+                  <KrewHighlight tone="sage" className="px-1 py-0.5 font-medium">
+                    {trip.start_date
+                      ? new Date(trip.start_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : new Date(provisionalStart!).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                    {trip.end_date
+                      ? ` → ${new Date(trip.end_date + "T12:00:00").toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })}`
+                      : ""}
+                  </KrewHighlight>
+                </p>
               ) : (
-                <span className="text-muted-foreground font-medium">Budget à définir</span>
+                <span className="text-muted-foreground">Date à définir</span>
               )}
             </div>
+
+            {/* D2. PARTICIPANTS */}
+            <div className="flex items-center gap-2 text-foreground/90">
+              <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
+              <p className="whitespace-nowrap">
+                <span>{trip.participants_count || 1} participants</span>
+              </p>
+            </div>
+
+            {/* D3. BUDGET (WORDING RACCOURCI POUR ÉVITER TOUT WRAP) */}
+            <div className="flex items-center gap-2 text-primary font-semibold text-[12.5px] min-w-0">
+              <KrewIcon name="budget" tone="plum" size="sm" className="size-4 shrink-0" />
+              <div className="min-w-0">
+                {totalReserved != null && totalEstimated != null ? (
+                  <span>Réservé {formatEuro(totalReserved)} · Reste estimé {formatEuro(totalEstimated)}</span>
+                ) : liveBudgetTotal != null && liveBudgetTotal > 0 ? (
+                  <span>~{formatEuro(liveBudgetTotal)} / pers.</span>
+                ) : (
+                  <span className="text-muted-foreground font-medium">Budget à définir</span>
+                )}
+              </div>
+            </div>
           </div>
+
+          {weatherQuery.data ? (
+            <div className="w-[132px] min-[380px]:w-[142px] sm:w-[220px]">
+              <TripWeatherBadge weather={weatherQuery.data} />
+            </div>
+          ) : null}
         </div>
 
         {/* E. 32px RESPIRATION APRES METADATAS (PAS DE LOUTRE, PAS DE FLÈCHE, PAS DE DIVIDER) */}
