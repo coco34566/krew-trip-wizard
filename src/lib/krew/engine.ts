@@ -2,6 +2,7 @@ export * from "./engine-legacy";
 
 import {
   buildProposals as buildLegacyProposals,
+  generateRejectionReason,
   type Proposal,
   type ScoringContext,
   type TravelCatalog,
@@ -38,38 +39,40 @@ export function estimateGroupOriginDistanceKm(
   return Math.round(weighted / totalTravellers);
 }
 
-function resolveHardBudgetCap(ctx: ScoringContext): number | null {
-  const caps: number[] = [];
+function restoreSoftBudgetSemantics(proposal: Proposal, ctx: ScoringContext): Proposal {
+  const hardCap = ctx.vetoBudgetMax ?? ctx.minGroupBudget ?? null;
+  if (!ctx.hasBudgetVeto || hardCap == null) return proposal;
 
-  if (ctx.hasBudgetVeto && Number(ctx.vetoBudgetMax) > 0) {
-    caps.push(Number(ctx.vetoBudgetMax));
-  }
+  const overBudget = proposal.budget.totalPerPerson > hardCap;
+  if (!overBudget) return proposal;
 
-  for (const preference of ctx.individualPreferences ?? []) {
-    const priority = String(preference.budgetPriority ?? "").toLowerCase().trim();
-    if (!["must_have", "veto", "high_priority"].includes(priority)) continue;
-    const budgetMax = Number(preference.budgetMax);
-    if (budgetMax > 0) caps.push(budgetMax);
-  }
+  const genericBudgetReasonIndex = proposal.matchReasons.findIndex((reason) =>
+    reason.startsWith("Hors budget du plus serré"),
+  );
+  const warning = `⚠️ Risque de dépasser le budget maximum indiqué par un participant (${hardCap} €) — total estimé ~${Math.round(proposal.budget.totalPerPerson)} €`;
+  const matchReasons = [...proposal.matchReasons];
+  if (genericBudgetReasonIndex >= 0) matchReasons[genericBudgetReasonIndex] = warning;
+  else matchReasons.push(warning);
 
-  return caps.length ? Math.min(...caps) : null;
-}
-
-function canProveHardBudgetExceeded(proposal: Proposal): boolean {
-  // Property-web prices are discovery hints, not booking-provider quotes. Even
-  // when the page reports a price, KREW must not turn that hint into a hard veto.
-  // Other catalogue sources keep the historical hard-budget behaviour.
-  return proposal.budget.priceSource?.accommodation !== "web";
+  // `engine-legacy` applies -15 when hasBudgetVeto=false. The validated KREW
+  // behavior keeps the historical strong -40 penalty while removing only the
+  // group-level elimination, so restore the missing -25 here.
+  return {
+    ...proposal,
+    score: proposal.score - 25,
+    matchReasons,
+  };
 }
 
 /**
  * Public KREW recommendation entry point.
  *
- * Product invariants applied here before/after the historical deterministic scorer:
- * - hard budget vetoes stay hard when explicitly configured and sufficiently sourced;
+ * Product invariants applied around the historical deterministic scorer:
+ * - an individual participant budget is a strong preference/warning, never a group veto;
+ * - the historical strong budget penalty is preserved;
  * - distance heuristics use the group's actual departure origins when known.
  *
- * All other scoring rules, including age, transport compatibility and hard
+ * All other scoring rules, including transport compatibility and hard
  * deal-breakers, remain unchanged.
  */
 export function buildProposals(
@@ -92,19 +95,32 @@ export function buildProposals(
     })),
   };
 
-  const hardBudgetCap = resolveHardBudgetCap(ctx);
-  const proposals = buildLegacyProposals(adjustedCatalog, ctx, limit);
-  const keepWithinHardBudget = (proposal: Proposal) =>
-    hardBudgetCap == null ||
-    !canProveHardBudgetExceeded(proposal) ||
-    proposal.budget.totalPerPerson <= hardBudgetCap;
-  const eligibleProposals = proposals.filter(keepWithinHardBudget);
+  // Disable only the legacy hard `continue`. Keep vetoBudgetMax and individual
+  // priorities so hardBudgetFits, individual satisfaction and warning threshold
+  // are still computed. Ask legacy for the whole eligible pool, then restore the
+  // historical -40 penalty before selecting the final top N.
+  const scoringContext: ScoringContext = { ...ctx, hasBudgetVeto: false };
+  const fullPool = buildLegacyProposals(
+    adjustedCatalog,
+    scoringContext,
+    Math.max(limit + 3, adjustedCatalog.destinations.length),
+  )
+    .map((proposal) => restoreSoftBudgetSemantics(proposal, ctx))
+    .sort((a, b) => b.score - a.score);
 
-  const restored = eligibleProposals.map((proposal) => ({
+  const selected = fullPool.slice(0, limit).map((proposal) => ({
     ...proposal,
     destination: originalDestinations.get(proposal.destination.id) ?? proposal.destination,
   })) as Proposal[];
-  const runnerUps = ((proposals as any).runnerUps ?? []) as Proposal[];
-  (restored as any).runnerUps = runnerUps.filter(keepWithinHardBudget);
-  return restored;
+
+  const selectedIds = new Set(selected.map((proposal) => proposal.destination.id));
+  (selected as any).runnerUps = fullPool
+    .filter((proposal) => !selectedIds.has(proposal.destination.id))
+    .slice(0, 3)
+    .map((proposal) => ({
+      name: proposal.destination.name,
+      reason: generateRejectionReason(proposal),
+    }));
+
+  return selected;
 }
