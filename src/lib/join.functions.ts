@@ -173,7 +173,7 @@ export const joinTrip = createServerFn({ method: "POST" })
 
     const trip = await supabaseAdmin
       .from("trips")
-      .select("id, owner_id, name, celebrated_person, star_user_id, status")
+      .select("id, owner_id, name, celebrated_person, star_user_id, status, dates_locked")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -200,6 +200,7 @@ export const joinTrip = createServerFn({ method: "POST" })
         isOwner: true,
         myAvailabilityDone: !avail.error && !!avail.data,
         myPreferencesDone: !prefs.error && !!prefs.data,
+        datesLocked: Boolean(trip.data.dates_locked),
       };
     }
 
@@ -256,6 +257,7 @@ export const joinTrip = createServerFn({ method: "POST" })
         isOwner: false,
         myAvailabilityDone: !avail.error && !!avail.data,
         myPreferencesDone: !prefs.error && !!prefs.data,
+        datesLocked: Boolean(trip.data.dates_locked),
       };
     }
 
@@ -290,7 +292,12 @@ export const joinTrip = createServerFn({ method: "POST" })
       }
     }
 
-    return { tripId: data.tripId, alreadyMember: false, isOwner: false };
+    return {
+      tripId: data.tripId,
+      alreadyMember: false,
+      isOwner: false,
+      datesLocked: Boolean(trip.data.dates_locked),
+    };
   });
 
 export const checkJoinStatus = createServerFn({ method: "POST" })
@@ -307,7 +314,7 @@ export const checkJoinStatus = createServerFn({ method: "POST" })
 
     const trip = await supabaseAdmin
       .from("trips")
-      .select("id, owner_id")
+      .select("id, owner_id, dates_locked")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
@@ -349,6 +356,7 @@ export const checkJoinStatus = createServerFn({ method: "POST" })
         alreadyJoined: true,
         myAvailabilityDone: !avail.error && !!avail.data,
         myPreferencesDone: !prefs.error && !!prefs.data,
+        datesLocked: Boolean(trip.data.dates_locked),
       };
     }
 
@@ -356,6 +364,7 @@ export const checkJoinStatus = createServerFn({ method: "POST" })
       alreadyJoined: false,
       myAvailabilityDone: false,
       myPreferencesDone: false,
+      datesLocked: Boolean(trip.data.dates_locked),
     };
   });
 
