@@ -56,6 +56,18 @@ function eventTone(status: LiveSlotState["status"], featured: boolean) {
 }
 
 export function TripLiveModePanel({ tripId, trip, destinationName = null, weather = null, isOwner }: Props) {
+  const queryClient = useQueryClient();
+  const regenerateSlot = useServerFn(regenerateItinerarySlot);
+  const planBMutation = useMutation({
+    mutationFn: (payload: { day: number; state: LiveSlotState }) =>
+      regenerateSlot({ data: { tripId, day: payload.day, slotIndex: payload.state.slotIndex } }),
+    onSuccess: () => {
+      toast.success("Une autre option a été intégrée au planning");
+      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
+    },
+    onError: () => toast.error("Impossible de proposer une autre option pour le moment."),
+  });
+
   const now = new Date();
   const datesLocked = Boolean(trip?.dates_locked || trip?.datesLocked);
   const live = isTripLiveMode({
@@ -90,20 +102,7 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
   const weatherToday = weather?.days?.find((day) => day.date === todayKey) ?? null;
   const planBState = states.find((state) => isPlanBCandidate(state, weatherToday, now)) ?? null;
 
-  const queryClient = useQueryClient();
-  const regenerateSlot = useServerFn(regenerateItinerarySlot);
-  const planBMutation = useMutation({
-    mutationFn: (state: LiveSlotState) =>
-      regenerateSlot({ data: { tripId, day: dayNumber!, slotIndex: state.slotIndex } }),
-    onSuccess: () => {
-      toast.success("Une autre option a été intégrée au planning");
-      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-    },
-    onError: () => toast.error("Impossible de proposer une autre option pour le moment."),
-  });
-
-  const lodgingAddress =
-    text(lodging?.address) || text(lodging?.location?.address) || null;
+  const lodgingAddress = text(lodging?.address) || text(lodging?.location?.address) || null;
   const lodgingMapsUrl = lodging
     ? buildPlanningMapsUrl({
         existingUrl: lodging.mapsUrl,
@@ -243,7 +242,7 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
           </div>
         ) : null}
 
-        {planBState ? (
+        {planBState && dayNumber != null ? (
           <div className="mt-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4">
             <div className="flex items-start gap-3">
               <KrewIcon name="planning" tone="plum" size="sm" className="mt-0.5 size-5 shrink-0" />
@@ -256,7 +255,7 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
                   <button
                     type="button"
                     disabled={planBMutation.isPending}
-                    onClick={() => planBMutation.mutate(planBState)}
+                    onClick={() => planBMutation.mutate({ day: dayNumber, state: planBState })}
                     className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl border border-primary/25 bg-background px-4 text-sm font-semibold text-primary disabled:opacity-50"
                   >
                     {planBMutation.isPending ? "Recherche d’une autre option…" : "Intégrer une autre option"}
