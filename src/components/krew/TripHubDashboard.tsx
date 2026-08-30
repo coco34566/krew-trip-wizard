@@ -1,7 +1,11 @@
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { eventTypeLabel, formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/krew/Logo";
+import { KrewWeatherStamp } from "@/components/krew/KrewWeatherStamp";
+import { getDashboardWeather } from "@/lib/weather.functions";
 import {
   KrewIcon,
   KrewMark,
@@ -400,6 +404,29 @@ export function TripHubDashboard({
   const datesLocked = Boolean((trip as any).dates_locked || (trip as any).datesLocked);
   const hasItinerary = Boolean((trip as any).group_itinerary?.days?.length);
   const logistics = ((trip as any).group_logistics || {}) as any;
+  const fetchWeather = useServerFn(getDashboardWeather);
+  const weatherStartDate = (trip as any).start_date ?? provisionalStart ?? null;
+  const { data: weather } = useQuery({
+    queryKey: [
+      "dashboard-weather",
+      destinationName,
+      weatherStartDate,
+      (trip as any).end_date ?? null,
+      datesLocked,
+    ],
+    queryFn: () =>
+      fetchWeather({
+        data: {
+          destination: destinationName || "",
+          startDate: weatherStartDate,
+          endDate: (trip as any).end_date ?? weatherStartDate,
+          datesLocked,
+        },
+      }),
+    enabled: Boolean(destinationName && weatherStartDate && !inputTripEndDatePassed),
+    retry: false,
+    staleTime: 6 * 60 * 60 * 1000,
+  });
 
   const myHotelVoted = Boolean(
     viewerUserId && (logistics.hotelVotes ?? []).some((v: any) => v.userId === viewerUserId),
@@ -438,7 +465,6 @@ export function TripHubDashboard({
             />
           </div>
 
-
           {/* ZONE DE TITRE ÉDITORIAL SANS BLOB ENFERMANT */}
           <div className="relative z-20 -mt-10 px-4 pt-2">
             {/* LEVEL 1 — NOM DU VOYAGE (EYEBROW SECONDAIRE) */}
@@ -446,33 +472,41 @@ export function TripHubDashboard({
               {trip.name}
             </p>
 
-            {/* LEVEL 2 — DESTINATION / PROMESSE (GRAND TITRE INSTRUMENT SERIF) */}
-            <div className="relative mt-1 text-left inline-block max-w-full">
-              {/* Forme prune organique en accent sous le tiers droit / bas du titre */}
-              <KrewOrganicBlob
-                tone="plum"
-                variant="soft"
-                className="absolute right-0 bottom-0 w-[130px] sm:w-[160px] h-[65px] sm:h-[75px] text-primary opacity-20 pointer-events-none z-0"
-              />
+            {/* LEVEL 2 — DESTINATION + MÉTÉO COMPOSÉES COMME UN MÊME OBJET */}
+            <div className="mt-1 flex max-w-full flex-wrap items-end gap-3 sm:gap-5">
+              <div className="relative min-w-0 max-w-full text-left">
+                {/* Forme prune organique en accent sous le tiers droit / bas du titre */}
+                <KrewOrganicBlob
+                  tone="plum"
+                  variant="soft"
+                  className="absolute right-0 bottom-0 w-[130px] sm:w-[160px] h-[65px] sm:h-[75px] text-primary opacity-20 pointer-events-none z-0"
+                />
 
-              <h1 className="relative z-10 inline-block max-w-full break-words rounded-[10px] bg-background/75 px-2.5 py-1.5 font-display text-[42px] font-normal leading-[0.94] tracking-tight text-foreground backdrop-blur-[2px] sm:text-[56px]">
-                <span className="relative inline-block max-w-full">
-                  {destinationName || "Destination à définir"}
-                  {destinationName ? (
-                    <KrewMark
-                      type="underline-wave"
-                      tone="sage"
-                      size="sm"
-                      className="absolute left-0 -bottom-1.5 w-[90px] sm:w-[110px] h-[8px] opacity-90 pointer-events-none"
-                    />
-                  ) : null}
-                </span>
-                {trip.celebrated_person ? (
-                  <span className="block sm:inline sm:ml-3 text-foreground/90">
-                    pour {trip.celebrated_person}
+                <h1 className="relative z-10 inline-block max-w-full break-words rounded-[10px] bg-background/75 px-2.5 py-1.5 font-display text-[42px] font-normal leading-[0.94] tracking-tight text-foreground backdrop-blur-[2px] sm:text-[56px]">
+                  <span className="relative inline-block max-w-full">
+                    {destinationName || "Destination à définir"}
+                    {destinationName ? (
+                      <KrewMark
+                        type="underline-wave"
+                        tone="sage"
+                        size="sm"
+                        className="absolute left-0 -bottom-1.5 w-[90px] sm:w-[110px] h-[8px] opacity-90 pointer-events-none"
+                      />
+                    ) : null}
                   </span>
-                ) : null}
-              </h1>
+                  {trip.celebrated_person ? (
+                    <span className="block sm:inline sm:ml-3 text-foreground/90">
+                      pour {trip.celebrated_person}
+                    </span>
+                  ) : null}
+                </h1>
+              </div>
+
+              {weather ? (
+                <div className="ml-auto shrink-0 pb-0.5 pr-0.5">
+                  <KrewWeatherStamp weather={weather} />
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
