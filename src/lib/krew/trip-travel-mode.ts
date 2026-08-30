@@ -54,21 +54,51 @@ export type TravelModeModel = {
   planB: TravelModePlanB | null;
 };
 
-export function localDateKey(now = new Date()): string {
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+function zonedParts(now: Date, timezone?: string | null) {
+  if (timezone) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }).formatToParts(now);
+      const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+      const year = value("year");
+      const month = value("month");
+      const day = value("day");
+      const hour = Number(value("hour"));
+      const minute = Number(value("minute"));
+      if (year && month && day && Number.isFinite(hour) && Number.isFinite(minute)) {
+        return { date: `${year}-${month}-${day}`, minutes: hour * 60 + minute };
+      }
+    } catch {
+      // Invalid/missing destination timezone: fall back to the device local clock.
+    }
+  }
+
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return { date: `${year}-${month}-${day}`, minutes: now.getHours() * 60 + now.getMinutes() };
+}
+
+export function localDateKey(now = new Date(), timezone?: string | null): string {
+  return zonedParts(now, timezone).date;
 }
 
 export function isTripInProgress(input: {
   datesLocked?: boolean;
   startDate?: string | null;
   endDate?: string | null;
+  timezone?: string | null;
   now?: Date;
 }): boolean {
   if (!input.datesLocked || !input.startDate || !input.endDate) return false;
-  const today = localDateKey(input.now);
+  const today = localDateKey(input.now, input.timezone);
   return today >= input.startDate.slice(0, 10) && today <= input.endDate.slice(0, 10);
 }
 
@@ -122,14 +152,36 @@ export function isClearlyIndoor(candidate: RawBackup): boolean {
   return /musee|museum|galerie|gallery|spa|thermes|cinema|bowling|escape|atelier|workshop|indoor|interieur|restaurant|cafe|bar|degustation|tasting|shopping|marche couvert/.test(text);
 }
 
-function severeWeather(day: NonNullable<TripWeatherSummary["days"]>[number] | null): boolean {
-  if (!day) return false;
-  if (day.kind === "storm" || day.kind === "snow") return true;
-  return day.kind === "rain" && day.precipitationMm >= 3;
+function severeWeatherAroundSlot(
+  weather: TripWeatherSummary | null | undefined,
+  today: string,
+  slot: RawSlot,
+): boolean {
+  if (!weather || weather.mode !== "forecast") return false;
+  const start = minutes(slot.time);
+  if (start == null) return false;
+  const durationMinutes = Number(slot.durationMinutes);
+  const durationHours = Number.isFinite(durationMinutes) && durationMinutes > 0
+    ? Math.min(3, Math.max(1, Math.ceil(durationMinutes / 60)))
+    : 2;
+  const startHour = Math.floor(start / 60);
+  const relevantHours = (weather.hours ?? []).filter((hour) => {
+    if (!hour.time.startsWith(`${today}T`)) return false;
+    const hourValue = Number(hour.time.slice(11, 13));
+    return Number.isFinite(hourValue) && hourValue >= startHour && hourValue < startHour + durationHours;
+  });
+
+  if (relevantHours.some((hour) => hour.kind === "storm" || hour.kind === "snow")) return true;
+  const rainTotal = relevantHours.reduce((sum, hour) => sum + Math.max(0, hour.precipitationMm), 0);
+  if (relevantHours.length && rainTotal >= 1.5) return true;
+
+  // Without hourly data, only severe day-level phenomena are precise enough to warn.
+  const day = weather.days?.find((candidate) => candidate.date === today);
+  return Boolean(!relevantHours.length && day && (day.kind === "storm" || day.kind === "snow"));
 }
 
-function findBackup(itinerary: any, dayIndex: number, slotIndex: number): RawBackup | null {
-  const skeletonSlot = itinerary?.skeleton?.days?.[dayIndex]?.slots?.[slotIndex];
+function findBackup(itinerary: any, dayIndex: number, rawSlotIndex: number): RawBackup | null {
+  const skeletonSlot = itinerary?.skeleton?.days?.[dayIndex]?.slots?.[rawSlotIndex];
   if (!skeletonSlot?.id) return null;
   const backups = Array.isArray(itinerary?.skeleton?.backups) ? itinerary.skeleton.backups : [];
   return backups.find((backup: RawBackup) => backup?.forSlot === skeletonSlot.id && isClearlyIndoor(backup)) ?? null;
@@ -162,12 +214,15 @@ export function buildTravelModeModel(input: {
   now?: Date;
 }): TravelModeModel {
   const now = input.now ?? new Date();
-  const today = localDateKey(now);
+  const timezone = input.weather?.timezone ?? null;
+  const clock = zonedParts(now, timezone);
+  const today = clock.date;
   const trip = input.trip ?? {};
   const active = isTripInProgress({
     datesLocked: Boolean(trip.dates_locked || trip.datesLocked),
     startDate: trip.start_date,
     endDate: trip.end_date,
+    timezone,
     now,
   });
   const empty: TravelModeModel = {
@@ -207,64 +262,68 @@ export function buildTravelModeModel(input: {
     selectedLodging:
       (trip.group_logistics?.hotels ?? []).find((item: any) => item?.id === trip.group_logistics?.selectedHotelId) ?? null,
   });
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
   let nextAssigned = false;
-  const slots: TravelModeSlot[] = rawSlots
-    .filter((slot) => !["transport", "hotel"].includes(String(slot?.type ?? "").toLowerCase()))
-    .map((slot, index) => {
-      const start = minutes(slot.time);
-      const end = slotEndMinutes(slot);
-      let status: TravelModeSlotStatus = "unscheduled";
-      if (start != null) {
-        if (end != null && nowMinutes >= start && nowMinutes < end) status = "current";
-        else if (end != null ? nowMinutes >= end : nowMinutes > start) status = "past";
-        else if (!nextAssigned) {
-          status = "next";
-          nextAssigned = true;
-        } else status = "upcoming";
-      }
-      const point = mapModel.activityPoints.find(
-        (candidate) => candidate.day === Number(day.day) && candidate.orderInDay === index + 1,
-      );
-      return {
-        key: `${Number(day.day) || dayIndex + 1}-${index}`,
-        day: Number(day.day) || dayIndex + 1,
-        index,
-        label: String(slot.label || "Activité"),
-        time: typeof slot.time === "string" ? slot.time : null,
-        endTime: typeof slot.endTime === "string" ? slot.endTime : null,
-        moment: typeof slot.moment === "string" ? slot.moment : null,
-        type: typeof slot.type === "string" ? slot.type : null,
-        category: typeof slot.category === "string" ? slot.category : null,
-        venueFamily: typeof slot.venueFamily === "string" ? slot.venueFamily : null,
-        address: typeof slot.address === "string" && slot.address.trim() ? slot.address.trim() : null,
-        mapsUrl:
-          point?.mapsUrl ??
-          buildPlanningMapsUrl({
-            existingUrl: slot.url,
-            name: slot.label,
-            address: slot.address,
-            destination: input.destinationName,
-            latitude: slot.latitude,
-            longitude: slot.longitude,
-          }),
-        distanceLabel:
-          point?.distanceFromPreviousKm != null ? formatAirDistance(point.distanceFromPreviousKm) : null,
-        status,
-        raw: slot,
-      };
-    });
+  let visibleOrder = 0;
+  const slots: TravelModeSlot[] = rawSlots.flatMap((slot, rawIndex) => {
+    if (["transport", "hotel"].includes(String(slot?.type ?? "").toLowerCase())) return [];
+    visibleOrder += 1;
+    const start = minutes(slot.time);
+    const end = slotEndMinutes(slot);
+    let status: TravelModeSlotStatus = "unscheduled";
+    if (start != null) {
+      if (end != null && clock.minutes >= start && clock.minutes < end) status = "current";
+      else if (end != null ? clock.minutes >= end : clock.minutes > start) status = "past";
+      else if (!nextAssigned) {
+        status = "next";
+        nextAssigned = true;
+      } else status = "upcoming";
+    }
+    const point = mapModel.activityPoints.find(
+      (candidate) => candidate.day === Number(day.day) && candidate.orderInDay === visibleOrder,
+    );
+    return [{
+      key: `${Number(day.day) || dayIndex + 1}-${rawIndex}`,
+      day: Number(day.day) || dayIndex + 1,
+      index: rawIndex,
+      label: String(slot.label || "Activité"),
+      time: typeof slot.time === "string" ? slot.time : null,
+      endTime: typeof slot.endTime === "string" ? slot.endTime : null,
+      moment: typeof slot.moment === "string" ? slot.moment : null,
+      type: typeof slot.type === "string" ? slot.type : null,
+      category: typeof slot.category === "string" ? slot.category : null,
+      venueFamily: typeof slot.venueFamily === "string" ? slot.venueFamily : null,
+      address: typeof slot.address === "string" && slot.address.trim() ? slot.address.trim() : null,
+      mapsUrl:
+        point?.mapsUrl ??
+        buildPlanningMapsUrl({
+          existingUrl: slot.url,
+          name: slot.label,
+          address: slot.address,
+          destination: input.destinationName,
+          latitude: slot.latitude,
+          longitude: slot.longitude,
+        }),
+      distanceLabel:
+        point?.distanceFromPreviousKm != null ? formatAirDistance(point.distanceFromPreviousKm) : null,
+      status,
+      raw: slot,
+    }];
+  });
 
   const current = slots.find((slot) => slot.status === "current") ?? null;
-  const next = current ?? slots.find((slot) => slot.status === "next") ?? null;
+  const nextUpcoming = slots.find((slot) => slot.status === "next") ?? null;
+  const next = current ?? nextUpcoming;
   const todayWeather = input.weather?.mode === "forecast"
     ? input.weather.days?.find((weatherDay) => weatherDay.date === today) ?? null
     : null;
   const conflictTarget = next;
   const startMinutes = conflictTarget ? minutes(conflictTarget.time) : null;
-  const withinSixHours = startMinutes != null && startMinutes - nowMinutes >= -60 && startMinutes - nowMinutes <= 360;
+  const withinSixHours = startMinutes != null && startMinutes - clock.minutes >= -60 && startMinutes - clock.minutes <= 360;
   const conflict = Boolean(
-    conflictTarget && withinSixHours && isClearlyOutdoor(conflictTarget.raw) && severeWeather(todayWeather),
+    conflictTarget &&
+    withinSixHours &&
+    isClearlyOutdoor(conflictTarget.raw) &&
+    severeWeatherAroundSlot(input.weather, today, conflictTarget.raw),
   );
   const backup = conflictTarget && conflict ? findBackup(itinerary, dayIndex, conflictTarget.index) : null;
 
@@ -278,7 +337,7 @@ export function buildTravelModeModel(input: {
     lodging: selectedLodging(trip.group_logistics ?? {}, input.destinationName),
     todayWeather,
     weatherImpact: conflict
-      ? `${conflictTarget!.label} est prévu en extérieur dans les prochaines heures : la météo peut réellement gêner ce créneau.`
+      ? `${conflictTarget!.label} est prévu en extérieur dans les prochaines heures : la météo sur ce créneau peut réellement gêner l’activité.`
       : null,
     planB: backup
       ? {
