@@ -30,12 +30,14 @@ export const getTripWeather = createServerFn({ method: "GET" })
       const place = await geocodeDestination(data.destinationName);
       if (!place) return null;
 
+      // Une date affichée proche suffit pour demander la vraie prévision.
+      // Le verrouillage des dates ne doit pas forcer artificiellement la tendance saisonnière.
       const climate = await fetchClimate(place.latitude, place.longitude, {
-        startDate: data.datesLocked ? startDate : null,
-        endDate: data.datesLocked ? endDate : null,
+        startDate,
+        endDate,
       });
 
-      return buildTripWeatherSummary(climate, startDate, endDate, data.datesLocked);
+      return buildTripWeatherSummary(climate, startDate, endDate, true);
     } catch (error) {
       console.warn("[trip-weather] météo indisponible", error);
       return null;

@@ -56,8 +56,9 @@ function WeatherGlyph({ kind }: { kind: TripWeatherKind }) {
 
   return (
     <svg viewBox="0 0 40 40" aria-hidden="true" className="size-8 text-primary sm:size-9">
-      <path {...common} d="M8 23c5-7 12-10 24-7M9 29c7-3 14-3 22-1" />
-      <circle cx="12" cy="15" r="2" fill="currentColor" opacity=".55" />
+      <path {...common} d="M17 8.5v15.2a7 7 0 1 0 6 0V8.5a3 3 0 0 0-6 0Z" />
+      <path {...common} d="M20 14v12" />
+      <circle cx="20" cy="30" r="3.2" fill="currentColor" opacity=".75" />
     </svg>
   );
 }
