@@ -35,8 +35,16 @@ export function TripHubDashboard(props: Props) {
   const trip = props.trip as any;
   const logistics = (trip?.group_logistics ?? {}) as any;
   const organizationRefresh = getOrganizationRefreshState(logistics);
-  const staleSections = new Set(organizationRefresh?.items.map((item) => item.section) ?? []);
-  const organizationStale = staleSections.size > 0;
+  const accommodationStale = Boolean(
+    organizationRefresh?.items.some((item) => item.section === "accommodation"),
+  );
+  const transportStale = Boolean(
+    organizationRefresh?.items.some((item) => item.section === "transport"),
+  );
+  const itineraryStale = Boolean(
+    organizationRefresh?.items.some((item) => item.section === "itinerary"),
+  );
+  const organizationStale = Boolean(organizationRefresh?.items.length);
   const datesLocked = Boolean(trip?.dates_locked);
   const lifecycle = getTripLifecycleState({
     datesLocked,
@@ -85,23 +93,25 @@ export function TripHubDashboard(props: Props) {
     if (props.profileValidated) once("trip_profile_validated", "profile-validated");
     if (props.hasRecommendations) once("destination_proposals_generated", "destination-proposals");
     if (props.destinationSelected) once("destination_selected", "destination-selected");
-    if (!staleSections.has("accommodation") && logistics.selectedHotelId) {
+    if (!accommodationStale && logistics.selectedHotelId) {
       once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
     }
     if (
-      !staleSections.has("transport") &&
+      !transportStale &&
       viewerId &&
       (logistics.transportPicks ?? []).some((pick: any) => pick?.userId === viewerId && !pick?.stale)
     ) {
       once("transport_selected", `transport:${viewerId}`);
     }
-    if (!staleSections.has("itinerary") && trip?.group_itinerary?.days?.length) {
+    if (!itineraryStale && trip?.group_itinerary?.days?.length) {
       once("planning_generated", "planning-generated");
     }
     if (lifecycle === "live") once("trip_started", "started");
     if (lifecycle === "completed") once("trip_completed", "completed");
   }, [
+    accommodationStale,
     datesLocked,
+    itineraryStale,
     lifecycle,
     logistics.selectedHotelId,
     logistics.transportPicks,
@@ -114,7 +124,7 @@ export function TripHubDashboard(props: Props) {
     props.tripId,
     props.viewerUserId,
     rawPreferencesAnswered,
-    staleSections,
+    transportStale,
     trip,
   ]);
 
