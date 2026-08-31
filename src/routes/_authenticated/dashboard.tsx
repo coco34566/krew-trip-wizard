@@ -17,6 +17,7 @@ import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBl
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -234,6 +235,7 @@ function Dashboard() {
       toast.success("Voyage archivé");
       void trackProductEvent("trip_archived", { trip_id: tripId, role: "organizer" });
       queryClient.invalidateQueries({ queryKey: ["my-trips", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["co-organized-archived", user?.id] });
     },
     onError: (e: any) => {
       console.error("Impossible d'archiver le voyage:", e);
@@ -246,6 +248,7 @@ function Dashboard() {
       toast.success("Voyage réactivé");
       void trackProductEvent("trip_reactivated", { trip_id: tripId, role: "organizer" });
       queryClient.invalidateQueries({ queryKey: ["my-trips", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["co-organized-archived", user?.id] });
     },
     onError: (e: any) => {
       console.error("Impossible de réactiver le voyage:", e);
@@ -256,9 +259,28 @@ function Dashboard() {
   const fetchPriceWatches = useServerFn(listMyPriceWatches);
   const { data: watchData } = useQuery({ queryKey: ["price-watches", user?.id], queryFn: () => fetchPriceWatches({}), enabled: !!user && !authLoading, retry: false });
   const { data, isLoading, error: tripsError } = useQuery({ queryKey: ["my-trips", user?.id], queryFn: () => fetchTrips(), enabled: !!user && !authLoading, retry: false });
+  const { data: coOrganizedArchived = [] } = useQuery({
+    queryKey: ["co-organized-archived", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [] as Trip[];
+      const result = await supabase
+        .from("trips")
+        .select("*")
+        .eq("co_organizer_id", user.id)
+        .eq("status", "annule")
+        .order("created_at", { ascending: false });
+      if (result.error) throw result.error;
+      return (result.data ?? []) as Trip[];
+    },
+    enabled: !!user && !authLoading,
+    retry: false,
+  });
   const trips = (data?.trips ?? []) as Trip[];
   const invitations = (data?.invitations ?? []) as { id: string; trips: Trip | null }[];
-  const archivedTrips = (data?.archivedTrips ?? []) as Trip[];
+  const ownerArchivedTrips = (data?.archivedTrips ?? []) as Trip[];
+  const archivedTrips = [...ownerArchivedTrips, ...coOrganizedArchived].filter(
+    (trip, index, all) => all.findIndex((candidate) => candidate.id === trip.id) === index,
+  );
   const featuredTrip = trips[0];
   const otherTrips = trips.slice(1);
 
@@ -273,7 +295,7 @@ function Dashboard() {
 
       {(watchData?.watches?.length ?? 0) > 0 ? <div className="relative ml-auto max-w-[760px] rotate-[.25deg] rounded-[20px_26px_18px_24px] border border-primary/15 bg-primary/[.035] px-4 py-3 text-xs text-foreground sm:text-sm"><KrewNote variant="tape" tone="sage" rotation={-2} className="absolute -top-3 left-5 min-w-0 px-2 py-0.5 text-[12px] sm:text-[13px]">À garder à l'œil</KrewNote><div className="space-y-2 pt-1">{(watchData?.watches ?? []).slice(0, 5).map((w: any) => { const when = w.last_checked_at ? new Date(w.last_checked_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "—"; const tripName = (w.trips as any)?.name ?? "Voyage"; const dest = w.destination_name ?? "destination"; return <p key={w.id} className="flex items-start gap-2"><KrewIcon name="calendar" tone="plum" size="sm" className="mt-0.5 size-4 shrink-0" /><span>Re-vérifier les prix pour <strong>{dest}</strong> ({tripName}). Dernière vérification : {when}. <Link to="/trips/$tripId" params={{ tripId: w.trip_id }} search={{ view: "voyage" }} className="font-medium text-primary underline-offset-2 hover:underline">Voir le voyage</Link></span></p>; })}</div></div> : null}
 
-      {tripsError ? <div className="rounded-[28px] border border-destructive/30 bg-destructive/5 p-6"><h2 className="font-display text-lg font-normal text-destructive">Impossible de charger tes voyages</h2><p className="mt-2 text-sm text-muted-foreground">Réessaie dans un instant. Tes voyages sont toujours enregistrés.</p></div> : isLoading ? <div className="space-y-6"><Skeleton className="h-[430px] rounded-[28px]" /><div className="grid gap-6 sm:grid-cols-2"><Skeleton className="h-64 rounded-[24px]" /><Skeleton className="h-64 rounded-[24px]" /></div></div> : trips.length === 0 && invitations.length === 0 ? <div className="relative overflow-hidden rounded-[36px_28px_40px_30px] border border-dashed border-sage/50 bg-surface/30 p-10 text-center sm:p-16"><KrewOrganicBlob tone="sage" variant="soft" className="absolute inset-x-[15%] top-5 h-[150px] opacity-40" /><img src="/brand/otter-states/trip-progress.png" alt="" className="relative mx-auto mb-3 h-auto w-[82px] object-contain sm:w-[96px]" /><KrewNote variant="margin" rotation={-2} className="relative mb-1 text-sage">Première page à écrire</KrewNote><h2 className="relative font-display text-3xl font-normal text-foreground">Aucun voyage pour l'instant</h2><p className="relative mx-auto mt-2 max-w-md text-sm text-muted-foreground">Crée un voyage, puis invite le groupe pour commencer à l’organiser.</p><Button asChild size="lg" className="relative mt-6 rounded-xl"><Link to="/trips/new"><KrewIcon name="plus" size="sm" className="mr-1.5 size-4" />Créer mon premier voyage</Link></Button></div> : (
+      {tripsError ? <div className="rounded-[28px] border border-destructive/30 bg-destructive/5 p-6"><h2 className="font-display text-lg font-normal text-destructive">Impossible de charger tes voyages</h2><p className="mt-2 text-sm text-muted-foreground">Réessaie dans un instant. Tes voyages sont toujours enregistrés.</p></div> : isLoading ? <div className="space-y-6"><Skeleton className="h-[430px] rounded-[28px]" /><div className="grid gap-6 sm:grid-cols-2"><Skeleton className="h-64 rounded-[24px]" /><Skeleton className="h-64 rounded-[24px]" /></div></div> : trips.length === 0 && invitations.length === 0 && archivedTrips.length === 0 ? <div className="relative overflow-hidden rounded-[36px_28px_40px_30px] border border-dashed border-sage/50 bg-surface/30 p-10 text-center sm:p-16"><KrewOrganicBlob tone="sage" variant="soft" className="absolute inset-x-[15%] top-5 h-[150px] opacity-40" /><img src="/brand/otter-states/trip-progress.png" alt="" className="relative mx-auto mb-3 h-auto w-[82px] object-contain sm:w-[96px]" /><KrewNote variant="margin" rotation={-2} className="relative mb-1 text-sage">Première page à écrire</KrewNote><h2 className="relative font-display text-3xl font-normal text-foreground">Aucun voyage pour l'instant</h2><p className="relative mx-auto mt-2 max-w-md text-sm text-muted-foreground">Crée un voyage, puis invite le groupe pour commencer à l’organiser.</p><Button asChild size="lg" className="relative mt-6 rounded-xl"><Link to="/trips/new"><KrewIcon name="plus" size="sm" className="mr-1.5 size-4" />Créer mon premier voyage</Link></Button></div> : (
         <div className="space-y-14 sm:space-y-16">
           {featuredTrip ? <section><SectionHeading note={otherTrips.length ? `${trips.length} voyages` : "le prochain voyage"}>J'organise</SectionHeading><FeaturedTrip trip={featuredTrip} onArchive={(id) => archiveMutation.mutate(id)} />{otherTrips.length ? <div className="mt-8 border-t border-sage/25 pt-7 sm:mt-9 sm:pt-8"><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-8 md:justify-center">{otherTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onArchive={(id) => archiveMutation.mutate(id)} />)}</div></div> : null}</section> : null}
           {invitations.length ? <section className="relative pt-2"><KrewOrganicBlob tone="sage" variant="soft" className="absolute -right-16 top-0 -z-10 h-[180px] w-[320px] opacity-30" /><SectionHeading note="les voyages auxquels tu participes">Je participe</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{invitations.filter((i) => i.trips).map((i, index) => <NotebookTrip key={i.id} trip={i.trips as Trip} invited index={index} />)}</div></section> : null}
