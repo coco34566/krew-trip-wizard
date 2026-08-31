@@ -6,6 +6,28 @@ import { isTripAdmin } from "@/lib/krew/engine";
 
 const taskStatusSchema = z.enum(["todo", "in_progress", "done"]);
 
+export function isAssignableTaskParticipant(participant: {
+  user_id?: string | null;
+  status?: unknown;
+}) {
+  return Boolean(participant.user_id) && participant.status !== "absent" && participant.status !== "refuse";
+}
+
+export function canEditTaskStatus(input: {
+  isAdmin: boolean;
+  currentUserId: string;
+  assigneeUserId?: string | null;
+  assigneeStatus?: unknown;
+}) {
+  if (input.isAdmin) return true;
+  return Boolean(
+    input.assigneeUserId &&
+      input.assigneeUserId === input.currentUserId &&
+      input.assigneeStatus !== "absent" &&
+      input.assigneeStatus !== "refuse",
+  );
+}
+
 export const updateTaskStatusSecure = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) =>
@@ -45,9 +67,12 @@ export const updateTaskStatusSecure = createServerFn({ method: "POST" })
       if (assigneeRes.error) throw assigneeRes.error;
       if (
         !assigneeRes.data ||
-        assigneeRes.data.user_id !== userId ||
-        assigneeRes.data.status === "absent" ||
-        assigneeRes.data.status === "refuse"
+        !canEditTaskStatus({
+          isAdmin: false,
+          currentUserId: userId,
+          assigneeUserId: assigneeRes.data.user_id,
+          assigneeStatus: assigneeRes.data.status,
+        })
       ) {
         throw new Error("403 Forbidden: tu peux modifier uniquement tes tâches attribuées");
       }
@@ -102,11 +127,8 @@ export const reassignTaskSecure = createServerFn({ method: "POST" })
       if (participantRes.data.trip_id !== task.trip_id) {
         throw new Error("Le participant n’appartient pas à ce voyage");
       }
-      if (!participantRes.data.user_id) {
-        throw new Error("Impossible d’assigner une tâche à un emplacement non rejoint");
-      }
-      if (participantRes.data.status === "absent" || participantRes.data.status === "refuse") {
-        throw new Error("Impossible d’assigner une tâche à un participant qui ne participe plus");
+      if (!isAssignableTaskParticipant(participantRes.data)) {
+        throw new Error("Impossible d’assigner une tâche à un emplacement non rejoint ou inactif");
       }
     }
 
@@ -155,12 +177,7 @@ export const sanitizeTaskAssignments = createServerFn({ method: "POST" })
 
     const validAssigneeIds = new Set(
       (participantsRes.data ?? [])
-        .filter(
-          (participant: any) =>
-            Boolean(participant.user_id) &&
-            participant.status !== "absent" &&
-            participant.status !== "refuse",
-        )
+        .filter((participant: any) => isAssignableTaskParticipant(participant))
         .map((participant: any) => participant.id),
     );
     const invalidTaskIds = (tasksRes.data ?? [])
