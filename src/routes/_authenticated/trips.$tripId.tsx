@@ -71,12 +71,22 @@ function AvailabilityResponseGate({ tripId, children }: { tripId: string; childr
 
 function PreferencesResponseGate({ tripId, children }: { tripId: string; children: ReactNode }) {
   const fetchMine = useServerFn(getMyParticipantPreferences);
+  const fetchDetail = useServerFn(getTripDetail);
   const { data, isLoading } = useQuery({
-    queryKey: ["my-preferences", tripId],
-    queryFn: () => fetchMine({ data: { tripId } }),
+    queryKey: ["my-preferences-gate", tripId],
+    queryFn: async () => {
+      const [mine, detail] = await Promise.all([
+        fetchMine({ data: { tripId } }),
+        fetchDetail({ data: { tripId } }),
+      ]);
+      return {
+        preferences: mine.preferences,
+        datesLocked: Boolean((detail.trip as any)?.dates_locked),
+      };
+    },
   });
   if (isLoading) return <ResponseGateLoading />;
-  if (!data?.trip?.dates_locked) return <>{children}</>;
+  if (!data?.datesLocked) return <>{children}</>;
   return (
     <ClosedResponseState tripId={tripId} title="Préférences" hasPreviousAnswer={Boolean(data.preferences)}>
       {children}
@@ -139,7 +149,6 @@ function TripLayout() {
   const showProfilePage = search.view === "voyage" && section === "profile";
   const showTasksPage = search.view === "voyage" && section === "tasks";
   const showTransportPage = search.view === "voyage" && section === "transport";
-  const showPackingPage = search.view === "voyage" && section === "packing";
   const showInvitePage = location.pathname.endsWith(`/trips/${tripId}/invite`);
   const showStarGate = location.pathname.endsWith(`/trips/${tripId}/star`);
   const showAvailabilityPage = location.pathname.endsWith(`/trips/${tripId}/availability`);
