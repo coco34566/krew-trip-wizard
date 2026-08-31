@@ -15,12 +15,6 @@ import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
 
 type Props = ComponentProps<typeof TripHubDashboardLegacy>;
 
-/**
- * Single counter boundary for the trip dashboard.
- * The historical parent still computes a few legacy fallbacks; this entry point
- * deliberately ignores them and reads the centralized response selector from
- * the same React Query cache used by the rest of the trip page.
- */
 export function TripHubDashboard(props: Props) {
   const fetchProgress = useServerFn(getParticipantsProgress);
   const { data: centralized } = useQuery({
@@ -35,15 +29,9 @@ export function TripHubDashboard(props: Props) {
   const trip = props.trip as any;
   const logistics = (trip?.group_logistics ?? {}) as any;
   const organizationRefresh = getOrganizationRefreshState(logistics);
-  const accommodationStale = Boolean(
-    organizationRefresh?.items.some((item) => item.section === "accommodation"),
-  );
-  const transportStale = Boolean(
-    organizationRefresh?.items.some((item) => item.section === "transport"),
-  );
-  const itineraryStale = Boolean(
-    organizationRefresh?.items.some((item) => item.section === "itinerary"),
-  );
+  const accommodationStale = Boolean(organizationRefresh?.items.some((item) => item.section === "accommodation"));
+  const transportStale = Boolean(organizationRefresh?.items.some((item) => item.section === "transport"));
+  const itineraryStale = Boolean(organizationRefresh?.items.some((item) => item.section === "itinerary"));
   const organizationStale = Boolean(organizationRefresh?.items.length);
   const datesLocked = Boolean(trip?.dates_locked);
   const lifecycle = getTripLifecycleState({
@@ -54,8 +42,6 @@ export function TripHubDashboard(props: Props) {
   const responsesClosed = datesLocked;
   const completed = lifecycle === "completed";
 
-  // Once dates are locked, the response phase is closed. A participant who joins
-  // later must not make the dashboard look incomplete or receive impossible CTAs.
   const preferencesAnswered = responsesClosed ? preferencesExpected : rawPreferencesAnswered;
   const availabilityAnswered = responsesClosed ? availabilityExpected : rawAvailabilityAnswered;
 
@@ -96,11 +82,7 @@ export function TripHubDashboard(props: Props) {
     if (!accommodationStale && logistics.selectedHotelId) {
       once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
     }
-    if (
-      !transportStale &&
-      viewerId &&
-      (logistics.transportPicks ?? []).some((pick: any) => pick?.userId === viewerId && !pick?.stale)
-    ) {
+    if (!transportStale && viewerId && (logistics.transportPicks ?? []).some((pick: any) => pick?.userId === viewerId && !pick?.stale)) {
       once("transport_selected", `transport:${viewerId}`);
     }
     if (!itineraryStale && trip?.group_itinerary?.days?.length) {
@@ -138,18 +120,9 @@ export function TripHubDashboard(props: Props) {
           </p>
         </section>
       ) : null}
-      <div
-        className={
-          completed
-            ? "[&>div>header>.mt-4.px-4]:hidden [&>div>header+*]:hidden"
-            : undefined
-        }
-      >
+      <div className={completed ? "[&>div>header>.mt-4.px-4]:hidden [&>div>header+*]:hidden" : undefined}>
         <TripHubDashboardLegacy
           {...props}
-          // A completed trip is a restitution state. Preserve the viewer's real
-          // role and historical labels, while suppressing preparation-only UI and
-          // requests (weather/actions) that no longer make sense after the trip.
           isOwner={props.isOwner}
           myAvailabilityDone={responsesClosed || completed ? true : props.myAvailabilityDone}
           myPreferencesDone={responsesClosed || completed ? true : props.myPreferencesDone}
