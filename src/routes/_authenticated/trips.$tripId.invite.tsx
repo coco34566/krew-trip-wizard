@@ -227,6 +227,8 @@ function InvitePage() {
   const total = Math.max(progress?.total ?? participants.length, trip.participants_count || 1);
   const missingParticipants =
     progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
+  const missingResponses = Math.max(0, total - answered);
+  const groupFullyIdentified = placeholders.length === 0;
 
   function shareInvitation() {
     if (!shareUrl) {
@@ -251,6 +253,12 @@ function InvitePage() {
       ].filter(Boolean);
       lines.push(`• ${name} : ${missing.join(" + ")}`);
     }
+    const unidentifiedMissing = Math.max(0, missingResponses - missingParticipants.length);
+    if (unidentifiedMissing > 0) {
+      lines.push(
+        `• ${unidentifiedMissing} participant${unidentifiedMissing > 1 ? "s" : ""} encore à inviter`,
+      );
+    }
     lines.push("", `${window.location.origin}/trips/${trip.id}`);
     shareOnWhatsApp(lines.join("\n"));
   }
@@ -272,7 +280,9 @@ function InvitePage() {
         waveClassName="w-[140px]"
       >
         <p className="max-w-[42rem] text-[15px] leading-[1.55] text-muted-foreground sm:text-[16px]">
-          {inviteStepCompleted ? "Le groupe est réuni. Tu peux relancer les réponses qui manquent." : "Partage le lien, invite le groupe et vois en un coup d’œil qui doit encore répondre."}
+          {inviteStepCompleted && groupFullyIdentified
+            ? "Le groupe est réuni. Tu peux relancer les réponses qui manquent."
+            : "Partage le lien, invite le groupe et vois en un coup d’œil qui doit encore répondre."}
         </p>
       </KrewJourneyPageHeader>
 
@@ -432,10 +442,10 @@ function InvitePage() {
           )}
         </div>
 
-        {data.isOwner && missingParticipants.length > 0 ? (
+        {data.isOwner && missingResponses > 0 ? (
           <div className="flex flex-col gap-1 border-t border-border/45 pt-4 text-[14px] sm:flex-row sm:items-center sm:justify-between">
             <p className="text-muted-foreground">
-              {missingParticipants.length === 1 ? "1 réponse manque encore." : `${missingParticipants.length} réponses manquent encore.`}
+              {missingResponses === 1 ? "1 réponse manque encore." : `${missingResponses} réponses manquent encore.`}
             </p>
             <button
               type="button"
