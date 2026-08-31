@@ -10,11 +10,11 @@ import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  generateTasksForTrip,
-  getTripDetail,
-  reassignTask,
-  updateTaskStatus,
-} from "@/lib/trips.functions";
+  reassignTaskSecure,
+  sanitizeTaskAssignments,
+  updateTaskStatusSecure,
+} from "@/lib/task-permissions.functions";
+import { generateTasksForTrip, getTripDetail } from "@/lib/trips.functions";
 import { cn } from "@/lib/utils";
 
 type TaskStatus = "todo" | "in_progress" | "done";
@@ -53,9 +53,10 @@ function statusClass(status: TaskStatus) {
 export function TripTasksPage({ tripId }: { tripId: string }) {
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
-  const updateStatus = useServerFn(updateTaskStatus);
-  const reassign = useServerFn(reassignTask);
+  const updateStatus = useServerFn(updateTaskStatusSecure);
+  const reassign = useServerFn(reassignTaskSecure);
   const generateTasks = useServerFn(generateTasksForTrip);
+  const sanitizeAssignments = useServerFn(sanitizeTaskAssignments);
 
   const detailQuery = useQuery({
     queryKey: ["trip", tripId],
@@ -118,7 +119,13 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   });
 
   const generateMutation = useMutation({
-    mutationFn: () => generateTasks({ data: { tripId } }),
+    mutationFn: async () => {
+      const result = await generateTasks({ data: { tripId } });
+      if ((result as any)?.ok) {
+        await sanitizeAssignments({ data: { tripId } });
+      }
+      return result;
+    },
     onSuccess: (result: any) => {
       if (result?.ok) {
         toast.success(`${result.count ?? 0} tâche${result.count === 1 ? "" : "s"} prête${result.count === 1 ? "" : "s"}`);
@@ -162,7 +169,11 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   const isAdmin = Boolean(data.isOwner);
   const userId = data.userId as string;
   const participants = ((data.participants ?? []) as any[]).filter(
-    (participant) => !participant.placeholder && participant.status !== "absent",
+    (participant) =>
+      Boolean(participant.user_id) &&
+      !participant.placeholder &&
+      participant.status !== "absent" &&
+      participant.status !== "refuse",
   );
   const tasks = tasksQuery.data ?? [];
   const hasItinerary = Boolean(trip.group_itinerary?.days?.length);
