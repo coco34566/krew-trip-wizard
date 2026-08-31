@@ -24,6 +24,23 @@ import {
   regenerateItinerarySlot,
 } from "@/lib/trips.functions";
 
+export function planningTypeLabel(type: string | null | undefined) {
+  const normalized = String(type ?? "").trim().toLowerCase();
+  const labels: Record<string, string> = {
+    activite: "Activité",
+    activité: "Activité",
+    resto: "Restaurant",
+    restaurant: "Restaurant",
+    libre: "Temps libre",
+    temps_libre: "Temps libre",
+    bar: "Bar",
+    transport: "Transport",
+    hotel: "Hébergement",
+    hébergement: "Hébergement",
+  };
+  return labels[normalized] ?? (type ? String(type).replace(/_/g, " ").replace(/^./, (char) => char.toUpperCase()) : "");
+}
+
 export function TripPlanningPage({ tripId }: { tripId: string }) {
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
@@ -188,6 +205,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                           : CalendarDays;
                   const directPrice = Number(slot.pricePerPerson ?? slot.priceHint);
                   const hasDirectPrice = Number.isFinite(directPrice) && directPrice >= 0;
+                  const typeLabel = planningTypeLabel(slot.type);
 
                   return (
                     <div
@@ -201,7 +219,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             {slot.time ? <span className="font-mono font-semibold text-primary">{slot.time}</span> : null}
                             {slot.moment ? <span>{slot.moment}</span> : null}
-                            {slot.type ? <span>· {slot.type}</span> : null}
+                            {typeLabel ? <span>· {typeLabel}</span> : null}
                           </div>
                           <p className="mt-0.5 text-sm font-semibold text-foreground">{slot.label}</p>
                           {slot.detail ? <p className="mt-0.5 text-xs text-muted-foreground">{slot.detail}</p> : null}
