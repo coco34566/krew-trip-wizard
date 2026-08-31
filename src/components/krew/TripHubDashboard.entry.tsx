@@ -5,7 +5,10 @@ import { useServerFn } from "@tanstack/react-start";
 
 import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
-import { maskStaleOrganizationDataForDashboard } from "@/lib/krew/organization-refresh";
+import {
+  getOrganizationRefreshState,
+  maskStaleOrganizationDataForDashboard,
+} from "@/lib/krew/organization-refresh";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { trackProductEventOnce, type ProductAnalyticsProperties } from "@/lib/product-analytics";
 import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
@@ -31,6 +34,9 @@ export function TripHubDashboard(props: Props) {
   const rawAvailabilityAnswered = centralized?.availabilityAnswered ?? 0;
   const trip = props.trip as any;
   const logistics = (trip?.group_logistics ?? {}) as any;
+  const organizationRefresh = getOrganizationRefreshState(logistics);
+  const staleSections = new Set(organizationRefresh?.items.map((item) => item.section) ?? []);
+  const organizationStale = staleSections.size > 0;
   const datesLocked = Boolean(trip?.dates_locked);
   const lifecycle = getTripLifecycleState({
     datesLocked,
@@ -72,18 +78,26 @@ export function TripHubDashboard(props: Props) {
       trackProductEventOnce(event, `${props.tripId}:${stateKey}`, common);
 
     if (role === "organizer") once("trip_created", "created");
-    if (role !== "organizer" && viewerId) once("participant_joined", `joined:${viewerId}`);
+    if (role === "participant" && viewerId) once("participant_joined", `joined:${viewerId}`);
     if (props.myAvailabilityDone) once("availability_submitted", `availability:${viewerId ?? "viewer"}`);
     if (props.myPreferencesDone) once("preferences_submitted", `preferences:${viewerId ?? "viewer"}`);
     if (datesLocked) once("dates_locked", "dates-locked");
     if (props.profileValidated) once("trip_profile_validated", "profile-validated");
     if (props.hasRecommendations) once("destination_proposals_generated", "destination-proposals");
     if (props.destinationSelected) once("destination_selected", "destination-selected");
-    if (logistics.selectedHotelId) once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
-    if (viewerId && (logistics.transportPicks ?? []).some((pick: any) => pick?.userId === viewerId)) {
+    if (!staleSections.has("accommodation") && logistics.selectedHotelId) {
+      once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
+    }
+    if (
+      !staleSections.has("transport") &&
+      viewerId &&
+      (logistics.transportPicks ?? []).some((pick: any) => pick?.userId === viewerId && !pick?.stale)
+    ) {
       once("transport_selected", `transport:${viewerId}`);
     }
-    if (trip?.group_itinerary?.days?.length) once("planning_generated", "planning-generated");
+    if (!staleSections.has("itinerary") && trip?.group_itinerary?.days?.length) {
+      once("planning_generated", "planning-generated");
+    }
     if (lifecycle === "live") once("trip_started", "started");
     if (lifecycle === "completed") once("trip_completed", "completed");
   }, [
@@ -100,6 +114,7 @@ export function TripHubDashboard(props: Props) {
     props.tripId,
     props.viewerUserId,
     rawPreferencesAnswered,
+    staleSections,
     trip,
   ]);
 
@@ -135,6 +150,9 @@ export function TripHubDashboard(props: Props) {
           availabilityAnswered={availabilityAnswered}
           availabilityExpected={availabilityExpected}
           destinationSelected={completed ? false : props.destinationSelected}
+          totalReserved={organizationStale ? null : props.totalReserved}
+          totalEstimated={organizationStale ? null : props.totalEstimated}
+          liveBudgetTotal={organizationStale ? null : props.liveBudgetTotal}
           tripEndDatePassed={completed}
           trip={tripForDashboard}
         >
