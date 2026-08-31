@@ -40,6 +40,7 @@ begin
           end,
         -- Preserve the previous values for history/debugging while removing
         -- them from the legacy active fields consumed by itinerary/cost logic.
+        'previousMode', coalesce(pick -> 'previousMode', pick -> 'mode', 'null'::jsonb),
         'previousTime', coalesce(pick -> 'previousTime', pick -> 'time', 'null'::jsonb),
         'previousArrivalTime', coalesce(pick -> 'previousArrivalTime', pick -> 'arrivalTime', 'null'::jsonb),
         'previousDepartureTime', coalesce(pick -> 'previousDepartureTime', pick -> 'departureTime', 'null'::jsonb),
@@ -48,6 +49,9 @@ begin
         'previousDurationHours', coalesce(pick -> 'previousDurationHours', pick -> 'durationHours', 'null'::jsonb),
         'previousPricePerPerson', coalesce(pick -> 'previousPricePerPerson', pick -> 'pricePerPerson', 'null'::jsonb),
         'previousStatus', coalesce(pick -> 'previousStatus', pick -> 'status', 'null'::jsonb),
+        -- mode=null prevents the legacy UI from treating an identically named
+        -- fresh proposal as already selected. modeLabel/label/city stay visible.
+        'mode', 'null'::jsonb,
         'time', 'null'::jsonb,
         'arrivalTime', 'null'::jsonb,
         'departureTime', 'null'::jsonb,
