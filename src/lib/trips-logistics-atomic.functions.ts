@@ -4,6 +4,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isTripAdmin } from "@/lib/krew/engine";
 
+function normalizeCity(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLocaleLowerCase("fr-FR");
+}
+
 /**
  * Atomic replacement for the legacy hotel-vote handler.
  * Access checks remain application-side; the actual JSONB mutation is performed
@@ -67,7 +73,8 @@ export const voteHotelAtomic = createServerFn({ method: "POST" })
 
 /**
  * Atomic replacement for the legacy personal transport selection handler.
- * A participant can still only update their own pick.
+ * A participant can only update their own pick and only from the departure city
+ * explicitly stored in their questionnaire preferences.
  */
 export const pickTransportAtomic = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -100,15 +107,36 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
 
-    const participant = await supabase
-      .from("trip_participants")
-      .select("display_name, email, status")
-      .eq("trip_id", data.tripId)
-      .eq("user_id", userId)
-      .maybeSingle();
+    const [participant, preferences] = await Promise.all([
+      supabase
+        .from("trip_participants")
+        .select("display_name, email, status")
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase
+        .from("trip_participant_preferences")
+        .select("departure_city")
+        .eq("trip_id", data.tripId)
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
+
     if (participant.error) throw participant.error;
-    if (!isTripAdmin(tripRes.data, userId) && (!participant.data || participant.data.status === "absent")) {
-      throw new Error("403 Forbidden: seuls les membres du voyage peuvent choisir un transport");
+    if (preferences.error) throw preferences.error;
+    if (
+      !isTripAdmin(tripRes.data, userId) &&
+      (!participant.data || participant.data.status === "absent" || participant.data.status === "refuse")
+    ) {
+      throw new Error("403 Forbidden: seuls les membres actifs du voyage peuvent choisir un transport");
+    }
+
+    const departureCity = String(preferences.data?.departure_city ?? "").trim();
+    if (!departureCity) {
+      throw new Error("Renseigne ta ville de départ dans tes préférences avant de choisir un trajet");
+    }
+    if (normalizeCity(departureCity) !== normalizeCity(data.city)) {
+      throw new Error("Tu peux choisir uniquement un trajet depuis ta ville de départ");
     }
 
     const displayName =
@@ -119,7 +147,7 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
     const entry = {
       userId,
       displayName,
-      city: data.city,
+      city: departureCity,
       mode: data.mode,
       modeLabel: data.modeLabel || data.mode,
       label: data.label,
