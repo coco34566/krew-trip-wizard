@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   deriveResponseProgress,
+  getEffectiveAvailabilityProgress,
   hasSecretStarAvailability,
   hasSecretStarPreferences,
   isInactiveResponseParticipant,
@@ -12,7 +13,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   const [tripRes, participantsRes, preferencesRes, availabilitiesRes, starPrefsRes] = await Promise.all([
     supabase
       .from("trips")
-      .select("celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics")
+      .select("celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics, dates_locked")
       .eq("id", tripId)
       .maybeSingle(),
     supabase
@@ -56,6 +57,11 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     availabilityUserIds: availabilityRows.map((row: any) => row.user_id),
     secretStarHasPreferences: hasSecretStarPreferences(starPrefs),
     secretStarHasAvailability: hasSecretStarAvailability(starPrefs),
+  });
+  const effectiveAvailability = getEffectiveAvailabilityProgress({
+    datesLocked: Boolean(tripRes.data.dates_locked),
+    answered: counts.availabilityAnswered,
+    expected: counts.availabilityExpected,
   });
 
   const prefByUser = new Map<string, any>();
@@ -129,11 +135,11 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     expected: counts.preferencesExpected,
     total: counts.preferencesExpected,
     answered: counts.preferencesAnswered,
-    availabilityAnswered: counts.availabilityAnswered,
+    availabilityAnswered: effectiveAvailability.answered,
     preferencesExpected: counts.preferencesExpected,
-    availabilityExpected: counts.availabilityExpected,
+    availabilityExpected: effectiveAvailability.expected,
     pendingPrefs: counts.preferencesMissing,
-    pendingAvailability: counts.availabilityMissing,
+    pendingAvailability: effectiveAvailability.missing,
     pendingJoin: 0,
     participants: partsList,
   };
