@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, ...props }: any) => <a href="#" {...props}>{children}</a>,
+  Link: ({ children }: any) => <a href="#">{children}</a>,
 }));
 
 vi.mock("@tanstack/react-start", () => ({
@@ -35,6 +35,7 @@ vi.mock("@tanstack/react-query", () => ({
           participants: [
             { id: "p1", user_id: "owner", display_name: "Org", status: "accepte" },
             { id: "p2", user_id: "participant-user", display_name: "Pat", status: "accepte" },
+            { id: "p3", user_id: null, display_name: "À inviter", status: "invite" },
           ],
         },
       };
@@ -63,8 +64,11 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 vi.mock("@/lib/trips.functions", () => ({
   generateTasksForTrip: vi.fn(),
   getTripDetail: vi.fn(),
-  reassignTask: vi.fn(),
-  updateTaskStatus: vi.fn(),
+}));
+vi.mock("@/lib/task-permissions.functions", () => ({
+  reassignTaskSecure: vi.fn(),
+  sanitizeTaskAssignments: vi.fn(),
+  updateTaskStatusSecure: vi.fn(),
 }));
 
 import { TripTasksPage } from "./TripTasksPage";
@@ -92,5 +96,13 @@ describe("TripTasksPage role wording", () => {
     expect(screen.queryByRole("link", { name: "Inviter le groupe" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Invite-les avant/i)).not.toBeInTheDocument();
     expect(screen.getByText("Réserver le restaurant")).toBeInTheDocument();
+  });
+
+  it("does not expose an unclaimed invite as an assignable participant", () => {
+    state.isAdmin = true;
+    state.userId = "owner";
+    render(<TripTasksPage tripId="00000000-0000-4000-8000-000000000099" />);
+
+    expect(screen.queryByRole("option", { name: "À inviter" })).not.toBeInTheDocument();
   });
 });
