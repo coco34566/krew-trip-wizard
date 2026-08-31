@@ -25,7 +25,9 @@ export type KrewPulse = {
 };
 
 export function getKrewPulse(input: KrewPulseInput): KrewPulse {
-  const missingAvailability = Math.max(0, input.availabilityExpected - input.availabilityAnswered);
+  const missingAvailability = input.datesLocked
+    ? 0
+    : Math.max(0, input.availabilityExpected - input.availabilityAnswered);
   const missingPreferences = Math.max(0, input.preferencesExpected - input.preferencesAnswered);
 
   if (missingAvailability > 0 && missingPreferences > 0) return { state: "waiting", message: "Il manque encore des réponses du groupe." };
