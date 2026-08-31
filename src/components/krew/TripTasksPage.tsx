@@ -9,6 +9,7 @@ import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
+import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import {
   reassignTaskSecure,
   sanitizeTaskAssignments,
@@ -48,6 +49,14 @@ function statusClass(status: TaskStatus) {
     status === "in_progress" && "border-primary/25 bg-primary/8 text-primary",
     status === "todo" && "border-border bg-muted text-muted-foreground",
   );
+}
+
+function assigneeLabel(task: TripTask) {
+  return task.assigned_participant
+    ? task.assigned_participant.display_name ||
+        task.assigned_participant.email?.split("@")[0] ||
+        "Participant"
+    : "Non attribué";
 }
 
 export function TripTasksPage({ tripId }: { tripId: string }) {
@@ -168,6 +177,11 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   const trip = data.trip as any;
   const isAdmin = Boolean(data.isOwner);
   const userId = data.userId as string;
+  const completedTrip = getTripLifecycleState({
+    datesLocked: Boolean(trip.dates_locked),
+    startDate: trip.start_date,
+    endDate: trip.end_date,
+  }) === "completed";
   const participants = ((data.participants ?? []) as any[]).filter(
     (participant) =>
       Boolean(participant.user_id) &&
@@ -185,6 +199,9 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   );
 
   const renderStatus = (task: TripTask) => {
+    if (completedTrip) {
+      return <span className={statusClass(task.status)}>{STATUS_LABEL[task.status]}</span>;
+    }
     const canEdit = isAdmin || task.assigned_participant?.user_id === userId;
     if (!canEdit) {
       return <span className={statusClass(task.status)}>{STATUS_LABEL[task.status]}</span>;
@@ -207,14 +224,10 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   };
 
   const renderAssignee = (task: TripTask) => {
-    if (!isAdmin) {
+    if (completedTrip || !isAdmin) {
       return (
         <span className="rounded-full border border-border/60 bg-surface px-2.5 py-1 text-xs">
-          {task.assigned_participant
-            ? task.assigned_participant.display_name ||
-              task.assigned_participant.email?.split("@")[0] ||
-              "Participant"
-            : "Non attribué"}
+          {assigneeLabel(task)}
         </span>
       );
     }
@@ -247,10 +260,10 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
           day: "numeric",
           month: "short",
         })
-      : "Préparation";
+      : completedTrip ? "Avant le voyage" : "Préparation";
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 py-8 sm:px-6 sm:py-10">
+    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 py-8 sm:px-6 sm:py-10" data-completed-trip={completedTrip || undefined}>
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -268,22 +281,26 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
         />
         <h1 className="flex items-center gap-2 font-display text-[30px] font-normal text-foreground sm:text-[36px]">
           <KrewIcon name="tasks" tone="plum" size="sm" className="size-5" />
-          {isAdmin ? "Répartir les tâches" : "Les tâches du groupe"}
+          {completedTrip ? "Tâches du voyage" : isAdmin ? "Répartir les tâches" : "Les tâches du groupe"}
         </h1>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {isAdmin
-            ? "Attribue les actions utiles pour préparer le voyage et suis leur avancement."
-            : "Retrouve les tâches du groupe. Tu peux mettre à jour uniquement celles qui te sont attribuées."}
+          {completedTrip
+            ? "L’historique des tâches, des responsables et de leur dernier statut enregistré."
+            : isAdmin
+              ? "Attribue les actions utiles pour préparer le voyage et suis leur avancement."
+              : "Retrouve les tâches du groupe. Tu peux mettre à jour uniquement celles qui te sont attribuées."}
         </p>
         {tasks.length > 0 ? (
           <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-foreground">
             <KrewMark type={completed === tasks.length ? "check" : "scribble"} tone="sage" size="sm" className="size-4" />
-            {completed}/{tasks.length} terminée{tasks.length > 1 ? "s" : ""}
+            {completedTrip
+              ? `Statut conservé : ${completed} terminée${completed > 1 ? "s" : ""} sur ${tasks.length}`
+              : `${completed}/${tasks.length} terminée${tasks.length > 1 ? "s" : ""}`}
           </p>
         ) : null}
       </header>
 
-      {isAdmin && missingParticipants > 0 ? (
+      {isAdmin && !completedTrip && missingParticipants > 0 ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
@@ -304,12 +321,14 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
 
       {!hasItinerary ? (
         <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          Le planning doit être prêt avant de préparer les tâches du voyage.
+          {completedTrip
+            ? "Aucun planning n’a été conservé pour relier ces tâches au déroulé du voyage."
+            : "Le planning doit être prêt avant de préparer les tâches du voyage."}
         </div>
       ) : tasks.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          <p>Aucune tâche pour le moment.</p>
-          {isAdmin ? (
+          <p>{completedTrip ? "Aucune tâche n’a été enregistrée pour ce voyage." : "Aucune tâche pour le moment."}</p>
+          {isAdmin && !completedTrip ? (
             <KrewStatefulButton
               className="mt-4 w-full sm:w-auto"
               idleLabel="Préparer les tâches"
@@ -392,7 +411,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
         </>
       )}
 
-      {isAdmin && hasItinerary && tasks.length > 0 ? (
+      {isAdmin && !completedTrip && hasItinerary && tasks.length > 0 ? (
         <div className="border-t border-border/45 pt-4">
           <Button
             variant="outline"
