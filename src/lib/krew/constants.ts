@@ -164,11 +164,18 @@ export const AMENITIES = [
   { value: "ascenseur", label: "Ascenseur" },
 ] as const;
 
-export const formatEuro = (value: number) =>
-  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(
-    Math.round(value),
-  );
+export function isKnownMoneyAmount(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
 
+export const formatEuro = (value: number) => {
+  if (!isKnownMoneyAmount(value)) return "Montant à confirmer";
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(Math.round(value));
+};
 
 /** Presets distance (filtres utiles pour shortlist + vols). */
 export const DISTANCE_PRESETS = [

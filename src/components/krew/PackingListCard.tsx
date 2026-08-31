@@ -25,8 +25,8 @@ type Props = PackingListInput & {
   musicContext?: MusicContextInput;
 };
 
-export function getAssignablePackingParticipants<T extends { id: string }>(participants: T[]): T[] {
-  return participants.filter((participant) => participant.id !== "star-virtual-id");
+export function getAssignablePackingParticipants<T extends { id: string; user_id?: string | null }>(participants: T[]): T[] {
+  return participants.filter((participant) => Boolean(participant.user_id) && participant.id !== "star-virtual-id");
 }
 
 export function PackingListCard({

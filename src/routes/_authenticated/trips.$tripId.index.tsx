@@ -1704,9 +1704,9 @@ function TripDetail() {
         !currentSection ? (
           (() => {
             const totalParts = progress?.total || trip.participants_count || 1;
-            const availGroupDone = (availData?.answered ?? 0) >= totalParts && totalParts > 0;
+            const availGroupDone = datesLocked || ((availData?.answered ?? 0) >= totalParts && totalParts > 0);
             const prefsGroupDone = (progress?.answered ?? 0) >= totalParts && totalParts > 0;
-            const myAvailDone = Boolean(availData?.mine);
+            const myAvailDone = datesLocked || Boolean(availData?.mine);
             const myPrefsDone = Boolean((myPrefsData as any)?.preferences);
             const starDone = Boolean(starData?.preferences);
 
@@ -1753,7 +1753,7 @@ function TripDetail() {
               {
                 id: "availability",
                 title: "Disponibilités",
-                subtitle: `${availData?.answered ?? 0}/${totalParts} indiquées`,
+                subtitle: datesLocked ? "Dates confirmées" : `${availData?.answered ?? 0}/${totalParts} indiquées`,
                 iconName: "availability",
                 status: getStepStatus("availability", availGroupDone),
                 category: "questionnaire",
@@ -2120,7 +2120,11 @@ function TripDetail() {
       </section>
       ) : null}
 
-      {currentSection === "profile" && Boolean(readiness?.profile.questionnairesReady) ? (
+      {currentSection === "profile" && Boolean(
+        readiness?.profile.questionnairesReady ||
+        profile?.calculatedConcepts?.length ||
+        profile?.selectedConcepts?.length
+      ) ? (
       <section
         id="hub-profile"
         className="mt-6 sm:mt-8 space-y-4 bg-surface/30 rounded-[20px] p-5 sm:p-7 scroll-mt-24 relative overflow-hidden"
@@ -2143,7 +2147,11 @@ function TripDetail() {
               </KrewNote>
             </div>
             <p className="mt-1 text-sm sm:text-base text-muted-foreground font-sans">
-              Choisis 1 à 3 options pour définir le Profil du voyage.
+              {data.isOwner
+                ? "Choisis 1 à 3 options pour définir le Profil du voyage."
+                : profile?.validated
+                  ? "Voici le Profil du voyage retenu par l’organisateur·rice."
+                  : "L’organisateur·rice choisira le Profil du voyage à partir des réponses du groupe."}
             </p>
           </div>
           {profile?.validated && data.isOwner && !destinationSelected ? (
@@ -2188,7 +2196,7 @@ function TripDetail() {
                 const label = PROFILE_LABELS[profileId] || concept.title;
                 const selected = profile?.validated
                   ? profile.selectedConcepts.some((item) => item.id === concept.id)
-                  : selectedConceptIds.includes(concept.id);
+                  : data.isOwner && selectedConceptIds.includes(concept.id);
                 return (
                   <button
                     key={concept.id}
@@ -2242,7 +2250,7 @@ function TripDetail() {
             <div>
               <Button asChild className="rounded-xl font-medium h-11 text-sm sm:text-base">
                 <Link to="/trips/$tripId" params={{ tripId }} search={{ view: "voyage", section: "destination" }}>
-                  Choisir la destination <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
+                  {data.isOwner ? "Choisir la destination" : "Voir la destination"} <KrewMark type="arrow-right" tone="cream" size="sm" className="size-4 ml-1.5" />
                 </Link>
               </Button>
             </div>
