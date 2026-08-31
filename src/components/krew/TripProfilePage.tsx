@@ -12,6 +12,10 @@ import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew
 import { getGenerationReadiness, getTripDetail, validateStayProfile } from "@/lib/trips.functions";
 import { cn } from "@/lib/utils";
 
+function normalizeAccessibleText(value: string) {
+  return value.trim().replace(/\s+/g, " ").toLocaleLowerCase("fr-FR");
+}
+
 export function ProfileConceptCard({
   conceptId,
   label,
@@ -28,11 +32,16 @@ export function ProfileConceptCard({
   onToggle: () => void;
 }) {
   const descriptionId = `profile-${conceptId}-description`;
+  const duplicateRationale = Boolean(
+    rationale?.trim() && normalizeAccessibleText(rationale) === normalizeAccessibleText(label),
+  );
+  const hasDistinctDescription = Boolean(rationale?.trim() && !duplicateRationale);
+
   return (
     <button
       type="button"
       aria-label={label}
-      aria-describedby={rationale ? descriptionId : undefined}
+      aria-describedby={hasDistinctDescription ? descriptionId : undefined}
       aria-pressed={selected}
       disabled={disabled}
       onClick={onToggle}
@@ -57,7 +66,11 @@ export function ProfileConceptCard({
         {selected ? <KrewMark type="check" tone="plum" size="sm" className="size-4 shrink-0" /> : null}
       </div>
       {rationale ? (
-        <p id={descriptionId} className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <p
+          id={hasDistinctDescription ? descriptionId : undefined}
+          aria-hidden={duplicateRationale ? "true" : undefined}
+          className="mt-2 text-sm leading-relaxed text-muted-foreground"
+        >
           {rationale}
         </p>
       ) : null}
