@@ -10,7 +10,7 @@ type MonitoringContext = {
 };
 
 const SENSITIVE_KEY = /email|e-mail|first.?name|last.?name|full.?name|display.?name|questionnaire|free.?text|note|allerg|diet|food|password|secret|token|authorization|cookie|session|access.?key|api.?key/i;
-const CAPTURED = Symbol.for("krew.error-monitoring.captured");
+const capturedErrors = new WeakSet<Error>();
 let installed = false;
 
 function scrub(value: unknown, depth = 0): unknown {
@@ -42,10 +42,7 @@ function sentryEndpoint(dsn: string) {
     const url = new URL(dsn);
     const projectId = url.pathname.replace(/^\//, "");
     if (!url.username || !projectId) return null;
-    return {
-      url: `${url.protocol}//${url.host}/api/${projectId}/envelope/?sentry_version=7&sentry_key=${encodeURIComponent(url.username)}`,
-      publicKey: url.username,
-    };
+    return `${url.protocol}//${url.host}/api/${projectId}/envelope/?sentry_version=7&sentry_key=${encodeURIComponent(url.username)}`;
   } catch {
     return null;
   }
@@ -69,9 +66,8 @@ export function scrubMonitoringContext(context: MonitoringContext) {
  */
 export async function captureProductionError(error: unknown, context: MonitoringContext = {}) {
   const err = error instanceof Error ? error : new Error(typeof error === "string" ? error : "Unknown error");
-  const marked = err as Error & { [CAPTURED]?: boolean };
-  if (marked[CAPTURED]) return false;
-  marked[CAPTURED] = true;
+  if (capturedErrors.has(err)) return false;
+  capturedErrors.add(err);
 
   const dsn = getDsn();
   if (!dsn) return false;
@@ -96,21 +92,14 @@ export async function captureProductionError(error: unknown, context: Monitoring
     level: "error",
     environment: safeContext.environment,
     release: safeContext.build,
-    exception: {
-      values: [
-        {
-          type: err.name || "Error",
-          value: String(scrub(err.message)),
-        },
-      ],
-    },
+    exception: { values: [{ type: err.name || "Error", value: String(scrub(err.message)) }] },
     contexts: { krew: safeContext },
     extra: { stack: scrub(err.stack) },
   };
   const envelope = `${JSON.stringify({ event_id: eventId, sent_at: new Date().toISOString() })}\n${JSON.stringify({ type: "event" })}\n${JSON.stringify(payload)}`;
 
   try {
-    await fetch(endpoint.url, {
+    await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/x-sentry-envelope" },
       body: envelope,
