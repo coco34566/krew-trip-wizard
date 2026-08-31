@@ -44,10 +44,12 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
   const starMode = ((trip.data.group_logistics as any)?.star_mode ?? "secret") as
     | "secret"
     | "participant";
+  const hasStar = Boolean(trip.data.has_star || trip.data.celebrated_person || trip.data.star_user_id);
 
   const counts = deriveResponseProgress({
     ownerId: trip.data.owner_id,
     coOrganizerId: trip.data.co_organizer_id,
+    hasStar,
     starUserId: trip.data.star_user_id,
     starMode,
     participants: rawParticipants,
@@ -70,7 +72,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
           name: trip.data.name as string,
           eventType: trip.data.event_type as string,
           celebratedPerson: trip.data.celebrated_person as string | null,
-          hasStar: Boolean(trip.data.has_star),
+          hasStar,
           provisionalStart: trip.data.provisional_start_date as string | null,
           provisionalEnd: trip.data.provisional_end_date as string | null,
           durationNights: nights,
@@ -96,7 +98,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     .filter((row: any) => !inactiveUserIds.has(row.user_id))
     .filter(
       (row: any) =>
-        !(starMode === "secret" && trip.data.star_user_id && row.user_id === trip.data.star_user_id),
+        !(hasStar && starMode === "secret" && trip.data.star_user_id && row.user_id === trip.data.star_user_id),
     )
     .map((row: any) => ({
       userId: row.user_id as string,
@@ -106,7 +108,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
       durationNights: Number(row.duration_nights ?? 2) || 2,
     }));
 
-  if (starMode === "secret" && hasSecretStarAvailability(starPrefs)) {
+  if (hasStar && starMode === "secret" && hasSecretStarAvailability(starPrefs)) {
     entries.push({
       userId: "star-secret-progress",
       availableDates: (starPrefs.available_dates ?? []).map((date: string) => String(date).slice(0, 10)),
@@ -120,9 +122,9 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
   const nameByUser = new Map<string, string>();
   for (const participant of activeParticipants) {
     if (!participant.user_id) continue;
-    if (starMode === "secret" && participant.user_id === trip.data.star_user_id) continue;
+    if (hasStar && starMode === "secret" && participant.user_id === trip.data.star_user_id) continue;
     const isParticipantStar =
-      starMode === "participant" && participant.user_id === trip.data.star_user_id;
+      hasStar && starMode === "participant" && participant.user_id === trip.data.star_user_id;
     nameByUser.set(
       participant.user_id,
       isParticipantStar && celebratedPerson
@@ -130,7 +132,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
         : participant.display_name?.trim() || participant.email?.split("@")[0] || "Participant",
     );
   }
-  if (starMode === "secret" && celebratedPerson) {
+  if (hasStar && starMode === "secret" && celebratedPerson) {
     nameByUser.set("star-secret-progress", celebratedPerson);
   }
   if (!nameByUser.has(trip.data.owner_id)) nameByUser.set(trip.data.owner_id, "Organisateur·rice");
@@ -152,7 +154,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
       name: trip.data.name as string,
       eventType: trip.data.event_type as string,
       celebratedPerson: trip.data.celebrated_person as string | null,
-      hasStar: Boolean(trip.data.has_star),
+      hasStar,
       provisionalStart: trip.data.provisional_start_date as string | null,
       provisionalEnd: trip.data.provisional_end_date as string | null,
       durationNights: nights,
