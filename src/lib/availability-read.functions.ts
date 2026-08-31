@@ -5,6 +5,7 @@ import { rankDateWindows, type AvailabilityEntry } from "@/lib/krew/availability
 import { isTripAdmin } from "@/lib/krew/engine";
 import {
   deriveResponseProgress,
+  getEffectiveAvailabilityProgress,
   hasSecretStarAvailability,
   hasSecretStarPreferences,
   isInactiveResponseParticipant,
@@ -58,6 +59,11 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     secretStarHasPreferences: hasSecretStarPreferences(starPrefs),
     secretStarHasAvailability: hasSecretStarAvailability(starPrefs),
   });
+  const effectiveAvailability = getEffectiveAvailabilityProgress({
+    datesLocked: Boolean(trip.data.dates_locked),
+    answered: counts.availabilityAnswered,
+    expected: counts.availabilityExpected,
+  });
 
   const rawTripDuration = (trip.data as any).duration_nights ?? prefs.data?.duration_nights;
   const parsedDuration = rawTripDuration != null ? Number(rawTripDuration) : NaN;
@@ -83,8 +89,8 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
           endDate: trip.data.end_date as string | null,
         },
         isOwner: isTripAdmin(trip.data, userId),
-        answered: 0,
-        expected: counts.availabilityExpected,
+        answered: effectiveAvailability.answered,
+        expected: effectiveAvailability.expected,
         windows: [],
         mine: null,
         participants: rawParticipants,
@@ -165,8 +171,8 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
       endDate: trip.data.end_date as string | null,
     },
     isOwner: isTripAdmin(trip.data, userId),
-    answered: counts.availabilityAnswered,
-    expected: counts.availabilityExpected,
+    answered: effectiveAvailability.answered,
+    expected: effectiveAvailability.expected,
     windows,
     mine: mine
       ? {
