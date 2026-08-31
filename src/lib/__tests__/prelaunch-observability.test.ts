@@ -12,22 +12,27 @@ describe("prelaunch observability privacy guards", () => {
     vi.restoreAllMocks();
   });
 
-  it("redacts sensitive monitoring fields and secrets embedded in URLs", () => {
+  it("redacts sensitive monitoring keys and sensitive values embedded in strings", () => {
     const scrubbed = scrubMonitoringContext({
       email: "person@example.com",
       displayName: "Alice",
       operation: "planning",
+      message: "Failed for traveler@example.com with token=top-secret",
       nested: {
         token: "top-secret",
         note: "private free text",
         safeValue: 42,
       },
       url: "https://example.test/path?token=secret-value&step=planning",
+      authorizationHint: "Bearer abcDEF123.token-value",
     });
 
     expect(scrubbed.email).toBe("[Redacted]");
     expect(scrubbed.displayName).toBe("[Redacted]");
     expect(scrubbed.operation).toBe("planning");
+    expect(scrubbed.message).toBe(
+      "Failed for [Redacted email] with token=[Redacted]",
+    );
     expect(scrubbed.nested).toEqual({
       token: "[Redacted]",
       note: "[Redacted]",
@@ -36,6 +41,7 @@ describe("prelaunch observability privacy guards", () => {
     expect(scrubbed.url).toBe(
       "https://example.test/path?token=[Redacted]&step=planning",
     );
+    expect(scrubbed.authorizationHint).toBe("[Redacted]");
   });
 
   it("does not emit monitoring or analytics network calls when not configured/consented", async () => {

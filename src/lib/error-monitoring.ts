@@ -13,12 +13,21 @@ const SENSITIVE_KEY = /email|e-mail|first.?name|last.?name|full.?name|display.?n
 const capturedErrors = new WeakSet<Error>();
 let installed = false;
 
+function scrubString(value: string) {
+  return value
+    .replace(/([?&](?:token|key|secret|code|auth)[^=]*)=[^&#\s]*/gi, "$1=[Redacted]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[Redacted email]")
+    .replace(/\b(Bearer\s+)[A-Z0-9._~+\/-]+=*\b/gi, "$1[Redacted]")
+    .replace(/\b(password|passwd|token|secret|authorization|api[_ -]?key|access[_ -]?key)\s*[:=]\s*[^\s,;]+/gi, "$1=[Redacted]");
+}
+
 function scrub(value: unknown, depth = 0): unknown {
   if (depth > 4) return "[Truncated]";
   if (value == null || typeof value === "number" || typeof value === "boolean") return value;
   if (typeof value === "string") {
-    if (value.length > 500) return `${value.slice(0, 500)}…`;
-    return value.replace(/([?&](?:token|key|secret|code|auth)[^=]*)=[^&#\s]*/gi, "$1=[Redacted]");
+    const redacted = scrubString(value);
+    if (redacted.length > 500) return `${redacted.slice(0, 500)}…`;
+    return redacted;
   }
   if (Array.isArray(value)) return value.slice(0, 20).map((item) => scrub(item, depth + 1));
   if (typeof value === "object") {
