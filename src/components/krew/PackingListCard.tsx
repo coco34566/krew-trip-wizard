@@ -11,6 +11,7 @@ import {
   type MusicContextInput,
 } from "@/lib/krew/spotify-playlists";
 import { resolveShoppingLink, type ShoppingLink } from "@/lib/krew/shopping";
+import { useTripLifecycleState } from "@/lib/krew/trip-lifecycle-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
@@ -36,6 +37,8 @@ export function PackingListCard({
   musicContext,
   ...input
 }: Props) {
+  const lifecycle = useTripLifecycleState();
+  const historical = lifecycle === "completed";
   const assignableParticipants = useMemo(
     () => getAssignablePackingParticipants(participants),
     [participants],
@@ -65,12 +68,13 @@ export function PackingListCard({
   }, [storageKey]);
 
   useEffect(() => {
+    if (historical) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(state));
     } catch {
       /* stockage indisponible */
     }
-  }, [state, storageKey]);
+  }, [historical, state, storageKey]);
 
   const result = useMemo(
     () => buildTripPreparation({ ...input, manualItems: state.manual }),
@@ -109,10 +113,13 @@ export function PackingListCard({
     JSON.stringify(musicContext),
   ]);
 
-  const toggle = (id: string) =>
+  const toggle = (id: string) => {
+    if (historical) return;
     setState((s) => ({ ...s, checked: { ...s.checked, [id]: !s.checked[id] } }));
+  };
 
   const addManual = () => {
+    if (historical) return;
     const label = manualLabel.trim();
     if (!label) return;
     const id = `manual_${Date.now()}`;
@@ -138,21 +145,37 @@ export function PackingListCard({
           item.purchasable && !state.owned[item.id]
             ? resolveShoppingLink(item.id, shoppingLinks)
             : null;
+        const assignedParticipant = assignableParticipants.find((participant) => participant.id === state.assigned[item.id]);
+        const assigneeLabel = state.owned[item.id]
+          ? "Pris en charge"
+          : assignedParticipant
+            ? assignedParticipant.display_name || assignedParticipant.email?.split("@")[0] || "Participant"
+            : "Non attribué";
         return (
           <li key={item.id} className="py-3 flex flex-col gap-2">
             <div className="flex items-start gap-2.5">
-              <button
-                type="button"
-                aria-label={`Cocher ${item.label}`}
-                onClick={() => toggle(item.id)}
-                className="-ml-1 -mt-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg"
-              >
-                {state.checked[item.id] ? (
-                  <KrewIcon name="check" tone="sage" size="sm" className="size-5" />
-                ) : (
-                  <span className="size-5 rounded border border-border inline-block" />
-                )}
-              </button>
+              {historical ? (
+                <span className="-ml-1 -mt-1 shrink-0 text-muted-foreground min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg" aria-hidden="true">
+                  {state.checked[item.id] ? (
+                    <KrewIcon name="check" tone="sage" size="sm" className="size-5" />
+                  ) : (
+                    <span className="size-5 rounded border border-border inline-block" />
+                  )}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={`Cocher ${item.label}`}
+                  onClick={() => toggle(item.id)}
+                  className="-ml-1 -mt-1 shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg"
+                >
+                  {state.checked[item.id] ? (
+                    <KrewIcon name="check" tone="sage" size="sm" className="size-5" />
+                  ) : (
+                    <span className="size-5 rounded border border-border inline-block" />
+                  )}
+                </button>
+              )}
               <span
                 className={
                   state.checked[item.id]
@@ -165,27 +188,31 @@ export function PackingListCard({
             </div>
             {group ? (
               <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 pl-0 sm:pl-10">
-                <select
-                  aria-label={`Assigner ${item.label}`}
-                  className="min-h-10 rounded-[10px] border border-border bg-background px-3 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
-                  value={state.owned[item.id] ? "__me__" : state.assigned[item.id] || ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setState((s) => ({
-                      ...s,
-                      assigned: { ...s.assigned, [item.id]: value === "__me__" ? "" : value },
-                      owned: { ...s.owned, [item.id]: value === "__me__" },
-                    }));
-                  }}
-                >
-                  <option value="">Qui s'en charge ?</option>
-                  {item.purchasable ? <option value="__me__">Je m’en charge</option> : null}
-                  {assignableParticipants.filter((p) => !currentUserId || p.user_id !== currentUserId).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.display_name || p.email?.split("@")[0] || "Participant"}
-                    </option>
-                  ))}
-                </select>
+                {historical ? (
+                  <span className="text-sm text-muted-foreground">Responsable : {assigneeLabel}</span>
+                ) : (
+                  <select
+                    aria-label={`Assigner ${item.label}`}
+                    className="min-h-10 rounded-[10px] border border-border bg-background px-3 text-sm focus:ring-1 focus:ring-primary focus:outline-none"
+                    value={state.owned[item.id] ? "__me__" : state.assigned[item.id] || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setState((s) => ({
+                        ...s,
+                        assigned: { ...s.assigned, [item.id]: value === "__me__" ? "" : value },
+                        owned: { ...s.owned, [item.id]: value === "__me__" },
+                      }));
+                    }}
+                  >
+                    <option value="">Qui s'en charge ?</option>
+                    {item.purchasable ? <option value="__me__">Je m’en charge</option> : null}
+                    {assignableParticipants.filter((p) => !currentUserId || p.user_id !== currentUserId).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.display_name || p.email?.split("@")[0] || "Participant"}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {link ? (
                   <a
                     href={link.url}
@@ -232,11 +259,13 @@ export function PackingListCard({
             />
           </div>
           <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-sm py-1 px-2.5">
-            Adaptée au séjour
+            {historical ? "Souvenir du voyage" : "Adaptée au séjour"}
           </KrewNote>
         </div>
         <p className="text-sm sm:text-base text-muted-foreground font-sans mt-2 leading-relaxed">
-          Une liste adaptée au séjour et aux activités, à compléter avec le groupe.
+          {historical
+            ? "La liste du voyage, conservée avec son dernier état."
+            : "Une liste adaptée au séjour et aux activités, à compléter avec le groupe."}
         </p>
       </div>
 
@@ -280,33 +309,35 @@ export function PackingListCard({
             {result.tasks.map((t) => (
               <li key={t.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-3">
                 <span className="font-medium text-foreground">{t.label}</span>
-                <span className="text-sm text-muted-foreground">À répartir dans les tâches</span>
+                {!historical ? <span className="text-sm text-muted-foreground">À répartir dans les tâches</span> : null}
               </li>
             ))}
           </ul>
         </section>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 border-t border-border/50 pt-4 items-stretch sm:items-center">
-        <Input
-          value={manualLabel}
-          onChange={(e) => setManualLabel(e.target.value)}
-          placeholder="Ajouter un élément"
-          className="w-full sm:max-w-xs rounded-xl text-base h-11"
-        />
-        <select
-          aria-label="Type de l'élément"
-          value={manualMode}
-          onChange={(e) => setManualMode(e.target.value as "personal" | "group")}
-          className="rounded-[10px] border border-border bg-background px-3 text-sm h-10 font-medium"
-        >
-          <option value="personal">Mes affaires</option>
-          <option value="group">Pour le groupe</option>
-        </select>
-        <Button type="button" variant="outline" size="sm" className="text-sm font-medium" onClick={addManual}>
-          <KrewIcon name="plus" size="sm" className="size-3.5 shrink-0" /> Ajouter
-        </Button>
-      </div>
+      {!historical ? (
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 border-t border-border/50 pt-4 items-stretch sm:items-center">
+          <Input
+            value={manualLabel}
+            onChange={(e) => setManualLabel(e.target.value)}
+            placeholder="Ajouter un élément"
+            className="w-full sm:max-w-xs rounded-xl text-base h-11"
+          />
+          <select
+            aria-label="Type de l'élément"
+            value={manualMode}
+            onChange={(e) => setManualMode(e.target.value as "personal" | "group")}
+            className="rounded-[10px] border border-border bg-background px-3 text-sm h-10 font-medium"
+          >
+            <option value="personal">Mes affaires</option>
+            <option value="group">Pour le groupe</option>
+          </select>
+          <Button type="button" variant="outline" size="sm" className="text-sm font-medium" onClick={addManual}>
+            <KrewIcon name="plus" size="sm" className="size-3.5 shrink-0" /> Ajouter
+          </Button>
+        </div>
+      ) : null}
 
       {musicRecommendations.length > 0 ? (
         <section className="border-t border-border/50 pt-5 sm:pt-6 space-y-3">
