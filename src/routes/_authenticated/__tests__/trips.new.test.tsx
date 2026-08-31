@@ -58,6 +58,14 @@ describe("NewTripPage - Creation Screen Typologies", () => {
     expect(screen.queryByText("Autre")).toBeNull();
   });
 
+  it("shows before submit that the organizer first name is required", () => {
+    renderPage();
+    const firstNameInput = screen.getByRole("textbox", { name: /Ton prénom/i });
+    expect(firstNameInput).toBeRequired();
+    expect(firstNameInput).toHaveAttribute("aria-required", "true");
+    expect(screen.getByText(/Obligatoire — pour que le groupe sache qui organise/i)).toBeInTheDocument();
+  });
+
   it("toggles Star input when selecting EVG, EVJF, or Anniversaire, but not for Week-end entre amis", async () => {
     const user = userEvent.setup();
     renderPage();
