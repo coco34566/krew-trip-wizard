@@ -136,7 +136,7 @@ function NextActionsPanel({
   };
 
   // —— 1. Actions perso (tous) ——
-  if (!myAvailabilityDone) {
+  if (!datesLocked && !myAvailabilityDone) {
     push({
       key: "avail",
       title: "Indiquer mes disponibilités",
@@ -269,7 +269,7 @@ function NextActionsPanel({
       });
     }
 
-    const missingAvail = Math.max(0, availabilityExpected - availabilityAnswered);
+    const missingAvail = datesLocked ? 0 : Math.max(0, availabilityExpected - availabilityAnswered);
     const missingPrefs = Math.max(0, progressTotal - progressAnswered);
     if (missingAvail > 0 || missingPrefs > 0) {
       push({
@@ -292,7 +292,7 @@ function NextActionsPanel({
   }
 
   const participantCaughtUp =
-    myAvailabilityDone &&
+    (datesLocked || myAvailabilityDone) &&
     myPreferencesDone &&
     (!isOwner || !hasStar || starDone) &&
     (!destinationSelected ||
@@ -301,7 +301,7 @@ function NextActionsPanel({
   const waitingOnOthers =
     participantCaughtUp &&
     !isOwner &&
-    (availabilityAnswered < availabilityExpected ||
+    ((!datesLocked && availabilityAnswered < availabilityExpected) ||
       progressAnswered < progressTotal ||
       !destinationSelected ||
       (destinationSelected && !hasItinerary));
@@ -339,7 +339,7 @@ function NextActionsPanel({
   const secondaryActions = actions.slice(1, 4);
 
   const progressItems = [];
-  if (availabilityExpected > 0) {
+  if (!datesLocked && availabilityExpected > 0) {
     progressItems.push({
       label: "Disponibilités",
       value: Math.round((availabilityAnswered / availabilityExpected) * 100),
