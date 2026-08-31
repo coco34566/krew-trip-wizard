@@ -41,10 +41,14 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   const starMode = ((tripRes.data.group_logistics as any)?.star_mode ?? "secret") as
     | "secret"
     | "participant";
+  const hasStar = Boolean(
+    tripRes.data.has_star || tripRes.data.celebrated_person || tripRes.data.star_user_id,
+  );
 
   const counts = deriveResponseProgress({
     ownerId: tripRes.data.owner_id,
     coOrganizerId: tripRes.data.co_organizer_id,
+    hasStar,
     starUserId: tripRes.data.star_user_id,
     starMode,
     participants,
@@ -66,11 +70,12 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     .filter((participant: any) => Boolean(participant.user_id))
     .filter(
       (participant: any) =>
-        !(starMode === "secret" && tripRes.data.star_user_id === participant.user_id),
+        !(hasStar && starMode === "secret" && tripRes.data.star_user_id === participant.user_id),
     )
     .map((participant: any) => ({
       ...participant,
       isStar:
+        hasStar &&
         starMode === "participant" &&
         Boolean(tripRes.data.star_user_id && participant.user_id === tripRes.data.star_user_id),
       hasAnswered: prefByUser.has(participant.user_id),
