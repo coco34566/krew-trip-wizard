@@ -1,7 +1,7 @@
 @keyframes krew-hero-photo-settle {
   from {
-    opacity: 0.9;
-    transform: translate3d(7px, 4px, 0) rotate(0.45deg) scale(0.99);
+    opacity: 0.86;
+    transform: translate3d(10px, 7px, 0) rotate(0.8deg) scale(0.985);
   }
   to {
     opacity: 1;
@@ -11,8 +11,8 @@
 
 @keyframes krew-hero-slogan-settle {
   from {
-    opacity: 0.86;
-    transform: translate3d(0, 5px, 0);
+    opacity: 0.84;
+    transform: translate3d(0, 7px, 0);
   }
   to {
     opacity: 1;
@@ -22,8 +22,8 @@
 
 @keyframes krew-hero-postit-settle {
   from {
-    opacity: 0.88;
-    transform: translate3d(4px, -5px, 0) rotate(0.35deg) scale(0.992);
+    opacity: 0.84;
+    transform: translate3d(7px, -8px, 0) rotate(0.75deg) scale(0.988);
   }
   to {
     opacity: 1;
@@ -33,12 +33,12 @@
 
 @keyframes krew-hero-cta-settle {
   from {
-    opacity: 0.86;
-    transform: translate3d(0, 5px, 0);
+    opacity: 0.84;
+    transform: translate3d(0, 7px, 0) scale(0.992);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
@@ -52,48 +52,48 @@
 }
 
 .krew-hero-photo-settle {
-  animation: krew-hero-photo-settle 680ms cubic-bezier(0.2, 0.72, 0.28, 1) 20ms both;
+  animation: krew-hero-photo-settle 740ms cubic-bezier(0.18, 0.76, 0.24, 1) 10ms both;
   transform-origin: 58% 48%;
 }
 
 .krew-hero-slogan > span {
   display: inline-block;
-  animation: krew-hero-slogan-settle 480ms cubic-bezier(0.22, 0.72, 0.28, 1) both;
+  animation: krew-hero-slogan-settle 520ms cubic-bezier(0.2, 0.74, 0.26, 1) both;
 }
 
 .krew-hero-slogan > span:nth-child(1) {
-  animation-delay: 90ms;
+  animation-delay: 72ms;
 }
 
 .krew-hero-slogan > span:nth-child(2) {
-  animation-delay: 116ms;
+  animation-delay: 94ms;
 }
 
 .krew-hero-slogan > span:nth-child(3) {
-  animation-delay: 142ms;
+  animation-delay: 116ms;
 }
 
 .krew-hero-postit-settle {
-  animation: krew-hero-postit-settle 560ms cubic-bezier(0.2, 0.72, 0.28, 1) 170ms both;
+  animation: krew-hero-postit-settle 600ms cubic-bezier(0.18, 0.76, 0.24, 1) 130ms both;
   transform-origin: 72% 18%;
 }
 
 .krew-hero-mark path {
   stroke-dasharray: 96;
   stroke-dashoffset: 96;
-  animation: krew-mark-draw 440ms cubic-bezier(0.24, 0.66, 0.28, 1) 300ms both;
+  animation: krew-mark-draw 390ms cubic-bezier(0.18, 0.72, 0.22, 1) 230ms both;
 }
 
 .krew-hero-cta {
-  animation: krew-hero-cta-settle 460ms cubic-bezier(0.22, 0.72, 0.28, 1) 390ms both;
+  animation: krew-hero-cta-settle 500ms cubic-bezier(0.2, 0.74, 0.26, 1) 300ms both;
 }
 
 .krew-trip-reveal {
-  opacity: 0.9;
-  transform: translate3d(0, 7px, 0) rotate(0.3deg) scale(0.995);
+  opacity: 0.86;
+  transform: translate3d(0, 10px, 0) rotate(0.5deg) scale(0.992);
   transition:
-    transform 420ms cubic-bezier(0.2, 0.72, 0.28, 1),
-    opacity 320ms ease-out;
+    transform 500ms cubic-bezier(0.18, 0.76, 0.24, 1),
+    opacity 380ms ease-out;
 }
 
 .krew-trip-reveal[data-revealed="true"] {
@@ -102,8 +102,8 @@
 }
 
 .krew-trip-photo-settle {
-  transform: scale(1.015);
-  transition: transform 460ms cubic-bezier(0.2, 0.72, 0.28, 1);
+  transform: scale(1.024);
+  transition: transform 520ms cubic-bezier(0.18, 0.76, 0.24, 1);
   transform-origin: 50% 48%;
 }
 
@@ -114,19 +114,30 @@
 @media (max-width: 639px) {
   @keyframes krew-hero-photo-settle {
     from {
-      opacity: 0.92;
-      transform: translate3d(5px, 3px, 0) rotate(0.25deg) scale(0.992);
+      opacity: 0.9;
+      transform: translate3d(7px, 5px, 0) rotate(0.45deg) scale(0.989);
     }
     to {
       opacity: 1;
       transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    }
+  }
+
+  @keyframes krew-hero-slogan-settle {
+    from {
+      opacity: 0.88;
+      transform: translate3d(0, 5px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
     }
   }
 
   @keyframes krew-hero-postit-settle {
     from {
-      opacity: 0.9;
-      transform: translate3d(3px, -4px, 0) rotate(0.2deg) scale(0.994);
+      opacity: 0.88;
+      transform: translate3d(5px, -6px, 0) rotate(0.45deg) scale(0.991);
     }
     to {
       opacity: 1;
@@ -134,37 +145,49 @@
     }
   }
 
+  @keyframes krew-hero-cta-settle {
+    from {
+      opacity: 0.88;
+      transform: translate3d(0, 5px, 0) scale(0.994);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
   .krew-hero-photo-settle {
-    animation-duration: 610ms;
+    animation-duration: 650ms;
   }
 
   .krew-hero-slogan > span {
-    animation-duration: 430ms;
+    animation-duration: 460ms;
   }
 
   .krew-hero-postit-settle {
-    animation-duration: 500ms;
-    animation-delay: 145ms;
+    animation-duration: 540ms;
+    animation-delay: 115ms;
   }
 
   .krew-hero-mark path {
-    animation-duration: 410ms;
-    animation-delay: 260ms;
+    animation-duration: 360ms;
+    animation-delay: 205ms;
   }
 
   .krew-hero-cta {
-    animation-duration: 420ms;
-    animation-delay: 340ms;
+    animation-duration: 450ms;
+    animation-delay: 270ms;
   }
 
   .krew-trip-reveal {
-    transform: translate3d(0, 5px, 0) rotate(0.2deg) scale(0.996);
-    transition-duration: 350ms, 270ms;
+    opacity: 0.89;
+    transform: translate3d(0, 8px, 0) rotate(0.35deg) scale(0.994);
+    transition-duration: 420ms, 320ms;
   }
 
   .krew-trip-photo-settle {
-    transform: scale(1.012);
-    transition-duration: 380ms;
+    transform: scale(1.02);
+    transition-duration: 440ms;
   }
 }
 
