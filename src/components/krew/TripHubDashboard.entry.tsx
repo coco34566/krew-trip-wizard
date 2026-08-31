@@ -9,6 +9,7 @@ import {
   getOrganizationRefreshState,
   maskStaleOrganizationDataForDashboard,
 } from "@/lib/krew/organization-refresh";
+import { TripLifecycleProvider } from "@/lib/krew/trip-lifecycle-context";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { trackProductEventOnce, type ProductAnalyticsProperties } from "@/lib/product-analytics";
 import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
@@ -17,7 +18,7 @@ type Props = ComponentProps<typeof TripHubDashboardLegacy>;
 
 export function TripHubDashboard(props: Props) {
   const fetchProgress = useServerFn(getParticipantsProgress);
-  const { data: centralized } = useQuery({
+  const { data: centralized, isSuccess: progressReady } = useQuery({
     queryKey: ["trip-progress", props.tripId],
     queryFn: () => fetchProgress({ data: { tripId: props.tripId } }),
   });
@@ -47,7 +48,7 @@ export function TripHubDashboard(props: Props) {
 
   const tripForDashboard = maskStaleOrganizationDataForDashboard({
     ...props.trip,
-    participants_count: preferencesExpected,
+    participants_count: progressReady ? preferencesExpected : props.participantsCount,
   });
 
   useEffect(() => {
@@ -111,42 +112,50 @@ export function TripHubDashboard(props: Props) {
   ]);
 
   return (
-    <div data-trip-lifecycle={lifecycle}>
-      {completed ? (
-        <section className="mb-5 rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" aria-label="Voyage terminé">
-          <p className="font-display text-2xl font-normal text-foreground">Voyage terminé</p>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Le séjour est terminé. Les choix et l’organisation restent accessibles ci-dessous pour consultation.
-          </p>
-        </section>
-      ) : null}
-      <div className={completed ? "[&>div>header>.mt-4.px-4]:hidden [&>div>header+*]:hidden" : undefined}>
-        <TripHubDashboardLegacy
-          {...props}
-          isOwner={props.isOwner}
-          myAvailabilityDone={responsesClosed || completed ? true : props.myAvailabilityDone}
-          myPreferencesDone={responsesClosed || completed ? true : props.myPreferencesDone}
-          starDone={completed ? true : props.starDone}
-          participantsCount={preferencesExpected}
-          progressAnswered={preferencesAnswered}
-          progressTotal={preferencesExpected}
-          availabilityAnswered={availabilityAnswered}
-          availabilityExpected={availabilityExpected}
-          destinationSelected={completed ? false : props.destinationSelected}
-          totalReserved={organizationStale ? null : props.totalReserved}
-          totalEstimated={organizationStale ? null : props.totalEstimated}
-          liveBudgetTotal={organizationStale ? null : props.liveBudgetTotal}
-          tripEndDatePassed={completed}
-          trip={tripForDashboard}
+    <TripLifecycleProvider lifecycle={lifecycle}>
+      <div data-trip-lifecycle={lifecycle}>
+        {completed ? (
+          <section className="mb-5 rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" aria-label="Voyage terminé">
+            <p className="font-display text-2xl font-normal text-foreground">Voyage terminé</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              Le séjour est terminé. Les choix et l’organisation restent accessibles ci-dessous pour consultation.
+            </p>
+          </section>
+        ) : null}
+        <div
+          className={
+            completed
+              ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden"
+              : undefined
+          }
         >
-          <OrganizationRefreshNotice
-            logistics={trip.group_logistics}
-            destinationName={props.destinationName}
-            canManage={!completed && props.isOwner}
-          />
-          {props.children}
-        </TripHubDashboardLegacy>
+          <TripHubDashboardLegacy
+            {...props}
+            isOwner={props.isOwner}
+            myAvailabilityDone={responsesClosed || completed ? true : props.myAvailabilityDone}
+            myPreferencesDone={responsesClosed || completed ? true : props.myPreferencesDone}
+            starDone={completed ? true : props.starDone}
+            participantsCount={progressReady ? preferencesExpected : props.participantsCount}
+            progressAnswered={progressReady ? preferencesAnswered : props.progressAnswered}
+            progressTotal={progressReady ? preferencesExpected : props.progressTotal}
+            availabilityAnswered={progressReady ? availabilityAnswered : props.availabilityAnswered}
+            availabilityExpected={progressReady ? availabilityExpected : props.availabilityExpected}
+            destinationSelected={completed ? false : props.destinationSelected}
+            totalReserved={organizationStale ? null : props.totalReserved}
+            totalEstimated={organizationStale ? null : props.totalEstimated}
+            liveBudgetTotal={organizationStale ? null : props.liveBudgetTotal}
+            tripEndDatePassed={completed}
+            trip={tripForDashboard}
+          >
+            <OrganizationRefreshNotice
+              logistics={trip.group_logistics}
+              destinationName={props.destinationName}
+              canManage={!completed && props.isOwner}
+            />
+            {props.children}
+          </TripHubDashboardLegacy>
+        </div>
       </div>
-    </div>
+    </TripLifecycleProvider>
   );
 }
