@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canEditTaskStatus, isAssignableTaskParticipant } from "./task-permissions.functions";
+import { canEditTaskStatus, isAssignableTaskParticipant } from "./krew/task-permissions";
 
 describe("task permission predicates", () => {
   it("lets an organizer or co-organizer update any task status", () => {
