@@ -113,12 +113,18 @@ export function TripHubDashboard(props: Props) {
           </p>
         </section>
       ) : null}
-      <div className={completed ? "[&>div>header+*]:hidden" : undefined}>
+      <div
+        className={
+          completed
+            ? "[&>div>header>.mt-4.px-4]:hidden [&>div>header+*]:hidden"
+            : undefined
+        }
+      >
         <TripHubDashboardLegacy
           {...props}
           // A completed trip is a restitution state. Preserve the viewer's real
-          // role and historical selections, while hiding only the legacy action
-          // panel that otherwise continues to propose preparation work.
+          // role and historical labels, while suppressing preparation-only UI and
+          // requests (weather/actions) that no longer make sense after the trip.
           isOwner={props.isOwner}
           myAvailabilityDone={responsesClosed || completed ? true : props.myAvailabilityDone}
           myPreferencesDone={responsesClosed || completed ? true : props.myPreferencesDone}
@@ -127,7 +133,7 @@ export function TripHubDashboard(props: Props) {
           progressTotal={preferencesExpected}
           availabilityAnswered={availabilityAnswered}
           availabilityExpected={availabilityExpected}
-          destinationSelected={props.destinationSelected}
+          destinationSelected={completed ? false : props.destinationSelected}
           tripEndDatePassed={completed}
           trip={tripForDashboard}
         >
