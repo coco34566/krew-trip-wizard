@@ -111,9 +111,11 @@ export function TripHubDashboard(props: Props) {
     trip,
   ]);
 
+  const suppressPreparationChrome = completed || !progressReady;
+
   return (
     <TripLifecycleProvider lifecycle={lifecycle}>
-      <div data-trip-lifecycle={lifecycle}>
+      <div data-trip-lifecycle={lifecycle} data-response-progress={progressReady ? "ready" : "loading"}>
         {completed ? (
           <section className="mb-5 rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" aria-label="Voyage terminé">
             <p className="font-display text-2xl font-normal text-foreground">Voyage terminé</p>
@@ -124,7 +126,7 @@ export function TripHubDashboard(props: Props) {
         ) : null}
         <div
           className={
-            completed
+            suppressPreparationChrome
               ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden"
               : undefined
           }
