@@ -9,6 +9,7 @@ import {
   getOrganizationRefreshState,
   maskStaleOrganizationDataForDashboard,
 } from "@/lib/krew/organization-refresh";
+import { getDashboardResponseState } from "@/lib/krew/trip-dashboard-response-state";
 import { TripLifecycleProvider } from "@/lib/krew/trip-lifecycle-context";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { trackProductEventOnce, type ProductAnalyticsProperties } from "@/lib/product-analytics";
@@ -51,9 +52,9 @@ export function TripHubDashboard(props: Props) {
     queryFn: () => fetchProgress({ data: { tripId: props.tripId } }),
   });
 
-  const preferencesExpected = centralized?.preferencesExpected ?? centralized?.total ?? 0;
+  const centralizedPreferencesExpected = centralized?.preferencesExpected ?? centralized?.total ?? 0;
   const rawPreferencesAnswered = centralized?.answered ?? 0;
-  const availabilityExpected = centralized?.availabilityExpected ?? 0;
+  const centralizedAvailabilityExpected = centralized?.availabilityExpected ?? 0;
   const rawAvailabilityAnswered = centralized?.availabilityAnswered ?? 0;
   const trip = props.trip as any;
   const logistics = (trip?.group_logistics ?? {}) as any;
@@ -68,16 +69,26 @@ export function TripHubDashboard(props: Props) {
     startDate: trip?.start_date,
     endDate: trip?.end_date,
   });
-  const responsesClosed = datesLocked;
   const completed = lifecycle === "completed";
   const isCreator = Boolean(props.viewerUserId && props.viewerUserId === trip?.owner_id);
 
-  const preferencesAnswered = responsesClosed ? preferencesExpected : rawPreferencesAnswered;
-  const availabilityAnswered = responsesClosed ? availabilityExpected : rawAvailabilityAnswered;
+  const responseState = getDashboardResponseState({
+    progressReady,
+    datesLocked,
+    preferencesExpected: centralizedPreferencesExpected,
+    preferencesAnswered: rawPreferencesAnswered,
+    availabilityExpected: centralizedAvailabilityExpected,
+    availabilityAnswered: rawAvailabilityAnswered,
+  });
+  const responseReady = responseState.state === "ready";
+  const preferencesExpected = responseReady ? responseState.preferencesExpected : 0;
+  const preferencesAnswered = responseReady ? responseState.preferencesAnswered : 0;
+  const availabilityExpected = responseReady ? responseState.availabilityExpected : 0;
+  const availabilityAnswered = responseReady ? responseState.availabilityAnswered : 0;
 
   const tripForDashboard = maskStaleOrganizationDataForDashboard({
     ...props.trip,
-    participants_count: progressReady ? preferencesExpected : props.participantsCount,
+    participants_count: responseReady ? preferencesExpected : props.participantsCount,
   });
 
   useEffect(() => setCompletedGroupSectionReadOnly(completed), [completed]);
@@ -95,8 +106,8 @@ export function TripHubDashboard(props: Props) {
       role,
       trip_id: props.tripId,
       trip_type: trip?.event_type,
-      group_size: preferencesExpected,
-      expected_responses: preferencesExpected,
+      group_size: centralizedPreferencesExpected,
+      expected_responses: centralizedPreferencesExpected,
       received_responses: rawPreferencesAnswered,
       dates_locked: datesLocked,
       destination_selected: Boolean(props.destinationSelected),
@@ -125,12 +136,12 @@ export function TripHubDashboard(props: Props) {
     if (lifecycle === "completed") once("trip_completed", "completed");
   }, [
     accommodationStale,
+    centralizedPreferencesExpected,
     datesLocked,
     itineraryStale,
     lifecycle,
     logistics.selectedHotelId,
     logistics.transportPicks,
-    preferencesExpected,
     props.destinationSelected,
     props.hasRecommendations,
     props.myAvailabilityDone,
@@ -143,11 +154,11 @@ export function TripHubDashboard(props: Props) {
     trip,
   ]);
 
-  const suppressPreparationChrome = completed || !progressReady;
+  const suppressPreparationChrome = completed || !responseReady;
 
   return (
     <TripLifecycleProvider lifecycle={lifecycle}>
-      <div data-trip-lifecycle={lifecycle} data-response-progress={progressReady ? "ready" : "loading"}>
+      <div data-trip-lifecycle={lifecycle} data-response-progress={responseState.state}>
         {completed ? (
           <section className="mb-5 rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" aria-label="Voyage terminé">
             <p className="font-display text-2xl font-normal text-foreground">Voyage terminé</p>
@@ -166,14 +177,14 @@ export function TripHubDashboard(props: Props) {
           <TripHubDashboardLegacy
             {...props}
             isOwner={props.isOwner}
-            myAvailabilityDone={responsesClosed || completed ? true : props.myAvailabilityDone}
-            myPreferencesDone={responsesClosed || completed ? true : props.myPreferencesDone}
+            myAvailabilityDone={datesLocked || completed ? true : props.myAvailabilityDone}
+            myPreferencesDone={datesLocked || completed ? true : props.myPreferencesDone}
             starDone={completed ? true : props.starDone}
-            participantsCount={progressReady ? preferencesExpected : props.participantsCount}
-            progressAnswered={progressReady ? preferencesAnswered : props.progressAnswered}
-            progressTotal={progressReady ? preferencesExpected : props.progressTotal}
-            availabilityAnswered={progressReady ? availabilityAnswered : props.availabilityAnswered}
-            availabilityExpected={progressReady ? availabilityExpected : props.availabilityExpected}
+            participantsCount={responseReady ? preferencesExpected : props.participantsCount}
+            progressAnswered={responseReady ? preferencesAnswered : 0}
+            progressTotal={responseReady ? preferencesExpected : 0}
+            availabilityAnswered={responseReady ? availabilityAnswered : 0}
+            availabilityExpected={responseReady ? availabilityExpected : 0}
             destinationSelected={completed ? false : props.destinationSelected}
             totalReserved={organizationStale ? null : props.totalReserved}
             totalEstimated={organizationStale ? null : props.totalEstimated}
