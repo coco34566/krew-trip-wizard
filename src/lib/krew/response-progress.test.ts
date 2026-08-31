@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveResponseProgress } from "./response-progress";
+import { deriveResponseProgress, getEffectiveAvailabilityProgress } from "./response-progress";
 
 const ownerId = "00000000-0000-4000-8000-000000000001";
 const user2 = "00000000-0000-4000-8000-000000000002";
@@ -171,5 +171,25 @@ describe("deriveResponseProgress", () => {
     expect(result.preferencesAnswered).toBe(1);
     expect(result.availabilityExpected).toBe(1);
     expect(result.availabilityAnswered).toBe(1);
+  });
+});
+
+describe("getEffectiveAvailabilityProgress", () => {
+  it("does not let a late participant reopen locked availability collection", () => {
+    expect(
+      getEffectiveAvailabilityProgress({ datesLocked: true, answered: 1, expected: 2 }),
+    ).toEqual({ answered: 1, expected: 1, missing: 0 });
+  });
+
+  it("keeps the real open-trip denominator when responses are still collected", () => {
+    expect(
+      getEffectiveAvailabilityProgress({ datesLocked: false, answered: 1, expected: 2 }),
+    ).toEqual({ answered: 1, expected: 2, missing: 1 });
+  });
+
+  it("never produces an impossible denominator below the reliable numerator", () => {
+    expect(
+      getEffectiveAvailabilityProgress({ datesLocked: false, answered: 2, expected: 0 }),
+    ).toEqual({ answered: 2, expected: 2, missing: 0 });
   });
 });
