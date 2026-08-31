@@ -2,13 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  ArrowLeft,
-  Loader2,
-  Lock,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { ArrowLeft, Loader2, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -60,7 +54,7 @@ function monthLabel(d: Date) {
   return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
-function dayAriaLabel(date: Date, mode: DayMode, isPast: boolean) {
+function dayAriaLabel(date: Date, mode: DayMode, isPast: boolean, readOnly: boolean) {
   const label = date.toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
@@ -68,25 +62,25 @@ function dayAriaLabel(date: Date, mode: DayMode, isPast: boolean) {
     year: "numeric",
   });
   if (isPast) return `${label}, date passée`;
-  if (mode === "available") return `${label}, disponible`;
-  if (mode === "blocked") return `${label}, impossible`;
-  return `${label}, non renseigné`;
+  const state = mode === "available" ? "disponible" : mode === "blocked" ? "impossible" : "non renseigné";
+  return readOnly ? `${label}, ${state}, consultation uniquement` : `${label}, ${state}`;
 }
 
 function MonthGrid({
   month,
   selection,
   onToggle,
+  readOnly,
 }: {
   month: Date;
   selection: Map<string, DayMode>;
   onToggle: (iso: string) => void;
+  readOnly: boolean;
 }) {
   const first = startOfMonth(month);
   const startWeekday = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
   const todayISO = toISO(new Date());
-
   const cells: (Date | null)[] = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(month.getFullYear(), month.getMonth(), d));
@@ -107,14 +101,16 @@ function MonthGrid({
             <button
               key={iso}
               type="button"
-              disabled={isPast}
-              aria-label={dayAriaLabel(date, mode, isPast)}
+              disabled={isPast || readOnly}
+              aria-label={dayAriaLabel(date, mode, isPast, readOnly)}
               aria-pressed={isPast ? undefined : mode !== null}
               onClick={() => onToggle(iso)}
               className={cn(
                 "flex aspect-square min-h-10 items-center justify-center rounded-[10px] border text-[13px] font-mono font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-                isPast && "cursor-not-allowed border-transparent opacity-30",
-                !isPast && !mode && "border-border/40 bg-background hover:border-primary/25 hover:bg-primary/[0.05] hover:text-primary",
+                (isPast || readOnly) && "cursor-default",
+                isPast && "border-transparent opacity-30",
+                !isPast && !mode && "border-border/40 bg-background",
+                !readOnly && !isPast && !mode && "hover:border-primary/25 hover:bg-primary/[0.05] hover:text-primary",
                 mode === "available" && "border-sage/45 bg-sage/25 font-bold text-foreground",
                 mode === "blocked" && "border-destructive/60 bg-destructive/90 font-bold text-destructive-foreground",
                 iso === todayISO && !mode && "ring-1 ring-primary/50",
@@ -172,21 +168,24 @@ function AvailabilityPage() {
   );
 
   function toggleDay(iso: string) {
+    if (data?.trip.datesLocked) return;
     setSelection((prev) => {
       const next = new Map(prev);
       const cur = next.get(iso) ?? null;
       if (paintMode === "available") {
         if (cur === "available") next.delete(iso);
         else next.set(iso, "available");
-      } else {
-        if (cur === "blocked") next.delete(iso);
-        else next.set(iso, "blocked");
-      }
+      } else if (cur === "blocked") next.delete(iso);
+      else next.set(iso, "blocked");
       return next;
     });
   }
 
+  const baseMonth = startOfMonth(new Date());
+  const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
+
   function selectWeekendsInView() {
+    if (data?.trip.datesLocked) return;
     setSelection((prev) => {
       const next = new Map(prev);
       for (const month of months) {
@@ -196,22 +195,12 @@ function AvailabilityPage() {
           const iso = toISO(date);
           if (iso < toISO(new Date())) continue;
           const wd = date.getDay();
-          if (wd === 0 || wd === 6) {
-            if (paintMode === "available") next.set(iso, "available");
-            else next.set(iso, "blocked");
-          }
+          if (wd === 0 || wd === 6) next.set(iso, paintMode);
         }
       }
       return next;
     });
   }
-
-  function clearSelection() {
-    setSelection(new Map());
-  }
-
-  const baseMonth = startOfMonth(new Date());
-  const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
 
   const mutation = useMutation({
     mutationFn: () => submit({ data: { tripId, availableDates, blockedDates, flexDays: 0, notes: notes || undefined } }),
@@ -254,11 +243,7 @@ function AvailabilityPage() {
   });
 
   if (isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8">
-        <KrewThinkingState context="generic" customMessage="Chargement des disponibilités…" delayMs={0} />
-      </main>
-    );
+    return <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8"><KrewThinkingState context="generic" customMessage="Chargement des disponibilités…" delayMs={0} /></main>;
   }
 
   if (error || !data) {
@@ -268,9 +253,7 @@ function AvailabilityPage() {
         <h1 className="font-display text-[30px] font-normal text-foreground">Impossible de charger les disponibilités</h1>
         <p className="text-sm text-muted-foreground">Les réponses du groupe ne sont pas disponibles pour le moment.</p>
         <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching}>
-            {isFetching ? <><Loader2 className="size-4 animate-spin" /> Chargement…</> : "Réessayer"}
-          </Button>
+          <Button onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching}>{isFetching ? <><Loader2 className="size-4 animate-spin" /> Chargement…</> : "Réessayer"}</Button>
           <Button variant="outline" asChild><Link to="/trips/$tripId" params={{ tripId }}>Retour au voyage</Link></Button>
         </div>
       </main>
@@ -282,40 +265,46 @@ function AvailabilityPage() {
 
   return (
     <main className="mx-auto w-full max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-      <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary">
-        <ArrowLeft className="size-4" /> Retour au voyage
-      </Link>
+      <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
 
       <KrewJourneyPageHeader tripName={data.trip.name} title="Disponibilités" otterSrc="/brand/otter-states/availability.png">
-        <div className="flex items-center gap-3">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sage/18"><KrewIcon name="group" tone="sage" size="sm" className="size-5" /></div>
-          <div className="space-y-0.5">
-            <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
-            {data.expected - data.answered > 0 ? (
-              <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block px-3 py-1.5 text-[14px]">
-                {data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}
-              </KrewNote>
-            ) : null}
+        {datesLocked ? (
+          <div className="space-y-2">
+            <p className="flex items-center gap-2 text-[15px] font-medium text-foreground"><Lock className="size-4 text-primary" /> Les dates du voyage sont confirmées.</p>
+            <p className="text-[14px] leading-relaxed text-muted-foreground">Tes disponibilités restent visibles pour mémoire, mais elles ne sont plus modifiables.</p>
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sage/18"><KrewIcon name="group" tone="sage" size="sm" className="size-5" /></div>
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
+              {data.expected - data.answered > 0 ? <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block px-3 py-1.5 text-[14px]">{data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}</KrewNote> : null}
+            </div>
+          </div>
+        )}
       </KrewJourneyPageHeader>
+
+      {datesLocked && lockedLabel ? (
+        <section className="border-y border-sage/35 py-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3"><Lock className="mt-0.5 size-5 text-primary" /><div><h2 className="font-semibold text-foreground">Dates choisies</h2><p className="mt-1 font-mono text-[14px] text-foreground">{lockedLabel}</p></div></div>
+            {data.isOwner ? <button type="button" disabled={unlockMutation.isPending} aria-busy={unlockMutation.isPending} onClick={() => { if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:cursor-wait disabled:opacity-60">{unlockMutation.isPending ? "Modification…" : "Modifier les dates"}</button> : null}
+          </div>
+        </section>
+      ) : null}
 
       <section className="w-full space-y-7">
         <div>
-          <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
-            <KrewIcon name="calendar" tone="plum" size="sm" className="size-5" /> Mes disponibilités
-          </h2>
-          <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les modifier.</p>
+          <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]"><KrewIcon name="calendar" tone="plum" size="sm" className="size-5" /> Mes disponibilités</h2>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">{datesLocked ? "Voici les disponibilités que tu avais renseignées avant la confirmation des dates." : <>Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les modifier.</>}</p>
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Mode de sélection des dates">
-          <button type="button" onClick={() => setPaintMode("available")} aria-pressed={paintMode === "available"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors", paintMode === "available" ? "border-sage/40 bg-sage/20 font-semibold text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/25")}>
-            <span className="size-2.5 rounded-full bg-current" /> Je suis dispo
-          </button>
-          <button type="button" onClick={() => setPaintMode("blocked")} aria-pressed={paintMode === "blocked"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors", paintMode === "blocked" ? "border-destructive bg-destructive font-semibold text-white" : "border-border bg-background text-muted-foreground hover:border-destructive/50")}>
-            <span className="size-2.5 rounded-full bg-current" /> Impossible
-          </button>
-        </div>
+        {!datesLocked ? (
+          <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Mode de sélection des dates">
+            <button type="button" onClick={() => setPaintMode("available")} aria-pressed={paintMode === "available"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors", paintMode === "available" ? "border-sage/40 bg-sage/20 font-semibold text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/25")}><span className="size-2.5 rounded-full bg-current" /> Je suis dispo</button>
+            <button type="button" onClick={() => setPaintMode("blocked")} aria-pressed={paintMode === "blocked"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors", paintMode === "blocked" ? "border-destructive bg-destructive font-semibold text-white" : "border-border bg-background text-muted-foreground hover:border-destructive/50")}><span className="size-2.5 rounded-full bg-current" /> Impossible</button>
+          </div>
+        ) : null}
 
         <div className="flex items-center justify-between">
           <Button type="button" variant="ghost" size="icon" aria-label="Mois précédents" onClick={() => setMonthOffset((o) => Math.max(0, o - 1))} disabled={monthOffset <= 0}><ChevronLeft className="size-4" /></Button>
@@ -323,52 +312,36 @@ function AvailabilityPage() {
           <Button type="button" variant="ghost" size="icon" aria-label="Mois suivants" onClick={() => setMonthOffset((o) => o + 1)}><ChevronRight className="size-4" /></Button>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          {months.map((m) => <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />)}
-        </div>
+        <div className="grid gap-3 sm:grid-cols-2">{months.map((m) => <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} readOnly={datesLocked} />)}</div>
 
-        <div className="flex items-center justify-end gap-2 sm:pr-2">
-          <KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" />
-          <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]">
-          <button type="button" onClick={selectWeekendsInView} className="inline-flex min-h-10 items-center font-semibold text-primary underline-offset-4 hover:underline">Sélectionner tous les week-ends affichés</button>
-          <button type="button" onClick={clearSelection} className="inline-flex min-h-10 items-center font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Tout effacer</button>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="availability-notes" className="text-[14px] font-semibold text-foreground">Notes (optionnel)</Label>
-          <Textarea id="availability-notes" className="min-h-[112px] rounded-[10px] border-border/70 text-[15px] shadow-none focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex. : OK pour partir le jeudi soir, préfère un week-end…" />
-        </div>
-
-        {datesLocked ? (
-          <p className="border-l-2 border-sage/55 py-1 pl-3 text-[14px] leading-relaxed text-foreground"><Lock className="mr-1.5 inline size-4 text-secondary" />Dates confirmées par l&apos;organisateur·rice — tes disponibilités sont figées et ne peuvent plus être modifiées.</p>
+        {!datesLocked ? (
+          <>
+            <div className="flex items-center justify-end gap-2 sm:pr-2"><KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" /><KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote></div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]"><button type="button" onClick={selectWeekendsInView} className="inline-flex min-h-10 items-center font-semibold text-primary underline-offset-4 hover:underline">Sélectionner tous les week-ends affichés</button><button type="button" onClick={() => setSelection(new Map())} className="inline-flex min-h-10 items-center font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Tout effacer</button></div>
+          </>
         ) : null}
 
-        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0 || datesLocked} className="w-full" aria-busy={mutation.isPending}>
-          {mutation.isPending ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}
-          {mutation.isPending ? "Enregistrement…" : data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}
-        </Button>
-        {availableDates.length === 0 ? <p className="text-center text-[13px] text-muted-foreground">Sélectionne au moins une date verte pour enregistrer.</p> : null}
+        <div className="space-y-2"><Label htmlFor="availability-notes" className="text-[14px] font-semibold text-foreground">Notes (optionnel)</Label><Textarea id="availability-notes" className="min-h-[112px] rounded-[10px] border-border/70 text-[15px] shadow-none focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex. : OK pour partir le jeudi soir, préfère un week-end…" disabled={datesLocked} /></div>
+
+        {!datesLocked ? (
+          <>
+            <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0} className="w-full" aria-busy={mutation.isPending}>{mutation.isPending ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}{mutation.isPending ? "Enregistrement…" : data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}</Button>
+            {availableDates.length === 0 ? <p className="text-center text-[13px] text-muted-foreground">Sélectionne au moins une date verte pour enregistrer.</p> : null}
+          </>
+        ) : null}
       </section>
 
-      {datesLocked && lockedLabel ? (
-        <section className="border-y border-sage/35 py-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <Lock className="mt-0.5 size-5 text-primary" />
-              <div>
-                <h2 className="font-semibold text-foreground">Dates choisies</h2>
-                <p className="mt-1 font-mono text-[14px] text-foreground">{lockedLabel}</p>
-              </div>
-            </div>
-            {data.isOwner ? (
-              <button type="button" disabled={unlockMutation.isPending} aria-busy={unlockMutation.isPending} onClick={() => { if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:cursor-wait disabled:opacity-60">
-                {unlockMutation.isPending ? "Modification…" : "Modifier les dates"}
-              </button>
-            ) : null}
-          </div>
+      {!datesLocked && data.isOwner && (data.windows ?? []).length > 0 ? (
+        <section className="space-y-3 border-t border-border/45 pt-6">
+          <h2 className="font-display text-[24px] font-normal text-foreground">Créneaux possibles</h2>
+          <ul className="space-y-2">
+            {(data.windows ?? []).map((window: any) => (
+              <li key={`${window.start}-${window.end}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 px-4 py-3">
+                <span className="text-sm font-medium">{formatRange(window.start, window.end)}</span>
+                <Button size="sm" disabled={chooseMutation.isPending} onClick={() => chooseMutation.mutate({ start: window.start, end: window.end })}>Choisir ces dates</Button>
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
     </main>
