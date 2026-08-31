@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
 
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
+import { TripTasksPage } from "@/components/krew/TripTasksPage";
 
 /**
  * Layout parent du voyage : obligatoire pour que les routes enfants
@@ -15,10 +16,11 @@ function TripLayout() {
   const location = useRouterState({ select: (state) => state.location });
   const search = location.search as Record<string, unknown>;
   const showPlanningMap = search.view === "voyage" && search.section === "planning";
+  const showTasksPage = search.view === "voyage" && search.section === "tasks";
 
   return (
     <>
-      <Outlet />
+      {showTasksPage ? <TripTasksPage tripId={tripId} /> : <Outlet />}
       {showPlanningMap ? <PlanningMapSection tripId={tripId} /> : null}
     </>
   );
