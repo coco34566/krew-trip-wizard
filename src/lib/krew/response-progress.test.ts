@@ -9,6 +9,7 @@ function progress(overrides: Partial<Parameters<typeof deriveResponseProgress>[0
   return deriveResponseProgress({
     ownerId,
     coOrganizerId: null,
+    hasStar: false,
     starUserId: null,
     starMode: "participant",
     participants: [],
@@ -59,8 +60,26 @@ describe("deriveResponseProgress", () => {
     expect(result.availabilityMissing).toBe(1);
   });
 
+  it("does not add a virtual Star when a non-Star trip happens to have secret as its default mode", () => {
+    const result = progress({
+      hasStar: false,
+      starMode: "secret",
+      secretStarHasPreferences: true,
+      secretStarHasAvailability: true,
+      preferenceUserIds: [ownerId],
+      availabilityUserIds: [ownerId],
+    });
+
+    expect(result.secretStarExpected).toBe(false);
+    expect(result.preferencesExpected).toBe(1);
+    expect(result.preferencesAnswered).toBe(1);
+    expect(result.availabilityExpected).toBe(1);
+    expect(result.availabilityAnswered).toBe(1);
+  });
+
   it("counts a participant-mode Star once like any other participant", () => {
     const result = progress({
+      hasStar: true,
       starMode: "participant",
       starUserId: user2,
       participants: [
@@ -79,6 +98,7 @@ describe("deriveResponseProgress", () => {
 
   it("adds one secret Star response to both counters when both parts are completed", () => {
     const result = progress({
+      hasStar: true,
       starMode: "secret",
       secretStarHasPreferences: true,
       secretStarHasAvailability: true,
@@ -94,6 +114,7 @@ describe("deriveResponseProgress", () => {
 
   it("counts only secret-Star preferences when availability is incomplete", () => {
     const result = progress({
+      hasStar: true,
       starMode: "secret",
       secretStarHasPreferences: true,
       secretStarHasAvailability: false,
@@ -107,6 +128,7 @@ describe("deriveResponseProgress", () => {
 
   it("counts only secret-Star availability when preferences are incomplete", () => {
     const result = progress({
+      hasStar: true,
       starMode: "secret",
       secretStarHasPreferences: false,
       secretStarHasAvailability: true,
