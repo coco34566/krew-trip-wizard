@@ -30,6 +30,20 @@ function setCompletedGroupSectionReadOnly(completed: boolean) {
   };
 }
 
+function setOrganizerOnlyManagementVisible(isCreator: boolean) {
+  if (typeof document === "undefined") return () => {};
+  const footer = Array.from(document.querySelectorAll<HTMLElement>("main footer")).find((candidate) =>
+    candidate.textContent?.includes("Gestion du voyage"),
+  );
+  if (!footer) return () => {};
+
+  const previousHidden = footer.hidden;
+  if (!isCreator) footer.hidden = true;
+  return () => {
+    footer.hidden = previousHidden;
+  };
+}
+
 export function TripHubDashboard(props: Props) {
   const fetchProgress = useServerFn(getParticipantsProgress);
   const { data: centralized, isSuccess: progressReady } = useQuery({
@@ -56,6 +70,7 @@ export function TripHubDashboard(props: Props) {
   });
   const responsesClosed = datesLocked;
   const completed = lifecycle === "completed";
+  const isCreator = Boolean(props.viewerUserId && props.viewerUserId === trip?.owner_id);
 
   const preferencesAnswered = responsesClosed ? preferencesExpected : rawPreferencesAnswered;
   const availabilityAnswered = responsesClosed ? availabilityExpected : rawAvailabilityAnswered;
@@ -66,6 +81,7 @@ export function TripHubDashboard(props: Props) {
   });
 
   useEffect(() => setCompletedGroupSectionReadOnly(completed), [completed]);
+  useEffect(() => setOrganizerOnlyManagementVisible(isCreator), [isCreator]);
 
   useEffect(() => {
     const viewerId = props.viewerUserId ?? null;
