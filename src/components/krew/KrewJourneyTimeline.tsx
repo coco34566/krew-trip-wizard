@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import {
   KrewIcon,
   KrewMark,
@@ -169,17 +171,76 @@ function CurrentPositionMarker() {
 }
 
 export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
-  const nextActionIndex = steps.findIndex((step) => step.status === "next_action");
+  const roleAndTasksQuery = useQuery({
+    queryKey: ["journey-role-tasks", tripId],
+    queryFn: async () => {
+      const userResult = await supabase.auth.getUser();
+      const userId = userResult.data.user?.id ?? null;
+      const [tripResult, tasksResult] = await Promise.all([
+        supabase
+          .from("trips")
+          .select("owner_id, co_organizer_id")
+          .eq("id", tripId)
+          .maybeSingle(),
+        supabase.from("trip_tasks" as any).select("status").eq("trip_id", tripId),
+      ]);
+
+      if (tripResult.error) throw tripResult.error;
+      if (tasksResult.error) throw tasksResult.error;
+      const trip = tripResult.data as any;
+      return {
+        isAdmin: Boolean(
+          userId && trip && (trip.owner_id === userId || trip.co_organizer_id === userId),
+        ),
+        taskStatuses: ((tasksResult.data ?? []) as any[]).map((task) => String(task.status)),
+      };
+    },
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  const effectiveSteps = steps.map((step) => {
+    if (step.id === "star" && roleAndTasksQuery.data?.isAdmin !== true) {
+      if (step.status === "done") return { ...step, href: null };
+      return {
+        ...step,
+        href: null,
+        status: "upcoming" as const,
+        subtitle: "Étape gérée par l’organisateur·rice",
+      };
+    }
+
+    if (step.id === "tasks") {
+      const statuses = roleAndTasksQuery.data?.taskStatuses ?? [];
+      if (statuses.length > 0) {
+        const completed = statuses.filter((status) => status === "done").length;
+        const allDone = completed === statuses.length;
+        return {
+          ...step,
+          subtitle: `${completed}/${statuses.length} terminée${statuses.length > 1 ? "s" : ""}`,
+          status: allDone
+            ? ("done" as const)
+            : step.status === "next_action"
+              ? ("next_action" as const)
+              : ("available" as const),
+        };
+      }
+    }
+
+    return step;
+  });
+
+  const nextActionIndex = effectiveSteps.findIndex((step) => step.status === "next_action");
   const currentIndex = Math.max(
     0,
     nextActionIndex >= 0
       ? nextActionIndex
-      : steps.reduce(
+      : effectiveSteps.reduce(
           (last, step, index) => (step.status === "done" || step.status === "available" ? index : last),
           0,
         ),
   );
-  const progress = steps.length > 1 ? (currentIndex / (steps.length - 1)) * 100 : 100;
+  const progress = effectiveSteps.length > 1 ? (currentIndex / (effectiveSteps.length - 1)) * 100 : 100;
 
   return (
     <div className="mx-auto w-full max-w-[940px] px-1 py-1 font-sans">
@@ -223,13 +284,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
         </div>
 
         <ol className="space-y-1 sm:space-y-0">
-          {steps.map((step, index) => {
+          {effectiveSteps.map((step, index) => {
             const isDone = step.status === "done";
             const isNextAction = step.status === "next_action";
             const isAvailable = step.status === "available";
             const isUpcoming = step.status === "upcoming";
             const startsCategory = Boolean(
-              step.category && (index === 0 || step.category !== steps[index - 1]?.category),
+              step.category && (index === 0 || step.category !== effectiveSteps[index - 1]?.category),
             );
             const directHref =
               step.id === "preferences"
