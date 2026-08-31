@@ -23,12 +23,23 @@ describe("Krew Pulse", () => {
     expect(
       getKrewPulse({
         ...readyBase,
+        datesLocked: false,
         availabilityAnswered: 2,
         preferencesAnswered: 3,
         hotelSelected: false,
         hasItinerary: false,
       }),
     ).toEqual({ state: "waiting", message: "Il manque encore des réponses du groupe." });
+  });
+
+  it("ignore une disponibilité manquante lorsqu’un participant arrive après verrouillage des dates", () => {
+    expect(
+      getKrewPulse({
+        ...readyBase,
+        availabilityAnswered: 4,
+        availabilityExpected: 5,
+      }),
+    ).toEqual({ state: "ready", message: "Tout est calé." });
   });
 
   it("signale un profil prêt mais non validé avant la destination", () => {
