@@ -9,7 +9,7 @@ export type CitySelection = {
   city: string;
   /** Code postal principal si connu */
   postalCode?: string;
-  /** Code INSEE */
+  /** Identifiant fournisseur stable */
   code?: string;
   /** Aéroport principal auto (IATA) si mappé */
   airportIata?: string;
@@ -32,7 +32,7 @@ const CITY_AIRPORT: Record<string, { iata: string; label: string }> = {
   rennes: { iata: "RNS", label: "Rennes Saint-Jacques (RNS)" },
   "clermont-ferrand": { iata: "CFE", label: "Clermont-Ferrand (CFE)" },
   biarritz: { iata: "BIQ", label: "Biarritz (BIQ)" },
-  "ajaccio": { iata: "AJA", label: "Ajaccio (AJA)" },
+  ajaccio: { iata: "AJA", label: "Ajaccio (AJA)" },
   bastia: { iata: "BIA", label: "Bastia (BIA)" },
   brest: { iata: "BES", label: "Brest Bretagne (BES)" },
   pau: { iata: "PUF", label: "Pau Pyrénées (PUF)" },
@@ -51,7 +51,6 @@ function airportForCity(cityName: string) {
     .replace(/\p{M}/gu, "")
     .toLowerCase()
     .trim();
-  // match exact or starts with
   if (CITY_AIRPORT[key]) return CITY_AIRPORT[key];
   for (const [k, v] of Object.entries(CITY_AIRPORT)) {
     if (key.startsWith(k) || k.startsWith(key)) return v;
@@ -65,7 +64,24 @@ type GeoCommune = {
   codesPostaux?: string[];
   population?: number;
   pays?: string;
+  latitude?: string;
+  longitude?: string;
 };
+
+export function dedupeCitySuggestions(items: GeoCommune[]): GeoCommune[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const city = item.nom.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+    const country = (item.pays ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+    const latitude = item.latitude ? Number(item.latitude).toFixed(4) : "";
+    const longitude = item.longitude ? Number(item.longitude).toFixed(4) : "";
+    const geoKey = latitude && longitude ? `${latitude}:${longitude}` : "";
+    const key = geoKey ? `${city}|${country}|${geoKey}` : `${city}|${country}|${item.code}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 type Props = {
   id?: string;
@@ -120,30 +136,38 @@ export function CityAutocomplete({
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const isPostal = /^\d{4,5}$/.test(q);
         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=8&accept-language=fr`;
         const res = await fetch(url, {
           headers: {
-            "User-Agent": "KrewGroupTripPlanner/1.0"
-          }
+            "User-Agent": "KrewGroupTripPlanner/1.0",
+          },
         });
         if (!res.ok) throw new Error("OSM Nominatim API error");
         const data = await res.json();
 
-        const mapped: GeoCommune[] = data.map((item: any) => {
-          const address = item.address || {};
-          const city = address.city || address.town || address.village || address.municipality || item.display_name.split(",")[0];
-          const postcode = address.postcode || "";
-          const country = address.country || "";
-          return {
-            nom: city,
-            code: item.place_id,
-            codesPostaux: postcode ? [postcode] : [],
-            pays: country
-          };
-        }).filter((item: any) => item.nom);
+        const mapped: GeoCommune[] = data
+          .map((item: any) => {
+            const address = item.address || {};
+            const city =
+              address.city ||
+              address.town ||
+              address.village ||
+              address.municipality ||
+              item.display_name.split(",")[0];
+            const postcode = address.postcode || "";
+            const country = address.country || "";
+            return {
+              nom: city,
+              code: String(item.place_id),
+              codesPostaux: postcode ? [postcode] : [],
+              pays: country,
+              latitude: item.lat ? String(item.lat) : undefined,
+              longitude: item.lon ? String(item.lon) : undefined,
+            };
+          })
+          .filter((item: GeoCommune) => item.nom);
 
-        setItems(mapped);
+        setItems(dedupeCitySuggestions(mapped));
         setOpen(true);
       } catch (err) {
         console.error("OSM Error", err);
@@ -197,7 +221,7 @@ export function CityAutocomplete({
       {open && items.length > 0 ? (
         <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-border bg-card py-1 shadow-lg">
           {items.map((c) => (
-            <li key={c.code}>
+            <li key={`${c.code}-${c.latitude ?? ""}-${c.longitude ?? ""}`}>
               <button
                 type="button"
                 className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-primary/10"
@@ -213,7 +237,6 @@ export function CityAutocomplete({
           ))}
         </ul>
       ) : null}
-
     </div>
   );
 }
