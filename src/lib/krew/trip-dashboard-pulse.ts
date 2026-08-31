@@ -25,7 +25,9 @@ export type KrewPulse = {
 };
 
 export function getKrewPulse(input: KrewPulseInput): KrewPulse {
-  const missingAvailability = Math.max(0, input.availabilityExpected - input.availabilityAnswered);
+  const missingAvailability = input.datesLocked
+    ? 0
+    : Math.max(0, input.availabilityExpected - input.availabilityAnswered);
   const missingPreferences = Math.max(0, input.preferencesExpected - input.preferencesAnswered);
 
   if (missingAvailability > 0 && missingPreferences > 0) return { state: "waiting", message: "Il manque encore des réponses du groupe." };
@@ -75,6 +77,6 @@ export function getTripCountdown(input: { datesLocked: boolean; startDate?: stri
     return { state: "ongoing", label: "En voyage", microcopy: null, daysUntilStart };
   }
   if (daysUntilStart > 1) return { state: "future", label: `J-${daysUntilStart}`, microcopy: daysUntilStart === 30 ? "Ça approche." : daysUntilStart <= 7 ? "Dernière ligne droite." : null, daysUntilStart };
-  if (daysUntilStart === 1) return { state: "tomorrow", label: "Demain", microcopy: "Demain, la Krew part.", daysUntilStart };
+  if (daysUntilStart === 1) return { state: "tomorrow", label: "Demain", microcopy: "Demain, la Krew part.", daysUntilStart: 1 };
   return { state: "future", label: "À venir", microcopy: null, daysUntilStart };
 }
