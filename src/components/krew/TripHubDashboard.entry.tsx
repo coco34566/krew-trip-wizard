@@ -16,6 +16,20 @@ import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
 
 type Props = ComponentProps<typeof TripHubDashboardLegacy>;
 
+function setCompletedGroupSectionReadOnly(completed: boolean) {
+  if (typeof document === "undefined") return () => {};
+  const section = document.getElementById("group-section");
+  if (!section) return () => {};
+
+  const controls = Array.from(section.querySelectorAll<HTMLElement>("button, input, select"));
+  const previous = controls.map((control) => ({ control, hidden: control.hidden }));
+  for (const control of controls) control.hidden = completed || control.hidden;
+
+  return () => {
+    for (const { control, hidden } of previous) control.hidden = hidden;
+  };
+}
+
 export function TripHubDashboard(props: Props) {
   const fetchProgress = useServerFn(getParticipantsProgress);
   const { data: centralized, isSuccess: progressReady } = useQuery({
@@ -50,6 +64,8 @@ export function TripHubDashboard(props: Props) {
     ...props.trip,
     participants_count: progressReady ? preferencesExpected : props.participantsCount,
   });
+
+  useEffect(() => setCompletedGroupSectionReadOnly(completed), [completed]);
 
   useEffect(() => {
     const viewerId = props.viewerUserId ?? null;
