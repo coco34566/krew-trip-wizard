@@ -247,32 +247,38 @@ function AuthPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background lg:grid lg:grid-cols-[minmax(300px,0.82fr)_minmax(480px,1.18fr)]">
-      <section className="relative overflow-hidden border-b border-border/45 bg-sage/[0.07] px-4 py-7 sm:px-6 lg:min-h-screen lg:border-b-0 lg:border-r lg:px-10 lg:py-10 xl:px-14">
-        <KrewOrganicBlob tone="sage" variant="soft" className="pointer-events-none absolute -left-24 top-[18%] h-[280px] w-[390px] opacity-45" />
+    <main className="min-h-screen overflow-x-hidden bg-background lg:grid lg:grid-cols-[minmax(300px,0.82fr)_minmax(480px,1.18fr)]">
+      <section className="relative z-10 min-h-[470px] px-4 pb-20 pt-7 sm:min-h-[500px] sm:px-6 lg:min-h-screen lg:overflow-hidden lg:border-r lg:border-border/45 lg:bg-sage/[0.07] lg:px-10 lg:py-10 xl:px-14">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[calc(100%-18px)] overflow-hidden rounded-br-[42%] bg-sage/[0.075] lg:hidden">
+          <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-[32%] top-[13%] h-[78%] w-[128%] opacity-45" />
+        </div>
+        <KrewOrganicBlob tone="sage" variant="soft" className="pointer-events-none absolute -left-24 top-[18%] hidden h-[280px] w-[390px] opacity-45 lg:block" />
+
         <div className="relative z-10 mx-auto flex h-full w-full max-w-[520px] flex-col lg:justify-between">
           <Link to="/" className="w-fit"><Logo size="lg" withTagline /></Link>
 
-          <div className="mt-9 grid grid-cols-[minmax(0,1fr)_82px] items-end gap-4 lg:mt-0 lg:block">
-            <div className="max-w-[420px]">
-              <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.12em] text-primary">La team. Le plan. Le moment.</p>
-              <h1 className="mt-2 font-display text-[34px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground sm:text-[42px] lg:text-[50px]">
-                Retrouve ton voyage, simplement.
-              </h1>
-              <p className="mt-4 max-w-[390px] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-                Connecte-toi pour retrouver tes voyages de groupe et poursuivre l’organisation là où tu l’as laissée.
-              </p>
-            </div>
-            <img
-              src="/brand/otter-states/lets-go.png"
-              alt=""
-              className="pointer-events-none w-[82px] justify-self-end object-contain lg:mt-10 lg:w-[118px]"
-            />
+          <div className="mt-9 max-w-[430px] sm:mt-11 lg:mt-0">
+            <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.12em] text-primary">La team. Le plan. Le moment.</p>
+            <h1 className="mt-2 max-w-[390px] font-display text-[36px] font-normal leading-[0.96] tracking-[-0.025em] text-foreground sm:text-[44px] lg:text-[50px]">
+              Retrouve ton voyage, simplement.
+            </h1>
+            <p className="mt-4 max-w-[390px] pr-4 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+              Connecte-toi pour retrouver tes voyages de groupe et poursuivre l’organisation là où tu l’as laissée.
+            </p>
           </div>
         </div>
+
+        <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute right-5 top-[45%] opacity-45 sm:right-10 lg:hidden" />
+        <KrewMark type="arrow-curved-down" tone="sage" size="sm" rotation={-4} className="pointer-events-none absolute bottom-[34px] right-[112px] opacity-55 sm:right-[142px] lg:hidden" />
+        <KrewMark type="route" tone="sage" size="sm" rotation={2} className="pointer-events-none absolute bottom-[54px] left-3 opacity-35 lg:hidden" />
+        <img
+          src="/brand/otter-states/lets-go.png"
+          alt=""
+          className="pointer-events-none absolute -bottom-3 right-3 z-20 w-[112px] object-contain sm:right-8 sm:w-[128px] lg:static lg:mt-10 lg:w-[118px]"
+        />
       </section>
 
-      <section className="flex min-h-[calc(100vh-220px)] items-center px-4 py-10 sm:px-6 lg:min-h-screen lg:px-12 xl:px-16">
+      <section className="relative z-0 -mt-8 flex min-h-[calc(100vh-220px)] items-start px-4 pb-10 pt-20 sm:-mt-10 sm:px-6 sm:pt-24 lg:mt-0 lg:min-h-screen lg:items-center lg:px-12 lg:py-10 xl:px-16">
         <div className="mx-auto w-full max-w-[520px]">
           <div className="mb-8 space-y-2">
             <div className="relative inline-block pb-2">
