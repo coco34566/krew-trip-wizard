@@ -2,8 +2,10 @@ import type { ComponentProps } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
+import { KrewJourneyTimelineHistory } from "@/components/krew/KrewJourneyTimelineHistory";
 import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
 import { supabase } from "@/integrations/supabase/client";
+import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import {
   KrewJourneyTimeline as KrewJourneyTimelineLegacy,
@@ -17,9 +19,9 @@ function pendingStatus(step: TimelineStep) {
 }
 
 /**
- * Recomputes the two questionnaire steps from the shared response selector.
- * Once dates are locked, the response phase is closed for both steps: a late
- * participant must never reopen an earlier journey step or make it look pending.
+ * Recomputes questionnaire steps from the shared response selector. Locked dates
+ * close availability collection, and a completed trip switches to a dedicated
+ * historical representation instead of exposing preparation-oriented states.
  */
 export function KrewJourneyTimeline(props: Props) {
   const fetchProgress = useServerFn(getParticipantsProgress);
@@ -30,7 +32,7 @@ export function KrewJourneyTimeline(props: Props) {
         fetchProgress({ data: { tripId: props.tripId } }),
         supabase
           .from("trips")
-          .select("dates_locked, group_logistics, owner_id, co_organizer_id")
+          .select("dates_locked, start_date, end_date, group_logistics, owner_id, co_organizer_id")
           .eq("id", props.tripId)
           .maybeSingle(),
         supabase.auth.getUser(),
@@ -39,9 +41,17 @@ export function KrewJourneyTimeline(props: Props) {
 
       const userId = userResult.data.user?.id ?? null;
       const trip = tripResult.data;
+      const lifecycle = trip
+        ? getTripLifecycleState({
+            datesLocked: Boolean(trip.dates_locked),
+            startDate: trip.start_date,
+            endDate: trip.end_date,
+          })
+        : "preparing";
       return {
         progress,
         datesLocked: Boolean(trip?.dates_locked),
+        completed: lifecycle === "completed",
         logistics: trip?.group_logistics ?? null,
         canManage: Boolean(
           userId && trip && (trip.owner_id === userId || trip.co_organizer_id === userId),
@@ -79,6 +89,22 @@ export function KrewJourneyTimeline(props: Props) {
 
     return step;
   });
+
+  if (responseQuery.data?.completed) {
+    return (
+      <KrewJourneyTimelineHistory
+        tripId={props.tripId}
+        tripName={props.tripName}
+        steps={steps.map((step) => ({
+          id: step.id,
+          title: step.title,
+          subtitle: step.subtitle,
+          iconName: step.iconName,
+          href: step.href,
+        }))}
+      />
+    );
+  }
 
   return (
     <div className="space-y-5">
