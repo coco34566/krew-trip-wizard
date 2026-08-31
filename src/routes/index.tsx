@@ -56,12 +56,12 @@ function Landing() {
               <div className="lg:col-span-7 space-y-4 sm:space-y-5">
                 <div className="relative">
                   <h1 className="font-display text-[42px] sm:text-[64px] lg:text-[78px] font-normal tracking-tight text-foreground leading-[0.94]">
-                    Vous voulez partir.{" "}<span className="italic text-primary block sm:inline">KREW s’occupe du casse-tête.</span>
+                    Tout commence par{" "}<span className="italic text-primary block sm:inline">une envie de partir.</span>
                   </h1>
                   <KrewMark type="underline-wave" tone="sage" size="lg" className="mt-1 w-[180px] sm:w-[260px] h-[10px] opacity-90 pointer-events-none" />
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
-                  Dates impossibles à caler, budgets différents, 47 messages et personne qui tranche ? KREW rassemble les envies du groupe et transforme tout ça en un vrai voyage.
+                  KREW aide le groupe à se mettre d’accord et transforme les réponses en un voyage concret.
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-2 relative">
                   <Button asChild size="xl" className="h-10 min-h-10 rounded-xl px-7 py-0 text-sm sm:text-base font-medium leading-none shadow-none">
@@ -116,7 +116,7 @@ function Landing() {
                 <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LE PLAN</span>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono">Comment ça marche</p>
                 <h2 className="relative inline-block font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground leading-tight tracking-tight mt-0.5">
-                  Vos contraintes entrent. Un vrai week-end en sort.
+                  KREW croise les réponses. Le groupe n’a plus qu’à choisir.
                   <KrewMark type="underline-wave" tone="sage" size="md" className="mt-1 w-[180px] sm:w-[240px] opacity-80 pointer-events-none" />
                 </h2>
               </div>
@@ -187,8 +187,8 @@ function Landing() {
           <KrewOrganicBlob tone="sage" variant="soft" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] opacity-20 pointer-events-none z-0" />
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
             <KrewMark type="sparkle" tone="sage" size="sm" className="absolute top-2 right-10 size-6 opacity-60 pointer-events-none" />
-            <div className="max-w-xl text-center mx-auto mb-8 sm:mb-10"><span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LA TEAM</span><p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono mt-0.5">Ce que KREW fait pour toi</p><h2 className="mt-1 font-display text-3xl sm:text-4xl font-normal text-foreground relative inline-block">Tout le monde donne son avis. Sans réunion de crise.<KrewMark type="underline-wave" tone="sage" size="md" className="mt-1 w-[140px] mx-auto opacity-80 pointer-events-none" /></h2><p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed">Chacun renseigne ses dispos, son budget et ses envies. KREW garde ce qui compte pour le groupe, sans transformer la conversation en tableur.</p></div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"><FeatureBlock iconName="destination" title="Des propositions qui collent au groupe" text="Des destinations qui tiennent compte des envies, du budget et des contraintes réelles." /><FeatureBlock iconName="budget" title="Un budget lisible" text="Transport, hébergement et activités réunis pour comprendre rapidement ce que le séjour implique." /><FeatureBlock iconName="vote" title="Des décisions à plusieurs" text="Chacun partage ses préférences, puis le groupe avance sans perdre le fil." /><FeatureBlock iconName="planning" title="Un plan que tout le monde retrouve" text="Restaurants, activités, arrivées et temps forts réunis dans un planning clair." /></div>
+            <div className="max-w-xl text-center mx-auto mb-8 sm:mb-10"><span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LA TEAM</span><p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono mt-0.5">Tout le voyage dans KREW</p><h2 className="mt-1 font-display text-3xl sm:text-4xl font-normal text-foreground relative inline-block">De l’idée au souvenir.<KrewMark type="underline-wave" tone="sage" size="md" className="mt-1 w-[140px] mx-auto opacity-80 pointer-events-none" /></h2><p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed">KREW accompagne le groupe avant, pendant et après le voyage, sans compliquer ce qui doit rester simple.</p></div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"><FeatureBlock iconName="destination" title="On se cale" text="Dispos, envies, budget, contraintes : chacun répond à son rythme." /><FeatureBlock iconName="vote" title="On choisit" text="KREW aide le groupe à transformer toutes ces réponses en décisions concrètes." /><FeatureBlock iconName="planning" title="On part" text="Planning, transports, tâches et essentiels restent au même endroit." /><FeatureBlock iconName="budget" title="On garde" text="Une fois le voyage passé, KREW conserve le voyage et les souvenirs du groupe." /></div>
           </div>
         </section>
 
