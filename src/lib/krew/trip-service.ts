@@ -3,6 +3,7 @@ export * from "./trip-service-legacy";
 import {
   aggregateParticipantPreferences as aggregateLegacyParticipantPreferences,
   assessGenerationReadiness as assessLegacyGenerationReadiness,
+  generateRecommendationsForTrip as generateLegacyRecommendationsForTrip,
   getDestinationBriefContext as getLegacyDestinationBriefContext,
 } from "./trip-service-legacy";
 
@@ -27,9 +28,6 @@ export async function aggregateParticipantPreferences(
  * Once dates are locked and the trip profile has already been validated, the
  * response phase is closed. A participant joining later must not make an
  * already-approved trip become non-generatable because the denominator grew.
- *
- * We deliberately keep the legacy readiness calculation for pre-validation
- * trips: locking dates alone must never bypass the minimum questionnaire signal.
  */
 export async function assessGenerationReadiness(
   ...args: Parameters<typeof assessLegacyGenerationReadiness>
@@ -54,6 +52,27 @@ export async function assessGenerationReadiness(
       questionnairesReady: true,
     },
   };
+}
+
+/**
+ * The legacy generator recalculates readiness internally. Mirror the public
+ * closed-response rule at the execution boundary so the UI cannot be green
+ * while the generation itself returns `skipped` after a late participant joins.
+ */
+export async function generateRecommendationsForTrip(
+  supabase: Parameters<typeof generateLegacyRecommendationsForTrip>[0],
+  tripId: Parameters<typeof generateLegacyRecommendationsForTrip>[1],
+  options?: Parameters<typeof generateLegacyRecommendationsForTrip>[2],
+): Promise<Awaited<ReturnType<typeof generateLegacyRecommendationsForTrip>>> {
+  const readiness = await assessGenerationReadiness(supabase, tripId);
+  const closedValidatedTrip = Boolean(
+    readiness.quality?.datesLocked && readiness.profile?.validated,
+  );
+
+  return generateLegacyRecommendationsForTrip(supabase, tripId, {
+    ...options,
+    force: options?.force === true || closedValidatedTrip,
+  });
 }
 
 export async function getDestinationBriefContext(
