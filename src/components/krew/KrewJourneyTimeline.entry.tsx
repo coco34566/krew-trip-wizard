@@ -5,6 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
 import { supabase } from "@/integrations/supabase/client";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
+import { TripLifecycleProvider } from "@/lib/krew/trip-lifecycle-context";
+import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import {
   KrewJourneyTimeline as KrewJourneyTimelineLegacy,
   type TimelineStep,
@@ -30,7 +32,7 @@ export function KrewJourneyTimeline(props: Props) {
         fetchProgress({ data: { tripId: props.tripId } }),
         supabase
           .from("trips")
-          .select("dates_locked, group_logistics, owner_id, co_organizer_id")
+          .select("dates_locked, start_date, end_date, group_logistics, owner_id, co_organizer_id")
           .eq("id", props.tripId)
           .maybeSingle(),
         supabase.auth.getUser(),
@@ -39,9 +41,15 @@ export function KrewJourneyTimeline(props: Props) {
 
       const userId = userResult.data.user?.id ?? null;
       const trip = tripResult.data;
+      const datesLocked = Boolean(trip?.dates_locked);
       return {
         progress,
-        datesLocked: Boolean(trip?.dates_locked),
+        datesLocked,
+        lifecycle: getTripLifecycleState({
+          datesLocked,
+          startDate: trip?.start_date ?? null,
+          endDate: trip?.end_date ?? null,
+        }),
         logistics: trip?.group_logistics ?? null,
         canManage: Boolean(
           userId && trip && (trip.owner_id === userId || trip.co_organizer_id === userId),
@@ -89,12 +97,14 @@ export function KrewJourneyTimeline(props: Props) {
   });
 
   return (
-    <div className="space-y-5" data-response-progress={progressReady ? "ready" : "loading"}>
-      <OrganizationRefreshNotice
-        logistics={responseQuery.data?.logistics}
-        canManage={responseQuery.data?.canManage ?? false}
-      />
-      <KrewJourneyTimelineLegacy {...props} steps={steps} />
-    </div>
+    <TripLifecycleProvider lifecycle={responseQuery.data?.lifecycle ?? "future"}>
+      <div className="space-y-5" data-response-progress={progressReady ? "ready" : "loading"}>
+        <OrganizationRefreshNotice
+          logistics={responseQuery.data?.logistics}
+          canManage={responseQuery.data?.canManage ?? false}
+        />
+        <KrewJourneyTimelineLegacy {...props} steps={steps} />
+      </div>
+    </TripLifecycleProvider>
   );
 }
