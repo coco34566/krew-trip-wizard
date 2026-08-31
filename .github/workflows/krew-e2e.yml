@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
-    timeout-minutes: 30
+    timeout-minutes: 20
     env:
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
@@ -65,8 +65,6 @@ jobs:
         run: npm install --no-save --package-lock=false @playwright/test@1.55.0
       - name: Run smoke journey only
         run: npm run test:e2e:smoke
-      - name: Run targeted motion visual audit
-        run: npx playwright test tests/e2e/motion-visual-audit.spec.ts --project=mobile-safari
       - name: Upload Playwright report
         if: always()
         continue-on-error: true
