@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router"
 
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
 import { TripPlanningPage } from "@/components/krew/TripPlanningPage";
+import { TripProfilePage } from "@/components/krew/TripProfilePage";
 import { TripStarAccessGate } from "@/components/krew/TripStarAccessGate";
 import { TripTasksPage } from "@/components/krew/TripTasksPage";
 import { TripTransportPage } from "@/components/krew/TripTransportPage";
@@ -19,6 +20,7 @@ function TripLayout() {
   const location = useRouterState({ select: (state) => state.location });
   const search = location.search as Record<string, unknown>;
   const showPlanningPage = search.view === "voyage" && search.section === "planning";
+  const showProfilePage = search.view === "voyage" && search.section === "profile";
   const showTasksPage = search.view === "voyage" && search.section === "tasks";
   const showTransportPage = search.view === "voyage" && search.section === "transport";
   const showStarGate = location.pathname.endsWith(`/trips/${tripId}/star`);
@@ -39,6 +41,8 @@ function TripLayout() {
         <TripTransportPage tripId={tripId} />
       ) : showPlanningPage ? (
         <TripPlanningPage tripId={tripId} />
+      ) : showProfilePage ? (
+        <TripProfilePage tripId={tripId} />
       ) : (
         outlet
       )}
