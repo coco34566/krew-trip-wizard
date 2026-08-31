@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
+import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
 import { supabase } from "@/integrations/supabase/client";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import {
@@ -25,12 +26,27 @@ export function KrewJourneyTimeline(props: Props) {
   const responseQuery = useQuery({
     queryKey: ["journey-response-progress", props.tripId],
     queryFn: async () => {
-      const [progress, tripResult] = await Promise.all([
+      const [progress, tripResult, userResult] = await Promise.all([
         fetchProgress({ data: { tripId: props.tripId } }),
-        supabase.from("trips").select("dates_locked").eq("id", props.tripId).maybeSingle(),
+        supabase
+          .from("trips")
+          .select("dates_locked, group_logistics, owner_id, co_organizer_id")
+          .eq("id", props.tripId)
+          .maybeSingle(),
+        supabase.auth.getUser(),
       ]);
       if (tripResult.error) throw tripResult.error;
-      return { progress, datesLocked: Boolean(tripResult.data?.dates_locked) };
+
+      const userId = userResult.data.user?.id ?? null;
+      const trip = tripResult.data;
+      return {
+        progress,
+        datesLocked: Boolean(trip?.dates_locked),
+        logistics: trip?.group_logistics ?? null,
+        canManage: Boolean(
+          userId && trip && (trip.owner_id === userId || trip.co_organizer_id === userId),
+        ),
+      };
     },
     retry: false,
   });
@@ -64,5 +80,13 @@ export function KrewJourneyTimeline(props: Props) {
     return step;
   });
 
-  return <KrewJourneyTimelineLegacy {...props} steps={steps} />;
+  return (
+    <div className="space-y-5">
+      <OrganizationRefreshNotice
+        logistics={responseQuery.data?.logistics}
+        canManage={responseQuery.data?.canManage ?? false}
+      />
+      <KrewJourneyTimelineLegacy {...props} steps={steps} />
+    </div>
+  );
 }

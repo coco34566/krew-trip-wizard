@@ -1,4 +1,4 @@
-import { KrewIcon, KrewMark } from "@/components/krew/KrewVisuals";
+import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import {
   getOrganizationRefreshState,
   type OrganizationRefreshItem,
@@ -86,7 +86,7 @@ export function OrganizationRefreshNotice({
       className="relative overflow-hidden rounded-[22px] border border-primary/15 bg-primary/[0.035] px-4 py-4 sm:px-5 sm:py-5"
     >
       <KrewMark
-        type="spark"
+        type="sparkle"
         tone="sage"
         size="sm"
         className="pointer-events-none absolute right-3 top-3 opacity-55"
