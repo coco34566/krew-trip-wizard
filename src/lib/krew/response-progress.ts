@@ -6,6 +6,7 @@ export type ResponseProgressParticipant = {
 export type ResponseProgressInput = {
   ownerId: string;
   coOrganizerId?: string | null;
+  hasStar?: boolean;
   starUserId?: string | null;
   starMode?: "secret" | "participant" | null;
   participants: ResponseProgressParticipant[];
@@ -73,10 +74,12 @@ export function deriveResponseProgress(input: ResponseProgressInput): ResponsePr
     expectedUserIds.add(input.coOrganizerId);
   }
 
-  const secretStarExpected = input.starMode === "secret";
+  const hasStar = Boolean(input.hasStar);
+  const secretStarExpected = hasStar && input.starMode === "secret";
   if (secretStarExpected && input.starUserId) {
     expectedUserIds.delete(input.starUserId);
   } else if (
+    hasStar &&
     input.starMode === "participant" &&
     input.starUserId &&
     !inactiveUserIds.has(input.starUserId)
