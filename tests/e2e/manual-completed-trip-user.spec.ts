@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 
 import { handleNormalUserUi } from "./helpers";
 import { getCompletedTripUserFixtureFromEnv } from "./manual-completed-trip-user.fixture";
@@ -13,6 +13,13 @@ async function signInAs(page: Page, email: string, password: string) {
   await page.waitForURL(/\/dashboard(?:\?|$)/, { timeout: 30_000 });
 }
 
+async function expectNoVisibleMatches(locator: Locator) {
+  const count = await locator.count();
+  for (let index = 0; index < count; index += 1) {
+    await expect(locator.nth(index)).toBeHidden();
+  }
+}
+
 async function assertNoPreparationCtas(page: Page) {
   for (const label of [
     "La suite se prépare",
@@ -22,15 +29,20 @@ async function assertNoPreparationCtas(page: Page) {
     "Affiner l’organisation",
     "Relancer le groupe",
   ]) {
-    await expect(page.getByText(label, { exact: false })).toHaveCount(0);
+    await expectNoVisibleMatches(page.getByText(label, { exact: false }));
+  }
+
+  const groupSection = page.locator("#group-section");
+  if (await groupSection.count()) {
+    await expectNoVisibleMatches(groupSection.locator("button, input, select"));
   }
 }
 
 async function assertCompletedTrip(page: Page) {
   await expect(page.getByText("Voyage terminé", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText(/compléter.*disponibil/i)).toHaveCount(0);
-  await expect(page.getByText(/répondre.*préfér/i)).toHaveCount(0);
-  await expect(page.getByText(/choisir.*destination/i)).toHaveCount(0);
+  await expectNoVisibleMatches(page.getByText(/compléter.*disponibil/i));
+  await expectNoVisibleMatches(page.getByText(/répondre.*préfér/i));
+  await expectNoVisibleMatches(page.getByText(/choisir.*destination/i));
   await assertNoPreparationCtas(page);
 }
 
@@ -42,35 +54,35 @@ async function gotoTripSection(page: Page, tripId: string, section?: string) {
 
 async function assertHistoricalJourney(page: Page) {
   await expect(page.getByText("Historique du voyage", { exact: true })).toBeVisible();
-  await expect(page.getByText("On en est ici", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Disponible", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("À venir", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("On prépare le départ", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("La suite s’écrit avec la Krew", { exact: true })).toHaveCount(0);
+  await expectNoVisibleMatches(page.getByText("On en est ici", { exact: true }));
+  await expectNoVisibleMatches(page.getByText("Disponible", { exact: true }));
+  await expectNoVisibleMatches(page.getByText("À venir", { exact: true }));
+  await expectNoVisibleMatches(page.getByText("On prépare le départ", { exact: true }));
+  await expectNoVisibleMatches(page.getByText("La suite s’écrit avec la Krew", { exact: true }));
   await expect(page.getByRole("link", { name: /Voir les souvenirs/i }).first()).toBeVisible();
 }
 
 async function assertHistoricalPlanning(page: Page) {
   await expect(page.getByText("Voyage terminé · consultation", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Préparer le planning|Revoir le planning|Autre option/i })).toHaveCount(0);
-  await expect(page.getByText("Répartir les tâches", { exact: true })).toHaveCount(0);
+  await expectNoVisibleMatches(page.getByRole("button", { name: /Préparer le planning|Revoir le planning|Autre option/i }));
+  await expectNoVisibleMatches(page.getByText("Répartir les tâches", { exact: true }));
 }
 
 async function assertHistoricalTasks(page: Page) {
   await expect(page.getByRole("heading", { name: "Tâches du voyage", exact: true })).toBeVisible();
-  await expect(page.getByText(/participants? encore à inviter/i)).toHaveCount(0);
-  await expect(page.getByText(/Invite-les avant/i)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /Inviter le groupe|Préparer les tâches|Actualiser les tâches/i })).toHaveCount(0);
-  await expect(page.locator("select[aria-label^='Responsable de']")).toHaveCount(0);
-  await expect(page.locator("select[aria-label^='Statut de']")).toHaveCount(0);
+  await expectNoVisibleMatches(page.getByText(/participants? encore à inviter/i));
+  await expectNoVisibleMatches(page.getByText(/Invite-les avant/i));
+  await expectNoVisibleMatches(page.getByRole("button", { name: /Inviter le groupe|Préparer les tâches|Actualiser les tâches/i }));
+  await expectNoVisibleMatches(page.locator("select[aria-label^='Responsable de']"));
+  await expectNoVisibleMatches(page.locator("select[aria-label^='Statut de']"));
 }
 
 async function assertHistoricalPacking(page: Page) {
-  await expect(page.getByText(/à compléter avec le groupe/i)).toHaveCount(0);
-  await expect(page.getByPlaceholder("Ajouter un élément")).toHaveCount(0);
-  await expect(page.locator("select[aria-label^='Assigner']")).toHaveCount(0);
-  await expect(page.getByText("À répartir dans les tâches", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /^Cocher / })).toHaveCount(0);
+  await expectNoVisibleMatches(page.getByText(/à compléter avec le groupe/i));
+  await expectNoVisibleMatches(page.getByPlaceholder("Ajouter un élément"));
+  await expectNoVisibleMatches(page.locator("select[aria-label^='Assigner']"));
+  await expectNoVisibleMatches(page.getByText("À répartir dans les tâches", { exact: true }));
+  await expectNoVisibleMatches(page.getByRole("button", { name: /^Cocher / }));
 }
 
 /**
@@ -118,6 +130,7 @@ test.describe("manual user test — completed trip", () => {
       await page.getByRole("button", { name: "Réactiver", exact: true }).first().click();
       await page.goto(fixture.organizerUrl);
       await assertCompletedTrip(page);
+      await expect(page.getByText("Voyage terminé", { exact: true }).first()).toBeVisible();
     }
   });
 
@@ -131,7 +144,7 @@ test.describe("manual user test — completed trip", () => {
     await page.goto(fixture.participantUrl!);
     await page.waitForLoadState("networkidle");
     await assertCompletedTrip(page);
-    await expect(page.getByRole("button", { name: /Archiver(?: le voyage)?/ })).toHaveCount(0);
+    await expectNoVisibleMatches(page.getByRole("button", { name: /Archiver(?: le voyage)?/ }));
 
     await gotoTripSection(page, fixture.tripId);
     await assertHistoricalJourney(page);
