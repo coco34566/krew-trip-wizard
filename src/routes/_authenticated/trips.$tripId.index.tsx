@@ -80,6 +80,7 @@ import {
 } from "@/lib/krew/constants";
 import type { BudgetBreakdown, ItineraryDay } from "@/lib/krew/engine";
 import { PROFILE_LABELS, STAY_PROFILE_IDS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
+import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { cn } from "@/lib/utils";
 import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { supabase } from "@/integrations/supabase/client";
@@ -1183,9 +1184,12 @@ function TripDetail() {
     hasItinerary,
     selectedActivityIds: selectedActivityIdsList,
   });
-  const tripEndDatePassed = Boolean(
-    trip.end_date && new Date(trip.end_date + "T23:59:59") < new Date(),
-  );
+  const tripLifecycle = getTripLifecycleState({
+    datesLocked,
+    startDate: trip.start_date,
+    endDate: trip.end_date,
+  });
+  const tripEndDatePassed = tripLifecycle === "completed";
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10">
@@ -1864,9 +1868,7 @@ function TripDetail() {
             );
 
             // "Vos souvenirs de voyage" step - active from start_date onwards
-            const tripStarted = trip.start_date
-              ? new Date(trip.start_date + "T00:00:00") <= new Date()
-              : false;
+            const tripStarted = tripLifecycle === "live" || tripLifecycle === "completed";
 
             timelineSteps.push({
               id: "memories",

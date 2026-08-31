@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useTripLifecycleState } from "@/lib/krew/trip-lifecycle-context";
 import {
   KrewIcon,
   KrewMark,
@@ -35,6 +36,13 @@ const CATEGORY_LABELS: Record<StepCategory, string> = {
   souvenirs: "Et après le voyage…",
 };
 
+const HISTORICAL_CATEGORY_LABELS: Record<StepCategory, string> = {
+  questionnaire: "Les choix du groupe",
+  prepare: "Le voyage préparé",
+  organisation: "Organisation du voyage",
+  souvenirs: "Souvenirs du voyage",
+};
+
 function parseStepHref(href: string) {
   const [path, queryString] = href.split("?");
   if (!queryString) return { to: path, search: undefined };
@@ -64,7 +72,7 @@ function stepActionLabel(step: TimelineStep) {
   return labels[step.id] ?? `Voir ${step.title.toLocaleLowerCase("fr-FR")}`;
 }
 
-function StepMeta({ step }: { step: TimelineStep }) {
+function StepMeta({ step, historical }: { step: TimelineStep; historical: boolean }) {
   if (step.status === "done") {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-sage">
@@ -72,6 +80,9 @@ function StepMeta({ step }: { step: TimelineStep }) {
         Terminé
       </span>
     );
+  }
+  if (historical) {
+    return <span className="text-[12px] font-medium text-muted-foreground">Consultation</span>;
   }
   if (step.status === "available") {
     return <span className="text-[12px] font-medium text-primary/75">Disponible</span>;
@@ -82,9 +93,9 @@ function StepMeta({ step }: { step: TimelineStep }) {
   return null;
 }
 
-function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boolean }) {
+function TimelineCopy({ step, next = false, historical = false }: { step: TimelineStep; next?: boolean; historical?: boolean }) {
   const visibleSubtitle =
-    step.id === "memories" && step.status === "upcoming"
+    !historical && step.id === "memories" && step.status === "upcoming"
       ? "Les souvenirs se débloqueront au moment du voyage."
       : step.subtitle;
 
@@ -94,8 +105,8 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
         className={cn(
           "font-display font-normal leading-[1.02] text-foreground transition-colors",
           next ? "text-[26px] sm:text-[30px]" : "text-[19px] sm:text-[22px]",
-          step.status === "upcoming" && "text-muted-foreground/65",
-          step.status !== "upcoming" && "group-hover:text-primary",
+          !historical && step.status === "upcoming" && "text-muted-foreground/65",
+          (historical || step.status !== "upcoming") && "group-hover:text-primary",
         )}
       >
         {step.title}
@@ -105,13 +116,13 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
           className={cn(
             "max-w-[320px] text-[13px] leading-relaxed",
             next ? "text-muted-foreground" : "text-muted-foreground/80",
-            step.status === "upcoming" && "text-muted-foreground/55",
+            !historical && step.status === "upcoming" && "text-muted-foreground/55",
           )}
         >
           {visibleSubtitle}
         </p>
       ) : null}
-      {next ? (
+      {next && !historical ? (
         <span className="inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-primary">
           {stepActionLabel(step)}
           <KrewMark
@@ -122,13 +133,13 @@ function TimelineCopy({ step, next = false }: { step: TimelineStep; next?: boole
           />
         </span>
       ) : (
-        <StepMeta step={step} />
+        <StepMeta step={step} historical={historical} />
       )}
     </div>
   );
 }
 
-function ChapterMarker({ category, index }: { category: StepCategory; index: number }) {
+function ChapterMarker({ category, index, historical }: { category: StepCategory; index: number; historical: boolean }) {
   return (
     <div
       className="pointer-events-none relative z-20 mb-1 ml-[56px] flex min-h-[46px] items-center sm:mb-0 sm:ml-0 sm:grid sm:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] sm:gap-5"
@@ -142,7 +153,7 @@ function ChapterMarker({ category, index }: { category: StepCategory; index: num
           size="xs"
           className="min-w-0 max-w-[10rem] px-3 py-2 text-[12px] sm:text-[13px]"
         >
-          {CATEGORY_LABELS[category]}
+          {(historical ? HISTORICAL_CATEGORY_LABELS : CATEGORY_LABELS)[category]}
         </KrewNote>
       </div>
     </div>
@@ -171,6 +182,8 @@ function CurrentPositionMarker() {
 }
 
 export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
+  const lifecycle = useTripLifecycleState();
+  const historical = lifecycle === "completed";
   const roleAndTasksQuery = useQuery({
     queryKey: ["journey-role-tasks", tripId],
     queryFn: async () => {
@@ -206,7 +219,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
         ...step,
         href: null,
         status: "upcoming" as const,
-        subtitle: "Étape gérée par l’organisateur·rice",
+        subtitle: historical ? "Étape conservée pour mémoire" : "Étape gérée par l’organisateur·rice",
       };
     }
 
@@ -217,7 +230,9 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
         const allDone = completed === statuses.length;
         return {
           ...step,
-          subtitle: `${completed}/${statuses.length} terminée${statuses.length > 1 ? "s" : ""}`,
+          subtitle: historical
+            ? `Dernier état enregistré : ${completed}/${statuses.length} terminée${statuses.length > 1 ? "s" : ""}`
+            : `${completed}/${statuses.length} terminée${statuses.length > 1 ? "s" : ""}`,
           status: allDone
             ? ("done" as const)
             : step.status === "next_action"
@@ -230,17 +245,26 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
     return step;
   });
 
-  const nextActionIndex = effectiveSteps.findIndex((step) => step.status === "next_action");
-  const currentIndex = Math.max(
-    0,
-    nextActionIndex >= 0
-      ? nextActionIndex
-      : effectiveSteps.reduce(
-          (last, step, index) => (step.status === "done" || step.status === "available" ? index : last),
-          0,
-        ),
-  );
-  const progress = effectiveSteps.length > 1 ? (currentIndex / (effectiveSteps.length - 1)) * 100 : 100;
+  const journeySteps = historical
+    ? effectiveSteps.map((step) => ({
+        ...step,
+        status: step.status === "done" ? ("done" as const) : ("available" as const),
+      }))
+    : effectiveSteps;
+
+  const nextActionIndex = journeySteps.findIndex((step) => step.status === "next_action");
+  const currentIndex = historical
+    ? Math.max(0, journeySteps.length - 1)
+    : Math.max(
+        0,
+        nextActionIndex >= 0
+          ? nextActionIndex
+          : journeySteps.reduce(
+              (last, step, index) => (step.status === "done" || step.status === "available" ? index : last),
+              0,
+            ),
+      );
+  const progress = journeySteps.length > 1 ? (currentIndex / (journeySteps.length - 1)) * 100 : 100;
 
   return (
     <div className="mx-auto w-full max-w-[940px] px-1 py-1 font-sans">
@@ -257,10 +281,12 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
           />
         </div>
         <p className="mt-4 max-w-[560px] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-          De la première idée aux souvenirs : chaque étape raconte un bout du voyage et débloque naturellement la suivante.
+          {historical
+            ? "Les étapes du voyage restent accessibles comme historique, sans action de préparation à relancer."
+            : "De la première idée aux souvenirs : chaque étape raconte un bout du voyage et débloque naturellement la suivante."}
         </p>
         <KrewNote variant="margin" rotation={-1} className="mt-3 text-sage">
-          Notre feuille de route
+          {historical ? "Historique du voyage" : "Notre feuille de route"}
         </KrewNote>
         <KrewMark
           type="route"
@@ -284,13 +310,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
         </div>
 
         <ol className="space-y-1 sm:space-y-0">
-          {effectiveSteps.map((step, index) => {
+          {journeySteps.map((step, index) => {
             const isDone = step.status === "done";
-            const isNextAction = step.status === "next_action";
+            const isNextAction = !historical && step.status === "next_action";
             const isAvailable = step.status === "available";
-            const isUpcoming = step.status === "upcoming";
+            const isUpcoming = !historical && step.status === "upcoming";
             const startsCategory = Boolean(
-              step.category && (index === 0 || step.category !== effectiveSteps[index - 1]?.category),
+              step.category && (index === 0 || step.category !== journeySteps[index - 1]?.category),
             );
             const directHref =
               step.id === "preferences"
@@ -349,7 +375,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                   isUpcoming && "select-none",
                 )}
               >
-                <TimelineCopy step={step} next={isNextAction} />
+                <TimelineCopy step={step} next={isNextAction} historical={historical} />
               </div>
             );
 
@@ -395,20 +421,22 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                   isNextAction && "pt-14 sm:py-3",
                 )}
               >
-                {startsCategory && step.category ? <ChapterMarker category={step.category} index={index} /> : null}
+                {startsCategory && step.category ? <ChapterMarker category={step.category} index={index} historical={historical} /> : null}
                 {wrapped}
               </li>
             );
           })}
         </ol>
 
-        <div
-          className="pointer-events-none ml-[8px] mt-1 flex items-center gap-2 pl-[44px] sm:ml-0 sm:justify-center sm:pl-0"
-          aria-hidden="true"
-        >
-          <KrewMark type="arrow-down" tone="sage" size="sm" className="h-7 w-5 opacity-55" />
-          <span className="text-[11px] font-medium text-muted-foreground/55">La suite s’écrit avec la Krew</span>
-        </div>
+        {!historical ? (
+          <div
+            className="pointer-events-none ml-[8px] mt-1 flex items-center gap-2 pl-[44px] sm:ml-0 sm:justify-center sm:pl-0"
+            aria-hidden="true"
+          >
+            <KrewMark type="arrow-down" tone="sage" size="sm" className="h-7 w-5 opacity-55" />
+            <span className="text-[11px] font-medium text-muted-foreground/55">La suite s’écrit avec la Krew</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );
