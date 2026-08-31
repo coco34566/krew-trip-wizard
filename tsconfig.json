@@ -25,6 +25,7 @@
     "noUncheckedSideEffectImports": true,
     "paths": {
       "@/lib/trips.functions": ["./src/lib/trips.functions.entry.ts"],
+      "@/lib/krew/activity-ai.server": ["./src/lib/krew/activity-ai.entry.ts"],
       "@/components/krew/TripHubDashboard": ["./src/components/krew/TripHubDashboard.entry.tsx"],
       "@/components/krew/KrewJourneyTimeline": ["./src/components/krew/KrewJourneyTimeline.entry.tsx"],
       "@/*": ["./src/*"]
