@@ -15,9 +15,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
 import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { formatEuro } from "@/lib/krew/constants";
+import { isCompletedTripView } from "@/lib/krew/completed-trip-view";
 import {
   generateGroupItinerary,
   getTripDetail,
@@ -104,6 +105,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
   const data = detailQuery.data as any;
   const trip = data.trip as any;
   const isAdmin = Boolean(data.isOwner);
+  const completedTrip = isCompletedTripView(trip);
   const days = (trip.group_itinerary?.days ?? []) as any[];
   const activityCost = computeItineraryActivitiesCost(days);
   const priceStatusLabel =
@@ -138,11 +140,11 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
             Planning
           </h1>
           <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden text-xs sm:inline-block">
-            Jour par jour
+            {completedTrip ? "Historique du séjour" : "Jour par jour"}
           </KrewNote>
         </div>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Le planning du séjour, de l’arrivée au départ.
+          {completedTrip ? "Le planning tel qu’il était prévu pour ce voyage." : "Le planning du séjour, de l’arrivée au départ."}
         </p>
         {activityCost.activitiesPerPerson != null ? (
           <p className="mt-3 inline-flex flex-wrap items-baseline gap-2 rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-sm">
@@ -154,7 +156,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
         ) : null}
       </header>
 
-      {isAdmin ? (
+      {isAdmin && !completedTrip ? (
         <div className="flex justify-end">
           <KrewStatefulButton
             className="w-full sm:w-auto"
@@ -168,13 +170,15 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
         </div>
       ) : null}
 
-      {planningMutation.isPending ? (
+      {planningMutation.isPending && !completedTrip ? (
         <KrewThinkingState context="planning" />
       ) : days.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          {isAdmin
-            ? "Prépare le planning du séjour, de l’arrivée au départ."
-            : "Le planning du séjour sera bientôt disponible."}
+          {completedTrip
+            ? "Aucun planning n’avait été enregistré pour ce voyage."
+            : isAdmin
+              ? "Prépare le planning du séjour, de l’arrivée au départ."
+              : "Le planning du séjour sera bientôt disponible."}
         </div>
       ) : (
         <div className="space-y-8">
@@ -266,7 +270,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                         </div>
                       </div>
 
-                      {isAdmin ? (
+                      {isAdmin && !completedTrip ? (
                         <Button
                           size="sm"
                           variant="outline"
@@ -293,12 +297,14 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
             <div>
               <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
                 <KrewIcon name="tasks" tone="plum" size="sm" className="size-4" />
-                {isAdmin ? "Répartir les tâches" : "Voir les tâches"}
+                {completedTrip ? "Tâches du voyage" : isAdmin ? "Répartir les tâches" : "Voir les tâches"}
               </h2>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {isAdmin
-                  ? "Attribue les tâches utiles aux membres du groupe."
-                  : "Retrouve les tâches du groupe et mets à jour celles qui te sont attribuées."}
+                {completedTrip
+                  ? "Retrouve l’historique des tâches associées à ce voyage."
+                  : isAdmin
+                    ? "Attribue les tâches utiles aux membres du groupe."
+                    : "Retrouve les tâches du groupe et mets à jour celles qui te sont attribuées."}
               </p>
             </div>
             <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
@@ -308,7 +314,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                 search={{ view: "voyage", section: "tasks" }}
               >
                 <KrewIcon name="tasks" size="sm" className="size-3.5" />
-                {isAdmin ? "Répartir les tâches" : "Voir les tâches"}
+                {completedTrip ? "Voir les tâches" : isAdmin ? "Répartir les tâches" : "Voir les tâches"}
               </Link>
             </Button>
           </section>
