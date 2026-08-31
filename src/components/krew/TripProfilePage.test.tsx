@@ -30,6 +30,24 @@ describe("ProfileConceptCard accessibility", () => {
     expect(card).not.toHaveAccessibleName("City trip découverte City trip découverte");
   });
 
+  it("keeps a genuinely different rationale as the accessible description", () => {
+    renderCard();
+    expect(screen.getByRole("button", { name: "City trip découverte" })).toHaveAccessibleDescription(
+      "Un séjour urbain pour explorer la ville.",
+    );
+  });
+
+  it("does not announce a rationale that merely repeats the profile label", () => {
+    renderCard({ rationale: "City trip découverte" });
+    const card = screen.getByRole("button", { name: "City trip découverte" });
+    expect(card).toHaveAccessibleName("City trip découverte");
+    expect(card).not.toHaveAccessibleDescription("City trip découverte");
+    expect(screen.getByText("City trip découverte", { selector: "p.mt-2" })).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+  });
+
   it("keeps decorative marks out of the accessible name when selected", () => {
     renderCard({ selected: true });
     expect(screen.getByRole("button", { name: "City trip découverte" })).toHaveAttribute(
