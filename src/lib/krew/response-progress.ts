@@ -27,6 +27,12 @@ export type ResponseProgress = {
   secretStarExpected: boolean;
 };
 
+export type EffectiveAvailabilityProgress = {
+  answered: number;
+  expected: number;
+  missing: number;
+};
+
 export function isInactiveResponseParticipant(status: unknown) {
   return status === "absent" || status === "refuse";
 }
@@ -52,6 +58,27 @@ export function hasSecretStarAvailability(starPrefs: any): boolean {
     (Array.isArray(starPrefs.available_dates) && starPrefs.available_dates.length > 0) ||
       (Array.isArray(starPrefs.blocked_dates) && starPrefs.blocked_dates.length > 0),
   );
+}
+
+/**
+ * Once dates are locked, availability collection is closed. People joining after
+ * that point remain real members of the trip, but they are not retroactively
+ * expected to submit availability and must never reopen a missing-response state.
+ */
+export function getEffectiveAvailabilityProgress(input: {
+  datesLocked: boolean;
+  answered: number;
+  expected: number;
+}): EffectiveAvailabilityProgress {
+  const answered = Math.max(0, Number(input.answered) || 0);
+  const expected = input.datesLocked
+    ? answered
+    : Math.max(answered, Math.max(0, Number(input.expected) || 0));
+  return {
+    answered,
+    expected,
+    missing: input.datesLocked ? 0 : Math.max(expected - answered, 0),
+  };
 }
 
 export function deriveResponseProgress(input: ResponseProgressInput): ResponseProgress {
