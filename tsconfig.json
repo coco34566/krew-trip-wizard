@@ -26,6 +26,7 @@
     "paths": {
       "@/lib/trips.functions": ["./src/lib/trips.functions.entry.ts"],
       "@/components/krew/TripHubDashboard": ["./src/components/krew/TripHubDashboard.entry.tsx"],
+      "@/components/krew/KrewJourneyTimeline": ["./src/components/krew/KrewJourneyTimeline.entry.tsx"],
       "@/*": ["./src/*"]
     }
   }
