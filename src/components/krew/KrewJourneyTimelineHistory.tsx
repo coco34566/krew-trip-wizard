@@ -5,9 +5,9 @@ import { KrewIcon, KrewMark, type KrewIconName } from "@/components/krew/visual-
 export type HistoricalJourneyStep = {
   id: string;
   title: string;
-  subtitle?: string | null;
+  subtitle?: string | null | undefined;
   iconName: KrewIconName;
-  href?: string | null;
+  href?: string | null | undefined;
 };
 
 function parseStepHref(href: string) {
