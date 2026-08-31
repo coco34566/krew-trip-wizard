@@ -167,7 +167,7 @@ function NewTripPage() {
 
         <div className="space-y-2">
           <Label htmlFor="orga" className="text-base font-semibold text-foreground">
-            Ton prénom
+            Ton prénom <span className="text-destructive" aria-hidden="true">*</span>
           </Label>
           <Input
             id="orga"
@@ -175,9 +175,12 @@ function NewTripPage() {
             placeholder="Ex. Camille"
             value={organizerFirstName}
             onChange={(e) => setOrganizerFirstName(e.target.value)}
+            required
+            aria-required="true"
+            aria-describedby="orga-help"
           />
-          <p className="text-xs text-muted-foreground">
-            Pour que le groupe sache qui organise, et pour te reconnaître dans les réponses.
+          <p id="orga-help" className="text-xs text-muted-foreground">
+            Obligatoire — pour que le groupe sache qui organise, et pour te reconnaître dans les réponses.
           </p>
         </div>
 
