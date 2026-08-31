@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
 import { TripInvitePage } from "@/components/krew/TripInvitePage";
 import { TripPlanningPage } from "@/components/krew/TripPlanningPage";
@@ -20,6 +21,14 @@ import { getMyParticipantPreferences } from "@/lib/participant-preferences.funct
 export const Route = createFileRoute("/_authenticated/trips/$tripId")({
   component: TripLayout,
 });
+
+function ResponseGateLoading() {
+  return (
+    <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8">
+      <KrewThinkingState context="generic" customMessage="Vérification de l’étape…" delayMs={0} />
+    </main>
+  );
+}
 
 function ClosedResponseState({ tripId, title, hasPreviousAnswer, children }: { tripId: string; title: string; hasPreviousAnswer: boolean; children: ReactNode }) {
   return (
@@ -49,7 +58,8 @@ function AvailabilityResponseGate({ tripId, children }: { tripId: string; childr
     queryKey: ["trip-availability", tripId],
     queryFn: () => fetchAvailability({ data: { tripId } }),
   });
-  if (isLoading || !data?.trip?.datesLocked) return <>{children}</>;
+  if (isLoading) return <ResponseGateLoading />;
+  if (!data?.trip?.datesLocked) return <>{children}</>;
   return (
     <ClosedResponseState tripId={tripId} title="Disponibilités" hasPreviousAnswer={Boolean(data.mine)}>
       {children}
@@ -63,7 +73,8 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
     queryKey: ["my-preferences", tripId],
     queryFn: () => fetchMine({ data: { tripId } }),
   });
-  if (isLoading || !data?.trip?.dates_locked) return <>{children}</>;
+  if (isLoading) return <ResponseGateLoading />;
+  if (!data?.trip?.dates_locked) return <>{children}</>;
   return (
     <ClosedResponseState tripId={tripId} title="Préférences" hasPreviousAnswer={Boolean(data.preferences)}>
       {children}
