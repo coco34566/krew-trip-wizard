@@ -15,6 +15,7 @@ import { getParticipantsProgress } from "@/lib/participant-preferences.functions
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
+import { trackProductEvent } from "@/lib/product-analytics";
 import {
   finalizeInvitationStep,
   getTripDetail,
@@ -84,6 +85,12 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     onSuccess: () => {
       setEmail("");
       toast.success("Invitation ajoutée");
+      void trackProductEvent("participant_invited", {
+        trip_id: tripId,
+        role: data?.isCreator ? "organizer" : "co_organizer",
+        trip_type: trip?.event_type,
+        group_size: Number(progress?.preferencesExpected ?? progress?.total ?? trip?.participants_count ?? 0),
+      });
       refresh();
     },
     onError: () => toast.error("Cette adresse e-mail est invalide ou a déjà été invitée."),
@@ -146,8 +153,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
           secretStar: true,
         }
       : null;
-  // A DB participant row without user_id is still a real invitation and occupies a slot.
-  // Only synthetic empty placeholders represent people who have not yet been invited.
   const occupiedSlots = rawParticipants.length + (virtualSecretStar ? 1 : 0);
   const placeholders = Array.from(
     { length: Math.max(0, Number(trip.participants_count || 0) - occupiedSlots) },
