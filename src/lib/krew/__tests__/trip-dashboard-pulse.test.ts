@@ -19,16 +19,27 @@ const readyBase = {
 };
 
 describe("Krew Pulse", () => {
-  it("priorise les réponses manquantes sur les choix aval", () => {
+  it("priorise les réponses manquantes sur les choix aval pendant la collecte", () => {
     expect(
       getKrewPulse({
         ...readyBase,
+        datesLocked: false,
         availabilityAnswered: 2,
         preferencesAnswered: 3,
         hotelSelected: false,
         hasItinerary: false,
       }),
     ).toEqual({ state: "waiting", message: "Il manque encore des réponses du groupe." });
+  });
+
+  it("ignore une disponibilité manquante créée par une arrivée tardive après verrouillage", () => {
+    expect(
+      getKrewPulse({
+        ...readyBase,
+        availabilityAnswered: 1,
+        availabilityExpected: 2,
+      }),
+    ).toEqual({ state: "ready", message: "Tout est calé." });
   });
 
   it("signale un profil prêt mais non validé avant la destination", () => {
