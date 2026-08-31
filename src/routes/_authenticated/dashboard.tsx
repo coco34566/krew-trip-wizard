@@ -7,7 +7,10 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { listMyTrips, listMyPriceWatches, cancelTrip } from "@/lib/trips.functions";
+import { reactivateArchivedTrip } from "@/lib/trip-archive.functions";
 import { eventTypeLabel, getTripTypeImage } from "@/lib/krew/constants";
+import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
+import { trackProductEvent } from "@/lib/product-analytics";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
@@ -59,7 +62,16 @@ type Trip = {
   star_name?: string | null;
 };
 
+function lifecycleFor(trip: Trip) {
+  return getTripLifecycleState({
+    datesLocked: Boolean(trip.dates_locked),
+    startDate: trip.start_date,
+    endDate: trip.end_date,
+  });
+}
+
 function nextActionFor(trip: Trip) {
+  if (lifecycleFor(trip) === "completed") return "Voyage terminé";
   if (!trip.dates_locked) return "Finaliser les disponibilités";
   if (!trip.destination_selected) return "Choisir la destination";
   if (!trip.has_itinerary) return "Construire le planning";
@@ -90,7 +102,7 @@ function formatTripDates(trip: Trip) {
   return `${start.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })} – ${end.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
-function ArchiveControl({ trip, onCancel, compact = false }: { trip: Trip; onCancel: (tripId: string) => void; compact?: boolean }) {
+function ArchiveControl({ trip, onArchive, compact = false }: { trip: Trip; onArchive: (tripId: string) => void; compact?: boolean }) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -101,21 +113,22 @@ function ArchiveControl({ trip, onCancel, compact = false }: { trip: Trip; onCan
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Archiver ce voyage</AlertDialogTitle>
-          <AlertDialogDescription>Le voyage quittera tes voyages actifs. Tu pourras le retrouver plus tard dans tes voyages archivés.</AlertDialogDescription>
+          <AlertDialogDescription>Le voyage quittera tes voyages actifs. Tu pourras le retrouver et le réactiver plus tard dans tes voyages archivés.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Garder le voyage</AlertDialogCancel>
-          <AlertDialogAction onClick={() => onCancel(trip.id)}>Archiver</AlertDialogAction>
+          <AlertDialogAction onClick={() => onArchive(trip.id)}>Archiver</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
 
-function FeaturedTrip({ trip, onCancel }: { trip: Trip; onCancel: (tripId: string) => void }) {
+function FeaturedTrip({ trip, onArchive }: { trip: Trip; onArchive: (tripId: string) => void }) {
   const image = tripImage(trip);
   const destinationLabel = trip.destination_name || "Destination à définir";
-  const stageLabel = trip.journey_stage || nextActionFor(trip);
+  const completed = lifecycleFor(trip) === "completed";
+  const stageLabel = completed ? "Voyage terminé" : trip.journey_stage || nextActionFor(trip);
 
   return (
     <article className="relative isolate overflow-visible pb-2 sm:grid sm:grid-cols-[minmax(0,1.16fr)_minmax(240px,.84fr)] sm:items-center sm:gap-8 lg:gap-10">
@@ -123,7 +136,7 @@ function FeaturedTrip({ trip, onCancel }: { trip: Trip; onCancel: (tripId: strin
 
       <div className="relative mx-auto w-[94%] max-w-[560px] rotate-[-1deg] bg-[#fffefa] p-3 pb-5 shadow-[0_16px_32px_-18px_rgba(42,25,37,.28)] ring-1 ring-black/[.06] sm:mx-0 sm:w-full sm:rotate-[-1.25deg]">
         <div className="absolute -top-3 left-[38%] z-10 hidden sm:block"><KrewNote variant="tape" tone="cream" rotation={1} className="min-w-[74px] px-3 py-1 text-transparent select-none">Tape</KrewNote></div>
-        <div className="absolute right-5 top-5 z-30" onClick={(event) => event.stopPropagation()}><ArchiveControl trip={trip} onCancel={onCancel} compact /></div>
+        <div className="absolute right-5 top-5 z-30" onClick={(event) => event.stopPropagation()}><ArchiveControl trip={trip} onArchive={onArchive} compact /></div>
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block">
           <div className="aspect-[4/3] overflow-hidden bg-surface/60 sm:aspect-[16/11]">
             {image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />}
@@ -145,10 +158,10 @@ function FeaturedTrip({ trip, onCancel }: { trip: Trip; onCancel: (tripId: strin
 
         <div className="relative mt-5 pt-1 sm:mt-6">
           <div className="mb-2 flex items-center gap-2">
-            <h3 className="font-display text-[22px] font-normal leading-none text-foreground sm:text-[24px]">Prochaines actions</h3>
-            <KrewMark type="arrow-right" tone="sage" size="sm" className="h-4 w-6 opacity-65" />
+            <h3 className="font-display text-[22px] font-normal leading-none text-foreground sm:text-[24px]">{completed ? "Voyage terminé" : "Prochaines actions"}</h3>
+            {!completed ? <KrewMark type="arrow-right" tone="sage" size="sm" className="h-4 w-6 opacity-65" /> : null}
           </div>
-          <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{nextActionFor(trip)}</p>
+          <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{completed ? "Le séjour est terminé. Retrouve les informations et l’organisation du voyage." : nextActionFor(trip)}</p>
           <Button asChild className="h-10 rounded-xl px-4 text-sm font-medium">
             <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="inline-flex items-center gap-2">
               Voir le voyage
@@ -163,7 +176,7 @@ function FeaturedTrip({ trip, onCancel }: { trip: Trip; onCancel: (tripId: strin
   );
 }
 
-function NotebookTrip({ trip, invited = false, onCancel, index = 0 }: { trip: Trip; invited?: boolean; onCancel?: (tripId: string) => void; index?: number }) {
+function NotebookTrip({ trip, invited = false, onArchive, onReactivate, index = 0 }: { trip: Trip; invited?: boolean; onArchive?: (tripId: string) => void; onReactivate?: (tripId: string) => void; index?: number }) {
   const image = tripImage(trip);
   const mobileCompositions = [
     "rotate-[-2.5deg] -translate-x-2 translate-y-1 sm:rotate-[-1.4deg] sm:translate-x-0 sm:translate-y-0",
@@ -192,10 +205,14 @@ function NotebookTrip({ trip, invited = false, onCancel, index = 0 }: { trip: Tr
             <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-snug text-foreground/75 sm:text-[13px]"><KrewIcon name="calendar" tone="sage" size="sm" className="mt-0.5 size-3.5 shrink-0" /><span>{formatTripDates(trip)}</span></p>
           </div>
         </Link>
-        {onCancel ? <div className="absolute right-2.5 top-2.5 z-20"><ArchiveControl trip={trip} onCancel={onCancel} compact /></div> : null}
+        {onArchive ? <div className="absolute right-2.5 top-2.5 z-20"><ArchiveControl trip={trip} onArchive={onArchive} compact /></div> : null}
         <div className="mx-1.5 mt-2.5 flex items-center justify-between gap-2 border-t border-dashed border-sage/30 pt-2">
           <span className="font-handwriting text-[13px] leading-tight text-sage">{invited ? "avec le groupe" : nextActionFor(trip)}</span>
-          <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="relative z-10 inline-flex min-h-10 shrink-0 items-center gap-1 px-1 text-[12px] font-semibold text-primary sm:text-[13px]">Voir<KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-5" /></Link>
+          {onReactivate ? (
+            <button type="button" onClick={() => onReactivate(trip.id)} className="relative z-10 inline-flex min-h-10 shrink-0 items-center px-1 text-[12px] font-semibold text-primary underline-offset-4 hover:underline sm:text-[13px]">Réactiver</button>
+          ) : (
+            <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="relative z-10 inline-flex min-h-10 shrink-0 items-center gap-1 px-1 text-[12px] font-semibold text-primary sm:text-[13px]">Voir<KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-5" /></Link>
+          )}
         </div>
       </div>
     </article>
@@ -209,8 +226,32 @@ function SectionHeading({ children, note }: { children: React.ReactNode; note?: 
 function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
-  const cancelFn = useServerFn(cancelTrip);
-  const cancelMutation = useMutation({ mutationFn: (tripId: string) => cancelFn({ data: { tripId, hardDelete: false } }), onSuccess: () => { toast.success("Voyage archivé"); queryClient.invalidateQueries({ queryKey: ["my-trips", user?.id] }); }, onError: (e: any) => { console.error("Impossible d'archiver le voyage:", e); toast.error("Impossible d’archiver le voyage pour le moment."); } });
+  const archiveFn = useServerFn(cancelTrip);
+  const reactivateFn = useServerFn(reactivateArchivedTrip);
+  const archiveMutation = useMutation({
+    mutationFn: (tripId: string) => archiveFn({ data: { tripId, hardDelete: false } }),
+    onSuccess: (_result, tripId) => {
+      toast.success("Voyage archivé");
+      void trackProductEvent("trip_archived", { trip_id: tripId, role: "organizer" });
+      queryClient.invalidateQueries({ queryKey: ["my-trips", user?.id] });
+    },
+    onError: (e: any) => {
+      console.error("Impossible d'archiver le voyage:", e);
+      toast.error("Impossible d’archiver le voyage pour le moment.");
+    },
+  });
+  const reactivateMutation = useMutation({
+    mutationFn: (tripId: string) => reactivateFn({ data: { tripId } }),
+    onSuccess: (_result, tripId) => {
+      toast.success("Voyage réactivé");
+      void trackProductEvent("trip_reactivated", { trip_id: tripId, role: "organizer" });
+      queryClient.invalidateQueries({ queryKey: ["my-trips", user?.id] });
+    },
+    onError: (e: any) => {
+      console.error("Impossible de réactiver le voyage:", e);
+      toast.error("Impossible de réactiver le voyage pour le moment.");
+    },
+  });
   const fetchTrips = useServerFn(listMyTrips);
   const fetchPriceWatches = useServerFn(listMyPriceWatches);
   const { data: watchData } = useQuery({ queryKey: ["price-watches", user?.id], queryFn: () => fetchPriceWatches({}), enabled: !!user && !authLoading, retry: false });
@@ -234,9 +275,9 @@ function Dashboard() {
 
       {tripsError ? <div className="rounded-[28px] border border-destructive/30 bg-destructive/5 p-6"><h2 className="font-display text-lg font-normal text-destructive">Impossible de charger tes voyages</h2><p className="mt-2 text-sm text-muted-foreground">Réessaie dans un instant. Tes voyages sont toujours enregistrés.</p></div> : isLoading ? <div className="space-y-6"><Skeleton className="h-[430px] rounded-[28px]" /><div className="grid gap-6 sm:grid-cols-2"><Skeleton className="h-64 rounded-[24px]" /><Skeleton className="h-64 rounded-[24px]" /></div></div> : trips.length === 0 && invitations.length === 0 ? <div className="relative overflow-hidden rounded-[36px_28px_40px_30px] border border-dashed border-sage/50 bg-surface/30 p-10 text-center sm:p-16"><KrewOrganicBlob tone="sage" variant="soft" className="absolute inset-x-[15%] top-5 h-[150px] opacity-40" /><img src="/brand/otter-states/trip-progress.png" alt="" className="relative mx-auto mb-3 h-auto w-[82px] object-contain sm:w-[96px]" /><KrewNote variant="margin" rotation={-2} className="relative mb-1 text-sage">Première page à écrire</KrewNote><h2 className="relative font-display text-3xl font-normal text-foreground">Aucun voyage pour l'instant</h2><p className="relative mx-auto mt-2 max-w-md text-sm text-muted-foreground">Crée un voyage, puis invite le groupe pour commencer à l’organiser.</p><Button asChild size="lg" className="relative mt-6 rounded-xl"><Link to="/trips/new"><KrewIcon name="plus" size="sm" className="mr-1.5 size-4" />Créer mon premier voyage</Link></Button></div> : (
         <div className="space-y-14 sm:space-y-16">
-          {featuredTrip ? <section><SectionHeading note={otherTrips.length ? `${trips.length} voyages en préparation` : "le prochain à faire avancer"}>J'organise</SectionHeading><FeaturedTrip trip={featuredTrip} onCancel={(id) => cancelMutation.mutate(id)} />{otherTrips.length ? <div className="mt-8 border-t border-sage/25 pt-7 sm:mt-9 sm:pt-8"><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-8 md:justify-center">{otherTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onCancel={(id) => cancelMutation.mutate(id)} />)}</div></div> : null}</section> : null}
+          {featuredTrip ? <section><SectionHeading note={otherTrips.length ? `${trips.length} voyages` : "le prochain voyage"}>J'organise</SectionHeading><FeaturedTrip trip={featuredTrip} onArchive={(id) => archiveMutation.mutate(id)} />{otherTrips.length ? <div className="mt-8 border-t border-sage/25 pt-7 sm:mt-9 sm:pt-8"><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-8 md:justify-center">{otherTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onArchive={(id) => archiveMutation.mutate(id)} />)}</div></div> : null}</section> : null}
           {invitations.length ? <section className="relative pt-2"><KrewOrganicBlob tone="sage" variant="soft" className="absolute -right-16 top-0 -z-10 h-[180px] w-[320px] opacity-30" /><SectionHeading note="les voyages auxquels tu participes">Je participe</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{invitations.filter((i) => i.trips).map((i, index) => <NotebookTrip key={i.id} trip={i.trips as Trip} invited index={index} />)}</div></section> : null}
-          {archivedTrips.length ? <section className="border-t border-dashed border-border/70 pt-7 opacity-75"><SectionHeading note="tu peux toujours les retrouver">Voyages archivés</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{archivedTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} />)}</div></section> : null}
+          {archivedTrips.length ? <section className="border-t border-dashed border-border/70 pt-7 opacity-75"><SectionHeading note="tu peux les réactiver sans perdre leur organisation">Voyages archivés</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{archivedTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onReactivate={(id) => reactivateMutation.mutate(id)} />)}</div></section> : null}
         </div>
       )}
     </main>
