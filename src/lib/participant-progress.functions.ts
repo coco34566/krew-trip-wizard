@@ -21,7 +21,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
       .eq("trip_id", tripId),
     supabase
       .from("trip_participant_preferences")
-      .select("user_id, submitted_at, updated_at")
+      .select("user_id, submitted_at, updated_at, departure_city")
       .eq("trip_id", tripId),
     supabase.from("trip_availability").select("user_id").eq("trip_id", tripId),
     supabase.from("trip_star_preferences").select("*").eq("trip_id", tripId).maybeSingle(),
@@ -72,18 +72,23 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
       (participant: any) =>
         !(hasStar && starMode === "secret" && tripRes.data.star_user_id === participant.user_id),
     )
-    .map((participant: any) => ({
-      ...participant,
-      isStar:
-        hasStar &&
-        starMode === "participant" &&
-        Boolean(tripRes.data.star_user_id && participant.user_id === tripRes.data.star_user_id),
-      hasAnswered: prefByUser.has(participant.user_id),
-      hasAnsweredAvailability: availabilityUsers.has(participant.user_id),
-      answeredAt: prefByUser.has(participant.user_id)
-        ? prefByUser.get(participant.user_id).updated_at || prefByUser.get(participant.user_id).submitted_at
-        : null,
-    }));
+    .map((participant: any) => {
+      const preference = prefByUser.get(participant.user_id);
+      return {
+        ...participant,
+        isStar:
+          hasStar &&
+          starMode === "participant" &&
+          Boolean(tripRes.data.star_user_id && participant.user_id === tripRes.data.star_user_id),
+        hasAnswered: Boolean(preference),
+        hasAnsweredAvailability: availabilityUsers.has(participant.user_id),
+        answeredAt: preference ? preference.updated_at || preference.submitted_at : null,
+        // A single blank is intentional when the questionnaire has no origin yet:
+        // it is truthy before the Transport page's fallback chain, then trims to an
+        // empty string, so an old transport pick can never masquerade as an origin.
+        departure_city: preference?.departure_city || " ",
+      };
+    });
 
   if (
     tripRes.data.owner_id &&
@@ -100,6 +105,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
       hasAnswered: Boolean(ownerPref),
       hasAnsweredAvailability: availabilityUsers.has(tripRes.data.owner_id),
       answeredAt: ownerPref ? ownerPref.updated_at || ownerPref.submitted_at : null,
+      departure_city: ownerPref?.departure_city || " ",
     });
   }
 
