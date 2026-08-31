@@ -113,28 +113,32 @@ export function TripHubDashboard(props: Props) {
           </p>
         </section>
       ) : null}
-      <TripHubDashboardLegacy
-        {...props}
-        // A completed trip is a restitution state: suppress the legacy preparation
-        // action stack without hiding the trip data rendered by the dashboard.
-        isOwner={completed ? false : props.isOwner}
-        myAvailabilityDone={responsesClosed || completed ? true : props.myAvailabilityDone}
-        myPreferencesDone={responsesClosed || completed ? true : props.myPreferencesDone}
-        participantsCount={preferencesExpected}
-        progressAnswered={preferencesAnswered}
-        progressTotal={preferencesExpected}
-        availabilityAnswered={availabilityAnswered}
-        availabilityExpected={availabilityExpected}
-        destinationSelected={completed ? false : props.destinationSelected}
-        trip={tripForDashboard}
-      >
-        <OrganizationRefreshNotice
-          logistics={trip.group_logistics}
-          destinationName={props.destinationName}
-          canManage={!completed && props.isOwner}
-        />
-        {props.children}
-      </TripHubDashboardLegacy>
+      <div className={completed ? "[&>div>header+*]:hidden" : undefined}>
+        <TripHubDashboardLegacy
+          {...props}
+          // A completed trip is a restitution state. Preserve the viewer's real
+          // role and historical selections, while hiding only the legacy action
+          // panel that otherwise continues to propose preparation work.
+          isOwner={props.isOwner}
+          myAvailabilityDone={responsesClosed || completed ? true : props.myAvailabilityDone}
+          myPreferencesDone={responsesClosed || completed ? true : props.myPreferencesDone}
+          participantsCount={preferencesExpected}
+          progressAnswered={preferencesAnswered}
+          progressTotal={preferencesExpected}
+          availabilityAnswered={availabilityAnswered}
+          availabilityExpected={availabilityExpected}
+          destinationSelected={props.destinationSelected}
+          tripEndDatePassed={completed}
+          trip={tripForDashboard}
+        >
+          <OrganizationRefreshNotice
+            logistics={trip.group_logistics}
+            destinationName={props.destinationName}
+            canManage={!completed && props.isOwner}
+          />
+          {props.children}
+        </TripHubDashboardLegacy>
+      </div>
     </div>
   );
 }
