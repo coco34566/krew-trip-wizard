@@ -128,6 +128,7 @@ export function TripHubDashboard(props: Props) {
           isOwner={props.isOwner}
           myAvailabilityDone={responsesClosed || completed ? true : props.myAvailabilityDone}
           myPreferencesDone={responsesClosed || completed ? true : props.myPreferencesDone}
+          starDone={completed ? true : props.starDone}
           participantsCount={preferencesExpected}
           progressAnswered={preferencesAnswered}
           progressTotal={preferencesExpected}
