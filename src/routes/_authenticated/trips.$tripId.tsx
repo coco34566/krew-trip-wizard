@@ -134,15 +134,20 @@ function TripLayout() {
   const { tripId } = Route.useParams();
   const location = useRouterState({ select: (state) => state.location });
   const search = location.search as Record<string, unknown>;
-  const showPlanningPage = search.view === "voyage" && search.section === "planning";
-  const showProfilePage = search.view === "voyage" && search.section === "profile";
-  const showTasksPage = search.view === "voyage" && search.section === "tasks";
-  const showTransportPage = search.view === "voyage" && search.section === "transport";
-  const showPackingPage = search.view === "voyage" && search.section === "packing";
+  const section = typeof search.section === "string" ? search.section : undefined;
+  const showPlanningPage = search.view === "voyage" && section === "planning";
+  const showProfilePage = search.view === "voyage" && section === "profile";
+  const showTasksPage = search.view === "voyage" && section === "tasks";
+  const showTransportPage = search.view === "voyage" && section === "transport";
+  const showPackingPage = search.view === "voyage" && section === "packing";
   const showInvitePage = location.pathname.endsWith(`/trips/${tripId}/invite`);
   const showStarGate = location.pathname.endsWith(`/trips/${tripId}/star`);
   const showAvailabilityPage = location.pathname.endsWith(`/trips/${tripId}/availability`);
   const showQuestionnairePage = location.pathname.endsWith(`/trips/${tripId}/questionnaire`);
+  const preparationOutletSection =
+    search.view === "voyage" &&
+    section !== undefined &&
+    ["dates", "destination", "accommodation", "packing"].includes(section);
 
   const outlet = showStarGate ? (
     <TripStarAccessGate tripId={tripId}>
@@ -156,7 +161,7 @@ function TripLayout() {
     <PreferencesResponseGate tripId={tripId}>
       <Outlet />
     </PreferencesResponseGate>
-  ) : showPackingPage ? (
+  ) : preparationOutletSection ? (
     <CompletedPreparationGate tripId={tripId}>
       <Outlet />
     </CompletedPreparationGate>
@@ -167,19 +172,25 @@ function TripLayout() {
   return (
     <>
       {showInvitePage ? (
-        <TripInvitePage tripId={tripId} />
+        <CompletedPreparationGate tripId={tripId}>
+          <TripInvitePage tripId={tripId} />
+        </CompletedPreparationGate>
       ) : showTasksPage ? (
         <CompletedPreparationGate tripId={tripId}>
           <TripTasksPage tripId={tripId} />
         </CompletedPreparationGate>
       ) : showTransportPage ? (
-        <TripTransportPage tripId={tripId} />
+        <CompletedPreparationGate tripId={tripId}>
+          <TripTransportPage tripId={tripId} />
+        </CompletedPreparationGate>
       ) : showPlanningPage ? (
         <CompletedPreparationGate tripId={tripId}>
           <TripPlanningPage tripId={tripId} />
         </CompletedPreparationGate>
       ) : showProfilePage ? (
-        <TripProfilePage tripId={tripId} />
+        <CompletedPreparationGate tripId={tripId}>
+          <TripProfilePage tripId={tripId} />
+        </CompletedPreparationGate>
       ) : (
         outlet
       )}
