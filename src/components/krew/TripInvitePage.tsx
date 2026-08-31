@@ -23,7 +23,7 @@ import {
   setCoOrganizer,
 } from "@/lib/trips.functions";
 
-function missingCopy(availabilityMissing: number, preferencesMissing: number) {
+export function responseMissingCopy(availabilityMissing: number, preferencesMissing: number) {
   if (availabilityMissing > 0 && preferencesMissing > 0) {
     return `${availabilityMissing} disponibilité${availabilityMissing > 1 ? "s" : ""} et ${preferencesMissing} préférence${preferencesMissing > 1 ? "s" : ""} manquent encore.`;
   }
@@ -131,18 +131,39 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   }
 
   const rawParticipants = (data.participants ?? []) as any[];
-  const identified = rawParticipants.filter((participant) => Boolean(participant.user_id));
+  const hasStar = Boolean(trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type));
+  const secretStarAlreadyListed = Boolean(
+    trip.star_user_id && rawParticipants.some((participant) => participant.user_id === trip.star_user_id),
+  );
+  const virtualSecretStar =
+    hasStar && starMode === "secret" && !secretStarAlreadyListed
+      ? {
+          id: "star-secret-slot",
+          user_id: null,
+          display_name: trip.celebrated_person || "La Star",
+          status: "participe",
+          isStar: true,
+          secretStar: true,
+        }
+      : null;
+  // A DB participant row without user_id is still a real invitation and occupies a slot.
+  // Only synthetic empty placeholders represent people who have not yet been invited.
+  const occupiedSlots = rawParticipants.length + (virtualSecretStar ? 1 : 0);
   const placeholders = Array.from(
-    { length: Math.max(0, Number(trip.participants_count || 0) - identified.length) },
+    { length: Math.max(0, Number(trip.participants_count || 0) - occupiedSlots) },
     (_, index) => ({
       id: `placeholder-${index}`,
       user_id: null,
-      display_name: `Participant ${identified.length + index + 1}`,
+      display_name: `Participant ${occupiedSlots + index + 1}`,
       status: "à inviter",
       placeholder: true,
     }),
   );
-  const displayedParticipants = [...rawParticipants, ...placeholders];
+  const displayedParticipants = [
+    ...rawParticipants,
+    ...(virtualSecretStar ? [virtualSecretStar] : []),
+    ...placeholders,
+  ];
   const availabilityAnswered = Number(progress?.availabilityAnswered ?? 0);
   const availabilityExpected = Number(progress?.availabilityExpected ?? progress?.total ?? 0);
   const preferencesAnswered = Number(progress?.answered ?? 0);
@@ -153,7 +174,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   const inviteStepCompleted = Boolean(
     trip.group_logistics?.inviteStepCompleted || trip.group_logistics?.invite_step_completed || trip.invite_step_completed,
   );
-  const hasStar = Boolean(trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type));
 
   return (
     <main className="mx-auto w-full max-w-[820px] space-y-8 px-4 py-8 sm:px-6 sm:py-10">
@@ -210,13 +230,13 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
           <p className="text-sm"><strong>{preferencesAnswered}/{preferencesExpected}</strong> ont renseigné leurs préférences</p>
         </div>
         {(availabilityMissing > 0 || preferencesMissing > 0) ? (
-          <p className="text-sm text-muted-foreground">{missingCopy(availabilityMissing, preferencesMissing)}</p>
+          <p className="text-sm text-muted-foreground">{responseMissingCopy(availabilityMissing, preferencesMissing)}</p>
         ) : null}
 
         <div className="divide-y divide-border/45">
           {displayedParticipants.map((participant) => {
-            const isOwner = participant.user_id === trip.owner_id;
-            const isCoOrg = participant.user_id === trip.co_organizer_id;
+            const isOwner = Boolean(participant.user_id && participant.user_id === trip.owner_id);
+            const isCoOrg = Boolean(participant.user_id && participant.user_id === trip.co_organizer_id);
             return (
               <div key={participant.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -224,10 +244,11 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
                     <span className="font-medium text-foreground">{participant.display_name || participant.email || "Participant"}</span>
                     {isOwner ? <Badge variant="sun"><Crown className="mr-1 size-3" />Organisateur·rice</Badge> : null}
                     {isCoOrg ? <Badge variant="secondary"><Shield className="mr-1 size-3" />Co-organisateur·rice</Badge> : null}
+                    {participant.isStar ? <Badge variant="sun">Star</Badge> : null}
                     {participant.placeholder ? <Badge variant="muted">À inviter</Badge> : null}
                   </div>
                 </div>
-                {data.isCreator && participant.user_id && !isOwner ? (
+                {data.isCreator && participant.user_id && !isOwner && !participant.isStar ? (
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="ghost" onClick={() => roleMutation.mutate(isCoOrg ? null : participant.user_id)}>
                       {isCoOrg ? "Retirer le rôle" : "Nommer co-organisateur·rice"}
