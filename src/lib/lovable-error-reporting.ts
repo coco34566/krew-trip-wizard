@@ -1,3 +1,5 @@
+import { captureProductionError } from "./error-monitoring";
+
 type LovableErrorOptions = {
   mechanism?: "manual" | "onerror" | "unhandledrejection" | "react_error_boundary";
   handled?: boolean;
@@ -25,6 +27,11 @@ declare global {
 
 export function reportLovableError(error: unknown, context: Record<string, unknown> = {}) {
   if (typeof window === "undefined") return;
+  void captureProductionError(error, {
+    ...context,
+    route: window.location.pathname,
+    action: "react_error_boundary",
+  });
   window.__lovableEvents?.captureException?.(
     error,
     {

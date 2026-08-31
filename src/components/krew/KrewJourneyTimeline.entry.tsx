@@ -18,8 +18,8 @@ function pendingStatus(step: TimelineStep) {
 
 /**
  * Recomputes the two questionnaire steps from the shared response selector.
- * This prevents the historical journey parent from reintroducing estimated
- * participant capacity or a separate availability denominator.
+ * Once dates are locked, the response phase is closed for both steps: a late
+ * participant must never reopen an earlier journey step or make it look pending.
  */
 export function KrewJourneyTimeline(props: Props) {
   const fetchProgress = useServerFn(getParticipantsProgress);
@@ -69,10 +69,10 @@ export function KrewJourneyTimeline(props: Props) {
     if (step.id === "preferences" && progress) {
       const expected = progress.preferencesExpected ?? progress.total ?? 0;
       const answered = progress.answered ?? 0;
-      const complete = expected > 0 && answered >= expected;
+      const complete = datesLocked || (expected > 0 && answered >= expected);
       return {
         ...step,
-        subtitle: `${answered}/${expected} réponses`,
+        subtitle: datesLocked ? "Réponses clôturées" : `${answered}/${expected} réponses`,
         status: complete ? "done" : pendingStatus(step),
       };
     }
