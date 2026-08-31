@@ -9,6 +9,7 @@ import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewHighlight, KrewOrganicBlob } from "@/components/krew/visual-language";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { EVENT_TYPES } from "@/lib/krew/constants";
+import "@/styles/krew-motion.css";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -58,13 +59,13 @@ function Landing() {
                   <h1 className="font-display text-[42px] sm:text-[64px] lg:text-[78px] font-normal tracking-tight text-foreground leading-[0.94]">
                     Tout commence par{" "}<span className="italic text-primary block sm:inline">une envie de partir.</span>
                   </h1>
-                  <KrewMark type="underline-wave" tone="sage" size="lg" className="mt-1 w-[180px] sm:w-[260px] h-[10px] opacity-90 pointer-events-none" />
+                  <KrewMark type="underline-wave" tone="sage" size="lg" className="krew-hero-mark mt-1 w-[180px] sm:w-[260px] h-[10px] opacity-90 pointer-events-none" />
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
                   KREW aide le groupe à se mettre d’accord et transforme les réponses en un voyage concret.
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-2 relative">
-                  <Button asChild size="xl" className="h-10 min-h-10 rounded-xl px-7 py-0 text-sm sm:text-base font-medium leading-none shadow-none">
+                  <Button asChild size="xl" className="krew-hero-cta h-10 min-h-10 rounded-xl px-7 py-0 text-sm sm:text-base font-medium leading-none shadow-none">
                     <Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link>
                   </Button>
                   <Button asChild variant="ghost" size="lg" className="h-10 rounded-xl px-5 text-muted-foreground hover:text-foreground">
@@ -81,15 +82,15 @@ function Landing() {
               </div>
               <div className="lg:col-span-5 relative">
                 <KrewOrganicBlob tone="plum" variant="sweep" className="absolute -bottom-6 -right-6 w-[200px] h-[160px] opacity-20 pointer-events-none z-0" />
-                <div className="relative z-10 overflow-hidden rounded-[24px] lg:rounded-l-[36px] shadow-sm aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/5] w-full">
+                <div className="krew-hero-photo-settle relative z-10 overflow-hidden rounded-[24px] lg:rounded-l-[36px] shadow-sm aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/5] w-full">
                   <img src={heroImage} alt="Groupe d'amis en voyage" className="h-full w-full object-cover object-center" fetchPriority="high" />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
-                  <div className="absolute top-4 right-3 sm:top-5 sm:right-4 z-20 pointer-events-none">
+                  <div className="krew-hero-postit-settle absolute top-4 right-3 sm:top-5 sm:right-4 z-20 pointer-events-none">
                     <KrewNote variant="sticky" tone="sage" rotation={7} size="sm" className="w-fit max-w-[125px] text-xs sm:text-sm text-center">
                       Le plan prend forme ici
                     </KrewNote>
                   </div>
-                  <div className="absolute bottom-5 left-5 right-5 text-white text-right"><p className="font-display text-xl sm:text-2xl font-normal leading-tight">La team. Le plan. Le moment.</p></div>
+                  <div className="absolute bottom-5 left-5 right-5 text-white text-right"><p className="krew-hero-slogan font-display text-xl sm:text-2xl font-normal leading-tight"><span>La team.</span>{" "}<span>Le plan.</span>{" "}<span>Le moment.</span></p></div>
                 </div>
               </div>
             </div>
