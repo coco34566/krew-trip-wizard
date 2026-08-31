@@ -53,8 +53,16 @@ export function KrewJourneyTimeline(props: Props) {
 
   const progress = responseQuery.data?.progress;
   const datesLocked = responseQuery.data?.datesLocked ?? false;
+  const progressReady = responseQuery.isSuccess && Boolean(progress);
 
   const steps = props.steps.map((step): TimelineStep => {
+    if ((step.id === "availability" || step.id === "preferences") && !progressReady) {
+      return {
+        ...step,
+        subtitle: "Chargement des réponses…",
+      };
+    }
+
     if (step.id === "availability" && progress) {
       const expected = progress.availabilityExpected ?? 0;
       const answered = progress.availabilityAnswered ?? 0;
@@ -81,7 +89,7 @@ export function KrewJourneyTimeline(props: Props) {
   });
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-response-progress={progressReady ? "ready" : "loading"}>
       <OrganizationRefreshNotice
         logistics={responseQuery.data?.logistics}
         canManage={responseQuery.data?.canManage ?? false}
