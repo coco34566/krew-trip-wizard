@@ -7,7 +7,7 @@ import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefresh
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { maskStaleOrganizationDataForDashboard } from "@/lib/krew/organization-refresh";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
-import { trackProductEventOnce } from "@/lib/product-analytics";
+import { trackProductEventOnce, type ProductAnalyticsProperties } from "@/lib/product-analytics";
 import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
 
 type Props = ComponentProps<typeof TripHubDashboardLegacy>;
@@ -17,10 +17,6 @@ type Props = ComponentProps<typeof TripHubDashboardLegacy>;
  * The historical parent still computes a few legacy fallbacks; this entry point
  * deliberately ignores them and reads the centralized response selector from
  * the same React Query cache used by the rest of the trip page.
- *
- * It also masks stale organization data only for dashboard progress/readiness:
- * the old content remains persisted and visible in its own sections, while the
- * dashboard cannot incorrectly present it as current after a structural change.
  */
 export function TripHubDashboard(props: Props) {
   const fetchProgress = useServerFn(getParticipantsProgress);
@@ -33,11 +29,13 @@ export function TripHubDashboard(props: Props) {
   const rawPreferencesAnswered = centralized?.answered ?? 0;
   const availabilityExpected = centralized?.availabilityExpected ?? 0;
   const rawAvailabilityAnswered = centralized?.availabilityAnswered ?? 0;
-  const datesLocked = Boolean((props.trip as any)?.dates_locked);
+  const trip = props.trip as any;
+  const logistics = (trip?.group_logistics ?? {}) as any;
+  const datesLocked = Boolean(trip?.dates_locked);
   const lifecycle = getTripLifecycleState({
     datesLocked,
-    startDate: (props.trip as any)?.start_date,
-    endDate: (props.trip as any)?.end_date,
+    startDate: trip?.start_date,
+    endDate: trip?.end_date,
   });
   const responsesClosed = datesLocked;
   const completed = lifecycle === "completed";
@@ -53,25 +51,57 @@ export function TripHubDashboard(props: Props) {
   });
 
   useEffect(() => {
-    if (lifecycle === "live") {
-      trackProductEventOnce("trip_started", props.tripId, {
-        trip_id: props.tripId,
-        trip_type: (props.trip as any)?.event_type,
-        group_size: preferencesExpected,
-        dates_locked: datesLocked,
-        destination_selected: Boolean(props.destinationSelected),
-      });
+    const viewerId = props.viewerUserId ?? null;
+    const role: ProductAnalyticsProperties["role"] =
+      viewerId && viewerId === trip?.owner_id
+        ? "organizer"
+        : viewerId && viewerId === trip?.co_organizer_id
+          ? "co_organizer"
+          : "participant";
+    const common: ProductAnalyticsProperties = {
+      role,
+      trip_id: props.tripId,
+      trip_type: trip?.event_type,
+      group_size: preferencesExpected,
+      expected_responses: preferencesExpected,
+      received_responses: rawPreferencesAnswered,
+      dates_locked: datesLocked,
+      destination_selected: Boolean(props.destinationSelected),
+    };
+    const once = (event: Parameters<typeof trackProductEventOnce>[0], stateKey: string) =>
+      trackProductEventOnce(event, `${props.tripId}:${stateKey}`, common);
+
+    if (role === "organizer") once("trip_created", "created");
+    if (role !== "organizer" && viewerId) once("participant_joined", `joined:${viewerId}`);
+    if (props.myAvailabilityDone) once("availability_submitted", `availability:${viewerId ?? "viewer"}`);
+    if (props.myPreferencesDone) once("preferences_submitted", `preferences:${viewerId ?? "viewer"}`);
+    if (datesLocked) once("dates_locked", "dates-locked");
+    if (props.profileValidated) once("trip_profile_validated", "profile-validated");
+    if (props.hasRecommendations) once("destination_proposals_generated", "destination-proposals");
+    if (props.destinationSelected) once("destination_selected", "destination-selected");
+    if (logistics.selectedHotelId) once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
+    if (viewerId && (logistics.transportPicks ?? []).some((pick: any) => pick?.userId === viewerId)) {
+      once("transport_selected", `transport:${viewerId}`);
     }
-    if (lifecycle === "completed") {
-      trackProductEventOnce("trip_completed", props.tripId, {
-        trip_id: props.tripId,
-        trip_type: (props.trip as any)?.event_type,
-        group_size: preferencesExpected,
-        dates_locked: datesLocked,
-        destination_selected: Boolean(props.destinationSelected),
-      });
-    }
-  }, [datesLocked, lifecycle, preferencesExpected, props.destinationSelected, props.trip, props.tripId]);
+    if (trip?.group_itinerary?.days?.length) once("planning_generated", "planning-generated");
+    if (lifecycle === "live") once("trip_started", "started");
+    if (lifecycle === "completed") once("trip_completed", "completed");
+  }, [
+    datesLocked,
+    lifecycle,
+    logistics.selectedHotelId,
+    logistics.transportPicks,
+    preferencesExpected,
+    props.destinationSelected,
+    props.hasRecommendations,
+    props.myAvailabilityDone,
+    props.myPreferencesDone,
+    props.profileValidated,
+    props.tripId,
+    props.viewerUserId,
+    rawPreferencesAnswered,
+    trip,
+  ]);
 
   return (
     <div data-trip-lifecycle={lifecycle}>
@@ -99,7 +129,7 @@ export function TripHubDashboard(props: Props) {
         trip={tripForDashboard}
       >
         <OrganizationRefreshNotice
-          logistics={(props.trip as any).group_logistics}
+          logistics={trip.group_logistics}
           destinationName={props.destinationName}
           canManage={!completed && props.isOwner}
         />
