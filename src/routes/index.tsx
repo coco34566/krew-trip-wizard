@@ -34,8 +34,8 @@ export const Route = createFileRoute("/")({
 
 const STEPS: { iconName: KrewIconName; number: string; title: string; text: string }[] = [
   { iconName: "group", number: "01", title: "Crée ton voyage", text: "Renseigne l’essentiel et invite le groupe." },
-  { iconName: "calendar", number: "02", title: "Chacun répond", text: "Disponibilités et préférences : chacun complète ses informations." },
-  { iconName: "planning", number: "03", title: "KREW propose", text: "Dates, destinations, hébergements et trajets adaptés au groupe." },
+  { iconName: "calendar", number: "02", title: "Chacun répond", text: "Disponibilités, budget et envies : chacun complète ses informations." },
+  { iconName: "planning", number: "03", title: "KREW propose", text: "Dates, destinations, hébergements et trajets adaptés aux vraies contraintes du groupe." },
 ];
 
 const TRUST = ["Sans prise de tête", "Décision en groupe", "Budget clair dès le départ"];
@@ -55,22 +55,19 @@ function Landing() {
             <div className="grid lg:grid-cols-12 gap-6 lg:gap-10 items-center">
               <div className="lg:col-span-7 space-y-4 sm:space-y-5">
                 <div className="relative">
-                  <h1 className="font-display text-[42px] sm:text-[64px] lg:text-[84px] font-normal tracking-tight text-foreground leading-[0.92]">
-                    Organise moins.{" "}<span className="italic text-primary block sm:inline">Profite plus.</span>
+                  <h1 className="font-display text-[42px] sm:text-[64px] lg:text-[78px] font-normal tracking-tight text-foreground leading-[0.94]">
+                    Vous voulez partir.{" "}<span className="italic text-primary block sm:inline">KREW s’occupe du casse-tête.</span>
                   </h1>
                   <KrewMark type="underline-wave" tone="sage" size="lg" className="mt-1 w-[180px] sm:w-[260px] h-[10px] opacity-90 pointer-events-none" />
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
-                  Disponibilités, envies, budget : KREW rassemble les réponses du groupe et t’aide à organiser le séjour, étape par étape.
+                  Dates impossibles à caler, budgets différents, 47 messages et personne qui tranche ? KREW rassemble les envies du groupe et transforme tout ça en un vrai voyage.
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-2 relative">
-                  <div className="basis-full sm:hidden">
-                    <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="w-fit text-sm pointer-events-none">Le plan prend forme ici</KrewNote>
-                  </div>
-                  <Button asChild size="xl" className="h-12 min-h-12 rounded-xl px-8 py-0 text-base font-medium leading-none shadow-none">
+                  <Button asChild size="xl" className="h-10 min-h-10 rounded-xl px-7 py-0 text-sm sm:text-base font-medium leading-none shadow-none">
                     <Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link>
                   </Button>
-                  <Button asChild variant="ghost" size="lg" className="rounded-xl px-5 text-muted-foreground hover:text-foreground">
+                  <Button asChild variant="ghost" size="lg" className="h-10 rounded-xl px-5 text-muted-foreground hover:text-foreground">
                     <Link to="/auth" search={{}}>Se connecter</Link>
                   </Button>
                 </div>
@@ -87,6 +84,11 @@ function Landing() {
                 <div className="relative z-10 overflow-hidden rounded-[24px] lg:rounded-l-[36px] shadow-sm aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/5] w-full">
                   <img src={heroImage} alt="Groupe d'amis en voyage" className="h-full w-full object-cover object-center" fetchPriority="high" />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
+                  <div className="absolute top-4 right-3 sm:top-5 sm:right-4 z-20 pointer-events-none">
+                    <KrewNote variant="sticky" tone="sage" rotation={7} size="sm" className="w-fit max-w-[125px] text-xs sm:text-sm text-center">
+                      Le plan prend forme ici
+                    </KrewNote>
+                  </div>
                   <div className="absolute bottom-5 left-5 right-5 text-white text-right"><p className="font-display text-xl sm:text-2xl font-normal leading-tight">La team. Le plan. Le moment.</p></div>
                 </div>
               </div>
@@ -109,16 +111,16 @@ function Landing() {
 
         <section className="relative overflow-hidden py-8 sm:py-10 bg-background">
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 relative">
-            <div className="flex items-end justify-between gap-4 mb-5 sm:mb-6">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4 mb-5 sm:mb-6">
+              <div className="space-y-0.5 min-w-0">
                 <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LE PLAN</span>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono">Comment ça marche</p>
                 <h2 className="relative inline-block font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground leading-tight tracking-tight mt-0.5">
-                  Trois étapes, zéro chaos
+                  Vos contraintes entrent. Un vrai week-end en sort.
                   <KrewMark type="underline-wave" tone="sage" size="md" className="mt-1 w-[180px] sm:w-[240px] opacity-80 pointer-events-none" />
                 </h2>
               </div>
-              <img src="/brand/otter-states/trip-progress.png" alt="Loutre KREW organisation" className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 filter drop-shadow-xs" />
+              <img src="/brand/otter-states/trip-progress.png" alt="Loutre KREW organisation" className="w-[72px] sm:w-[88px] h-auto object-contain shrink-0 filter drop-shadow-xs mt-0.5" />
             </div>
             <div className="grid gap-5 sm:gap-6 lg:grid-cols-3 relative z-10">
               {STEPS.map((step) => (
@@ -141,17 +143,17 @@ function Landing() {
         <section className="w-full bg-sage/15 py-10 sm:py-12 relative overflow-hidden border-y border-border/50">
           <KrewOrganicBlob tone="plum" variant="soft" className="absolute top-0 right-0 w-[400px] h-[300px] opacity-15 pointer-events-none z-0" />
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
-              <div>
+            <div className="flex items-start justify-between gap-4 mb-3 sm:mb-4">
+              <div className="min-w-0">
                 <span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LE MOMENT</span>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono mt-0.5">L&apos;expérience du groupe</p>
-                <h2 className="mt-1 font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground">Un voyage prêt, un groupe rassemblé</h2>
-                <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-lg font-sans">Une fois les réponses du groupe réunies, le séjour se dessine clairement avec des hébergements, des billets et un planning clair.</p>
+                <h2 className="mt-1 font-display text-3xl sm:text-4xl lg:text-5xl font-normal text-foreground">Une fois décidé, il ne reste plus qu’à partir.</h2>
+                <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-lg font-sans">Planning, arrivées, tâches, choses à prendre : tout le groupe sait ce qui se passe sans devoir remonter six semaines de messages.</p>
               </div>
-              <img src="/brand/otter-states/planning.png" alt="Loutre KREW planning" className="w-[72px] sm:w-[84px] h-auto object-contain shrink-0 filter drop-shadow-xs" />
+              <img src="/brand/otter-states/planning.png" alt="Loutre KREW planning" className="w-[72px] sm:w-[84px] h-auto object-contain shrink-0 filter drop-shadow-xs mt-0.5" />
             </div>
             <div className="grid lg:grid-cols-12 gap-6 items-center">
-              <div className="lg:col-span-5 relative">
+              <div className="lg:col-span-5 relative -mt-1 sm:-mt-2 lg:-mt-5">
                 <div className="absolute -top-3 -left-2 z-20 hidden sm:block pointer-events-none"><KrewNote variant="tape" tone="sage" rotation={-3} className="text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[120px]">Option coup de cœur</KrewNote></div>
                 <div className="relative rounded-[24px] overflow-hidden aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/5] shadow-xs border border-border/40">
                   <img src="/images/trip-types/weekend.png" alt="Week-end entre amis" className="size-full object-cover" />
@@ -185,17 +187,17 @@ function Landing() {
           <KrewOrganicBlob tone="sage" variant="soft" className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] opacity-20 pointer-events-none z-0" />
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-10 relative z-10">
             <KrewMark type="sparkle" tone="sage" size="sm" className="absolute top-2 right-10 size-6 opacity-60 pointer-events-none" />
-            <div className="max-w-xl text-center mx-auto mb-8 sm:mb-10"><span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LA TEAM</span><p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono mt-0.5">Ce que KREW fait pour toi</p><h2 className="mt-1 font-display text-3xl sm:text-4xl font-normal text-foreground relative inline-block">Moins de débats, plus de départ<KrewMark type="underline-wave" tone="sage" size="md" className="mt-1 w-[140px] mx-auto opacity-80 pointer-events-none" /></h2></div>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"><FeatureBlock iconName="destination" title="Destinations adaptées" text="Des propositions qui tiennent compte des envies, du budget et des contraintes du groupe." /><FeatureBlock iconName="budget" title="Budget transparent" text="Transport, hébergement, activités — estimés par personne." /><FeatureBlock iconName="vote" title="Décision collective" text="Chacun partage ses préférences, puis le groupe avance ensemble." /><FeatureBlock iconName="planning" title="Planning jour par jour" text="Restaurants, activités et temps forts réunis dans un planning clair." /></div>
+            <div className="max-w-xl text-center mx-auto mb-8 sm:mb-10"><span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LA TEAM</span><p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono mt-0.5">Ce que KREW fait pour toi</p><h2 className="mt-1 font-display text-3xl sm:text-4xl font-normal text-foreground relative inline-block">Tout le monde donne son avis. Sans réunion de crise.<KrewMark type="underline-wave" tone="sage" size="md" className="mt-1 w-[140px] mx-auto opacity-80 pointer-events-none" /></h2><p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed">Chacun renseigne ses dispos, son budget et ses envies. KREW garde ce qui compte pour le groupe, sans transformer la conversation en tableur.</p></div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"><FeatureBlock iconName="destination" title="Des propositions qui collent au groupe" text="Des destinations qui tiennent compte des envies, du budget et des contraintes réelles." /><FeatureBlock iconName="budget" title="Un budget lisible" text="Transport, hébergement et activités réunis pour comprendre rapidement ce que le séjour implique." /><FeatureBlock iconName="vote" title="Des décisions à plusieurs" text="Chacun partage ses préférences, puis le groupe avance sans perdre le fil." /><FeatureBlock iconName="planning" title="Un plan que tout le monde retrouve" text="Restaurants, activités, arrivées et temps forts réunis dans un planning clair." /></div>
           </div>
         </section>
 
         <section className="relative bg-surface/80 border-t border-border py-14 sm:py-20 overflow-hidden">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-10 text-center relative z-10 space-y-4">
             <img src="/brand/otter-states/lets-go.png" alt="Loutre KREW départ" className="w-14 sm:w-16 h-auto object-contain filter drop-shadow-xs mx-auto" />
-            <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground leading-tight">Le prochain voyage commence ici</h2>
-            <p className="mx-auto max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed font-sans">Crée le voyage, invite le groupe et avance étape par étape.</p>
-            <div className="pt-2 relative"><div className="mb-4 flex justify-center sm:hidden"><KrewNote variant="tape" tone="sage" rotation={1} size="sm" className="w-fit text-sm pointer-events-none">Prêt à partir ?</KrewNote></div><Button asChild size="xl" className="h-12 min-h-12 rounded-xl px-8 py-0 text-base font-medium leading-none shadow-none"><Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer mon voyage</Link></Button></div>
+            <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground leading-tight">Votre groupe a déjà assez parlé de ce voyage.</h2>
+            <p className="mx-auto max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed font-sans">Il serait peut-être temps de le faire.</p>
+            <div className="pt-2 relative"><div className="mb-4 flex justify-center sm:hidden"><KrewNote variant="tape" tone="sage" rotation={1} size="sm" className="w-fit text-sm pointer-events-none">Prêt à partir ?</KrewNote></div><Button asChild size="xl" className="h-10 min-h-10 rounded-xl px-7 py-0 text-sm sm:text-base font-medium leading-none shadow-none"><Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer notre voyage</Link></Button></div>
           </div>
         </section>
       </main>
