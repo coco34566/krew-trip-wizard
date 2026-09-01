@@ -55,7 +55,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
 
   const planningMutation = useMutation({
     mutationFn: () => generatePlanning({ data: { tripId, force: true } }),
-    onSuccess: (result: any) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (error) => {
