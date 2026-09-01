@@ -180,7 +180,7 @@ function CurrentPositionNote() {
           On en est ici
         </KrewNote>
       </div>
-      <div className="absolute -left-7 top-3 h-[72px] w-[82px] rotate-[47deg] sm:-left-8 sm:top-2 sm:h-[78px] sm:w-[90px]">
+      <div className="absolute -left-6 -top-1 h-[72px] w-[82px] rotate-[47deg] sm:-left-7 sm:-top-2 sm:h-[78px] sm:w-[90px]">
         <KrewMark
           type="arrow-curved-down"
           tone="plum"
