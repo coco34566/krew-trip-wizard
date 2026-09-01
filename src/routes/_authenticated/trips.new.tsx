@@ -148,7 +148,6 @@ function NewTripPage() {
       if (!id) throw new Error("Le voyage a été créé mais son identifiant est introuvable.");
 
       queryClient.invalidateQueries({ queryKey: ["my-trips"] });
-      toast.success("Voyage créé — invite ton groupe");
       await navigate({ to: "/trips/$tripId/invite", params: { tripId: id } });
     } catch (err: any) {
       console.error("Impossible de créer le voyage:", err);
@@ -418,7 +417,7 @@ function NewTripPage() {
           <Button
             type="submit"
             size="lg"
-            className="min-h-[50px] w-full rounded-xl px-7 py-2.5 text-base font-medium sm:w-auto"
+            className="h-10 max-w-full rounded-xl px-5 text-sm font-medium"
             disabled={submitting}
           >
             {submitting ? (
