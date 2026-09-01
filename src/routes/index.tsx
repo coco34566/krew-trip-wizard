@@ -41,6 +41,7 @@ const STEPS: { iconName: KrewIconName; number: string; title: string; text: stri
 ];
 
 const TRUST = ["Sans prise de tête", "Décision en groupe", "Budget clair dès le départ"];
+const LANDING_SURFACE_SHADOW = "0 16px 38px -30px rgba(42,25,37,.28)";
 
 const IDEAL_FOR_TYPES = EVENT_TYPES.filter((ev) =>
   ["evg", "evjf", "weekend", "anniversaire"].includes(ev.value),
@@ -152,7 +153,7 @@ function Landing() {
             <div className="krew-plan-track relative grid gap-4 sm:gap-5 lg:grid-cols-3 lg:gap-7">
               <KrewMark type="route" tone="sage" size="lg" className="krew-plan-route krew-draw-mark pointer-events-none absolute hidden lg:block" />
               {STEPS.map((step, index) => (
-                <article key={step.number} className={`krew-reveal krew-plan-step krew-plan-step-${index + 1} relative flex items-start gap-4 sm:gap-5 lg:block`}>
+                <article key={step.number} style={{ boxShadow: LANDING_SURFACE_SHADOW }} className={`krew-reveal krew-plan-step krew-plan-step-${index + 1} relative flex items-start gap-4 sm:gap-5 lg:block`}>
                   <div className="flex items-center gap-3 shrink-0 lg:mb-4">
                     <span aria-hidden="true" className="font-display text-6xl sm:text-7xl font-normal text-secondary/60 leading-none select-none tracking-tight">{step.number}</span>
                     <div className="flex size-11 sm:size-12 items-center justify-center rounded-[18px] bg-primary/10 text-primary shrink-0"><KrewIcon name={step.iconName} tone="plum" size="sm" className="size-5" /></div>
@@ -190,8 +191,8 @@ function Landing() {
                 </div>
               </div>
               <div className="krew-moment-stack lg:col-span-7 relative lg:-ml-10">
-                <div className="krew-reveal krew-moment-card relative p-4 sm:p-5 lg:p-6 rounded-[22px] bg-background border border-border/60">
-                  <div className="krew-moment-validated absolute -top-4 right-3 z-20 hidden sm:block pointer-events-none"><KrewNote variant="sticky" tone="cream" rotation={3} className="krew-moment-validated-note text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[130px]">Validé par le groupe</KrewNote></div>
+                <div style={{ boxShadow: LANDING_SURFACE_SHADOW }} className="krew-reveal krew-moment-card relative p-4 sm:p-5 lg:p-6 rounded-[22px] bg-background border border-border/60">
+                  <div className="krew-moment-validated absolute -top-4 right-3 z-20 hidden sm:block pointer-events-none"><KrewNote variant="sticky" tone="cream" rotation={3} className="krew-moment-validated-note !bg-[#fbf8f1] text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[130px]">Validé par le groupe</KrewNote></div>
                   <div className="krew-reveal krew-moment-group flex flex-wrap items-center justify-between gap-4">
                     <div><span className="text-xs font-semibold uppercase tracking-wider bg-primary/10 px-2.5 py-1 rounded-md text-primary font-mono">Exemple de voyage organisé</span><h3 className="font-display text-2xl sm:text-3xl font-normal text-foreground mt-1">Retrouvailles à Lisbonne</h3><p className="text-xs sm:text-sm text-muted-foreground">Organisé par Thomas · 8 participants</p></div>
                     <div><p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider font-mono">Budget / personne</p><KrewHighlight tone="sage" className="font-mono text-2xl sm:text-3xl font-bold text-primary mt-1 inline-block px-3 py-1">~360 €</KrewHighlight></div>
@@ -240,7 +241,7 @@ function Landing() {
 
 function FeatureBlock({ className, iconName, title, text, mark, large = false, wide = false }: { className?: string; iconName: KrewIconName; title: string; text: string; mark: "pin-line" | "stamp-circle" | "check" | "heart"; large?: boolean; wide?: boolean }) {
   return (
-    <article className={`krew-reveal krew-bento-card relative overflow-hidden rounded-[22px] border border-border/50 bg-background/95 p-5 sm:p-6 ${className ?? ""}`}>
+    <article style={{ boxShadow: LANDING_SURFACE_SHADOW }} className={`krew-reveal krew-bento-card relative overflow-hidden rounded-[22px] border border-border/50 bg-background/95 p-5 sm:p-6 ${className ?? ""}`}>
       <KrewMark type={mark} tone={mark === "heart" ? "plum" : "sage"} size="md" className="krew-draw-mark pointer-events-none absolute right-4 top-4 opacity-55" />
       <div className="relative z-10 flex h-full flex-col justify-between gap-5">
         <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><KrewIcon name={iconName} tone="plum" size="sm" className="size-5" /></div>
