@@ -260,7 +260,6 @@ function Dashboard() {
   const archiveMutation = useMutation({
     mutationFn: (tripId: string) => archiveFn({ data: { tripId, hardDelete: false } }),
     onSuccess: (_result, tripId) => {
-      toast.success("Voyage archivé");
       void trackProductEvent("trip_archived", { trip_id: tripId, role: "organizer" });
       queryClient.invalidateQueries({ queryKey: ["my-trips", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["co-organized-archived", user?.id] });
@@ -273,7 +272,6 @@ function Dashboard() {
   const reactivateMutation = useMutation({
     mutationFn: (tripId: string) => reactivateFn({ data: { tripId } }),
     onSuccess: (_result, tripId) => {
-      toast.success("Voyage réactivé");
       void trackProductEvent("trip_reactivated", { trip_id: tripId, role: "organizer" });
       queryClient.invalidateQueries({ queryKey: ["my-trips", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["co-organized-archived", user?.id] });
