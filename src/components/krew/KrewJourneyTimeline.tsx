@@ -514,15 +514,19 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </ol>
 
       {!historical ? (
-        <div className="mt-4 flex items-end justify-between gap-3 pb-4 pt-1 sm:mt-5 sm:pt-2" aria-hidden="true">
-          <img
-            src="/brand/otter-states/completed.png"
-            alt=""
-            className="pointer-events-none -translate-y-1 w-[76px] shrink-0 object-contain opacity-95 sm:w-[88px]"
-          />
-          <span className="inline-block whitespace-nowrap pb-1 text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/75 text-[clamp(11px,3.4vw,14px)] sm:text-[16px]">
-            La suite s’écrit avec la Krew
-          </span>
+        <div className="mt-4 flex justify-end pb-4 pt-1 sm:mt-5 sm:pt-2" aria-hidden="true">
+          <div className="flex flex-col items-end">
+            <div className="mb-1 h-[72px] w-[72px] overflow-hidden sm:h-[82px] sm:w-[82px]">
+              <img
+                src="/brand/otter-states/completed.png"
+                alt=""
+                className="pointer-events-none h-full w-full translate-x-[8px] object-contain object-right opacity-95 sm:translate-x-[9px]"
+              />
+            </div>
+            <span className="inline-block whitespace-nowrap text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/75 text-[clamp(11px,3.4vw,14px)] sm:text-[16px]">
+              La suite s’écrit avec la Krew
+            </span>
+          </div>
         </div>
       ) : null}
     </div>
