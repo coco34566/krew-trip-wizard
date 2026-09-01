@@ -268,6 +268,7 @@ function AuthPage() {
           </div>
         </div>
 
+        <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute right-10 top-[42%] hidden opacity-45 sm:block lg:hidden" />
         <KrewMark type="route" tone="sage" size="sm" rotation={2} className="pointer-events-none absolute bottom-[40px] left-3 opacity-35 lg:hidden" />
         <img
           src="/brand/otter-states/lets-go.png"
