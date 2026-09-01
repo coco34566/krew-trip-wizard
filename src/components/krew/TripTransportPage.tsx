@@ -92,15 +92,16 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
 
   if (detailQuery.isLoading || progressQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <KrewThinkingState context="transport" />
       </main>
     );
   }
 
-  if (!detailQuery.data || detailQuery.isError) {
+  if (!detailQuery.data || detailQuery.isError || progressQuery.isError) {
+    const retrying = detailQuery.isFetching || progressQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-4 px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
@@ -109,7 +110,26 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
         >
           <ArrowLeft className="size-4" /> Retour au voyage
         </Link>
-        <p className="text-sm text-muted-foreground">Impossible de charger les trajets pour le moment.</p>
+        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
+          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
+            Impossible de charger les trajets
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Les informations de transport du groupe ne sont pas disponibles pour le moment.
+          </p>
+          <Button
+            type="button"
+            className="mt-5"
+            onClick={() => {
+              void detailQuery.refetch();
+              void progressQuery.refetch();
+            }}
+            disabled={retrying}
+            aria-busy={retrying}
+          >
+            {retrying ? "Chargement…" : "Réessayer"}
+          </Button>
+        </section>
       </main>
     );
   }
