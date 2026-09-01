@@ -85,18 +85,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   }
 }
 
-/* KREW note palette on these pages: no yellow/cream labels. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > div.space-y-3.relative span.inline-flex.font-handwriting,
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.space-y-3.relative span.inline-flex.font-handwriting,
-main[class*="max-w-[820px]"] [data-krew-note="post-it"][data-krew-note-tone="cream"] {
-  background: #e8efeb !important;
-  color: var(--primary) !important;
-}
-
-main[class*="max-w-[820px]"] [data-krew-note="post-it"][data-krew-note-tone="cream"] > span[aria-hidden] {
-  background: rgba(215,200,211,.72) !important;
-}
-
 /* Disponibilités: no repeated section heading, no loupe, no repeated date list; Notes stay. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section > div:first-child > h2 { display: none !important; }
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section > div:first-child > p { margin-top: 0 !important; }
