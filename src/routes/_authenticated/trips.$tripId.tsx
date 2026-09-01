@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { Button } from "@/components/ui/button";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
 import { TripInvitePage } from "@/components/krew/TripInvitePage";
 import { TripPlanningPage } from "@/components/krew/TripPlanningPage";
@@ -26,8 +27,21 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId")({
 
 function ResponseGateLoading() {
   return (
-    <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8">
+    <main className="mx-auto w-full max-w-[1020px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
       <KrewThinkingState context="generic" customMessage="Vérification de l’étape…" delayMs={0} />
+    </main>
+  );
+}
+
+function ResponseGateError({ onRetry, isFetching }: { onRetry: () => void; isFetching: boolean }) {
+  return (
+    <main className="mx-auto w-full max-w-[1020px] space-y-4 px-4 py-8 text-center sm:px-6 sm:py-10 lg:px-8" role="alert">
+      <p className="text-sm text-muted-foreground">Impossible de vérifier l’état de cette étape pour le moment.</p>
+      <div>
+        <Button type="button" onClick={onRetry} disabled={isFetching} aria-busy={isFetching}>
+          {isFetching ? "Chargement…" : "Réessayer"}
+        </Button>
+      </div>
     </main>
   );
 }
@@ -35,7 +49,7 @@ function ResponseGateLoading() {
 function ClosedResponseState({ tripId, title, hasPreviousAnswer, children }: { tripId: string; title: string; hasPreviousAnswer: boolean; children: ReactNode }) {
   return (
     <>
-      <div className="mx-auto mt-8 w-full max-w-[820px] px-5 sm:px-7 lg:px-8">
+      <div className="mx-auto mt-8 w-full max-w-[1020px] px-4 sm:px-6 lg:px-8">
         <section className="rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" role="status">
           <p className="font-display text-2xl font-normal text-foreground">{title} clôturées</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
@@ -56,11 +70,12 @@ function ClosedResponseState({ tripId, title, hasPreviousAnswer, children }: { t
 
 function AvailabilityResponseGate({ tripId, children }: { tripId: string; children: ReactNode }) {
   const fetchAvailability = useServerFn(getTripAvailability);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["trip-availability", tripId],
     queryFn: () => fetchAvailability({ data: { tripId } }),
   });
   if (isLoading) return <ResponseGateLoading />;
+  if (isError) return <ResponseGateError onRetry={() => void refetch()} isFetching={isFetching} />;
   if (!data?.trip?.datesLocked) return <>{children}</>;
   return (
     <ClosedResponseState tripId={tripId} title="Disponibilités" hasPreviousAnswer={Boolean(data.mine)}>
@@ -72,7 +87,7 @@ function AvailabilityResponseGate({ tripId, children }: { tripId: string; childr
 function PreferencesResponseGate({ tripId, children }: { tripId: string; children: ReactNode }) {
   const fetchMine = useServerFn(getMyParticipantPreferences);
   const fetchDetail = useServerFn(getTripDetail);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["my-preferences-gate", tripId],
     queryFn: async () => {
       const [mine, detail] = await Promise.all([
@@ -86,6 +101,7 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
     },
   });
   if (isLoading) return <ResponseGateLoading />;
+  if (isError) return <ResponseGateError onRetry={() => void refetch()} isFetching={isFetching} />;
   if (!data?.datesLocked) return <>{children}</>;
   return (
     <ClosedResponseState tripId={tripId} title="Préférences" hasPreviousAnswer={Boolean(data.preferences)}>
@@ -96,13 +112,14 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
 
 function CompletedPreparationGate({ tripId, children }: { tripId: string; children: ReactNode }) {
   const fetchDetail = useServerFn(getTripDetail);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
     retry: false,
   });
 
   if (isLoading) return <ResponseGateLoading />;
+  if (isError) return <ResponseGateError onRetry={() => void refetch()} isFetching={isFetching} />;
 
   const trip = data?.trip as any;
   const completed = trip
@@ -117,7 +134,7 @@ function CompletedPreparationGate({ tripId, children }: { tripId: string; childr
 
   return (
     <>
-      <div className="mx-auto mt-8 w-full max-w-5xl px-4 sm:px-6">
+      <div className="mx-auto mt-8 w-full max-w-[1020px] px-4 sm:px-6 lg:px-8">
         <section className="rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" role="status">
           <p className="font-display text-2xl font-normal text-foreground">Voyage terminé · consultation</p>
           <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
