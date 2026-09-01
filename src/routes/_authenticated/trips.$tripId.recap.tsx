@@ -14,6 +14,7 @@ import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 import { KrewIcon, KrewMark, KrewHighlight, KrewSectionWave } from "@/components/krew/visual-language";
@@ -206,7 +207,6 @@ function TripRecapPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Calendrier téléchargé");
   };
 
   const dateLabel =
