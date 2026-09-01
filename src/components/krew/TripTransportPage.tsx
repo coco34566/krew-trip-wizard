@@ -61,7 +61,6 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
     onSuccess: (result: any) => {
       refresh();
       const count = result?.logistics?.transports?.length ?? 0;
-      toast.success(`${count} trajet${count > 1 ? "s" : ""} proposé${count > 1 ? "s" : ""}`);
     },
     onError: (error) => {
       console.error("Impossible de rechercher les trajets:", error);
@@ -72,7 +71,6 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   const pickMutation = useMutation({
     mutationFn: (payload: any) => chooseTransport({ data: { tripId, ...payload } }),
     onSuccess: () => {
-      toast.success("Mon trajet est enregistré");
       refresh();
     },
     onError: (error) => {
@@ -85,7 +83,6 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
     mutationFn: (userId: string) =>
       setBooking({ data: { tripId, type: "transport", status: "réservé", userId } }),
     onSuccess: () => {
-      toast.success("Trajet marqué comme réservé");
       refresh();
     },
     onError: (error) => {
