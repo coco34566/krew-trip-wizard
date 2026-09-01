@@ -480,7 +480,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </header>
 
       <div className="pb-1 pt-5 sm:pt-6">
-        <KrewNote variant="margin" rotation={-2} className="text-[21px] font-semibold text-sage sm:text-[23px]">
+        <KrewNote variant="tape" tone="sage" rotation={-2} size="sm">
           {historical ? "Historique du voyage" : "Notre feuille de route"}
         </KrewNote>
       </div>
