@@ -89,7 +89,6 @@ function NewTripPage() {
   const upcomingEventTypes = EVENT_TYPES.filter((t) =>
     ["voyage_groupe", "famille", "seminaire", "retraite"].includes(t.value),
   );
-
   const needsStar = STAR_EVENT_TYPES.has(eventType as any);
 
   async function onSubmit(e: React.FormEvent) {
@@ -110,6 +109,7 @@ function NewTripPage() {
       toast.error("Indique la tranche d’âge du groupe.");
       return;
     }
+
     setSubmitting(true);
     try {
       const days = Math.max(2, Number(durationDaysInput) || 3);
@@ -191,43 +191,22 @@ function NewTripPage() {
             description="Un nom, une occasion, et c’est parti. Pas besoin d’avoir déjà choisi la destination."
           />
 
-          <div className="mt-7 grid gap-7 sm:mt-8 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.72fr)] sm:gap-8 lg:gap-10">
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-[15px] font-semibold text-foreground">
-                Comment vous l’appelez ?
-              </Label>
-              <Input
-                id="name"
-                className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
-                placeholder="Ex. Week-end à 8 / EVG de Jules"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoFocus
-              />
-            </div>
-
-            {needsStar ? (
-              <div className="space-y-2">
-                <Label htmlFor="star" className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
-                  <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
-                  Qui est la Star ?
-                </Label>
-                <Input
-                  id="star"
-                  className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
-                  placeholder="Son prénom"
-                  value={celebratedPerson}
-                  onChange={(e) => setCelebratedPerson(e.target.value)}
-                />
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  Ses préférences compteront davantage dans les recommandations.
-                </p>
-              </div>
-            ) : null}
+          <div className="mt-8 max-w-[560px] space-y-2 sm:mt-9">
+            <Label htmlFor="name" className="text-[15px] font-semibold text-foreground">
+              Comment vous l’appelez ?
+            </Label>
+            <Input
+              id="name"
+              className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
+              placeholder="Ex. Week-end à 8 / EVG de Jules"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoFocus
+            />
           </div>
 
-          <div className="mt-8">
-            <Label className="mb-3 block text-[15px] font-semibold text-foreground">C’est quoi le plan ?</Label>
+          <div className="mt-10 sm:mt-11">
+            <Label className="mb-5 block text-[15px] font-semibold text-foreground">C’est quoi le plan ?</Label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {activeEventTypes.map((t) => {
                 const imgUrl = getTripTypeImage(t.value);
@@ -240,9 +219,7 @@ function NewTripPage() {
                     onClick={() => setEventType(t.value)}
                     className={cn(
                       "group relative min-h-[122px] overflow-hidden rounded-2xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                      selected
-                        ? "border-primary ring-2 ring-primary/10"
-                        : "border-border hover:border-primary/35",
+                      selected ? "border-primary ring-2 ring-primary/10" : "border-border hover:border-primary/35",
                     )}
                   >
                     {imgUrl ? (
@@ -290,7 +267,26 @@ function NewTripPage() {
             description="On pose la taille et le profil du groupe. Les invitations viennent juste après."
           />
 
-          <div className="mt-7 grid gap-7 sm:mt-8 sm:grid-cols-2 sm:gap-x-8 lg:gap-x-10">
+          {needsStar ? (
+            <div className="mt-8 max-w-[420px] space-y-2 sm:mt-9">
+              <Label htmlFor="star" className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
+                <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
+                Qui est la Star ?
+              </Label>
+              <Input
+                id="star"
+                className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
+                placeholder="Son prénom"
+                value={celebratedPerson}
+                onChange={(e) => setCelebratedPerson(e.target.value)}
+              />
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Ses préférences compteront davantage dans les recommandations.
+              </p>
+            </div>
+          ) : null}
+
+          <div className={cn("grid gap-7 sm:grid-cols-2 sm:gap-x-8 lg:gap-x-10", needsStar ? "mt-9" : "mt-8 sm:mt-9")}>
             <div className="space-y-2">
               <Label htmlFor="orga" className="text-[15px] font-semibold text-foreground">
                 Ton prénom <span className="text-destructive" aria-hidden="true">*</span>
@@ -337,8 +333,8 @@ function NewTripPage() {
             </div>
           </div>
 
-          <div className="mt-8">
-            <Label className="mb-3 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
+          <div className="mt-10 sm:mt-11">
+            <Label className="mb-5 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
               {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => {
                 const selected = groupAgeRange === age;
@@ -349,10 +345,10 @@ function NewTripPage() {
                     aria-pressed={selected}
                     onClick={() => setGroupAgeRange(age)}
                     className={cn(
-                      "min-h-11 rounded-xl border px-3 py-2.5 text-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      "min-h-11 rounded-[14px] border px-3 py-2.5 text-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       selected
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background text-foreground hover:border-primary/40",
+                        ? "border-primary/40 bg-primary/5 text-foreground"
+                        : "border-border/50 bg-background text-foreground/80 hover:border-primary/30",
                     )}
                   >
                     {age} ans
@@ -371,7 +367,7 @@ function NewTripPage() {
             description="Une durée suffit pour commencer. Les dates exactes seront trouvées avec le groupe."
           />
 
-          <div className="mt-7 sm:mt-8">
+          <div className="mt-8 sm:mt-9">
             <div className="max-w-[380px] space-y-2">
               <Label htmlFor="durationDays" className="text-[15px] font-semibold text-foreground">
                 Combien de jours ?
