@@ -28,6 +28,11 @@ case"sparkle":return <><P d="M49 9c-1 12-3 21-10 27 7 1 13 6 15 16 2-10 6-16 14-
 case"connector":return <P dash={dashed?"5 7":undefined} d="M5 44c17-26 35-31 51-18 13 11 23 10 39-8"/>; case"connector-curve":return <P d="M4 51c18-35 38 7 55-18C68 20 78 17 96 19"/>; case"connector-dotted":return <P dash="2 7" d="M4 45c21-29 41-22 54-9 11 11 22 8 38-12"/>;
 case"highlight":return <path fill="currentColor" opacity="0.2" d="M4 22C25 17 48 19 69 16c12-2 21 0 27 4l-2 25c-22-2-44 2-65 1-10 0-18-2-25-5V22Z"/>; case"bracket":return <P d="M82 7c-13 0-17 7-17 15v5c0 5-4 8-10 9 6 1 10 4 10 9v4c0 8 4 11 17 11"/>; case"corner":return <P d="M12 52V16c0-5 3-8 8-8h42"/>; case"cross":return <><P d="M35 18l30 29"/><P d="M66 17L34 48"/></>; case"plus":return <><P d="M50 14v36"/><P d="M31 32h38"/></>; case"burst":return <P d="M50 4v13M50 48v12M18 32H5M95 32H81M27 10l8 11M73 10l-8 11M26 54l9-10M74 54l-9-10"/>; case"scribble":return <P d="M8 38c9-25 15 22 25-5 8-21 11 21 21 1 8-17 13 16 21 0 7-13 12 9 20-4"/>; case"tape":return <path fill="currentColor" opacity="0.16" d="M23 10l55 5-5 39-56-6 6-38Z"/>; case"stamp-circle":return <><P dash="4 4" d="M50 7c25 0 41 10 42 27 1 16-16 25-42 24C25 58 8 49 8 33 8 17 25 7 50 7Z"/><P d="M34 33l10 9 22-23"/></>; case"route":return <P dash="3 6" d="M5 51c15-33 31 4 44-22C61 5 75 18 95 9"/>; case"pin-line":return <><P d="M19 18c0-8 13-8 13 0 0 6-7 12-7 12s-6-7-6-12Z"/><P d="M26 31c12 4 20 8 31 9 14 2 23-3 39-13"/></>}}
 
+function LandingChapterShape({type}:{type:"pin-line"|"stamp-circle"}){
+  if(type==="pin-line") return <><P d="M24 18h52v38H24z"/><P d="M24 29h52"/><P d="M35 10v15M65 10v15"/><P d="M34 42l8 8 17-18"/></>;
+  return <><P d="M24 14h52v43H24z"/><P d="M34 25h8M49 25h18"/><P d="M34 37h8M49 37h18"/><P d="M34 49l6 5 12-15"/></>;
+}
+
 const TITLE_UNDERLINE_STYLE: Record<KrewMarkSize, CSSProperties> = {
   sm: { width: "clamp(6.75rem, 40%, 8.5rem)", height: "1rem", bottom: "-0.375rem", opacity: 0.7 },
   md: { width: "clamp(7.5rem, 42%, 10.625rem)", height: "1rem", bottom: "-0.5rem", opacity: 0.7 },
@@ -37,9 +42,16 @@ const TITLE_UNDERLINE_STYLE: Record<KrewMarkSize, CSSProperties> = {
 export function KrewMark({type,tone="plum",size="md",rotation=0,decorative=true,dashed=false,className}:{type:KrewMarkType;tone?:KrewMarkTone;size?:KrewMarkSize;rotation?:-4|-2|0|2|4;decorative?:boolean;dashed?:boolean;className?:string}){
   const isAbsoluteTitleUnderline = type === "underline-wave" && className?.includes("absolute");
   const stretchesInline = type === "underline-wave" && className?.includes("krew-hero-mark");
+  const isLandingChapterMark = className?.includes("krew-draw-mark") && (type === "pin-line" || type === "stamp-circle");
   const style: CSSProperties = {
     ...(isAbsoluteTitleUnderline ? TITLE_UNDERLINE_STYLE[size] : null),
+    ...(stretchesInline ? { height: "1.15rem" } : null),
     transform: `rotate(${rotation}deg)`,
   };
-  return <svg viewBox="0 0 100 64" preserveAspectRatio={isAbsoluteTitleUnderline || stretchesInline ? "none" : undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}><MarkShape type={type} dashed={dashed}/></svg>;
+  const shape = stretchesInline
+    ? <P d="M4 39c18-10 33 7 51-1 15-7 25-6 41-1"/>
+    : isLandingChapterMark
+      ? <LandingChapterShape type={type as "pin-line"|"stamp-circle"}/>
+      : <MarkShape type={type} dashed={dashed}/>;
+  return <svg viewBox="0 0 100 64" preserveAspectRatio={isAbsoluteTitleUnderline || stretchesInline ? "none" : undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}>{shape}</svg>;
 }
