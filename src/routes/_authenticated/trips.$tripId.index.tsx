@@ -1508,6 +1508,11 @@ function TripDetail() {
                 </div>
                 <KrewMark type="underline" tone="sage" size="sm" className="w-[100px] h-[8px] mt-1 opacity-85 pointer-events-none" />
               </div>
+              <div className="flex justify-end">
+                <KrewNote variant="tape" tone="cream" rotation={-1} size="sm">
+                  On partage, on s’y retrouve
+                </KrewNote>
+              </div>
               <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
             </section>
           ) : null}
