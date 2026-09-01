@@ -52,10 +52,10 @@ const CATEGORY_COPY: Record<StepCategory, string> = {
   souvenirs: "Une fois le voyage vécu, KREW garde une place pour les moments partagés.",
 };
 
-const CATEGORY_MARK: Record<StepCategory, "sparkle" | "route" | "arrow-curved-right" | "heart"> = {
+const CATEGORY_MARK: Record<StepCategory, "sparkle" | "route" | "check" | "heart"> = {
   questionnaire: "sparkle",
   prepare: "route",
-  organisation: "arrow-curved-right",
+  organisation: "check",
   souvenirs: "heart",
 };
 
@@ -150,7 +150,7 @@ function StepNode({ step, historical }: { step: TimelineStep; historical: boolea
         "relative flex size-11 shrink-0 items-center justify-center rounded-full bg-background transition-transform sm:size-12",
         isDone && "border-2 border-sage/80",
         isAvailable && "border-2 border-primary/35",
-        isCurrent && "border-2 border-primary",
+        isCurrent && "bg-sage/12",
         isUpcoming && "border border-border/80",
       )}
     >
@@ -158,7 +158,7 @@ function StepNode({ step, historical }: { step: TimelineStep; historical: boolea
         name={step.iconName}
         size="sm"
         tone={isDone || isAvailable || isCurrent ? "plum" : "muted"}
-        className={cn("size-5", isUpcoming && "size-[18px] opacity-55", isCurrent && "size-[22px]")}
+        className={cn("size-5", isUpcoming && "size-[18px] opacity-55", isCurrent && "size-[23px]")}
       />
       {isDone ? (
         <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background bg-sage" aria-hidden="true" />
@@ -168,7 +168,7 @@ function StepNode({ step, historical }: { step: TimelineStep; historical: boolea
           type="scribble"
           tone="sage"
           size="lg"
-          className="pointer-events-none absolute h-[60px] w-[66px] opacity-35"
+          className="pointer-events-none absolute h-[62px] w-[70px] opacity-55"
           aria-hidden="true"
         />
       ) : null}
@@ -178,23 +178,26 @@ function StepNode({ step, historical }: { step: TimelineStep; historical: boolea
 
 function CurrentPositionNote() {
   return (
-    <div className="pointer-events-none relative ml-auto mb-1 mr-1 w-fit pr-1 sm:mr-3" aria-hidden="true">
-      <KrewNote
-        variant="sticky"
-        tone="sage"
-        rotation={8}
-        size="xs"
-        className="min-w-[7.2rem] px-3 py-2 text-[12px] font-semibold sm:min-w-[7.8rem] sm:text-[13px]"
-      >
-        On en est ici
-      </KrewNote>
-      <KrewMark
-        type="arrow-curved-down"
-        tone="plum"
-        size="sm"
-        rotation={-16}
-        className="absolute -bottom-5 left-1 h-7 w-8 opacity-70"
-      />
+    <div className="pointer-events-none absolute -top-7 right-1 z-10 sm:-top-9 sm:right-3" aria-hidden="true">
+      <div className="relative rotate-[10deg]">
+        <KrewNote
+          variant="sticky"
+          tone="sage"
+          rotation={2}
+          size="xs"
+          className="min-w-[7.2rem] px-3 py-2 text-[12px] font-semibold shadow-sm sm:min-w-[7.8rem] sm:text-[13px]"
+        >
+          On en est ici
+        </KrewNote>
+      </div>
+      <div className="absolute -bottom-7 -left-10 rotate-[18deg] sm:-bottom-8 sm:-left-12">
+        <KrewMark
+          type="arrow-curved-left"
+          tone="plum"
+          size="sm"
+          className="h-8 w-12 opacity-90 sm:h-9 sm:w-14"
+        />
+      </div>
     </div>
   );
 }
@@ -228,22 +231,23 @@ function StepRow({
       className={cn(
         "group relative grid grid-cols-[48px_minmax(0,1fr)] gap-3 py-3 sm:grid-cols-[52px_minmax(0,1fr)] sm:gap-4 sm:py-4",
         !isCurrent && "border-b border-border/40 last:border-b-0",
-        isCurrent && "py-4 sm:py-5",
+        isCurrent && "my-3 py-5 sm:my-4 sm:py-6",
         canNavigate && "cursor-pointer",
       )}
     >
+      {isCurrent ? <CurrentPositionNote /> : null}
+
       <div className="relative flex justify-center">
         <StepNode step={step} historical={historical} />
         {!isCurrent ? <span className="absolute bottom-[-17px] top-12 w-px bg-border/45 last:hidden" aria-hidden="true" /> : null}
       </div>
 
-      <div className="min-w-0">
-        {isCurrent ? <CurrentPositionNote /> : null}
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+      <div className="min-w-0 pt-0.5">
+        <div className="flex min-h-11 flex-wrap items-start justify-between gap-x-4 gap-y-1 sm:min-h-12">
           <h3
             className={cn(
-              "font-display font-normal leading-[1.03] text-foreground transition-colors",
-              isCurrent ? "text-[25px] text-primary sm:text-[29px]" : "text-[19px] sm:text-[22px]",
+              "self-center font-display font-normal leading-[1.03] text-foreground transition-colors",
+              isCurrent ? "text-[27px] text-primary sm:text-[31px]" : "text-[19px] sm:text-[22px]",
               isUpcoming && "text-muted-foreground/65",
               canNavigate && "group-hover:text-primary",
             )}
@@ -265,8 +269,8 @@ function StepRow({
         ) : null}
 
         {isCurrent && !historical ? (
-          <div className="mt-3">
-            <span className="inline-flex min-h-10 items-center gap-2 text-[13px] font-semibold text-primary">
+          <div className="mt-2.5">
+            <span className="inline-flex min-h-9 items-center gap-2 text-[13px] font-semibold text-primary">
               {stepActionLabel(step)}
               <KrewMark
                 type="arrow-right"
@@ -343,21 +347,13 @@ function ChapterIntro({
           size="sm"
           className={cn(
             "mt-1 shrink-0 opacity-65",
-            category === "souvenirs" ? "h-6 w-7" : category === "questionnaire" ? "h-5 w-5" : "h-6 w-9",
+            category === "souvenirs" ? "h-6 w-7" : category === "questionnaire" ? "h-5 w-5" : category === "organisation" ? "h-6 w-7" : "h-6 w-9",
           )}
           aria-hidden="true"
         />
       </div>
 
       <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-muted-foreground sm:text-[14px]">{CATEGORY_COPY[category]}</p>
-
-      {category === "questionnaire" ? (
-        <img
-          src="/brand/otter-states/trip-progress.png"
-          alt=""
-          className="pointer-events-none mt-2 w-[58px] object-contain sm:w-[64px] md:mt-4 md:w-[72px]"
-        />
-      ) : null}
     </div>
   );
 }
@@ -467,7 +463,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
   return (
     <div className="mx-auto w-full max-w-[1040px] px-1 py-1 font-sans">
       <header className="relative border-b border-border/55 pb-6 sm:pb-9">
-        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-end md:gap-10">
+        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px] md:items-end md:gap-10">
           <div>
             <KrewNote variant="margin" rotation={-1} className="mb-2 text-[14px] text-sage sm:mb-3 sm:text-[15px]">
               {historical ? "Historique du voyage" : "Notre feuille de route"}
@@ -490,15 +486,24 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             </p>
           </div>
 
-          <div className="relative rounded-[18px] border border-border/50 px-4 py-3 md:justify-self-end md:self-center md:py-4">
-            <div className="flex items-baseline justify-between gap-4">
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Progression</span>
-              <span className="font-display text-[23px] leading-none text-primary sm:text-[25px]">{Math.round(progress)}%</span>
+          <div className="relative rounded-[18px] border border-border/50 px-3 py-3 md:justify-self-end md:self-center md:py-3.5">
+            <div className="flex items-center gap-3">
+              <img
+                src="/brand/otter-states/trip-progress.png"
+                alt=""
+                className="pointer-events-none w-[72px] shrink-0 object-contain sm:w-[82px]"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Progression</span>
+                  <span className="font-display text-[23px] leading-none text-primary sm:text-[25px]">{Math.round(progress)}%</span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/55" aria-hidden="true">
+                  <div className="h-full rounded-full bg-sage transition-[width] duration-300" style={{ width: `${progress}%` }} />
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">{completedCount}/{journeySteps.length} étapes terminées</p>
+              </div>
             </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/55" aria-hidden="true">
-              <div className="h-full rounded-full bg-sage transition-[width] duration-300" style={{ width: `${progress}%` }} />
-            </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">{completedCount}/{journeySteps.length} étapes terminées</p>
           </div>
         </div>
       </header>
@@ -506,7 +511,6 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       <ol className="divide-y divide-border/50">
         {grouped.map(({ category, steps: chapterSteps }, chapterIndex) => {
           const chapterCurrent = !historical && currentCategory === category;
-          const isMemories = category === "souvenirs";
 
           return (
             <li key={category} className="relative py-6 sm:py-8 lg:py-10">
@@ -519,14 +523,6 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                       <StepRow key={step.id} step={step} tripId={tripId} historical={historical} />
                     ))}
                   </div>
-
-                  {isMemories ? (
-                    <img
-                      src="/brand/otter-states/completed.png"
-                      alt=""
-                      className="pointer-events-none absolute -bottom-5 right-1 w-[72px] object-contain opacity-92 sm:w-[82px] md:-bottom-7 md:right-5 md:w-[104px]"
-                    />
-                  ) : null}
                 </div>
               </div>
             </li>
@@ -535,8 +531,15 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </ol>
 
       {!historical ? (
-        <div className="mt-1 pb-3 pr-1 text-right" aria-hidden="true">
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">La suite s’écrit avec la Krew</span>
+        <div className="mt-1 flex items-end justify-end gap-2 pb-3 pr-1" aria-hidden="true">
+          <img
+            src="/brand/otter-states/completed.png"
+            alt=""
+            className="pointer-events-none -mb-1 w-[72px] shrink-0 object-contain opacity-95 sm:w-[82px]"
+          />
+          <span className="pb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+            La suite s’écrit avec la Krew
+          </span>
         </div>
       ) : null}
     </div>
