@@ -134,91 +134,77 @@
 @utility glass-panel { background-color: var(--color-card); border: 1px solid var(--color-border); }
 
 /* Button layout is owned by the shared Button component. This CSS only preserves optical icon centering while legacy callers are migrated. */
-[data-slot="button"] {
-  position: relative;
-}
-
-/* A leading/trailing icon must not move the label away from the optical center. */
-[data-slot="button"]:not([data-size="icon"]):has(> svg:first-child:not(:only-child)) {
-  padding-left: 38px !important;
-  padding-right: 38px !important;
-}
-[data-slot="button"]:not([data-size="icon"]) > svg:first-child:not(:only-child) {
-  position: absolute !important;
-  left: 12px !important;
-  top: 50% !important;
-  margin: 0 !important;
-  transform: translateY(-50%) !important;
-}
-[data-slot="button"]:not([data-size="icon"]):has(> svg:last-child:not(:only-child)) {
-  padding-left: 38px !important;
-  padding-right: 38px !important;
-}
-[data-slot="button"]:not([data-size="icon"]) > svg:last-child:not(:only-child) {
-  position: absolute !important;
-  right: 12px !important;
-  top: 50% !important;
-  margin: 0 !important;
-  transform: translateY(-50%) !important;
-}
+[data-slot="button"] { position: relative; }
+[data-slot="button"]:not([data-size="icon"]):has(> svg:first-child:not(:only-child)) { padding-left: 38px !important; padding-right: 38px !important; }
+[data-slot="button"]:not([data-size="icon"]) > svg:first-child:not(:only-child) { position: absolute !important; left: 12px !important; top: 50% !important; margin: 0 !important; transform: translateY(-50%) !important; }
+[data-slot="button"]:not([data-size="icon"]):has(> svg:last-child:not(:only-child)) { padding-left: 38px !important; padding-right: 38px !important; }
+[data-slot="button"]:not([data-size="icon"]) > svg:last-child:not(:only-child) { position: absolute !important; right: 12px !important; top: 50% !important; margin: 0 !important; transform: translateY(-50%) !important; }
 
 /* Rich trip sub-pages that are not journey chapters retain their wider header scale. */
-main[class*="max-w-[1020px]"] > header h1 {
-  font-size: 2.125rem;
-  line-height: 0.98;
-  letter-spacing: -0.025em;
-}
-
-main[class*="max-w-[1280px]"] > div:first-child > a[href="/trips/new"] {
-  width: auto;
-  max-width: max-content;
-  white-space: nowrap;
-  text-align: center;
-  justify-content: center;
-}
-
-main > section:first-child a[href="/trips/new"],
-header a[href="/trips/new"] {
-  max-width: 100%;
-  overflow: visible;
-  text-align: center;
-  justify-content: center;
-}
+main[class*="max-w-[1020px]"] > header h1 { font-size: 2.125rem; line-height: 0.98; letter-spacing: -0.025em; }
+main[class*="max-w-[1280px]"] > div:first-child > a[href="/trips/new"] { width: auto; max-width: max-content; white-space: nowrap; text-align: center; justify-content: center; }
+main > section:first-child a[href="/trips/new"], header a[href="/trips/new"] { max-width: 100%; overflow: visible; text-align: center; justify-content: center; }
 main > section:first-child a[href="/trips/new"] { white-space: nowrap; }
 
 @keyframes krew-dashboard-header-in {
-  from { opacity: 0; transform: translate3d(0, 9px, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-
-@keyframes krew-dashboard-cta-in {
-  from { opacity: 0; transform: translate3d(5px, 0, 0) scale(.985); }
+  from { opacity: 0; transform: translate3d(0, 22px, 0) scale(.985); }
+  72% { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.004); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
+@keyframes krew-dashboard-copy-in {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes krew-dashboard-cta-in {
+  from { opacity: 0; transform: translate3d(10px, 4px, 0) rotate(1deg) scale(.96); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+@keyframes krew-dashboard-wave-in {
+  from { opacity: 0; transform: scaleX(.18) rotate(-1.5deg); }
+  to { opacity: .72; transform: scaleX(1) rotate(0); }
+}
 
-/* Mes voyages: compact, editorial mobile header without stealing width from the intro copy. */
+/* Mes voyages: visible but restrained editorial choreography across all viewports. */
+main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first-child { animation: krew-dashboard-header-in 900ms cubic-bezier(.18,.74,.24,1) both; }
+main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > p { animation: krew-dashboard-copy-in 820ms cubic-bezier(.18,.74,.24,1) 150ms both; }
+main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first-child > svg { transform-origin: left center; animation: krew-dashboard-wave-in 920ms cubic-bezier(.18,.74,.24,1) 360ms both; }
+main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] {
+  min-height: 34px !important;
+  height: 34px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent) !important;
+  background: color-mix(in srgb, var(--background) 94%, var(--primary) 6%) !important;
+  color: var(--primary) !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  animation: krew-dashboard-cta-in 720ms cubic-bezier(.18,.74,.24,1) 220ms both;
+}
+main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"]:hover { background: color-mix(in srgb, var(--background) 88%, var(--primary) 12%) !important; }
+main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > svg:first-child,
+main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > [data-krew-icon]:first-child { display: none !important; }
+main[class*="max-w-[1180px]"] section article .krew-trip-reveal { transition-duration: 820ms, 650ms; }
+main[class*="max-w-[1180px]"] section article:nth-child(2) .krew-trip-reveal { transition-delay: 70ms; }
+main[class*="max-w-[1180px]"] section article:nth-child(3) .krew-trip-reveal { transition-delay: 140ms; }
+main[class*="max-w-[1180px]"] section article:nth-child(4) .krew-trip-reveal { transition-delay: 210ms; }
+main[class*="max-w-[1180px]"] section article:nth-child(5) .krew-trip-reveal { transition-delay: 280ms; }
+
 @media (max-width: 639px) {
   main[class*="max-w-[1180px]"] > header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     min-height: 0;
-    column-gap: 10px;
+    column-gap: 8px;
     row-gap: 10px;
     align-items: start;
   }
-
-  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] {
-    display: contents;
-  }
-
-  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first-child {
-    grid-column: 1;
-    grid-row: 1;
-    min-width: 0;
-    animation: krew-dashboard-header-in 680ms cubic-bezier(.18,.74,.24,1) both;
-  }
-
+  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] { display: contents; }
+  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first-child { grid-column: 1; grid-row: 1; min-width: 0; }
   main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > p {
     grid-column: 1 / -1;
     grid-row: 2;
@@ -226,76 +212,50 @@ main > section:first-child a[href="/trips/new"] { white-space: nowrap; }
     max-width: none;
     margin-top: 0;
     line-height: 1.45;
-    animation: krew-dashboard-header-in 720ms cubic-bezier(.18,.74,.24,1) 90ms both;
   }
-
   main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] {
     grid-column: 2;
     grid-row: 1;
     align-self: center;
-    min-width: max-content;
-    min-height: 34px !important;
-    height: 34px !important;
-    border-radius: 10px !important;
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-    font-size: 11px !important;
-    line-height: 1 !important;
-    animation: krew-dashboard-cta-in 620ms cubic-bezier(.18,.74,.24,1) 120ms both;
+    min-height: 30px !important;
+    height: 30px !important;
+    border-radius: 9px !important;
+    padding-left: 7px !important;
+    padding-right: 7px !important;
+    font-size: 10.5px !important;
   }
-
-  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > span {
-    display: none !important;
-  }
-  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > svg:first-child,
-  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > [data-krew-icon]:first-child {
-    display: none !important;
-  }
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > span { display: none !important; }
   main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"]::after {
     content: "Nouveau voyage";
     display: inline;
-    font-size: 11px;
+    font-size: 10.5px;
     line-height: 1;
     white-space: nowrap;
   }
+}
 
-  main[class*="max-w-[1180px]"] section article:nth-child(2) .krew-trip-reveal { transition-delay: 60ms; }
-  main[class*="max-w-[1180px]"] section article:nth-child(3) .krew-trip-reveal { transition-delay: 120ms; }
-  main[class*="max-w-[1180px]"] section article:nth-child(4) .krew-trip-reveal { transition-delay: 180ms; }
-  main[class*="max-w-[1180px]"] section article:nth-child(5) .krew-trip-reveal { transition-delay: 240ms; }
+@media (min-width: 640px) {
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] { min-height: 32px !important; height: 32px !important; padding-left: 9px !important; padding-right: 9px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first-child,
   main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > p,
+  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first-child > svg,
   main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
-
-  main[class*="max-w-[1180px]"] section article .krew-trip-reveal {
-    transition-delay: 0ms !important;
-  }
+  main[class*="max-w-[1180px]"] section article .krew-trip-reveal { transition-delay: 0ms !important; }
 }
 
 /* New-trip form: breathing rhythm only. */
-main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] {
-  margin-bottom: 2rem;
-  padding-bottom: 2rem;
-}
-main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > label {
-  display: block;
-  margin-bottom: 0.75rem;
-}
-main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > p {
-  margin-top: 0.5rem;
-  line-height: 1.5;
-}
+main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] { margin-bottom: 2rem; padding-bottom: 2rem; }
+main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > label { display: block; margin-bottom: 0.75rem; }
+main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > p { margin-top: 0.5rem; line-height: 1.5; }
 main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > div.grid,
-main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > input {
-  margin-top: 0;
-}
+main[class*="max-w-[820px]"] > form[class*="pt-2"] > div[class*="border-b"] > input { margin-top: 0; }
 
 @media (min-width: 640px) {
   main[class*="max-w-[1020px]"] > header h1 { font-size: 2.75rem; }
