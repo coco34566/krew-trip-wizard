@@ -174,26 +174,10 @@ main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first
   animation: krew-dashboard-line-draw 1350ms cubic-bezier(.32,0,.18,1) 420ms forwards;
 }
 
-/* Keep the established primary prune CTA, only make it optically compact. */
+/* Keep the dashboard entrance motion, but let the shared Button own CTA sizing and shape. */
 main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] {
-  min-height: 34px !important;
-  height: 34px !important;
-  width: auto !important;
-  min-width: 0 !important;
-  border-color: transparent !important;
-  background: var(--primary) !important;
-  color: var(--primary-foreground) !important;
-  box-shadow: none !important;
-  border-radius: 10px !important;
-  padding-left: 9px !important;
-  padding-right: 9px !important;
-  font-size: 12px !important;
-  line-height: 1 !important;
   animation: krew-dashboard-cta-in 820ms cubic-bezier(.18,.74,.24,1) 250ms both;
 }
-main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"]:hover { background: color-mix(in srgb, var(--primary) 90%, black 10%) !important; }
-main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > svg:first-child,
-main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > [data-krew-icon]:first-child { display: none !important; }
 
 /* Make the existing polaroid settle visibly readable without adding perpetual motion. */
 main[class*="max-w-[1180px]"] section article .krew-trip-reveal {
@@ -235,25 +219,7 @@ main[class*="max-w-[1180px]"] section article:nth-child(5) .krew-trip-reveal { t
     grid-column: 2;
     grid-row: 1;
     align-self: center;
-    min-height: 30px !important;
-    height: 30px !important;
-    border-radius: 9px !important;
-    padding-left: 6px !important;
-    padding-right: 6px !important;
-    font-size: 10.5px !important;
   }
-  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > span { display: none !important; }
-  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"]::after {
-    content: "Nouveau voyage";
-    display: inline;
-    font-size: 10.5px;
-    line-height: 1;
-    white-space: nowrap;
-  }
-}
-
-@media (min-width: 640px) {
-  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] { min-height: 32px !important; height: 32px !important; padding-left: 8px !important; padding-right: 8px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
