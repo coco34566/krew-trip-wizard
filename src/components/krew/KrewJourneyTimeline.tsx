@@ -168,7 +168,7 @@ function StepNode({ step, historical }: { step: TimelineStep; historical: boolea
 
 function CurrentPositionNote() {
   return (
-    <div className="pointer-events-none absolute right-0 top-0 z-10 h-11 w-[104px] sm:w-[116px]" aria-hidden="true">
+    <div className="pointer-events-none absolute right-0 -top-1 z-10 h-[82px] w-[142px] sm:h-[88px] sm:w-[154px]" aria-hidden="true">
       <div className="absolute right-0 top-0 rotate-[12deg]">
         <KrewNote
           variant="sticky"
@@ -180,12 +180,14 @@ function CurrentPositionNote() {
           On en est ici
         </KrewNote>
       </div>
-      <KrewMark
-        type="arrow-curved-left"
-        tone="plum"
-        size="sm"
-        className="absolute left-0 top-[25px] h-6 w-9 -rotate-6 opacity-95 sm:top-[27px] sm:h-7 sm:w-10"
-      />
+      <div className="absolute -left-7 top-3 h-[72px] w-[82px] rotate-[47deg] sm:-left-8 sm:top-2 sm:h-[78px] sm:w-[90px]">
+        <KrewMark
+          type="arrow-curved-down"
+          tone="plum"
+          size="lg"
+          className="h-full w-full opacity-90"
+        />
+      </div>
     </div>
   );
 }
@@ -221,7 +223,7 @@ function StepRow({ step, tripId, historical }: { step: TimelineStep; tripId: str
       </div>
 
       <div className="min-w-0 pt-0.5">
-        <div className={cn("relative flex min-h-11 items-center sm:min-h-12", isCurrent && "pr-[102px] sm:pr-[116px]")}> 
+        <div className={cn("relative flex min-h-11 items-center sm:min-h-12", isCurrent && "pr-[126px] sm:pr-[138px]")}> 
           <div className="relative inline-block max-w-full">
             {isCurrent ? (
               <KrewMark
