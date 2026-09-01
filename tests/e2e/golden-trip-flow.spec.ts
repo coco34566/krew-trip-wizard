@@ -25,7 +25,7 @@ test.describe("KREW golden smoke journey", () => {
     await page.locator("#durationDays").fill("3");
     await Promise.all([
       page.waitForURL(/\/trips\/[^/]+\/invite/, { timeout: 30_000 }),
-      page.getByRole("button", { name: /Créer et inviter le groupe/ }).click(),
+      page.getByRole("button", { name: /Créer et inviter la Krew/ }).click(),
     ]);
     const match = page.url().match(/\/trips\/([^/]+)\/invite/);
     expect(match?.[1], "Created trip id should be present in the URL").toBeTruthy();
