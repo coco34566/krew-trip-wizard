@@ -190,8 +190,8 @@ function Landing() {
                 </div>
               </div>
               <div className="krew-moment-stack lg:col-span-7 relative lg:-ml-10">
-                <div className="krew-reveal krew-moment-card relative p-4 sm:p-5 lg:p-6 rounded-[22px] bg-background border border-border/60 shadow-[0_18px_50px_-34px_rgba(42,25,37,.42)]">
-                  <div className="krew-moment-validated absolute -top-4 right-3 z-20 hidden sm:block pointer-events-none"><KrewNote variant="sticky" tone="cream" rotation={3} className="text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[130px]">Validé par le groupe</KrewNote></div>
+                <div className="krew-reveal krew-moment-card relative p-4 sm:p-5 lg:p-6 rounded-[22px] bg-background border border-border/60">
+                  <div className="krew-moment-validated absolute -top-4 right-3 z-20 hidden sm:block pointer-events-none"><KrewNote variant="sticky" tone="cream" rotation={3} className="krew-moment-validated-note text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[130px]">Validé par le groupe</KrewNote></div>
                   <div className="krew-reveal krew-moment-group flex flex-wrap items-center justify-between gap-4">
                     <div><span className="text-xs font-semibold uppercase tracking-wider bg-primary/10 px-2.5 py-1 rounded-md text-primary font-mono">Exemple de voyage organisé</span><h3 className="font-display text-2xl sm:text-3xl font-normal text-foreground mt-1">Retrouvailles à Lisbonne</h3><p className="text-xs sm:text-sm text-muted-foreground">Organisé par Thomas · 8 participants</p></div>
                     <div><p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider font-mono">Budget / personne</p><KrewHighlight tone="sage" className="font-mono text-2xl sm:text-3xl font-bold text-primary mt-1 inline-block px-3 py-1">~360 €</KrewHighlight></div>
