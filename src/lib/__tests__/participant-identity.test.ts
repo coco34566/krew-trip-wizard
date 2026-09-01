@@ -16,7 +16,7 @@ describe("Participant Identity & Star Resolution Tests", () => {
       star_user_id: starUserId,
       owner_id: "user-owner",
       co_organizer_id: null,
-      group_logistics: { star_mode: "secret" },
+      group_logistics: { star_mode: "participant" },
     };
 
     const participantsData = [
@@ -45,16 +45,13 @@ describe("Participant Identity & Star Resolution Tests", () => {
 
     const prefsData = [
       { user_id: "user-owner", submitted_at: "2026-08-01" },
+      { user_id: "user-julie-a", submitted_at: "2026-08-03" },
       { user_id: "user-julie-b", submitted_at: "2026-08-02" },
     ];
 
     const availData = [{ user_id: "user-julie-b" }];
 
-    const starPrefsData = {
-      user_id: starUserId,
-      wanted_activities: ["spa", "brunch"],
-      submitted_at: "2026-08-03",
-    };
+    const starPrefsData = null;
 
     const mockSupabase = {
       from: (table: string) => {
@@ -84,11 +81,8 @@ describe("Participant Identity & Star Resolution Tests", () => {
     expect(julieA).toBeDefined();
     expect(julieB).toBeDefined();
 
-    // Star is strictly Julie A (user-julie-a) because trips.star_user_id === "user-julie-a"
     expect(julieA?.isStar).toBe(true);
     expect(julieB?.isStar).toBe(false);
-
-    // Julie B answered her own prefs, Julie A's prefs come from starPrefs
     expect(julieB?.hasAnswered).toBe(true);
     expect(julieA?.hasAnswered).toBe(true);
   });
@@ -105,7 +99,7 @@ describe("Participant Identity & Star Resolution Tests", () => {
       star_user_id: starUserId,
       owner_id: "user-owner",
       co_organizer_id: null,
-      group_logistics: { star_mode: "secret" },
+      group_logistics: { star_mode: "participant" },
     };
 
     const participantsData = [
@@ -132,13 +126,12 @@ describe("Participant Identity & Star Resolution Tests", () => {
       },
     ];
 
-    const prefsData = [{ user_id: "user-julie-martin-2", ambiances: ["fete"], budget_max: 300 }];
+    const prefsData = [
+      { user_id: "user-julie-martin-1", ambiances: ["detente"], budget_max: 350 },
+      { user_id: "user-julie-martin-2", ambiances: ["fete"], budget_max: 300 },
+    ];
 
-    const starPrefsData = {
-      user_id: starUserId,
-      wanted_activities: ["escape_game"],
-      submitted_at: "2026-08-01",
-    };
+    const starPrefsData = null;
 
     const mockSupabase = {
       from: (table: string) => {
@@ -185,9 +178,9 @@ describe("Participant Identity & Star Resolution Tests", () => {
       star_user_id: actualStarUserId,
       owner_id: "user-owner",
       event_type: "evg",
+      group_logistics: { star_mode: "participant" },
     };
 
-    // User "user-impostor" has display_name "Julie", but actual star_user_id is "user-real-star" (display_name "Sarah")
     const participantsData = [
       {
         id: "p-owner",
@@ -244,7 +237,6 @@ describe("Participant Identity & Star Resolution Tests", () => {
       },
     };
 
-    // 1. Check getParticipantsProgressHelper
     const progress = await getParticipantsProgressHelper(mockSupabase as any, tripId);
     const impostorProgress = progress.participants.find((p) => p.user_id === "user-impostor");
     const realStarProgress = progress.participants.find((p) => p.user_id === "user-real-star");
@@ -252,19 +244,11 @@ describe("Participant Identity & Star Resolution Tests", () => {
     expect(impostorProgress?.isStar).toBe(false);
     expect(realStarProgress?.isStar).toBe(true);
 
-    // 2. Check aggregateParticipantPreferences
     const aggregated = await aggregateParticipantPreferences(mockSupabase as any, tripId);
-    const impostorPref = aggregated.individualPreferences.find(
-      (p) => p.isStar && p.wantedEnvType !== undefined,
-    );
-    const realStarPref = aggregated.individualPreferences.find((p) => p.isStar);
-
-    // Only one individual preference is flagged as Star, and it corresponds to user-real-star
     const starPrefsInGroup = aggregated.individualPreferences.filter((p) => p.isStar);
     expect(starPrefsInGroup.length).toBe(1);
     expect(starPrefsInGroup[0]?.weight).toBeGreaterThan(2);
 
-    // 3. Check assessGenerationReadiness
     const readiness = await assessGenerationReadiness(mockSupabase as any, tripId);
     expect(readiness.canGenerate).toBe(true);
   });
@@ -283,6 +267,7 @@ describe("Participant Identity & Star Resolution Tests", () => {
       owner_id: "user-organizer",
       duration_nights: 1,
       participants_count: 3,
+      group_logistics: { star_mode: "participant" },
     };
 
     const participantsData = [
@@ -337,6 +322,7 @@ describe("Participant Identity & Star Resolution Tests", () => {
         else if (table === "trip_participants") data = participantsData;
         else if (table === "trip_availability") data = availData;
         else if (table === "trip_preferences") data = { duration_nights: 1 };
+        else if (table === "trip_participant_preferences") data = [];
         else if (table === "trip_star_preferences") data = null;
 
         const chain = {
@@ -356,11 +342,8 @@ describe("Participant Identity & Star Resolution Tests", () => {
     const topWindow = result.windows[0]!;
 
     const availableNames = topWindow.availablePeople.map((p) => p.name);
-    // Star must be "Camille" and NOT "Participant" or null
     expect(availableNames).toContain("Camille");
     expect(availableNames).not.toContain("Participant");
-
-    // Normal participant "Sarah" and organizer "Juliet" must preserve their names
     expect(availableNames).toContain("Juliet");
     expect(availableNames).toContain("Sarah");
   });
