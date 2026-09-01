@@ -117,12 +117,10 @@ function useSettledReveal<T extends HTMLElement>() {
     }
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        setRevealed(true);
-        observer.disconnect();
+      ([entry]) => {
+        setRevealed(entry.isIntersecting && entry.intersectionRatio >= 0.18);
       },
-      { threshold: 0.1, rootMargin: "0px 0px 5% 0px" },
+      { threshold: [0, 0.18], rootMargin: "0px 0px -6% 0px" },
     );
 
     observer.observe(node);
@@ -200,18 +198,42 @@ function NotebookTrip({ trip, invited = false, onArchive, onReactivate, index = 
   const mobileCompositions = [
     "rotate-[-2.5deg] -translate-x-2 translate-y-1 sm:rotate-[-1.4deg] sm:translate-x-0 sm:translate-y-0",
     "rotate-[2.2deg] translate-x-2 translate-y-3 sm:rotate-[1.1deg] sm:translate-x-0 sm:translate-y-3",
-    "rotate-[-1.1deg] -translate-x-1 -translate-y-1 sm:rotate-[-.7deg] sm:translate-x-0 sm:translate-y-0",
+    "rotate-[-1.1deg] -translate-x-1 -translate-y-1 sm:rotate[-.7deg] sm:translate-x-0 sm:translate-y-0",
     "rotate-[1.8deg] translate-x-1 translate-y-2 sm:rotate-[.8deg] sm:translate-x-0 sm:translate-y-2",
     "rotate-[-2deg] translate-x-1 translate-y-3 sm:rotate-[-1deg] sm:translate-x-0 sm:translate-y-1",
   ];
   const composition = mobileCompositions[index % mobileCompositions.length];
+  const entryX = index % 2 === 0 ? -34 : 34;
+  const entryRotation = index % 2 === 0 ? -4.5 : 4.5;
   return (
     <article className={`group relative w-full max-w-[268px] px-1 py-4 sm:w-[250px] sm:max-w-none sm:py-3 lg:w-[260px] ${composition}`}>
-      <div ref={reveal.ref} data-revealed={reveal.revealed} className="krew-trip-reveal">
+      <div
+        ref={reveal.ref}
+        data-revealed={reveal.revealed}
+        className="krew-trip-reveal"
+        style={{
+          opacity: reveal.revealed ? 1 : 0.28,
+          transform: reveal.revealed
+            ? "translate3d(0,0,0) rotate(0deg) scale(1)"
+            : `translate3d(${entryX}px,58px,0) rotate(${entryRotation}deg) scale(.91)`,
+          transition: "opacity 520ms ease-out, transform 980ms cubic-bezier(.16,.82,.22,1)",
+          transitionDelay: reveal.revealed ? `${Math.min(index, 4) * 85}ms` : "0ms",
+          willChange: "transform, opacity",
+        }}
+      >
         <div className="relative bg-[#fffefa] p-2 pb-4 shadow-[0_11px_24px_-18px_rgba(42,25,37,.26)] ring-1 ring-black/[.05] transition-transform duration-200 group-hover:-translate-y-1">
           {index % 3 === 1 ? <div className="absolute -top-3 left-[34%] z-10"><KrewNote variant="tape" tone="cream" rotation={-2} className="min-w-[52px] px-2 py-0.5 text-transparent select-none">Tape</KrewNote></div> : null}
           <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
-            <div className="krew-trip-photo-settle relative aspect-[4/3] overflow-hidden bg-surface/50">{image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="4/3" />}</div>
+            <div
+              className="krew-trip-photo-settle relative aspect-[4/3] overflow-hidden bg-surface/50"
+              style={{
+                transform: reveal.revealed ? "scale(1)" : "scale(1.1)",
+                transition: "transform 1050ms cubic-bezier(.16,.82,.22,1)",
+                transformOrigin: "50% 48%",
+              }}
+            >
+              {image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="4/3" />}
+            </div>
             <div className="px-1.5 pt-3">
               <p className="font-handwriting text-[20px] leading-[1.05] text-primary sm:text-[22px]">{trip.name}</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-muted-foreground sm:text-[13px]"><span className="font-mono uppercase tracking-[.06em]">{eventTypeLabel(trip.event_type)}</span>{trip.destination_name ? <span className="inline-flex min-w-0 items-center gap-1"><KrewIcon name="destination" tone="muted" size="sm" className="size-3.5 shrink-0" /><span className="break-words">{trip.destination_name}</span></span> : null}<span className="inline-flex items-center gap-1"><KrewIcon name="group" tone="muted" size="sm" className="size-3.5" />{trip.participants_count}</span></div>
