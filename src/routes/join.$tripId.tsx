@@ -164,7 +164,6 @@ function JoinTripPage() {
     setJoining(true);
     try {
       const res = await doJoin({ data: { tripId, token, firstName: firstName.trim() } });
-      toast.success("Voyage rejoint");
       if (res?.alreadyMember && res?.myAvailabilityDone && res?.myPreferencesDone) {
         window.location.assign(`/trips/${tripId}`);
       } else {
