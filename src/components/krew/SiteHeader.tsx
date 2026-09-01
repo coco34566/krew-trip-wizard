@@ -82,7 +82,7 @@ export function SiteHeader() {
               >
                 Mes voyages
               </Link>
-              <Button asChild size="sm" className="min-h-10 shrink-0">
+              <Button asChild className="shrink-0">
                 <Link to="/trips/new" className="min-w-max whitespace-nowrap">Nouveau voyage</Link>
               </Button>
               <DropdownMenu>
@@ -122,7 +122,7 @@ export function SiteHeader() {
               >
                 Connexion
               </Link>
-              <Button asChild size="sm" className="min-h-10 shrink-0">
+              <Button asChild className="shrink-0">
                 <Link to="/auth" search={{}} className="min-w-max whitespace-nowrap">Créer un voyage</Link>
               </Button>
             </>
