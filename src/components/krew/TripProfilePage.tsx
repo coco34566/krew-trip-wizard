@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { KrewHighlight, KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
@@ -57,9 +57,10 @@ export function ProfileConceptCard({
       <div className="flex items-center justify-between gap-2">
         <p className="font-display text-[18px] font-normal text-foreground sm:text-[20px]">
           {selected ? (
-            <KrewHighlight tone="sage" className="px-1.5 py-0.5 font-normal">
-              {label}
-            </KrewHighlight>
+            <span className="relative inline-flex px-1.5 py-0.5">
+              <KrewMark type="circle-loose" tone="sage" size="md" className="pointer-events-none absolute -inset-x-2 -inset-y-2 h-9 w-[calc(100%+1rem)] opacity-75" />
+              <span className="relative">{label}</span>
+            </span>
           ) : (
             label
           )}
