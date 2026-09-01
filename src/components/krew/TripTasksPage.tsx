@@ -127,8 +127,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
     },
     onSuccess: (result: any) => {
       if (result?.ok) {
-        toast.success(`${result.count ?? 0} tâche${result.count === 1 ? "" : "s"} prête${result.count === 1 ? "" : "s"}`);
-        refreshTasks();
+          refreshTasks();
       } else {
         toast.warning("Aucune tâche à ajouter pour le moment.");
       }
