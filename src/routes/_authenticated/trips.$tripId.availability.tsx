@@ -276,7 +276,7 @@ function AvailabilityPage() {
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sage/18"><KrewIcon name="group" tone="sage" size="sm" className="size-5" /></div>
             <div className="space-y-0.5">
               <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
-              {data.expected - data.answered > 0 ? <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block px-3 py-1.5 text-[14px]">{data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}</KrewNote> : null}
+              {data.expected - data.answered > 0 ? <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block">{data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}</KrewNote> : null}
             </div>
           </div>
         )}
@@ -314,7 +314,7 @@ function AvailabilityPage() {
 
         {!datesLocked ? (
           <>
-            <div className="flex items-center justify-end gap-2 sm:pr-2"><KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" /><KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block px-3 py-1.5 text-[14px]">On cherche le bon créneau</KrewNote></div>
+            <div className="flex items-center justify-end gap-2 sm:pr-2"><KrewIcon name="search" tone="sage" size="sm" className="size-5 shrink-0" /><KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block">On cherche le bon créneau</KrewNote></div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[14px]"><button type="button" onClick={selectWeekendsInView} className="inline-flex min-h-10 items-center font-semibold text-primary underline-offset-4 hover:underline">Sélectionner tous les week-ends affichés</button><button type="button" onClick={() => setSelection(new Map())} className="inline-flex min-h-10 items-center font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Tout effacer</button></div>
           </>
         ) : null}
