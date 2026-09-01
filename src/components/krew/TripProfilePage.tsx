@@ -2,12 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { KrewHighlight, KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
 import { getGenerationReadiness, getTripDetail, validateStayProfile } from "@/lib/trips.functions";
 import { cn } from "@/lib/utils";
@@ -116,7 +117,6 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const validateMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
     onSuccess: () => {
-      toast.success("Profil du voyage enregistré");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
@@ -253,14 +253,15 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
             ) : null}
           </div>
         ) : isAdmin && (readiness?.profile?.questionnairesReady || profile?.legacyBypass) ? (
-          <Button
+          <KrewStatefulButton
             className="min-h-[44px] rounded-xl font-medium"
-            disabled={validateMutation.isPending || selectedConceptIds.length < 1}
-            onClick={() => validateMutation.mutate()}
-          >
-            {validateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="check" tone="ink" size="sm" className="size-4" />}
-            Enregistrer le Profil du voyage
-          </Button>
+            idleLabel="Enregistrer le Profil du voyage"
+            loadingLabel="Enregistrement…"
+            successLabel="Profil enregistré"
+            errorLabel="Réessayer"
+            disabled={selectedConceptIds.length < 1}
+            onAction={() => validateMutation.mutateAsync()}
+          />
         ) : null}
       </section>
     </main>
