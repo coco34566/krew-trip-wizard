@@ -443,9 +443,9 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
   return (
     <div className="mx-auto w-full max-w-[1040px] px-1 py-1 font-sans">
       <header className="relative border-b border-border/55 pb-6 sm:pb-9">
-        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px] md:items-end md:gap-10">
+        <div className="grid gap-5 md:grid-cols-1 md:gap-6 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-end lg:gap-10">
           <div>
-            <div className="relative max-w-full pb-2">
+            <div className="relative max-w-full pb-1">
               <h1
                 className={cn(
                   "whitespace-nowrap font-display font-normal leading-[.98] tracking-[-0.025em] text-foreground sm:text-[44px] lg:text-[48px]",
@@ -454,7 +454,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
               >
                 Parcours de {tripName}
               </h1>
-              <KrewMark type="underline-wave" tone="sage" size="lg" className="pointer-events-none absolute -bottom-2 left-1 w-[140px] opacity-75 sm:w-[220px]" />
+              <KrewMark type="underline-wave" tone="sage" size="md" className="pointer-events-none absolute left-1 w-[140px] opacity-75 sm:w-[220px]" />
             </div>
             <p className="mt-3 max-w-[590px] text-[13px] leading-relaxed text-muted-foreground sm:mt-4 sm:text-[15px]">
               {historical
@@ -463,22 +463,22 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             </p>
           </div>
 
-          <div className="relative rounded-[18px] border border-border/50 px-3 py-3 md:justify-self-end md:self-center md:py-3.5">
-            <div className="flex items-center gap-3">
+          <div className="relative rounded-[18px] border border-border/50 px-3 py-3 md:w-full md:justify-self-stretch md:px-5 md:py-4 lg:w-auto lg:justify-self-end lg:self-center lg:px-3 lg:py-3.5">
+            <div className="flex items-center gap-3 md:gap-5 lg:gap-3">
               <img
                 src="/brand/otter-states/trip-progress.png"
                 alt=""
-                className="pointer-events-none w-[92px] shrink-0 object-contain sm:w-[104px]"
+                className="pointer-events-none w-[92px] shrink-0 object-contain sm:w-[104px] md:w-[112px] lg:w-[104px]"
               />
               <div className="min-w-0 flex-1">
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">Progression</span>
-                  <span className="font-display text-[23px] leading-none text-primary sm:text-[25px]">{Math.round(progress)}%</span>
+                <div className="flex items-baseline justify-between gap-3 md:gap-6 lg:gap-3">
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground md:text-[11px] lg:text-[10px]">Progression</span>
+                  <span className="font-display text-[23px] leading-none text-primary sm:text-[25px] md:text-[29px] lg:text-[25px]">{Math.round(progress)}%</span>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/55" aria-hidden="true">
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/55 md:mt-3 md:h-2 lg:mt-2 lg:h-1.5" aria-hidden="true">
                   <div className="h-full rounded-full bg-sage transition-[width] duration-300" style={{ width: `${progress}%` }} />
                 </div>
-                <p className="mt-2 text-[11px] text-muted-foreground">{completedCount}/{journeySteps.length} étapes terminées</p>
+                <p className="mt-2 text-[11px] text-muted-foreground md:mt-3 md:text-[12px] lg:mt-2 lg:text-[11px]">{completedCount}/{journeySteps.length} étapes terminées</p>
               </div>
             </div>
           </div>
