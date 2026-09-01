@@ -1,0 +1,171 @@
+@import url("https://fonts.googleapis.com/css2?family=Shantell+Sans:ital,wght@0,400..600;1,400..600&display=swap");
+
+.krew-note-concept {
+  --concept-paper: #f7f4ed;
+  --concept-ink: #3f2940;
+  --concept-tape: rgba(112, 142, 117, 0.52);
+  --concept-shadow: 0 11px 22px rgba(57, 35, 54, 0.16), 0 3px 7px rgba(57, 35, 54, 0.10);
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  color: var(--concept-ink);
+  border: 0;
+  box-shadow: var(--concept-shadow);
+  font-family: "Shantell Sans", "Segoe Print", cursive;
+  font-size: clamp(0.88rem, 0.84rem + 0.2vw, 1.04rem);
+  font-weight: 500;
+  font-variation-settings: "INFM" 35, "SPAC" 2;
+  line-height: 1.16;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+  transform: rotate(-1.2deg);
+}
+
+.krew-note-concept::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  opacity: 0.24;
+  background:
+    radial-gradient(circle at 16% 27%, rgba(74, 46, 63, 0.16) 0 0.45px, transparent 0.7px),
+    radial-gradient(circle at 72% 61%, rgba(255, 255, 255, 0.7) 0 0.55px, transparent 0.85px);
+  background-size: 7px 9px, 9px 11px;
+  mix-blend-mode: multiply;
+}
+
+.krew-note-concept--cream { --concept-paper: #f7f4ed; --concept-tape: rgba(109, 139, 112, 0.5); }
+.krew-note-concept--sage { --concept-paper: #c7d2ba; --concept-tape: rgba(110, 67, 101, 0.42); }
+.krew-note-concept--plum { --concept-paper: #d9becd; --concept-tape: rgba(242, 238, 228, 0.62); }
+
+.krew-note-concept__copy,
+.krew-note-concept__eyebrow {
+  position: relative;
+  z-index: 1;
+}
+
+.krew-note-concept__eyebrow {
+  margin-bottom: 0.26rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.54rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  opacity: 0.62;
+  text-transform: uppercase;
+}
+
+.krew-note-concept__tape {
+  position: absolute;
+  z-index: 2;
+  top: -0.42rem;
+  left: 50%;
+  width: 3.15rem;
+  height: 0.92rem;
+  background:
+    linear-gradient(92deg, rgba(255,255,255,.15), transparent 34% 68%, rgba(255,255,255,.12)),
+    var(--concept-tape);
+  clip-path: polygon(2% 14%, 9% 5%, 17% 13%, 25% 5%, 35% 11%, 45% 4%, 56% 12%, 66% 5%, 76% 13%, 87% 5%, 98% 15%, 96% 88%, 87% 94%, 77% 88%, 67% 96%, 57% 88%, 47% 95%, 36% 87%, 26% 94%, 15% 87%, 4% 93%);
+  opacity: 0.82;
+  transform: translateX(-50%) rotate(2deg);
+  box-shadow: 0 1px 1px rgba(49, 35, 45, 0.08);
+}
+
+.krew-note-concept--paper {
+  min-width: 10rem;
+  max-width: 15rem;
+  padding: 1.35rem 1.35rem 1.3rem;
+  background: var(--concept-paper);
+  clip-path: polygon(0.5% 1%, 99% 0, 100% 80%, 92% 99%, 1% 100%);
+}
+
+.krew-note-concept--paper::before {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  content: "";
+  background: linear-gradient(135deg, rgba(85, 58, 74, 0.13) 0 48%, rgba(255,255,255,.36) 52%);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.krew-note-concept--torn-strip {
+  min-width: 11rem;
+  max-width: 19rem;
+  padding: 0.82rem 1.45rem 0.9rem;
+  background: var(--concept-paper);
+  clip-path: polygon(2% 7%, 5% 1%, 9% 6%, 14% 2%, 20% 5%, 27% 1%, 34% 5%, 42% 2%, 50% 5%, 58% 1%, 66% 5%, 74% 2%, 82% 6%, 90% 1%, 98% 6%, 100% 25%, 98% 48%, 100% 72%, 97% 95%, 90% 98%, 82% 94%, 74% 99%, 65% 95%, 57% 99%, 49% 95%, 41% 98%, 33% 94%, 25% 99%, 17% 95%, 9% 99%, 2% 94%, 0 72%, 2% 49%, 0 27%);
+  transform: rotate(0.7deg);
+}
+
+.krew-note-concept--photo {
+  position: absolute;
+  right: -0.7rem;
+  bottom: -0.85rem;
+  max-width: 11.5rem;
+  padding: 1.05rem 1.15rem 1rem;
+  background: var(--concept-paper);
+  clip-path: polygon(1% 2%, 99% 0, 100% 97%, 2% 100%);
+  transform: rotate(-3.4deg);
+}
+
+.krew-note-concept--photo .krew-note-concept__tape {
+  left: 22%;
+  width: 2.6rem;
+  transform: translateX(-50%) rotate(-8deg);
+}
+
+.krew-note-concept-photo {
+  position: relative;
+  display: inline-block;
+  width: min(100%, 15rem);
+  padding: 0.45rem 0.45rem 2rem;
+  background: #f3ead6;
+  box-shadow: var(--concept-shadow);
+  transform: rotate(1deg);
+}
+
+.krew-note-concept-photo__image {
+  display: block;
+  aspect-ratio: 4 / 3;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(52,52,44,.14)),
+    url("/images/trip-types/weekend.png") center / cover,
+    linear-gradient(135deg, #aebdb0, #d9b99a);
+  filter: saturate(.82) contrast(.94);
+}
+
+.krew-note-concept--ticket {
+  min-width: 12rem;
+  max-width: 18rem;
+  padding: 1.05rem 2.1rem 1.05rem 1.3rem;
+  background: var(--concept-paper);
+  clip-path: polygon(0 0, 100% 0, 100% 33%, 96% 39%, 100% 46%, 96% 53%, 100% 60%, 96% 67%, 100% 74%, 96% 81%, 100% 88%, 100% 100%, 0 100%);
+  transform: rotate(1.2deg);
+}
+
+.krew-note-concept--ticket::before {
+  position: absolute;
+  top: 12%;
+  right: 1.15rem;
+  bottom: 12%;
+  content: "";
+  border-left: 1px dashed rgba(63, 41, 64, 0.22);
+}
+
+.krew-note-concept--ticket .krew-note-concept__tape {
+  left: 18%;
+  width: 2.45rem;
+  transform: translateX(-50%) rotate(-5deg);
+}
+
+@media (max-width: 639px) {
+  .krew-note-concept {
+    font-size: clamp(0.86rem, 3.8vw, 0.98rem);
+  }
+}
