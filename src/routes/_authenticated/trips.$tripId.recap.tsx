@@ -126,7 +126,7 @@ function TripRecapPage() {
     retry: false,
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["trip-recap", tripId],
     queryFn: () => withRecapTimeout(fetchRecap({ data: { tripId } })),
     retry: false,
@@ -145,7 +145,7 @@ function TripRecapPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+      <main className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6 lg:px-10">
         <KrewThinkingState
           context="generic"
           customMessage="KREW rassemble les choix du groupe pour préparer le récap…"
@@ -158,29 +158,33 @@ function TripRecapPage() {
   if (error || !data) {
     console.error("Impossible de charger le récap:", error);
     return (
-      <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10 text-center">
-        <img
-          src="/brand/otter-states/searching.png"
-          alt=""
-          className="mx-auto mb-4 h-auto w-[72px] object-contain sm:w-[88px]"
-        />
-        <h1 className="font-display text-3xl font-normal text-foreground">Le récap n’a pas pu se charger</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm sm:text-base text-muted-foreground">
-          Réessaie dans un instant. Tes choix sont conservés.
-        </p>
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <Button
-            type="button"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["trip-recap", tripId] })}
-          >
-            Réessayer
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/trips/$tripId" params={{ tripId }}>
-              Retour au voyage
-            </Link>
-          </Button>
-        </div>
+      <main className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6 lg:px-10">
+        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
+          <img
+            src="/brand/otter-states/searching.png"
+            alt=""
+            className="mx-auto mb-4 h-auto w-[72px] object-contain sm:w-[88px]"
+          />
+          <h1 className="font-display text-3xl font-normal text-foreground">Le récap n’a pas pu se charger</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm sm:text-base text-muted-foreground">
+            Réessaie dans un instant. Tes choix sont conservés.
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              aria-busy={isFetching}
+            >
+              {isFetching ? "Chargement…" : "Réessayer"}
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/trips/$tripId" params={{ tripId }}>
+                Retour au voyage
+              </Link>
+            </Button>
+          </div>
+        </section>
       </main>
     );
   }
