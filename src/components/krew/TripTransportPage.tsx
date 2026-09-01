@@ -58,9 +58,8 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
 
   const searchMutation = useMutation({
     mutationFn: () => proposeTransport({ data: { tripId, refreshExternal: true } }),
-    onSuccess: (result: any) => {
+    onSuccess: () => {
       refresh();
-      const count = result?.logistics?.transports?.length ?? 0;
     },
     onError: (error) => {
       console.error("Impossible de rechercher les trajets:", error);
