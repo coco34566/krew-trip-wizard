@@ -27,6 +27,7 @@ const CREATE_TRIP_NUMBER_INPUT_CLASS = `${CREATE_TRIP_INPUT_CLASS} pr-16 font-mo
 const SELECTABLE_FRAME_CLASS =
   "border transition-[border-color,background-color,box-shadow] focus-visible:outline-none focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
 const SELECTABLE_FRAME_SELECTED_CLASS = "border-primary/55 bg-primary/5 ring-2 ring-primary/10";
+const TRIP_TYPE_SELECTED_CLASS = "border-primary ring-2 ring-primary/10";
 const SELECTABLE_FRAME_IDLE_CLASS =
   "border-border/70 bg-background hover:border-primary/35 hover:bg-primary/[0.02]";
 
@@ -217,7 +218,7 @@ function NewTripPage() {
           </div>
 
           <div className="mt-7 sm:mt-8">
-            <Label className="mb-3 block text-[15px] font-semibold text-foreground">C’est quoi le plan ?</Label>
+            <Label className="mb-2 block text-[15px] font-semibold text-foreground">C’est quoi le plan ?</Label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {activeEventTypes.map((t) => {
                 const imgUrl = getTripTypeImage(t.value);
@@ -231,7 +232,7 @@ function NewTripPage() {
                     className={cn(
                       "group relative min-h-[122px] overflow-hidden rounded-[14px] text-left",
                       SELECTABLE_FRAME_CLASS,
-                      selected ? SELECTABLE_FRAME_SELECTED_CLASS : SELECTABLE_FRAME_IDLE_CLASS,
+                      selected ? TRIP_TYPE_SELECTED_CLASS : SELECTABLE_FRAME_IDLE_CLASS,
                     )}
                   >
                     {imgUrl ? (
@@ -249,6 +250,11 @@ function NewTripPage() {
                     ) : (
                       <span className="p-4 text-sm font-medium text-foreground">{t.label}</span>
                     )}
+                    {selected ? (
+                      <span className="absolute right-2.5 top-2.5 z-20 inline-flex size-7 items-center justify-center rounded-full bg-white shadow-sm" aria-hidden="true">
+                        <KrewIcon name="check" tone="plum" size="sm" className="size-3.5" />
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -341,7 +347,7 @@ function NewTripPage() {
           </div>
 
           <div className="mt-7 sm:mt-8">
-            <Label className="mb-3 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
+            <Label className="mb-2 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
               {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => {
                 const selected = groupAgeRange === age;
