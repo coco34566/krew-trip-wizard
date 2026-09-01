@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2, UserPlus } from "lucide-react";
+import { ArrowLeft, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -96,7 +96,6 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
     mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) =>
       updateStatus({ data: { taskId, status } }),
     onSuccess: () => {
-      toast.success("Statut de la tâche mis à jour");
       refreshTasks();
     },
     onError: (error) => {
@@ -110,7 +109,6 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
     mutationFn: ({ taskId, participantId }: { taskId: string; participantId: string | null }) =>
       reassign({ data: { taskId, participantId } }),
     onSuccess: () => {
-      toast.success("Tâche réattribuée");
       refreshTasks();
     },
     onError: (error) => {
@@ -129,7 +127,6 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
     },
     onSuccess: (result: any) => {
       if (result?.ok) {
-        toast.success(`${result.count ?? 0} tâche${result.count === 1 ? "" : "s"} prête${result.count === 1 ? "" : "s"}`);
         refreshTasks();
       } else {
         toast.warning("Aucune tâche à ajouter pour le moment.");
@@ -143,15 +140,16 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
 
   if (detailQuery.isLoading || tasksQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <KrewThinkingState context="generic" customMessage="Chargement des tâches…" delayMs={0} />
       </main>
     );
   }
 
   if (!detailQuery.data || detailQuery.isError || tasksQuery.isError) {
+    const retrying = detailQuery.isFetching || tasksQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-4 px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
@@ -160,7 +158,26 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
         >
           <ArrowLeft className="size-4" /> Retour au voyage
         </Link>
-        <p className="text-sm text-muted-foreground">Impossible de charger les tâches pour le moment.</p>
+        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
+          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
+            Impossible de charger les tâches
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Les tâches du groupe ne sont pas disponibles pour le moment.
+          </p>
+          <Button
+            type="button"
+            className="mt-5"
+            onClick={() => {
+              void detailQuery.refetch();
+              void tasksQuery.refetch();
+            }}
+            disabled={retrying}
+            aria-busy={retrying}
+          >
+            {retrying ? "Chargement…" : "Réessayer"}
+          </Button>
+        </section>
       </main>
     );
   }
@@ -405,14 +422,14 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
 
       {isAdmin && !completedTrip && hasItinerary && tasks.length > 0 ? (
         <div className="border-t border-border/45 pt-4">
-          <Button
+          <KrewStatefulButton
             variant="outline"
-            disabled={generateMutation.isPending}
-            onClick={() => generateMutation.mutate()}
-          >
-            {generateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="tasks" tone="plum" size="sm" className="size-4" />}
-            Actualiser les tâches
-          </Button>
+            idleLabel="Actualiser les tâches"
+            loadingLabel="Actualisation…"
+            successLabel="Tâches actualisées"
+            errorLabel="Réessayer"
+            onAction={() => generateMutation.mutateAsync()}
+          />
         </div>
       ) : null}
     </main>

@@ -14,6 +14,7 @@ import { buildDeepLinksForProposal } from "@/lib/krew/deep-links";
 import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 import { KrewIcon, KrewMark, KrewHighlight, KrewSectionWave } from "@/components/krew/visual-language";
@@ -106,7 +107,6 @@ function TripRecapPage() {
       }),
     onSuccess: (_r, vars) => {
       setWatched((w) => ({ ...w, [vars.recommendationId]: true }));
-      toast.success("Prix suivi");
       queryClient.invalidateQueries({ queryKey: ["price-watches"] });
     },
     onError: (e: any) => {
@@ -126,7 +126,7 @@ function TripRecapPage() {
     retry: false,
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["trip-recap", tripId],
     queryFn: () => withRecapTimeout(fetchRecap({ data: { tripId } })),
     retry: false,
@@ -145,7 +145,7 @@ function TripRecapPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
+      <main className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6 lg:px-10">
         <KrewThinkingState
           context="generic"
           customMessage="KREW rassemble les choix du groupe pour préparer le récap…"
@@ -158,29 +158,33 @@ function TripRecapPage() {
   if (error || !data) {
     console.error("Impossible de charger le récap:", error);
     return (
-      <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10 text-center">
-        <img
-          src="/brand/otter-states/searching.png"
-          alt=""
-          className="mx-auto mb-4 h-auto w-[72px] object-contain sm:w-[88px]"
-        />
-        <h1 className="font-display text-3xl font-normal text-foreground">Le récap n’a pas pu se charger</h1>
-        <p className="mx-auto mt-2 max-w-md text-sm sm:text-base text-muted-foreground">
-          Réessaie dans un instant. Tes choix sont conservés.
-        </p>
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          <Button
-            type="button"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["trip-recap", tripId] })}
-          >
-            Réessayer
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/trips/$tripId" params={{ tripId }}>
-              Retour au voyage
-            </Link>
-          </Button>
-        </div>
+      <main className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6 lg:px-10">
+        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
+          <img
+            src="/brand/otter-states/searching.png"
+            alt=""
+            className="mx-auto mb-4 h-auto w-[72px] object-contain sm:w-[88px]"
+          />
+          <h1 className="font-display text-3xl font-normal text-foreground">Le récap n’a pas pu se charger</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm sm:text-base text-muted-foreground">
+            Réessaie dans un instant. Tes choix sont conservés.
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              onClick={() => void refetch()}
+              disabled={isFetching}
+              aria-busy={isFetching}
+            >
+              {isFetching ? "Chargement…" : "Réessayer"}
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/trips/$tripId" params={{ tripId }}>
+                Retour au voyage
+              </Link>
+            </Button>
+          </div>
+        </section>
       </main>
     );
   }
@@ -207,7 +211,6 @@ function TripRecapPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Calendrier téléchargé");
   };
 
   const dateLabel =
@@ -456,17 +459,16 @@ function TripRecapPage() {
                         <KrewIcon name="search" tone="plum" size="sm" className="size-3.5" /> Comparer d&apos;autres hébergements
                       </ExternalLinkButton>
                     )}
-                    <Button
-                      type="button"
+                    <KrewStatefulButton
                       variant={watched[reco.id] ? "secondary" : "outline"}
                       size="sm"
-                      className="rounded-xl text-sm font-medium min-h-9 h-auto"
-                      disabled={watchMutation.isPending}
-                      onClick={() => watchMutation.mutate({ recommendationId: reco.id, destinationName: destName })}
-                    >
-                      <KrewIcon name="time" tone="plum" size="sm" className="size-3.5 shrink-0" />
-                      {watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
-                    </Button>
+                      idleLabel={watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
+                      loadingLabel="Enregistrement…"
+                      successLabel="Prix suivi"
+                      errorLabel="Réessayer"
+                      disabled={Boolean(watched[reco.id])}
+                      onAction={() => watchMutation.mutateAsync({ recommendationId: reco.id, destinationName: destName })}
+                    />
                   </div>
                 </div>
               </article>
@@ -509,9 +511,15 @@ function TripRecapPage() {
             Télécharge le planning au format .ics ou ajoute le séjour à Google Calendar.
           </p>
           <div className="flex flex-wrap gap-2.5">
-            <Button onClick={handleDownloadIcs} size="sm" className="rounded-xl gap-1.5 font-medium min-h-9 h-auto">
-              <KrewIcon name="calendar" tone="cream" size="sm" className="size-4" /> Télécharger .ics
-            </Button>
+            <KrewStatefulButton
+              size="sm"
+              className="font-medium"
+              idleLabel="Télécharger .ics"
+              loadingLabel="Préparation…"
+              successLabel="Calendrier téléchargé"
+              errorLabel="Réessayer"
+              onAction={async () => handleDownloadIcs()}
+            />
             {googleCalendarUrl && (
               <Button asChild variant="outline" size="sm" className="rounded-xl gap-1.5 font-medium min-h-9 h-auto">
                 <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">

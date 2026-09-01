@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import {
   getMyParticipantPreferences,
   submitParticipantPreferences,
@@ -106,7 +108,8 @@ function ParticipantQuestionnaire() {
   const submit = useServerFn(submitParticipantPreferences);
 
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   /** True si l'utilisateur connecté a déjà une ligne de préférences (édition). */
   const [isEditing, setIsEditing] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -148,8 +151,13 @@ function ParticipantQuestionnaire() {
   >(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+
     fetchMine({ data: { tripId } })
       .then(({ trip, preferences }: any) => {
+        if (cancelled) return;
         setTripName(trip.name);
         const dep = trip.departure_city || "";
         setDefaultDeparture(dep);
@@ -214,21 +222,30 @@ function ParticipantQuestionnaire() {
           setTravelPace(preferences.travel_pace ?? "equilibre");
           setPreferredTimeSlots(preferences.preferred_time_slots ?? []);
         } else {
+          setIsEditing(false);
+          setLastSavedAt(null);
           setDepartureCity(dep);
         }
       })
       .catch((e: any) => {
+        if (cancelled) return;
         if (typeof e?.message === "string" && e.message.startsWith("403 Forbidden")) {
           toast.error("Tu n’as pas accès à ces préférences.");
           navigate({ to: "/dashboard" });
           return;
         }
         console.error("Impossible de charger les préférences:", e);
-        toast.error("Impossible de charger tes préférences. Réessaie dans un instant.");
+        setLoadError("Impossible de charger tes préférences pour le moment.");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripId]);
+  }, [tripId, loadAttempt]);
 
   function toggle(list: string[], setList: (v: string[]) => void, value: string) {
     setList(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
@@ -248,16 +265,15 @@ function ParticipantQuestionnaire() {
     const error = validate();
     if (error) {
       toast.error(error);
-      return;
+      throw new Error(error);
     }
-    setSubmitting(true);
     try {
       const excluded = excludedDestinations
         .split(/[,;]/)
         .map((s) => s.trim())
         .filter(Boolean);
 
-      const res = await submit({
+      await submit({
         data: {
           tripId,
           ambiances,
@@ -291,14 +307,13 @@ function ParticipantQuestionnaire() {
       });
       setIsEditing(true);
       setLastSavedAt(new Date().toISOString());
-      toast.success(res.isUpdate ? "Réponses mises à jour" : "Réponses enregistrées");
       navigate({ to: "/trips/$tripId", params: { tripId } });
     } catch (e: any) {
       const msg = String(e?.message ?? e ?? "");
       if (msg.includes("403 Forbidden")) {
         toast.error("Tu n’as pas accès à ces préférences.");
         navigate({ to: "/dashboard" });
-        return;
+        throw e;
       }
       if (
         msg.includes("trip_participant_preferences") ||
@@ -310,20 +325,48 @@ function ParticipantQuestionnaire() {
           msg,
         );
         toast.error("Impossible d’enregistrer tes réponses. Réessaie dans un instant.");
-        return;
+        throw e;
       }
       console.error("Erreur enregistrement préférences:", e);
       toast.error("Impossible d’enregistrer tes réponses. Réessaie dans un instant.");
-    } finally {
-      setSubmitting(false);
+      throw e;
     }
   }
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-[820px] px-5 sm:px-7 py-20 flex justify-center">
-        <Loader2 className="animate-spin text-primary size-6" />
-      </div>
+      <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7">
+        <KrewThinkingState context="generic" customMessage="Chargement de tes préférences…" delayMs={0} />
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="mx-auto w-full max-w-[820px] space-y-6 px-5 py-10 sm:px-7">
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="size-4" /> Retour au voyage
+        </Link>
+        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
+          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
+            Impossible de charger tes préférences
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            {loadError} Tes réponses déjà enregistrées sont conservées.
+          </p>
+          <Button
+            type="button"
+            className="mt-5"
+            onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+          >
+            Réessayer
+          </Button>
+        </section>
+      </main>
     );
   }
 
@@ -751,14 +794,14 @@ function ParticipantQuestionnaire() {
         </Section>
 
         <div className="pt-2 pb-12">
-          <Button onClick={handleSubmit} disabled={submitting} className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5" size="lg">
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-            ) : (
-              <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
-            )}
-            {isEditing ? "Enregistrer mes modifications" : "Enregistrer mes réponses"}
-          </Button>
+          <KrewStatefulButton
+            className="max-w-full"
+            idleLabel={isEditing ? "Enregistrer mes modifications" : "Enregistrer mes réponses"}
+            loadingLabel="Enregistrement…"
+            successLabel="Réponses enregistrées"
+            errorLabel="Réessayer"
+            onAction={handleSubmit}
+          />
         </div>
       </div>
     </main>

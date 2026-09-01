@@ -9,6 +9,7 @@ import { sha256File } from "@/lib/souvenirs-photo-upload";
 import { createPhotosZip } from "@/lib/souvenirs-download";
 import { KrewIcon, KrewMark, KrewNote, KrewOrganicBlob } from "@/components/krew/visual-language";
 import { KrewRecapCard } from "@/components/krew/KrewRecapCard";
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { buildTripRecap } from "@/lib/krew/trip-recap";
 import { cn } from "@/lib/utils";
 
@@ -196,9 +197,8 @@ function MemoriesPage(){
       </section>
 
       {isLoading ? (
-        <div className="py-12 text-center" role="status" aria-live="polite">
-          <Loader2 className="mx-auto animate-spin text-primary size-6" />
-          <span className="sr-only">Chargement des souvenirs…</span>
+        <div className="py-8">
+          <KrewThinkingState context="generic" customMessage="Chargement des souvenirs…" delayMs={0} />
         </div>
       ) : !photos.length ? null : (
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">

@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -170,7 +170,7 @@ function StarQuestionnaire() {
   const submit = useServerFn(submitStarPreferences);
   const saveStarSetup = useServerFn(finalizeInvitationStep);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["star-prefs", tripId],
     queryFn: () => fetchStar({ data: { tripId } }),
   });
@@ -325,12 +325,7 @@ function StarQuestionnaire() {
         },
       });
     },
-    onSuccess: (res) => {
-      toast.success(
-        res.isUpdate
-          ? "Préférences de la Star mises à jour"
-          : "Préférences de la Star enregistrées",
-      );
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
@@ -349,7 +344,38 @@ function StarQuestionnaire() {
     );
   }
 
-  if (!data?.trip.hasStar) {
+  if (isError || !data) {
+    return (
+      <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 space-y-6">
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="size-4" /> Retour au voyage
+        </Link>
+        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
+          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
+            Impossible de charger les préférences de la Star
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Les informations de la Star ne sont pas disponibles pour le moment.
+          </p>
+          <Button
+            type="button"
+            className="mt-5"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+            aria-busy={isFetching}
+          >
+            {isFetching ? "Chargement…" : "Réessayer"}
+          </Button>
+        </section>
+      </main>
+    );
+  }
+
+  if (!data.trip.hasStar) {
     return (
       <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 text-center space-y-4">
         <p className="text-muted-foreground">
@@ -674,19 +700,15 @@ function StarQuestionnaire() {
         </section>
 
         <div className="pt-2 pb-12">
-          <Button
-            className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
-            size="lg"
-            disabled={mutation.isPending || starMode !== "secret"}
-            onClick={() => mutation.mutate()}
-          >
-            {mutation.isPending ? (
-              <Loader2 className="animate-spin shrink-0" />
-            ) : (
-              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
-            )}
-            {starMode !== "secret" ? "La Star répond elle-même en mode participant" : data.preferences ? "Enregistrer les modifications" : "Enregistrer les préférences de la Star"}
-          </Button>
+          <KrewStatefulButton
+            className="max-w-full"
+            idleLabel={starMode !== "secret" ? "La Star répond elle-même en mode participant" : data.preferences ? "Enregistrer les modifications" : "Enregistrer les préférences de la Star"}
+            loadingLabel="Enregistrement…"
+            successLabel="Préférences enregistrées"
+            errorLabel="Réessayer"
+            disabled={starMode !== "secret"}
+            onAction={() => mutation.mutateAsync()}
+          />
         </div>
       </div>
     </main>

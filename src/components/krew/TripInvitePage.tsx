@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Crown, Loader2, Shield } from "lucide-react";
+import { ArrowLeft, Crown, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewIcon } from "@/components/krew/visual-language";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
@@ -76,7 +77,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     mutationFn: () => invite({ data: { tripId, email: email.trim() } }),
     onSuccess: () => {
       setEmail("");
-      toast.success("Invitation ajoutée");
       void trackProductEvent("participant_invited", {
         trip_id: tripId,
         role: data?.isCreator ? "organizer" : "co_organizer",
@@ -91,7 +91,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     mutationFn: () => rotateInviteLink({ data: { tripId } }),
     onSuccess: (next) => {
       queryClient.setQueryData(["trip-invite-link", tripId], next);
-      toast.success("Nouveau lien créé");
     },
     onError: () => toast.error("Impossible de renouveler le lien pour le moment."),
   });
@@ -107,7 +106,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   const finalizeMutation = useMutation({
     mutationFn: () => finalize({ data: { tripId, starMode, starPaysShare, inviteStepCompleted: true } }),
     onSuccess: () => {
-      toast.success("Invitations enregistrées");
       refresh();
     },
     onError: () => toast.error("Impossible d’enregistrer les invitations pour le moment."),
@@ -135,10 +133,10 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     }
     try {
       await navigator.clipboard.writeText(shareUrl);
-      toast.success("Lien d’invitation copié");
     } catch (err) {
       console.error("Impossible de copier le lien d'invitation:", err);
       toast.error("Impossible de copier le lien pour le moment.");
+      throw err;
     }
   }
 
@@ -214,10 +212,15 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
               <KrewIcon name="message" tone="cream" size="sm" className="size-4" />
               Inviter via WhatsApp
             </Button>
-            <Button type="button" variant="outline" disabled={!shareUrl} onClick={copyInvitationLink}>
-              <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
-              Copier le lien d’invitation
-            </Button>
+            <KrewStatefulButton
+              variant="outline"
+              idleLabel="Copier le lien d’invitation"
+              loadingLabel="Copie…"
+              successLabel="Lien copié"
+              errorLabel="Réessayer"
+              disabled={!shareUrl}
+              onAction={copyInvitationLink}
+            />
           </div>
           <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
             <span>Le lien reste valable tant que tu ne le renouvelles pas.</span>
@@ -234,10 +237,14 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
             <Label htmlFor="invite-email">Adresse e-mail</Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input id="invite-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="ami@email.com" />
-              <Button disabled={!email.trim() || inviteMutation.isPending} onClick={() => inviteMutation.mutate()}>
-                {inviteMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                Inviter
-              </Button>
+              <KrewStatefulButton
+                idleLabel="Inviter"
+                loadingLabel="Invitation…"
+                successLabel="Invitation envoyée"
+                errorLabel="Réessayer"
+                disabled={!email.trim()}
+                onAction={() => inviteMutation.mutateAsync()}
+              />
             </div>
           </div>
         </section>
@@ -296,10 +303,13 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
 
       {data.isOwner ? (
         <section className="border-t border-border/50 pt-6">
-          <Button disabled={finalizeMutation.isPending} onClick={() => finalizeMutation.mutate()}>
-            {finalizeMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="check" tone="sage" size="sm" className="size-4" />}
-            Enregistrer les invitations
-          </Button>
+          <KrewStatefulButton
+            idleLabel="Enregistrer les invitations"
+            loadingLabel="Enregistrement…"
+            successLabel="Invitations enregistrées"
+            errorLabel="Réessayer"
+            onAction={() => finalizeMutation.mutateAsync()}
+          />
         </section>
       ) : (
         <p className="border-t border-border/50 pt-6 text-sm text-muted-foreground">Tu peux consulter le groupe ici. Les invitations et les rôles sont gérés par l’organisateur.</p>

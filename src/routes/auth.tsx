@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/krew/Logo";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewIcon, KrewMark, KrewOrganicBlob } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,8 +58,8 @@ function AuthPage() {
     if (!isRecovery && !loading && isAuthenticated) goAfterAuth();
   }, [isAuthenticated, isRecovery, loading, safeNext]);
 
-  async function signIn(e: React.FormEvent) {
-    e.preventDefault();
+  async function signIn(e?: React.FormEvent) {
+    e?.preventDefault();
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
@@ -70,7 +70,7 @@ function AuthPage() {
       if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials") || msg.includes("credentials")) userMessage = "Identifiants incorrects. Vérifie ton adresse e-mail et ton mot de passe.";
       else if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) userMessage = "Ton adresse e-mail n'a pas encore été confirmée. Confirme ton inscription avec le lien reçu.";
       toast.error(userMessage);
-      return;
+      throw error;
     }
     goAfterAuth();
   }
@@ -99,18 +99,17 @@ function AuthPage() {
     }
 
     setResetEmailSent(true);
-    toast.success("Lien de réinitialisation envoyé");
   }
 
-  async function updateRecoveredPassword(e: React.FormEvent) {
-    e.preventDefault();
+  async function updateRecoveredPassword(e?: React.FormEvent) {
+    e?.preventDefault();
     if (password.length < 6) {
       toast.error("Choisis un mot de passe d’au moins 6 caractères.");
-      return;
+      throw new Error("Mot de passe trop court");
     }
     if (password !== confirmPassword) {
       toast.error("Les deux mots de passe ne correspondent pas.");
-      return;
+      throw new Error("Mots de passe différents");
     }
 
     setBusy(true);
@@ -119,15 +118,14 @@ function AuthPage() {
     if (error) {
       console.error("Erreur de mise à jour du mot de passe Supabase:", error);
       toast.error("Ce lien a peut-être expiré. Demande un nouveau lien de réinitialisation.");
-      return;
+      throw error;
     }
 
-    toast.success("Mot de passe mis à jour");
     navigate({ to: "/dashboard", replace: true });
   }
 
-  async function signUp(e: React.FormEvent) {
-    e.preventDefault();
+  async function signUp(e?: React.FormEvent) {
+    e?.preventDefault();
     setBusy(true);
     const options: { emailRedirectTo?: string; data: { full_name: string } } = { data: { full_name: fullName } };
     const rUrl = returnUrl();
@@ -142,7 +140,7 @@ function AuthPage() {
       if (msg.includes("already registered") || msg.includes("already_registered") || msg.includes("email already") || msg.includes("user already exists")) userMessage = "Cette adresse e-mail est déjà utilisée pour un autre compte.";
       else if (msg.includes("password should be") || msg.includes("weak_password") || msg.includes("password is too weak")) userMessage = "Le mot de passe choisi est trop simple ou trop court (minimum 6 caractères).";
       toast.error(userMessage);
-      return;
+      throw error;
     }
 
     setBusy(false);
@@ -170,8 +168,7 @@ function AuthPage() {
     if (error) {
       console.error("Erreur d'envoi d'email de confirmation:", error);
       toast.error("Impossible de renvoyer l'e-mail de confirmation pour le moment.");
-    } else {
-      toast.success("E-mail de confirmation envoyé");
+      throw error;
     }
   }
 
@@ -186,7 +183,7 @@ function AuthPage() {
               <h1 className="font-display text-[36px] font-normal leading-[0.98] text-foreground sm:text-[44px]">Choisis un nouveau mot de passe</h1>
               <p className="text-[15px] leading-relaxed text-muted-foreground">Une fois enregistré, tu retrouveras directement tes voyages.</p>
             </div>
-            <form onSubmit={updateRecoveredPassword} className="space-y-5">
+            <form onSubmit={(event) => void updateRecoveredPassword(event).catch(() => undefined)} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="recovery-password" className="text-[13px] font-medium text-foreground">Nouveau mot de passe</Label>
                 <div className="relative">
@@ -200,7 +197,7 @@ function AuthPage() {
                 <Label htmlFor="recovery-password-confirm" className="text-[13px] font-medium text-foreground">Confirmer le mot de passe</Label>
                 <Input id="recovery-password-confirm" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" className={AUTH_INPUT_CLASS} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
               </div>
-              <Button type="submit" className="w-full" disabled={busy}>{busy ? "Enregistrement…" : "Enregistrer mon mot de passe"}</Button>
+              <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Enregistrer mon mot de passe" loadingLabel="Enregistrement…" successLabel="Mot de passe enregistré" errorLabel="Réessayer" onAction={() => updateRecoveredPassword()} />
             </form>
             <Link to="/auth" className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary">
               <ArrowLeft className="size-4" /> Demander un nouveau lien
@@ -229,9 +226,7 @@ function AuthPage() {
               Un e-mail de confirmation a été envoyé à <strong className="break-all text-foreground">{email}</strong>. Clique sur le lien présent dans cet e-mail pour activer ton compte KREW.
             </p>
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-              <Button onClick={resendConfirmationEmail} disabled={resending}>
-                {resending ? "Renvoi en cours…" : "Renvoyer l'e-mail"}
-              </Button>
+              <KrewStatefulButton disabled={resending} idleLabel="Renvoyer l'e-mail" loadingLabel="Renvoi en cours…" successLabel="E-mail envoyé" errorLabel="Réessayer" onAction={resendConfirmationEmail} />
               <button
                 type="button"
                 onClick={() => setShowConfirmationSent(false)}
@@ -305,7 +300,7 @@ function AuthPage() {
             </TabsList>
 
             <TabsContent value="signin" className="mt-0">
-              <form onSubmit={signIn} className="space-y-4 sm:space-y-5">
+              <form onSubmit={(event) => void signIn(event).catch(() => undefined)} className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
                   <Input id="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => { setEmail(e.target.value); setResetEmailSent(false); }} />
@@ -331,12 +326,12 @@ function AuthPage() {
                   </div>
                   {resetEmailSent ? <p className="text-[12px] leading-relaxed text-muted-foreground">Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé.</p> : null}
                 </div>
-                <Button type="submit" className="w-full" disabled={busy}>{busy ? "Connexion…" : "Se connecter"}</Button>
+                <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Se connecter" loadingLabel="Connexion…" successLabel="Connecté" errorLabel="Réessayer" onAction={() => signIn()} />
               </form>
             </TabsContent>
 
             <TabsContent value="signup" className="mt-0">
-              <form onSubmit={signUp} className="space-y-4 sm:space-y-5">
+              <form onSubmit={(event) => void signUp(event).catch(() => undefined)} className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-[13px] font-medium text-foreground">Prénom / pseudo</Label>
                   <Input id="name" autoComplete="name" className={AUTH_INPUT_CLASS} value={fullName} onChange={(e) => setFullName(e.target.value)} />
@@ -361,7 +356,7 @@ function AuthPage() {
                   </div>
                   <p className="text-[13px] leading-relaxed text-muted-foreground">6 caractères minimum.</p>
                 </div>
-                <Button type="submit" className="w-full" disabled={busy}>{busy ? "Création…" : "Créer mon compte"}</Button>
+                <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Créer mon compte" loadingLabel="Création…" successLabel="Compte créé" errorLabel="Réessayer" onAction={() => signUp()} />
               </form>
             </TabsContent>
           </Tabs>

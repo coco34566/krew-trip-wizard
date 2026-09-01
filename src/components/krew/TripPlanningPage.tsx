@@ -5,8 +5,6 @@ import {
   ArrowLeft,
   CalendarDays,
   Camera,
-  Loader2,
-  RefreshCw,
   Utensils,
   Wine,
 } from "lucide-react";
@@ -15,7 +13,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
 import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { formatEuro } from "@/lib/krew/constants";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
@@ -55,9 +53,8 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
 
   const planningMutation = useMutation({
     mutationFn: () => generatePlanning({ data: { tripId, force: true } }),
-    onSuccess: (result: any) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      if (result?.ok) toast.success("Planning prêt");
     },
     onError: (error) => {
       console.error("Impossible de préparer le planning:", error);
@@ -69,7 +66,6 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
     mutationFn: ({ day, slotIndex }: { day: number; slotIndex: number }) =>
       regenerateSlot({ data: { tripId, day, slotIndex } }),
     onSuccess: () => {
-      toast.success("Créneau mis à jour");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (error) => {
@@ -80,7 +76,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
 
   if (detailQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <KrewThinkingState context="planning" />
       </main>
     );
@@ -88,7 +84,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
 
   if (!detailQuery.data || detailQuery.isError) {
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-4 px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
@@ -97,7 +93,23 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
         >
           <ArrowLeft className="size-4" /> Retour au voyage
         </Link>
-        <p className="text-sm text-muted-foreground">Impossible de charger le planning pour le moment.</p>
+        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
+          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
+            Impossible de charger le planning
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Le planning n’est pas disponible pour le moment.
+          </p>
+          <Button
+            type="button"
+            className="mt-5"
+            onClick={() => void detailQuery.refetch()}
+            disabled={detailQuery.isFetching}
+            aria-busy={detailQuery.isFetching}
+          >
+            {detailQuery.isFetching ? "Chargement…" : "Réessayer"}
+          </Button>
+        </section>
       </main>
     );
   }
@@ -278,20 +290,16 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                       </div>
 
                       {isAdmin && !completedTrip ? (
-                        <Button
+                        <KrewStatefulButton
                           size="sm"
                           variant="outline"
-                          disabled={slotMutation.isPending}
-                          onClick={() => slotMutation.mutate({ day: day.day, slotIndex })}
                           className="w-full shrink-0 sm:w-auto"
-                        >
-                          {slotMutation.isPending ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <RefreshCw className="size-3.5" />
-                          )}
-                          Autre option
-                        </Button>
+                          idleLabel="Autre option"
+                          loadingLabel="Recherche…"
+                          successLabel="Option actualisée"
+                          errorLabel="Réessayer"
+                          onAction={() => slotMutation.mutateAsync({ day: day.day, slotIndex })}
+                        />
                       ) : null}
                     </div>
                   );

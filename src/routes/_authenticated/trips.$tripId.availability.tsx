@@ -17,6 +17,7 @@ import {
 import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/availability")({
@@ -205,7 +206,6 @@ function AvailabilityPage() {
   const mutation = useMutation({
     mutationFn: () => submit({ data: { tripId, availableDates, blockedDates, flexDays: 0, notes: notes || undefined } }),
     onSuccess: () => {
-      toast.success("Disponibilités enregistrées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
     },
@@ -218,7 +218,6 @@ function AvailabilityPage() {
   const chooseMutation = useMutation({
     mutationFn: (payload: { start: string; end: string }) => choose({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
     onSuccess: () => {
-      toast.success("Dates du voyage confirmées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
@@ -232,7 +231,6 @@ function AvailabilityPage() {
   const unlockMutation = useMutation({
     mutationFn: () => unlock({ data: { tripId } }),
     onSuccess: () => {
-      toast.success("Dates à nouveau modifiables");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
@@ -325,7 +323,7 @@ function AvailabilityPage() {
 
         {!datesLocked ? (
           <>
-            <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0} className="w-full" aria-busy={mutation.isPending}>{mutation.isPending ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}{mutation.isPending ? "Enregistrement…" : data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}</Button>
+            <KrewStatefulButton className="max-w-full" idleLabel={data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"} loadingLabel="Enregistrement…" successLabel="Disponibilités enregistrées" errorLabel="Réessayer" disabled={availableDates.length === 0} onAction={() => mutation.mutateAsync()} />
             {availableDates.length === 0 ? <p className="text-center text-[13px] text-muted-foreground">Sélectionne au moins une date verte pour enregistrer.</p> : null}
           </>
         ) : null}
@@ -338,7 +336,7 @@ function AvailabilityPage() {
             {(data.windows ?? []).map((window: any) => (
               <li key={`${window.start}-${window.end}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 px-4 py-3">
                 <span className="text-sm font-medium">{formatRange(window.start, window.end)}</span>
-                <Button size="sm" disabled={chooseMutation.isPending} onClick={() => chooseMutation.mutate({ start: window.start, end: window.end })}>Choisir ces dates</Button>
+                <KrewStatefulButton size="sm" idleLabel="Choisir ces dates" loadingLabel="Validation…" successLabel="Dates choisies" errorLabel="Réessayer" onAction={() => chooseMutation.mutateAsync({ start: window.start, end: window.end })} />
               </li>
             ))}
           </ul>

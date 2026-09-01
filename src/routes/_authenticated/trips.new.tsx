@@ -2,12 +2,12 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { createTrip } from "@/lib/trips.functions";
 import {
   EVENT_TYPES,
@@ -101,23 +101,23 @@ function NewTripPage() {
   );
   const needsStar = STAR_EVENT_TYPES.has(eventType as any);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (name.trim().length < 2) {
       toast.error("Donne un nom au voyage (2 caractères minimum).");
-      return;
+      throw new Error("Nom de voyage manquant");
     }
     if (!organizerFirstName.trim()) {
       toast.error("Indique ton prénom.");
-      return;
+      throw new Error("Prénom organisateur manquant");
     }
     if (needsStar && !celebratedPerson.trim()) {
       toast.error("Indique le prénom de la Star.");
-      return;
+      throw new Error("Prénom de la Star manquant");
     }
     if (!groupAgeRange) {
       toast.error("Indique la tranche d’âge du groupe.");
-      return;
+      throw new Error("Tranche d’âge manquante");
     }
 
     setSubmitting(true);
@@ -148,11 +148,11 @@ function NewTripPage() {
       if (!id) throw new Error("Le voyage a été créé mais son identifiant est introuvable.");
 
       queryClient.invalidateQueries({ queryKey: ["my-trips"] });
-      toast.success("Voyage créé — invite ton groupe");
       await navigate({ to: "/trips/$tripId/invite", params: { tripId: id } });
     } catch (err: any) {
       console.error("Impossible de créer le voyage:", err);
       toast.error("Impossible de créer le voyage pour le moment. Réessaie dans un instant.");
+      throw err;
     } finally {
       setSubmitting(false);
     }
@@ -194,7 +194,7 @@ function NewTripPage() {
         </div>
       </header>
 
-      <form onSubmit={onSubmit} className="mt-8 sm:mt-9">
+      <form onSubmit={(event) => void onSubmit(event).catch(() => undefined)} className="mt-8 sm:mt-9">
         <section className="border-b border-border/70 pb-8 sm:pb-9">
           <SectionHeading
             step="01"
@@ -415,19 +415,15 @@ function NewTripPage() {
           <p className="max-w-[430px] text-sm leading-[1.45] text-muted-foreground">
             Ensuite, tu invites la Krew et chacun renseigne ses disponibilités et ses préférences.
           </p>
-          <Button
-            type="submit"
-            size="lg"
-            className="min-h-[50px] w-full rounded-xl px-7 py-2.5 text-base font-medium sm:w-auto"
-            disabled={submitting}
-          >
-            {submitting ? (
-              <Loader2 className="size-4 shrink-0 animate-spin" />
-            ) : (
-              <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
-            )}
-            Créer et inviter la Krew
-          </Button>
+          <KrewStatefulButton
+            type="button"
+            className="max-w-full"
+            idleLabel="Créer et inviter la Krew"
+            loadingLabel="Création…"
+            successLabel="Voyage créé"
+            errorLabel="Réessayer"
+            onAction={() => onSubmit()}
+          />
         </div>
       </form>
     </main>
