@@ -405,7 +405,6 @@ function TripDetail() {
     },
     onSuccess: (res: any) => {
       if (res.ok) {
-        toast.success(`${res.count} tâche${res.count > 1 ? "s" : ""} prête${res.count > 1 ? "s" : ""}`);
         refetchTasks();
       } else {
         toast.warning("Aucune tâche à ajouter pour le moment.");
@@ -581,8 +580,6 @@ function TripDetail() {
       proposeLogisticsFn({ data: { tripId, refreshExternal: true, includeTransport: false } }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      const nH = res?.logistics?.hotels?.length ?? 0;
-      toast.success(`${nH} hébergement${nH > 1 ? "s" : ""} proposé${nH > 1 ? "s" : ""}`);
       document.getElementById("hub-logistics")?.scrollIntoView({ behavior: "smooth" });
     },
     onError: (e: any) => handleMutationError(e, "Impossible de rechercher des hébergements pour le moment."),
@@ -591,8 +588,6 @@ function TripDetail() {
     mutationFn: () => proposeLogisticsFn({ data: { tripId, refreshExternal: true } }),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      const nT = res?.logistics?.transports?.length ?? 0;
-      toast.success(`${nT} trajet${nT > 1 ? "s" : ""} proposé${nT > 1 ? "s" : ""}`);
       document.getElementById("hub-transports")?.scrollIntoView({ behavior: "smooth" });
     },
     onError: (e: any) => handleMutationError(e, "Impossible de rechercher les trajets pour le moment."),
@@ -678,7 +673,6 @@ function TripDetail() {
   const inviteMutation = useMutation({
     mutationFn: () => invite({ data: { tripId, email: email.trim() } }),
     onSuccess: () => {
-      toast.success("Invitation ajoutée");
       setEmail("");
       refresh();
     },
@@ -692,9 +686,6 @@ function TripDetail() {
   const declareStatusMutation = useMutation({
     mutationFn: (status: "accepte" | "absent") => declareStatusFn({ data: { tripId, status } }),
     onSuccess: (res) => {
-      toast.success(
-        res.status === "absent" ? "Ton absence est enregistrée" : "Tu participes de nouveau",
-      );
       refresh();
     },
     onError: (e: any) => {
@@ -727,7 +718,6 @@ function TripDetail() {
       } else if ((res?.count ?? 0) === 0) {
         toast.warning("Aucune destination ne correspond aux critères actuels. Élargis les préférences puis réessaie.");
       } else {
-        toast.success(`${res.count} destination${res.count > 1 ? "s" : ""} proposée${res.count > 1 ? "s" : ""}`);
         document.getElementById("hub-destination")?.scrollIntoView({ behavior: "smooth" });
       }
       refresh();
@@ -764,7 +754,6 @@ function TripDetail() {
     mutationFn: (payload: { start: string; end: string }) =>
       chooseDatesFn({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
     onSuccess: () => {
-      toast.success("Dates confirmées — choisis maintenant le profil du voyage");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
