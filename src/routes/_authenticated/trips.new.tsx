@@ -105,19 +105,19 @@ function NewTripPage() {
     e.preventDefault();
     if (name.trim().length < 2) {
       toast.error("Donne un nom au voyage (2 caractères minimum).");
-      return;
+      throw new Error("Nom de voyage manquant");
     }
     if (!organizerFirstName.trim()) {
       toast.error("Indique ton prénom.");
-      return;
+      throw new Error("Prénom organisateur manquant");
     }
     if (needsStar && !celebratedPerson.trim()) {
       toast.error("Indique le prénom de la Star.");
-      return;
+      throw new Error("Prénom de la Star manquant");
     }
     if (!groupAgeRange) {
       toast.error("Indique la tranche d’âge du groupe.");
-      return;
+      throw new Error("Tranche d’âge manquante");
     }
 
     setSubmitting(true);
@@ -152,6 +152,7 @@ function NewTripPage() {
     } catch (err: any) {
       console.error("Impossible de créer le voyage:", err);
       toast.error("Impossible de créer le voyage pour le moment. Réessaie dans un instant.");
+      throw err;
     } finally {
       setSubmitting(false);
     }
@@ -414,19 +415,15 @@ function NewTripPage() {
           <p className="max-w-[430px] text-sm leading-[1.45] text-muted-foreground">
             Ensuite, tu invites la Krew et chacun renseigne ses disponibilités et ses préférences.
           </p>
-          <Button
-            type="submit"
-            size="lg"
-            className="h-10 max-w-full rounded-xl px-5 text-sm font-medium"
-            disabled={submitting}
-          >
-            {submitting ? (
-              <Loader2 className="size-4 shrink-0 animate-spin" />
-            ) : (
-              <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
-            )}
-            Créer et inviter la Krew
-          </Button>
+          <KrewStatefulButton
+            type="button"
+            className="max-w-full"
+            idleLabel="Créer et inviter la Krew"
+            loadingLabel="Création…"
+            successLabel="Voyage créé"
+            errorLabel="Réessayer"
+            onAction={() => handleSubmit()}
+          />
         </div>
       </form>
     </main>
