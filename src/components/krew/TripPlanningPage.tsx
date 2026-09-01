@@ -276,20 +276,16 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                       </div>
 
                       {isAdmin && !completedTrip ? (
-                        <Button
+                        <KrewStatefulButton
                           size="sm"
                           variant="outline"
-                          disabled={slotMutation.isPending}
-                          onClick={() => slotMutation.mutate({ day: day.day, slotIndex })}
                           className="w-full shrink-0 sm:w-auto"
-                        >
-                          {slotMutation.isPending ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : (
-                            <RefreshCw className="size-3.5" />
-                          )}
-                          Autre option
-                        </Button>
+                          idleLabel="Autre option"
+                          loadingLabel="Recherche…"
+                          successLabel="Option actualisée"
+                          errorLabel="Réessayer"
+                          onAction={() => slotMutation.mutateAsync({ day: day.day, slotIndex })}
+                        />
                       ) : null}
                     </div>
                   );
