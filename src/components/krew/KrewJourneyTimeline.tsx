@@ -517,9 +517,18 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 className="pointer-events-none h-full w-full translate-x-[8px] object-contain object-right opacity-95 sm:translate-x-[9px]"
               />
             </div>
-            <span className="inline-block whitespace-nowrap text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/75 text-[clamp(11px,3.4vw,14px)] sm:text-[16px]">
-              La suite s’écrit avec la Krew
-            </span>
+            <div className="relative inline-block whitespace-nowrap text-right">
+              <KrewMark
+                type="highlight"
+                tone="sage"
+                size="lg"
+                className="pointer-events-none absolute -bottom-1 -left-2 z-0 h-[30px] w-[calc(100%+16px)] opacity-85 sm:h-[34px]"
+                aria-hidden="true"
+              />
+              <span className="relative z-10 inline-block whitespace-nowrap text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/80 text-[clamp(11px,3.4vw,14px)] sm:text-[16px]">
+                La suite s’écrit avec la Krew
+              </span>
+            </div>
           </div>
         </div>
       ) : null}
