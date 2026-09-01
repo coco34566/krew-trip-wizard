@@ -100,8 +100,8 @@ function NewTripPage() {
   );
   const needsStar = STAR_EVENT_TYPES.has(eventType as any);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (name.trim().length < 2) {
       toast.error("Donne un nom au voyage (2 caractères minimum).");
       throw new Error("Nom de voyage manquant");
@@ -193,7 +193,7 @@ function NewTripPage() {
         </div>
       </header>
 
-      <form onSubmit={onSubmit} className="mt-8 sm:mt-9">
+      <form onSubmit={(event) => void onSubmit(event).catch(() => undefined)} className="mt-8 sm:mt-9">
         <section className="border-b border-border/70 pb-8 sm:pb-9">
           <SectionHeading
             step="01"
@@ -421,7 +421,7 @@ function NewTripPage() {
             loadingLabel="Création…"
             successLabel="Voyage créé"
             errorLabel="Réessayer"
-            onAction={() => handleSubmit()}
+            onAction={() => onSubmit()}
           />
         </div>
       </form>
