@@ -96,7 +96,6 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
     mutationFn: ({ taskId, status }: { taskId: string; status: TaskStatus }) =>
       updateStatus({ data: { taskId, status } }),
     onSuccess: () => {
-      toast.success("Statut de la tâche mis à jour");
       refreshTasks();
     },
     onError: (error) => {
@@ -110,7 +109,6 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
     mutationFn: ({ taskId, participantId }: { taskId: string; participantId: string | null }) =>
       reassign({ data: { taskId, participantId } }),
     onSuccess: () => {
-      toast.success("Tâche réattribuée");
       refreshTasks();
     },
     onError: (error) => {
