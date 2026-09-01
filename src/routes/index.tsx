@@ -244,7 +244,7 @@ function FeatureBlock({ className, iconName, title, text, mark, large = false, w
       <KrewMark type={mark} tone={mark === "heart" ? "plum" : "sage"} size="md" className="krew-draw-mark pointer-events-none absolute right-4 top-4 opacity-55" />
       <div className="relative z-10 flex h-full flex-col justify-between gap-5">
         <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><KrewIcon name={iconName} tone="plum" size="sm" className="size-5" /></div>
-        <div className={wide ? "sm:flex sm:items-end sm:justify-between sm:gap-8" : ""}><h3 className={`font-display font-normal text-foreground ${large ? "text-3xl sm:text-4xl" : "text-2xl"}`}>{title}</h3><p className={`mt-1 text-sm text-muted-foreground leading-relaxed font-sans ${wide ? "sm:mt-0 sm:max-w-md" : "max-w-sm"}`}>{text}</p></div>
+        <div className={wide ? "lg:flex lg:items-end lg:justify-between lg:gap-8" : ""}><h3 className={`font-display font-normal text-foreground ${large ? "text-3xl sm:text-4xl" : "text-2xl"}`}>{title}</h3><p className={`mt-1 text-sm text-muted-foreground leading-relaxed font-sans ${wide ? "lg:mt-0 lg:max-w-md" : "max-w-sm"}`}>{text}</p></div>
       </div>
     </article>
   );
