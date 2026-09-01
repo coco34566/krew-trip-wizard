@@ -21,6 +21,15 @@ import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { cn } from "@/lib/utils";
 
+const CREATE_TRIP_INPUT_CLASS =
+  "h-12 rounded-xl border-border/70 bg-background text-base shadow-none transition-colors focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
+const CREATE_TRIP_NUMBER_INPUT_CLASS = `${CREATE_TRIP_INPUT_CLASS} pr-16 font-mono`;
+const SELECTABLE_FRAME_CLASS =
+  "border transition-[border-color,background-color,box-shadow] focus-visible:outline-none focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
+const SELECTABLE_FRAME_SELECTED_CLASS = "border-primary/55 bg-primary/5 ring-2 ring-primary/10";
+const SELECTABLE_FRAME_IDLE_CLASS =
+  "border-border/70 bg-background hover:border-primary/35 hover:bg-primary/[0.02]";
+
 function clampParticipants(raw: string): number {
   const n = Number.parseInt(raw, 10);
   if (!Number.isFinite(n)) return PARTICIPANTS_DEFAULT;
@@ -199,7 +208,7 @@ function NewTripPage() {
             </Label>
             <Input
               id="name"
-              className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
+              className={CREATE_TRIP_INPUT_CLASS}
               placeholder="Ex. Week-end à 8 / EVG de Jules"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -220,10 +229,9 @@ function NewTripPage() {
                     aria-pressed={selected}
                     onClick={() => setEventType(t.value)}
                     className={cn(
-                      "group relative min-h-[122px] overflow-hidden rounded-[14px] border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                      selected
-                        ? "border-primary/40 bg-primary/5"
-                        : "border-border/50 bg-background hover:border-primary/25 hover:bg-primary/[0.02]",
+                      "group relative min-h-[122px] overflow-hidden rounded-[14px] text-left",
+                      SELECTABLE_FRAME_CLASS,
+                      selected ? SELECTABLE_FRAME_SELECTED_CLASS : SELECTABLE_FRAME_IDLE_CLASS,
                     )}
                   >
                     {imgUrl ? (
@@ -274,7 +282,7 @@ function NewTripPage() {
               </Label>
               <Input
                 id="star"
-                className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
+                className={CREATE_TRIP_INPUT_CLASS}
                 placeholder="Son prénom"
                 value={celebratedPerson}
                 onChange={(e) => setCelebratedPerson(e.target.value)}
@@ -292,7 +300,7 @@ function NewTripPage() {
               </Label>
               <Input
                 id="orga"
-                className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
+                className={CREATE_TRIP_INPUT_CLASS}
                 placeholder="Ex. Camille"
                 value={organizerFirstName}
                 onChange={(e) => setOrganizerFirstName(e.target.value)}
@@ -315,7 +323,7 @@ function NewTripPage() {
                   type="number"
                   min={PARTICIPANTS_MIN}
                   max={PARTICIPANTS_MAX}
-                  className="h-12 rounded-xl border-border bg-background pr-16 font-mono text-base focus-visible:ring-primary"
+                  className={CREATE_TRIP_NUMBER_INPUT_CLASS}
                   value={participantsInput}
                   onChange={(e) => setParticipantsInput(e.target.value.replace(/[^\d]/g, ""))}
                   onBlur={() => setParticipantsInput(String(clampParticipants(participantsInput)))}
@@ -344,10 +352,11 @@ function NewTripPage() {
                     aria-pressed={selected}
                     onClick={() => setGroupAgeRange(age)}
                     className={cn(
-                      "min-h-11 rounded-[14px] border px-3 py-2.5 text-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      "min-h-11 rounded-[14px] px-3 py-2.5 text-center text-sm font-medium",
+                      SELECTABLE_FRAME_CLASS,
                       selected
-                        ? "border-primary/40 bg-primary/5 text-foreground"
-                        : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
+                        ? `${SELECTABLE_FRAME_SELECTED_CLASS} text-foreground`
+                        : `${SELECTABLE_FRAME_IDLE_CLASS} text-foreground/80`,
                     )}
                   >
                     {age} ans
@@ -377,7 +386,7 @@ function NewTripPage() {
                   type="number"
                   min={2}
                   max={31}
-                  className="h-12 rounded-xl border-border bg-background pr-16 font-mono text-base focus-visible:ring-primary"
+                  className={CREATE_TRIP_NUMBER_INPUT_CLASS}
                   value={durationDaysInput}
                   onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))}
                   onBlur={() => {
