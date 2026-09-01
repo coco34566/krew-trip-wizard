@@ -325,12 +325,7 @@ function StarQuestionnaire() {
         },
       });
     },
-    onSuccess: (res) => {
-      toast.success(
-        res.isUpdate
-          ? "Préférences de la Star mises à jour"
-          : "Préférences de la Star enregistrées",
-      );
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["star-prefs", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
@@ -674,19 +669,15 @@ function StarQuestionnaire() {
         </section>
 
         <div className="pt-2 pb-12">
-          <Button
-            className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5"
-            size="lg"
-            disabled={mutation.isPending || starMode !== "secret"}
-            onClick={() => mutation.mutate()}
-          >
-            {mutation.isPending ? (
-              <Loader2 className="animate-spin shrink-0" />
-            ) : (
-              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
-            )}
-            {starMode !== "secret" ? "La Star répond elle-même en mode participant" : data.preferences ? "Enregistrer les modifications" : "Enregistrer les préférences de la Star"}
-          </Button>
+          <KrewStatefulButton
+            className="max-w-full"
+            idleLabel={starMode !== "secret" ? "La Star répond elle-même en mode participant" : data.preferences ? "Enregistrer les modifications" : "Enregistrer les préférences de la Star"}
+            loadingLabel="Enregistrement…"
+            successLabel="Préférences enregistrées"
+            errorLabel="Réessayer"
+            disabled={starMode !== "secret"}
+            onAction={() => mutation.mutateAsync()}
+          />
         </div>
       </div>
     </main>
