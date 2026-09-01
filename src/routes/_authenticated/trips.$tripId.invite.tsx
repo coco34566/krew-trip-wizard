@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Crown, Loader2, MoreHorizontal, Shield } from "lucide-react";
+import { ArrowLeft, Crown, MoreHorizontal, Shield } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -119,7 +119,7 @@ function InvitePage() {
   const setCoOrgMutation = useMutation({
     mutationFn: ({ coOrganizerId }: { coOrganizerId: string | null }) =>
       setCoOrg({ data: { tripId, coOrganizerId } }),
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (err) => {
