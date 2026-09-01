@@ -128,7 +128,7 @@ function MemoriesPage(){
           </p>
           {selection.length > 0 ? (
             <div className="pt-1">
-              <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-block">
+              <KrewNote variant="label" tone="cream" rotation={-1}>
                 {selection.length} souvenir{selection.length > 1 ? "s" : ""} sélectionné{selection.length > 1 ? "s" : ""}
               </KrewNote>
             </div>

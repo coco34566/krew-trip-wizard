@@ -109,7 +109,7 @@ export function KrewRecapCard({ recap, tripName, photos = [] }: Props) {
                 </figure>
               ))}
             </div>
-            <KrewNote variant="tape" tone="cream" rotation={2} className="absolute -top-1 right-[12%] min-w-[70px] px-3 py-1 text-transparent select-none">
+            <KrewNote variant="tape-strip" tone="cream" rotation={2} className="absolute -top-1 right-[12%]">
               Tape
             </KrewNote>
           </div>

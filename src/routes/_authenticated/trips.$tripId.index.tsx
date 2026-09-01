@@ -1508,6 +1508,11 @@ function TripDetail() {
                 </div>
                 <KrewMark type="underline" tone="sage" size="sm" className="w-[100px] h-[8px] mt-1 opacity-85 pointer-events-none" />
               </div>
+              <div className="flex justify-end">
+                <KrewNote variant="tape" tone="cream" rotation={-1} size="sm">
+                  On partage, on s’y retrouve
+                </KrewNote>
+              </div>
               <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />
             </section>
           ) : null}
@@ -2115,7 +2120,7 @@ function TripDetail() {
                 <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
                 Profil du voyage
               </h2>
-              <KrewNote variant="tape" tone="sage" rotation={-2} className="inline-block text-sm sm:text-xs py-1 px-2.5">
+              <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="inline-block">
                 Style et ambiance
               </KrewNote>
             </div>
@@ -2282,7 +2287,7 @@ function TripDetail() {
                 <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
                 Destination
               </h2>
-              <KrewNote variant="tape" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+              <KrewNote variant="tape" tone="cream" rotation={2} size="xs" className="hidden sm:inline-block">
                 Où on va ?
               </KrewNote>
             </div>
@@ -2524,7 +2529,7 @@ function TripDetail() {
                   <KrewIcon name="accommodation" tone="plum" size="sm" className="size-5" />
                   Hébergement
                 </h2>
-                <KrewNote variant="tape" tone="sage" rotation={-1} className="hidden sm:inline-block text-xs py-1 px-2.5">
+                <KrewNote variant="tape" tone="sage" rotation={-1} size="xs" className="hidden sm:inline-block">
                   Où on dort
                 </KrewNote>
               </div>
@@ -2775,7 +2780,7 @@ function TripDetail() {
                 <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
                 Transport
               </h2>
-              <KrewNote variant="tape" tone="cream" rotation={2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+              <KrewNote variant="tape" tone="cream" rotation={2} size="xs" className="hidden sm:inline-block">
                 Comment on vient
               </KrewNote>
             </div>
@@ -3011,7 +3016,7 @@ function TripDetail() {
                 <KrewIcon name="planning" tone="plum" size="sm" className="size-5" />
                 Planning
               </h2>
-              <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-xs py-1 px-2.5">
+              <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
                 Jour par jour
               </KrewNote>
             </div>

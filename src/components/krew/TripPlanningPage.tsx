@@ -156,7 +156,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
             <KrewIcon name="planning" tone="plum" size="sm" className="size-5" />
             Planning
           </h1>
-          <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden text-xs sm:inline-block">
+          <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
             {completedTrip ? "Voyage terminé · consultation" : "Jour par jour"}
           </KrewNote>
         </div>

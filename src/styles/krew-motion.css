@@ -112,9 +112,7 @@
   opacity: 0;
   transform: translate3d(14px,-14px,0) rotate(4deg) scale(.94);
   transition: opacity 420ms ease 260ms, transform 760ms cubic-bezier(.18,.74,.24,1) 260ms;
-  filter: drop-shadow(0 12px 20px rgba(42,25,37,.14));
 }
-.krew-moment-postit [data-krew-note="post-it"] { box-shadow: 0 14px 34px rgba(42,25,37,.16) !important; }
 .krew-moment-photo-wrap[data-revealed="true"] .krew-moment-postit { opacity: 1; transform: translate3d(0,0,0) rotate(0) scale(1); }
 .krew-moment-card { transform: translate3d(28px,26px,0) rotate(.8deg) scale(.978); }
 .krew-moment-card[data-revealed="true"] { transform: translate3d(0,0,0) rotate(0) scale(1); }

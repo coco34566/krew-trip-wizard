@@ -317,7 +317,7 @@ export function PlanningMapSection({ tripId }: { tripId: string }) {
               <div className="flex flex-wrap items-center gap-2.5">
                 <KrewIcon name="destination" tone="plum" size="sm" className="size-5" />
                 <h2 id="planning-map-title" className="font-display text-[26px] font-normal text-foreground sm:text-[30px]">Notre terrain de jeu</h2>
-                <KrewNote variant="tape" tone="sage" rotation={-1} className="hidden px-2.5 py-1 text-xs sm:inline-block">Le voyage prend forme</KrewNote>
+                <KrewNote variant="tape" tone="sage" rotation={-1} size="xs" className="hidden sm:inline-block">Le voyage prend forme</KrewNote>
               </div>
               <KrewMark type="underline-wave" tone="sage" size="sm" className="mt-1 h-[7px] w-[112px] opacity-85" />
               {cleanModel.activities.length ? <p className="mt-2 text-sm font-medium text-foreground/80">{days.length} jour{days.length > 1 ? "s" : ""} · {cleanModel.activities.length} étape{cleanModel.activities.length > 1 ? "s" : ""}{payload?.destination ? ` · ${payload.destination}` : ""}</p> : null}

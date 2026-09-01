@@ -258,7 +258,7 @@ export function PackingListCard({
               className="absolute left-7 -bottom-1.5 w-[110px] pointer-events-none"
             />
           </div>
-          <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden sm:inline-block text-sm py-1 px-2.5">
+          <KrewNote variant="tape" tone="sage" rotation={-2} size="sm" className="hidden sm:inline-block">
             {historical ? "Souvenir du voyage" : "Adaptée au séjour"}
           </KrewNote>
         </div>

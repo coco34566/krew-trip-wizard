@@ -202,7 +202,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
               <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
               Profil du voyage
             </h1>
-            <KrewNote variant="tape" tone="sage" rotation={-2} className="hidden px-2.5 py-1 text-xs sm:inline-block">
+            <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
               Style et ambiance
             </KrewNote>
           </div>

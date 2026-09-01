@@ -175,7 +175,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
             <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
             Transport
           </h1>
-          <KrewNote variant="tape" tone="cream" rotation={2} className="hidden text-xs sm:inline-block">
+          <KrewNote variant="tape" tone="cream" rotation={2} size="xs" className="hidden sm:inline-block">
             Comment on vient
           </KrewNote>
         </div>

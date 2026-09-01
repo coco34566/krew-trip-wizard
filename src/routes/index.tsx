@@ -113,7 +113,7 @@ function Landing() {
                   <img src={heroImage} alt="Groupe d'amis en voyage" className="h-full w-full object-cover object-center" fetchPriority="high" />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
                   <div className="krew-hero-postit-settle absolute top-4 right-3 sm:top-5 sm:right-4 z-20 pointer-events-none">
-                    <KrewNote variant="sticky" tone="sage" rotation={7} size="sm" className="w-fit max-w-[125px] text-xs sm:text-sm text-center">
+                    <KrewNote variant="sticky" tone="sage" rotation={2} size="sm" className="max-w-[125px] text-center">
                       Le plan prend forme ici
                     </KrewNote>
                   </div>
@@ -183,7 +183,7 @@ function Landing() {
             </div>
             <div className="krew-moment-stage grid lg:grid-cols-12 gap-6 lg:gap-8 items-center">
               <div className="krew-reveal krew-moment-photo-wrap lg:col-span-5 relative">
-                <div className="krew-moment-postit absolute -top-3 left-1 z-20 pointer-events-none"><KrewNote variant="tape" tone="sage" rotation={-3} className="text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[120px]">Option coup de cœur</KrewNote></div>
+                <div className="krew-moment-postit absolute -top-3 left-1 z-20 pointer-events-none"><KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="max-w-[120px]">Option coup de cœur</KrewNote></div>
                 <div className="krew-moment-photo relative rounded-[24px] overflow-hidden aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/5] shadow-xs border border-border/40">
                   <img src="/images/trip-types/weekend.png" alt="Week-end entre amis" className="size-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-foreground/75 via-transparent to-transparent" />
@@ -192,7 +192,7 @@ function Landing() {
               </div>
               <div className="krew-moment-stack lg:col-span-7 relative lg:-ml-10">
                 <div style={{ boxShadow: LANDING_SURFACE_SHADOW }} className="krew-reveal krew-moment-card relative p-4 sm:p-5 lg:p-6 rounded-[22px] bg-background border border-border/60">
-                  <div className="krew-moment-validated absolute -top-4 right-3 z-20 hidden sm:block pointer-events-none"><KrewNote variant="sticky" tone="cream" rotation={3} className="krew-moment-validated-note !bg-[#fbf8f1] text-xs font-handwriting py-1 px-2.5 min-w-0 max-w-[130px]">Validé par le groupe</KrewNote></div>
+                  <div className="krew-moment-validated absolute -top-4 right-3 z-20 hidden sm:block pointer-events-none"><KrewNote variant="sticky" tone="cream" rotation={2} size="xs" className="krew-moment-validated-note max-w-[130px]">Validé par le groupe</KrewNote></div>
                   <div className="krew-reveal krew-moment-group flex flex-wrap items-center justify-between gap-4">
                     <div><span className="text-xs font-semibold uppercase tracking-wider bg-primary/10 px-2.5 py-1 rounded-md text-primary font-mono">Exemple de voyage organisé</span><h3 className="font-display text-2xl sm:text-3xl font-normal text-foreground mt-1">Retrouvailles à Lisbonne</h3><p className="text-xs sm:text-sm text-muted-foreground">Organisé par Thomas · 8 participants</p></div>
                     <div><p className="text-xs font-semibold uppercase text-muted-foreground tracking-wider font-mono">Budget / personne</p><KrewHighlight tone="sage" className="font-mono text-2xl sm:text-3xl font-bold text-primary mt-1 inline-block px-3 py-1">~360 €</KrewHighlight></div>
@@ -228,7 +228,7 @@ function Landing() {
             <div className="relative mx-auto w-fit"><img src="/brand/otter-states/lets-go.png" alt="Loutre KREW départ" className="krew-scene-otter w-[68px] sm:w-[82px] h-auto object-contain filter drop-shadow-xs mx-auto" /><KrewMark type="route" tone="sage" size="md" className="krew-draw-mark absolute -left-14 top-8 h-8 w-16 opacity-70" /></div>
             <h2 className="font-display text-3xl sm:text-5xl font-normal text-foreground leading-tight">Votre groupe a déjà assez parlé de ce voyage.</h2>
             <p className="mx-auto max-w-md text-sm sm:text-base text-muted-foreground leading-relaxed font-sans">Il serait peut-être temps de le faire.</p>
-            <div className="krew-final-cta pt-3 relative"><div className="mb-4 flex justify-center sm:hidden"><KrewNote variant="tape" tone="sage" rotation={1} size="sm" className="w-fit text-sm pointer-events-none">Prêt à partir ?</KrewNote></div><Button asChild size="xl" className="h-10 min-h-10 rounded-xl px-7 py-0 text-sm sm:text-base font-medium leading-none shadow-none"><Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer notre voyage</Link></Button></div>
+            <div className="krew-final-cta pt-3 relative"><div className="mb-4 flex justify-center sm:hidden"><KrewNote variant="tape" tone="sage" rotation={1} size="sm" className="pointer-events-none">Prêt à partir ?</KrewNote></div><Button asChild size="xl" className="h-10 min-h-10 rounded-xl px-7 py-0 text-sm sm:text-base font-medium leading-none shadow-none"><Link to="/trips/new" className="inline-flex h-full items-center justify-center whitespace-nowrap text-center leading-none">Créer notre voyage</Link></Button></div>
           </div>
         </section>
       </main>

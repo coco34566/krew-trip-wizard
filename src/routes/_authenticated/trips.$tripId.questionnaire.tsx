@@ -388,7 +388,7 @@ function ParticipantQuestionnaire() {
       >
         {isEditing ? (
           <div className="space-y-1.5">
-            <KrewNote variant="label" tone="cream" rotation={-1} className="text-[14px] py-1.5 px-3 inline-flex items-center gap-2">
+            <KrewNote variant="label" tone="cream" rotation={-1} className="gap-2">
               <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
               Réponse enregistrée
             </KrewNote>
