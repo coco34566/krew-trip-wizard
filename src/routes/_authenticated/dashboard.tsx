@@ -163,7 +163,7 @@ function FeaturedTrip({ trip, onArchive }: { trip: Trip; onArchive: (tripId: str
     <article className="relative isolate overflow-visible pb-2 sm:grid sm:grid-cols-[minmax(0,1.16fr)_minmax(240px,.84fr)] sm:items-center sm:gap-8 lg:gap-10">
       <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-5 top-8 h-[300px] w-[72%] opacity-45 -z-10" />
       <div className="relative mx-auto w-[94%] max-w-[560px] rotate-[-1deg] bg-[#fffefa] p-3 pb-5 shadow-[0_16px_32px_-18px_rgba(42,25,37,.28)] ring-1 ring-black/[.06] sm:mx-0 sm:w-full sm:rotate-[-1.25deg]">
-        <div className="absolute -top-3 left-[38%] z-10 hidden sm:block"><KrewNote variant="tape" tone="cream" rotation={1} className="min-w-[74px] px-3 py-1 text-transparent select-none">Tape</KrewNote></div>
+        <div className="absolute -top-3 left-[38%] z-10 hidden sm:block"><KrewNote variant="tape-strip" tone="cream" rotation={1}>Tape</KrewNote></div>
         <div className="absolute right-5 top-5 z-30" onClick={(event) => event.stopPropagation()}><ArchiveControl trip={trip} onArchive={onArchive} compact /></div>
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block">
           <div ref={reveal.ref} data-revealed={reveal.revealed} className="krew-trip-reveal aspect-[4/3] overflow-hidden bg-surface/60 sm:aspect-[16/11]">
@@ -223,7 +223,7 @@ function NotebookTrip({ trip, invited = false, onArchive, onReactivate, index = 
         }}
       >
         <div className="relative bg-[#fffefa] p-2 pb-4 shadow-[0_11px_24px_-18px_rgba(42,25,37,.26)] ring-1 ring-black/[.05] transition-transform duration-200 group-hover:-translate-y-1">
-          {index % 3 === 1 ? <div className="absolute -top-3 left-[34%] z-10"><KrewNote variant="tape" tone="cream" rotation={-2} className="min-w-[52px] px-2 py-0.5 text-transparent select-none">Tape</KrewNote></div> : null}
+          {index % 3 === 1 ? <div className="absolute -top-3 left-[34%] z-10"><KrewNote variant="tape-strip" tone="cream" rotation={-2}>Tape</KrewNote></div> : null}
           <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
             <div
               className="krew-trip-photo-settle relative aspect-[4/3] overflow-hidden bg-surface/50"
