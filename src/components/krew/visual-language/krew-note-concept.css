@@ -16,7 +16,7 @@
   border: 0;
   box-shadow: var(--concept-shadow);
   font-family: "Shantell Sans", "Segoe Print", cursive;
-  font-size: clamp(1rem, 0.92rem + 0.35vw, 1.25rem);
+  font-size: clamp(0.88rem, 0.84rem + 0.2vw, 1.04rem);
   font-weight: 500;
   font-variation-settings: "INFM" 35, "SPAC" 2;
   line-height: 1.16;
@@ -62,10 +62,10 @@
 .krew-note-concept__tape {
   position: absolute;
   z-index: 2;
-  top: -0.55rem;
+  top: -0.42rem;
   left: 50%;
-  width: 3.8rem;
-  height: 1.05rem;
+  width: 3.15rem;
+  height: 0.92rem;
   background:
     linear-gradient(92deg, rgba(255,255,255,.15), transparent 34% 68%, rgba(255,255,255,.12)),
     var(--concept-tape);
@@ -116,7 +116,7 @@
 
 .krew-note-concept--photo .krew-note-concept__tape {
   left: 22%;
-  width: 3rem;
+  width: 2.6rem;
   transform: translateX(-50%) rotate(-8deg);
 }
 
@@ -160,12 +160,12 @@
 
 .krew-note-concept--ticket .krew-note-concept__tape {
   left: 18%;
-  width: 2.8rem;
+  width: 2.45rem;
   transform: translateX(-50%) rotate(-5deg);
 }
 
 @media (max-width: 639px) {
   .krew-note-concept {
-    font-size: clamp(0.98rem, 4.5vw, 1.14rem);
+    font-size: clamp(0.86rem, 3.8vw, 0.98rem);
   }
 }
