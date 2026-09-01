@@ -522,18 +522,21 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 type="highlight"
                 tone="plum"
                 size="lg"
-                className="pointer-events-none absolute -bottom-2 -left-3 z-0 h-[38px] w-[calc(100%+24px)] opacity-95 sm:h-[44px]"
+                className="pointer-events-none absolute -bottom-1.5 -left-3 z-0 h-[34px] w-[calc(100%+24px)] opacity-95 sm:h-[40px]"
                 aria-hidden="true"
               />
-              <KrewMark
-                type="highlight"
-                tone="plum"
-                size="lg"
-                className="pointer-events-none absolute -bottom-1 left-[28%] z-0 h-[40px] w-[78%] opacity-90 sm:h-[46px]"
-                aria-hidden="true"
-              />
-              <span className="relative z-10 inline-block whitespace-nowrap text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/80 text-[clamp(11px,3.4vw,14px)] sm:text-[16px]">
-                La suite s’écrit avec la Krew
+              <span className="relative z-10 inline-flex items-baseline whitespace-nowrap text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/80 text-[clamp(11px,3.4vw,14px)] sm:text-[16px]">
+                <span>La suite s’écrit avec&nbsp;</span>
+                <span className="relative inline-block">
+                  <KrewMark
+                    type="highlight"
+                    tone="plum"
+                    size="lg"
+                    className="pointer-events-none absolute -bottom-2 -left-1 z-0 h-[38px] w-[calc(100%+8px)] opacity-95 sm:h-[44px]"
+                    aria-hidden="true"
+                  />
+                  <span className="relative z-10">la Krew</span>
+                </span>
               </span>
             </div>
           </div>
