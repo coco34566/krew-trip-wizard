@@ -52,11 +52,10 @@ const CATEGORY_COPY: Record<StepCategory, string> = {
   souvenirs: "Une fois le voyage vécu, KREW garde une place pour les moments partagés.",
 };
 
-const CATEGORY_MARK: Record<StepCategory, "connector-curve" | "route" | "arrow-loop" | "heart"> = {
-  questionnaire: "connector-curve",
-  prepare: "route",
-  organisation: "arrow-loop",
-  souvenirs: "heart",
+const CATEGORY_ICON: Partial<Record<StepCategory, KrewIconName>> = {
+  questionnaire: "group",
+  prepare: "map",
+  organisation: "packing",
 };
 
 const STEP_HELPER_COPY: Record<string, string> = {
@@ -300,6 +299,7 @@ function StepRow({ step, tripId, historical }: { step: TimelineStep; tripId: str
 
 function ChapterIntro({ category, chapterIndex, current, historical }: { category: StepCategory; chapterIndex: number; current: boolean; historical: boolean }) {
   const label = (historical ? HISTORICAL_CATEGORY_LABELS : CATEGORY_LABELS)[category];
+  const chapterIcon = CATEGORY_ICON[category];
 
   return (
     <div className="relative min-w-0 pr-1 md:pr-6">
@@ -312,7 +312,7 @@ function ChapterIntro({ category, chapterIndex, current, historical }: { categor
         ) : null}
       </div>
 
-      <div className="mt-2 flex items-start gap-2">
+      <div className="mt-2 flex items-start gap-2.5">
         <h2
           className={cn(
             "max-w-[270px] font-display text-[29px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground sm:text-[33px] lg:text-[37px]",
@@ -321,22 +321,16 @@ function ChapterIntro({ category, chapterIndex, current, historical }: { categor
         >
           {label}
         </h2>
-        <KrewMark
-          type={CATEGORY_MARK[category]}
-          tone={category === "souvenirs" ? "plum" : "sage"}
-          size="sm"
-          className={cn(
-            "mt-0.5 shrink-0 opacity-85",
-            category === "prepare"
-              ? "h-7 w-10"
-              : category === "organisation"
-                ? "h-7 w-10"
-                : category === "souvenirs"
-                  ? "h-6 w-7"
-                  : "h-6 w-8",
-          )}
-          aria-hidden="true"
-        />
+        {category === "souvenirs" ? (
+          <KrewMark type="heart" tone="plum" size="sm" className="mt-0.5 h-6 w-7 shrink-0 opacity-85" aria-hidden="true" />
+        ) : chapterIcon ? (
+          <KrewIcon
+            name={chapterIcon}
+            tone={current ? "plum" : "sage"}
+            size="md"
+            className="mt-0.5 size-7 shrink-0"
+          />
+        ) : null}
       </div>
 
       <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-muted-foreground sm:text-[14px]">{CATEGORY_COPY[category]}</p>
@@ -520,13 +514,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </ol>
 
       {!historical ? (
-        <div className="relative -mt-5 pb-3 pt-0 text-right sm:-mt-6" aria-hidden="true">
+        <div className="mt-7 flex items-end justify-between gap-3 pb-4 pt-2 sm:mt-9 sm:pt-3" aria-hidden="true">
           <img
             src="/brand/otter-states/completed.png"
             alt=""
-            className="pointer-events-none absolute bottom-0 left-0 w-[76px] object-contain opacity-95 sm:w-[88px]"
+            className="pointer-events-none w-[76px] shrink-0 object-contain opacity-95 sm:w-[88px]"
           />
-          <span className="inline-block whitespace-nowrap font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/75 text-[clamp(12px,3.8vw,16px)] sm:text-[18px]">
+          <span className="inline-block whitespace-nowrap pb-1 text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/75 text-[clamp(12px,3.8vw,16px)] sm:text-[18px]">
             La suite s’écrit avec la Krew
           </span>
         </div>
