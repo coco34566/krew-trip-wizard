@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
 import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { formatEuro } from "@/lib/krew/constants";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
