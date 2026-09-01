@@ -40,6 +40,35 @@ export const Route = createFileRoute("/_authenticated/trips/new")({
   component: NewTripPage,
 });
 
+function SectionHeading({
+  step,
+  icon,
+  title,
+  description,
+}: {
+  step: string;
+  icon: "party" | "group" | "calendar";
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-[88px_1fr] sm:gap-6">
+      <div className="flex items-center gap-2 sm:block">
+        <span className="font-mono text-xs tracking-[0.16em] text-muted-foreground">{step}</span>
+        <KrewIcon name={icon} tone="sage" size="sm" className="size-4.5 sm:mt-3" />
+      </div>
+      <div>
+        <h2 className="font-display text-[28px] leading-none tracking-tight text-foreground sm:text-[32px]">
+          {title}
+        </h2>
+        <p className="mt-2 max-w-[560px] text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function NewTripPage() {
   const navigate = useNavigate();
   const create = useServerFn(createTrip);
@@ -120,226 +149,274 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-6 sm:py-8 space-y-6 sm:space-y-8">
+    <main className="mx-auto w-full max-w-[980px] px-5 pb-14 pt-5 sm:px-8 sm:pb-16 sm:pt-7 lg:px-10">
       <Link
         to="/dashboard"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+        className="inline-flex min-h-10 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Mes voyages
       </Link>
 
-      <div className="space-y-2 relative">
-        <div className="flex items-start justify-between gap-4">
-          <div className="relative inline-block flex-1">
-            <h1 className="font-display text-[34px] sm:text-[44px] font-normal leading-[0.98] tracking-tight text-foreground">
-              Créer un voyage
+      <header className="relative mt-5 overflow-hidden rounded-[24px] bg-surface/45 px-5 py-7 sm:mt-7 sm:px-8 sm:py-9 lg:px-10">
+        <div className="relative z-10 max-w-[650px] pr-[74px] sm:pr-[104px]">
+          <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary/75">Nouveau voyage</p>
+          <div className="relative inline-block">
+            <h1 className="font-display text-[40px] font-normal leading-[0.94] tracking-tight text-foreground sm:text-[52px] lg:text-[56px]">
+              On lance la Krew.
             </h1>
             <KrewMark
               type="underline-wave"
               tone="sage"
               size="md"
-              className="absolute left-0 -bottom-2 w-[140px] pointer-events-none"
+              className="pointer-events-none absolute -bottom-3 left-0 w-[155px] sm:w-[190px]"
             />
           </div>
-          <img
-            src="/brand/otter-states/lets-go.png"
-            alt=""
-            className="w-[72px] sm:w-[88px] h-auto object-contain filter drop-shadow-2xs opacity-90 shrink-0 pointer-events-none"
-          />
-        </div>
-        <p className="text-sm text-muted-foreground font-sans pt-1">Juste l'essentiel pour démarrer.</p>
-      </div>
-
-      <form onSubmit={onSubmit} className="space-y-8 pt-2">
-        <div className="space-y-2">
-          <Label htmlFor="name" className="text-base font-semibold text-foreground">
-            Nom du voyage
-          </Label>
-          <Input
-            id="name"
-            className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
-            placeholder="Ex. Week-end d'été / EVG de Jules"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="orga" className="text-base font-semibold text-foreground">
-            Ton prénom <span className="text-destructive" aria-hidden="true">*</span>
-          </Label>
-          <Input
-            id="orga"
-            className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
-            placeholder="Ex. Camille"
-            value={organizerFirstName}
-            onChange={(e) => setOrganizerFirstName(e.target.value)}
-            required
-            aria-required="true"
-            aria-describedby="orga-help"
-          />
-          <p id="orga-help" className="text-xs text-muted-foreground">
-            Obligatoire — pour que le groupe sache qui organise, et pour te reconnaître dans les réponses.
+          <p className="mt-6 max-w-[540px] text-[15px] leading-relaxed text-muted-foreground sm:text-base">
+            Donne-nous juste les bases. Le groupe complètera le reste ensemble ensuite.
           </p>
         </div>
+        <img
+          src="/brand/otter-states/lets-go.png"
+          alt=""
+          className="pointer-events-none absolute bottom-3 right-3 w-[78px] object-contain sm:bottom-4 sm:right-6 sm:w-[98px] lg:right-8 lg:w-[108px]"
+        />
+      </header>
 
-        <div className="space-y-4">
-          <Label className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <KrewIcon name="party" tone="plum" size="sm" className="size-4.5 shrink-0" />
-            Type d'événement
-          </Label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {activeEventTypes.map((t) => {
-              const imgUrl = getTripTypeImage(t.value);
-              return (
-                <button
-                  key={t.value}
-                  type="button"
-                  onClick={() => setEventType(t.value)}
-                  className={cn(
-                    "group relative overflow-hidden rounded-[14px] border text-left transition-all cursor-pointer",
-                    imgUrl ? "p-0 min-h-[110px] flex flex-col justify-end" : "p-4",
-                    eventType === t.value
-                      ? "border-primary/40 bg-primary/5 text-foreground"
-                      : "border-border bg-background hover:border-primary/25 text-foreground/80",
-                  )}
-                >
-                  {imgUrl ? (
-                    <>
-                      <img
-                        src={imgUrl}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/10" />
-                      <div className="relative p-3.5 z-10 text-white">
-                        <span className="font-semibold text-sm leading-tight block text-white drop-shadow-sm">
-                          {t.label}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <span className="font-medium text-sm leading-tight block">{t.label}</span>
-                  )}
-                </button>
-              );
-            })}
+      <form onSubmit={onSubmit} className="mt-10 sm:mt-12">
+        <section className="border-b border-border/70 pb-10 sm:pb-12">
+          <SectionHeading
+            step="01"
+            icon="party"
+            title="Le voyage"
+            description="Un nom, une occasion, et c’est parti. Pas besoin d’avoir déjà choisi la destination."
+          />
+
+          <div className="mt-7 grid gap-7 sm:mt-8 sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.72fr)] sm:gap-8 lg:gap-10">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-[15px] font-semibold text-foreground">
+                Comment vous l’appelez ?
+              </Label>
+              <Input
+                id="name"
+                className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
+                placeholder="Ex. Week-end à 8 / EVG de Jules"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            {needsStar ? (
+              <div className="space-y-2">
+                <Label htmlFor="star" className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
+                  <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
+                  Qui est la Star ?
+                </Label>
+                <Input
+                  id="star"
+                  className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
+                  placeholder="Son prénom"
+                  value={celebratedPerson}
+                  onChange={(e) => setCelebratedPerson(e.target.value)}
+                />
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Ses préférences compteront davantage dans les recommandations.
+                </p>
+              </div>
+            ) : null}
           </div>
 
-          <div className="pt-2 space-y-2">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground block">
-              À venir
-            </span>
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {upcomingEventTypes.map((t) => (
-                <span
-                  key={t.value}
-                  className="inline-flex items-center rounded-full bg-surface/60 px-2.5 py-1 text-muted-foreground/80"
-                >
+          <div className="mt-8">
+            <Label className="mb-3 block text-[15px] font-semibold text-foreground">C’est quoi le plan ?</Label>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {activeEventTypes.map((t) => {
+                const imgUrl = getTripTypeImage(t.value);
+                const selected = eventType === t.value;
+                return (
+                  <button
+                    key={t.value}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setEventType(t.value)}
+                    className={cn(
+                      "group relative min-h-[122px] overflow-hidden rounded-2xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      selected
+                        ? "border-primary ring-2 ring-primary/10"
+                        : "border-border hover:border-primary/35",
+                    )}
+                  >
+                    {imgUrl ? (
+                      <>
+                        <img
+                          src={imgUrl}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/5" />
+                        <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-2 p-3.5">
+                          <span className="text-sm font-semibold leading-tight text-white">{t.label}</span>
+                          {selected ? (
+                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/95">
+                              <KrewIcon name="check" tone="plum" size="sm" className="size-3.5" />
+                            </span>
+                          ) : null}
+                        </div>
+                      </>
+                    ) : (
+                      <span className="p-4 text-sm font-medium text-foreground">{t.label}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-muted-foreground">
+              <span className="font-medium">Bientôt :</span>
+              {upcomingEventTypes.map((t, index) => (
+                <span key={t.value} className="inline-flex items-center gap-2">
+                  {index > 0 ? <span aria-hidden="true">·</span> : null}
                   {t.label}
                 </span>
               ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        {needsStar ? (
-          <div className="space-y-2 pt-1">
-            <Label htmlFor="star" className="flex items-center gap-2 text-base font-semibold text-foreground">
-              <KrewIcon name="favorite" tone="plum" size="sm" className="size-4.5 shrink-0" />
-              Prénom de la Star
-            </Label>
-            <Input
-              id="star"
-              className="h-12 rounded-xl border-border focus-visible:ring-primary text-base"
-              placeholder="Prénom"
-              value={celebratedPerson}
-              onChange={(e) => setCelebratedPerson(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Ses préférences compteront davantage dans les recommandations.
-            </p>
-          </div>
-        ) : null}
-
-        <div className="space-y-2">
-          <Label htmlFor="n" className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <KrewIcon name="group" tone="sage" size="sm" className="size-4.5 shrink-0" />
-            Nombre estimé de participants
-          </Label>
-          <Input
-            id="n"
-            type="number"
-            min={PARTICIPANTS_MIN}
-            max={PARTICIPANTS_MAX}
-            className="h-12 rounded-xl border-border focus-visible:ring-primary text-base font-mono"
-            value={participantsInput}
-            onChange={(e) => setParticipantsInput(e.target.value.replace(/[^\d]/g, ""))}
-            onBlur={() => setParticipantsInput(String(clampParticipants(participantsInput)))}
+        <section className="border-b border-border/70 py-10 sm:py-12">
+          <SectionHeading
+            step="02"
+            icon="group"
+            title="La team"
+            description="On pose la taille et le profil du groupe. Les invitations viennent juste après."
           />
-          <p className="text-xs text-muted-foreground">
-            {needsStar
-              ? `Compte bien la Star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans le nombre total de participants.`
-              : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX} — tu pourras inviter le groupe ensuite.`}
-          </p>
-        </div>
 
-        <div className="space-y-3">
-          <Label className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <KrewIcon name="group" tone="plum" size="sm" className="size-4.5 shrink-0" />
-            Tranche d’âge du groupe
-          </Label>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => (
-              <button
-                key={age}
-                type="button"
-                onClick={() => setGroupAgeRange(age)}
-                className={cn(
-                  "rounded-[14px] p-4 border text-center font-medium text-sm transition-all",
-                  groupAgeRange === age
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "border-border bg-background hover:border-primary/40 text-foreground/80",
-                )}
-              >
-                {age} ans
-              </button>
-            ))}
+          <div className="mt-7 grid gap-7 sm:mt-8 sm:grid-cols-2 sm:gap-x-8 lg:gap-x-10">
+            <div className="space-y-2">
+              <Label htmlFor="orga" className="text-[15px] font-semibold text-foreground">
+                Ton prénom <span className="text-destructive" aria-hidden="true">*</span>
+              </Label>
+              <Input
+                id="orga"
+                className="h-12 rounded-xl border-border bg-background text-base focus-visible:ring-primary"
+                placeholder="Ex. Camille"
+                value={organizerFirstName}
+                onChange={(e) => setOrganizerFirstName(e.target.value)}
+                required
+                aria-required="true"
+                aria-describedby="orga-help"
+              />
+              <p id="orga-help" className="text-xs leading-relaxed text-muted-foreground">
+                Pour que le groupe sache qui organise et te reconnaisse dans les réponses.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="n" className="text-[15px] font-semibold text-foreground">
+                Vous serez combien ?
+              </Label>
+              <div className="relative max-w-[180px]">
+                <Input
+                  id="n"
+                  type="number"
+                  min={PARTICIPANTS_MIN}
+                  max={PARTICIPANTS_MAX}
+                  className="h-12 rounded-xl border-border bg-background pr-16 font-mono text-base focus-visible:ring-primary"
+                  value={participantsInput}
+                  onChange={(e) => setParticipantsInput(e.target.value.replace(/[^\d]/g, ""))}
+                  onBlur={() => setParticipantsInput(String(clampParticipants(participantsInput)))}
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs text-muted-foreground">
+                  pers.
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {needsStar
+                  ? `Compte bien la Star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans le total.`
+                  : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX}. Tu pourras inviter tout le monde ensuite.`}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="durationDays" className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <KrewIcon name="calendar" tone="sage" size="sm" className="size-4.5 shrink-0" />
-            Durée du voyage (en jours)
-          </Label>
-          <Input
-            id="durationDays"
-            type="number"
-            min={2}
-            max={31}
-            className="h-12 rounded-xl border-border focus-visible:ring-primary text-base font-mono"
-            value={durationDaysInput}
-            onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))}
-            onBlur={() => {
-              const val = Math.max(2, Number(durationDaysInput) || 3);
-              setDurationDaysInput(String(val));
-            }}
+          <div className="mt-8">
+            <Label className="mb-3 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
+              {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => {
+                const selected = groupAgeRange === age;
+                return (
+                  <button
+                    key={age}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setGroupAgeRange(age)}
+                    className={cn(
+                      "min-h-11 rounded-xl border px-3 py-2.5 text-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      selected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-foreground hover:border-primary/40",
+                    )}
+                  >
+                    {age} ans
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-10 sm:py-12">
+          <SectionHeading
+            step="03"
+            icon="calendar"
+            title="Le rythme"
+            description="Une durée suffit pour commencer. Les dates exactes seront trouvées avec le groupe."
           />
-          <p className="text-xs text-muted-foreground">
-            La durée commune à tout le groupe. Par exemple, 3 jours correspondent à 2 nuits.
-          </p>
-        </div>
 
-        <div className="pt-4">
-          <Button type="submit" size="lg" className="w-full sm:w-auto min-h-[48px] h-auto rounded-xl text-base font-medium px-6 sm:px-8 py-2.5 whitespace-normal text-center leading-tight" disabled={submitting}>
+          <div className="mt-7 sm:mt-8">
+            <div className="max-w-[380px] space-y-2">
+              <Label htmlFor="durationDays" className="text-[15px] font-semibold text-foreground">
+                Combien de jours ?
+              </Label>
+              <div className="relative max-w-[180px]">
+                <Input
+                  id="durationDays"
+                  type="number"
+                  min={2}
+                  max={31}
+                  className="h-12 rounded-xl border-border bg-background pr-16 font-mono text-base focus-visible:ring-primary"
+                  value={durationDaysInput}
+                  onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))}
+                  onBlur={() => {
+                    const val = Math.max(2, Number(durationDaysInput) || 3);
+                    setDurationDaysInput(String(val));
+                  }}
+                />
+                <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs text-muted-foreground">
+                  jours
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Par exemple, 3 jours correspondent à 2 nuits.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <div className="flex flex-col gap-3 border-t border-border/70 pt-7 sm:flex-row sm:items-center sm:justify-between sm:pt-8">
+          <p className="max-w-[430px] text-sm leading-relaxed text-muted-foreground">
+            Ensuite, tu invites la Krew et chacun renseigne ses disponibilités et ses préférences.
+          </p>
+          <Button
+            type="submit"
+            size="lg"
+            className="min-h-[50px] w-full rounded-xl px-7 py-2.5 text-base font-medium sm:w-auto"
+            disabled={submitting}
+          >
             {submitting ? (
-              <Loader2 className="animate-spin size-4 shrink-0" />
+              <Loader2 className="size-4 shrink-0 animate-spin" />
             ) : (
               <KrewIcon name="invite" tone="plum" size="sm" className="size-4 shrink-0" />
             )}
-            Créer et inviter le groupe
+            Créer et inviter la Krew
           </Button>
         </div>
       </form>
