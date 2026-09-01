@@ -149,7 +149,7 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[820px] px-4 pb-12 pt-4 sm:px-6 sm:pb-14 sm:pt-6 lg:px-8">
+    <main className="mx-auto w-full max-w-[51.25rem] px-4 pb-12 pt-4 sm:px-6 sm:pb-14 sm:pt-6 lg:px-8">
       <Link
         to="/dashboard"
         className="inline-flex min-h-10 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
@@ -157,29 +157,31 @@ function NewTripPage() {
         <ArrowLeft className="size-4" /> Mes voyages
       </Link>
 
-      <header className="relative mt-4 overflow-hidden rounded-[22px] bg-surface/45 px-4 py-6 sm:mt-5 sm:px-6 sm:py-7">
-        <div className="relative z-10 max-w-[610px]">
-          <p className="mb-2.5 text-xs font-medium uppercase tracking-[0.15em] text-primary/75">Nouveau voyage</p>
-          <div className="relative inline-block max-w-[calc(100%-68px)] sm:max-w-none">
-            <h1 className="font-display text-[40px] font-normal leading-[0.98] tracking-tight text-foreground sm:text-[50px] lg:text-[52px]">
-              On lance la Krew.
-            </h1>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="md"
-              className="pointer-events-none absolute -bottom-3 left-0 w-[155px] sm:w-[184px]"
-            />
+      <header className="relative mt-4 sm:mt-5">
+        <div className="grid grid-cols-[minmax(0,1fr)_72px] items-start gap-4 sm:grid-cols-[minmax(0,1fr)_88px] sm:gap-6">
+          <div className="min-w-0">
+            <p className="mb-2 text-xs font-medium uppercase tracking-[0.15em] text-primary/75">Nouveau voyage</p>
+            <div className="relative inline-block max-w-full pb-2">
+              <h1 className="font-display text-[40px] font-normal leading-[0.98] tracking-tight text-foreground sm:text-[50px] lg:text-[52px]">
+                On lance la Krew.
+              </h1>
+              <KrewMark
+                type="underline-wave"
+                tone="sage"
+                size="md"
+                className="pointer-events-none absolute -bottom-1 left-0 w-[155px] max-w-[80%] opacity-70 sm:w-[184px]"
+              />
+            </div>
+            <p className="mt-3 max-w-[520px] text-[15px] leading-[1.5] text-muted-foreground sm:text-base">
+              Donne-nous juste les bases. Le groupe complètera le reste ensemble ensuite.
+            </p>
           </div>
-          <p className="mt-5 max-w-[520px] text-[15px] leading-[1.5] text-muted-foreground sm:text-base">
-            Donne-nous juste les bases. Le groupe complètera le reste ensemble ensuite.
-          </p>
+          <img
+            src="/brand/otter-states/lets-go.png"
+            alt=""
+            className="pointer-events-none h-auto w-full max-w-[72px] justify-self-end object-contain sm:max-w-[88px]"
+          />
         </div>
-        <img
-          src="/brand/otter-states/lets-go.png"
-          alt=""
-          className="pointer-events-none absolute bottom-3 right-3 w-[72px] object-contain sm:bottom-4 sm:right-5 sm:w-[86px]"
-        />
       </header>
 
       <form onSubmit={onSubmit} className="mt-8 sm:mt-9">
@@ -218,8 +220,10 @@ function NewTripPage() {
                     aria-pressed={selected}
                     onClick={() => setEventType(t.value)}
                     className={cn(
-                      "group relative min-h-[122px] overflow-hidden rounded-2xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                      selected ? "border-primary ring-2 ring-primary/10" : "border-border hover:border-primary/35",
+                      "group relative min-h-[122px] overflow-hidden rounded-[14px] border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      selected
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-border/50 bg-background hover:border-primary/25 hover:bg-primary/[0.02]",
                     )}
                   >
                     {imgUrl ? (
@@ -230,13 +234,8 @@ function NewTripPage() {
                           className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/5" />
-                        <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-2 p-3.5">
+                        <div className="absolute inset-x-0 bottom-0 z-10 p-3.5">
                           <span className="text-sm font-semibold leading-tight text-white">{t.label}</span>
-                          {selected ? (
-                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/95">
-                              <KrewIcon name="check" tone="plum" size="sm" className="size-3.5" />
-                            </span>
-                          ) : null}
                         </div>
                       </>
                     ) : (
@@ -348,7 +347,7 @@ function NewTripPage() {
                       "min-h-11 rounded-[14px] border px-3 py-2.5 text-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       selected
                         ? "border-primary/40 bg-primary/5 text-foreground"
-                        : "border-border/50 bg-background text-foreground/80 hover:border-primary/30",
+                        : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
                     )}
                   >
                     {age} ans
