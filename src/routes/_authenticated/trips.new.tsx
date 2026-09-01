@@ -52,16 +52,16 @@ function SectionHeading({
   description: string;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-[88px_1fr] sm:gap-6">
+    <div className="grid gap-2.5 sm:grid-cols-[64px_1fr] sm:gap-5">
       <div className="flex items-center gap-2 sm:block">
         <span className="font-mono text-xs tracking-[0.16em] text-muted-foreground">{step}</span>
-        <KrewIcon name={icon} tone="sage" size="sm" className="size-4.5 sm:mt-3" />
+        <KrewIcon name={icon} tone="sage" size="sm" className="size-4.5 sm:mt-2.5" />
       </div>
       <div>
-        <h2 className="font-display text-[28px] leading-none tracking-tight text-foreground sm:text-[32px]">
+        <h2 className="font-display text-[28px] leading-[1.05] tracking-tight text-foreground sm:text-[30px]">
           {title}
         </h2>
-        <p className="mt-2 max-w-[560px] text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+        <p className="mt-1.5 max-w-[560px] text-sm leading-[1.45] text-muted-foreground sm:text-[15px]">
           {description}
         </p>
       </div>
@@ -149,7 +149,7 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[980px] px-5 pb-14 pt-5 sm:px-8 sm:pb-16 sm:pt-7 lg:px-10">
+    <main className="mx-auto w-full max-w-[51.25rem] px-4 pb-12 pt-4 sm:px-6 sm:pb-14 sm:pt-6 lg:px-8">
       <Link
         to="/dashboard"
         className="inline-flex min-h-10 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
@@ -157,33 +157,35 @@ function NewTripPage() {
         <ArrowLeft className="size-4" /> Mes voyages
       </Link>
 
-      <header className="relative mt-5 overflow-hidden rounded-[24px] bg-surface/45 px-5 py-7 sm:mt-7 sm:px-8 sm:py-9 lg:px-10">
-        <div className="relative z-10 max-w-[650px] pr-[74px] sm:pr-[104px]">
-          <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary/75">Nouveau voyage</p>
-          <div className="relative inline-block">
-            <h1 className="font-display text-[40px] font-normal leading-[0.94] tracking-tight text-foreground sm:text-[52px] lg:text-[56px]">
-              On lance la Krew.
-            </h1>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="md"
-              className="pointer-events-none absolute -bottom-3 left-0 w-[155px] sm:w-[190px]"
-            />
+      <header className="relative mt-4 sm:mt-5">
+        <div className="grid grid-cols-[minmax(0,1fr)_72px] items-start gap-4 sm:grid-cols-[minmax(0,1fr)_88px] sm:gap-6">
+          <div className="min-w-0">
+            <p className="mb-2 text-xs font-medium uppercase tracking-[0.15em] text-primary/75">Nouveau voyage</p>
+            <div className="relative inline-block max-w-full pb-2">
+              <h1 className="font-display text-[40px] font-normal leading-[0.98] tracking-tight text-foreground sm:text-[50px] lg:text-[52px]">
+                On lance la Krew.
+              </h1>
+              <KrewMark
+                type="underline-wave"
+                tone="sage"
+                size="md"
+                className="pointer-events-none absolute -bottom-1 left-0 w-[155px] max-w-[80%] opacity-70 sm:w-[184px]"
+              />
+            </div>
+            <p className="mt-3 max-w-[520px] text-[15px] leading-[1.5] text-muted-foreground sm:text-base">
+              Donne-nous juste les bases. Le groupe complètera le reste ensemble ensuite.
+            </p>
           </div>
-          <p className="mt-6 max-w-[540px] text-[15px] leading-relaxed text-muted-foreground sm:text-base">
-            Donne-nous juste les bases. Le groupe complètera le reste ensemble ensuite.
-          </p>
+          <img
+            src="/brand/otter-states/lets-go.png"
+            alt=""
+            className="pointer-events-none h-auto w-full max-w-[72px] justify-self-end object-contain sm:max-w-[88px]"
+          />
         </div>
-        <img
-          src="/brand/otter-states/lets-go.png"
-          alt=""
-          className="pointer-events-none absolute bottom-3 right-3 w-[78px] object-contain sm:bottom-4 sm:right-6 sm:w-[98px] lg:right-8 lg:w-[108px]"
-        />
       </header>
 
-      <form onSubmit={onSubmit} className="mt-10 sm:mt-12">
-        <section className="border-b border-border/70 pb-10 sm:pb-12">
+      <form onSubmit={onSubmit} className="mt-8 sm:mt-9">
+        <section className="border-b border-border/70 pb-8 sm:pb-9">
           <SectionHeading
             step="01"
             icon="party"
@@ -191,7 +193,7 @@ function NewTripPage() {
             description="Un nom, une occasion, et c’est parti. Pas besoin d’avoir déjà choisi la destination."
           />
 
-          <div className="mt-8 max-w-[560px] space-y-2 sm:mt-9">
+          <div className="mt-6 max-w-[560px] space-y-2 sm:mt-7">
             <Label htmlFor="name" className="text-[15px] font-semibold text-foreground">
               Comment vous l’appelez ?
             </Label>
@@ -205,8 +207,8 @@ function NewTripPage() {
             />
           </div>
 
-          <div className="mt-10 sm:mt-11">
-            <Label className="mb-5 block text-[15px] font-semibold text-foreground">C’est quoi le plan ?</Label>
+          <div className="mt-7 sm:mt-8">
+            <Label className="mb-3 block text-[15px] font-semibold text-foreground">C’est quoi le plan ?</Label>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {activeEventTypes.map((t) => {
                 const imgUrl = getTripTypeImage(t.value);
@@ -218,8 +220,10 @@ function NewTripPage() {
                     aria-pressed={selected}
                     onClick={() => setEventType(t.value)}
                     className={cn(
-                      "group relative min-h-[122px] overflow-hidden rounded-2xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                      selected ? "border-primary ring-2 ring-primary/10" : "border-border hover:border-primary/35",
+                      "group relative min-h-[122px] overflow-hidden rounded-[14px] border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                      selected
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-border/50 bg-background hover:border-primary/25 hover:bg-primary/[0.02]",
                     )}
                   >
                     {imgUrl ? (
@@ -230,13 +234,8 @@ function NewTripPage() {
                           className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/5" />
-                        <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-2 p-3.5">
+                        <div className="absolute inset-x-0 bottom-0 z-10 p-3.5">
                           <span className="text-sm font-semibold leading-tight text-white">{t.label}</span>
-                          {selected ? (
-                            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/95">
-                              <KrewIcon name="check" tone="plum" size="sm" className="size-3.5" />
-                            </span>
-                          ) : null}
                         </div>
                       </>
                     ) : (
@@ -247,7 +246,7 @@ function NewTripPage() {
               })}
             </div>
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-muted-foreground">
+            <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-[1.4] text-muted-foreground">
               <span className="font-medium">Bientôt :</span>
               {upcomingEventTypes.map((t, index) => (
                 <span key={t.value} className="inline-flex items-center gap-2">
@@ -259,7 +258,7 @@ function NewTripPage() {
           </div>
         </section>
 
-        <section className="border-b border-border/70 py-10 sm:py-12">
+        <section className="border-b border-border/70 py-8 sm:py-9">
           <SectionHeading
             step="02"
             icon="group"
@@ -268,7 +267,7 @@ function NewTripPage() {
           />
 
           {needsStar ? (
-            <div className="mt-8 max-w-[420px] space-y-2 sm:mt-9">
+            <div className="mt-6 max-w-[420px] space-y-2 sm:mt-7">
               <Label htmlFor="star" className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
                 <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
                 Qui est la Star ?
@@ -280,13 +279,13 @@ function NewTripPage() {
                 value={celebratedPerson}
                 onChange={(e) => setCelebratedPerson(e.target.value)}
               />
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="text-xs leading-[1.4] text-muted-foreground">
                 Ses préférences compteront davantage dans les recommandations.
               </p>
             </div>
           ) : null}
 
-          <div className={cn("grid gap-7 sm:grid-cols-2 sm:gap-x-8 lg:gap-x-10", needsStar ? "mt-9" : "mt-8 sm:mt-9")}>
+          <div className={cn("grid gap-6 sm:grid-cols-2 sm:gap-x-7", needsStar ? "mt-7" : "mt-6 sm:mt-7")}>
             <div className="space-y-2">
               <Label htmlFor="orga" className="text-[15px] font-semibold text-foreground">
                 Ton prénom <span className="text-destructive" aria-hidden="true">*</span>
@@ -301,7 +300,7 @@ function NewTripPage() {
                 aria-required="true"
                 aria-describedby="orga-help"
               />
-              <p id="orga-help" className="text-xs leading-relaxed text-muted-foreground">
+              <p id="orga-help" className="text-xs leading-[1.4] text-muted-foreground">
                 Pour que le groupe sache qui organise et te reconnaisse dans les réponses.
               </p>
             </div>
@@ -325,7 +324,7 @@ function NewTripPage() {
                   pers.
                 </span>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="text-xs leading-[1.4] text-muted-foreground">
                 {needsStar
                   ? `Compte bien la Star ${celebratedPerson ? `(${celebratedPerson})` : ""} dans le total.`
                   : `Entre ${PARTICIPANTS_MIN} et ${PARTICIPANTS_MAX}. Tu pourras inviter tout le monde ensuite.`}
@@ -333,8 +332,8 @@ function NewTripPage() {
             </div>
           </div>
 
-          <div className="mt-10 sm:mt-11">
-            <Label className="mb-5 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
+          <div className="mt-7 sm:mt-8">
+            <Label className="mb-3 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
               {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => {
                 const selected = groupAgeRange === age;
@@ -348,7 +347,7 @@ function NewTripPage() {
                       "min-h-11 rounded-[14px] border px-3 py-2.5 text-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                       selected
                         ? "border-primary/40 bg-primary/5 text-foreground"
-                        : "border-border/50 bg-background text-foreground/80 hover:border-primary/30",
+                        : "border-border/50 bg-background text-foreground/80 hover:border-primary/25 hover:bg-primary/[0.02]",
                     )}
                   >
                     {age} ans
@@ -359,7 +358,7 @@ function NewTripPage() {
           </div>
         </section>
 
-        <section className="py-10 sm:py-12">
+        <section className="py-8 sm:py-9">
           <SectionHeading
             step="03"
             icon="calendar"
@@ -367,7 +366,7 @@ function NewTripPage() {
             description="Une durée suffit pour commencer. Les dates exactes seront trouvées avec le groupe."
           />
 
-          <div className="mt-8 sm:mt-9">
+          <div className="mt-6 sm:mt-7">
             <div className="max-w-[380px] space-y-2">
               <Label htmlFor="durationDays" className="text-[15px] font-semibold text-foreground">
                 Combien de jours ?
@@ -390,15 +389,15 @@ function NewTripPage() {
                   jours
                 </span>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="text-xs leading-[1.4] text-muted-foreground">
                 Par exemple, 3 jours correspondent à 2 nuits.
               </p>
             </div>
           </div>
         </section>
 
-        <div className="flex flex-col gap-3 border-t border-border/70 pt-7 sm:flex-row sm:items-center sm:justify-between sm:pt-8">
-          <p className="max-w-[430px] text-sm leading-relaxed text-muted-foreground">
+        <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between sm:pt-7">
+          <p className="max-w-[430px] text-sm leading-[1.45] text-muted-foreground">
             Ensuite, tu invites la Krew et chacun renseigne ses disponibilités et ses préférences.
           </p>
           <Button
