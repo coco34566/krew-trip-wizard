@@ -1146,7 +1146,6 @@ function TripDetail() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("Calendrier téléchargé");
   };
 
   const selectedActivityIdsList = ((trip as any).selected_activity_ids ?? []) as string[];
@@ -1894,9 +1893,14 @@ function TripDetail() {
                   <DialogDescription>Choisis le calendrier que tu utilises.</DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-2">
-                  <Button onClick={handleDownloadIcs} variant="outline">
-                    Apple / calendrier mobile (.ics)
-                  </Button>
+                  <KrewStatefulButton
+                    variant="outline"
+                    idleLabel="Apple / calendrier mobile (.ics)"
+                    loadingLabel="Préparation…"
+                    successLabel="Calendrier téléchargé"
+                    errorLabel="Réessayer"
+                    onAction={async () => handleDownloadIcs()}
+                  />
                   {googleCalendarUrl ? (
                     <Button asChild variant="outline">
                       <a href={googleCalendarUrl} target="_blank" rel="noreferrer">
