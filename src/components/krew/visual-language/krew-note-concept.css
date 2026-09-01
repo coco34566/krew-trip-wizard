@@ -1,10 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Shantell+Sans:ital,wght@0,400..600;1,400..600&display=swap");
 
 .krew-note-concept {
-  --concept-paper: #f5eccf;
+  --concept-paper: #f7f4ed;
   --concept-ink: #3f2940;
   --concept-tape: rgba(112, 142, 117, 0.52);
-  --concept-shadow: 0 5px 12px rgba(57, 35, 54, 0.11), 0 1px 2px rgba(57, 35, 54, 0.07);
+  --concept-shadow: 0 11px 22px rgba(57, 35, 54, 0.16), 0 3px 7px rgba(57, 35, 54, 0.10);
   position: relative;
   isolation: isolate;
   display: inline-flex;
@@ -39,9 +39,9 @@
   mix-blend-mode: multiply;
 }
 
-.krew-note-concept--cream { --concept-paper: #f5eccf; --concept-tape: rgba(109, 139, 112, 0.5); }
+.krew-note-concept--cream { --concept-paper: #f7f4ed; --concept-tape: rgba(109, 139, 112, 0.5); }
 .krew-note-concept--sage { --concept-paper: #c7d2ba; --concept-tape: rgba(110, 67, 101, 0.42); }
-.krew-note-concept--plum { --concept-paper: #d9becd; --concept-tape: rgba(235, 222, 181, 0.58); }
+.krew-note-concept--plum { --concept-paper: #d9becd; --concept-tape: rgba(242, 238, 228, 0.62); }
 
 .krew-note-concept__copy,
 .krew-note-concept__eyebrow {
