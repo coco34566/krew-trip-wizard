@@ -43,18 +43,18 @@
   to { translate: 7px -2px; rotate: .45deg; }
 }
 
-/* The hero now speaks the same motion language as the lower scenes, but stays readable immediately. */
-.krew-hero-copy { animation: krew-hero-copy-settle 1550ms cubic-bezier(.18,.74,.24,1) 280ms both; }
-.krew-hero-photo-settle { animation: krew-hero-photo-settle 2200ms cubic-bezier(.18,.74,.24,1) 240ms both; transform-origin: 60% 45%; }
-.krew-hero-postit-settle { animation: krew-hero-postit-settle 1750ms cubic-bezier(.18,.74,.24,1) 820ms both; transform-origin: 70% 20%; }
-.krew-hero-slogan { animation: krew-slogan-settle 1550ms cubic-bezier(.18,.74,.24,1) 720ms both; }
-.krew-hero-cta { animation: krew-hero-copy-settle 1050ms cubic-bezier(.18,.74,.24,1) 420ms both; }
+/* Hero choreography is viewport-triggered so it can replay after leaving and re-entering. */
+.krew-hero-scene[data-revealed="true"] .krew-hero-copy { animation: krew-hero-copy-settle 1550ms cubic-bezier(.18,.74,.24,1) 280ms both; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-photo-settle { animation: krew-hero-photo-settle 2200ms cubic-bezier(.18,.74,.24,1) 240ms both; transform-origin: 60% 45%; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-postit-settle { animation: krew-hero-postit-settle 1750ms cubic-bezier(.18,.74,.24,1) 820ms both; transform-origin: 70% 20%; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-slogan { animation: krew-slogan-settle 1550ms cubic-bezier(.18,.74,.24,1) 720ms both; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-cta { animation: krew-hero-copy-settle 1050ms cubic-bezier(.18,.74,.24,1) 420ms both; }
 .krew-hero-mark path,
 .krew-draw-mark path {
   stroke-dasharray: 110;
   stroke-dashoffset: 110;
 }
-.krew-hero-mark path { animation: krew-mark-draw 1450ms cubic-bezier(.32,0,.18,1) 880ms both; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-mark path { animation: krew-mark-draw 1450ms cubic-bezier(.32,0,.18,1) 880ms both; }
 
 .krew-reveal {
   opacity: .82;
@@ -136,9 +136,7 @@
 .krew-bento-choisit { background: color-mix(in srgb, var(--sage) 10%, var(--background)); }
 .krew-bento-garde { background: color-mix(in srgb, var(--primary) 4%, var(--background)); }
 
-/* On se cale / On choisit use their actual Krew icons as drawn chapter symbols, not decorative green lines. */
-.krew-bento-cale > .krew-draw-mark,
-.krew-bento-choisit > .krew-draw-mark { display: none !important; }
+/* Top chapters now keep both the product icon and a freehand KrewMark, like On part / On garde. */
 .krew-bento-cale > div > div:first-child,
 .krew-bento-choisit > div > div:first-child {
   width: 3.25rem;
@@ -185,7 +183,7 @@
 .krew-trip-photo-settle { transform: scale(1.03); transition: transform 760ms cubic-bezier(.18,.74,.24,1); transform-origin: 50% 48%; }
 .krew-trip-reveal[data-revealed="true"] .krew-trip-photo-settle { transform: scale(1); }
 
-/* The first underline is deliberately broad, like the other large KREW signatures lower on the page. */
+/* With preserveAspectRatio disabled for this one mark, these widths now enlarge the actual stroke. */
 .krew-hero-mark { width: 340px !important; max-width: 92vw; }
 .krew-bento-choisit h3 { font-size: 1.5rem !important; line-height: 1.1 !important; }
 
@@ -196,7 +194,7 @@
   .krew-hero-mark { width: 560px !important; }
 }
 
-/* Scroll-linked ambience remains after one-shot reveals, so the page still feels alive when revisiting sections. */
+/* Scroll-linked ambience remains after reveals, while viewport-triggered choreography can replay. */
 @media (min-width: 768px) {
   @keyframes krew-hero-parallax-copy { from { translate: 0 0; } to { translate: 0 -30px; } }
   @keyframes krew-hero-parallax-media { from { translate: 0 0; rotate: 0deg; } to { translate: 0 25px; rotate: .7deg; } }
@@ -227,13 +225,12 @@
   }
 }
 
-/* Mobile keeps autonomous reveals, but a tiny reversible ambience remains while scrolling back through the page. */
 @media (max-width: 767px) {
-  .krew-hero-copy { animation-duration: 1600ms; animation-delay: 320ms; }
-  .krew-hero-photo-settle { animation-duration: 2200ms; animation-delay: 260ms; }
-  .krew-hero-postit-settle { animation-duration: 1750ms; animation-delay: 820ms; }
-  .krew-hero-slogan { animation-duration: 1550ms; animation-delay: 720ms; }
-  .krew-hero-mark path { animation-duration: 1450ms; animation-delay: 880ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-copy { animation-duration: 1600ms; animation-delay: 320ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-photo-settle { animation-duration: 2200ms; animation-delay: 260ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-postit-settle { animation-duration: 1750ms; animation-delay: 820ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-slogan { animation-duration: 1550ms; animation-delay: 720ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-mark path { animation-duration: 1450ms; animation-delay: 880ms; }
 
   .krew-reveal { opacity: .76; transform: translate3d(0,30px,0) scale(.975); transition-duration: 600ms, 920ms, 920ms; }
   .krew-plan-step { min-height: 0; padding: 16px; }
