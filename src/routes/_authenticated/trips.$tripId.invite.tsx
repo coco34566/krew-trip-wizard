@@ -28,7 +28,6 @@ import {
   removeParticipant,
   setCoOrganizer,
 } from "@/lib/trips.functions";
-import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
@@ -46,7 +45,6 @@ function InvitePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const fetchDetail = useServerFn(getTripDetail);
-  const fetchProgress = useServerFn(getParticipantsProgress);
   const invite = useServerFn(inviteParticipant);
   const removeGuest = useServerFn(removeParticipant);
   const setCoOrg = useServerFn(setCoOrganizer);
@@ -57,12 +55,6 @@ function InvitePage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
-    retry: 3,
-    retryDelay: 1000,
-  });
-  const { data: progress, refetch: refetchProgress } = useQuery({
-    queryKey: ["trip-progress", tripId],
-    queryFn: () => fetchProgress({ data: { tripId } }),
     retry: 3,
     retryDelay: 1000,
   });
@@ -109,7 +101,6 @@ function InvitePage() {
     onSuccess: () => {
       setEmail("");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
     },
     onError: (err) => {
       console.error("Impossible d'envoyer l'invitation:", err);
@@ -164,7 +155,7 @@ function InvitePage() {
       <main className="mx-auto w-full max-w-[820px] space-y-4 px-4 py-10 text-center sm:px-6 lg:px-8">
         <h1 className="font-display text-[30px] font-normal text-foreground">Impossible de charger les invitations</h1>
         <p className="text-sm text-muted-foreground">Les informations du voyage ne sont pas disponibles pour le moment.</p>
-        <Button onClick={() => { refetch(); refetchProgress(); }}>Réessayer</Button>
+        <Button onClick={() => refetch()}>Réessayer</Button>
       </main>
     );
   }
@@ -223,44 +214,28 @@ function InvitePage() {
     }),
   );
   const participants = [...combinedParticipants, ...placeholders];
-  const answered = progress?.answered ?? 0;
-  const total = Math.max(progress?.total ?? participants.length, trip.participants_count || 1);
-  const missingParticipants =
-    progress?.participants?.filter((p) => !p.hasAnswered || !p.hasAnsweredAvailability) || [];
-  const missingResponses = Math.max(0, total - answered);
-  const groupFullyIdentified = placeholders.length === 0;
 
   function shareInvitation() {
     if (!shareUrl) {
       toast.error("Le lien d’invitation n’est pas encore disponible.");
       return;
     }
-    const text = `Salut ! On organise « ${trip.name} » avec KREW.\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n${shareUrl}`;
+    const text = `Salut ! On organise « ${trip.name} » avec KREW ✈️\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n👉 ${shareUrl}`;
     shareOnWhatsApp(text);
   }
 
-  function remindGroup() {
-    const lines = [
-      `Petit point KREW pour « ${trip.name} »`,
-      "",
-      "Il reste quelques réponses à compléter :",
-    ];
-    for (const p of missingParticipants) {
-      const name = p.display_name || p.email?.split("@")[0] || "Participant";
-      const missing = [
-        !p.hasAnsweredAvailability ? "disponibilités" : null,
-        !p.hasAnswered ? "préférences" : null,
-      ].filter(Boolean);
-      lines.push(`• ${name} : ${missing.join(" + ")}`);
+  async function copyInvitationLink() {
+    if (!shareUrl) {
+      toast.error("Le lien d’invitation n’est pas encore disponible.");
+      return;
     }
-    const unidentifiedMissing = Math.max(0, missingResponses - missingParticipants.length);
-    if (unidentifiedMissing > 0) {
-      lines.push(
-        `• ${unidentifiedMissing} participant${unidentifiedMissing > 1 ? "s" : ""} encore à inviter`,
-      );
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Lien d’invitation copié");
+    } catch (err) {
+      console.error("Impossible de copier le lien d'invitation:", err);
+      toast.error("Impossible de copier le lien pour le moment.");
     }
-    lines.push("", `${window.location.origin}/trips/${trip.id}`);
-    shareOnWhatsApp(lines.join("\n"));
   }
 
   return (
@@ -280,37 +255,55 @@ function InvitePage() {
         waveClassName="w-[140px]"
       >
         <p className="max-w-[42rem] text-[15px] leading-[1.55] text-muted-foreground sm:text-[16px]">
-          {inviteStepCompleted && groupFullyIdentified
-            ? "Le groupe est réuni. Tu peux relancer les réponses qui manquent."
-            : "Partage le lien, invite le groupe et vois en un coup d’œil qui doit encore répondre."}
+          Partage l’invitation à la team. Chacun pourra rejoindre le voyage et répondre ensuite à son rythme.
         </p>
       </KrewJourneyPageHeader>
 
       {data.isOwner ? (
-        <section className="border-b border-border/45 pb-5">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <button
+        <section className="space-y-3 border-b border-border/45 pb-6">
+          <div className="space-y-1">
+            <h2 className="font-display text-[25px] font-normal text-foreground sm:text-[28px]">Fais entrer la Krew</h2>
+            <p className="max-w-[38rem] text-[14px] leading-[1.5] text-muted-foreground">
+              Un petit message, le lien du voyage, et chacun peut rejoindre la team directement.
+            </p>
+          </div>
+
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <Button
               type="button"
               onClick={shareInvitation}
               disabled={!shareUrl || inviteLinkLoading}
-              className="inline-flex min-h-10 items-center gap-2 text-[14px] font-semibold text-primary underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-11 justify-center"
+            >
+              <KrewIcon name="message" tone="cream" size="sm" className="size-4" />
+              Inviter via WhatsApp
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={copyInvitationLink}
+              disabled={!shareUrl || inviteLinkLoading}
+              className="min-h-11 justify-center"
             >
               <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
-              Inviter via WhatsApp <span aria-hidden="true">→</span>
-            </button>
-            <button
-              type="button"
-              disabled={inviteLinkLoading || rotateLinkMutation.isPending}
-              onClick={() => rotateLinkMutation.mutate()}
-              className="inline-flex min-h-10 items-center text-[13px] font-medium text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {rotateLinkMutation.isPending ? "Renouvellement…" : "Renouveler le lien"}
-            </button>
+              Copier le lien d’invitation
+            </Button>
           </div>
+
           {inviteLinkError ? (
-            <p className="mt-1 text-[13px] text-destructive">Impossible de préparer le lien d’invitation pour le moment.</p>
+            <p className="text-[13px] text-destructive">Impossible de préparer le lien d’invitation pour le moment.</p>
           ) : (
-            <p className="mt-1 text-[12px] text-muted-foreground">Renouveler le lien désactive immédiatement le précédent.</p>
+            <div className="flex flex-wrap items-center gap-x-2 text-[12px] text-muted-foreground">
+              <span>Le lien reste valable tant que tu ne le renouvelles pas.</span>
+              <button
+                type="button"
+                disabled={inviteLinkLoading || rotateLinkMutation.isPending}
+                onClick={() => rotateLinkMutation.mutate()}
+                className="font-medium underline underline-offset-3 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {rotateLinkMutation.isPending ? "Renouvellement…" : "Renouveler le lien"}
+              </button>
+            </div>
           )}
         </section>
       ) : null}
@@ -352,12 +345,11 @@ function InvitePage() {
       ) : null}
 
       <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border/45 pb-2">
+        <div className="border-b border-border/45 pb-2">
           <h2 className="flex items-center gap-2 font-display text-[26px] font-normal text-foreground sm:text-[29px]">
             <KrewIcon name="group" tone="plum" size="sm" className="size-5" />
             Le groupe
           </h2>
-          <p className="font-mono text-[12px] text-muted-foreground sm:text-[13px]">{answered}/{total} ont renseigné leurs préférences</p>
         </div>
 
         <div className="divide-y divide-border/45">
@@ -441,22 +433,6 @@ function InvitePage() {
             })
           )}
         </div>
-
-        {data.isOwner && missingResponses > 0 ? (
-          <div className="flex flex-col gap-1 border-t border-border/45 pt-4 text-[14px] sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-muted-foreground">
-              {missingResponses === 1 ? "1 réponse manque encore." : `${missingResponses} réponses manquent encore.`}
-            </p>
-            <button
-              type="button"
-              onClick={remindGroup}
-              className="inline-flex min-h-10 items-center gap-1.5 self-start font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"
-            >
-              <KrewIcon name="message" tone="plum" size="sm" className="size-4" />
-              Relancer via WhatsApp <span aria-hidden="true" className="ml-1">→</span>
-            </button>
-          </div>
-        ) : null}
       </section>
 
       {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
