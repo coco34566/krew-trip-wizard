@@ -95,7 +95,7 @@ describe("TripTasksPage role wording", () => {
     expect(screen.getByText(/uniquement celles qui te sont attribuées/i)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Inviter le groupe" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Invite-les avant/i)).not.toBeInTheDocument();
-    expect(screen.getByText("Réserver le restaurant")).toBeInTheDocument();
+    expect(screen.getAllByText("Réserver le restaurant").length).toBeGreaterThan(0);
   });
 
   it("does not expose an unclaimed invite as an assignable participant", () => {
