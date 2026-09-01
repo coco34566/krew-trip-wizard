@@ -14,7 +14,7 @@ import {
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
-import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
@@ -275,7 +275,7 @@ function AvailabilityPage() {
           <div className="flex items-center gap-3">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sage/18"><KrewIcon name="group" tone="sage" size="sm" className="size-5" /></div>
             <div className="space-y-0.5">
-              <p className="text-sm font-medium text-foreground sm:text-base"><span className="font-mono font-bold text-primary">{data.answered}/{data.expected}</span> ont indiqué leurs dates</p>
+              <p className="text-sm font-medium text-foreground sm:text-base"><span className="relative mr-1 inline-flex px-1"><KrewMark type="circle" tone="sage" size="sm" className="pointer-events-none absolute -inset-x-1 -inset-y-2 h-8 w-[3.4rem] opacity-75" /><span className="relative font-mono font-bold text-primary">{data.answered}/{data.expected}</span></span> ont indiqué leurs dates</p>
               {data.expected - data.answered > 0 ? <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block">{data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}</KrewNote> : null}
             </div>
           </div>
@@ -285,7 +285,7 @@ function AvailabilityPage() {
       {datesLocked && lockedLabel ? (
         <section className="border-y border-sage/35 py-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3"><Lock className="mt-0.5 size-5 text-primary" /><div><h2 className="font-semibold text-foreground">Dates choisies</h2><p className="mt-1 font-mono text-[14px] text-foreground">{lockedLabel}</p></div></div>
+            <div className="flex items-start gap-3"><KrewMark type="stamp-circle" tone="sage" size="sm" className="mt-0.5 size-7 shrink-0 opacity-80" /><div><h2 className="font-semibold text-foreground">Dates choisies</h2><p className="mt-1 font-mono text-[14px] text-foreground">{lockedLabel}</p></div></div>
             {data.isOwner ? <button type="button" disabled={unlockMutation.isPending} aria-busy={unlockMutation.isPending} onClick={() => { if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:cursor-wait disabled:opacity-60">{unlockMutation.isPending ? "Modification…" : "Modifier les dates"}</button> : null}
           </div>
         </section>
