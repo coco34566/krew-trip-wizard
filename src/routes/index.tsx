@@ -49,7 +49,7 @@ const IDEAL_FOR_TYPES = EVENT_TYPES.filter((ev) =>
 function useLandingReveal() {
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const nodes = Array.from(document.querySelectorAll<HTMLElement>(".krew-reveal"));
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>(".krew-reveal, .krew-hero-scene"));
     if (reduced) {
       nodes.forEach((node) => node.setAttribute("data-revealed", "true"));
       return;
@@ -58,9 +58,7 @@ function useLandingReveal() {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          (entry.target as HTMLElement).setAttribute("data-revealed", "true");
-          observer.unobserve(entry.target);
+          (entry.target as HTMLElement).setAttribute("data-revealed", entry.isIntersecting ? "true" : "false");
         });
       },
       { threshold: 0.12, rootMargin: "0px 0px -7% 0px" },
@@ -215,8 +213,8 @@ function Landing() {
             <KrewMark type="sparkle" tone="sage" size="sm" className="absolute top-2 right-10 size-6 opacity-60 pointer-events-none" />
             <div className="krew-reveal krew-scene-heading max-w-xl text-center mx-auto mb-8 sm:mb-12"><span className="block font-display text-2xl sm:text-3xl text-primary font-normal tracking-wide">LA TEAM</span><p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground font-mono mt-0.5">Tout le voyage dans KREW</p><h2 className="mt-1 font-display text-3xl sm:text-4xl font-normal text-foreground relative inline-block">De l’idée au souvenir.<KrewMark type="underline-wave" tone="sage" size="md" className="krew-draw-mark mt-1 w-[140px] mx-auto opacity-80 pointer-events-none" /></h2><p className="mt-3 text-xs sm:text-sm text-muted-foreground leading-relaxed">KREW accompagne le groupe avant, pendant et après le voyage, sans compliquer ce qui doit rester simple.</p></div>
             <div className="krew-bento grid gap-4 sm:grid-cols-2 lg:grid-cols-6 lg:auto-rows-[178px]">
-              <FeatureBlock className="krew-bento-cale sm:col-span-1 lg:col-span-2" iconName="destination" title="On se cale" text="Dispos, envies, budget, contraintes : chacun répond à son rythme." mark="connector-curve" />
-              <FeatureBlock className="krew-bento-choisit sm:col-span-1 lg:col-span-4 lg:row-span-2" iconName="vote" title="On choisit" text="KREW aide le groupe à transformer toutes ces réponses en décisions concrètes." mark="route" large />
+              <FeatureBlock className="krew-bento-cale sm:col-span-1 lg:col-span-2" iconName="destination" title="On se cale" text="Dispos, envies, budget, contraintes : chacun répond à son rythme." mark="pin-line" />
+              <FeatureBlock className="krew-bento-choisit sm:col-span-1 lg:col-span-4 lg:row-span-2" iconName="vote" title="On choisit" text="KREW aide le groupe à transformer toutes ces réponses en décisions concrètes." mark="stamp-circle" large />
               <FeatureBlock className="krew-bento-part lg:col-span-2" iconName="planning" title="On part" text="Planning, transports, tâches et essentiels restent au même endroit." mark="check" />
               <FeatureBlock className="krew-bento-garde sm:col-span-2 lg:col-span-6" iconName="budget" title="On garde" text="Une fois le voyage passé, KREW conserve le voyage et les souvenirs du groupe." mark="heart" wide />
             </div>
@@ -240,10 +238,10 @@ function Landing() {
   );
 }
 
-function FeatureBlock({ className, iconName, title, text, mark, large = false, wide = false }: { className?: string; iconName: KrewIconName; title: string; text: string; mark: "connector-curve" | "route" | "check" | "heart"; large?: boolean; wide?: boolean }) {
+function FeatureBlock({ className, iconName, title, text, mark, large = false, wide = false }: { className?: string; iconName: KrewIconName; title: string; text: string; mark: "pin-line" | "stamp-circle" | "check" | "heart"; large?: boolean; wide?: boolean }) {
   return (
     <article className={`krew-reveal krew-bento-card relative overflow-hidden rounded-[22px] border border-border/50 bg-background/95 p-5 sm:p-6 ${className ?? ""}`}>
-      <KrewMark type={mark} tone={mark === "heart" ? "plum" : "sage"} size={large ? "lg" : "md"} className="krew-draw-mark pointer-events-none absolute right-4 top-4 opacity-55" />
+      <KrewMark type={mark} tone={mark === "heart" ? "plum" : "sage"} size="md" className="krew-draw-mark pointer-events-none absolute right-4 top-4 opacity-55" />
       <div className="relative z-10 flex h-full flex-col justify-between gap-5">
         <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"><KrewIcon name={iconName} tone="plum" size="sm" className="size-5" /></div>
         <div className={wide ? "sm:flex sm:items-end sm:justify-between sm:gap-8" : ""}><h3 className={`font-display font-normal text-foreground ${large ? "text-3xl sm:text-4xl" : "text-2xl"}`}>{title}</h3><p className={`mt-1 text-sm text-muted-foreground leading-relaxed font-sans ${wide ? "sm:mt-0 sm:max-w-md" : "max-w-sm"}`}>{text}</p></div>
