@@ -66,14 +66,14 @@ Usage : prix, budget, coût par personne, dépenses, soldes et récapitulatifs c
 
 **Rôle : chaleur, spontanéité et voix humaine ponctuelle.**
 
-Caveat est utilisée uniquement dans les composants d’annotation manuscrite KREW :
+Kalam est utilisée uniquement dans les composants d’annotation manuscrite KREW :
 
 - `KrewNote` ;
 - `KrewCallout` ;
 - petites annotations éditoriales ;
 - post-it visuels.
 
-Ne jamais utiliser Caveat pour :
+Ne jamais utiliser Kalam pour :
 
 - les titres de page ;
 - le corps de texte ;
@@ -294,7 +294,7 @@ Interdit :
 
 `KrewNote` et `KrewCallout` représentent la voix manuscrite de KREW.
 
-Police obligatoire : **Caveat**.
+Police obligatoire : **Kalam**, en graisse 700 pour les post-its.
 
 Usage :
 

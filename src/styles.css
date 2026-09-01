@@ -124,7 +124,10 @@
   .font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
 }
 
-.font-handwriting { font-family: "Caveat", cursive; }
+.font-handwriting {
+  font-family: "Kalam", "Segoe Print", cursive;
+  font-synthesis: none;
+}
 
 @utility bg-hero-gradient { background-image: var(--gradient-hero); }
 @utility bg-brand-gradient { background-image: var(--gradient-brand); }

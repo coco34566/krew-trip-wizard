@@ -14,17 +14,17 @@ const tones: Record<KrewNoteTone, string> = {
 };
 
 const sizes: Record<KrewNoteSize, string> = {
-  xs: "min-w-[5.5rem] max-w-[10rem] px-3 py-2",
-  sm: "min-w-[7rem] max-w-[13rem] px-3.5 py-2.5",
-  md: "min-w-28 max-w-[17rem] px-4 py-3",
-  lg: "min-w-[10rem] max-w-[20rem] px-5 py-4",
-  wide: "min-w-[12rem] max-w-[23rem] px-5 py-3.5",
+  xs: "w-fit max-w-[10rem] px-2.5 py-1.5",
+  sm: "w-fit max-w-[13rem] px-3 py-2",
+  md: "w-fit max-w-[17rem] px-3.5 py-2.5",
+  lg: "w-fit max-w-[20rem] px-4.5 py-3.5",
+  wide: "w-fit max-w-[23rem] px-4 py-2.5",
 };
 
 const tapeTone: Record<KrewNoteTone, string> = {
-  cream: "bg-[#dce6df]/90",
-  sage: "bg-[#d7c8d3]/72",
-  plum: "bg-[#dbe5df]/86",
+  cream: "bg-[#dce6df]/72",
+  sage: "bg-[#d7c8d3]/62",
+  plum: "bg-[#dbe5df]/68",
 };
 
 function clampRotation(rotation: KrewNoteRotation): KrewNoteRotation {
@@ -78,7 +78,7 @@ export function KrewNote({
 
   if (variant === "margin") {
     return (
-      <span className={cn("inline-block max-w-[15rem] font-handwriting text-[1.05rem] leading-[1.12] text-primary", className)} style={{ transform: `rotate(${safeRotation}deg)` }}>
+      <span className={cn("inline-block max-w-[15rem] font-handwriting text-[1rem] font-bold leading-[1.18] text-primary", className)} style={{ transform: `rotate(${safeRotation}deg)` }}>
         {children}
       </span>
     );
@@ -88,7 +88,7 @@ export function KrewNote({
     return (
       <span
         className={cn(
-          "inline-flex items-center px-3 py-1.5 font-handwriting text-[.95rem] leading-none",
+          "inline-flex w-fit max-w-[15rem] items-center px-3 py-1.5 font-handwriting text-[.9rem] font-bold leading-[1.15] shadow-[0_5px_14px_rgba(60,35,50,.065)]",
           tones[tone],
           "rounded-[45%_55%_48%_52%/55%_45%_55%_45%]",
           className,
@@ -108,7 +108,7 @@ export function KrewNote({
       <span
         aria-hidden
         className={cn(
-          "inline-block h-[1.05rem] w-12 border-x border-white/25 bg-[#dce6df]/90 shadow-[0_2px_4px_rgba(60,35,50,.04)] sm:h-[1.15rem] sm:w-14",
+          "inline-block h-[1.05rem] w-12 bg-[#dce6df]/72 shadow-[0_2px_4px_rgba(60,35,50,.035)] backdrop-blur-[.4px] sm:h-[1.15rem] sm:w-14",
           safeRotation > 0 ? "rotate-[-3deg]" : safeRotation < 0 ? "rotate-[2deg]" : "rotate-[-2deg]",
           className,
         )}
@@ -128,7 +128,7 @@ export function KrewNote({
       data-krew-note-tone={tone}
       data-krew-note-variant={variant}
       className={cn(
-        "relative isolate inline-block shadow-[0_6px_16px_rgba(60,35,50,.075)]",
+        "relative isolate inline-block border-0 shadow-[0_6px_16px_rgba(60,35,50,.075)]",
         tones[tone],
         sizes[resolvedSize],
         shape,
@@ -141,13 +141,13 @@ export function KrewNote({
         <span
           aria-hidden
           className={cn(
-            "absolute -top-2.5 z-20 h-[1.05rem] -translate-x-1/2 border-x border-white/25 shadow-[0_2px_4px_rgba(60,35,50,.04)] sm:-top-3 sm:h-[1.15rem]",
+            "absolute -top-2.5 z-20 h-[1.05rem] -translate-x-1/2 shadow-[0_2px_4px_rgba(60,35,50,.035)] backdrop-blur-[.4px] sm:-top-3 sm:h-[1.15rem]",
             tapeTone[tone],
             tapeGeometry(tone, safeRotation, variant),
           )}
         />
       ) : null}
-      <div className="relative z-10 font-handwriting text-[1.05rem] leading-[1.15]">{children}</div>
+      <div className="relative z-10 font-handwriting text-[.98rem] font-bold leading-[1.2] sm:text-[1.02rem]">{children}</div>
     </div>
   );
 }

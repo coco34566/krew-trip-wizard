@@ -12,6 +12,7 @@ import {
   KrewMark,
   KrewOrganicBlob,
   KrewHighlight,
+  KrewNote,
   KrewActionStack,
   type KrewActionItem,
 } from "@/components/krew/visual-language";
@@ -515,6 +516,13 @@ export function TripHubDashboard({
     startDate: trip.start_date || null,
     endDate: trip.end_date || null,
   });
+  const dashboardStageNote = !datesLocked || !profileValidated
+    ? "Le groupe prend forme"
+    : !destinationSelected
+      ? "La suite se dessine"
+      : !hasItinerary
+        ? "La suite se prépare"
+        : null;
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -544,13 +552,21 @@ export function TripHubDashboard({
             />
           </div>
 
+          <div className="pointer-events-none absolute left-3 top-3 z-30 max-w-[55%] sm:left-5 sm:top-4">
+            <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="max-w-full">
+              {trip.name}
+            </KrewNote>
+          </div>
+          {dashboardStageNote ? (
+            <div className="pointer-events-none absolute right-3 top-3 z-30 max-w-[38%] sm:right-5 sm:top-4">
+              <KrewNote variant="tape" tone="plum" rotation={1} size="sm" className="max-w-full text-right">
+                {dashboardStageNote}
+              </KrewNote>
+            </div>
+          ) : null}
+
           {/* ZONE DE TITRE ÉDITORIAL SANS BLOB ENFERMANT */}
           <div className="relative z-20 -mt-10 px-4 pt-2">
-            {/* LEVEL 1 — NOM DU VOYAGE (EYEBROW SECONDAIRE) */}
-            <p className="font-sans text-[12px] sm:text-[13px] font-semibold tracking-wider text-primary uppercase">
-              {trip.name}
-            </p>
-
             {/* LEVEL 2 — DESTINATION / PROMESSE (GRAND TITRE INSTRUMENT SERIF) */}
             <div className="relative mt-1 text-left inline-block max-w-full">
               {/* Forme prune organique en accent sous le tiers droit / bas du titre */}
