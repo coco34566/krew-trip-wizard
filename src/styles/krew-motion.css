@@ -166,6 +166,33 @@
   .krew-bento-card:nth-child(2) { min-height: 220px; }
 }
 
+/* Targeted visual polish after V3 review. */
+.krew-hero-mark { width: 220px !important; }
+.krew-moment-photo-wrap { overflow: visible; }
+.krew-moment-postit { top: -1.35rem !important; left: .75rem !important; z-index: 30; }
+.krew-bento-choisit h3 { font-size: 1.5rem !important; line-height: 1.1 !important; }
+.krew-bento-cale > .krew-draw-mark,
+.krew-bento-choisit > .krew-draw-mark { display: none !important; }
+
+@media (min-width: 640px) {
+  .krew-hero-mark { width: 300px !important; }
+}
+
+@media (max-width: 767px) {
+  .krew-team-scene { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+  .krew-team-scene .krew-scene-heading { margin-bottom: 1.5rem; }
+  .krew-team-scene .krew-scene-heading h2 { font-size: 1.75rem; line-height: 1.05; }
+  .krew-team-scene .krew-scene-heading p:last-child { margin-top: .55rem; font-size: .75rem; line-height: 1.55; }
+  .krew-bento { gap: .75rem; }
+  .krew-bento-card { min-height: 0; padding: 1rem; }
+  .krew-bento-card:nth-child(2) { min-height: 0; }
+  .krew-bento-card > div { gap: .9rem; }
+  .krew-bento-card h3,
+  .krew-bento-choisit h3 { font-size: 1.35rem !important; line-height: 1.05 !important; }
+  .krew-bento-card p { font-size: .78rem; line-height: 1.5; }
+  .krew-moment-postit { top: -1.25rem !important; left: 1rem !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .krew-hero-copy,
   .krew-hero-photo-settle,
