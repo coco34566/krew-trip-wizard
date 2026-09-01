@@ -68,7 +68,9 @@ export function KrewThinkingState({
     return () => clearTimeout(timer);
   }, [delayMs]);
 
-  if (!shouldShow) return null;
+  if (!shouldShow) {
+    return <div aria-hidden="true" className={cn("mx-auto min-h-[116px] w-full max-w-[620px] sm:min-h-[132px]", className)} />;
+  }
 
   const content = CONTENT[context] ?? CONTENT.generic;
 
