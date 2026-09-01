@@ -16,7 +16,6 @@ import {
   Wallet,
   Copy,
   Link2,
-  Check,
   ClipboardList,
   Lock,
   Unlock,
