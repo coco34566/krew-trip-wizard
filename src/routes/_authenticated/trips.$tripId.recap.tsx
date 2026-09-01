@@ -455,17 +455,16 @@ function TripRecapPage() {
                         <KrewIcon name="search" tone="plum" size="sm" className="size-3.5" /> Comparer d&apos;autres hébergements
                       </ExternalLinkButton>
                     )}
-                    <Button
-                      type="button"
+                    <KrewStatefulButton
                       variant={watched[reco.id] ? "secondary" : "outline"}
                       size="sm"
-                      className="rounded-xl text-sm font-medium min-h-9 h-auto"
-                      disabled={watchMutation.isPending}
-                      onClick={() => watchMutation.mutate({ recommendationId: reco.id, destinationName: destName })}
-                    >
-                      <KrewIcon name="time" tone="plum" size="sm" className="size-3.5 shrink-0" />
-                      {watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
-                    </Button>
+                      idleLabel={watched[reco.id] ? "Prix suivi" : "Suivre ce prix"}
+                      loadingLabel="Enregistrement…"
+                      successLabel="Prix suivi"
+                      errorLabel="Réessayer"
+                      disabled={Boolean(watched[reco.id])}
+                      onAction={() => watchMutation.mutateAsync({ recommendationId: reco.id, destinationName: destName })}
+                    />
                   </div>
                 </div>
               </article>
@@ -508,9 +507,15 @@ function TripRecapPage() {
             Télécharge le planning au format .ics ou ajoute le séjour à Google Calendar.
           </p>
           <div className="flex flex-wrap gap-2.5">
-            <Button onClick={handleDownloadIcs} size="sm" className="rounded-xl gap-1.5 font-medium min-h-9 h-auto">
-              <KrewIcon name="calendar" tone="cream" size="sm" className="size-4" /> Télécharger .ics
-            </Button>
+            <KrewStatefulButton
+              size="sm"
+              className="font-medium"
+              idleLabel="Télécharger .ics"
+              loadingLabel="Préparation…"
+              successLabel="Calendrier téléchargé"
+              errorLabel="Réessayer"
+              onAction={async () => handleDownloadIcs()}
+            />
             {googleCalendarUrl && (
               <Button asChild variant="outline" size="sm" className="rounded-xl gap-1.5 font-medium min-h-9 h-auto">
                 <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
