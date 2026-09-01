@@ -57,7 +57,6 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
     mutationFn: () => generatePlanning({ data: { tripId, force: true } }),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      if (result?.ok) toast.success("Planning prêt");
     },
     onError: (error) => {
       console.error("Impossible de préparer le planning:", error);
@@ -69,7 +68,6 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
     mutationFn: ({ day, slotIndex }: { day: number; slotIndex: number }) =>
       regenerateSlot({ data: { tripId, day, slotIndex } }),
     onSuccess: () => {
-      toast.success("Créneau mis à jour");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (error) => {
