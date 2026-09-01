@@ -186,14 +186,64 @@ header a[href="/trips/new"] {
 }
 main > section:first-child a[href="/trips/new"] { white-space: nowrap; }
 
-/* Mes voyages: never abbreviate the primary creation action to “Nouveau”. */
+@keyframes krew-dashboard-header-in {
+  from { opacity: 0; transform: translate3d(0, 9px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes krew-dashboard-cta-in {
+  from { opacity: 0; transform: translate3d(5px, 0, 0) scale(.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* Mes voyages: compact, editorial mobile header without stealing width from the intro copy. */
 @media (max-width: 639px) {
-  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] {
-    min-width: max-content;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-    font-size: 12px !important;
+  main[class*="max-w-[1180px]"] > header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    min-height: 0;
+    column-gap: 10px;
+    row-gap: 10px;
+    align-items: start;
   }
+
+  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] {
+    display: contents;
+  }
+
+  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    animation: krew-dashboard-header-in 680ms cubic-bezier(.18,.74,.24,1) both;
+  }
+
+  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > p {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    max-width: none;
+    margin-top: 0;
+    line-height: 1.45;
+    animation: krew-dashboard-header-in 720ms cubic-bezier(.18,.74,.24,1) 90ms both;
+  }
+
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    min-width: max-content;
+    min-height: 34px !important;
+    height: 34px !important;
+    border-radius: 10px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    animation: krew-dashboard-cta-in 620ms cubic-bezier(.18,.74,.24,1) 120ms both;
+  }
+
   main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] > span {
     display: none !important;
   }
@@ -204,9 +254,28 @@ main > section:first-child a[href="/trips/new"] { white-space: nowrap; }
   main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"]::after {
     content: "Nouveau voyage";
     display: inline;
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1;
     white-space: nowrap;
+  }
+
+  main[class*="max-w-[1180px]"] section article:nth-child(2) .krew-trip-reveal { transition-delay: 60ms; }
+  main[class*="max-w-[1180px]"] section article:nth-child(3) .krew-trip-reveal { transition-delay: 120ms; }
+  main[class*="max-w-[1180px]"] section article:nth-child(4) .krew-trip-reveal { transition-delay: 180ms; }
+  main[class*="max-w-[1180px]"] section article:nth-child(5) .krew-trip-reveal { transition-delay: 240ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > div:first-child,
+  main[class*="max-w-[1180px]"] > header > div[class*="max-w-[680px]"] > p,
+  main[class*="max-w-[1180px]"] > header a[data-slot="button"][href="/trips/new"] {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  main[class*="max-w-[1180px]"] section article .krew-trip-reveal {
+    transition-delay: 0ms !important;
   }
 }
 
