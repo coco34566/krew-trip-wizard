@@ -52,8 +52,8 @@ const CATEGORY_COPY: Record<StepCategory, string> = {
   souvenirs: "Une fois le voyage vécu, KREW garde une place pour les moments partagés.",
 };
 
-const CATEGORY_MARK: Record<StepCategory, "sparkle" | "pin-line" | "arrow-curved-right" | "heart"> = {
-  questionnaire: "sparkle",
+const CATEGORY_MARK: Record<StepCategory, "connector-curve" | "pin-line" | "arrow-curved-right" | "heart"> = {
+  questionnaire: "connector-curve",
   prepare: "pin-line",
   organisation: "arrow-curved-right",
   souvenirs: "heart",
@@ -231,16 +231,27 @@ function StepRow({
 
       <div className="min-w-0 pt-0.5">
         <div className={cn("relative flex min-h-11 items-center sm:min-h-12", isCurrent && "pr-[102px] sm:pr-[116px]")}> 
-          <h3
-            className={cn(
-              "font-display font-normal leading-[1.03] text-foreground transition-colors",
-              isCurrent ? "text-[28px] text-primary sm:text-[31px]" : "text-[19px] sm:text-[22px]",
-              isUpcoming && "text-muted-foreground/65",
-              canNavigate && "group-hover:text-primary",
-            )}
-          >
-            {step.title}
-          </h3>
+          <div className="relative inline-block max-w-full">
+            <h3
+              className={cn(
+                "font-display font-normal leading-[1.03] text-foreground transition-colors",
+                isCurrent ? "text-[28px] text-primary sm:text-[31px]" : "text-[19px] sm:text-[22px]",
+                isUpcoming && "text-muted-foreground/65",
+                canNavigate && "group-hover:text-primary",
+              )}
+            >
+              {step.title}
+            </h3>
+            {isCurrent ? (
+              <KrewMark
+                type="underline-wave"
+                tone="sage"
+                size="md"
+                className="pointer-events-none absolute -bottom-2 left-0 w-[112px] opacity-90 sm:w-[132px]"
+                aria-hidden="true"
+              />
+            ) : null}
+          </div>
           {isCurrent ? <CurrentPositionNote /> : <div className="ml-auto pl-4"><StepStatus step={step} historical={historical} /></div>}
         </div>
 
@@ -333,8 +344,8 @@ function ChapterIntro({
           tone={category === "souvenirs" ? "plum" : "sage"}
           size="sm"
           className={cn(
-            "mt-1 shrink-0 opacity-75",
-            category === "souvenirs" ? "h-6 w-7" : category === "questionnaire" ? "h-5 w-5" : category === "organisation" ? "h-6 w-8" : "h-6 w-6",
+            "mt-1 shrink-0 opacity-80",
+            category === "souvenirs" ? "h-6 w-7" : category === "questionnaire" ? "h-6 w-7" : category === "organisation" ? "h-6 w-8" : "h-6 w-7",
           )}
           aria-hidden="true"
         />
@@ -475,7 +486,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
               <img
                 src="/brand/otter-states/trip-progress.png"
                 alt=""
-                className="pointer-events-none w-[72px] shrink-0 object-contain sm:w-[82px]"
+                className="pointer-events-none w-[86px] shrink-0 object-contain sm:w-[96px]"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-3">
@@ -493,7 +504,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </header>
 
       <div className="pb-1 pt-5 sm:pt-6">
-        <KrewNote variant="margin" rotation={-2} className="text-[18px] font-semibold text-sage sm:text-[20px]">
+        <KrewNote variant="margin" rotation={-2} className="text-[20px] font-semibold text-sage sm:text-[22px]">
           {historical ? "Historique du voyage" : "Notre feuille de route"}
         </KrewNote>
       </div>
@@ -521,13 +532,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </ol>
 
       {!historical ? (
-        <div className="-mt-2 flex items-end justify-end gap-2 pb-4 pr-1 sm:-mt-3" aria-hidden="true">
+        <div className="-mt-3 flex items-end justify-end gap-2 pb-3 pr-1 sm:-mt-4" aria-hidden="true">
           <img
             src="/brand/otter-states/completed.png"
             alt=""
             className="pointer-events-none -mb-1 w-[76px] shrink-0 object-contain opacity-95 sm:w-[88px]"
           />
-          <span className="pb-2 font-display text-[17px] font-normal uppercase leading-none tracking-[0.01em] text-primary/75 sm:text-[20px]">
+          <span className="pb-2 font-mono text-[16px] font-semibold uppercase leading-none tracking-[0.12em] text-muted-foreground/75 sm:text-[18px]">
             La suite s’écrit avec la Krew
           </span>
         </div>
