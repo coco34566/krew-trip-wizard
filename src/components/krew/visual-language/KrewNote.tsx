@@ -78,7 +78,7 @@ export function KrewNote({
 
   if (variant === "margin") {
     return (
-      <span className={cn("inline-block max-w-[15rem] font-handwriting text-[1rem] font-bold leading-[1.18] text-primary", className)} style={{ transform: `rotate(${safeRotation}deg)` }}>
+      <span data-krew-annotation="handwritten" className={cn("inline-block max-w-[15rem] font-handwriting text-[1rem] font-bold leading-[1.18] text-primary", className)} style={{ transform: `rotate(${safeRotation}deg)` }}>
         {children}
       </span>
     );
@@ -87,8 +87,11 @@ export function KrewNote({
   if (variant === "label") {
     return (
       <span
+        data-krew-note="post-it"
+        data-krew-note-tone={tone}
+        data-krew-note-variant={variant}
         className={cn(
-          "inline-flex w-fit max-w-[15rem] items-center px-3 py-1.5 font-handwriting text-[.9rem] font-bold leading-[1.15] shadow-[0_5px_14px_rgba(60,35,50,.065)]",
+          "inline-flex w-fit max-w-[15rem] items-center border-0 px-3 py-1.5 font-handwriting text-[.9rem] font-bold leading-[1.15] shadow-[0_6px_16px_rgba(60,35,50,.075)]",
           tones[tone],
           "rounded-[45%_55%_48%_52%/55%_45%_55%_45%]",
           className,
@@ -107,6 +110,7 @@ export function KrewNote({
     return (
       <span
         aria-hidden
+        data-krew-tape="strip"
         className={cn(
           "inline-block h-[1.05rem] w-12 bg-[#dce6df]/72 shadow-[0_2px_4px_rgba(60,35,50,.035)] backdrop-blur-[.4px] sm:h-[1.15rem] sm:w-14",
           safeRotation > 0 ? "rotate-[-3deg]" : safeRotation < 0 ? "rotate-[2deg]" : "rotate-[-2deg]",
@@ -132,7 +136,6 @@ export function KrewNote({
         tones[tone],
         sizes[resolvedSize],
         shape,
-        variant === "photo" && "shadow-[0_5px_14px_rgba(60,35,50,.10)]",
         className,
       )}
       style={{ transform: `rotate(${safeRotation}deg)` }}
