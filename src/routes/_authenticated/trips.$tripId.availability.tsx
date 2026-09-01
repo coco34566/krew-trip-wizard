@@ -205,7 +205,6 @@ function AvailabilityPage() {
   const mutation = useMutation({
     mutationFn: () => submit({ data: { tripId, availableDates, blockedDates, flexDays: 0, notes: notes || undefined } }),
     onSuccess: () => {
-      toast.success("Disponibilités enregistrées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
     },
@@ -218,7 +217,6 @@ function AvailabilityPage() {
   const chooseMutation = useMutation({
     mutationFn: (payload: { start: string; end: string }) => choose({ data: { tripId, startDate: payload.start, endDate: payload.end } }),
     onSuccess: () => {
-      toast.success("Dates du voyage confirmées");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
@@ -232,7 +230,6 @@ function AvailabilityPage() {
   const unlockMutation = useMutation({
     mutationFn: () => unlock({ data: { tripId } }),
     onSuccess: () => {
-      toast.success("Dates à nouveau modifiables");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
@@ -325,7 +322,7 @@ function AvailabilityPage() {
 
         {!datesLocked ? (
           <>
-            <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0} className="w-full" aria-busy={mutation.isPending}>{mutation.isPending ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}{mutation.isPending ? "Enregistrement…" : data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}</Button>
+            <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || availableDates.length === 0} className="max-w-full" aria-busy={mutation.isPending}>{mutation.isPending ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}{mutation.isPending ? "Enregistrement…" : data.mine ? "Mettre à jour mes disponibilités" : "Enregistrer mes disponibilités"}</Button>
             {availableDates.length === 0 ? <p className="text-center text-[13px] text-muted-foreground">Sélectionne au moins une date verte pour enregistrer.</p> : null}
           </>
         ) : null}
