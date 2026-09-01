@@ -116,7 +116,6 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const validateMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
     onSuccess: () => {
-      toast.success("Profil du voyage enregistré");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
