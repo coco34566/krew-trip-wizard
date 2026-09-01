@@ -20,6 +20,10 @@
   from { stroke-dashoffset: 110; }
   to { stroke-dashoffset: 0; }
 }
+@keyframes krew-icon-draw {
+  from { stroke-dashoffset: 42; opacity: .35; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
 @keyframes krew-otter-settle {
   from { opacity: .84; transform: translate3d(10px, 8px, 0) rotate(2deg) scale(.96); }
   to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
@@ -102,7 +106,7 @@
 }
 .krew-moment-photo-wrap[data-revealed="true"] .krew-moment-photo { clip-path: inset(0 0 0 0 round 24px); transform: scale(1); }
 .krew-moment-postit {
-  top: -2.15rem !important;
+  top: -1.15rem !important;
   left: 1rem !important;
   z-index: 50 !important;
   opacity: 0;
@@ -132,6 +136,44 @@
 .krew-bento-choisit { background: color-mix(in srgb, var(--sage) 10%, var(--background)); }
 .krew-bento-garde { background: color-mix(in srgb, var(--primary) 4%, var(--background)); }
 
+/* On se cale / On choisit use their actual Krew icons as drawn chapter symbols, not decorative green lines. */
+.krew-bento-cale > .krew-draw-mark,
+.krew-bento-choisit > .krew-draw-mark { display: none !important; }
+.krew-bento-cale > div > div:first-child,
+.krew-bento-choisit > div > div:first-child {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--sage) 18%, transparent);
+}
+.krew-bento-cale > div > div:first-child svg,
+.krew-bento-choisit > div > div:first-child svg { width: 1.6rem; height: 1.6rem; }
+.krew-bento-cale > div > div:first-child svg path,
+.krew-bento-cale > div > div:first-child svg circle,
+.krew-bento-cale > div > div:first-child svg rect,
+.krew-bento-cale > div > div:first-child svg line,
+.krew-bento-cale > div > div:first-child svg polyline,
+.krew-bento-choisit > div > div:first-child svg path,
+.krew-bento-choisit > div > div:first-child svg circle,
+.krew-bento-choisit > div > div:first-child svg rect,
+.krew-bento-choisit > div > div:first-child svg line,
+.krew-bento-choisit > div > div:first-child svg polyline {
+  stroke-dasharray: 42;
+  stroke-dashoffset: 42;
+}
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg path,
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg circle,
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg rect,
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg line,
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg polyline,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg path,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg circle,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg rect,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg line,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg polyline {
+  animation: krew-icon-draw 950ms cubic-bezier(.32,0,.18,1) 170ms forwards;
+}
+
 .krew-final-scene .krew-reveal { transform: translate3d(0,30px,0) scale(.975); }
 .krew-final-scene .krew-reveal[data-revealed="true"] { transform: translate3d(0,0,0) scale(1); }
 .krew-final-cta { opacity: .8; transform: translate3d(0,12px,0); transition: opacity 520ms ease 260ms, transform 760ms cubic-bezier(.18,.74,.24,1) 260ms; }
@@ -143,17 +185,15 @@
 .krew-trip-photo-settle { transform: scale(1.03); transition: transform 760ms cubic-bezier(.18,.74,.24,1); transform-origin: 50% 48%; }
 .krew-trip-reveal[data-revealed="true"] .krew-trip-photo-settle { transform: scale(1); }
 
-/* The first underline is now a real KREW signature, matching the generosity of the lower marks. */
-.krew-hero-mark { width: 275px !important; max-width: 78vw; }
+/* The first underline is deliberately broad, like the other large KREW signatures lower on the page. */
+.krew-hero-mark { width: 340px !important; max-width: 92vw; }
 .krew-bento-choisit h3 { font-size: 1.5rem !important; line-height: 1.1 !important; }
-.krew-bento-cale > .krew-draw-mark,
-.krew-bento-choisit > .krew-draw-mark { display: none !important; }
 
 @media (min-width: 640px) {
-  .krew-hero-mark { width: 360px !important; }
+  .krew-hero-mark { width: 480px !important; }
 }
 @media (min-width: 1024px) {
-  .krew-hero-mark { width: 420px !important; }
+  .krew-hero-mark { width: 560px !important; }
 }
 
 /* Scroll-linked ambience remains after one-shot reveals, so the page still feels alive when revisiting sections. */
@@ -205,7 +245,7 @@
   .krew-moment-card { transform: translate3d(10px,32px,0) rotate(1deg) scale(.97); }
   .krew-moment-photo-wrap { transform: translate3d(-10px,30px,0) rotate(-2.2deg) scale(.97); }
   .krew-moment-photo-wrap[data-revealed="true"] { transform: translate3d(0,0,0) rotate(-.8deg) scale(1); }
-  .krew-moment-postit { top: -2rem !important; left: .85rem !important; }
+  .krew-moment-postit { top: -.85rem !important; left: .85rem !important; }
 
   .krew-team-scene { padding-top: 2.5rem; padding-bottom: 2.5rem; }
   .krew-team-scene .krew-scene-heading { margin-bottom: 1.5rem; }
@@ -266,5 +306,7 @@
     transition: none !important;
   }
   .krew-hero-mark path,
-  .krew-draw-mark path { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; animation: none !important; }
+  .krew-draw-mark path,
+  .krew-bento-cale svg *,
+  .krew-bento-choisit svg * { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; animation: none !important; }
 }
