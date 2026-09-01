@@ -44,9 +44,9 @@ describe("NewTripPage - Creation Screen Typologies", () => {
     expect(screen.getByRole("button", { name: /Week-end entre amis/i })).toBeInTheDocument();
   });
 
-  it("renders upcoming typologies as non-selectable disabled elements in 'À venir' section", () => {
+  it("renders upcoming typologies as non-selectable labels in the 'Bientôt' list", () => {
     renderPage();
-    expect(screen.getByText("À venir")).toBeInTheDocument();
+    expect(screen.getByText("Bientôt :")).toBeInTheDocument();
     for (const label of ["Voyage de groupe", "Voyage famille", "Séminaire", "Départ à la retraite"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: new RegExp(label, "i") })).toBeNull();
@@ -63,24 +63,24 @@ describe("NewTripPage - Creation Screen Typologies", () => {
     const firstNameInput = screen.getByRole("textbox", { name: /Ton prénom/i });
     expect(firstNameInput).toBeRequired();
     expect(firstNameInput).toHaveAttribute("aria-required", "true");
-    expect(screen.getByText(/Obligatoire — pour que le groupe sache qui organise/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pour que le groupe sache qui organise et te reconnaisse dans les réponses/i)).toBeInTheDocument();
   });
 
   it("toggles Star input when selecting EVG, EVJF, or Anniversaire, but not for Week-end entre amis", async () => {
     const user = userEvent.setup();
     renderPage();
-    expect(screen.queryByText(/Prénom de la Star/i)).toBeNull();
+    expect(screen.queryByText(/Qui est la Star/i)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /EVG/i }));
-    expect(screen.getByText(/Prénom de la Star/i)).toBeInTheDocument();
+    expect(screen.getByText(/Qui est la Star/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /EVJF/i }));
-    expect(screen.getByText(/Prénom de la Star/i)).toBeInTheDocument();
+    expect(screen.getByText(/Qui est la Star/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Anniversaire/i }));
-    expect(screen.getByText(/Prénom de la Star/i)).toBeInTheDocument();
+    expect(screen.getByText(/Qui est la Star/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Week-end entre amis/i }));
-    expect(screen.queryByText(/Prénom de la Star/i)).toBeNull();
+    expect(screen.queryByText(/Qui est la Star/i)).toBeNull();
   });
 });
