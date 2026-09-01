@@ -88,7 +88,6 @@ function InvitePage() {
     mutationFn: () => rotateInviteLink({ data: { tripId } }),
     onSuccess: (nextLink) => {
       queryClient.setQueryData(["trip-invite-link", tripId], nextLink);
-      toast.success("Nouveau lien créé. L’ancien lien ne permet plus de rejoindre le groupe.");
     },
     onError: (err) => {
       console.error("Impossible de renouveler le lien d'invitation:", err);
@@ -121,11 +120,6 @@ function InvitePage() {
     mutationFn: ({ coOrganizerId }: { coOrganizerId: string | null }) =>
       setCoOrg({ data: { tripId, coOrganizerId } }),
     onSuccess: (_, variables) => {
-      toast.success(
-        variables.coOrganizerId
-          ? "Co-organisateur·rice nommé·e"
-          : "Rôle de co-organisateur·rice retiré",
-      );
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (err) => {
@@ -140,7 +134,6 @@ function InvitePage() {
         data: { tripId, starMode, inviteStepCompleted: true, starPaysShare },
       }),
     onSuccess: () => {
-      toast.success("Invitations enregistrées");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
     },
@@ -231,10 +224,10 @@ function InvitePage() {
     }
     try {
       await navigator.clipboard.writeText(shareUrl);
-      toast.success("Lien d’invitation copié");
     } catch (err) {
       console.error("Impossible de copier le lien d'invitation:", err);
       toast.error("Impossible de copier le lien pour le moment.");
+      throw err;
     }
   }
 
@@ -278,16 +271,16 @@ function InvitePage() {
               <KrewIcon name="message" tone="cream" size="sm" className="size-4" />
               Inviter via WhatsApp
             </Button>
-            <Button
-              type="button"
+            <KrewStatefulButton
               variant="outline"
-              onClick={copyInvitationLink}
+              className="justify-center"
+              idleLabel="Copier le lien d’invitation"
+              loadingLabel="Copie…"
+              successLabel="Lien copié"
+              errorLabel="Réessayer"
               disabled={!shareUrl || inviteLinkLoading}
-              className="min-h-11 justify-center"
-            >
-              <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
-              Copier le lien d’invitation
-            </Button>
+              onAction={copyInvitationLink}
+            />
           </div>
 
           {inviteLinkError ? (
@@ -518,14 +511,14 @@ function InvitePage() {
             </h3>
             <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">Enregistre les choix de la Star puis retourne au voyage pour poursuivre l’organisation.</p>
           </div>
-          <Button
-            className="w-full sm:w-auto"
-            disabled={finishInviteMutation.isPending}
-            onClick={() => finishInviteMutation.mutate()}
-          >
-            {finishInviteMutation.isPending ? <Loader2 className="animate-spin" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4" />}
-            {inviteStepCompleted ? "Enregistrer et revenir au voyage" : "Enregistrer les invitations"}
-          </Button>
+          <KrewStatefulButton
+            className="max-w-full"
+            idleLabel={inviteStepCompleted ? "Enregistrer et revenir au voyage" : "Enregistrer les invitations"}
+            loadingLabel="Enregistrement…"
+            successLabel="Invitations enregistrées"
+            errorLabel="Réessayer"
+            onAction={() => finishInviteMutation.mutateAsync()}
+          />
         </section>
       ) : (
         <div className="flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center">
