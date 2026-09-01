@@ -2013,20 +2013,15 @@ function TripDetail() {
                     ) : null}
                   </div>
                   {data.isOwner ? (
-                    <Button
+                    <KrewStatefulButton
                       size="sm"
                       variant={i === 0 ? "default" : "outline"}
-                      className="h-9 rounded-xl text-xs"
-                      disabled={chooseDatesMutation.isPending}
-                      onClick={() => chooseDatesMutation.mutate({ start: w.start, end: w.end })}
-                    >
-                      {chooseDatesMutation.isPending ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Lock className="size-3.5" />
-                      )}
-                      Choisir ces dates
-                    </Button>
+                      idleLabel="Choisir ces dates"
+                      loadingLabel="Validation…"
+                      successLabel="Dates choisies"
+                      errorLabel="Réessayer"
+                      onAction={() => chooseDatesMutation.mutateAsync({ start: w.start, end: w.end })}
+                    />
                   ) : null}
                 </li>
               ))}
@@ -2076,19 +2071,20 @@ function TripDetail() {
                         · {(trip as any).duration_nights} nuits
                       </p>
                     ) : null}
-                    <Button
-                      disabled={!manualRange || chooseDatesMutation.isPending}
-                      onClick={() =>
-                        manualRange &&
-                        chooseDatesMutation.mutate({
+                    <KrewStatefulButton
+                      idleLabel="Choisir ces dates"
+                      loadingLabel="Validation…"
+                      successLabel="Dates choisies"
+                      errorLabel="Réessayer"
+                      disabled={!manualRange}
+                      onAction={() => {
+                        if (!manualRange) throw new Error("Dates manquantes");
+                        return chooseDatesMutation.mutateAsync({
                           start: manualRange.startDate,
                           end: manualRange.endDate,
-                        })
-                      }
-                    >
-                      {chooseDatesMutation.isPending ? <Loader2 className="animate-spin" /> : null}{" "}
-                      Choisir ces dates
-                    </Button>
+                        });
+                      }}
+                    />
                   </div>
                 </DialogContent>
               </Dialog>
@@ -2866,22 +2862,22 @@ function TripDetail() {
                                 </span>
                               </div>
                               {isOrg && !isReserved && (
-                                <Button
+                                <KrewStatefulButton
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 px-1.5 text-[10px] text-primary hover:text-primary hover:bg-sage/20 rounded-lg font-medium"
-                                  disabled={bookingStatusMutation.isPending}
-                                  onClick={() =>
-                                    bookingStatusMutation.mutate({
+                                  className="h-6 px-1.5 text-[10px] text-primary hover:text-primary hover:bg-sage/20"
+                                  idleLabel="Marquer comme réservé"
+                                  loadingLabel="Enregistrement…"
+                                  successLabel="Réservé"
+                                  errorLabel="Réessayer"
+                                  onAction={() =>
+                                    bookingStatusMutation.mutateAsync({
                                       type: "transport",
                                       status: "réservé",
                                       userId: p.userId,
                                     })
                                   }
-                                >
-                                  <Check className="size-3 shrink-0" />
-                                  Marquer comme réservé
-                                </Button>
+                                />
                               )}
                             </li>
                           );
@@ -2918,12 +2914,15 @@ function TripDetail() {
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <Button
+                              <KrewStatefulButton
                                 size="sm"
-                                variant={isMine ? "hero" : "outline"}
-                                disabled={transportPickMutation.isPending}
-                                onClick={() =>
-                                  transportPickMutation.mutate({
+                                variant={isMine ? "default" : "outline"}
+                                idleLabel={isMine ? "Mon trajet" : "Choisir ce trajet"}
+                                loadingLabel="Enregistrement…"
+                                successLabel="Trajet choisi"
+                                errorLabel="Réessayer"
+                                onAction={() =>
+                                  transportPickMutation.mutateAsync({
                                     city: tr.city,
                                     mode: tr.mode,
                                     modeLabel: tr.modeLabel,
@@ -2943,9 +2942,7 @@ function TripDetail() {
                                       tr.providerOffer?.outboundArrivalTime || pickArrival || undefined,
                                   } as any)
                                 }
-                              >
-                                {isMine ? "Mon trajet" : "Choisir ce trajet"}
-                              </Button>
+                              />
                               {(tr.links ?? []).slice(0, 1).map((l: any) => (
                                 <a
                                   key={l.label}
