@@ -127,7 +127,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
     },
     onSuccess: (result: any) => {
       if (result?.ok) {
-          refreshTasks();
+        refreshTasks();
       } else {
         toast.warning("Aucune tâche à ajouter pour le moment.");
       }
@@ -140,15 +140,16 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
 
   if (detailQuery.isLoading || tasksQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <KrewThinkingState context="generic" customMessage="Chargement des tâches…" delayMs={0} />
       </main>
     );
   }
 
   if (!detailQuery.data || detailQuery.isError || tasksQuery.isError) {
+    const retrying = detailQuery.isFetching || tasksQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-4 px-4 py-10">
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
@@ -157,7 +158,26 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
         >
           <ArrowLeft className="size-4" /> Retour au voyage
         </Link>
-        <p className="text-sm text-muted-foreground">Impossible de charger les tâches pour le moment.</p>
+        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
+          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
+            Impossible de charger les tâches
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Les tâches du groupe ne sont pas disponibles pour le moment.
+          </p>
+          <Button
+            type="button"
+            className="mt-5"
+            onClick={() => {
+              void detailQuery.refetch();
+              void tasksQuery.refetch();
+            }}
+            disabled={retrying}
+            aria-busy={retrying}
+          >
+            {retrying ? "Chargement…" : "Réessayer"}
+          </Button>
+        </section>
       </main>
     );
   }
