@@ -248,7 +248,7 @@ function AuthPage() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-background lg:grid lg:grid-cols-[minmax(300px,0.82fr)_minmax(480px,1.18fr)]">
-      <section className="relative z-10 min-h-[470px] px-4 pb-20 pt-7 sm:min-h-[500px] sm:px-6 lg:min-h-screen lg:overflow-hidden lg:border-r lg:border-border/45 lg:bg-sage/[0.07] lg:px-10 lg:py-10 xl:px-14">
+      <section className="relative z-10 min-h-[330px] px-4 pb-14 pt-5 sm:min-h-[350px] sm:px-6 sm:pb-16 sm:pt-6 lg:min-h-screen lg:overflow-hidden lg:border-r lg:border-border/45 lg:bg-sage/[0.07] lg:px-10 lg:py-10 xl:px-14">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[calc(100%-18px)] overflow-hidden rounded-br-[42%] bg-sage/[0.075] lg:hidden">
           <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-[32%] top-[13%] h-[78%] w-[128%] opacity-45" />
         </div>
@@ -257,30 +257,30 @@ function AuthPage() {
         <div className="relative z-10 mx-auto flex h-full w-full max-w-[520px] flex-col lg:justify-between">
           <Link to="/" className="w-fit"><Logo size="lg" withTagline /></Link>
 
-          <div className="mt-9 max-w-[430px] sm:mt-11 lg:mt-0">
+          <div className="mt-6 max-w-[430px] sm:mt-7 lg:mt-0">
             <p className="font-mono text-[12px] font-semibold uppercase tracking-[0.12em] text-primary">La team. Le plan. Le moment.</p>
-            <h1 className="mt-2 max-w-[390px] font-display text-[36px] font-normal leading-[0.96] tracking-[-0.025em] text-foreground sm:text-[44px] lg:text-[50px]">
+            <h1 className="mt-2 max-w-[390px] font-display text-[32px] font-normal leading-[0.96] tracking-[-0.025em] text-foreground sm:text-[38px] lg:text-[50px]">
               Retrouve ton voyage, simplement.
             </h1>
-            <p className="mt-4 max-w-[390px] pr-4 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+            <p className="mt-3 max-w-[390px] pr-4 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
               Connecte-toi pour retrouver tes voyages de groupe et poursuivre l’organisation là où tu l’as laissée.
             </p>
           </div>
         </div>
 
-        <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute right-5 top-[45%] opacity-45 sm:right-10 lg:hidden" />
-        <KrewMark type="arrow-curved-down" tone="sage" size="sm" rotation={-4} className="pointer-events-none absolute bottom-[34px] right-[112px] opacity-55 sm:right-[142px] lg:hidden" />
-        <KrewMark type="route" tone="sage" size="sm" rotation={2} className="pointer-events-none absolute bottom-[54px] left-3 opacity-35 lg:hidden" />
+        <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute right-5 top-[42%] opacity-45 sm:right-10 lg:hidden" />
+        <KrewMark type="arrow-curved-down" tone="sage" size="sm" rotation={-4} className="pointer-events-none absolute bottom-[24px] right-[100px] opacity-55 sm:right-[124px] lg:hidden" />
+        <KrewMark type="route" tone="sage" size="sm" rotation={2} className="pointer-events-none absolute bottom-[40px] left-3 opacity-35 lg:hidden" />
         <img
           src="/brand/otter-states/lets-go.png"
           alt=""
-          className="pointer-events-none absolute -bottom-3 right-3 z-20 w-[112px] object-contain sm:right-8 sm:w-[128px] lg:static lg:mt-10 lg:w-[118px]"
+          className="pointer-events-none absolute -bottom-2 right-3 z-20 w-[96px] object-contain sm:right-8 sm:w-[108px] lg:static lg:mt-10 lg:w-[118px]"
         />
       </section>
 
-      <section className="relative z-0 -mt-8 flex min-h-[calc(100vh-220px)] items-start px-4 pb-10 pt-20 sm:-mt-10 sm:px-6 sm:pt-24 lg:mt-0 lg:min-h-screen lg:items-center lg:px-12 lg:py-10 xl:px-16">
+      <section className="relative z-0 -mt-6 flex min-h-[calc(100vh-220px)] items-start px-4 pb-10 pt-10 sm:-mt-8 sm:px-6 sm:pt-12 lg:mt-0 lg:min-h-screen lg:items-center lg:px-12 lg:py-10 xl:px-16">
         <div className="mx-auto w-full max-w-[520px]">
-          <div className="mb-8 space-y-2">
+          <div className="mb-5 space-y-2 sm:mb-6 lg:mb-8">
             <div className="relative inline-block pb-2">
               <h2 className="font-display text-[32px] font-normal leading-tight text-foreground sm:text-[36px]">Bienvenue sur KREW</h2>
               <KrewMark type="underline-wave" tone="sage" size="sm" className="pointer-events-none absolute -bottom-1 left-0 h-3 w-[120px] opacity-70" />
@@ -289,7 +289,7 @@ function AuthPage() {
           </div>
 
           <Tabs defaultValue="signin">
-            <TabsList className="mb-7 flex h-auto w-full justify-start gap-7 rounded-none border-b border-border/55 bg-transparent p-0">
+            <TabsList className="mb-5 flex h-auto w-full justify-start gap-7 rounded-none border-b border-border/55 bg-transparent p-0 sm:mb-6 lg:mb-7">
               <TabsTrigger
                 value="signin"
                 className="relative rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-0 text-[14px] font-semibold text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none"
@@ -305,7 +305,7 @@ function AuthPage() {
             </TabsList>
 
             <TabsContent value="signin" className="mt-0">
-              <form onSubmit={signIn} className="space-y-5">
+              <form onSubmit={signIn} className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
                   <Input id="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => { setEmail(e.target.value); setResetEmailSent(false); }} />
@@ -336,7 +336,7 @@ function AuthPage() {
             </TabsContent>
 
             <TabsContent value="signup" className="mt-0">
-              <form onSubmit={signUp} className="space-y-5">
+              <form onSubmit={signUp} className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-[13px] font-medium text-foreground">Prénom / pseudo</Label>
                   <Input id="name" autoComplete="name" className={AUTH_INPUT_CLASS} value={fullName} onChange={(e) => setFullName(e.target.value)} />
