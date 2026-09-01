@@ -514,13 +514,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </ol>
 
       {!historical ? (
-        <div className="mt-7 flex items-end justify-between gap-3 pb-4 pt-2 sm:mt-9 sm:pt-3" aria-hidden="true">
+        <div className="mt-4 flex items-end justify-between gap-3 pb-4 pt-1 sm:mt-5 sm:pt-2" aria-hidden="true">
           <img
             src="/brand/otter-states/completed.png"
             alt=""
-            className="pointer-events-none w-[76px] shrink-0 object-contain opacity-95 sm:w-[88px]"
+            className="pointer-events-none -translate-y-1 w-[76px] shrink-0 object-contain opacity-95 sm:w-[88px]"
           />
-          <span className="inline-block whitespace-nowrap pb-1 text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/75 text-[clamp(12px,3.8vw,16px)] sm:text-[18px]">
+          <span className="inline-block whitespace-nowrap pb-1 text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/75 text-[clamp(11px,3.4vw,14px)] sm:text-[16px]">
             La suite s’écrit avec la Krew
           </span>
         </div>
