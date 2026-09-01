@@ -285,7 +285,6 @@ function TripDetail() {
     mutationFn: (count: number) =>
       updateCountFn({ data: { tripId, participantsCount: count } }),
     onSuccess: () => {
-      toast.success("Nombre de participants mis à jour");
       setIsEditingCount(false);
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
@@ -307,7 +306,6 @@ function TripDetail() {
         },
       }),
     onSuccess: () => {
-      toast.success("Paramètres de la Star enregistrés");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (err: any) => {
@@ -321,10 +319,8 @@ function TripDetail() {
       setCoOrg({ data: { tripId, coOrganizerId } }),
     onSuccess: (_, variables) => {
       if (variables.coOrganizerId) {
-        toast.success("Co-organisateur·rice nommé·e");
-      } else {
-        toast.success("Rôle de co-organisateur·rice retiré");
-      }
+        } else {
+        }
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (err) => {
@@ -376,7 +372,6 @@ function TripDetail() {
       return updateTaskStatusFn({ data: { taskId, status } });
     },
     onSuccess: () => {
-      toast.success("Statut de la tâche mis à jour");
       refetchTasks();
     },
     onError: (err: any) => {
@@ -396,7 +391,6 @@ function TripDetail() {
       return reassignTaskFn({ data: { taskId, participantId } });
     },
     onSuccess: () => {
-      toast.success("Tâche réattribuée");
       refetchTasks();
     },
     onError: (err: any) => {
@@ -503,7 +497,6 @@ function TripDetail() {
   const validateProfileMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
     onSuccess: () => {
-      toast.success("Profil du voyage enregistré");
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
@@ -550,7 +543,6 @@ function TripDetail() {
   const finalizeActivitiesMutation = useMutation({
     mutationFn: (activityIds: string[]) => finalizeActivitiesFn({ data: { tripId, activityIds } }),
     onSuccess: () => {
-      toast.success("Activités choisies pour le voyage");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (e: any) => {
@@ -566,8 +558,7 @@ function TripDetail() {
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       if (res?.ok) {
-        toast.success("Planning prêt");
-        document.getElementById("hub-activities-plan")?.scrollIntoView({ behavior: "smooth" });
+          document.getElementById("hub-activities-plan")?.scrollIntoView({ behavior: "smooth" });
       }
     },
     onError: (e: any) => handleMutationError(e, "Impossible de préparer le planning pour le moment."),
@@ -576,7 +567,6 @@ function TripDetail() {
     mutationFn: (payload: { day: number; slotIndex: number }) =>
       regenerateSlotFn({ data: { tripId, day: payload.day, slotIndex: payload.slotIndex } }),
     onSuccess: () => {
-      toast.success("Créneau mis à jour");
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
     onError: (e: any) => {
@@ -613,7 +603,6 @@ function TripDetail() {
   const hotelVoteMutation = useMutation({
     mutationFn: (hotelId: string) => voteHotelFn({ data: { tripId, hotelId } }),
     onSuccess: () => {
-      toast.success("Vote enregistré");
       refresh();
     },
     onError: (e: any) => {
@@ -632,7 +621,6 @@ function TripDetail() {
         },
       }),
     onSuccess: () => {
-      toast.success("Filtres horaires enregistrés");
       refresh();
     },
     onError: (e: any) => {
@@ -656,7 +644,6 @@ function TripDetail() {
       url?: string | null;
     }) => pickTransportFn({ data: { tripId, ...payload } }),
     onSuccess: () => {
-      toast.success("Mon trajet est enregistré");
       refresh();
     },
     onError: (e: any) => {
@@ -672,7 +659,6 @@ function TripDetail() {
       userId?: string;
     }) => fetchBookingStatus({ data: { tripId, ...vars } }),
     onSuccess: () => {
-      toast.success("Statut de réservation mis à jour");
       refresh();
       queryClient.invalidateQueries({ queryKey: ["cost-split", tripId] });
       queryClient.invalidateQueries({ queryKey: ["group-time-window", tripId] });
@@ -686,7 +672,6 @@ function TripDetail() {
   const selectMutation = useMutation({
     mutationFn: (recommendationId: string) => select({ data: { tripId, recommendationId } }),
     onSuccess: () => {
-      toast.success("Destination choisie pour le groupe");
       refresh();
     },
   });
@@ -793,7 +778,6 @@ function TripDetail() {
   const unlockDatesMutation = useMutation({
     mutationFn: () => unlockDatesFn({ data: { tripId } }),
     onSuccess: () => {
-      toast.success("Dates à nouveau modifiables");
       queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] });
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
@@ -2259,14 +2243,15 @@ function TripDetail() {
           </div>
         ) : data.isOwner && (readiness?.profile.questionnairesReady || profile?.legacyBypass) ? (
           <div className="pt-2">
-            <Button
-              className="rounded-xl font-medium min-h-[44px] h-auto text-sm sm:text-base whitespace-normal text-center leading-tight py-2.5"
-              disabled={validateProfileMutation.isPending || selectedConceptIds.length < 1}
-              onClick={() => validateProfileMutation.mutate()}
-            >
-              {validateProfileMutation.isPending ? <Loader2 className="animate-spin size-4 shrink-0" /> : <KrewIcon name="check" tone="cream" size="sm" className="size-4 shrink-0" />}
-              Enregistrer le Profil du voyage
-            </Button>
+            <KrewStatefulButton
+              className="max-w-full"
+              idleLabel="Enregistrer le Profil du voyage"
+              loadingLabel="Enregistrement…"
+              successLabel="Profil enregistré"
+              errorLabel="Réessayer"
+              disabled={selectedConceptIds.length < 1}
+              onAction={() => validateProfileMutation.mutateAsync()}
+            />
           </div>
         ) : null}
       </section>
@@ -2497,17 +2482,15 @@ function TripDetail() {
                                 <CheckCircle2 className="size-3.5" /> Destination choisie
                               </Button>
                             ) : data.isOwner ? (
-                              <Button
+                              <KrewStatefulButton
                                 size="sm"
-                                variant={destinationSelected ? "outline" : "hero"}
-                                onClick={() => selectMutation.mutate(reco.id)}
-                                disabled={selectMutation.isPending}
-                              >
-                                <CheckCircle2 className="size-3.5" />
-                                {destinationSelected
-                                  ? "Changer pour celle-ci"
-                                  : "Choisir cette destination"}
-                              </Button>
+                                variant={destinationSelected ? "outline" : "default"}
+                                idleLabel={destinationSelected ? "Changer pour celle-ci" : "Choisir cette destination"}
+                                loadingLabel="Sélection…"
+                                successLabel="Destination choisie"
+                                errorLabel="Réessayer"
+                                onAction={() => selectMutation.mutateAsync(reco.id)}
+                              />
                             ) : null}
                           </div>
                         </div>
@@ -2759,21 +2742,15 @@ function TripDetail() {
                     </span>
                   </div>
                   {(trip as any).group_logistics?.hotelBookingStatus !== "réservé" && (
-                    <Button
+                    <KrewStatefulButton
                       size="sm"
-                      className="border border-sage/40 bg-sage/15 text-primary hover:bg-sage/25 shadow-none rounded-xl font-medium"
-                      disabled={bookingStatusMutation.isPending}
-                      onClick={() =>
-                        bookingStatusMutation.mutate({ type: "hotel", status: "réservé" })
-                      }
-                    >
-                      {bookingStatusMutation.isPending ? (
-                        <Loader2 className="animate-spin size-3" />
-                      ) : (
-                        <KrewIcon name="booked" tone="plum" size="sm" className="size-3.5" />
-                      )}
-                      Marquer comme réservé
-                    </Button>
+                      className="border border-sage/40 bg-sage/15 text-primary hover:bg-sage/25 shadow-none"
+                      idleLabel="Marquer comme réservé"
+                      loadingLabel="Enregistrement…"
+                      successLabel="Hébergement réservé"
+                      errorLabel="Réessayer"
+                      onAction={() => bookingStatusMutation.mutateAsync({ type: "hotel", status: "réservé" })}
+                    />
                   )}
                 </div>
 
@@ -3209,21 +3186,17 @@ function TripDetail() {
                             </div>
                           </div>
                           {data.isOwner ? (
-                            <Button
+                            <KrewStatefulButton
                               size="sm"
                               variant="outline"
-                              disabled={slotMutation.isPending}
-                              onClick={() => slotMutation.mutate({ day: day.day, slotIndex })}
-                              title="Proposer une autre option pour ce créneau seulement"
                               className="shrink-0"
-                            >
-                              {slotMutation.isPending ? (
-                                <Loader2 className="size-3.5 animate-spin" />
-                              ) : (
-                                <RefreshCw className="size-3.5" />
-                              )}
-                              Autre option
-                            </Button>
+                              idleLabel="Autre option"
+                              loadingLabel="Recherche…"
+                              successLabel="Option actualisée"
+                              errorLabel="Réessayer"
+                              title="Proposer une autre option pour ce créneau seulement"
+                              onAction={() => slotMutation.mutateAsync({ day: day.day, slotIndex })}
+                            />
                           ) : null}
                         </div>
                       );
@@ -3286,19 +3259,14 @@ function TripDetail() {
               </p>
             </div>
             {hasItinerary && data.isOwner ? (
-              <Button
+              <KrewStatefulButton
                 size="sm"
-                disabled={generateTasksMutation.isPending}
-                onClick={() => generateTasksMutation.mutate()}
-                className="rounded-xl font-medium gap-1.5"
-              >
-                {generateTasksMutation.isPending ? (
-                  <Loader2 className="animate-spin size-4" />
-                ) : (
-                  <KrewIcon name="tasks" tone="plum" size="sm" className="size-4" />
-                )}
-                <span className="text-center">Préparer les tâches</span>
-              </Button>
+                idleLabel="Préparer les tâches"
+                loadingLabel="Préparation…"
+                successLabel="Tâches prêtes"
+                errorLabel="Réessayer"
+                onAction={() => generateTasksMutation.mutateAsync()}
+              />
             ) : null}
           </div>
 
