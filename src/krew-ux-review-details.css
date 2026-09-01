@@ -9,10 +9,10 @@ main.max-w-5xl header > div.relative.w-full > div.relative.z-20 > p:first-child 
   max-width: min(70%, 15rem);
   padding: 0.5rem 0.85rem;
   background: color-mix(in oklch, var(--sage) 24%, var(--background));
-  border: 1px solid color-mix(in oklch, var(--sage) 40%, var(--border));
+  border: 0;
   border-radius: 0.4rem 0.8rem 0.3rem 0.65rem;
   color: var(--primary) !important;
-  font-family: "Caveat", cursive !important;
+  font-family: "Kalam", "Segoe Print", cursive !important;
   font-size: 1.08rem !important;
   font-weight: 600 !important;
   line-height: 1 !important;
@@ -70,12 +70,13 @@ main.max-w-5xl div:has(> header > div.relative.w-full):has(section > div.relativ
   max-width: 10rem;
   padding: 0.42rem 0.72rem;
   background: color-mix(in oklch, var(--primary) 9%, var(--background));
-  border: 1px solid color-mix(in oklch, var(--primary) 19%, var(--border));
+  border: 0;
   border-radius: 0.7rem 0.3rem 0.62rem 0.35rem;
   color: var(--primary);
-  font-family: "Caveat", cursive;
-  font-size: 0.98rem;
-  line-height: 1;
+  font-family: "Kalam", "Segoe Print", cursive;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.18;
   transform: rotate(1.1deg);
   box-shadow: 0 6px 14px -12px color-mix(in oklch, var(--foreground) 32%, transparent);
   pointer-events: none;
@@ -123,7 +124,7 @@ div[class*="max-w-[900px]"] > header > div:first-child {
 
 div[class*="max-w-[900px]"] > header > div:first-child::after {
   content: "Notre feuille de route";
-  font-family: "Caveat", cursive;
+  font-family: "Kalam", "Segoe Print", cursive;
   font-size: 1rem;
   line-height: 1;
   color: var(--sage);
