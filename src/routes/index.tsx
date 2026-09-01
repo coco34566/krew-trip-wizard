@@ -216,7 +216,7 @@ function Landing() {
               <FeatureBlock className="krew-bento-cale sm:col-span-1 lg:col-span-2" iconName="destination" title="On se cale" text="Dispos, envies, budget, contraintes : chacun répond à son rythme." mark="pin-line" />
               <FeatureBlock className="krew-bento-choisit sm:col-span-1 lg:col-span-4 lg:row-span-2" iconName="vote" title="On choisit" text="KREW aide le groupe à transformer toutes ces réponses en décisions concrètes." mark="stamp-circle" large />
               <FeatureBlock className="krew-bento-part lg:col-span-2" iconName="planning" title="On part" text="Planning, transports, tâches et essentiels restent au même endroit." mark="check" />
-              <FeatureBlock className="krew-bento-garde sm:col-span-2 lg:col-span-6" iconName="budget" title="On garde" text="Une fois le voyage passé, KREW conserve le voyage et les souvenirs du groupe." mark="heart" wide />
+              <FeatureBlock className="krew-bento-garde sm:col-span-1 lg:col-span-6" iconName="budget" title="On garde" text="Une fois le voyage passé, KREW conserve le voyage et les souvenirs du groupe." mark="heart" wide />
             </div>
           </div>
         </section>
