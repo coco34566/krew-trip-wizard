@@ -33,6 +33,7 @@ type RawLodging = Record<string, unknown> | null | undefined;
 const GOOGLE_MAPS_SEARCH_PREFIX = "https://www.google.com/maps/search/?api=1&query=";
 
 function finiteCoordinate(value: unknown): number | null {
+  if (value == null || (typeof value === "string" && !value.trim())) return null;
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
 }

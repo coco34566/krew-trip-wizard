@@ -12,7 +12,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   const [tripRes, participantsRes, preferencesRes, availabilitiesRes, starPrefsRes] = await Promise.all([
     supabase
       .from("trips")
-      .select("celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics")
+      .select("participants_count, celebrated_person, has_star, star_user_id, owner_id, co_organizer_id, group_logistics")
       .eq("id", tripId)
       .maybeSingle(),
     supabase
@@ -58,6 +58,12 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     secretStarHasAvailability: hasSecretStarAvailability(starPrefs),
   });
 
+  const joined = counts.expectedUserIds.length;
+  const configuredParticipants = Number(tripRes.data.participants_count ?? 0);
+  const participantsExpected = Number.isFinite(configuredParticipants) && configuredParticipants > 0
+    ? Math.max(configuredParticipants, joined)
+    : joined;
+
   const prefByUser = new Map<string, any>();
   for (const row of preferenceRows as any[]) {
     if (row.user_id) prefByUser.set(row.user_id, row);
@@ -83,9 +89,6 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
         hasAnswered: Boolean(preference),
         hasAnsweredAvailability: availabilityUsers.has(participant.user_id),
         answeredAt: preference ? preference.updated_at || preference.submitted_at : null,
-        // A single blank is intentional when the questionnaire has no origin yet:
-        // it is truthy before the Transport page's fallback chain, then trims to an
-        // empty string, so an old transport pick can never masquerade as an origin.
         departure_city: preference?.departure_city || " ",
       };
     });
@@ -125,7 +128,8 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   }
 
   return {
-    joined: counts.expectedUserIds.length,
+    joined,
+    participantsExpected,
     expected: counts.preferencesExpected,
     total: counts.preferencesExpected,
     answered: counts.preferencesAnswered,
@@ -134,7 +138,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     availabilityExpected: counts.availabilityExpected,
     pendingPrefs: counts.preferencesMissing,
     pendingAvailability: counts.availabilityMissing,
-    pendingJoin: 0,
+    pendingJoin: Math.max(participantsExpected - joined, 0),
     participants: partsList,
   };
 }

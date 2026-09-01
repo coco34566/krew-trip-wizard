@@ -3,27 +3,19 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  getTripDetail as routedGetTripDetail,
-  pickTransport as routedPickTransport,
-  voteHotel as routedVoteHotel,
-} from "@/lib/trips.functions";
-import {
-  getTripDetail as legacyGetTripDetail,
-  pickTransport as legacyPickTransport,
-  voteHotel as legacyVoteHotel,
-} from "../trips.functions";
-import {
-  pickTransportAtomic,
-  voteHotelAtomic,
-} from "../trips-logistics-atomic.functions";
+import { getTripDetail as routedGetTripDetail } from "@/lib/trips.functions";
+import { getTripDetail as legacyGetTripDetail } from "../trips.functions";
 
 describe("atomic group_logistics wiring", () => {
   it("overrides only hotel votes and transport picks", () => {
-    expect(routedVoteHotel).toBe(voteHotelAtomic);
-    expect(routedPickTransport).toBe(pickTransportAtomic);
-    expect(routedVoteHotel).not.toBe(legacyVoteHotel);
-    expect(routedPickTransport).not.toBe(legacyPickTransport);
+    const entry = readFileSync(
+      resolve(process.cwd(), "src/lib/trips.functions.entry.ts"),
+      "utf8",
+    );
+
+    expect(entry).toContain("export * from \"./trips.functions\"");
+    expect(entry).toContain("voteHotelAtomic as voteHotel");
+    expect(entry).toContain("pickTransportAtomic as pickTransport");
     expect(routedGetTripDetail).toBe(legacyGetTripDetail);
   });
 

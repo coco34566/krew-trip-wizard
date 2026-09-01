@@ -18,7 +18,7 @@ function scrubString(value: string) {
     .replace(/([?&](?:token|key|secret|code|auth)[^=]*)=[^&#\s]*/gi, "$1=[Redacted]")
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[Redacted email]")
     .replace(/\b(Bearer\s+)[A-Z0-9._~+\/-]+=*\b/gi, "$1[Redacted]")
-    .replace(/\b(password|passwd|token|secret|authorization|api[_ -]?key|access[_ -]?key)\s*[:=]\s*[^\s,;]+/gi, "$1=[Redacted]");
+    .replace(/\b(password|passwd|token|secret|authorization|api[_ -]?key|access[_ -]?key)\s*[:=]\s*[^\s,;&#]+/gi, "$1=[Redacted]");
 }
 
 function scrub(value: unknown, depth = 0): unknown {

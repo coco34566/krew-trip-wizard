@@ -20,6 +20,7 @@ describe("completed trip DOM contract", () => {
     expect(html).not.toContain("À répartir dans les tâches");
     expect(html).not.toContain("aria-label=\"Assigner");
     expect(html).not.toContain("aria-label=\"Cocher");
-    expect(html).toContain("Consultation du voyage terminé");
+    expect(html).toContain("Souvenir du voyage");
+    expect(html).toContain("La liste du voyage, conservée avec son dernier état.");
   });
 });
