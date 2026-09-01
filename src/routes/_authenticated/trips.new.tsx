@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { createTrip } from "@/lib/trips.functions";
 import {
   EVENT_TYPES,
