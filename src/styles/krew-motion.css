@@ -1,0 +1,309 @@
+@keyframes krew-hero-photo-settle {
+  from { opacity: .9; transform: translate3d(14px, 16px, 0) rotate(1.3deg) scale(.972); }
+  68% { opacity: 1; transform: translate3d(-2px, -1px, 0) rotate(-.18deg) scale(1.006); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+@keyframes krew-hero-postit-settle {
+  from { opacity: .9; transform: translate3d(13px, -16px, 0) rotate(2.4deg) scale(.965); }
+  72% { opacity: 1; transform: translate3d(-1px, 1px, 0) rotate(-.25deg) scale(1.01); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+@keyframes krew-hero-copy-settle {
+  from { opacity: .92; transform: translate3d(0, 18px, 0) scale(.992); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes krew-slogan-settle {
+  from { opacity: .9; transform: translate3d(0, 13px, 0); letter-spacing: .018em; }
+  to { opacity: 1; transform: translate3d(0, 0, 0); letter-spacing: 0; }
+}
+@keyframes krew-mark-draw {
+  from { stroke-dashoffset: 110; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes krew-icon-draw {
+  from { stroke-dashoffset: 42; opacity: .35; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+@keyframes krew-otter-settle {
+  from { opacity: .84; transform: translate3d(10px, 8px, 0) rotate(2deg) scale(.96); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+@keyframes krew-ambient-rise {
+  from { translate: 0 7px; rotate: -.2deg; }
+  50% { translate: 0 -3px; rotate: .18deg; }
+  to { translate: 0 5px; rotate: 0deg; }
+}
+@keyframes krew-ambient-photo {
+  from { translate: 0 -10px; scale: 1.045; }
+  50% { translate: 0 3px; scale: 1.025; }
+  to { translate: 0 10px; scale: 1.04; }
+}
+@keyframes krew-ambient-mark {
+  from { translate: -5px 2px; rotate: -.5deg; }
+  to { translate: 7px -2px; rotate: .45deg; }
+}
+
+/* Hero choreography is viewport-triggered so it can replay after leaving and re-entering. */
+.krew-hero-scene[data-revealed="true"] .krew-hero-copy { animation: krew-hero-copy-settle 1550ms cubic-bezier(.18,.74,.24,1) 280ms both; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-photo-settle { animation: krew-hero-photo-settle 2200ms cubic-bezier(.18,.74,.24,1) 240ms both; transform-origin: 60% 45%; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-postit-settle { animation: krew-hero-postit-settle 1750ms cubic-bezier(.18,.74,.24,1) 820ms both; transform-origin: 70% 20%; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-slogan { animation: krew-slogan-settle 1550ms cubic-bezier(.18,.74,.24,1) 720ms both; }
+.krew-hero-scene[data-revealed="true"] .krew-hero-cta { animation: krew-hero-copy-settle 1050ms cubic-bezier(.18,.74,.24,1) 420ms both; }
+.krew-hero-mark path,
+.krew-draw-mark path {
+  stroke-dasharray: 110;
+  stroke-dashoffset: 110;
+}
+.krew-hero-scene[data-revealed="true"] .krew-hero-mark path { animation: krew-mark-draw 1450ms cubic-bezier(.32,0,.18,1) 880ms both; }
+
+.krew-reveal {
+  opacity: .82;
+  transform: translate3d(0, 24px, 0) scale(.985);
+  transition: opacity 560ms ease-out, transform 860ms cubic-bezier(.18,.74,.24,1), clip-path 860ms cubic-bezier(.18,.74,.24,1);
+  will-change: transform, opacity;
+}
+.krew-reveal[data-revealed="true"] { opacity: 1; transform: translate3d(0,0,0) scale(1); }
+.krew-reveal[data-revealed="true"] .krew-draw-mark path,
+.krew-reveal[data-revealed="true"].krew-bento-card .krew-draw-mark path {
+  animation: krew-mark-draw 900ms cubic-bezier(.32,0,.18,1) 180ms forwards;
+}
+.krew-scene-heading[data-revealed="true"] .krew-scene-otter { animation: krew-otter-settle 920ms cubic-bezier(.18,.74,.24,1) 120ms both; }
+
+/* LE PLAN — three pieces first feel scattered, then settle into one route. */
+.krew-plan-track { isolation: isolate; }
+.krew-plan-step {
+  min-height: 150px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--background) 96%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 58%, transparent);
+  padding: 18px;
+  box-shadow: 0 18px 44px -40px rgba(42,25,37,.55);
+}
+.krew-plan-step-1 { transform: translate3d(-22px,20px,0) rotate(-1.8deg) scale(.975); }
+.krew-plan-step-2 { transform: translate3d(0,34px,0) rotate(1.3deg) scale(.97); }
+.krew-plan-step-3 { transform: translate3d(22px,18px,0) rotate(-.9deg) scale(.978); }
+.krew-plan-step[data-revealed="true"] { transform: translate3d(0,0,0) rotate(0) scale(1); }
+.krew-plan-step-1 { transition-delay: 40ms; }
+.krew-plan-step-2 { transition-delay: 130ms; }
+.krew-plan-step-3 { transition-delay: 220ms; }
+.krew-plan-route {
+  z-index: -1;
+  width: 74%;
+  height: 80px;
+  left: 13%;
+  top: 36px;
+  opacity: .42;
+}
+.krew-plan-scene:has(.krew-plan-step-2[data-revealed="true"]) .krew-plan-route path { animation: krew-mark-draw 1200ms cubic-bezier(.32,0,.18,1) 100ms forwards; }
+
+/* LE MOMENT — the image itself clips; the wrapper stays open so the coup-de-coeur note can sit above everything. */
+.krew-moment-photo-wrap { overflow: visible; clip-path: none; transform: translate3d(-20px,28px,0) rotate(-2deg) scale(.975); }
+.krew-moment-photo-wrap[data-revealed="true"] { clip-path: none; transform: translate3d(0,0,0) rotate(-.65deg) scale(1); }
+.krew-moment-photo {
+  clip-path: inset(7% 7% 9% 7% round 32px);
+  transform: scale(1.045);
+  transition: transform 1200ms cubic-bezier(.18,.74,.24,1), clip-path 920ms cubic-bezier(.18,.74,.24,1);
+}
+.krew-moment-photo-wrap[data-revealed="true"] .krew-moment-photo { clip-path: inset(0 0 0 0 round 24px); transform: scale(1); }
+.krew-moment-postit {
+  top: -1.15rem !important;
+  left: 1rem !important;
+  z-index: 50 !important;
+  opacity: 0;
+  transform: translate3d(14px,-14px,0) rotate(4deg) scale(.94);
+  transition: opacity 420ms ease 260ms, transform 760ms cubic-bezier(.18,.74,.24,1) 260ms;
+  filter: drop-shadow(0 12px 20px rgba(42,25,37,.14));
+}
+.krew-moment-postit [data-krew-note="post-it"] { box-shadow: 0 14px 34px rgba(42,25,37,.16) !important; }
+.krew-moment-photo-wrap[data-revealed="true"] .krew-moment-postit { opacity: 1; transform: translate3d(0,0,0) rotate(0) scale(1); }
+.krew-moment-card { transform: translate3d(28px,26px,0) rotate(.8deg) scale(.978); }
+.krew-moment-card[data-revealed="true"] { transform: translate3d(0,0,0) rotate(0) scale(1); }
+.krew-moment-group { transform: translate3d(0,18px,0); }
+.krew-moment-group[data-revealed="true"] { transform: translate3d(0,0,0); }
+.krew-moment-group:nth-child(2) { transition-delay: 80ms; }
+.krew-moment-group:nth-child(3) { transition-delay: 130ms; }
+.krew-moment-group:nth-child(4) { transition-delay: 180ms; }
+.krew-moment-group:nth-child(5) { transition-delay: 230ms; }
+.krew-moment-group:nth-child(6) { transition-delay: 280ms; }
+
+/* Editorial bento. */
+.krew-bento-card { min-height: 178px; box-shadow: 0 18px 50px -44px rgba(42,25,37,.5); }
+.krew-bento-card:nth-child(1) { transform: translate3d(-18px,24px,0) rotate(-1.1deg) scale(.98); }
+.krew-bento-card:nth-child(2) { transform: translate3d(12px,30px,0) rotate(.8deg) scale(.975); }
+.krew-bento-card:nth-child(3) { transform: translate3d(-8px,22px,0) rotate(1deg) scale(.98); }
+.krew-bento-card:nth-child(4) { transform: translate3d(0,26px,0) rotate(-.5deg) scale(.98); }
+.krew-bento-card[data-revealed="true"] { transform: translate3d(0,0,0) rotate(0) scale(1); }
+.krew-bento-choisit { background: color-mix(in srgb, var(--sage) 10%, var(--background)); }
+.krew-bento-garde { background: color-mix(in srgb, var(--primary) 4%, var(--background)); }
+
+/* Top chapters now keep both the product icon and a freehand KrewMark, like On part / On garde. */
+.krew-bento-cale > div > div:first-child,
+.krew-bento-choisit > div > div:first-child {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--sage) 18%, transparent);
+}
+.krew-bento-cale > div > div:first-child svg,
+.krew-bento-choisit > div > div:first-child svg { width: 1.6rem; height: 1.6rem; }
+.krew-bento-cale > div > div:first-child svg path,
+.krew-bento-cale > div > div:first-child svg circle,
+.krew-bento-cale > div > div:first-child svg rect,
+.krew-bento-cale > div > div:first-child svg line,
+.krew-bento-cale > div > div:first-child svg polyline,
+.krew-bento-choisit > div > div:first-child svg path,
+.krew-bento-choisit > div > div:first-child svg circle,
+.krew-bento-choisit > div > div:first-child svg rect,
+.krew-bento-choisit > div > div:first-child svg line,
+.krew-bento-choisit > div > div:first-child svg polyline {
+  stroke-dasharray: 42;
+  stroke-dashoffset: 42;
+}
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg path,
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg circle,
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg rect,
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg line,
+.krew-bento-cale[data-revealed="true"] > div > div:first-child svg polyline,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg path,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg circle,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg rect,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg line,
+.krew-bento-choisit[data-revealed="true"] > div > div:first-child svg polyline {
+  animation: krew-icon-draw 950ms cubic-bezier(.32,0,.18,1) 170ms forwards;
+}
+
+.krew-final-scene .krew-reveal { transform: translate3d(0,30px,0) scale(.975); }
+.krew-final-scene .krew-reveal[data-revealed="true"] { transform: translate3d(0,0,0) scale(1); }
+.krew-final-cta { opacity: .8; transform: translate3d(0,12px,0); transition: opacity 520ms ease 260ms, transform 760ms cubic-bezier(.18,.74,.24,1) 260ms; }
+.krew-final-scene .krew-reveal[data-revealed="true"] .krew-final-cta { opacity: 1; transform: translate3d(0,0,0); }
+
+/* Mes voyages stays restrained. */
+.krew-trip-reveal { opacity: .86; transform: translate3d(0,12px,0) rotate(.55deg) scale(.99); transition: transform 700ms cubic-bezier(.18,.74,.24,1), opacity 520ms ease-out; }
+.krew-trip-reveal[data-revealed="true"] { opacity: 1; transform: translate3d(0,0,0) rotate(0) scale(1); }
+.krew-trip-photo-settle { transform: scale(1.03); transition: transform 760ms cubic-bezier(.18,.74,.24,1); transform-origin: 50% 48%; }
+.krew-trip-reveal[data-revealed="true"] .krew-trip-photo-settle { transform: scale(1); }
+
+/* With preserveAspectRatio disabled for this one mark, these widths now enlarge the actual stroke. */
+.krew-hero-mark { width: 340px !important; max-width: 92vw; }
+.krew-bento-choisit h3 { font-size: 1.5rem !important; line-height: 1.1 !important; }
+
+@media (min-width: 640px) {
+  .krew-hero-mark { width: 480px !important; }
+}
+@media (min-width: 1024px) {
+  .krew-hero-mark { width: 560px !important; }
+}
+
+/* Scroll-linked ambience remains after reveals, while viewport-triggered choreography can replay. */
+@media (min-width: 768px) {
+  @keyframes krew-hero-parallax-copy { from { translate: 0 0; } to { translate: 0 -30px; } }
+  @keyframes krew-hero-parallax-media { from { translate: 0 0; rotate: 0deg; } to { translate: 0 25px; rotate: .7deg; } }
+
+  @supports (animation-timeline: view()) {
+    .krew-hero-media {
+      animation: krew-hero-parallax-media 1ms linear both;
+      animation-timeline: view();
+      animation-range: exit 0% exit 100%;
+    }
+    .krew-hero-mark {
+      animation: krew-ambient-mark 1ms linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+    .krew-moment-photo > img {
+      animation: krew-ambient-photo 1ms linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+    .krew-plan-step > div:first-child,
+    .krew-bento-card > div,
+    .krew-final-scene .krew-scene-otter {
+      animation: krew-ambient-rise 1ms linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .krew-hero-scene[data-revealed="true"] .krew-hero-copy { animation-duration: 1600ms; animation-delay: 320ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-photo-settle { animation-duration: 2200ms; animation-delay: 260ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-postit-settle { animation-duration: 1750ms; animation-delay: 820ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-slogan { animation-duration: 1550ms; animation-delay: 720ms; }
+  .krew-hero-scene[data-revealed="true"] .krew-hero-mark path { animation-duration: 1450ms; animation-delay: 880ms; }
+
+  .krew-reveal { opacity: .76; transform: translate3d(0,30px,0) scale(.975); transition-duration: 600ms, 920ms, 920ms; }
+  .krew-plan-step { min-height: 0; padding: 16px; }
+  .krew-plan-step-1 { transform: translate3d(-14px,26px,0) rotate(-2.2deg) scale(.97); }
+  .krew-plan-step-2 { transform: translate3d(12px,30px,0) rotate(1.8deg) scale(.97); }
+  .krew-plan-step-3 { transform: translate3d(-9px,28px,0) rotate(-1.4deg) scale(.97); }
+  .krew-plan-step[data-revealed="true"] { transform: translate3d(0,0,0) rotate(0) scale(1); }
+  .krew-moment-stack { margin-top: -12px; }
+  .krew-moment-card { transform: translate3d(10px,32px,0) rotate(1deg) scale(.97); }
+  .krew-moment-photo-wrap { transform: translate3d(-10px,30px,0) rotate(-2.2deg) scale(.97); }
+  .krew-moment-photo-wrap[data-revealed="true"] { transform: translate3d(0,0,0) rotate(-.8deg) scale(1); }
+  .krew-moment-postit { top: -.85rem !important; left: .85rem !important; }
+
+  .krew-team-scene { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+  .krew-team-scene .krew-scene-heading { margin-bottom: 1.5rem; }
+  .krew-team-scene .krew-scene-heading h2 { font-size: 1.75rem; line-height: 1.05; }
+  .krew-team-scene .krew-scene-heading p:last-child { margin-top: .55rem; font-size: .75rem; line-height: 1.55; }
+  .krew-bento { grid-auto-flow: row; gap: .75rem; }
+  .krew-bento-card { min-height: 0; padding: 1rem; }
+  .krew-bento-card:nth-child(2) { min-height: 0; }
+  .krew-bento-card > div { gap: .9rem; }
+  .krew-bento-card h3,
+  .krew-bento-choisit h3 { font-size: 1.35rem !important; line-height: 1.05 !important; }
+  .krew-bento-card p { font-size: .78rem; line-height: 1.5; }
+
+  @supports (animation-timeline: view()) {
+    .krew-moment-photo > img,
+    .krew-bento-card > div,
+    .krew-final-scene .krew-scene-otter {
+      animation: krew-ambient-rise 1ms linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .krew-hero-copy,
+  .krew-hero-photo-settle,
+  .krew-hero-postit-settle,
+  .krew-hero-slogan,
+  .krew-hero-cta,
+  .krew-scene-otter,
+  .krew-moment-photo > img,
+  .krew-final-cta,
+  .krew-trip-reveal,
+  .krew-trip-photo-settle,
+  .krew-plan-step > div:first-child,
+  .krew-bento-card > div,
+  .krew-hero-mark {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    translate: none !important;
+    rotate: none !important;
+    scale: none !important;
+    opacity: 1 !important;
+  }
+  .krew-reveal,
+  .krew-reveal[data-revealed="true"],
+  .krew-plan-step,
+  .krew-moment-photo-wrap,
+  .krew-moment-photo,
+  .krew-moment-card,
+  .krew-moment-group,
+  .krew-bento-card {
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+    transition: none !important;
+  }
+  .krew-hero-mark path,
+  .krew-draw-mark path,
+  .krew-bento-cale svg *,
+  .krew-bento-choisit svg * { stroke-dasharray: none !important; stroke-dashoffset: 0 !important; animation: none !important; }
+}

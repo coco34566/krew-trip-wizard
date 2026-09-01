@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Trash2 } from "lucide-react";
@@ -18,6 +19,7 @@ import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import "@/styles/krew-motion.css";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,6 +103,35 @@ function formatTripDates(trip: Trip) {
   return `${start.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })} – ${end.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
 }
 
+function useSettledReveal<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setRevealed(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setRevealed(true);
+        observer.disconnect();
+      },
+      { threshold: 0.1, rootMargin: "0px 0px 5% 0px" },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, revealed };
+}
+
 function ArchiveControl({ trip, onArchive, compact = false }: { trip: Trip; onArchive: (tripId: string) => void; compact?: boolean }) {
   return (
     <AlertDialog>
@@ -128,6 +159,7 @@ function FeaturedTrip({ trip, onArchive }: { trip: Trip; onArchive: (tripId: str
   const destinationLabel = trip.destination_name || "Destination à définir";
   const completed = lifecycleFor(trip) === "completed";
   const stageLabel = completed ? "Voyage terminé" : trip.journey_stage || nextActionFor(trip);
+  const reveal = useSettledReveal<HTMLDivElement>();
   return (
     <article className="relative isolate overflow-visible pb-2 sm:grid sm:grid-cols-[minmax(0,1.16fr)_minmax(240px,.84fr)] sm:items-center sm:gap-8 lg:gap-10">
       <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-5 top-8 h-[300px] w-[72%] opacity-45 -z-10" />
@@ -135,8 +167,8 @@ function FeaturedTrip({ trip, onArchive }: { trip: Trip; onArchive: (tripId: str
         <div className="absolute -top-3 left-[38%] z-10 hidden sm:block"><KrewNote variant="tape" tone="cream" rotation={1} className="min-w-[74px] px-3 py-1 text-transparent select-none">Tape</KrewNote></div>
         <div className="absolute right-5 top-5 z-30" onClick={(event) => event.stopPropagation()}><ArchiveControl trip={trip} onArchive={onArchive} compact /></div>
         <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="group block">
-          <div className="aspect-[4/3] overflow-hidden bg-surface/60 sm:aspect-[16/11]">
-            {image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />}
+          <div ref={reveal.ref} data-revealed={reveal.revealed} className="krew-trip-reveal aspect-[4/3] overflow-hidden bg-surface/60 sm:aspect-[16/11]">
+            <div className="krew-trip-photo-settle size-full">{image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="16/9" />}</div>
           </div>
           <div className="px-2 pb-1 pt-4">
             <p className="break-words font-handwriting text-[24px] leading-[1.05] text-primary sm:text-[28px]">{trip.name}</p>
@@ -164,6 +196,7 @@ function FeaturedTrip({ trip, onArchive }: { trip: Trip; onArchive: (tripId: str
 
 function NotebookTrip({ trip, invited = false, onArchive, onReactivate, index = 0 }: { trip: Trip; invited?: boolean; onArchive?: (tripId: string) => void; onReactivate?: (tripId: string) => void; index?: number }) {
   const image = tripImage(trip);
+  const reveal = useSettledReveal<HTMLDivElement>();
   const mobileCompositions = [
     "rotate-[-2.5deg] -translate-x-2 translate-y-1 sm:rotate-[-1.4deg] sm:translate-x-0 sm:translate-y-0",
     "rotate-[2.2deg] translate-x-2 translate-y-3 sm:rotate-[1.1deg] sm:translate-x-0 sm:translate-y-3",
@@ -174,18 +207,20 @@ function NotebookTrip({ trip, invited = false, onArchive, onReactivate, index = 
   const composition = mobileCompositions[index % mobileCompositions.length];
   return (
     <article className={`group relative w-full max-w-[268px] px-1 py-4 sm:w-[250px] sm:max-w-none sm:py-3 lg:w-[260px] ${composition}`}>
-      <div className="relative bg-[#fffefa] p-2 pb-4 shadow-[0_11px_24px_-18px_rgba(42,25,37,.26)] ring-1 ring-black/[.05] transition-transform duration-200 group-hover:-translate-y-1">
-        {index % 3 === 1 ? <div className="absolute -top-3 left-[34%] z-10"><KrewNote variant="tape" tone="cream" rotation={-2} className="min-w-[52px] px-2 py-0.5 text-transparent select-none">Tape</KrewNote></div> : null}
-        <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
-          <div className="relative aspect-[4/3] overflow-hidden bg-surface/50">{image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="4/3" />}</div>
-          <div className="px-1.5 pt-3">
-            <p className="font-handwriting text-[20px] leading-[1.05] text-primary sm:text-[22px]">{trip.name}</p>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-muted-foreground sm:text-[13px]"><span className="font-mono uppercase tracking-[.06em]">{eventTypeLabel(trip.event_type)}</span>{trip.destination_name ? <span className="inline-flex min-w-0 items-center gap-1"><KrewIcon name="destination" tone="muted" size="sm" className="size-3.5 shrink-0" /><span className="break-words">{trip.destination_name}</span></span> : null}<span className="inline-flex items-center gap-1"><KrewIcon name="group" tone="muted" size="sm" className="size-3.5" />{trip.participants_count}</span></div>
-            <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-snug text-foreground/75 sm:text-[13px]"><KrewIcon name="calendar" tone="sage" size="sm" className="mt-0.5 size-3.5 shrink-0" /><span>{formatTripDates(trip)}</span></p>
-          </div>
-        </Link>
-        {onArchive ? <div className="absolute right-2.5 top-2.5 z-20"><ArchiveControl trip={trip} onArchive={onArchive} compact /></div> : null}
-        <div className="mx-1.5 mt-2.5 flex items-center justify-between gap-2 border-t border-dashed border-sage/30 pt-2"><span className="font-handwriting text-[13px] leading-tight text-sage">{invited ? "avec le groupe" : nextActionFor(trip)}</span>{onReactivate ? <button type="button" onClick={() => onReactivate(trip.id)} className="relative z-10 inline-flex min-h-10 shrink-0 items-center px-1 text-[12px] font-semibold text-primary underline-offset-4 hover:underline sm:text-[13px]">Réactiver</button> : <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="relative z-10 inline-flex min-h-10 shrink-0 items-center gap-1 px-1 text-[12px] font-semibold text-primary sm:text-[13px]">Voir<KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-5" /></Link>}</div>
+      <div ref={reveal.ref} data-revealed={reveal.revealed} className="krew-trip-reveal">
+        <div className="relative bg-[#fffefa] p-2 pb-4 shadow-[0_11px_24px_-18px_rgba(42,25,37,.26)] ring-1 ring-black/[.05] transition-transform duration-200 group-hover:-translate-y-1">
+          {index % 3 === 1 ? <div className="absolute -top-3 left-[34%] z-10"><KrewNote variant="tape" tone="cream" rotation={-2} className="min-w-[52px] px-2 py-0.5 text-transparent select-none">Tape</KrewNote></div> : null}
+          <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="block">
+            <div className="krew-trip-photo-settle relative aspect-[4/3] overflow-hidden bg-surface/50">{image ? <img src={image} alt={eventTypeLabel(trip.event_type)} className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" /> : <KrewPhotoFallback className="size-full" type="destination" aspectRatio="4/3" />}</div>
+            <div className="px-1.5 pt-3">
+              <p className="font-handwriting text-[20px] leading-[1.05] text-primary sm:text-[22px]">{trip.name}</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-muted-foreground sm:text-[13px]"><span className="font-mono uppercase tracking-[.06em]">{eventTypeLabel(trip.event_type)}</span>{trip.destination_name ? <span className="inline-flex min-w-0 items-center gap-1"><KrewIcon name="destination" tone="muted" size="sm" className="size-3.5 shrink-0" /><span className="break-words">{trip.destination_name}</span></span> : null}<span className="inline-flex items-center gap-1"><KrewIcon name="group" tone="muted" size="sm" className="size-3.5" />{trip.participants_count}</span></div>
+              <p className="mt-2 flex items-start gap-1.5 text-[12px] leading-snug text-foreground/75 sm:text-[13px]"><KrewIcon name="calendar" tone="sage" size="sm" className="mt-0.5 size-3.5 shrink-0" /><span>{formatTripDates(trip)}</span></p>
+            </div>
+          </Link>
+          {onArchive ? <div className="absolute right-2.5 top-2.5 z-20"><ArchiveControl trip={trip} onArchive={onArchive} compact /></div> : null}
+          <div className="mx-1.5 mt-2.5 flex items-center justify-between gap-2 border-t border-dashed border-sage/30 pt-2"><span className="font-handwriting text-[13px] leading-tight text-sage">{invited ? "avec le groupe" : nextActionFor(trip)}</span>{onReactivate ? <button type="button" onClick={() => onReactivate(trip.id)} className="relative z-10 inline-flex min-h-10 shrink-0 items-center px-1 text-[12px] font-semibold text-primary underline-offset-4 hover:underline sm:text-[13px]">Réactiver</button> : <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="relative z-10 inline-flex min-h-10 shrink-0 items-center gap-1 px-1 text-[12px] font-semibold text-primary sm:text-[13px]">Voir<KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-5" /></Link>}</div>
+        </div>
       </div>
     </article>
   );
