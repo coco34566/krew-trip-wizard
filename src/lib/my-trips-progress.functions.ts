@@ -19,6 +19,7 @@ export const getMyTripsProgress = createServerFn({ method: "POST" })
             tripId,
             {
               joined: progress.joined,
+              participantsExpected: progress.participantsExpected,
               participantsActive: progress.preferencesExpected,
               preferencesExpected: progress.preferencesExpected,
               preferencesAnswered: progress.answered,
