@@ -42,10 +42,11 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, style, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
     const resolvedVariant = variant ?? "default";
     const resolvedSize = size ?? "default";
+    const lockPrimaryGeometry = resolvedVariant === "default" && resolvedSize === "default";
     return (
       <Comp
         data-slot="button"
@@ -53,6 +54,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         data-size={resolvedSize}
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        style={
+          lockPrimaryGeometry
+            ? { ...style, height: "2.5rem", minHeight: "2.5rem", borderRadius: "0.75rem" }
+            : style
+        }
         {...props}
       />
     );
