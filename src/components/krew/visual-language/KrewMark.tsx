@@ -36,9 +36,10 @@ const TITLE_UNDERLINE_STYLE: Record<KrewMarkSize, CSSProperties> = {
 
 export function KrewMark({type,tone="plum",size="md",rotation=0,decorative=true,dashed=false,className}:{type:KrewMarkType;tone?:KrewMarkTone;size?:KrewMarkSize;rotation?:-4|-2|0|2|4;decorative?:boolean;dashed?:boolean;className?:string}){
   const isAbsoluteTitleUnderline = type === "underline-wave" && className?.includes("absolute");
+  const stretchesInline = type === "underline-wave" && className?.includes("krew-hero-mark");
   const style: CSSProperties = {
     ...(isAbsoluteTitleUnderline ? TITLE_UNDERLINE_STYLE[size] : null),
     transform: `rotate(${rotation}deg)`,
   };
-  return <svg viewBox="0 0 100 64" preserveAspectRatio={isAbsoluteTitleUnderline ? "none" : undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}><MarkShape type={type} dashed={dashed}/></svg>
+  return <svg viewBox="0 0 100 64" preserveAspectRatio={isAbsoluteTitleUnderline || stretchesInline ? "none" : undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}><MarkShape type={type} dashed={dashed}/></svg>;
 }
