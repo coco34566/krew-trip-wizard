@@ -52,10 +52,10 @@ const CATEGORY_COPY: Record<StepCategory, string> = {
   souvenirs: "Une fois le voyage vécu, KREW garde une place pour les moments partagés.",
 };
 
-const CATEGORY_MARK: Record<StepCategory, "sparkle" | "route" | "check" | "heart"> = {
+const CATEGORY_MARK: Record<StepCategory, "sparkle" | "pin-line" | "arrow-curved-right" | "heart"> = {
   questionnaire: "sparkle",
-  prepare: "route",
-  organisation: "check",
+  prepare: "pin-line",
+  organisation: "arrow-curved-right",
   souvenirs: "heart",
 };
 
@@ -150,7 +150,7 @@ function StepNode({ step, historical }: { step: TimelineStep; historical: boolea
         "relative flex size-11 shrink-0 items-center justify-center rounded-full bg-background transition-transform sm:size-12",
         isDone && "border-2 border-sage/80",
         isAvailable && "border-2 border-primary/35",
-        isCurrent && "bg-sage/12",
+        isCurrent && "border-[3px] border-primary bg-sage/20 shadow-[0_0_0_4px_hsl(var(--background))]",
         isUpcoming && "border border-border/80",
       )}
     >
@@ -163,41 +163,30 @@ function StepNode({ step, historical }: { step: TimelineStep; historical: boolea
       {isDone ? (
         <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-background bg-sage" aria-hidden="true" />
       ) : null}
-      {isCurrent ? (
-        <KrewMark
-          type="scribble"
-          tone="sage"
-          size="lg"
-          className="pointer-events-none absolute h-[62px] w-[70px] opacity-55"
-          aria-hidden="true"
-        />
-      ) : null}
     </div>
   );
 }
 
 function CurrentPositionNote() {
   return (
-    <div className="pointer-events-none absolute -top-7 right-1 z-10 sm:-top-9 sm:right-3" aria-hidden="true">
-      <div className="relative rotate-[10deg]">
+    <div className="pointer-events-none absolute right-0 top-0 z-10 h-11 w-[104px] sm:w-[116px]" aria-hidden="true">
+      <div className="absolute right-0 top-0 rotate-[12deg]">
         <KrewNote
           variant="sticky"
           tone="sage"
-          rotation={2}
+          rotation={0}
           size="xs"
-          className="min-w-[7.2rem] px-3 py-2 text-[12px] font-semibold shadow-sm sm:min-w-[7.8rem] sm:text-[13px]"
+          className="min-w-[5.6rem] px-2 py-1.5 text-[10px] font-semibold shadow-sm sm:min-w-[6rem] sm:text-[11px]"
         >
           On en est ici
         </KrewNote>
       </div>
-      <div className="absolute -bottom-7 -left-10 rotate-[18deg] sm:-bottom-8 sm:-left-12">
-        <KrewMark
-          type="arrow-curved-left"
-          tone="plum"
-          size="sm"
-          className="h-8 w-12 opacity-90 sm:h-9 sm:w-14"
-        />
-      </div>
+      <KrewMark
+        type="arrow-curved-left"
+        tone="plum"
+        size="sm"
+        className="absolute left-0 top-[25px] h-6 w-9 -rotate-6 opacity-95 sm:top-[27px] sm:h-7 sm:w-10"
+      />
     </div>
   );
 }
@@ -231,30 +220,28 @@ function StepRow({
       className={cn(
         "group relative grid grid-cols-[48px_minmax(0,1fr)] gap-3 py-3 sm:grid-cols-[52px_minmax(0,1fr)] sm:gap-4 sm:py-4",
         !isCurrent && "border-b border-border/40 last:border-b-0",
-        isCurrent && "my-3 py-5 sm:my-4 sm:py-6",
+        isCurrent && "my-2 py-4 sm:my-3 sm:py-5",
         canNavigate && "cursor-pointer",
       )}
     >
-      {isCurrent ? <CurrentPositionNote /> : null}
-
       <div className="relative flex justify-center">
         <StepNode step={step} historical={historical} />
         {!isCurrent ? <span className="absolute bottom-[-17px] top-12 w-px bg-border/45 last:hidden" aria-hidden="true" /> : null}
       </div>
 
       <div className="min-w-0 pt-0.5">
-        <div className="flex min-h-11 flex-wrap items-start justify-between gap-x-4 gap-y-1 sm:min-h-12">
+        <div className={cn("relative flex min-h-11 items-center sm:min-h-12", isCurrent && "pr-[102px] sm:pr-[116px]")}> 
           <h3
             className={cn(
-              "self-center font-display font-normal leading-[1.03] text-foreground transition-colors",
-              isCurrent ? "text-[27px] text-primary sm:text-[31px]" : "text-[19px] sm:text-[22px]",
+              "font-display font-normal leading-[1.03] text-foreground transition-colors",
+              isCurrent ? "text-[28px] text-primary sm:text-[31px]" : "text-[19px] sm:text-[22px]",
               isUpcoming && "text-muted-foreground/65",
               canNavigate && "group-hover:text-primary",
             )}
           >
             {step.title}
           </h3>
-          {!isCurrent ? <StepStatus step={step} historical={historical} /> : null}
+          {isCurrent ? <CurrentPositionNote /> : <div className="ml-auto pl-4"><StepStatus step={step} historical={historical} /></div>}
         </div>
 
         {visibleSubtitle ? (
@@ -346,8 +333,8 @@ function ChapterIntro({
           tone={category === "souvenirs" ? "plum" : "sage"}
           size="sm"
           className={cn(
-            "mt-1 shrink-0 opacity-65",
-            category === "souvenirs" ? "h-6 w-7" : category === "questionnaire" ? "h-5 w-5" : category === "organisation" ? "h-6 w-7" : "h-6 w-9",
+            "mt-1 shrink-0 opacity-75",
+            category === "souvenirs" ? "h-6 w-7" : category === "questionnaire" ? "h-5 w-5" : category === "organisation" ? "h-6 w-8" : "h-6 w-6",
           )}
           aria-hidden="true"
         />
@@ -465,9 +452,6 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       <header className="relative border-b border-border/55 pb-6 sm:pb-9">
         <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px] md:items-end md:gap-10">
           <div>
-            <KrewNote variant="margin" rotation={-1} className="mb-2 text-[14px] text-sage sm:mb-3 sm:text-[15px]">
-              {historical ? "Historique du voyage" : "Notre feuille de route"}
-            </KrewNote>
             <div className="relative max-w-full pb-2">
               <h1
                 className={cn(
@@ -508,6 +492,12 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
         </div>
       </header>
 
+      <div className="pb-1 pt-5 sm:pt-6">
+        <KrewNote variant="margin" rotation={-2} className="text-[18px] font-semibold text-sage sm:text-[20px]">
+          {historical ? "Historique du voyage" : "Notre feuille de route"}
+        </KrewNote>
+      </div>
+
       <ol className="divide-y divide-border/50">
         {grouped.map(({ category, steps: chapterSteps }, chapterIndex) => {
           const chapterCurrent = !historical && currentCategory === category;
@@ -531,13 +521,13 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
       </ol>
 
       {!historical ? (
-        <div className="mt-1 flex items-end justify-end gap-2 pb-3 pr-1" aria-hidden="true">
+        <div className="-mt-2 flex items-end justify-end gap-2 pb-4 pr-1 sm:-mt-3" aria-hidden="true">
           <img
             src="/brand/otter-states/completed.png"
             alt=""
-            className="pointer-events-none -mb-1 w-[72px] shrink-0 object-contain opacity-95 sm:w-[82px]"
+            className="pointer-events-none -mb-1 w-[76px] shrink-0 object-contain opacity-95 sm:w-[88px]"
           />
-          <span className="pb-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+          <span className="pb-2 font-display text-[17px] font-normal uppercase leading-none tracking-[0.01em] text-primary/75 sm:text-[20px]">
             La suite s’écrit avec la Krew
           </span>
         </div>
