@@ -21,7 +21,6 @@ import {
   Lock,
   Unlock,
   CalendarDays,
-  RefreshCw,
   Utensils,
   Wine,
   Camera,
