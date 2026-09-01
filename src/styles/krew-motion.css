@@ -1,17 +1,19 @@
 @keyframes krew-hero-photo-settle {
-  from { opacity: .86; transform: translate3d(16px, 12px, 0) rotate(1.15deg) scale(.976); }
+  from { opacity: .9; transform: translate3d(14px, 16px, 0) rotate(1.3deg) scale(.972); }
+  68% { opacity: 1; transform: translate3d(-2px, -1px, 0) rotate(-.18deg) scale(1.006); }
   to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
 }
 @keyframes krew-hero-postit-settle {
-  from { opacity: .86; transform: translate3d(12px, -13px, 0) rotate(2deg) scale(.97); }
+  from { opacity: .9; transform: translate3d(13px, -16px, 0) rotate(2.4deg) scale(.965); }
+  72% { opacity: 1; transform: translate3d(-1px, 1px, 0) rotate(-.25deg) scale(1.01); }
   to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
 }
 @keyframes krew-hero-copy-settle {
-  from { opacity: .9; transform: translate3d(0, 13px, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
+  from { opacity: .92; transform: translate3d(0, 18px, 0) scale(.992); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 @keyframes krew-slogan-settle {
-  from { opacity: .88; transform: translate3d(0, 10px, 0); letter-spacing: .015em; }
+  from { opacity: .9; transform: translate3d(0, 13px, 0); letter-spacing: .018em; }
   to { opacity: 1; transform: translate3d(0, 0, 0); letter-spacing: 0; }
 }
 @keyframes krew-mark-draw {
@@ -22,18 +24,33 @@
   from { opacity: .84; transform: translate3d(10px, 8px, 0) rotate(2deg) scale(.96); }
   to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
 }
+@keyframes krew-ambient-rise {
+  from { translate: 0 7px; rotate: -.2deg; }
+  50% { translate: 0 -3px; rotate: .18deg; }
+  to { translate: 0 5px; rotate: 0deg; }
+}
+@keyframes krew-ambient-photo {
+  from { translate: 0 -10px; scale: 1.045; }
+  50% { translate: 0 3px; scale: 1.025; }
+  to { translate: 0 10px; scale: 1.04; }
+}
+@keyframes krew-ambient-mark {
+  from { translate: -5px 2px; rotate: -.5deg; }
+  to { translate: 7px -2px; rotate: .45deg; }
+}
 
-.krew-hero-copy { animation: krew-hero-copy-settle 880ms cubic-bezier(.2,.7,.25,1) 40ms both; }
-.krew-hero-photo-settle { animation: krew-hero-photo-settle 1180ms cubic-bezier(.16,.76,.22,1) 40ms both; transform-origin: 60% 45%; }
-.krew-hero-postit-settle { animation: krew-hero-postit-settle 920ms cubic-bezier(.18,.72,.25,1) 320ms both; transform-origin: 70% 20%; }
-.krew-hero-slogan { animation: krew-slogan-settle 880ms cubic-bezier(.2,.7,.25,1) 260ms both; }
-.krew-hero-cta { animation: krew-hero-copy-settle 720ms cubic-bezier(.2,.7,.25,1) 120ms both; }
+/* The hero now speaks the same motion language as the lower scenes, but stays readable immediately. */
+.krew-hero-copy { animation: krew-hero-copy-settle 1550ms cubic-bezier(.18,.74,.24,1) 280ms both; }
+.krew-hero-photo-settle { animation: krew-hero-photo-settle 2200ms cubic-bezier(.18,.74,.24,1) 240ms both; transform-origin: 60% 45%; }
+.krew-hero-postit-settle { animation: krew-hero-postit-settle 1750ms cubic-bezier(.18,.74,.24,1) 820ms both; transform-origin: 70% 20%; }
+.krew-hero-slogan { animation: krew-slogan-settle 1550ms cubic-bezier(.18,.74,.24,1) 720ms both; }
+.krew-hero-cta { animation: krew-hero-copy-settle 1050ms cubic-bezier(.18,.74,.24,1) 420ms both; }
 .krew-hero-mark path,
 .krew-draw-mark path {
   stroke-dasharray: 110;
   stroke-dashoffset: 110;
 }
-.krew-hero-mark path { animation: krew-mark-draw 760ms cubic-bezier(.32,0,.18,1) 360ms both; }
+.krew-hero-mark path { animation: krew-mark-draw 1450ms cubic-bezier(.32,0,.18,1) 880ms both; }
 
 .krew-reveal {
   opacity: .82;
@@ -75,12 +92,25 @@
 }
 .krew-plan-scene:has(.krew-plan-step-2[data-revealed="true"]) .krew-plan-route path { animation: krew-mark-draw 1200ms cubic-bezier(.32,0,.18,1) 100ms forwards; }
 
-/* LE MOMENT — image reveal + overlap creates one composed travel spread rather than dashboard cards. */
-.krew-moment-photo-wrap { clip-path: inset(7% 7% 9% 7% round 32px); transform: translate3d(-20px,28px,0) rotate(-2deg) scale(.975); }
-.krew-moment-photo-wrap[data-revealed="true"] { clip-path: inset(0 0 0 0 round 24px); transform: translate3d(0,0,0) rotate(-.65deg) scale(1); }
-.krew-moment-photo { transform: scale(1.045); transition: transform 1200ms cubic-bezier(.18,.74,.24,1); }
-.krew-moment-photo-wrap[data-revealed="true"] .krew-moment-photo { transform: scale(1); }
-.krew-moment-postit { opacity: 0; transform: translate3d(12px,-12px,0) rotate(4deg) scale(.94); transition: opacity 420ms ease 280ms, transform 760ms cubic-bezier(.18,.74,.24,1) 280ms; }
+/* LE MOMENT — the image itself clips; the wrapper stays open so the coup-de-coeur note can sit above everything. */
+.krew-moment-photo-wrap { overflow: visible; clip-path: none; transform: translate3d(-20px,28px,0) rotate(-2deg) scale(.975); }
+.krew-moment-photo-wrap[data-revealed="true"] { clip-path: none; transform: translate3d(0,0,0) rotate(-.65deg) scale(1); }
+.krew-moment-photo {
+  clip-path: inset(7% 7% 9% 7% round 32px);
+  transform: scale(1.045);
+  transition: transform 1200ms cubic-bezier(.18,.74,.24,1), clip-path 920ms cubic-bezier(.18,.74,.24,1);
+}
+.krew-moment-photo-wrap[data-revealed="true"] .krew-moment-photo { clip-path: inset(0 0 0 0 round 24px); transform: scale(1); }
+.krew-moment-postit {
+  top: -2.15rem !important;
+  left: 1rem !important;
+  z-index: 50 !important;
+  opacity: 0;
+  transform: translate3d(14px,-14px,0) rotate(4deg) scale(.94);
+  transition: opacity 420ms ease 260ms, transform 760ms cubic-bezier(.18,.74,.24,1) 260ms;
+  filter: drop-shadow(0 12px 20px rgba(42,25,37,.14));
+}
+.krew-moment-postit [data-krew-note="post-it"] { box-shadow: 0 14px 34px rgba(42,25,37,.16) !important; }
 .krew-moment-photo-wrap[data-revealed="true"] .krew-moment-postit { opacity: 1; transform: translate3d(0,0,0) rotate(0) scale(1); }
 .krew-moment-card { transform: translate3d(28px,26px,0) rotate(.8deg) scale(.978); }
 .krew-moment-card[data-revealed="true"] { transform: translate3d(0,0,0) rotate(0) scale(1); }
@@ -113,43 +143,57 @@
 .krew-trip-photo-settle { transform: scale(1.03); transition: transform 760ms cubic-bezier(.18,.74,.24,1); transform-origin: 50% 48%; }
 .krew-trip-reveal[data-revealed="true"] .krew-trip-photo-settle { transform: scale(1); }
 
-/* Desktop/tablet: only depth/parallax is tied to the scroll position. Core reveals remain autonomous. */
+/* The first underline is now a real KREW signature, matching the generosity of the lower marks. */
+.krew-hero-mark { width: 275px !important; max-width: 78vw; }
+.krew-bento-choisit h3 { font-size: 1.5rem !important; line-height: 1.1 !important; }
+.krew-bento-cale > .krew-draw-mark,
+.krew-bento-choisit > .krew-draw-mark { display: none !important; }
+
+@media (min-width: 640px) {
+  .krew-hero-mark { width: 360px !important; }
+}
+@media (min-width: 1024px) {
+  .krew-hero-mark { width: 420px !important; }
+}
+
+/* Scroll-linked ambience remains after one-shot reveals, so the page still feels alive when revisiting sections. */
 @media (min-width: 768px) {
-  @keyframes krew-hero-parallax-copy { from { transform: translate3d(0,0,0); } to { transform: translate3d(0,-30px,0); } }
-  @keyframes krew-hero-parallax-media { from { transform: translate3d(0,0,0) rotate(0); } to { transform: translate3d(0,25px,0) rotate(.7deg); } }
-  @keyframes krew-moment-parallax { from { transform: translate3d(0,-16px,0); } to { transform: translate3d(0,20px,0); } }
+  @keyframes krew-hero-parallax-copy { from { translate: 0 0; } to { translate: 0 -30px; } }
+  @keyframes krew-hero-parallax-media { from { translate: 0 0; rotate: 0deg; } to { translate: 0 25px; rotate: .7deg; } }
 
   @supports (animation-timeline: view()) {
-    .krew-hero-copy {
-      animation-name: krew-hero-copy-settle, krew-hero-parallax-copy;
-      animation-duration: 880ms, 1ms;
-      animation-timing-function: cubic-bezier(.2,.7,.25,1), linear;
-      animation-delay: 40ms, 0ms;
-      animation-fill-mode: both;
-      animation-timeline: auto, view();
-      animation-range: normal, exit 0% exit 100%;
-    }
     .krew-hero-media {
       animation: krew-hero-parallax-media 1ms linear both;
       animation-timeline: view();
       animation-range: exit 0% exit 100%;
     }
-    .krew-moment-photo > img {
-      animation: krew-moment-parallax 1ms linear both;
+    .krew-hero-mark {
+      animation: krew-ambient-mark 1ms linear both;
       animation-timeline: view();
       animation-range: entry 0% exit 100%;
-      scale: 1.06;
+    }
+    .krew-moment-photo > img {
+      animation: krew-ambient-photo 1ms linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+    .krew-plan-step > div:first-child,
+    .krew-bento-card > div,
+    .krew-final-scene .krew-scene-otter {
+      animation: krew-ambient-rise 1ms linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
     }
   }
 }
 
-/* Mobile: viewport reveal plays by itself after intersection; it is deliberately not scrubbed by finger speed. */
+/* Mobile keeps autonomous reveals, but a tiny reversible ambience remains while scrolling back through the page. */
 @media (max-width: 767px) {
-  .krew-hero-copy { animation-duration: 920ms; }
-  .krew-hero-photo-settle { animation-duration: 1120ms; }
-  .krew-hero-postit-settle { animation-duration: 900ms; animation-delay: 300ms; }
-  .krew-hero-slogan { animation-duration: 880ms; animation-delay: 260ms; }
-  .krew-hero-mark path { animation-duration: 760ms; animation-delay: 360ms; }
+  .krew-hero-copy { animation-duration: 1600ms; animation-delay: 320ms; }
+  .krew-hero-photo-settle { animation-duration: 2200ms; animation-delay: 260ms; }
+  .krew-hero-postit-settle { animation-duration: 1750ms; animation-delay: 820ms; }
+  .krew-hero-slogan { animation-duration: 1550ms; animation-delay: 720ms; }
+  .krew-hero-mark path { animation-duration: 1450ms; animation-delay: 880ms; }
 
   .krew-reveal { opacity: .76; transform: translate3d(0,30px,0) scale(.975); transition-duration: 600ms, 920ms, 920ms; }
   .krew-plan-step { min-height: 0; padding: 16px; }
@@ -161,36 +205,29 @@
   .krew-moment-card { transform: translate3d(10px,32px,0) rotate(1deg) scale(.97); }
   .krew-moment-photo-wrap { transform: translate3d(-10px,30px,0) rotate(-2.2deg) scale(.97); }
   .krew-moment-photo-wrap[data-revealed="true"] { transform: translate3d(0,0,0) rotate(-.8deg) scale(1); }
-  .krew-bento { grid-auto-flow: row; }
-  .krew-bento-card { min-height: 165px; }
-  .krew-bento-card:nth-child(2) { min-height: 220px; }
-}
+  .krew-moment-postit { top: -2rem !important; left: .85rem !important; }
 
-/* Targeted visual polish after V3 review. */
-.krew-hero-mark { width: 220px !important; }
-.krew-moment-photo-wrap { overflow: visible; }
-.krew-moment-postit { top: -1.35rem !important; left: .75rem !important; z-index: 30; }
-.krew-bento-choisit h3 { font-size: 1.5rem !important; line-height: 1.1 !important; }
-.krew-bento-cale > .krew-draw-mark,
-.krew-bento-choisit > .krew-draw-mark { display: none !important; }
-
-@media (min-width: 640px) {
-  .krew-hero-mark { width: 300px !important; }
-}
-
-@media (max-width: 767px) {
   .krew-team-scene { padding-top: 2.5rem; padding-bottom: 2.5rem; }
   .krew-team-scene .krew-scene-heading { margin-bottom: 1.5rem; }
   .krew-team-scene .krew-scene-heading h2 { font-size: 1.75rem; line-height: 1.05; }
   .krew-team-scene .krew-scene-heading p:last-child { margin-top: .55rem; font-size: .75rem; line-height: 1.55; }
-  .krew-bento { gap: .75rem; }
+  .krew-bento { grid-auto-flow: row; gap: .75rem; }
   .krew-bento-card { min-height: 0; padding: 1rem; }
   .krew-bento-card:nth-child(2) { min-height: 0; }
   .krew-bento-card > div { gap: .9rem; }
   .krew-bento-card h3,
   .krew-bento-choisit h3 { font-size: 1.35rem !important; line-height: 1.05 !important; }
   .krew-bento-card p { font-size: .78rem; line-height: 1.5; }
-  .krew-moment-postit { top: -1.25rem !important; left: 1rem !important; }
+
+  @supports (animation-timeline: view()) {
+    .krew-moment-photo > img,
+    .krew-bento-card > div,
+    .krew-final-scene .krew-scene-otter {
+      animation: krew-ambient-rise 1ms linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -203,16 +240,23 @@
   .krew-moment-photo > img,
   .krew-final-cta,
   .krew-trip-reveal,
-  .krew-trip-photo-settle {
+  .krew-trip-photo-settle,
+  .krew-plan-step > div:first-child,
+  .krew-bento-card > div,
+  .krew-hero-mark {
     animation: none !important;
     transition: none !important;
     transform: none !important;
+    translate: none !important;
+    rotate: none !important;
+    scale: none !important;
     opacity: 1 !important;
   }
   .krew-reveal,
   .krew-reveal[data-revealed="true"],
   .krew-plan-step,
   .krew-moment-photo-wrap,
+  .krew-moment-photo,
   .krew-moment-card,
   .krew-moment-group,
   .krew-bento-card {
