@@ -248,13 +248,13 @@ function AuthPage() {
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-background lg:grid lg:grid-cols-[minmax(300px,0.82fr)_minmax(480px,1.18fr)]">
-      <section className="relative z-10 min-h-[330px] px-4 pb-14 pt-5 sm:min-h-[350px] sm:px-6 sm:pb-16 sm:pt-6 lg:min-h-screen lg:overflow-hidden lg:border-r lg:border-border/45 lg:bg-sage/[0.07] lg:px-10 lg:py-10 xl:px-14">
+      <section className="relative z-10 min-h-[330px] px-4 pb-14 pt-5 sm:min-h-[350px] sm:px-6 sm:pb-16 sm:pt-6 md:px-8 lg:min-h-screen lg:overflow-hidden lg:border-r lg:border-border/45 lg:bg-sage/[0.07] lg:px-10 lg:py-10 xl:px-14">
         <div className="pointer-events-none absolute inset-x-0 top-0 h-[calc(100%-18px)] overflow-hidden rounded-br-[42%] bg-sage/[0.075] lg:hidden">
           <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-[32%] top-[13%] h-[78%] w-[128%] opacity-45" />
         </div>
         <KrewOrganicBlob tone="sage" variant="soft" className="pointer-events-none absolute -left-24 top-[18%] hidden h-[280px] w-[390px] opacity-45 lg:block" />
 
-        <div className="relative z-10 mx-auto flex h-full w-full max-w-[520px] flex-col lg:justify-between">
+        <div className="relative z-10 mx-auto flex h-full w-full max-w-[520px] flex-col md:max-w-none lg:max-w-[520px] lg:justify-between">
           <Link to="/" className="w-fit"><Logo size="lg" withTagline /></Link>
 
           <div className="mt-6 max-w-[430px] sm:mt-7 lg:mt-0">
@@ -268,7 +268,6 @@ function AuthPage() {
           </div>
         </div>
 
-        <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute left-5 top-[29%] opacity-60 sm:left-auto sm:right-10 sm:top-[42%] sm:opacity-45 lg:hidden" />
         <KrewMark type="route" tone="sage" size="sm" rotation={2} className="pointer-events-none absolute bottom-[40px] left-3 opacity-35 lg:hidden" />
         <img
           src="/brand/otter-states/lets-go.png"
@@ -277,13 +276,14 @@ function AuthPage() {
         />
       </section>
 
-      <section className="relative z-0 -mt-6 flex min-h-[calc(100vh-220px)] items-start px-4 pb-10 pt-10 sm:-mt-8 sm:px-6 sm:pt-12 lg:mt-0 lg:min-h-screen lg:items-center lg:px-12 lg:py-10 xl:px-16">
-        <div className="mx-auto w-full max-w-[520px]">
-          <div className="mb-5 space-y-2 sm:mb-6 lg:mb-8">
+      <section className="relative z-0 -mt-6 flex min-h-[calc(100vh-220px)] items-start px-4 pb-10 pt-10 sm:-mt-8 sm:px-6 sm:pt-12 md:px-8 lg:mt-0 lg:min-h-screen lg:items-center lg:px-12 lg:py-10 xl:px-16">
+        <div className="mx-auto w-full max-w-[520px] md:max-w-none lg:max-w-[520px]">
+          <div className="relative mb-5 space-y-2 sm:mb-6 lg:mb-8">
             <div className="relative inline-block pb-2">
               <h2 className="font-display text-[32px] font-normal leading-tight text-foreground sm:text-[36px]">Bienvenue sur KREW</h2>
               <KrewMark type="underline-wave" tone="sage" size="sm" className="pointer-events-none absolute -bottom-1 left-0 h-3 w-[120px] opacity-70" />
             </div>
+            <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute right-0 top-1 opacity-60 sm:hidden" />
             <p className="text-[14px] text-muted-foreground sm:text-[15px]">Choisis simplement si tu veux te connecter ou créer ton compte.</p>
           </div>
 
