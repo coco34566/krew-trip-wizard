@@ -183,7 +183,7 @@ function AuthPage() {
               <h1 className="font-display text-[36px] font-normal leading-[0.98] text-foreground sm:text-[44px]">Choisis un nouveau mot de passe</h1>
               <p className="text-[15px] leading-relaxed text-muted-foreground">Une fois enregistré, tu retrouveras directement tes voyages.</p>
             </div>
-            <form onSubmit={updateRecoveredPassword} className="space-y-5">
+            <form onSubmit={(event) => void updateRecoveredPassword(event).catch(() => undefined)} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="recovery-password" className="text-[13px] font-medium text-foreground">Nouveau mot de passe</Label>
                 <div className="relative">
@@ -300,7 +300,7 @@ function AuthPage() {
             </TabsList>
 
             <TabsContent value="signin" className="mt-0">
-              <form onSubmit={signIn} className="space-y-4 sm:space-y-5">
+              <form onSubmit={(event) => void signIn(event).catch(() => undefined)} className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
                   <Input id="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => { setEmail(e.target.value); setResetEmailSent(false); }} />
@@ -331,7 +331,7 @@ function AuthPage() {
             </TabsContent>
 
             <TabsContent value="signup" className="mt-0">
-              <form onSubmit={signUp} className="space-y-4 sm:space-y-5">
+              <form onSubmit={(event) => void signUp(event).catch(() => undefined)} className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-[13px] font-medium text-foreground">Prénom / pseudo</Label>
                   <Input id="name" autoComplete="name" className={AUTH_INPUT_CLASS} value={fullName} onChange={(e) => setFullName(e.target.value)} />
