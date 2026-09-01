@@ -168,7 +168,7 @@ function StepNode({ step, historical }: { step: TimelineStep; historical: boolea
 
 function CurrentPositionNote() {
   return (
-    <div className="pointer-events-none absolute right-0 -top-1 z-10 h-[82px] w-[142px] sm:h-[88px] sm:w-[154px]" aria-hidden="true">
+    <div className="pointer-events-none absolute right-0 -top-1 z-10 h-[70px] w-[148px] sm:h-[76px] sm:w-[158px]" aria-hidden="true">
       <div className="absolute right-0 top-0 rotate-[12deg]">
         <KrewNote
           variant="sticky"
@@ -180,12 +180,12 @@ function CurrentPositionNote() {
           On en est ici
         </KrewNote>
       </div>
-      <div className="absolute -left-6 -top-1 h-[72px] w-[82px] rotate-[47deg] sm:-left-7 sm:-top-2 sm:h-[78px] sm:w-[90px]">
+      <div className="absolute -left-12 top-1 h-[54px] w-[96px] rotate-[7deg] sm:-left-14 sm:top-0 sm:h-[58px] sm:w-[104px]">
         <KrewMark
-          type="arrow-curved-down"
+          type="arrow-curved-left"
           tone="plum"
           size="lg"
-          className="h-full w-full opacity-90"
+          className="h-full w-full opacity-95"
         />
       </div>
     </div>
