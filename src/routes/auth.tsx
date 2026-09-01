@@ -198,7 +198,7 @@ function AuthPage() {
                 <Label htmlFor="recovery-password-confirm" className="text-[13px] font-medium text-foreground">Confirmer le mot de passe</Label>
                 <Input id="recovery-password-confirm" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" className={AUTH_INPUT_CLASS} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
               </div>
-              <KrewStatefulButton className="w-full" idleLabel="Enregistrer mon mot de passe" loadingLabel="Enregistrement…" successLabel="Mot de passe enregistré" errorLabel="Réessayer" onAction={() => updateRecoveredPassword()} />
+              <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Enregistrer mon mot de passe" loadingLabel="Enregistrement…" successLabel="Mot de passe enregistré" errorLabel="Réessayer" onAction={() => updateRecoveredPassword()} />
             </form>
             <Link to="/auth" className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-semibold text-muted-foreground transition-colors hover:text-primary">
               <ArrowLeft className="size-4" /> Demander un nouveau lien
@@ -227,7 +227,7 @@ function AuthPage() {
               Un e-mail de confirmation a été envoyé à <strong className="break-all text-foreground">{email}</strong>. Clique sur le lien présent dans cet e-mail pour activer ton compte KREW.
             </p>
             <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-              <KrewStatefulButton idleLabel="Renvoyer l'e-mail" loadingLabel="Renvoi en cours…" successLabel="E-mail envoyé" errorLabel="Réessayer" onAction={resendConfirmationEmail} />
+              <KrewStatefulButton disabled={resending} idleLabel="Renvoyer l'e-mail" loadingLabel="Renvoi en cours…" successLabel="E-mail envoyé" errorLabel="Réessayer" onAction={resendConfirmationEmail} />
               <button
                 type="button"
                 onClick={() => setShowConfirmationSent(false)}
@@ -327,7 +327,7 @@ function AuthPage() {
                   </div>
                   {resetEmailSent ? <p className="text-[12px] leading-relaxed text-muted-foreground">Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé.</p> : null}
                 </div>
-                <KrewStatefulButton className="w-full" idleLabel="Se connecter" loadingLabel="Connexion…" successLabel="Connecté" errorLabel="Réessayer" onAction={() => signIn()} />
+                <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Se connecter" loadingLabel="Connexion…" successLabel="Connecté" errorLabel="Réessayer" onAction={() => signIn()} />
               </form>
             </TabsContent>
 
@@ -357,7 +357,7 @@ function AuthPage() {
                   </div>
                   <p className="text-[13px] leading-relaxed text-muted-foreground">6 caractères minimum.</p>
                 </div>
-                <KrewStatefulButton className="w-full" idleLabel="Créer mon compte" loadingLabel="Création…" successLabel="Compte créé" errorLabel="Réessayer" onAction={() => signUp()} />
+                <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Créer mon compte" loadingLabel="Création…" successLabel="Compte créé" errorLabel="Réessayer" onAction={() => signUp()} />
               </form>
             </TabsContent>
           </Tabs>
