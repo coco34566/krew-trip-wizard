@@ -752,14 +752,14 @@ function ParticipantQuestionnaire() {
         </Section>
 
         <div className="pt-2 pb-12">
-          <Button onClick={handleSubmit} disabled={submitting} className="h-10 max-w-full rounded-xl px-5 text-sm font-medium">
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin shrink-0" />
-            ) : (
-              <KrewIcon name="preferences" tone="plum" size="sm" className="size-4 shrink-0" />
-            )}
-            {isEditing ? "Enregistrer mes modifications" : "Enregistrer mes réponses"}
-          </Button>
+          <KrewStatefulButton
+            className="max-w-full"
+            idleLabel={isEditing ? "Enregistrer mes modifications" : "Enregistrer mes réponses"}
+            loadingLabel="Enregistrement…"
+            successLabel="Réponses enregistrées"
+            errorLabel="Réessayer"
+            onAction={handleSubmit}
+          />
         </div>
       </div>
     </main>
