@@ -64,9 +64,13 @@ describe("intégration de la préparation du voyage", () => {
     ).toHaveLength(0);
   });
 
-  it("exclut seulement la Star virtuelle des responsables proposés", () => {
-    expect(getAssignablePackingParticipants([{ id: "p1" }, { id: "star-virtual-id" }])).toEqual([
-      { id: "p1" },
-    ]);
+  it("exclut les emplacements sans utilisateur réel et la Star virtuelle des responsables proposés", () => {
+    expect(
+      getAssignablePackingParticipants([
+        { id: "p1", user_id: "user-1" },
+        { id: "placeholder", user_id: null },
+        { id: "star-virtual-id", user_id: null },
+      ]),
+    ).toEqual([{ id: "p1", user_id: "user-1" }]);
   });
 });
