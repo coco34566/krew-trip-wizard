@@ -5,8 +5,6 @@ import {
   ArrowLeft,
   CalendarDays,
   Camera,
-  Loader2,
-  RefreshCw,
   Utensils,
   Wine,
 } from "lucide-react";
