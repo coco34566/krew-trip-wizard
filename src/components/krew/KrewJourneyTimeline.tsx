@@ -520,9 +520,9 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             <div className="relative inline-block whitespace-nowrap text-right">
               <KrewMark
                 type="highlight"
-                tone="sage"
+                tone="plum"
                 size="lg"
-                className="pointer-events-none absolute -bottom-1 -left-2 z-0 h-[30px] w-[calc(100%+16px)] opacity-85 sm:h-[34px]"
+                className="pointer-events-none absolute -bottom-2 -left-3 z-0 h-[38px] w-[calc(100%+24px)] opacity-95 sm:h-[44px]"
                 aria-hidden="true"
               />
               <span className="relative z-10 inline-block whitespace-nowrap text-right font-mono font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/80 text-[clamp(11px,3.4vw,14px)] sm:text-[16px]">
