@@ -251,15 +251,16 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                             <span className="ml-1 italic text-[10px] font-semibold">({pick.status || "estimé"})</span>
                           </div>
                           {isAdmin && !reserved ? (
-                            <Button
+                            <KrewStatefulButton
                               size="sm"
                               variant="ghost"
                               className="h-8 self-start text-[11px] text-primary sm:self-auto"
-                              disabled={bookingMutation.isPending}
-                              onClick={() => bookingMutation.mutate(pick.userId)}
-                            >
-                              <Check className="size-3" /> Marquer comme réservé
-                            </Button>
+                              idleLabel="Marquer comme réservé"
+                              loadingLabel="Enregistrement…"
+                              successLabel="Réservé"
+                              errorLabel="Réessayer"
+                              onAction={() => bookingMutation.mutateAsync(pick.userId)}
+                            />
                           ) : null}
                         </li>
                       );
@@ -294,12 +295,15 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                           {canChooseForCity ? (
-                            <Button
+                            <KrewStatefulButton
                               size="sm"
-                              variant={isMine ? "hero" : "outline"}
-                              disabled={pickMutation.isPending}
-                              onClick={() =>
-                                pickMutation.mutate({
+                              variant={isMine ? "default" : "outline"}
+                              idleLabel={isMine ? "Mon trajet" : "Choisir ce trajet"}
+                              loadingLabel="Enregistrement…"
+                              successLabel="Trajet choisi"
+                              errorLabel="Réessayer"
+                              onAction={() =>
+                                pickMutation.mutateAsync({
                                   city: transport.city,
                                   mode: transport.mode,
                                   modeLabel: transport.modeLabel,
@@ -317,9 +321,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                                   time: transport.providerOffer?.outboundArrivalTime || undefined,
                                 })
                               }
-                            >
-                              {isMine ? "Mon trajet" : "Choisir ce trajet"}
-                            </Button>
+                            />
                           ) : null}
                           {(transport.links ?? []).slice(0, 1).map((link: any) => (
                             <a
