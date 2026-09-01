@@ -341,7 +341,8 @@ function TripRecapPage() {
                           </Button>
                         </div>
                       </div>
-                      <h3 className="mt-2 font-display text-2xl font-normal text-foreground">
+                      <h3 className="mt-2 flex items-center gap-1.5 font-display text-2xl font-normal text-foreground">
+                        {index === 0 ? <KrewMark type="sparkle" tone="sage" size="sm" className="size-5 shrink-0 opacity-80" /> : null}
                         {destName}
                         {reco.destination?.country ? (
                           <span className="text-base font-normal text-muted-foreground font-sans"> · {reco.destination.country}</span>
