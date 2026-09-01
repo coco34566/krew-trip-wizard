@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewIcon } from "@/components/krew/visual-language";
-import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
@@ -40,7 +39,6 @@ export function responseMissingCopy(availabilityMissing: number, preferencesMiss
 export function TripInvitePage({ tripId }: { tripId: string }) {
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
-  const fetchProgress = useServerFn(getParticipantsProgress);
   const fetchInviteLink = useServerFn(getTripInviteLink);
   const rotateInviteLink = useServerFn(rotateTripInviteLink);
   const invite = useServerFn(inviteParticipant);
@@ -55,10 +53,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
   });
-  const progressQuery = useQuery({
-    queryKey: ["trip-progress", tripId],
-    queryFn: () => fetchProgress({ data: { tripId } }),
-  });
   const inviteLinkQuery = useQuery({
     queryKey: ["trip-invite-link", tripId],
     queryFn: () => fetchInviteLink({ data: { tripId } }),
@@ -68,7 +62,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
 
   const data = detailQuery.data as any;
   const trip = data?.trip as any;
-  const progress = progressQuery.data as any;
   const savedMode = trip?.group_logistics?.star_mode;
   useEffect(() => {
     if (savedMode === "secret" || savedMode === "participant") setStarMode(savedMode);
@@ -77,7 +70,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-    queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] });
   };
 
   const inviteMutation = useMutation({
@@ -89,7 +81,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
         trip_id: tripId,
         role: data?.isCreator ? "organizer" : "co_organizer",
         trip_type: trip?.event_type,
-        group_size: Number(progress?.preferencesExpected ?? progress?.total ?? trip?.participants_count ?? 0),
+        group_size: Number(trip?.participants_count ?? 0),
       });
       refresh();
     },
@@ -126,14 +118,38 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     return `${window.location.origin}/join/${tripId}?token=${encodeURIComponent(inviteLinkQuery.data.token)}`;
   }, [inviteLinkQuery.data?.token, tripId]);
 
-  if (detailQuery.isLoading || progressQuery.isLoading) {
+  function shareInvitation() {
+    if (!shareUrl || !trip) {
+      toast.error("Le lien d’invitation n’est pas encore disponible.");
+      return;
+    }
+    shareOnWhatsApp(
+      `Salut ! On organise « ${trip.name} » avec KREW ✈️\n\nRejoins le groupe et indique tes disponibilités et tes préférences :\n👉 ${shareUrl}`,
+    );
+  }
+
+  async function copyInvitationLink() {
+    if (!shareUrl) {
+      toast.error("Le lien d’invitation n’est pas encore disponible.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Lien d’invitation copié");
+    } catch (err) {
+      console.error("Impossible de copier le lien d'invitation:", err);
+      toast.error("Impossible de copier le lien pour le moment.");
+    }
+  }
+
+  if (detailQuery.isLoading) {
     return (
       <main className="mx-auto w-full max-w-[820px] px-4 py-10">
         <KrewThinkingState context="generic" customMessage="Chargement des invitations…" delayMs={0} />
       </main>
     );
   }
-  if (!data || !trip || detailQuery.isError || progressQuery.isError) {
+  if (!data || !trip || detailQuery.isError) {
     return <main className="mx-auto max-w-[820px] px-4 py-10 text-sm text-muted-foreground">Impossible de charger les invitations.</main>;
   }
 
@@ -169,16 +185,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     ...(virtualSecretStar ? [virtualSecretStar] : []),
     ...placeholders,
   ];
-  const availabilityAnswered = Number(progress?.availabilityAnswered ?? 0);
-  const availabilityExpected = Number(progress?.availabilityExpected ?? progress?.total ?? 0);
-  const preferencesAnswered = Number(progress?.answered ?? 0);
-  const preferencesExpected = Number(progress?.preferencesExpected ?? progress?.total ?? 0);
-  const availabilityMissing = Math.max(availabilityExpected - availabilityAnswered, 0);
-  const preferencesMissing = Math.max(preferencesExpected - preferencesAnswered, 0);
-  const groupFullyIdentified = placeholders.length === 0;
-  const inviteStepCompleted = Boolean(
-    trip.group_logistics?.inviteStepCompleted || trip.group_logistics?.invite_step_completed || trip.invite_step_completed,
-  );
 
   return (
     <main className="mx-auto w-full max-w-[820px] space-y-8 px-4 py-8 sm:px-6 sm:py-10">
@@ -193,30 +199,38 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       <header>
         <h1 className="font-display text-[32px] font-normal text-foreground sm:text-[38px]">Inviter le groupe</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {inviteStepCompleted && groupFullyIdentified
-            ? "Le groupe est réuni. Tu peux relancer les réponses qui manquent."
-            : placeholders.length > 0
-              ? `${placeholders.length} personne${placeholders.length > 1 ? "s" : ""} reste${placeholders.length > 1 ? "nt" : ""} à inviter.`
-              : "Le groupe est identifié. Les réponses peuvent encore arriver séparément."}
+          Partage l’invitation à la team. Chacun pourra rejoindre le voyage et répondre ensuite à son rythme.
         </p>
       </header>
 
       {data.isOwner ? (
         <section className="space-y-4 border-b border-border/50 pb-6">
-          <div className="flex flex-wrap gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!shareUrl}
-              onClick={() => shareOnWhatsApp(`Rejoins « ${trip.name} » sur KREW : ${shareUrl}`)}
-            >
+          <div className="space-y-1">
+            <h2 className="font-display text-2xl font-normal text-foreground">Fais entrer la Krew</h2>
+            <p className="text-sm text-muted-foreground">Un petit message, le lien du voyage, et chacun peut rejoindre la team directement.</p>
+          </div>
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            <Button type="button" disabled={!shareUrl} onClick={shareInvitation}>
+              <KrewIcon name="message" tone="cream" size="sm" className="size-4" />
               Inviter via WhatsApp
             </Button>
-            <Button type="button" variant="ghost" disabled={rotateMutation.isPending} onClick={() => rotateMutation.mutate()}>
-              {rotateMutation.isPending ? "Renouvellement…" : "Renouveler le lien"}
+            <Button type="button" variant="outline" disabled={!shareUrl} onClick={copyInvitationLink}>
+              <KrewIcon name="invite" tone="plum" size="sm" className="size-4" />
+              Copier le lien d’invitation
             </Button>
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+            <span>Le lien reste valable tant que tu ne le renouvelles pas.</span>
+            <button
+              type="button"
+              disabled={rotateMutation.isPending}
+              onClick={() => rotateMutation.mutate()}
+              className="font-medium underline underline-offset-3 hover:text-primary disabled:opacity-50"
+            >
+              {rotateMutation.isPending ? "Renouvellement…" : "Renouveler le lien"}
+            </button>
+          </div>
+          <div className="space-y-2 pt-1">
             <Label htmlFor="invite-email">Adresse e-mail</Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Input id="invite-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="ami@email.com" />
@@ -230,14 +244,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       ) : null}
 
       <section className="space-y-4">
-        <div className="grid gap-2 rounded-2xl border border-border/60 bg-surface/30 p-4 sm:grid-cols-2">
-          <p className="text-sm"><strong>{availabilityAnswered}/{availabilityExpected}</strong> ont indiqué leurs disponibilités</p>
-          <p className="text-sm"><strong>{preferencesAnswered}/{preferencesExpected}</strong> ont renseigné leurs préférences</p>
-        </div>
-        {(availabilityMissing > 0 || preferencesMissing > 0) ? (
-          <p className="text-sm text-muted-foreground">{responseMissingCopy(availabilityMissing, preferencesMissing)}</p>
-        ) : null}
-
         <div className="divide-y divide-border/45">
           {displayedParticipants.map((participant) => {
             const isOwner = Boolean(participant.user_id && participant.user_id === trip.owner_id);
