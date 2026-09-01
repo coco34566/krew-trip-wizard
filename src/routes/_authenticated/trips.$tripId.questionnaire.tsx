@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import {
   getMyParticipantPreferences,
   submitParticipantPreferences,
@@ -248,7 +249,7 @@ function ParticipantQuestionnaire() {
     const error = validate();
     if (error) {
       toast.error(error);
-      return;
+      throw new Error(error);
     }
     setSubmitting(true);
     try {
@@ -297,7 +298,7 @@ function ParticipantQuestionnaire() {
       if (msg.includes("403 Forbidden")) {
         toast.error("Tu n’as pas accès à ces préférences.");
         navigate({ to: "/dashboard" });
-        return;
+        throw e;
       }
       if (
         msg.includes("trip_participant_preferences") ||
@@ -309,10 +310,11 @@ function ParticipantQuestionnaire() {
           msg,
         );
         toast.error("Impossible d’enregistrer tes réponses. Réessaie dans un instant.");
-        return;
+        throw e;
       }
       console.error("Erreur enregistrement préférences:", e);
       toast.error("Impossible d’enregistrer tes réponses. Réessaie dans un instant.");
+      throw e;
     } finally {
       setSubmitting(false);
     }
