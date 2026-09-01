@@ -16,6 +16,7 @@ import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -192,7 +193,7 @@ function FeaturedTrip({ trip, onArchive }: { trip: Trip; onArchive: (tripId: str
   );
 }
 
-function NotebookTrip({ trip, invited = false, onArchive, onReactivate, index = 0 }: { trip: Trip; invited?: boolean; onArchive?: (tripId: string) => void; onReactivate?: (tripId: string) => void; index?: number }) {
+function NotebookTrip({ trip, invited = false, onArchive, onReactivate, index = 0 }: { trip: Trip; invited?: boolean; onArchive?: (tripId: string) => void; onReactivate?: (tripId: string) => Promise<unknown>; index?: number }) {
   const image = tripImage(trip);
   const reveal = useSettledReveal<HTMLDivElement>();
   const mobileCompositions = [
@@ -241,7 +242,7 @@ function NotebookTrip({ trip, invited = false, onArchive, onReactivate, index = 
             </div>
           </Link>
           {onArchive ? <div className="absolute right-2.5 top-2.5 z-20"><ArchiveControl trip={trip} onArchive={onArchive} compact /></div> : null}
-          <div className="mx-1.5 mt-2.5 flex items-center justify-between gap-2 border-t border-dashed border-sage/30 pt-2"><span className="font-handwriting text-[13px] leading-tight text-sage">{invited ? "avec le groupe" : nextActionFor(trip)}</span>{onReactivate ? <button type="button" onClick={() => onReactivate(trip.id)} className="relative z-10 inline-flex min-h-10 shrink-0 items-center px-1 text-[12px] font-semibold text-primary underline-offset-4 hover:underline sm:text-[13px]">Réactiver</button> : <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="relative z-10 inline-flex min-h-10 shrink-0 items-center gap-1 px-1 text-[12px] font-semibold text-primary sm:text-[13px]">Voir<KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-5" /></Link>}</div>
+          <div className="mx-1.5 mt-2.5 flex items-center justify-between gap-2 border-t border-dashed border-sage/30 pt-2"><span className="font-handwriting text-[13px] leading-tight text-sage">{invited ? "avec le groupe" : nextActionFor(trip)}</span>{onReactivate ? <KrewStatefulButton variant="ghost" size="sm" className="relative z-10 px-1 text-[12px] font-semibold sm:text-[13px]" idleLabel="Réactiver" loadingLabel="Réactivation…" successLabel="Réactivé" errorLabel="Réessayer" onAction={() => onReactivate(trip.id)} /> : <Link to="/trips/$tripId" params={{ tripId: trip.id }} className="relative z-10 inline-flex min-h-10 shrink-0 items-center gap-1 px-1 text-[12px] font-semibold text-primary sm:text-[13px]">Voir<KrewMark type="arrow-right" tone="plum" size="sm" className="h-3.5 w-5" /></Link>}</div>
         </div>
       </div>
     </article>
@@ -324,7 +325,7 @@ function Dashboard() {
           {featuredTrip ? <section><SectionHeading note={otherTrips.length ? `${activeTrips.length} voyages` : "le prochain voyage"}>J'organise</SectionHeading><FeaturedTrip trip={featuredTrip} onArchive={(id) => archiveMutation.mutate(id)} />{otherTrips.length ? <div className="mt-8 border-t border-sage/25 pt-7 sm:mt-9 sm:pt-8"><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-8 md:justify-center">{otherTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onArchive={(id) => archiveMutation.mutate(id)} />)}</div></div> : null}</section> : null}
           {activeInvitations.length ? <section className="relative pt-2"><KrewOrganicBlob tone="sage" variant="soft" className="absolute -right-16 top-0 -z-10 h-[180px] w-[320px] opacity-30" /><SectionHeading note="les voyages auxquels tu participes">Je participe</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{activeInvitations.map((i, index) => <NotebookTrip key={i.id} trip={i.trips as Trip} invited index={index} />)}</div></section> : null}
           {hasCompletedTrips ? <section className="border-t border-dashed border-sage/40 pt-7"><SectionHeading note="les souvenirs et l’organisation restent accessibles">Voyages terminés</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{completedTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onArchive={(id) => archiveMutation.mutate(id)} />)}{completedInvitations.map((i, index) => <NotebookTrip key={i.id} trip={i.trips as Trip} invited index={completedTrips.length + index} />)}</div></section> : null}
-          {archivedTrips.length ? <section className="border-t border-dashed border-border/70 pt-7 opacity-75"><SectionHeading note="tu peux les réactiver sans perdre leur organisation">Voyages archivés</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{archivedTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onReactivate={(id) => reactivateMutation.mutate(id)} />)}</div></section> : null}
+          {archivedTrips.length ? <section className="border-t border-dashed border-border/70 pt-7 opacity-75"><SectionHeading note="tu peux les réactiver sans perdre leur organisation">Voyages archivés</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{archivedTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onReactivate={(id) => reactivateMutation.mutateAsync(id)} />)}</div></section> : null}
         </div>
       )}
     </main>
