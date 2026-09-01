@@ -106,7 +106,6 @@ function TripRecapPage() {
       }),
     onSuccess: (_r, vars) => {
       setWatched((w) => ({ ...w, [vars.recommendationId]: true }));
-      toast.success("Prix suivi");
       queryClient.invalidateQueries({ queryKey: ["price-watches"] });
     },
     onError: (e: any) => {
