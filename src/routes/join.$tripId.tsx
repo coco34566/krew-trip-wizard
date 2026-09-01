@@ -11,6 +11,7 @@ import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { getJoinPreview, joinTrip, checkJoinStatus } from "@/lib/join.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { eventTypeLabel } from "@/lib/krew/constants";
@@ -159,7 +160,7 @@ function JoinTripPage() {
     }
     if (!firstName.trim()) {
       toast.error("Indique ton prénom pour que le groupe sache qui tu es.");
-      return;
+      throw new Error("Prénom manquant");
     }
     setJoining(true);
     try {
@@ -177,6 +178,7 @@ function JoinTripPage() {
           ? "Ce lien n’est plus valide. Demande le lien actuel à l’organisateur."
           : "Impossible de rejoindre ce voyage pour le moment. Réessaie dans un instant.",
       );
+      throw e;
     } finally {
       setJoining(false);
     }
@@ -246,10 +248,14 @@ function JoinTripPage() {
               <p className="text-[13px] text-muted-foreground">Pour que le groupe sache qui tu es.</p>
             </div>
 
-            <Button className="w-full max-w-[460px]" disabled={joining} onClick={handleJoin}>
-              {joining ? <Loader2 className="size-4 shrink-0 animate-spin" /> : null}
-              {isAuthenticated ? "Rejoindre le voyage" : "Se connecter pour rejoindre le voyage"}
-            </Button>
+            <KrewStatefulButton
+              className="max-w-[460px]"
+              idleLabel={isAuthenticated ? "Rejoindre le voyage" : "Se connecter pour rejoindre le voyage"}
+              loadingLabel={isAuthenticated ? "On rejoint la Krew…" : "Redirection…"}
+              successLabel={isAuthenticated ? "Voyage rejoint" : "Ouverture de la connexion"}
+              errorLabel="Réessayer"
+              onAction={handleJoin}
+            />
 
             {!isAuthenticated ? (
               <p className="max-w-[460px] text-[13px] text-muted-foreground">Pas encore de compte ? Tu pourras en créer un à l&apos;étape suivante.</p>
