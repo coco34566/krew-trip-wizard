@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { formatEuro } from "@/lib/krew/constants";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
@@ -155,6 +155,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
           <h1 className="flex items-center gap-2 font-display text-[30px] font-normal text-foreground sm:text-[36px]">
             <KrewIcon name="planning" tone="plum" size="sm" className="size-5" />
             Planning
+            {days.length ? <KrewMark type="burst" tone="sage" size="sm" className="size-6 opacity-75" /> : null}
           </h1>
           <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
             {completedTrip ? "Voyage terminé · consultation" : "Jour par jour"}
