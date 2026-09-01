@@ -291,7 +291,6 @@ function ParticipantQuestionnaire() {
       });
       setIsEditing(true);
       setLastSavedAt(new Date().toISOString());
-      toast.success(res.isUpdate ? "Réponses mises à jour" : "Réponses enregistrées");
       navigate({ to: "/trips/$tripId", params: { tripId } });
     } catch (e: any) {
       const msg = String(e?.message ?? e ?? "");
@@ -751,7 +750,7 @@ function ParticipantQuestionnaire() {
         </Section>
 
         <div className="pt-2 pb-12">
-          <Button onClick={handleSubmit} disabled={submitting} className="w-full min-h-[48px] h-auto rounded-xl text-base font-medium whitespace-normal text-center leading-tight py-2.5" size="lg">
+          <Button onClick={handleSubmit} disabled={submitting} className="h-10 max-w-full rounded-xl px-5 text-sm font-medium">
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin shrink-0" />
             ) : (
