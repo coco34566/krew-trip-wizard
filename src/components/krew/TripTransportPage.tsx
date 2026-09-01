@@ -191,9 +191,11 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
           <div className="flex items-center gap-2 font-medium text-primary">
             <Clock className="size-4" /> Horaires du groupe
           </div>
-          <p className="text-muted-foreground">
-            La majorité du groupe arrive vers <strong className="text-foreground">{groupWindow.majorityArrival || "—"}</strong> et repart vers <strong className="text-foreground">{groupWindow.majorityDeparture || "—"}</strong>.
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
+            <span>La majorité du groupe arrive vers <strong className="text-foreground">{groupWindow.majorityArrival || "—"}</strong></span>
+            <KrewMark type="connector-curve" tone="sage" size="sm" className="hidden h-5 w-12 opacity-70 sm:block" />
+            <span>et repart vers <strong className="text-foreground">{groupWindow.majorityDeparture || "—"}</strong>.</span>
+          </div>
         </div>
       ) : null}
 
