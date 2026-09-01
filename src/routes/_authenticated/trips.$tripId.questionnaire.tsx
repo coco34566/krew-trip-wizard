@@ -257,7 +257,7 @@ function ParticipantQuestionnaire() {
         .map((s) => s.trim())
         .filter(Boolean);
 
-      const res = await submit({
+      await submit({
         data: {
           tripId,
           ambiances,
