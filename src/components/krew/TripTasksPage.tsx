@@ -403,14 +403,14 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
 
       {isAdmin && !completedTrip && hasItinerary && tasks.length > 0 ? (
         <div className="border-t border-border/45 pt-4">
-          <Button
+          <KrewStatefulButton
             variant="outline"
-            disabled={generateMutation.isPending}
-            onClick={() => generateMutation.mutate()}
-          >
-            {generateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : <KrewIcon name="tasks" tone="plum" size="sm" className="size-4" />}
-            Actualiser les tâches
-          </Button>
+            idleLabel="Actualiser les tâches"
+            loadingLabel="Actualisation…"
+            successLabel="Tâches actualisées"
+            errorLabel="Réessayer"
+            onAction={() => generateMutation.mutateAsync()}
+          />
         </div>
       ) : null}
     </main>
