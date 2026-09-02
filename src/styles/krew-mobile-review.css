@@ -26,73 +26,158 @@
   opacity: 1 !important;
 }
 
-/* Mes voyages: always show the complete label and use the validated compact primary-button proportions. */
-main > header > a[href="/trips/new"] {
-  min-height: 2.5rem;
-  height: 2.5rem;
+/* Primary trip CTAs: same proportions everywhere and never abbreviated. */
+a[href="/trips/new"]:where(.bg-primary, [class*="bg-primary"]) {
+  height: 2.5rem !important;
+  min-height: 2.5rem !important;
   width: auto !important;
-  min-width: max-content;
-  border-radius: .75rem;
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
-  white-space: nowrap;
-  line-height: 1;
+  min-width: max-content !important;
+  flex-shrink: 0 !important;
+  border-radius: .75rem !important;
+  padding-left: 1.25rem !important;
+  padding-right: 1.25rem !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  font-size: .875rem !important;
+  font-weight: 500 !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
-main > header > a[href="/trips/new"] > span.hidden {
+
+/* Mes voyages had two labels in the JSX. Force the complete one on mobile too. */
+main > header a[href="/trips/new"] > span.hidden {
   display: inline !important;
 }
-main > header > a[href="/trips/new"] > span.sm\:hidden {
+main > header a[href="/trips/new"] > span.sm\:hidden {
   display: none !important;
 }
 
-/* Journey: subtle upward reveal from "Notre feuille de route" onward. */
-.krew-journey-reveal {
-  opacity: .82;
-  transform: translate3d(0, 18px, 0);
-  transition: opacity 520ms ease-out, transform 760ms cubic-bezier(.18,.74,.24,1);
-  will-change: transform, opacity;
+/* Dashboard trip: remove the old top-right stage note and the small otter near members. */
+main header div.pointer-events-none.absolute:has(> [data-krew-note="post-it"][data-krew-note-tone="plum"]) {
+  display: none !important;
 }
-.krew-journey-reveal[data-revealed="true"] {
-  opacity: 1;
-  transform: translate3d(0, 0, 0);
+#group-section > .absolute:has(img[src*="trip-progress.png"]),
+#group-section [data-krew-group-stage-note] {
+  display: none !important;
 }
 
-.krew-journey-draw-mark path,
-.krew-journey-draw-mark line,
-.krew-journey-draw-mark polyline,
-.krew-journey-draw-mark circle,
-.krew-journey-draw-mark rect {
-  stroke-dasharray: 110;
-  stroke-dashoffset: 110;
+/* Put "Le groupe prend forme" directly in the members section, where the otter used to be. */
+#group-section::before {
+  content: "Le groupe prend forme";
+  position: absolute;
+  top: -.15rem;
+  right: 0;
+  z-index: 12;
+  display: inline-block;
+  width: fit-content;
+  max-width: 10.5rem;
+  padding: .5rem .75rem;
+  border-radius: .8rem .35rem .75rem .3rem;
+  background: #f1e8ef;
+  color: hsl(var(--primary));
+  font-family: var(--font-handwriting, inherit);
+  font-size: .92rem;
+  font-weight: 700;
+  line-height: 1.15;
+  box-shadow: 0 6px 16px rgba(60,35,50,.075);
+  transform: rotate(1deg);
+  pointer-events: none;
 }
-.krew-journey-draw-mark[data-revealed="true"] path,
-.krew-journey-draw-mark[data-revealed="true"] line,
-.krew-journey-draw-mark[data-revealed="true"] polyline,
-.krew-journey-draw-mark[data-revealed="true"] circle,
-.krew-journey-draw-mark[data-revealed="true"] rect,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw path,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw line,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw polyline,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw circle,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw rect {
-  animation: krew-mark-draw 900ms cubic-bezier(.32,0,.18,1) 120ms forwards;
+#group-section::after {
+  content: "";
+  position: absolute;
+  top: -.68rem;
+  right: 3.35rem;
+  z-index: 13;
+  width: 2.8rem;
+  height: 1rem;
+  background: rgba(219,229,223,.68);
+  box-shadow: 0 2px 4px rgba(60,35,50,.035);
+  transform: rotate(-3deg);
+  pointer-events: none;
 }
-.krew-journey-icon-draw path,
-.krew-journey-icon-draw line,
-.krew-journey-icon-draw polyline,
-.krew-journey-icon-draw circle,
-.krew-journey-icon-draw rect {
-  stroke-dasharray: 42;
-  stroke-dashoffset: 42;
+
+/* Keep enough room for the moved note without pushing the whole section down. */
+#group-section > div:first-of-type {
+  padding-right: 10.75rem;
+}
+
+/* Relancer le groupe: genuinely left aligned, compact and with a structural icon/text gap. */
+#group-section > div.pt-4.border-t button {
+  width: auto !important;
+  justify-content: flex-start !important;
+  gap: .5rem !important;
+  padding-left: 0 !important;
+  padding-right: .75rem !important;
+  margin-left: 0 !important;
+}
+
+/* Journey: direct scroll-linked motion on the actual chapters. */
+.krew-journey-motion-root ol > li {
+  opacity: .84;
+  transform: translate3d(0, 18px, 0);
+  transition: opacity 520ms ease-out, transform 760ms cubic-bezier(.18,.74,.24,1);
+}
+
+@supports (animation-timeline: view()) {
+  @keyframes krew-journey-rise-direct {
+    from { opacity: .72; transform: translate3d(0, 22px, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  @keyframes krew-journey-stroke-direct {
+    from { stroke-dashoffset: 110; opacity: .55; }
+    to { stroke-dashoffset: 0; opacity: 1; }
+  }
+  .krew-journey-motion-root ol > li {
+    animation: krew-journey-rise-direct 1ms linear both;
+    animation-timeline: view();
+    animation-range: entry 8% cover 34%;
+  }
+  .krew-journey-motion-root header svg path,
+  .krew-journey-motion-root header svg line,
+  .krew-journey-motion-root header svg polyline,
+  .krew-journey-motion-root ol > li svg path,
+  .krew-journey-motion-root ol > li svg line,
+  .krew-journey-motion-root ol > li svg polyline,
+  .krew-journey-motion-root ol > li svg circle,
+  .krew-journey-motion-root ol > li svg rect {
+    stroke-dasharray: 110;
+    stroke-dashoffset: 110;
+    animation: krew-journey-stroke-direct 1ms linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 30%;
+  }
+}
+
+@media (max-width: 639px) {
+  #group-section::before {
+    top: -.1rem;
+    right: 0;
+    max-width: 9.3rem;
+    padding: .45rem .65rem;
+    font-size: .84rem;
+  }
+  #group-section::after {
+    top: -.6rem;
+    right: 2.9rem;
+    width: 2.45rem;
+    height: .9rem;
+  }
+  #group-section > div:first-of-type {
+    padding-right: 9.5rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .krew-journey-motion-root ol > li,
   .krew-journey-reveal,
   .krew-journey-reveal[data-revealed="true"] {
     opacity: 1 !important;
     transform: none !important;
     transition: none !important;
+    animation: none !important;
   }
+  .krew-journey-motion-root svg *,
   .krew-journey-draw-mark *,
   .krew-journey-icon-draw * {
     stroke-dasharray: none !important;
