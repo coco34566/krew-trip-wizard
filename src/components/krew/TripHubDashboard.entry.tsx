@@ -98,20 +98,26 @@ function refineDashboardPresentation() {
 
     if (remindButton) {
       const previous = {
+        display: remindButton.style.display,
         width: remindButton.style.width,
         justifyContent: remindButton.style.justifyContent,
+        alignItems: remindButton.style.alignItems,
         columnGap: remindButton.style.columnGap,
         paddingLeft: remindButton.style.paddingLeft,
         paddingRight: remindButton.style.paddingRight,
       };
+      remindButton.style.display = "inline-flex";
       remindButton.style.width = "auto";
       remindButton.style.justifyContent = "flex-start";
-      remindButton.style.columnGap = "0.5rem";
+      remindButton.style.alignItems = "center";
+      remindButton.style.columnGap = "0.375rem";
       remindButton.style.paddingLeft = "0";
-      remindButton.style.paddingRight = "0.75rem";
+      remindButton.style.paddingRight = "0.5rem";
       cleanups.push(() => {
+        remindButton.style.display = previous.display;
         remindButton.style.width = previous.width;
         remindButton.style.justifyContent = previous.justifyContent;
+        remindButton.style.alignItems = previous.alignItems;
         remindButton.style.columnGap = previous.columnGap;
         remindButton.style.paddingLeft = previous.paddingLeft;
         remindButton.style.paddingRight = previous.paddingRight;
@@ -132,14 +138,17 @@ function refineDashboardPresentation() {
   if (deleteBlock) {
     const previous = {
       borderTopWidth: deleteBlock.style.borderTopWidth,
+      borderTopStyle: deleteBlock.style.borderTopStyle,
       paddingTop: deleteBlock.style.paddingTop,
       marginTop: deleteBlock.style.marginTop,
     };
     deleteBlock.style.borderTopWidth = "0";
-    deleteBlock.style.paddingTop = "0.25rem";
+    deleteBlock.style.borderTopStyle = "none";
+    deleteBlock.style.paddingTop = "0";
     deleteBlock.style.marginTop = "0.25rem";
     cleanups.push(() => {
       deleteBlock.style.borderTopWidth = previous.borderTopWidth;
+      deleteBlock.style.borderTopStyle = previous.borderTopStyle;
       deleteBlock.style.paddingTop = previous.paddingTop;
       deleteBlock.style.marginTop = previous.marginTop;
     });
