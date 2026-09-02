@@ -81,13 +81,11 @@ main header a[href="/trips/new"] > span:first-of-type {
   }
 }
 
-/* Dashboard voyage: the stage note now renders at the bottom of the dashboard component,
-   immediately before the group section. Keep it visually in the old otter slot. */
-[data-krew-dashboard-stage-note="true"] {
+/* Dashboard voyage: stage note rendered by the React wrapper, immediately before the group section. */
+[data-krew-group-stage-note="true"] {
   position: relative;
   z-index: 20;
   min-height: 2.25rem;
-  transform: translateY(.65rem);
 }
 
 /* Dashboard voyage: the stage note replaces the small otter beside Membres du groupe. */
