@@ -81,27 +81,50 @@ main header a[href="/trips/new"] > span:first-of-type {
   }
 }
 
+/* Dashboard voyage: the stage note now renders at the bottom of the dashboard component,
+   immediately before the group section. Keep it visually in the old otter slot. */
+[data-krew-dashboard-stage-note="true"] {
+  position: relative;
+  z-index: 20;
+  min-height: 2.25rem;
+  transform: translateY(.65rem);
+}
+
+/* Dashboard voyage: the stage note replaces the small otter beside Membres du groupe. */
+#group-section > div.absolute:has(img[src*="trip-progress.png"]) {
+  display: none !important;
+}
+
 /* Dashboard voyage: no plum highlight behind the group-section title. */
 #group-section .relative.inline-flex > svg.absolute {
   display: none !important;
 }
 
 /* Dashboard voyage: keep the reminder action left-aligned, close to the team icon. */
+#group-section > div.pt-4 {
+  display: flex !important;
+  justify-content: flex-start !important;
+}
 #group-section > div.pt-4 > button {
   display: inline-flex !important;
   width: auto !important;
+  min-width: 0 !important;
   justify-content: flex-start !important;
+  align-items: center !important;
   column-gap: .375rem !important;
   padding-left: 0 !important;
-  padding-right: .75rem !important;
+  padding-right: .5rem !important;
   text-align: left !important;
 }
 
 /* Dashboard voyage: remove the divider before permanent deletion and tighten the management actions. */
+main footer:has(button span) > div.space-y-4 {
+  row-gap: .5rem !important;
+}
 main footer:has(button span) > div.space-y-4 > div + div {
   border-top: 0 !important;
   padding-top: 0 !important;
-  margin-top: .5rem !important;
+  margin-top: 0 !important;
 }
 
 /* Dates du groupe: keep candidate dates as open rows, not a stack of rectangular cards. */
