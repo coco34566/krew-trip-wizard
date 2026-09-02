@@ -13,6 +13,7 @@ import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewIcon } from "@/components/krew/visual-language";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
+import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { trackProductEvent } from "@/lib/product-analytics";
 import {
@@ -127,7 +128,13 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       toast.error("Le lien d’invitation n’est pas encore disponible.");
       return;
     }
-    await navigator.clipboard.writeText(shareUrl);
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch (err) {
+      console.error("Impossible de copier le lien d'invitation:", err);
+      toast.error("Impossible de copier le lien pour le moment.");
+      throw err;
+    }
   }
 
   if (detailQuery.isLoading) {
@@ -142,7 +149,9 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   }
 
   const rawParticipants = (data.participants ?? []) as any[];
-  const hasStar = Boolean(trip.has_star || trip.celebrated_person || trip.star_user_id);
+  const hasStar = Boolean(
+    trip.has_star || trip.celebrated_person || trip.star_user_id || STAR_EVENT_TYPES.has(trip.event_type),
+  );
   const starAlreadyListed = Boolean(
     trip.star_user_id && rawParticipants.some((participant) => participant.user_id === trip.star_user_id),
   );
