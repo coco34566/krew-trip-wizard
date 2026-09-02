@@ -48,6 +48,17 @@ main header a[href="/trips/new"] {
   box-shadow: none !important;
 }
 
+/* Mes voyages: keep the complete label but trim the excess horizontal padding on mobile. */
+main > header a[href="/trips/new"] {
+  padding-left: .875rem !important;
+  padding-right: .875rem !important;
+}
+
+/* Mes voyages: section underlines keep the same breathing room as the page title. */
+main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
+  bottom: -1rem !important;
+}
+
 /* The dashboard used to keep a separate mobile-only "Nouveau" label. Never use it. */
 main header a[href="/trips/new"] > span {
   display: none !important;
@@ -63,6 +74,34 @@ main header a[href="/trips/new"] > span:first-of-type {
     padding-right: 1.75rem !important;
     font-size: 1rem !important;
   }
+
+  main > header a[href="/trips/new"] {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+  }
+}
+
+/* Dashboard voyage: no plum highlight behind the group-section title. */
+#group-section .relative.inline-flex > svg.absolute {
+  display: none !important;
+}
+
+/* Dashboard voyage: keep the reminder action left-aligned, close to the team icon. */
+#group-section > div.pt-4 > button {
+  display: inline-flex !important;
+  width: auto !important;
+  justify-content: flex-start !important;
+  column-gap: .375rem !important;
+  padding-left: 0 !important;
+  padding-right: .75rem !important;
+  text-align: left !important;
+}
+
+/* Dashboard voyage: remove the divider before permanent deletion and tighten the management actions. */
+main footer:has(button span) > div.space-y-4 > div + div {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+  margin-top: .5rem !important;
 }
 
 /* Dates du groupe: keep candidate dates as open rows, not a stack of rectangular cards. */
