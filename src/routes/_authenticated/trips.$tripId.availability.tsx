@@ -67,17 +67,7 @@ function dayAriaLabel(date: Date, mode: DayMode, isPast: boolean, readOnly: bool
   return readOnly ? `${label}, ${state}, consultation uniquement` : `${label}, ${state}`;
 }
 
-function MonthGrid({
-  month,
-  selection,
-  onToggle,
-  readOnly,
-}: {
-  month: Date;
-  selection: Map<string, DayMode>;
-  onToggle: (iso: string) => void;
-  readOnly: boolean;
-}) {
+function MonthGrid({ month, selection, onToggle, readOnly }: { month: Date; selection: Map<string, DayMode>; onToggle: (iso: string) => void; readOnly: boolean }) {
   const first = startOfMonth(month);
   const startWeekday = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -159,14 +149,8 @@ function AvailabilityPage() {
     }
   }, [data, hydrated]);
 
-  const availableDates = useMemo(
-    () => [...selection.entries()].filter(([, v]) => v === "available").map(([k]) => k).sort(),
-    [selection],
-  );
-  const blockedDates = useMemo(
-    () => [...selection.entries()].filter(([, v]) => v === "blocked").map(([k]) => k).sort(),
-    [selection],
-  );
+  const availableDates = useMemo(() => [...selection.entries()].filter(([, v]) => v === "available").map(([k]) => k).sort(), [selection]);
+  const blockedDates = useMemo(() => [...selection.entries()].filter(([, v]) => v === "blocked").map(([k]) => k).sort(), [selection]);
 
   function toggleDay(iso: string) {
     if (data?.trip.datesLocked) return;
@@ -272,13 +256,13 @@ function AvailabilityPage() {
             <p className="text-[14px] leading-relaxed text-muted-foreground">Tes disponibilités restent visibles pour mémoire, mais elles ne sont plus modifiables.</p>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-sage/18"><KrewIcon name="group" tone="sage" size="sm" className="size-5" /></div>
-            <div className="space-y-0.5">
-              <p className="text-sm font-medium text-foreground sm:text-base"><span className="relative mr-1 inline-flex px-1"><KrewMark type="circle" tone="sage" size="sm" className="pointer-events-none absolute -inset-x-1 -inset-y-2 h-8 w-[3.4rem] opacity-75" /><span className="relative font-mono font-bold text-primary">{data.answered}/{data.expected}</span></span> ont indiqué leurs dates</p>
-              {data.expected - data.answered > 0 ? <KrewNote variant="tape" tone="sage" rotation={-1} size="sm" className="inline-block">{data.expected - data.answered === 1 ? "1 réponse manque" : `${data.expected - data.answered} réponses manquent`}</KrewNote> : null}
-            </div>
-          </div>
+          <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-[14px] leading-relaxed sm:text-[15px]">
+            <span className="font-mono font-bold text-primary">{data.answered}</span>
+            <span className="font-medium text-foreground">participant{data.answered > 1 ? "s" : ""} ayant répondu</span>
+            <span className="text-muted-foreground" aria-hidden="true">/</span>
+            <span className="font-mono font-bold text-primary">{data.expected}</span>
+            <span className="text-muted-foreground">participants au total du voyage</span>
+          </p>
         )}
       </KrewJourneyPageHeader>
 

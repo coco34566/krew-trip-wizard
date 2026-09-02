@@ -26,30 +26,74 @@
   opacity: 1 !important;
 }
 
-/* Mes voyages: always show the complete label and use the validated compact primary-button proportions. */
-main > header > a[href="/trips/new"] {
-  min-height: 2.5rem;
-  height: 2.5rem;
-  width: auto !important;
-  min-width: max-content;
-  border-radius: .75rem;
-  padding-left: 1rem !important;
-  padding-right: 1rem !important;
-  white-space: nowrap;
-  line-height: 1;
+/* Header + Mes voyages share the same compact landing-CTA geometry. */
+.krew-trip-primary-cta,
+main header a[href="/trips/new"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  column-gap: .375rem !important;
+  min-height: 2.5rem !important;
+  height: 2.5rem !important;
+  width: max-content !important;
+  min-width: max-content !important;
+  flex-shrink: 0 !important;
+  border-radius: .75rem !important;
+  padding: 0 1.25rem !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  font-size: .875rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
 }
-main > header > a[href="/trips/new"] > span.hidden {
+
+/* The dashboard used to keep a separate mobile-only "Nouveau" label. Never use it. */
+main header a[href="/trips/new"] > span {
+  display: none !important;
+}
+main header a[href="/trips/new"] > span:first-of-type {
   display: inline !important;
 }
-main > header > a[href="/trips/new"] > span.sm\:hidden {
-  display: none !important;
+
+@media (min-width: 640px) {
+  .krew-trip-primary-cta,
+  main header a[href="/trips/new"] {
+    padding-left: 1.75rem !important;
+    padding-right: 1.75rem !important;
+    font-size: 1rem !important;
+  }
+}
+
+/* Dates du groupe: keep candidate dates as open rows, not a stack of rectangular cards. */
+#hub-dates > ul > li {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: .75rem 0 !important;
+  box-shadow: none !important;
+}
+#hub-dates > ul > li + li {
+  border-top: 1px solid color-mix(in oklch, var(--border) 55%, transparent) !important;
+}
+
+/* Journey support otters use the same visual scale as the shared page header. */
+#hub-profile > img[src*="/brand/otter-states/"],
+#hub-dates > img[src*="/brand/otter-states/"] {
+  width: 72px !important;
+}
+@media (min-width: 640px) {
+  #hub-profile > img[src*="/brand/otter-states/"],
+  #hub-dates > img[src*="/brand/otter-states/"] {
+    width: 96px !important;
+  }
 }
 
 /* Journey: subtle upward reveal from "Notre feuille de route" onward. */
 .krew-journey-reveal {
-  opacity: .82;
-  transform: translate3d(0, 18px, 0);
-  transition: opacity 520ms ease-out, transform 760ms cubic-bezier(.18,.74,.24,1);
+  opacity: .88;
+  transform: translate3d(0, 14px, 0);
+  transition: opacity 480ms ease-out, transform 720ms cubic-bezier(.18,.74,.24,1);
   will-change: transform, opacity;
 }
 .krew-journey-reveal[data-revealed="true"] {
@@ -69,14 +113,10 @@ main > header > a[href="/trips/new"] > span.sm\:hidden {
 .krew-journey-draw-mark[data-revealed="true"] line,
 .krew-journey-draw-mark[data-revealed="true"] polyline,
 .krew-journey-draw-mark[data-revealed="true"] circle,
-.krew-journey-draw-mark[data-revealed="true"] rect,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw path,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw line,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw polyline,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw circle,
-.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw rect {
-  animation: krew-mark-draw 900ms cubic-bezier(.32,0,.18,1) 120ms forwards;
+.krew-journey-draw-mark[data-revealed="true"] rect {
+  animation: krew-mark-draw 950ms cubic-bezier(.32,0,.18,1) 100ms forwards;
 }
+
 .krew-journey-icon-draw path,
 .krew-journey-icon-draw line,
 .krew-journey-icon-draw polyline,
@@ -84,6 +124,13 @@ main > header > a[href="/trips/new"] > span.sm\:hidden {
 .krew-journey-icon-draw rect {
   stroke-dasharray: 42;
   stroke-dashoffset: 42;
+}
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw path,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw line,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw polyline,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw circle,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw rect {
+  animation: krew-icon-draw 820ms cubic-bezier(.32,0,.18,1) 140ms forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

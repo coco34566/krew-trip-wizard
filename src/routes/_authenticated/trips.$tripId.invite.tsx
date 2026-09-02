@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Crown, MoreHorizontal, Shield } from "lucide-react";
@@ -20,7 +20,6 @@ import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewIcon } from "@/components/krew/visual-language";
-import { cn } from "@/lib/utils";
 import {
   finalizeInvitationStep,
   getTripDetail,
@@ -29,7 +28,6 @@ import {
   setCoOrganizer,
 } from "@/lib/trips.functions";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
-import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 
 export const Route = createFileRoute("/_authenticated/trips/$tripId/invite")({
@@ -70,14 +68,6 @@ function InvitePage() {
   });
 
   const [email, setEmail] = useState("");
-  const [starMode, setStarMode] = useState<"secret" | "participant">("secret");
-  const [starPaysShare, setStarPaysShare] = useState(true);
-
-  const savedMode = (data?.trip?.group_logistics as any)?.star_mode;
-  useEffect(() => {
-    if (savedMode === "secret" || savedMode === "participant") setStarMode(savedMode);
-    setStarPaysShare((data?.trip?.group_logistics as any)?.star_pays_share !== false);
-  }, [savedMode, data?.trip?.group_logistics]);
 
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined" || !inviteLink?.token) return "";
@@ -129,10 +119,19 @@ function InvitePage() {
   });
 
   const finishInviteMutation = useMutation({
-    mutationFn: () =>
-      finishInvite({
-        data: { tripId, starMode, inviteStepCompleted: true, starPaysShare },
-      }),
+    mutationFn: () => {
+      const logistics = (data?.trip?.group_logistics ?? {}) as any;
+      const existingStarMode = logistics.star_mode === "participant" ? "participant" : "secret";
+      const existingStarPaysShare = logistics.star_pays_share !== false;
+      return finishInvite({
+        data: {
+          tripId,
+          starMode: existingStarMode,
+          inviteStepCompleted: true,
+          starPaysShare: existingStarPaysShare,
+        },
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       navigate({ to: "/trips/$tripId", params: { tripId } });
@@ -262,12 +261,7 @@ function InvitePage() {
           </div>
 
           <div className="grid gap-2.5 sm:grid-cols-2">
-            <Button
-              type="button"
-              onClick={shareInvitation}
-              disabled={!shareUrl || inviteLinkLoading}
-              className="min-h-11 justify-center"
-            >
+            <Button type="button" onClick={shareInvitation} disabled={!shareUrl || inviteLinkLoading} className="min-h-11 justify-center">
               <KrewIcon name="message" tone="cream" size="sm" className="size-4" />
               Inviter via WhatsApp
             </Button>
@@ -288,12 +282,7 @@ function InvitePage() {
           ) : (
             <div className="flex flex-wrap items-center gap-x-2 text-[12px] text-muted-foreground">
               <span>Le lien reste valable tant que tu ne le renouvelles pas.</span>
-              <button
-                type="button"
-                disabled={inviteLinkLoading || rotateLinkMutation.isPending}
-                onClick={() => rotateLinkMutation.mutate()}
-                className="font-medium underline underline-offset-3 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              <button type="button" disabled={inviteLinkLoading || rotateLinkMutation.isPending} onClick={() => rotateLinkMutation.mutate()} className="font-medium underline underline-offset-3 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50">
                 {rotateLinkMutation.isPending ? "Renouvellement…" : "Renouveler le lien"}
               </button>
             </div>
@@ -304,34 +293,14 @@ function InvitePage() {
       {data.isOwner ? (
         <section className="space-y-4 border-b border-border/55 pb-7">
           <div className="space-y-1">
-            <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
-              <KrewIcon name="plus" tone="plum" size="sm" className="size-5" />
-              Ajouter quelqu’un
-            </h2>
+            <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]"><KrewIcon name="plus" tone="plum" size="sm" className="size-5" />Ajouter quelqu’un</h2>
             <p className="text-[14px] text-muted-foreground">Invite directement une personne avec son adresse e-mail.</p>
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="invite-email" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <Input
-                id="invite-email"
-                type="email"
-                autoComplete="email"
-                placeholder="ami@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className={FORM_INPUT_CLASS}
-              />
-              <KrewStatefulButton
-                className="w-full shrink-0 sm:w-auto"
-                idleLabel="Inviter"
-                loadingLabel="Invitation…"
-                successLabel="Invitation envoyée"
-                errorLabel="Réessayer"
-                disabled={!email.trim()}
-                onAction={() => inviteMutation.mutateAsync()}
-              />
+              <Input id="invite-email" type="email" autoComplete="email" placeholder="ami@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className={FORM_INPUT_CLASS} />
+              <KrewStatefulButton className="w-full shrink-0 sm:w-auto" idleLabel="Inviter" loadingLabel="Invitation…" successLabel="Invitation envoyée" errorLabel="Réessayer" disabled={!email.trim()} onAction={() => inviteMutation.mutateAsync()} />
             </div>
           </div>
         </section>
@@ -339,84 +308,39 @@ function InvitePage() {
 
       <section className="space-y-3">
         <div className="border-b border-border/45 pb-2">
-          <h2 className="flex items-center gap-2 font-display text-[26px] font-normal text-foreground sm:text-[29px]">
-            <KrewIcon name="group" tone="plum" size="sm" className="size-5" />
-            Le groupe
-          </h2>
+          <h2 className="flex items-center gap-2 font-display text-[26px] font-normal text-foreground sm:text-[29px]"><KrewIcon name="group" tone="plum" size="sm" className="size-5" />Le groupe</h2>
         </div>
-
         <div className="divide-y divide-border/45">
           {participants.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">Personne n’a encore rejoint le groupe.</p>
           ) : (
             participants.map((p) => {
-              const canChangeRole = Boolean(
-                data.isCreator &&
-                p.user_id &&
-                !p.placeholder &&
-                !p.isStar &&
-                p.user_id !== "star-virtual-uid" &&
-                p.user_id !== trip.owner_id,
-              );
+              const canChangeRole = Boolean(data.isCreator && p.user_id && !p.placeholder && !p.isStar && p.user_id !== "star-virtual-uid" && p.user_id !== trip.owner_id);
               const canRemove = Boolean(data.isOwner && !p.placeholder);
               const showMenu = canChangeRole || canRemove;
               const isCoOrg = p.user_id === (trip.co_organizer_id || (trip as any).coOrganizerId);
-
               return (
                 <div key={p.id} className="grid gap-2 py-2.5 first:pt-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[15px] font-medium text-foreground sm:text-base">{p.display_name ?? p.email}</span>
-                      {p.user_id === trip.owner_id ? (
-                        <Badge variant="sun" className="gap-1 border-primary/15 bg-primary/[0.07] px-2 py-0.5 text-[12px] text-primary">
-                          <Crown className="size-3" /> Organisateur·rice
-                        </Badge>
-                      ) : isCoOrg ? (
-                        <Badge variant="secondary" className="gap-1 px-2 py-0.5 text-[12px]">
-                          <Shield className="size-3" /> Co-organisateur·rice
-                        </Badge>
-                      ) : null}
-                      {p.isStar ? (
-                        <Badge variant="sun" className="gap-1 border-primary/15 bg-primary/[0.07] px-2 py-0.5 text-[12px] text-primary">
-                          <KrewIcon name="favorite" tone="plum" size="sm" className="size-3" /> Star
-                        </Badge>
-                      ) : null}
+                      {p.user_id === trip.owner_id ? <Badge variant="sun" className="gap-1 border-primary/15 bg-primary/[0.07] px-2 py-0.5 text-[12px] text-primary"><Crown className="size-3" /> Organisateur·rice</Badge> : isCoOrg ? <Badge variant="secondary" className="gap-1 px-2 py-0.5 text-[12px]"><Shield className="size-3" /> Co-organisateur·rice</Badge> : null}
+                      {p.isStar ? <Badge variant="sun" className="gap-1 border-primary/15 bg-primary/[0.07] px-2 py-0.5 text-[12px] text-primary"><KrewIcon name="favorite" tone="plum" size="sm" className="size-3" /> Star</Badge> : null}
                     </div>
                     {p.email && !p.display_name ? <p className="break-all text-[12px] text-muted-foreground">{p.email}</p> : null}
                   </div>
-
                   <div className="flex items-center gap-2 sm:justify-end">
                     <Badge variant={p.status === "accepte" ? "success" : "muted"} className="gap-1 font-normal">
                       {p.status === "accepte" ? <KrewIcon name="check" tone="sage" size="sm" className="size-3" /> : null}
                       {p.status === "accepte" ? "Participe" : p.status}
                     </Badge>
-
                     {showMenu ? (
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" aria-label={`Plus d’options pour ${p.display_name ?? p.email ?? "ce participant"}`}>
-                            <MoreHorizontal className="size-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
+                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Plus d’options pour ${p.display_name ?? p.email ?? "ce participant"}`}><MoreHorizontal className="size-4" /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="min-w-[190px]">
-                          {canChangeRole ? (
-                            <DropdownMenuItem
-                              disabled={setCoOrgMutation.isPending}
-                              onSelect={() => setCoOrgMutation.mutate({ coOrganizerId: isCoOrg ? null : p.user_id || null })}
-                            >
-                              {isCoOrg ? "Retirer le rôle de co-organisateur·rice" : "Nommer co-organisateur·rice"}
-                            </DropdownMenuItem>
-                          ) : null}
+                          {canChangeRole ? <DropdownMenuItem disabled={setCoOrgMutation.isPending} onSelect={() => setCoOrgMutation.mutate({ coOrganizerId: isCoOrg ? null : p.user_id || null })}>{isCoOrg ? "Retirer le rôle de co-organisateur·rice" : "Nommer co-organisateur·rice"}</DropdownMenuItem> : null}
                           {canChangeRole && canRemove ? <DropdownMenuSeparator /> : null}
-                          {canRemove ? (
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              disabled={removeMutation.isPending}
-                              onSelect={() => removeMutation.mutate(p.id)}
-                            >
-                              Retirer du voyage
-                            </DropdownMenuItem>
-                          ) : null}
+                          {canRemove ? <DropdownMenuItem className="text-destructive focus:text-destructive" disabled={removeMutation.isPending} onSelect={() => removeMutation.mutate(p.id)}>Retirer du voyage</DropdownMenuItem> : null}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : null}
@@ -428,110 +352,18 @@ function InvitePage() {
         </div>
       </section>
 
-      {trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type) ? (
-        <section className="space-y-5 border-t border-border/55 pt-7">
-          <div className="space-y-1">
-            <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]">
-              <KrewIcon name="favorite" tone="plum" size="sm" className="size-5" />
-              Rôle de la Star ({trip.celebrated_person || "Star"})
-            </h2>
-            <p className="text-[14px] leading-relaxed text-muted-foreground">Choisis si l’organisation doit rester secrète pour la Star.</p>
-          </div>
-
-          <fieldset className="divide-y divide-border/45" disabled={!data.isOwner}>
-            <legend className="sr-only">Mode de participation de la Star</legend>
-            <label className="grid cursor-pointer grid-cols-[24px_minmax(0,1fr)] gap-3 py-4 first:pt-0">
-              <input
-                type="radio"
-                name="star-mode"
-                value="secret"
-                checked={starMode === "secret"}
-                onChange={() => setStarMode("secret")}
-                className="mt-1 size-4 accent-primary"
-              />
-              <span className="min-w-0">
-                <span className="block text-[15px] font-semibold text-foreground">Mode secret</span>
-                <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">La Star ne voit pas l’organisation et tu renseignes ses préférences à sa place.</span>
-              </span>
-            </label>
-            <label className="grid cursor-pointer grid-cols-[24px_minmax(0,1fr)] gap-3 py-4">
-              <input
-                type="radio"
-                name="star-mode"
-                value="participant"
-                checked={starMode === "participant"}
-                onChange={() => setStarMode("participant")}
-                className="mt-1 size-4 accent-primary"
-              />
-              <span className="min-w-0">
-                <span className="block text-[15px] font-semibold text-foreground">Mode participant</span>
-                <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">La Star rejoint le groupe et répond comme les autres participants.</span>
-              </span>
-            </label>
-          </fieldset>
-
-          <div className="border-t border-border/45 pt-4">
-            <Label className="text-[14px] font-semibold text-foreground">La Star participe aux frais</Label>
-            <div className="mt-3 inline-flex rounded-[10px] border border-border/65 p-1" role="group" aria-label="Participation de la Star aux frais">
-              <button
-                type="button"
-                disabled={!data.isOwner}
-                aria-pressed={starPaysShare}
-                onClick={() => setStarPaysShare(true)}
-                className={cn(
-                  "min-h-9 rounded-[8px] px-3 text-[13px] font-semibold transition-colors",
-                  starPaysShare ? "bg-sage/20 text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Oui
-              </button>
-              <button
-                type="button"
-                disabled={!data.isOwner}
-                aria-pressed={!starPaysShare}
-                onClick={() => setStarPaysShare(false)}
-                className={cn(
-                  "min-h-9 rounded-[8px] px-3 text-[13px] font-semibold transition-colors",
-                  !starPaysShare ? "bg-sage/20 text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Non, sa part est répartie
-              </button>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       {data.isOwner ? (
         <section className="space-y-3 border-t border-primary/20 pt-7">
           <div>
-            <h3 className="flex items-center gap-2 font-display text-[24px] font-normal text-foreground">
-              <KrewIcon name="check" tone="sage" size="sm" className="size-5" />
-              Tout est prêt ?
-            </h3>
-            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">Enregistre les choix de la Star puis retourne au voyage pour poursuivre l’organisation.</p>
+            <h3 className="flex items-center gap-2 font-display text-[24px] font-normal text-foreground"><KrewIcon name="check" tone="sage" size="sm" className="size-5" />Tout est prêt ?</h3>
+            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">Enregistre les invitations puis retourne au voyage pour poursuivre l’organisation. Les choix concernant la Star se font dans son questionnaire dédié.</p>
           </div>
-          <KrewStatefulButton
-            className="max-w-full"
-            idleLabel={inviteStepCompleted ? "Enregistrer et revenir au voyage" : "Enregistrer les invitations"}
-            loadingLabel="Enregistrement…"
-            successLabel="Invitations enregistrées"
-            errorLabel="Réessayer"
-            onAction={() => finishInviteMutation.mutateAsync()}
-          />
+          <KrewStatefulButton className="max-w-full" idleLabel={inviteStepCompleted ? "Enregistrer et revenir au voyage" : "Enregistrer les invitations"} loadingLabel="Enregistrement…" successLabel="Invitations enregistrées" errorLabel="Réessayer" onAction={() => finishInviteMutation.mutateAsync()} />
         </section>
       ) : (
         <div className="flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center">
-          <Link
-            to="/trips/$tripId"
-            params={{ tripId }}
-            className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground hover:text-primary"
-          >
-            Voir le voyage
-          </Link>
-          <Button asChild className="w-full sm:w-auto">
-            <Link to="/trips/$tripId/availability" params={{ tripId }}>Indiquer mes disponibilités</Link>
-          </Button>
+          <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground hover:text-primary">Voir le voyage</Link>
+          <Button asChild className="w-full sm:w-auto"><Link to="/trips/$tripId/availability" params={{ tripId }}>Indiquer mes disponibilités</Link></Button>
         </div>
       )}
     </main>

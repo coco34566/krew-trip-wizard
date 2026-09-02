@@ -58,6 +58,11 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     secretStarHasPreferences: hasSecretStarPreferences(starPrefs),
     secretStarHasAvailability: hasSecretStarAvailability(starPrefs),
   });
+  const configuredParticipants = Math.max(0, Number(trip.data.participants_count ?? 0) || 0);
+  const availabilityExpected =
+    configuredParticipants > 0
+      ? Math.max(configuredParticipants, counts.availabilityExpected)
+      : counts.availabilityExpected;
 
   const rawTripDuration = (trip.data as any).duration_nights ?? prefs.data?.duration_nights;
   const parsedDuration = rawTripDuration != null ? Number(rawTripDuration) : NaN;
@@ -84,7 +89,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
         },
         isOwner: isTripAdmin(trip.data, userId),
         answered: 0,
-        expected: counts.availabilityExpected,
+        expected: availabilityExpected,
         windows: [],
         mine: null,
         participants: rawParticipants,
@@ -166,7 +171,7 @@ export async function getTripAvailabilityHelper(supabase: any, userId: string, t
     },
     isOwner: isTripAdmin(trip.data, userId),
     answered: counts.availabilityAnswered,
-    expected: counts.availabilityExpected,
+    expected: availabilityExpected,
     windows,
     mine: mine
       ? {

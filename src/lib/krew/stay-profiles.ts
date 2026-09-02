@@ -48,6 +48,18 @@ export const PROFILE_LABELS: Record<StayProfileId, string> = {
   wellness_slow: "Parenthèse détente & bien-être",
 };
 
+export const PROFILE_DESCRIPTIONS: Record<StayProfileId, string> = {
+  city_lively: "Un séjour rythmé par les bonnes adresses, les sorties et l’énergie de la ville, avec peu de temps mort.",
+  city_discovery: "On explore à pied, on visite, on teste de bonnes adresses et on profite de la ville du matin au soir.",
+  charm_escape: "Un cadre qui a du caractère, un rythme équilibré et du temps pour flâner, bien manger et profiter des environs.",
+  regional_explorer: "On rayonne dans les alentours, entre paysages, villages et découvertes, avec des déplacements qui font partie du séjour.",
+  house_together: "Le logement est au cœur du séjour : repas, apéros, jeux et vrais moments ensemble sur place.",
+  nature_disconnect: "On ralentit dans un cadre naturel, avec du calme, de l’air frais et un programme volontairement léger.",
+  exceptional_experience: "Le groupe mise sur un lieu ou une expérience mémorable, avec un séjour construit autour de ce moment fort.",
+  outdoor_active: "On passe beaucoup de temps dehors, avec des activités sportives, des paysages et un rythme plutôt actif.",
+  wellness_slow: "Le programme laisse de la place au repos, au confort et au bien-être, sans chercher à remplir chaque journée.",
+};
+
 const norm = (values: string[] = []) =>
   values.map((v) =>
     v
