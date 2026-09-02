@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
 import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
+import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import {
   getOrganizationRefreshState,
@@ -43,118 +44,6 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
   return () => {
     footer.hidden = previousHidden;
   };
-}
-
-function refineDashboardPresentation() {
-  if (typeof document === "undefined") return () => {};
-  const cleanups: Array<() => void> = [];
-  const groupSection = document.getElementById("group-section");
-
-  if (groupSection) {
-    const decorativeOtter = Array.from(groupSection.children).find((child) =>
-      child instanceof HTMLElement && Boolean(child.querySelector('img[src*="trip-progress.png"]')),
-    ) as HTMLElement | undefined;
-
-    const dashboardStageNotes = new Set([
-      "Le groupe prend forme",
-      "La suite se dessine",
-      "La suite se prépare",
-    ]);
-    const stageNote = Array.from(
-      document.querySelectorAll<HTMLElement>('main header [data-krew-note="post-it"]'),
-    ).find((note) => dashboardStageNotes.has(note.textContent?.trim() ?? ""));
-
-    if (stageNote) {
-      if (decorativeOtter) {
-        const previousDisplay = decorativeOtter.style.display;
-        decorativeOtter.style.display = "none";
-        cleanups.push(() => {
-          decorativeOtter.style.display = previousDisplay;
-        });
-      }
-
-      const heroStageWrapper = stageNote.parentElement;
-      if (heroStageWrapper) {
-        const previousDisplay = heroStageWrapper.style.display;
-        heroStageWrapper.style.display = "none";
-        cleanups.push(() => {
-          heroStageWrapper.style.display = previousDisplay;
-        });
-      }
-
-      if (!groupSection.querySelector('[data-krew-group-stage-note="true"]')) {
-        const wrapper = document.createElement("div");
-        wrapper.dataset.krewGroupStageNote = "true";
-        wrapper.className = "pointer-events-none absolute right-0 top-0 z-10";
-        wrapper.appendChild(stageNote.cloneNode(true));
-        groupSection.appendChild(wrapper);
-        cleanups.push(() => wrapper.remove());
-      }
-    }
-
-    const remindButton = Array.from(groupSection.querySelectorAll<HTMLButtonElement>("button")).find(
-      (button) => button.textContent?.trim() === "Relancer le groupe",
-    );
-
-    if (remindButton) {
-      const previous = {
-        display: remindButton.style.display,
-        width: remindButton.style.width,
-        justifyContent: remindButton.style.justifyContent,
-        alignItems: remindButton.style.alignItems,
-        columnGap: remindButton.style.columnGap,
-        paddingLeft: remindButton.style.paddingLeft,
-        paddingRight: remindButton.style.paddingRight,
-      };
-      remindButton.style.display = "inline-flex";
-      remindButton.style.width = "auto";
-      remindButton.style.justifyContent = "flex-start";
-      remindButton.style.alignItems = "center";
-      remindButton.style.columnGap = "0.375rem";
-      remindButton.style.paddingLeft = "0";
-      remindButton.style.paddingRight = "0.5rem";
-      cleanups.push(() => {
-        remindButton.style.display = previous.display;
-        remindButton.style.width = previous.width;
-        remindButton.style.justifyContent = previous.justifyContent;
-        remindButton.style.alignItems = previous.alignItems;
-        remindButton.style.columnGap = previous.columnGap;
-        remindButton.style.paddingLeft = previous.paddingLeft;
-        remindButton.style.paddingRight = previous.paddingRight;
-      });
-    }
-  }
-
-  const managementFooter = Array.from(document.querySelectorAll<HTMLElement>("main footer")).find((candidate) =>
-    candidate.textContent?.includes("Gestion du voyage"),
-  );
-  const deleteButton = managementFooter
-    ? Array.from(managementFooter.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
-        button.textContent?.includes("Supprimer définitivement"),
-      )
-    : null;
-  const deleteBlock = deleteButton?.parentElement;
-
-  if (deleteBlock) {
-    const previous = {
-      borderTopWidth: deleteBlock.style.borderTopWidth,
-      borderTopStyle: deleteBlock.style.borderTopStyle,
-      paddingTop: deleteBlock.style.paddingTop,
-      marginTop: deleteBlock.style.marginTop,
-    };
-    deleteBlock.style.borderTopWidth = "0";
-    deleteBlock.style.borderTopStyle = "none";
-    deleteBlock.style.paddingTop = "0";
-    deleteBlock.style.marginTop = "0.25rem";
-    cleanups.push(() => {
-      deleteBlock.style.borderTopWidth = previous.borderTopWidth;
-      deleteBlock.style.borderTopStyle = previous.borderTopStyle;
-      deleteBlock.style.paddingTop = previous.paddingTop;
-      deleteBlock.style.marginTop = previous.marginTop;
-    });
-  }
-
-  return () => cleanups.reverse().forEach((cleanup) => cleanup());
 }
 
 export function TripHubDashboard(props: Props) {
@@ -203,23 +92,19 @@ export function TripHubDashboard(props: Props) {
     participants_count: responseReady ? preferencesExpected : props.participantsCount,
   });
 
+  const hasItinerary = Boolean(tripForDashboard?.group_itinerary?.days?.length);
+  const dashboardStageNote = completed
+    ? null
+    : !datesLocked || !props.profileValidated
+      ? "Le groupe prend forme"
+      : !props.destinationSelected
+        ? "La suite se dessine"
+        : !hasItinerary
+          ? "La suite se prépare"
+          : null;
+
   useEffect(() => setCompletedGroupSectionReadOnly(completed), [completed]);
   useEffect(() => setOrganizerOnlyManagementVisible(isCreator), [isCreator]);
-  useEffect(() => {
-    let cleanup = () => {};
-    let secondFrame = 0;
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => {
-        cleanup = refineDashboardPresentation();
-      });
-    });
-
-    return () => {
-      window.cancelAnimationFrame(firstFrame);
-      if (secondFrame) window.cancelAnimationFrame(secondFrame);
-      cleanup();
-    };
-  }, [datesLocked, preferencesExpected, props.tripId]);
 
   useEffect(() => {
     const viewerId = props.viewerUserId ?? null;
@@ -296,9 +181,9 @@ export function TripHubDashboard(props: Props) {
         ) : null}
         <div
           className={
-            suppressPreparationChrome
-              ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden"
-              : undefined
+            `${suppressPreparationChrome
+              ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden "
+              : ""}[&_[data-krew-note='post-it'].text-right]:!hidden`
           }
         >
           <TripHubDashboardLegacy
@@ -327,6 +212,16 @@ export function TripHubDashboard(props: Props) {
             {props.children}
           </TripHubDashboardLegacy>
         </div>
+        {dashboardStageNote ? (
+          <div
+            data-krew-group-stage-note="true"
+            className="pointer-events-none relative z-20 -mb-12 flex justify-end pr-1 translate-y-8 sm:translate-y-9"
+          >
+            <KrewNote variant="tape" tone="plum" rotation={1} size="sm" className="max-w-[46%] text-right sm:max-w-none">
+              {dashboardStageNote}
+            </KrewNote>
+          </div>
+        ) : null}
       </div>
     </TripLifecycleProvider>
   );
