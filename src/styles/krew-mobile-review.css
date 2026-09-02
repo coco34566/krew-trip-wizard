@@ -54,6 +54,11 @@ main > header a[href="/trips/new"] {
   padding-right: .875rem !important;
 }
 
+/* Mes voyages: section underlines keep the same breathing room as the page title. */
+main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
+  bottom: -1rem !important;
+}
+
 /* The dashboard used to keep a separate mobile-only "Nouveau" label. Never use it. */
 main header a[href="/trips/new"] > span {
   display: none !important;
