@@ -89,7 +89,7 @@ export function KrewNote({
       <span
         data-krew-note="post-it"
         data-krew-note-tone={tone}
-        data-krew-note-variant={variant}
+        data-krew-note-variant="sticky"
         className={cn(
           "relative isolate inline-flex w-fit max-w-[13rem] items-center border-0 px-3 py-2 font-handwriting text-[.9rem] font-bold leading-[1.15] shadow-[0_6px_16px_rgba(60,35,50,.075)]",
           tones[tone],
