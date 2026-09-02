@@ -48,23 +48,24 @@ main header a[href="/trips/new"] {
   box-shadow: none !important;
 }
 
-/* Mes voyages: keep the complete label but trim the excess horizontal padding on mobile. */
-main > header a[href="/trips/new"] {
-  padding-left: .875rem !important;
-  padding-right: .875rem !important;
+/* Mes voyages: compact page CTA, always keeping the full “Nouveau voyage” label. */
+main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
+  min-height: 2.25rem !important;
+  height: 2.25rem !important;
+  padding-left: .625rem !important;
+  padding-right: .625rem !important;
+  font-size: .8125rem !important;
+}
+main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] > span {
+  display: none !important;
+}
+main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] > span:first-of-type {
+  display: inline !important;
 }
 
 /* Mes voyages: section underlines use the exact same title-to-wave gap as the page title. */
 main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
   bottom: -1.25rem !important;
-}
-
-/* The dashboard used to keep a separate mobile-only "Nouveau" label. Never use it. */
-main header a[href="/trips/new"] > span {
-  display: none !important;
-}
-main header a[href="/trips/new"] > span:first-of-type {
-  display: inline !important;
 }
 
 @media (min-width: 640px) {
@@ -75,9 +76,12 @@ main header a[href="/trips/new"] > span:first-of-type {
     font-size: 1rem !important;
   }
 
-  main > header a[href="/trips/new"] {
-    padding-left: 1.25rem !important;
-    padding-right: 1.25rem !important;
+  main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
+    min-height: 2.5rem !important;
+    height: 2.5rem !important;
+    padding-left: 1.125rem !important;
+    padding-right: 1.125rem !important;
+    font-size: .9375rem !important;
   }
 }
 
@@ -106,7 +110,7 @@ main header a[href="/trips/new"] > span:first-of-type {
   padding-right: 0 !important;
 }
 
-/* Keep Relancer le groupe left-aligned and immediately next to its team icon. */
+/* Keep Relancer le groupe left-aligned with a real gap after the team icon. */
 #group-section > div.pt-4.border-t {
   display: flex !important;
   justify-content: flex-start !important;
@@ -117,10 +121,20 @@ main header a[href="/trips/new"] > span:first-of-type {
   min-width: 0 !important;
   justify-content: flex-start !important;
   align-items: center !important;
-  column-gap: .375rem !important;
-  padding-left: 0 !important;
-  padding-right: .5rem !important;
+  column-gap: .625rem !important;
+  padding-left: .25rem !important;
+  padding-right: .625rem !important;
   text-align: left !important;
+}
+#group-section > div.pt-4.border-t > button > svg {
+  position: static !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+#group-section > div.pt-4.border-t > button > span {
+  position: static !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
 }
 
 /* Gestion du voyage: no divider between archive and permanent deletion; compact vertical rhythm. */
