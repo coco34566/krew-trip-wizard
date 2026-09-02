@@ -48,6 +48,12 @@ main header a[href="/trips/new"] {
   box-shadow: none !important;
 }
 
+/* Mes voyages: keep the complete label but trim the excess horizontal padding on mobile. */
+main > header a[href="/trips/new"] {
+  padding-left: .875rem !important;
+  padding-right: .875rem !important;
+}
+
 /* The dashboard used to keep a separate mobile-only "Nouveau" label. Never use it. */
 main header a[href="/trips/new"] > span {
   display: none !important;
@@ -62,6 +68,11 @@ main header a[href="/trips/new"] > span:first-of-type {
     padding-left: 1.75rem !important;
     padding-right: 1.75rem !important;
     font-size: 1rem !important;
+  }
+
+  main > header a[href="/trips/new"] {
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
   }
 }
 
