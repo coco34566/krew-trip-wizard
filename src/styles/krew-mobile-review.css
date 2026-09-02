@@ -65,6 +65,30 @@ main header a[href="/trips/new"] > span:first-of-type {
   }
 }
 
+/* Dates du groupe: keep candidate dates as open rows, not a stack of rectangular cards. */
+#hub-dates > ul > li {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: .75rem 0 !important;
+  box-shadow: none !important;
+}
+#hub-dates > ul > li + li {
+  border-top: 1px solid color-mix(in oklch, var(--border) 55%, transparent) !important;
+}
+
+/* Journey support otters use the same visual scale as the shared page header. */
+#hub-profile > img[src*="/brand/otter-states/"],
+#hub-dates > img[src*="/brand/otter-states/"] {
+  width: 72px !important;
+}
+@media (min-width: 640px) {
+  #hub-profile > img[src*="/brand/otter-states/"],
+  #hub-dates > img[src*="/brand/otter-states/"] {
+    width: 96px !important;
+  }
+}
+
 /* Journey: subtle upward reveal from "Notre feuille de route" onward. */
 .krew-journey-reveal {
   opacity: .88;
