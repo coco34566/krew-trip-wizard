@@ -1,7 +1,120 @@
+@import url("https://fonts.googleapis.com/css2?family=Shantell+Sans:ital,wght@0,400..600;1,400..600&display=swap");
+
 /* Small, scoped visual corrections that depend on existing route markup. */
 
 /* Trip overview notes now use KrewNote directly in TripHubDashboard.
  * Keep dashboard typography and paper behavior in the shared primitive. */
+
+/* Product post-its — exact material treatment from the latest approved design-system prototype.
+ * Margin annotations (including “Notre feuille de route”) are intentionally excluded. */
+[data-krew-note="post-it"] {
+  --krew-paper-ink: #3f2940;
+  --krew-paper-shadow: 0 11px 22px rgba(57, 35, 54, 0.16), 0 3px 7px rgba(57, 35, 54, 0.10);
+  position: relative;
+  isolation: isolate;
+  color: var(--krew-paper-ink) !important;
+  box-shadow: var(--krew-paper-shadow) !important;
+  font-family: "Shantell Sans", "Segoe Print", cursive !important;
+  font-weight: 500 !important;
+  font-variation-settings: "INFM" 35, "SPAC" 2;
+  line-height: 1.16;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+
+[data-krew-note="post-it"][data-krew-note-tone="cream"] {
+  background-color: #f7f4ed !important;
+  --krew-tape: rgba(109, 139, 112, 0.50);
+}
+
+[data-krew-note="post-it"][data-krew-note-tone="sage"] {
+  background-color: #c7d2ba !important;
+  --krew-tape: rgba(110, 67, 101, 0.42);
+}
+
+[data-krew-note="post-it"][data-krew-note-tone="plum"] {
+  background-color: #d9becd !important;
+  --krew-tape: rgba(242, 238, 228, 0.62);
+}
+
+[data-krew-note="post-it"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.24;
+  background:
+    radial-gradient(circle at 16% 27%, rgba(74, 46, 63, 0.16) 0 0.45px, transparent 0.7px),
+    radial-gradient(circle at 72% 61%, rgba(255, 255, 255, 0.70) 0 0.55px, transparent 0.85px);
+  background-size: 7px 9px, 9px 11px;
+  mix-blend-mode: multiply;
+}
+
+/* Standard product notes use the approved folded-paper silhouette. */
+[data-krew-note="post-it"][data-krew-note-variant="sticky"],
+[data-krew-note="post-it"][data-krew-note-variant="callout"],
+[data-krew-note="post-it"][data-krew-note-variant="tape"] {
+  clip-path: polygon(0.5% 1%, 99% 0, 100% 80%, 92% 99%, 1% 100%) !important;
+}
+
+[data-krew-note="post-it"][data-krew-note-variant="sticky"]::before,
+[data-krew-note="post-it"][data-krew-note-variant="callout"]::before,
+[data-krew-note="post-it"][data-krew-note-variant="tape"]::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  z-index: 1;
+  background: linear-gradient(135deg, rgba(85, 58, 74, 0.13) 0 48%, rgba(255, 255, 255, 0.36) 52%);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+
+/* Status labels follow the approved torn-strip treatment. */
+[data-krew-note="post-it"][data-krew-note-variant="torn"],
+[data-krew-note="post-it"][data-krew-note-variant="label"] {
+  clip-path: polygon(2% 7%, 5% 1%, 9% 6%, 14% 2%, 20% 5%, 27% 1%, 34% 5%, 42% 2%, 50% 5%, 58% 1%, 66% 5%, 74% 2%, 82% 6%, 90% 1%, 98% 6%, 100% 25%, 98% 48%, 100% 72%, 97% 95%, 90% 98%, 82% 94%, 74% 99%, 65% 95%, 57% 99%, 49% 95%, 41% 98%, 33% 94%, 25% 99%, 17% 95%, 9% 99%, 2% 94%, 0 72%, 2% 49%, 0 27%) !important;
+}
+
+/* The tape now crosses the upper edge exactly like the approved prototype. */
+[data-krew-note="post-it"] > span[aria-hidden] {
+  top: -0.42rem !important;
+  left: 50% !important;
+  width: 3.15rem !important;
+  height: 0.92rem !important;
+  opacity: 0.82;
+  background:
+    linear-gradient(92deg, rgba(255, 255, 255, 0.15), transparent 34% 68%, rgba(255, 255, 255, 0.12)),
+    var(--krew-tape) !important;
+  clip-path: polygon(2% 14%, 9% 5%, 17% 13%, 25% 5%, 35% 11%, 45% 4%, 56% 12%, 66% 5%, 76% 13%, 87% 5%, 98% 15%, 96% 88%, 87% 94%, 77% 88%, 67% 96%, 57% 88%, 47% 95%, 36% 87%, 26% 94%, 15% 87%, 4% 93%);
+  transform: translateX(-50%) rotate(2deg) !important;
+  box-shadow: 0 1px 1px rgba(49, 35, 45, 0.08) !important;
+}
+
+[data-krew-note="post-it"][data-krew-note-variant="photo"] > span[aria-hidden] {
+  left: 22% !important;
+  width: 2.6rem !important;
+  transform: translateX(-50%) rotate(-8deg) !important;
+}
+
+[data-krew-note="post-it"] > div {
+  position: relative;
+  z-index: 2;
+  font-family: inherit !important;
+  font-size: 0.94rem !important;
+  font-weight: 500 !important;
+  line-height: 1.16 !important;
+  letter-spacing: -0.018em;
+}
+
+/* Keep status notes compact in product UI while retaining the exact approved material style. */
+[data-krew-note="post-it"][data-krew-note-variant="label"] {
+  padding-inline: 0.82rem !important;
+  padding-block: 0.46rem !important;
+}
 
 /* Trip overview — existing KREW otter, visible only where there is enough room. */
 @media (min-width: 640px) {
@@ -78,4 +191,3 @@ div[class*="max-w-[900px]"] div[class*="top-[74%]"] > div {
     width: 9.75rem !important;
   }
 }
-
