@@ -136,7 +136,6 @@ function NextActionsPanel({
     actions.push(a);
   };
 
-  // —— 1. Actions perso (tous) ——
   if (!datesLocked && !myAvailabilityDone) {
     push({
       key: "avail",
@@ -167,7 +166,6 @@ function NextActionsPanel({
     });
   }
 
-  // —— 2. Après destination : hébergement + transport (tous) ——
   if (destinationSelected) {
     if (hotelOffersReady && !myHotelVoted) {
       push({
@@ -189,7 +187,6 @@ function NextActionsPanel({
     }
   }
 
-  // —— 3. Actions orga uniquement ——
   if (isOwner) {
     if (myAvailabilityDone && myPreferencesDone && !datesLocked) {
       push({
@@ -338,7 +335,6 @@ function NextActionsPanel({
   if (!primaryAction) return null;
 
   const secondaryActions = actions.slice(1, 4);
-
   const progressItems = [];
   if (!datesLocked && availabilityExpected > 0) {
     progressItems.push({
@@ -366,12 +362,7 @@ function NextActionsPanel({
           Tout est bon pour le moment. L&apos;organisateur reviendra vers toi pour les prochaines étapes.
         </div>
       ) : null}
-
-      <KrewActionStack
-        primary={primaryAction}
-        secondary={secondaryActions}
-        progress={progressItems}
-      />
+      <KrewActionStack primary={primaryAction} secondary={secondaryActions} progress={progressItems} />
     </div>
   );
 }
@@ -526,18 +517,13 @@ export function TripHubDashboard({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* ZONE 1 — COVER DU VOYAGE (EXACT BLUEPRINT) */}
       <header className="relative overflow-visible -mx-4 sm:mx-0 pb-2">
-        {/* Conteneur photo & blob positioning */}
         <div className="relative w-full">
-          {/* C2. BLOB SAUGE (z0) : derrière le haut/droite de la photo */}
           <KrewOrganicBlob
             tone="sage"
             variant="soft"
             className="absolute -top-5 right-0 w-[80%] h-[200px] sm:h-[240px] z-0 opacity-70 pointer-events-none"
           />
-
-          {/* C1. PHOTO (z10) : largeur ~calc(100% - 8px), hauteur 260-280px, alignée gauche */}
           <div
             className={`relative z-10 w-[calc(100%_-_8px)] overflow-hidden ${
               liveMode ? "h-[180px] sm:h-[220px]" : "h-[260px] sm:h-[280px]"
@@ -557,19 +543,9 @@ export function TripHubDashboard({
               {trip.name}
             </KrewNote>
           </div>
-          {dashboardStageNote ? (
-            <div className="pointer-events-none absolute right-3 top-3 z-30 max-w-[38%] sm:right-5 sm:top-4">
-              <KrewNote variant="tape" tone="plum" rotation={1} size="sm" className="max-w-full text-right">
-                {dashboardStageNote}
-              </KrewNote>
-            </div>
-          ) : null}
 
-          {/* ZONE DE TITRE ÉDITORIAL SANS BLOB ENFERMANT */}
           <div className="relative z-20 -mt-10 px-4 pt-2">
-            {/* LEVEL 2 — DESTINATION / PROMESSE (GRAND TITRE INSTRUMENT SERIF) */}
             <div className="relative mt-1 text-left inline-block max-w-full">
-              {/* Forme prune organique en accent sous le tiers droit / bas du titre */}
               <KrewOrganicBlob
                 tone="plum"
                 variant="soft"
@@ -598,10 +574,8 @@ export function TripHubDashboard({
           </div>
         </div>
 
-        {/* D. INFORMATIONS PRATIQUES + PETIT OBJET MÉTÉO, PENSÉS COMME UN SEUL ENSEMBLE */}
         <div className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5 px-4 sm:gap-5">
           <div className="min-w-0 space-y-2.5 font-sans text-[13px] font-medium leading-[1.2] text-foreground">
-            {/* D1. DATES + COMPTE À REBOURS */}
             <div className="flex items-start gap-2 text-foreground min-w-0">
               <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0 mt-[1px]" />
               <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
@@ -633,7 +607,6 @@ export function TripHubDashboard({
               </div>
             </div>
 
-            {/* D2. PARTICIPANTS */}
             <div className="flex items-center gap-2 text-foreground/90">
               <KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" />
               <p className="whitespace-nowrap">
@@ -641,7 +614,6 @@ export function TripHubDashboard({
               </p>
             </div>
 
-            {/* D3. BUDGET (WORDING RACCOURCI POUR ÉVITER TOUT WRAP) */}
             <div className="flex items-center gap-2 text-primary font-semibold text-[12.5px] min-w-0">
               <KrewIcon name="budget" tone="plum" size="sm" className="size-4 shrink-0" />
               <div className="min-w-0">
@@ -664,8 +636,6 @@ export function TripHubDashboard({
         </div>
 
         {!liveMode ? <KrewPulseLine pulse={pulse} /> : null}
-
-        {/* E. 32px RESPIRATION APRES METADATAS (PAS DE LOUTRE, PAS DE FLÈCHE, PAS DE DIVIDER) */}
         <div className={liveMode ? "h-4" : "h-8"} />
       </header>
 
@@ -679,7 +649,6 @@ export function TripHubDashboard({
         />
       ) : null}
 
-      {/* PROCHAINES ACTIONS VIA KREW ACTION STACK */}
       {!liveMode ? (
         <NextActionsPanel
           tripId={tripId}
@@ -726,6 +695,14 @@ export function TripHubDashboard({
           </Link>
         ) : null}
       </nav>
+
+      {dashboardStageNote ? (
+        <div data-krew-dashboard-stage-note="true" className="flex justify-end px-1 -mb-5 sm:-mb-6 pointer-events-none">
+          <KrewNote variant="tape" tone="plum" rotation={1} size="sm">
+            {dashboardStageNote}
+          </KrewNote>
+        </div>
+      ) : null}
 
       {children}
     </div>
