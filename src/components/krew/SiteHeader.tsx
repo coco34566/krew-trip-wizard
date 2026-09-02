@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import "@/styles/krew-mobile-review.css";
 import { Logo } from "./Logo";
 
 export function SiteHeader() {
