@@ -47,6 +47,22 @@
   box-shadow: none !important;
 }
 
+/* Mes voyages: keep the label visually centered while retaining the plus icon. */
+main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
+  display: grid !important;
+  grid-template-columns: 1rem auto 1rem !important;
+  align-items: center !important;
+  justify-items: center !important;
+  column-gap: .375rem !important;
+  text-align: center !important;
+}
+main[class*="max-w-[1180px]"] > header > a[href="/trips/new"]::after {
+  content: "";
+  display: block;
+  width: 1rem;
+  height: 1rem;
+}
+
 /* Mes voyages: section underlines use the exact same title-to-wave gap as the page title. */
 main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
   bottom: -1.25rem !important;
@@ -85,7 +101,7 @@ main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
   padding-right: 0 !important;
 }
 
-/* Relancer le groupe: simple horizontal flex, icon and label aligned with a fixed gap. */
+/* Relancer le groupe: icon first, label slightly to its right, both on the same baseline. */
 #group-section > div.pt-4.border-t {
   display: flex !important;
   justify-content: flex-start !important;
@@ -96,10 +112,25 @@ main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
   min-width: 0 !important;
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: .5rem !important;
-  padding-left: .25rem !important;
+  gap: .625rem !important;
+  padding-left: .375rem !important;
   padding-right: .625rem !important;
   text-align: left !important;
+}
+#group-section > div.pt-4.border-t > button > svg {
+  position: static !important;
+  flex: 0 0 1rem !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+#group-section > div.pt-4.border-t > button > span {
+  position: static !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  transform: none !important;
 }
 
 /* Gestion du voyage: no divider between archive and permanent deletion; compact vertical rhythm. */
