@@ -54,9 +54,9 @@ main > header a[href="/trips/new"] {
   padding-right: .875rem !important;
 }
 
-/* Mes voyages: section underlines keep the same breathing room as the page title. */
+/* Mes voyages: section underlines use the exact same title-to-wave gap as the page title. */
 main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
-  bottom: -1rem !important;
+  bottom: -1.25rem !important;
 }
 
 /* The dashboard used to keep a separate mobile-only "Nouveau" label. Never use it. */
@@ -81,30 +81,37 @@ main header a[href="/trips/new"] > span:first-of-type {
   }
 }
 
-/* Dashboard voyage: stage note is rendered by the component actually used by Résumé du voyage. */
+/* Résumé du voyage: stage note is the visual replacing the group-section otter. */
 [data-krew-dashboard-stage-note="true"] {
   position: relative;
   z-index: 20;
   min-height: 2.25rem;
   margin-top: .25rem;
+  margin-bottom: -1.5rem;
+  transform: translateY(1.25rem);
 }
 
-/* Dashboard voyage: the stage note replaces the small otter beside Membres du groupe. */
-#group-section > div.absolute:has(img[src*="trip-progress.png"]) {
+/* Remove the old otter beside Membres du groupe for real in the rendered route. */
+#group-section > div.absolute.top-0.right-0 {
   display: none !important;
 }
 
-/* Dashboard voyage: no plum highlight behind the group-section title. */
-#group-section .relative.inline-flex > svg.absolute {
+/* The KrewOrganicBlob component renders a DIV wrapper, not the SVG directly. */
+#group-section .relative.inline-flex > div.absolute {
   display: none !important;
 }
 
-/* Dashboard voyage: keep the reminder action left-aligned, close to the team icon. */
-#group-section > div.pt-4 {
+/* With the otter gone, the title no longer reserves empty space on the right. */
+#group-section > div:first-child > div.flex {
+  padding-right: 0 !important;
+}
+
+/* Keep Relancer le groupe left-aligned and immediately next to its team icon. */
+#group-section > div.pt-4.border-t {
   display: flex !important;
   justify-content: flex-start !important;
 }
-#group-section > div.pt-4 > button {
+#group-section > div.pt-4.border-t > button {
   display: inline-flex !important;
   width: auto !important;
   min-width: 0 !important;
@@ -116,17 +123,17 @@ main header a[href="/trips/new"] > span:first-of-type {
   text-align: left !important;
 }
 
-/* Dashboard voyage: remove the divider before permanent deletion and tighten the management actions. */
-main footer:has(button span) > div.space-y-4 {
+/* Gestion du voyage: no divider between archive and permanent deletion; compact vertical rhythm. */
+main footer.mt-16 > div.space-y-4 {
   row-gap: .5rem !important;
 }
-main footer:has(button span) > div.space-y-4 > div + div {
+main footer.mt-16 > div.space-y-4 > div + div {
   border-top: 0 !important;
   padding-top: 0 !important;
   margin-top: 0 !important;
 }
 
-/* Dates du groupe: keep candidate dates as open rows, not a stack of rectangular cards. */
+/* Dates du groupe: candidate dates are open rows, never six rectangular cards. */
 #hub-dates > ul > li {
   border: 0 !important;
   border-radius: 0 !important;
