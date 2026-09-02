@@ -75,3 +75,4 @@ Ne pas exécuter systématiquement toute la suite lorsqu'un test ciblé suffit, 
 ## Documentation légale
 
 `README_LEGAL.md` et les documents `docs/data-*` / `docs/legal-*` sont des documents de travail de conformité. Ils doivent être réévalués lorsque les fournisseurs, traceurs, traitements ou le modèle commercial changent.
+<!-- vercel-production-redeploy: 2026-09-02 -->
