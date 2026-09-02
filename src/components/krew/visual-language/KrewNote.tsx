@@ -91,14 +91,22 @@ export function KrewNote({
         data-krew-note-tone={tone}
         data-krew-note-variant={variant}
         className={cn(
-          "inline-flex w-fit max-w-[15rem] items-center border-0 px-3 py-1.5 font-handwriting text-[.9rem] font-bold leading-[1.15] shadow-[0_6px_16px_rgba(60,35,50,.075)]",
+          "relative isolate inline-flex w-fit max-w-[13rem] items-center border-0 px-3 py-2 font-handwriting text-[.9rem] font-bold leading-[1.15] shadow-[0_6px_16px_rgba(60,35,50,.075)]",
           tones[tone],
-          "rounded-[45%_55%_48%_52%/55%_45%_55%_45%]",
+          paperShape("sticky", tone, safeRotation),
           className,
         )}
         style={{ transform: `rotate(${safeRotation}deg)` }}
       >
-        {children}
+        <span
+          aria-hidden
+          className={cn(
+            "absolute -top-2.5 z-20 h-[1.05rem] -translate-x-1/2 shadow-[0_2px_4px_rgba(60,35,50,.035)] backdrop-blur-[.4px] sm:-top-3 sm:h-[1.15rem]",
+            tapeTone[tone],
+            tapeGeometry(tone, safeRotation, variant),
+          )}
+        />
+        <span className="relative z-10 inline-flex items-center gap-2">{children}</span>
       </span>
     );
   }
