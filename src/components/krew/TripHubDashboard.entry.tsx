@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
 import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
-import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import {
   getOrganizationRefreshState,
@@ -92,17 +91,6 @@ export function TripHubDashboard(props: Props) {
     participants_count: responseReady ? preferencesExpected : props.participantsCount,
   });
 
-  const hasItinerary = Boolean(tripForDashboard?.group_itinerary?.days?.length);
-  const dashboardStageNote = completed
-    ? null
-    : !datesLocked || !props.profileValidated
-      ? "Le groupe prend forme"
-      : !props.destinationSelected
-        ? "La suite se dessine"
-        : !hasItinerary
-          ? "La suite se prépare"
-          : null;
-
   useEffect(() => setCompletedGroupSectionReadOnly(completed), [completed]);
   useEffect(() => setOrganizerOnlyManagementVisible(isCreator), [isCreator]);
 
@@ -181,9 +169,9 @@ export function TripHubDashboard(props: Props) {
         ) : null}
         <div
           className={
-            `${suppressPreparationChrome
-              ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden "
-              : ""}[&_[data-krew-note='post-it'].text-right]:!hidden`
+            suppressPreparationChrome
+              ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden"
+              : undefined
           }
         >
           <TripHubDashboardLegacy
@@ -212,16 +200,6 @@ export function TripHubDashboard(props: Props) {
             {props.children}
           </TripHubDashboardLegacy>
         </div>
-        {dashboardStageNote ? (
-          <div
-            data-krew-group-stage-note="true"
-            className="pointer-events-none relative z-20 -mb-12 flex justify-end pr-1 translate-y-8 sm:translate-y-9"
-          >
-            <KrewNote variant="tape" tone="plum" rotation={1} size="sm" className="max-w-[46%] text-right sm:max-w-none">
-              {dashboardStageNote}
-            </KrewNote>
-          </div>
-        ) : null}
       </div>
     </TripLifecycleProvider>
   );
