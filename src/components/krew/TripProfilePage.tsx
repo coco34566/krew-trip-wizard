@@ -6,10 +6,15 @@ import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewHighlight, KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
-import { PROFILE_LABELS, type StayConcept, type StayProfileId } from "@/lib/krew/stay-profiles";
+import {
+  PROFILE_DESCRIPTIONS,
+  PROFILE_LABELS,
+  type StayConcept,
+  type StayProfileId,
+} from "@/lib/krew/stay-profiles";
 import { getGenerationReadiness, getTripDetail, validateStayProfile } from "@/lib/trips.functions";
 import { cn } from "@/lib/utils";
 
@@ -57,10 +62,9 @@ export function ProfileConceptCard({
       <div className="flex items-center justify-between gap-2">
         <p className="font-display text-[18px] font-normal text-foreground sm:text-[20px]">
           {selected ? (
-            <span className="relative inline-flex px-1.5 py-0.5">
-              <KrewMark type="circle-loose" tone="sage" size="md" className="pointer-events-none absolute -inset-x-2 -inset-y-2 h-9 w-[calc(100%+1rem)] opacity-75" />
-              <span className="relative">{label}</span>
-            </span>
+            <KrewHighlight tone="sage" className="px-1.5 py-0.5 font-normal">
+              {label}
+            </KrewHighlight>
           ) : (
             label
           )}
@@ -195,9 +199,9 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
           src="/brand/otter-states/trip-progress.png"
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute right-3 top-3 w-[64px] object-contain opacity-90 sm:w-[84px]"
+          className="pointer-events-none absolute right-3 top-3 w-[72px] object-contain opacity-90 sm:w-[96px]"
         />
-        <header className="pr-[68px] sm:pr-[92px]">
+        <header className="pr-[78px] sm:pr-[106px]">
           <div className="flex items-center gap-3">
             <h1 className="flex items-center gap-2 font-display text-2xl font-normal text-foreground sm:text-3xl">
               <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
@@ -221,7 +225,8 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
         {concepts.length ? (
           <div className="grid gap-3 sm:grid-cols-3">
             {concepts.slice(0, 3).map((concept: StayConcept) => {
-              const label = PROFILE_LABELS[concept.id as StayProfileId] || concept.title;
+              const profileId = concept.id as StayProfileId;
+              const label = PROFILE_LABELS[profileId] || concept.title;
               const selected = validated
                 ? Boolean(profile?.selectedConcepts?.some((item) => item.id === concept.id))
                 : selectedConceptIds.includes(concept.id);
@@ -230,7 +235,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
                   key={concept.id}
                   conceptId={concept.id}
                   label={label}
-                  rationale={concept.rationale}
+                  rationale={PROFILE_DESCRIPTIONS[profileId] || concept.rationale}
                   selected={selected}
                   disabled={!isAdmin || validated}
                   onToggle={() =>
