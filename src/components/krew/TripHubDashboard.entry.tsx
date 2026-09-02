@@ -55,19 +55,24 @@ function refineDashboardPresentation() {
       child instanceof HTMLElement && Boolean(child.querySelector('img[src*="trip-progress.png"]')),
     ) as HTMLElement | undefined;
 
-    if (decorativeOtter) {
-      const previousDisplay = decorativeOtter.style.display;
-      decorativeOtter.style.display = "none";
-      cleanups.push(() => {
-        decorativeOtter.style.display = previousDisplay;
-      });
-    }
-
+    const dashboardStageNotes = new Set([
+      "Le groupe prend forme",
+      "La suite se dessine",
+      "La suite se prépare",
+    ]);
     const stageNote = Array.from(
       document.querySelectorAll<HTMLElement>('main header [data-krew-note="post-it"]'),
-    ).find((note) => note.textContent?.trim() === "Le groupe prend forme");
+    ).find((note) => dashboardStageNotes.has(note.textContent?.trim() ?? ""));
 
-    if (stageNote && !groupSection.querySelector('[data-krew-group-stage-note="true"]')) {
+    if (stageNote) {
+      if (decorativeOtter) {
+        const previousDisplay = decorativeOtter.style.display;
+        decorativeOtter.style.display = "none";
+        cleanups.push(() => {
+          decorativeOtter.style.display = previousDisplay;
+        });
+      }
+
       const heroStageWrapper = stageNote.parentElement;
       if (heroStageWrapper) {
         const previousDisplay = heroStageWrapper.style.display;
@@ -77,12 +82,14 @@ function refineDashboardPresentation() {
         });
       }
 
-      const wrapper = document.createElement("div");
-      wrapper.dataset.krewGroupStageNote = "true";
-      wrapper.className = "pointer-events-none absolute right-0 top-0 z-10";
-      wrapper.appendChild(stageNote.cloneNode(true));
-      groupSection.appendChild(wrapper);
-      cleanups.push(() => wrapper.remove());
+      if (!groupSection.querySelector('[data-krew-group-stage-note="true"]')) {
+        const wrapper = document.createElement("div");
+        wrapper.dataset.krewGroupStageNote = "true";
+        wrapper.className = "pointer-events-none absolute right-0 top-0 z-10";
+        wrapper.appendChild(stageNote.cloneNode(true));
+        groupSection.appendChild(wrapper);
+        cleanups.push(() => wrapper.remove());
+      }
     }
 
     const remindButton = Array.from(groupSection.querySelectorAll<HTMLButtonElement>("button")).find(
