@@ -1,5 +1,4 @@
 import type { ComponentProps } from "react";
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -17,67 +16,6 @@ type Props = ComponentProps<typeof KrewJourneyTimelineLegacy>;
 
 function pendingStatus(step: TimelineStep) {
   return step.status === "next_action" ? ("next_action" as const) : ("available" as const);
-}
-
-function enableJourneyMotion() {
-  if (typeof document === "undefined") return () => {};
-  const title = Array.from(document.querySelectorAll<HTMLHeadingElement>("main h1")).find((heading) =>
-    heading.textContent?.trim().startsWith("Parcours de "),
-  );
-  const root = title?.closest("div.mx-auto") as HTMLElement | null;
-  if (!root) return () => {};
-
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const observed: HTMLElement[] = [];
-
-  const header = title.closest("header");
-  const heroMark = header?.querySelector<HTMLElement>("svg");
-  if (heroMark) {
-    heroMark.classList.add("krew-journey-draw-mark");
-    heroMark.dataset.revealed = "true";
-  }
-
-  const chapters = Array.from(root.querySelectorAll<HTMLElement>("ol > li"));
-  chapters.forEach((chapter) => {
-    chapter.classList.add("krew-journey-reveal");
-    chapter.querySelectorAll<HTMLElement>("svg").forEach((icon) => icon.classList.add("krew-journey-icon-draw"));
-    if (reduced) chapter.dataset.revealed = "true";
-    observed.push(chapter);
-  });
-
-  if (reduced) {
-    return () => {
-      if (heroMark) heroMark.classList.remove("krew-journey-draw-mark");
-      observed.forEach((chapter) => {
-        chapter.classList.remove("krew-journey-reveal");
-        delete chapter.dataset.revealed;
-        chapter.querySelectorAll<HTMLElement>("svg").forEach((icon) => icon.classList.remove("krew-journey-icon-draw"));
-      });
-    };
-  }
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        (entry.target as HTMLElement).dataset.revealed = entry.isIntersecting ? "true" : "false";
-      });
-    },
-    { threshold: 0.12, rootMargin: "0px 0px -7% 0px" },
-  );
-  observed.forEach((chapter) => observer.observe(chapter));
-
-  return () => {
-    observer.disconnect();
-    if (heroMark) {
-      heroMark.classList.remove("krew-journey-draw-mark");
-      delete heroMark.dataset.revealed;
-    }
-    observed.forEach((chapter) => {
-      chapter.classList.remove("krew-journey-reveal");
-      delete chapter.dataset.revealed;
-      chapter.querySelectorAll<HTMLElement>("svg").forEach((icon) => icon.classList.remove("krew-journey-icon-draw"));
-    });
-  };
 }
 
 /**
@@ -158,8 +96,6 @@ export function KrewJourneyTimeline(props: Props) {
     return step;
   });
 
-  useEffect(() => enableJourneyMotion(), [props.tripId, progressReady, steps.length]);
-
   return (
     <TripLifecycleProvider lifecycle={responseQuery.data?.lifecycle ?? "future"}>
       <div className="space-y-5" data-response-progress={progressReady ? "ready" : "loading"}>
@@ -167,7 +103,9 @@ export function KrewJourneyTimeline(props: Props) {
           logistics={responseQuery.data?.logistics}
           canManage={responseQuery.data?.canManage ?? false}
         />
-        <KrewJourneyTimelineLegacy {...props} steps={steps} />
+        <div className="krew-journey-motion-root">
+          <KrewJourneyTimelineLegacy {...props} steps={steps} />
+        </div>
       </div>
     </TripLifecycleProvider>
   );
