@@ -142,7 +142,12 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   }
 
   const rawParticipants = (data.participants ?? []) as any[];
-  const occupiedSlots = rawParticipants.length;
+  const hasStar = Boolean(trip.has_star || trip.celebrated_person || trip.star_user_id);
+  const starAlreadyListed = Boolean(
+    trip.star_user_id && rawParticipants.some((participant) => participant.user_id === trip.star_user_id),
+  );
+  const hiddenSecretStarSlot = hasStar && savedStarMode === "secret" && !starAlreadyListed ? 1 : 0;
+  const occupiedSlots = rawParticipants.length + hiddenSecretStarSlot;
   const placeholders = Array.from(
     { length: Math.max(0, Number(trip.participants_count || 0) - occupiedSlots) },
     (_, index) => ({
