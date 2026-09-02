@@ -81,6 +81,22 @@ main header a[href="/trips/new"] > span:first-of-type {
   }
 }
 
+/* Dashboard voyage: no plum highlight behind the group-section title. */
+#group-section .relative.inline-flex > svg.absolute {
+  display: none !important;
+}
+
+/* Dashboard voyage: keep the reminder action left-aligned, close to the team icon. */
+#group-section > div.pt-4 > button {
+  display: inline-flex !important;
+  width: auto !important;
+  justify-content: flex-start !important;
+  column-gap: .375rem !important;
+  padding-left: 0 !important;
+  padding-right: .75rem !important;
+  text-align: left !important;
+}
+
 /* Dates du groupe: keep candidate dates as open rows, not a stack of rectangular cards. */
 #hub-dates > ul > li {
   border: 0 !important;
