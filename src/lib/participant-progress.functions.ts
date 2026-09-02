@@ -132,7 +132,7 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   return {
     joined,
     participantsExpected,
-    expected: preferencesExpected,
+    expected: counts.preferencesExpected,
     total: preferencesExpected,
     answered: counts.preferencesAnswered,
     availabilityAnswered: counts.availabilityAnswered,
