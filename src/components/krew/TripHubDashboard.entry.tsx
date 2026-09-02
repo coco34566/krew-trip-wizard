@@ -45,6 +45,77 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
   };
 }
 
+function refineDashboardPresentation() {
+  if (typeof document === "undefined") return () => {};
+  const cleanups: Array<() => void> = [];
+  const groupSection = document.getElementById("group-section");
+
+  if (groupSection) {
+    const decorativeOtter = Array.from(groupSection.children).find((child) =>
+      child instanceof HTMLElement && Boolean(child.querySelector('img[src*="trip-progress.png"]')),
+    ) as HTMLElement | undefined;
+    if (decorativeOtter) {
+      const previousHidden = decorativeOtter.hidden;
+      decorativeOtter.hidden = true;
+      cleanups.push(() => { decorativeOtter.hidden = previousHidden; });
+    }
+
+    const stageTextNode = Array.from(document.querySelectorAll<HTMLElement>("main header *")).find(
+      (node) => node.textContent?.trim() === "Le groupe prend forme",
+    );
+    const heading = Array.from(groupSection.querySelectorAll("h2")).find(
+      (node) => node.textContent?.trim() === "Membres du groupe",
+    );
+    const headingRow = heading?.closest(".flex.flex-col") as HTMLElement | null;
+
+    if (stageTextNode && headingRow) {
+      const stageContainer = stageTextNode.parentElement as HTMLElement | null;
+      if (stageContainer) {
+        const previousHidden = stageContainer.hidden;
+        stageContainer.hidden = true;
+        cleanups.push(() => { stageContainer.hidden = previousHidden; });
+      }
+      const clone = stageTextNode.cloneNode(true) as HTMLElement;
+      clone.setAttribute("aria-hidden", "true");
+      const wrapper = document.createElement("div");
+      wrapper.dataset.krewGroupStageNote = "true";
+      wrapper.className = "shrink-0 self-start sm:self-center";
+      wrapper.appendChild(clone);
+      headingRow.appendChild(wrapper);
+      cleanups.push(() => wrapper.remove());
+    }
+
+    const remindButton = Array.from(groupSection.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Relancer le groupe",
+    );
+    if (remindButton) {
+      const previous = remindButton.className;
+      remindButton.className = `${previous} justify-start gap-2 pl-0 pr-3`;
+      cleanups.push(() => { remindButton.className = previous; });
+    }
+  }
+
+  const managementFooter = Array.from(document.querySelectorAll<HTMLElement>("main footer")).find((candidate) =>
+    candidate.textContent?.includes("Gestion du voyage"),
+  );
+  const deleteButton = managementFooter
+    ? Array.from(managementFooter.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+        button.textContent?.includes("Supprimer définitivement"),
+      )
+    : null;
+  const deleteBlock = deleteButton?.parentElement;
+  if (deleteBlock) {
+    const previous = deleteBlock.className;
+    deleteBlock.className = previous
+      .replace(/border-t/g, "")
+      .replace(/border-destructive\/15/g, "")
+      .replace(/pt-4/g, "pt-1");
+    cleanups.push(() => { deleteBlock.className = previous; });
+  }
+
+  return () => cleanups.reverse().forEach((cleanup) => cleanup());
+}
+
 export function TripHubDashboard(props: Props) {
   const fetchProgress = useServerFn(getParticipantsProgress);
   const { data: centralized, isSuccess: progressReady } = useQuery({
@@ -93,6 +164,7 @@ export function TripHubDashboard(props: Props) {
 
   useEffect(() => setCompletedGroupSectionReadOnly(completed), [completed]);
   useEffect(() => setOrganizerOnlyManagementVisible(isCreator), [isCreator]);
+  useEffect(() => refineDashboardPresentation(), [datesLocked, preferencesExpected, props.tripId]);
 
   useEffect(() => {
     const viewerId = props.viewerUserId ?? null;

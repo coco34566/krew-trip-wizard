@@ -61,8 +61,10 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
   const joined = counts.expectedUserIds.length;
   const configuredParticipants = Number(tripRes.data.participants_count ?? 0);
   const participantsExpected = Number.isFinite(configuredParticipants) && configuredParticipants > 0
-    ? Math.max(configuredParticipants, joined)
-    : joined;
+    ? Math.max(configuredParticipants, counts.preferencesExpected, counts.availabilityExpected)
+    : Math.max(counts.preferencesExpected, counts.availabilityExpected);
+  const preferencesExpected = participantsExpected;
+  const availabilityExpected = participantsExpected;
 
   const prefByUser = new Map<string, any>();
   for (const row of preferenceRows as any[]) {
@@ -131,14 +133,14 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     joined,
     participantsExpected,
     expected: counts.preferencesExpected,
-    total: counts.preferencesExpected,
+    total: preferencesExpected,
     answered: counts.preferencesAnswered,
     availabilityAnswered: counts.availabilityAnswered,
-    preferencesExpected: counts.preferencesExpected,
-    availabilityExpected: counts.availabilityExpected,
-    pendingPrefs: counts.preferencesMissing,
-    pendingAvailability: counts.availabilityMissing,
-    pendingJoin: Math.max(participantsExpected - joined, 0),
+    preferencesExpected,
+    availabilityExpected,
+    pendingPrefs: Math.max(preferencesExpected - counts.preferencesAnswered, 0),
+    pendingAvailability: Math.max(availabilityExpected - counts.availabilityAnswered, 0),
+    pendingJoin: Math.max(participantsExpected - counts.preferencesExpected, 0),
     participants: partsList,
   };
 }

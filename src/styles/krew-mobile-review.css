@@ -1,0 +1,102 @@
+/* 2026-09-02 mobile review — targeted visual refinements only. */
+
+/* Landing hero: editorial copy stays fixed; the underline wave and media keep their own motion. */
+.krew-hero-scene[data-revealed="true"] .krew-hero-copy,
+.krew-hero-scene[data-revealed="true"] .krew-hero-cta,
+.krew-hero-copy,
+.krew-hero-cta {
+  animation: none !important;
+  transform: none !important;
+  translate: none !important;
+  rotate: none !important;
+  scale: none !important;
+  opacity: 1 !important;
+}
+
+/* LE PLAN / LE MOMENT otters remain exactly where they were placed. */
+.krew-plan-scene .krew-scene-otter,
+.krew-moment-scene .krew-scene-otter,
+.krew-plan-scene .krew-scene-heading[data-revealed="true"] .krew-scene-otter,
+.krew-moment-scene .krew-scene-heading[data-revealed="true"] .krew-scene-otter {
+  animation: none !important;
+  transform: none !important;
+  translate: none !important;
+  rotate: none !important;
+  scale: none !important;
+  opacity: 1 !important;
+}
+
+/* Mes voyages: always show the complete label and use the validated compact primary-button proportions. */
+main > header > a[href="/trips/new"] {
+  min-height: 2.5rem;
+  height: 2.5rem;
+  width: auto !important;
+  min-width: max-content;
+  border-radius: .75rem;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  white-space: nowrap;
+  line-height: 1;
+}
+main > header > a[href="/trips/new"] > span.hidden {
+  display: inline !important;
+}
+main > header > a[href="/trips/new"] > span.sm\:hidden {
+  display: none !important;
+}
+
+/* Journey: subtle upward reveal from "Notre feuille de route" onward. */
+.krew-journey-reveal {
+  opacity: .82;
+  transform: translate3d(0, 18px, 0);
+  transition: opacity 520ms ease-out, transform 760ms cubic-bezier(.18,.74,.24,1);
+  will-change: transform, opacity;
+}
+.krew-journey-reveal[data-revealed="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.krew-journey-draw-mark path,
+.krew-journey-draw-mark line,
+.krew-journey-draw-mark polyline,
+.krew-journey-draw-mark circle,
+.krew-journey-draw-mark rect {
+  stroke-dasharray: 110;
+  stroke-dashoffset: 110;
+}
+.krew-journey-draw-mark[data-revealed="true"] path,
+.krew-journey-draw-mark[data-revealed="true"] line,
+.krew-journey-draw-mark[data-revealed="true"] polyline,
+.krew-journey-draw-mark[data-revealed="true"] circle,
+.krew-journey-draw-mark[data-revealed="true"] rect,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw path,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw line,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw polyline,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw circle,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw rect {
+  animation: krew-mark-draw 900ms cubic-bezier(.32,0,.18,1) 120ms forwards;
+}
+.krew-journey-icon-draw path,
+.krew-journey-icon-draw line,
+.krew-journey-icon-draw polyline,
+.krew-journey-icon-draw circle,
+.krew-journey-icon-draw rect {
+  stroke-dasharray: 42;
+  stroke-dashoffset: 42;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .krew-journey-reveal,
+  .krew-journey-reveal[data-revealed="true"] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .krew-journey-draw-mark *,
+  .krew-journey-icon-draw * {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    animation: none !important;
+  }
+}
