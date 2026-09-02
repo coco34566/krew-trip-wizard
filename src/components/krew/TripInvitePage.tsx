@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Crown, Shield } from "lucide-react";
@@ -13,7 +13,6 @@ import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewIcon } from "@/components/krew/visual-language";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
-import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
 import { trackProductEvent } from "@/lib/product-analytics";
 import {
@@ -47,8 +46,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   const setCoOrg = useServerFn(setCoOrganizer);
   const finalize = useServerFn(finalizeInvitationStep);
   const [email, setEmail] = useState("");
-  const [starMode, setStarMode] = useState<"secret" | "participant">("secret");
-  const [starPaysShare, setStarPaysShare] = useState(true);
 
   const detailQuery = useQuery({
     queryKey: ["trip", tripId],
@@ -63,15 +60,10 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
 
   const data = detailQuery.data as any;
   const trip = data?.trip as any;
-  const savedMode = trip?.group_logistics?.star_mode;
-  useEffect(() => {
-    if (savedMode === "secret" || savedMode === "participant") setStarMode(savedMode);
-    setStarPaysShare(trip?.group_logistics?.star_pays_share !== false);
-  }, [savedMode, trip?.group_logistics?.star_pays_share]);
+  const savedStarMode = trip?.group_logistics?.star_mode === "participant" ? "participant" : "secret";
+  const savedStarPaysShare = trip?.group_logistics?.star_pays_share !== false;
 
-  const refresh = () => {
-    queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-  };
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
 
   const inviteMutation = useMutation({
     mutationFn: () => invite({ data: { tripId, email: email.trim() } }),
@@ -89,9 +81,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   });
   const rotateMutation = useMutation({
     mutationFn: () => rotateInviteLink({ data: { tripId } }),
-    onSuccess: (next) => {
-      queryClient.setQueryData(["trip-invite-link", tripId], next);
-    },
+    onSuccess: (next) => queryClient.setQueryData(["trip-invite-link", tripId], next),
     onError: () => toast.error("Impossible de renouveler le lien pour le moment."),
   });
   const removeMutation = useMutation({
@@ -104,10 +94,16 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     onError: () => toast.error("Impossible de mettre à jour ce rôle pour le moment."),
   });
   const finalizeMutation = useMutation({
-    mutationFn: () => finalize({ data: { tripId, starMode, starPaysShare, inviteStepCompleted: true } }),
-    onSuccess: () => {
-      refresh();
-    },
+    mutationFn: () =>
+      finalize({
+        data: {
+          tripId,
+          starMode: savedStarMode,
+          starPaysShare: savedStarPaysShare,
+          inviteStepCompleted: true,
+        },
+      }),
+    onSuccess: refresh,
     onError: () => toast.error("Impossible d’enregistrer les invitations pour le moment."),
   });
 
@@ -131,13 +127,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       toast.error("Le lien d’invitation n’est pas encore disponible.");
       return;
     }
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-    } catch (err) {
-      console.error("Impossible de copier le lien d'invitation:", err);
-      toast.error("Impossible de copier le lien pour le moment.");
-      throw err;
-    }
+    await navigator.clipboard.writeText(shareUrl);
   }
 
   if (detailQuery.isLoading) {
@@ -152,22 +142,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   }
 
   const rawParticipants = (data.participants ?? []) as any[];
-  const hasStar = Boolean(trip.has_star || trip.celebrated_person || STAR_EVENT_TYPES.has(trip.event_type));
-  const secretStarAlreadyListed = Boolean(
-    trip.star_user_id && rawParticipants.some((participant) => participant.user_id === trip.star_user_id),
-  );
-  const virtualSecretStar =
-    hasStar && starMode === "secret" && !secretStarAlreadyListed
-      ? {
-          id: "star-secret-slot",
-          user_id: null,
-          display_name: trip.celebrated_person || "La Star",
-          status: "participe",
-          isStar: true,
-          secretStar: true,
-        }
-      : null;
-  const occupiedSlots = rawParticipants.length + (virtualSecretStar ? 1 : 0);
+  const occupiedSlots = rawParticipants.length;
   const placeholders = Array.from(
     { length: Math.max(0, Number(trip.participants_count || 0) - occupiedSlots) },
     (_, index) => ({
@@ -178,11 +153,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       placeholder: true,
     }),
   );
-  const displayedParticipants = [
-    ...rawParticipants,
-    ...(virtualSecretStar ? [virtualSecretStar] : []),
-    ...placeholders,
-  ];
+  const displayedParticipants = [...rawParticipants, ...placeholders];
 
   return (
     <main className="mx-auto w-full max-w-[820px] space-y-8 px-4 py-8 sm:px-6 sm:py-10">
@@ -208,7 +179,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
             <p className="text-sm text-muted-foreground">Un petit message, le lien du voyage, et chacun peut rejoindre la team directement.</p>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2">
-            <Button type="button" disabled={!shareUrl} onClick={shareInvitation}>
+            <Button type="button" disabled={!shareUrl} onClick={shareInvitation} className="gap-2">
               <KrewIcon name="message" tone="cream" size="sm" className="size-4" />
               Inviter via WhatsApp
             </Button>
@@ -257,14 +228,12 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
             const isCoOrg = Boolean(participant.user_id && participant.user_id === trip.co_organizer_id);
             return (
               <div key={participant.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-foreground">{participant.display_name || participant.email || "Participant"}</span>
-                    {isOwner ? <Badge variant="sun"><Crown className="mr-1 size-3" />Organisateur·rice</Badge> : null}
-                    {isCoOrg ? <Badge variant="secondary"><Shield className="mr-1 size-3" />Co-organisateur·rice</Badge> : null}
-                    {participant.isStar ? <Badge variant="sun">Star</Badge> : null}
-                    {participant.placeholder ? <Badge variant="muted">À inviter</Badge> : null}
-                  </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-foreground">{participant.display_name || participant.email || "Participant"}</span>
+                  {isOwner ? <Badge variant="sun"><Crown className="mr-1 size-3" />Organisateur·rice</Badge> : null}
+                  {isCoOrg ? <Badge variant="secondary"><Shield className="mr-1 size-3" />Co-organisateur·rice</Badge> : null}
+                  {participant.isStar ? <Badge variant="sun">Star</Badge> : null}
+                  {participant.placeholder ? <Badge variant="muted">À inviter</Badge> : null}
                 </div>
                 {data.isCreator && participant.user_id && !isOwner && !participant.isStar ? (
                   <div className="flex flex-wrap gap-2">
@@ -280,27 +249,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
         </div>
       </section>
 
-      {hasStar ? (
-        <section className="space-y-4 border-t border-border/50 pt-6">
-          <h2 className="font-display text-2xl font-normal text-foreground">Rôle de la Star ({trip.celebrated_person || "Star"})</h2>
-          <fieldset disabled={!data.isOwner} className="space-y-3">
-            <label className="flex gap-3">
-              <input type="radio" name="star-mode" checked={starMode === "secret"} onChange={() => setStarMode("secret")} />
-              <span><strong>Mode secret</strong><span className="block text-sm text-muted-foreground">L’organisateur renseigne ses réponses à sa place.</span></span>
-            </label>
-            <label className="flex gap-3">
-              <input type="radio" name="star-mode" checked={starMode === "participant"} onChange={() => setStarMode("participant")} />
-              <span><strong>Mode participant</strong><span className="block text-sm text-muted-foreground">La Star rejoint le groupe et répond comme les autres.</span></span>
-            </label>
-          </fieldset>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">La Star participe aux frais</span>
-            <Button size="sm" variant={starPaysShare ? "default" : "outline"} disabled={!data.isOwner} onClick={() => setStarPaysShare(true)}>Oui</Button>
-            <Button size="sm" variant={!starPaysShare ? "default" : "outline"} disabled={!data.isOwner} onClick={() => setStarPaysShare(false)}>Non</Button>
-          </div>
-        </section>
-      ) : null}
-
       {data.isOwner ? (
         <section className="border-t border-border/50 pt-6">
           <KrewStatefulButton
@@ -312,7 +260,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
           />
         </section>
       ) : (
-        <p className="border-t border-border/50 pt-6 text-sm text-muted-foreground">Tu peux consulter le groupe ici. Les invitations et les rôles sont gérés par l’organisateur.</p>
+        <p className="border-t border-border/50 pt-6 text-sm text-muted-foreground">Tu peux consulter le groupe ici. Les invitations et les rôles sont gérés par l’organisateur·rice.</p>
       )}
     </main>
   );
