@@ -97,6 +97,13 @@ main header a[href="/trips/new"] > span:first-of-type {
   text-align: left !important;
 }
 
+/* Dashboard voyage: remove the divider before permanent deletion and tighten the management actions. */
+main footer:has(button span) > div.space-y-4 > div + div {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+  margin-top: .5rem !important;
+}
+
 /* Dates du groupe: keep candidate dates as open rows, not a stack of rectangular cards. */
 #hub-dates > ul > li {
   border: 0 !important;
