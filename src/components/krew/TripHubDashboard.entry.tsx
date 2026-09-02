@@ -54,44 +54,61 @@ function refineDashboardPresentation() {
     const decorativeOtter = Array.from(groupSection.children).find((child) =>
       child instanceof HTMLElement && Boolean(child.querySelector('img[src*="trip-progress.png"]')),
     ) as HTMLElement | undefined;
+
     if (decorativeOtter) {
-      const previousHidden = decorativeOtter.hidden;
-      decorativeOtter.hidden = true;
-      cleanups.push(() => { decorativeOtter.hidden = previousHidden; });
+      const previousDisplay = decorativeOtter.style.display;
+      decorativeOtter.style.display = "none";
+      cleanups.push(() => {
+        decorativeOtter.style.display = previousDisplay;
+      });
     }
 
-    const stageTextNode = Array.from(document.querySelectorAll<HTMLElement>("main header *")).find(
-      (node) => node.textContent?.trim() === "Le groupe prend forme",
-    );
-    const heading = Array.from(groupSection.querySelectorAll("h2")).find(
-      (node) => node.textContent?.trim() === "Membres du groupe",
-    );
-    const headingRow = heading?.closest(".flex.flex-col") as HTMLElement | null;
+    const stageNote = Array.from(
+      document.querySelectorAll<HTMLElement>('main header [data-krew-note="post-it"]'),
+    ).find((note) => note.textContent?.trim() === "Le groupe prend forme");
 
-    if (stageTextNode && headingRow) {
-      const stageContainer = stageTextNode.parentElement as HTMLElement | null;
-      if (stageContainer) {
-        const previousHidden = stageContainer.hidden;
-        stageContainer.hidden = true;
-        cleanups.push(() => { stageContainer.hidden = previousHidden; });
+    if (stageNote && !groupSection.querySelector('[data-krew-group-stage-note="true"]')) {
+      const heroStageWrapper = stageNote.parentElement;
+      if (heroStageWrapper) {
+        const previousDisplay = heroStageWrapper.style.display;
+        heroStageWrapper.style.display = "none";
+        cleanups.push(() => {
+          heroStageWrapper.style.display = previousDisplay;
+        });
       }
-      const clone = stageTextNode.cloneNode(true) as HTMLElement;
-      clone.setAttribute("aria-hidden", "true");
+
       const wrapper = document.createElement("div");
       wrapper.dataset.krewGroupStageNote = "true";
-      wrapper.className = "shrink-0 self-start sm:self-center";
-      wrapper.appendChild(clone);
-      headingRow.appendChild(wrapper);
+      wrapper.className = "pointer-events-none absolute right-0 top-0 z-10";
+      wrapper.appendChild(stageNote.cloneNode(true));
+      groupSection.appendChild(wrapper);
       cleanups.push(() => wrapper.remove());
     }
 
     const remindButton = Array.from(groupSection.querySelectorAll<HTMLButtonElement>("button")).find(
       (button) => button.textContent?.trim() === "Relancer le groupe",
     );
+
     if (remindButton) {
-      const previous = remindButton.className;
-      remindButton.className = `${previous} justify-start gap-2 pl-0 pr-3`;
-      cleanups.push(() => { remindButton.className = previous; });
+      const previous = {
+        width: remindButton.style.width,
+        justifyContent: remindButton.style.justifyContent,
+        columnGap: remindButton.style.columnGap,
+        paddingLeft: remindButton.style.paddingLeft,
+        paddingRight: remindButton.style.paddingRight,
+      };
+      remindButton.style.width = "auto";
+      remindButton.style.justifyContent = "flex-start";
+      remindButton.style.columnGap = "0.5rem";
+      remindButton.style.paddingLeft = "0";
+      remindButton.style.paddingRight = "0.75rem";
+      cleanups.push(() => {
+        remindButton.style.width = previous.width;
+        remindButton.style.justifyContent = previous.justifyContent;
+        remindButton.style.columnGap = previous.columnGap;
+        remindButton.style.paddingLeft = previous.paddingLeft;
+        remindButton.style.paddingRight = previous.paddingRight;
+      });
     }
   }
 
@@ -104,13 +121,21 @@ function refineDashboardPresentation() {
       )
     : null;
   const deleteBlock = deleteButton?.parentElement;
+
   if (deleteBlock) {
-    const previous = deleteBlock.className;
-    deleteBlock.className = previous
-      .replace(/border-t/g, "")
-      .replace(/border-destructive\/15/g, "")
-      .replace(/pt-4/g, "pt-1");
-    cleanups.push(() => { deleteBlock.className = previous; });
+    const previous = {
+      borderTopWidth: deleteBlock.style.borderTopWidth,
+      paddingTop: deleteBlock.style.paddingTop,
+      marginTop: deleteBlock.style.marginTop,
+    };
+    deleteBlock.style.borderTopWidth = "0";
+    deleteBlock.style.paddingTop = "0.25rem";
+    deleteBlock.style.marginTop = "0.25rem";
+    cleanups.push(() => {
+      deleteBlock.style.borderTopWidth = previous.borderTopWidth;
+      deleteBlock.style.paddingTop = previous.paddingTop;
+      deleteBlock.style.marginTop = previous.marginTop;
+    });
   }
 
   return () => cleanups.reverse().forEach((cleanup) => cleanup());
@@ -164,7 +189,21 @@ export function TripHubDashboard(props: Props) {
 
   useEffect(() => setCompletedGroupSectionReadOnly(completed), [completed]);
   useEffect(() => setOrganizerOnlyManagementVisible(isCreator), [isCreator]);
-  useEffect(() => refineDashboardPresentation(), [datesLocked, preferencesExpected, props.tripId]);
+  useEffect(() => {
+    let cleanup = () => {};
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        cleanup = refineDashboardPresentation();
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+      cleanup();
+    };
+  }, [datesLocked, preferencesExpected, props.tripId]);
 
   useEffect(() => {
     const viewerId = props.viewerUserId ?? null;
