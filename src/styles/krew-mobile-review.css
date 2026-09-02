@@ -81,11 +81,12 @@ main header a[href="/trips/new"] > span:first-of-type {
   }
 }
 
-/* Dashboard voyage: stage note rendered by the React wrapper, immediately before the group section. */
-[data-krew-group-stage-note="true"] {
+/* Dashboard voyage: stage note is rendered by the component actually used by Résumé du voyage. */
+[data-krew-dashboard-stage-note="true"] {
   position: relative;
   z-index: 20;
   min-height: 2.25rem;
+  margin-top: .25rem;
 }
 
 /* Dashboard voyage: the stage note replaces the small otter beside Membres du groupe. */
