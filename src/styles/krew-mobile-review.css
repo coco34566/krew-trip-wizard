@@ -26,7 +26,7 @@
   opacity: 1 !important;
 }
 
-/* Shared compact trip CTA geometry. Mes voyages now owns its CTA geometry in JSX. */
+/* Shared compact trip CTA geometry. */
 .krew-trip-primary-cta {
   display: inline-flex !important;
   align-items: center !important;
@@ -47,20 +47,28 @@
   box-shadow: none !important;
 }
 
-/* Mes voyages: keep the label visually centered while retaining the plus icon. */
+/* Mes voyages: exact same mobile CTA geometry as SiteHeader. */
 main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
-  display: grid !important;
-  grid-template-columns: 1rem auto 1rem !important;
+  display: inline-flex !important;
   align-items: center !important;
-  justify-items: center !important;
-  column-gap: .375rem !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  min-height: 2.5rem !important;
+  height: 2.5rem !important;
+  width: max-content !important;
+  min-width: max-content !important;
+  flex-shrink: 0 !important;
+  border-radius: .75rem !important;
+  padding: 0 1.25rem !important;
+  white-space: nowrap !important;
   text-align: center !important;
+  font-size: .875rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
 }
-main[class*="max-w-[1180px]"] > header > a[href="/trips/new"]::after {
-  content: "";
-  display: block;
-  width: 1rem;
-  height: 1rem;
+main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] > svg {
+  display: none !important;
 }
 
 /* Mes voyages: section underlines use the exact same title-to-wave gap as the page title. */
@@ -69,7 +77,8 @@ main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
 }
 
 @media (min-width: 640px) {
-  .krew-trip-primary-cta {
+  .krew-trip-primary-cta,
+  main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
     padding-left: 1.75rem !important;
     padding-right: 1.75rem !important;
     font-size: 1rem !important;
