@@ -26,9 +26,8 @@
   opacity: 1 !important;
 }
 
-/* Header + Mes voyages share the same compact landing-CTA geometry. */
-.krew-trip-primary-cta,
-main header a[href="/trips/new"] {
+/* Shared compact trip CTA geometry. */
+.krew-trip-primary-cta {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -48,85 +47,112 @@ main header a[href="/trips/new"] {
   box-shadow: none !important;
 }
 
-/* Mes voyages: keep the complete label but trim the excess horizontal padding on mobile. */
-main > header a[href="/trips/new"] {
-  padding-left: .875rem !important;
-  padding-right: .875rem !important;
+/* Mes voyages: exact same mobile CTA geometry as SiteHeader. */
+main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  min-height: 2.5rem !important;
+  height: 2.5rem !important;
+  width: max-content !important;
+  min-width: max-content !important;
+  flex-shrink: 0 !important;
+  border-radius: .75rem !important;
+  padding: 0 1.25rem !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+  font-size: .875rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
 }
-
-/* Mes voyages: section underlines keep the same breathing room as the page title. */
-main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
-  bottom: -1rem !important;
-}
-
-/* The dashboard used to keep a separate mobile-only "Nouveau" label. Never use it. */
-main header a[href="/trips/new"] > span {
+main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] > svg {
   display: none !important;
 }
-main header a[href="/trips/new"] > span:first-of-type {
-  display: inline !important;
+
+/* Mes voyages: section underlines use the exact same title-to-wave gap as the page title. */
+main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
+  bottom: -1.25rem !important;
 }
 
 @media (min-width: 640px) {
   .krew-trip-primary-cta,
-  main header a[href="/trips/new"] {
+  main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
     padding-left: 1.75rem !important;
     padding-right: 1.75rem !important;
     font-size: 1rem !important;
   }
-
-  main > header a[href="/trips/new"] {
-    padding-left: 1.25rem !important;
-    padding-right: 1.25rem !important;
-  }
 }
 
-/* Dashboard voyage: stage note is rendered by the component actually used by Résumé du voyage. */
+/* Résumé du voyage: stage note is the visual replacing the group-section otter. */
 [data-krew-dashboard-stage-note="true"] {
   position: relative;
   z-index: 20;
   min-height: 2.25rem;
   margin-top: .25rem;
+  margin-bottom: -1.5rem;
+  transform: translateY(1.25rem);
 }
 
-/* Dashboard voyage: the stage note replaces the small otter beside Membres du groupe. */
-#group-section > div.absolute:has(img[src*="trip-progress.png"]) {
+/* Remove the old otter beside Membres du groupe for real in the rendered route. */
+#group-section > div.absolute.top-0.right-0 {
   display: none !important;
 }
 
-/* Dashboard voyage: no plum highlight behind the group-section title. */
-#group-section .relative.inline-flex > svg.absolute {
+/* The KrewOrganicBlob component renders a DIV wrapper, not the SVG directly. */
+#group-section .relative.inline-flex > div.absolute {
   display: none !important;
 }
 
-/* Dashboard voyage: keep the reminder action left-aligned, close to the team icon. */
-#group-section > div.pt-4 {
+/* With the otter gone, the title no longer reserves empty space on the right. */
+#group-section > div:first-child > div.flex {
+  padding-right: 0 !important;
+}
+
+/* Relancer le groupe: icon first, label slightly to its right, both on the same baseline. */
+#group-section > div.pt-4.border-t {
   display: flex !important;
   justify-content: flex-start !important;
 }
-#group-section > div.pt-4 > button {
+#group-section > div.pt-4.border-t > button {
   display: inline-flex !important;
   width: auto !important;
   min-width: 0 !important;
-  justify-content: flex-start !important;
   align-items: center !important;
-  column-gap: .375rem !important;
-  padding-left: 0 !important;
-  padding-right: .5rem !important;
+  justify-content: flex-start !important;
+  gap: .625rem !important;
+  padding-left: .375rem !important;
+  padding-right: .625rem !important;
   text-align: left !important;
 }
+#group-section > div.pt-4.border-t > button > svg {
+  position: static !important;
+  flex: 0 0 1rem !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+#group-section > div.pt-4.border-t > button > span {
+  position: static !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  transform: none !important;
+}
 
-/* Dashboard voyage: remove the divider before permanent deletion and tighten the management actions. */
-main footer:has(button span) > div.space-y-4 {
+/* Gestion du voyage: no divider between archive and permanent deletion; compact vertical rhythm. */
+main footer.mt-16 > div.space-y-4 {
   row-gap: .5rem !important;
 }
-main footer:has(button span) > div.space-y-4 > div + div {
+main footer.mt-16 > div.space-y-4 > div + div {
   border-top: 0 !important;
   padding-top: 0 !important;
   margin-top: 0 !important;
 }
 
-/* Dates du groupe: keep candidate dates as open rows, not a stack of rectangular cards. */
+/* Dates du groupe: candidate dates are open rows, never six rectangular cards. */
 #hub-dates > ul > li {
   border: 0 !important;
   border-radius: 0 !important;
