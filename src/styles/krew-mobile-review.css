@@ -178,11 +178,15 @@ main footer.mt-16 > div.space-y-4 > div + div {
 
 /* Journey: subtle upward reveal from "Notre feuille de route" onward. */
 .krew-journey-reveal {
-  opacity: .88;
-  transform: translate3d(0, 14px, 0);
-  transition: opacity 480ms ease-out, transform 720ms cubic-bezier(.18,.74,.24,1);
+  opacity: .18;
+  transform: translate3d(0, 28px, 0);
+  transition: opacity 620ms ease-out, transform 820ms cubic-bezier(.18,.74,.24,1);
   will-change: transform, opacity;
 }
+
+.krew-journey-reveal:nth-child(2) { transition-delay: 70ms; }
+.krew-journey-reveal:nth-child(3) { transition-delay: 110ms; }
+.krew-journey-reveal:nth-child(4) { transition-delay: 150ms; }
 .krew-journey-reveal[data-revealed="true"] {
   opacity: 1;
   transform: translate3d(0, 0, 0);
@@ -220,13 +224,17 @@ main footer.mt-16 > div.space-y-4 > div + div {
   animation: krew-icon-draw 820ms cubic-bezier(.32,0,.18,1) 140ms forwards;
 }
 
+[data-krew-journey-hero="true"] {
+  animation: krew-journey-hero-enter 760ms cubic-bezier(.18,.74,.24,1) both;
+}
+
 [data-krew-journey-progress="true"] {
-  animation: krew-journey-progress-enter 680ms cubic-bezier(.18,.74,.24,1) both;
+  animation: krew-journey-progress-enter 900ms cubic-bezier(.18,.74,.24,1) 120ms both;
 }
 
 .krew-journey-progress-fill {
   transform-origin: left center;
-  animation: krew-journey-progress-fill 1050ms cubic-bezier(.18,.74,.24,1) 160ms both;
+  animation: krew-journey-progress-fill 1450ms cubic-bezier(.18,.74,.24,1) 320ms both;
 }
 
 .krew-journey-roadmap-sparkle path,
@@ -236,7 +244,18 @@ main footer.mt-16 > div.space-y-4 > div + div {
 .krew-journey-roadmap-sparkle rect {
   stroke-dasharray: 110;
   stroke-dashoffset: 110;
-  animation: krew-mark-draw 900ms cubic-bezier(.32,0,.18,1) 260ms forwards;
+  animation: krew-mark-draw 1100ms cubic-bezier(.32,0,.18,1) 420ms forwards;
+}
+
+@keyframes krew-journey-hero-enter {
+  from {
+    opacity: .1;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 @keyframes krew-journey-progress-enter {
@@ -256,6 +275,7 @@ main footer.mt-16 > div.space-y-4 > div + div {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  [data-krew-journey-hero="true"],
   [data-krew-journey-progress="true"],
   .krew-journey-progress-fill {
     animation: none !important;
