@@ -220,7 +220,54 @@ main footer.mt-16 > div.space-y-4 > div + div {
   animation: krew-icon-draw 820ms cubic-bezier(.32,0,.18,1) 140ms forwards;
 }
 
+[data-krew-journey-progress="true"] {
+  animation: krew-journey-progress-enter 680ms cubic-bezier(.18,.74,.24,1) both;
+}
+
+.krew-journey-progress-fill {
+  transform-origin: left center;
+  animation: krew-journey-progress-fill 1050ms cubic-bezier(.18,.74,.24,1) 160ms both;
+}
+
+.krew-journey-roadmap-sparkle path,
+.krew-journey-roadmap-sparkle line,
+.krew-journey-roadmap-sparkle polyline,
+.krew-journey-roadmap-sparkle circle,
+.krew-journey-roadmap-sparkle rect {
+  stroke-dasharray: 110;
+  stroke-dashoffset: 110;
+  animation: krew-mark-draw 900ms cubic-bezier(.32,0,.18,1) 260ms forwards;
+}
+
+@keyframes krew-journey-progress-enter {
+  from {
+    opacity: .82;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes krew-journey-progress-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  [data-krew-journey-progress="true"],
+  .krew-journey-progress-fill {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .krew-journey-roadmap-sparkle * {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    animation: none !important;
+  }
+
   .krew-journey-reveal,
   .krew-journey-reveal[data-revealed="true"] {
     opacity: 1 !important;
