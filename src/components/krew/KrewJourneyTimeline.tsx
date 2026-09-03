@@ -457,7 +457,10 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             </p>
           </div>
 
-          <div className="relative rounded-[18px] border border-border/50 px-3 py-3 md:w-full md:justify-self-stretch md:px-5 md:py-4 lg:w-auto lg:justify-self-end lg:self-center lg:px-3 lg:py-3.5">
+          <div
+            data-krew-journey-progress="true"
+            className="relative rounded-[18px] border border-border/50 px-3 py-3 md:w-full md:justify-self-stretch md:px-5 md:py-4 lg:w-auto lg:justify-self-end lg:self-center lg:px-3 lg:py-3.5"
+          >
             <div className="flex items-center gap-3 md:gap-5 lg:gap-3">
               <img
                 src="/brand/otter-states/trip-progress.png"
@@ -470,7 +473,10 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                   <span className="font-display text-[23px] leading-none text-primary sm:text-[25px] md:text-[29px] lg:text-[25px]">{Math.round(progress)}%</span>
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/55 md:mt-3 md:h-2 lg:mt-2 lg:h-1.5" aria-hidden="true">
-                  <div className="h-full rounded-full bg-sage transition-[width] duration-300" style={{ width: `${progress}%` }} />
+                  <div
+                    className="krew-journey-progress-fill h-full rounded-full bg-sage transition-[width] duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
                 <p className="mt-2 text-[11px] text-muted-foreground md:mt-3 md:text-[12px] lg:mt-2 lg:text-[11px]">{completedCount}/{journeySteps.length} étapes terminées</p>
               </div>
@@ -479,10 +485,18 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
         </div>
       </header>
 
-      <div className="pb-1 pt-5 sm:pt-6">
+      <div className="flex items-center gap-1 pb-1 pt-5 sm:gap-2 sm:pt-6">
         <KrewNote variant="margin" rotation={-2} className="text-[21px] font-semibold text-sage sm:text-[23px]">
           {historical ? "Historique du voyage" : "Notre feuille de route"}
         </KrewNote>
+        {!historical ? (
+          <KrewMark
+            type="sparkle"
+            tone="sage"
+            size="sm"
+            className="krew-journey-roadmap-sparkle h-5 w-7 opacity-70 sm:h-6 sm:w-8"
+          />
+        ) : null}
       </div>
 
       <ol className="divide-y divide-border/50">
