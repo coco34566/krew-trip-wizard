@@ -110,6 +110,22 @@ main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
   padding-right: 0 !important;
 }
 
+/* Résumé du voyage: force the heading wave to span the title.
+ * KrewMark's default sm width is 40px, so this dedicated rule must win. */
+#group-section .krew-group-title-underline {
+  display: block !important;
+  width: 210px !important;
+  min-width: 210px !important;
+  height: 10px !important;
+}
+
+@media (min-width: 640px) {
+  #group-section .krew-group-title-underline {
+    width: 260px !important;
+    min-width: 260px !important;
+  }
+}
+
 /* Relancer le groupe: icon first, label slightly to its right, both on the same baseline. */
 #group-section > div.pt-4.border-t {
   display: flex !important;
