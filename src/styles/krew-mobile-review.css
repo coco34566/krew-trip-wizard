@@ -418,3 +418,111 @@ main footer.mt-16 > div.space-y-4 > div + div {
     animation: none !important;
   }
 }
+
+
+/* Perceptible motion pass: keep the page alive after the initial reveal. */
+[data-krew-dashboard-hero="true"] {
+  animation: krew-dashboard-hero-arrive 1050ms cubic-bezier(.16,.8,.22,1) both;
+}
+
+[data-krew-dashboard-photo="true"] {
+  transform-origin: 52% 45%;
+  animation:
+    krew-dashboard-photo-arrive 1400ms cubic-bezier(.16,.8,.22,1) both,
+    krew-dashboard-photo-drift 10s ease-in-out 1400ms infinite alternate;
+}
+
+[data-krew-dashboard-hero="true"] h1 {
+  animation: krew-dashboard-title-arrive 900ms cubic-bezier(.16,.8,.22,1) 180ms both;
+}
+
+.krew-dashboard-reveal {
+  opacity: 0;
+  transform: translate3d(0, 38px, 0) scale(.985);
+  transition:
+    opacity 780ms ease-out var(--krew-dashboard-delay, 0ms),
+    transform 980ms cubic-bezier(.16,.8,.22,1) var(--krew-dashboard-delay, 0ms);
+}
+
+[data-krew-journey-hero="true"] {
+  animation-duration: 1050ms;
+}
+
+[data-krew-journey-progress="true"] {
+  animation-duration: 1100ms;
+  animation-delay: 260ms;
+}
+
+.krew-journey-progress-fill {
+  animation-duration: 1800ms;
+  animation-delay: 500ms;
+}
+
+[data-krew-journey-progress="true"] .font-display {
+  animation: krew-journey-number-pop 720ms cubic-bezier(.16,.8,.22,1) 760ms both;
+}
+
+.krew-journey-reveal {
+  opacity: 0;
+  transform: translate3d(0, 42px, 0) scale(.982);
+  transition:
+    opacity 760ms ease-out,
+    transform 1050ms cubic-bezier(.16,.8,.22,1);
+}
+
+[data-krew-current-step="true"] > div:first-child > div {
+  animation: krew-current-step-pulse 2.8s ease-in-out 1.2s infinite;
+}
+
+[data-krew-current-step="true"] h3 {
+  animation: krew-current-title-breathe 3.4s ease-in-out 1.2s infinite;
+}
+
+@keyframes krew-dashboard-hero-arrive {
+  from { opacity: 0; transform: translate3d(0, 34px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes krew-dashboard-photo-arrive {
+  from { opacity: .55; transform: scale(1.09); }
+  to { opacity: 1; transform: scale(1.025); }
+}
+
+@keyframes krew-dashboard-photo-drift {
+  from { transform: scale(1.025) translate3d(-.35%, 0, 0); }
+  to { transform: scale(1.055) translate3d(.35%, -.45%, 0); }
+}
+
+@keyframes krew-dashboard-title-arrive {
+  from { opacity: 0; transform: translate3d(-18px, 8px, 0) rotate(-1deg); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+}
+
+@keyframes krew-journey-number-pop {
+  0% { opacity: .25; transform: translate3d(0, 7px, 0) scale(.86); }
+  70% { opacity: 1; transform: translate3d(0, -1px, 0) scale(1.06); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes krew-current-step-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px hsl(var(--background)), 0 0 0 5px transparent; transform: scale(1); }
+  50% { box-shadow: 0 0 0 4px hsl(var(--background)), 0 0 0 9px color-mix(in oklch, var(--sage) 22%, transparent); transform: scale(1.045); }
+}
+
+@keyframes krew-current-title-breathe {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(2px, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-krew-dashboard-hero="true"],
+  [data-krew-dashboard-photo="true"],
+  [data-krew-dashboard-hero="true"] h1,
+  [data-krew-journey-progress="true"] .font-display,
+  [data-krew-current-step="true"] > div:first-child > div,
+  [data-krew-current-step="true"] h3 {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
