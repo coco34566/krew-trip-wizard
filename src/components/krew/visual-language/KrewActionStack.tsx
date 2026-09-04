@@ -99,7 +99,11 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-muted/70" aria-hidden="true">
-                  <div className={cn("h-full rounded-full transition-[width]", fillClass)} style={{ width: `${value}%` }} />
+                  <div
+                    data-krew-dashboard-progress-fill="true"
+                    className={cn("h-full rounded-full transition-[width]", fillClass)}
+                    style={{ width: `${value}%` }}
+                  />
                 </div>
               </div>
             );

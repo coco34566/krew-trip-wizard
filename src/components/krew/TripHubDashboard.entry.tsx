@@ -64,6 +64,10 @@ function enableDashboardMotion(root: HTMLElement) {
     section.classList.add("krew-dashboard-reveal");
     section.style.setProperty("--krew-dashboard-delay", `${Math.min(index * 55, 220)}ms`);
     section.dataset.revealed = reduced ? "true" : "false";
+    section.querySelectorAll<HTMLElement>("svg").forEach((icon, iconIndex) => {
+      icon.classList.add("krew-dashboard-icon-draw");
+      icon.style.setProperty("--krew-icon-delay", `${140 + Math.min(iconIndex * 70, 420)}ms`);
+    });
   });
 
   if (reduced || sections.length === 0) {
@@ -92,6 +96,10 @@ function enableDashboardMotion(root: HTMLElement) {
       element.classList.remove("krew-dashboard-enter", "krew-dashboard-reveal");
       element.style.removeProperty("--krew-dashboard-delay");
       delete element.dataset.revealed;
+      element.querySelectorAll<HTMLElement>(".krew-dashboard-icon-draw").forEach((icon) => {
+        icon.classList.remove("krew-dashboard-icon-draw");
+        icon.style.removeProperty("--krew-icon-delay");
+      });
     });
   };
 }
