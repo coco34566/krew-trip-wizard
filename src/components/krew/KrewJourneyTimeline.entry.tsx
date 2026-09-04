@@ -9,6 +9,7 @@ import { getParticipantsProgress } from "@/lib/participant-preferences.functions
 import { TripLifecycleProvider } from "@/lib/krew/trip-lifecycle-context";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import "@/styles/krew-mobile-review.css";
+import "@/styles/krew-product-motion-refinement.css";
 import {
   KrewJourneyTimeline as KrewJourneyTimelineLegacy,
   type TimelineStep,
@@ -39,7 +40,7 @@ function enableJourneyMotion(root: HTMLElement) {
   if (heroMark) heroMark.classList.add("krew-draw-mark");
 
   chapters.forEach((chapter) => {
-    chapter.querySelectorAll<HTMLElement>("svg").forEach((icon, iconIndex) => {
+    chapter.querySelectorAll<HTMLElement>('svg[viewBox="0 0 24 24"]').forEach((icon, iconIndex) => {
       icon.classList.add("krew-icon-draw");
       icon.style.setProperty("--krew-icon-delay", `${170 + Math.min(iconIndex * 70, 420)}ms`);
     });
