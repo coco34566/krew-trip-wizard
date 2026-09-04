@@ -84,7 +84,7 @@ function estimatedAmbianceScores(row: any) {
 async function materializeGroundedCandidatePool(
   supabase: Parameters<typeof generateLegacyRecommendationsForTrip>[0],
   tripId: string,
-) {
+): Promise<number> {
   try {
     const context = await getLegacyDestinationBriefContext(supabase, tripId);
     const poolRes = await supabase
@@ -94,7 +94,7 @@ async function materializeGroundedCandidatePool(
       .eq("brief_fingerprint", context.briefFingerprint)
       .eq("status", "available");
 
-    if (poolRes.error || !poolRes.data?.length) return;
+    if (poolRes.error || !poolRes.data?.length) return 0;
 
     const candidates = (poolRes.data as any[])
       .filter(
@@ -105,7 +105,7 @@ async function materializeGroundedCandidatePool(
       .sort((a, b) => candidateSemanticScore(b) - candidateSemanticScore(a))
       .slice(0, 12);
 
-    if (!candidates.length) return;
+    if (!candidates.length) return 0;
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const names = candidates.map((row) => String(row.name)).filter(Boolean);
@@ -114,6 +114,7 @@ async function materializeGroundedCandidatePool(
 
     const budgetPerPerson = Number(context.scoringContext.budgetPerPerson) || 400;
     const nights = Number(context.scoringContext.nights) || 2;
+    let created = 0;
 
     for (const row of candidates) {
       const name = String(row.name ?? "").trim();
@@ -128,7 +129,7 @@ async function materializeGroundedCandidatePool(
         const slug = slugifyDestination(name);
         if (!slug) continue;
 
-        await supabaseAdmin.from("destinations").upsert(
+        const upsert = await supabaseAdmin.from("destinations").upsert(
           {
             slug,
             name,
@@ -154,12 +155,20 @@ async function materializeGroundedCandidatePool(
           } as any,
           { onConflict: "source,external_id" },
         );
+
+        if (!upsert.error) {
+          created += 1;
+          existing.add(name.toLowerCase());
+        }
       } catch {
         // One exploratory candidate must never block the whole recommendation run.
       }
     }
+
+    return created;
   } catch {
     // Candidate-pool enrichment is an optional pre-step; legacy generation remains the fallback.
+    return 0;
   }
 }
 
@@ -201,9 +210,10 @@ export async function assessGenerationReadiness(
 }
 
 /**
- * The legacy generator recalculates readiness internally. Mirror the public
- * closed-response rule at the execution boundary so the UI cannot be green
- * while the generation itself returns `skipped` after a late participant joins.
+ * Make the current Gemini candidate pool scoreable before the legacy engine runs.
+ * On a first-ever generation the pool does not exist yet, so run discovery once,
+ * materialize the newly-created pool, then rescore from that pool without a second
+ * Gemini call.
  */
 export async function generateRecommendationsForTrip(
   supabase: Parameters<typeof generateLegacyRecommendationsForTrip>[0],
@@ -214,12 +224,22 @@ export async function generateRecommendationsForTrip(
   const closedValidatedTrip = Boolean(
     readiness.quality?.datesLocked && readiness.profile?.validated,
   );
+  const force = options?.force === true || closedValidatedTrip;
 
-  await materializeGroundedCandidatePool(supabase, tripId);
+  const materializedBefore = await materializeGroundedCandidatePool(supabase, tripId);
+  const first = await generateLegacyRecommendationsForTrip(supabase, tripId, {
+    ...options,
+    force,
+  });
+
+  if (materializedBefore > 0) return first;
+
+  const materializedAfter = await materializeGroundedCandidatePool(supabase, tripId);
+  if (materializedAfter <= 0) return first;
 
   return generateLegacyRecommendationsForTrip(supabase, tripId, {
     ...options,
-    force: options?.force === true || closedValidatedTrip,
+    force: true,
   });
 }
 
