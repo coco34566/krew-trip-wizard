@@ -114,15 +114,15 @@ main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
  * KrewMark's default sm width is 40px, so this dedicated rule must win. */
 #group-section .krew-group-title-underline {
   display: block !important;
-  width: 210px !important;
-  min-width: 210px !important;
-  height: 10px !important;
+  width: 170px !important;
+  min-width: 170px !important;
+  height: 12px !important;
 }
 
 @media (min-width: 640px) {
   #group-section .krew-group-title-underline {
-    width: 260px !important;
-    min-width: 260px !important;
+    width: 210px !important;
+    min-width: 210px !important;
   }
 }
 
