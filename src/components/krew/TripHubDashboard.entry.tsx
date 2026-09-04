@@ -47,57 +47,43 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
 
 function enableDashboardMotion(root: HTMLElement) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const intro = Array.from(
+  const nodes = Array.from(
     root.querySelectorAll<HTMLElement>(
-      "header, nav, [data-krew-dashboard-stage-note=\"true\"]",
+      "header, nav, [data-krew-dashboard-stage-note=\"true\"], section[id]",
     ),
   );
-  const sections = Array.from(root.querySelectorAll<HTMLElement>("section[id]"));
 
-  intro.forEach((element, index) => {
-    element.classList.add("krew-dashboard-enter");
-    element.style.setProperty("--krew-dashboard-delay", `${Math.min(index * 70, 210)}ms`);
-    element.dataset.revealed = "true";
-  });
-
-  sections.forEach((section, index) => {
-    section.classList.add("krew-dashboard-reveal");
-    section.style.setProperty("--krew-dashboard-delay", `${Math.min(index * 55, 220)}ms`);
-    section.dataset.revealed = reduced ? "true" : "false";
-    section.querySelectorAll<HTMLElement>("svg").forEach((icon, iconIndex) => {
-      icon.classList.add("krew-dashboard-icon-draw");
-      icon.style.setProperty("--krew-icon-delay", `${140 + Math.min(iconIndex * 70, 420)}ms`);
+  nodes.forEach((node, index) => {
+    node.classList.add("krew-reveal");
+    node.style.setProperty("--krew-reveal-delay", `${Math.min(index * 70, 280)}ms`);
+    node.dataset.revealed = reduced ? "true" : "false";
+    node.querySelectorAll<HTMLElement>("svg").forEach((icon, iconIndex) => {
+      icon.classList.add("krew-icon-draw");
+      icon.style.setProperty("--krew-icon-delay", `${170 + Math.min(iconIndex * 70, 420)}ms`);
     });
   });
 
-  if (reduced || sections.length === 0) {
-    sections.forEach((section) => {
-      section.dataset.revealed = "true";
-    });
-    return () => {};
-  }
+  if (reduced || nodes.length === 0) return () => {};
 
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        (entry.target as HTMLElement).dataset.revealed = "true";
-        observer.unobserve(entry.target);
+        (entry.target as HTMLElement).dataset.revealed = entry.isIntersecting ? "true" : "false";
       });
     },
-    { threshold: 0.08, rootMargin: "0px 0px -6% 0px" },
+    { threshold: 0.12, rootMargin: "0px 0px -7% 0px" },
   );
 
-  sections.forEach((section) => observer.observe(section));
+  nodes.forEach((node) => observer.observe(node));
 
   return () => {
     observer.disconnect();
-    [...intro, ...sections].forEach((element) => {
-      element.classList.remove("krew-dashboard-enter", "krew-dashboard-reveal");
-      element.style.removeProperty("--krew-dashboard-delay");
-      delete element.dataset.revealed;
-      element.querySelectorAll<HTMLElement>(".krew-dashboard-icon-draw").forEach((icon) => {
-        icon.classList.remove("krew-dashboard-icon-draw");
+    nodes.forEach((node) => {
+      node.classList.remove("krew-reveal");
+      node.style.removeProperty("--krew-reveal-delay");
+      delete node.dataset.revealed;
+      node.querySelectorAll<HTMLElement>(".krew-icon-draw").forEach((icon) => {
+        icon.classList.remove("krew-icon-draw");
         icon.style.removeProperty("--krew-icon-delay");
       });
     });
