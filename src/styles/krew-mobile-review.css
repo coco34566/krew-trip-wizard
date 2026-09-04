@@ -506,7 +506,7 @@ main footer.mt-16 > div.space-y-4 > div + div {
 
 @keyframes krew-current-step-pulse {
   0%, 100% { box-shadow: 0 0 0 4px hsl(var(--background)), 0 0 0 5px transparent; transform: scale(1); }
-  50% { box-shadow: 0 0 0 4px hsl(var(--background)), 0 0 0 9px color-mix(in oklch, var(--sage) 22%, transparent); transform: scale(1.045); }
+  50% { box-shadow: 0 0 0 4px hsl(var(--background)), 0 0 0 9px hsl(var(--primary) / .14); transform: scale(1.045); }
 }
 
 @keyframes krew-current-title-breathe {
