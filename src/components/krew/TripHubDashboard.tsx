@@ -517,7 +517,7 @@ export function TripHubDashboard({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <header className="relative overflow-visible -mx-4 sm:mx-0 pb-2">
+      <header data-krew-dashboard-hero="true" className="relative overflow-visible -mx-4 sm:mx-0 pb-2">
         <div className="relative w-full">
           <KrewOrganicBlob
             tone="sage"
@@ -533,6 +533,7 @@ export function TripHubDashboard({
             <img
               src={heroImageForEvent(trip.event_type)}
               alt=""
+              data-krew-dashboard-photo="true"
               className="h-full w-full object-cover"
               loading="eager"
             />
