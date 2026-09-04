@@ -75,6 +75,29 @@ function fallbackSvg() {
   });
 }
 
+function findPexelsApiKey() {
+  const knownNames = [
+    "PIXELS_API_KEY",
+    "PEXELS_API_KEY",
+    "PIXEL_API_KEY",
+    "PEXEL_API_KEY",
+    "PIXELS_KEY",
+    "PEXELS_KEY",
+    "PIXEL_KEY",
+    "PEXEL_KEY",
+  ];
+
+  for (const key of knownNames) {
+    const value = process.env[key];
+    if (value?.trim()) return value.trim();
+  }
+
+  const discovered = Object.entries(process.env).find(
+    ([key, value]) => Boolean(value?.trim()) && /(pixel|pexel)/i.test(key) && /key/i.test(key),
+  );
+  return discovered?.[1]?.trim() || null;
+}
+
 export const Route = createFileRoute("/api/destination-photo")({
   server: {
     handlers: {
@@ -91,9 +114,9 @@ export const Route = createFileRoute("/api/destination-photo")({
 
         if (destination.error || !destination.data?.name) return fallbackSvg();
 
-        const apiKey = process.env["PIXELS_API_KEY"] || process.env["PEXELS_API_KEY"];
+        const apiKey = findPexelsApiKey();
         if (!apiKey) {
-          console.error("[destination-photo] PIXELS_API_KEY/PEXELS_API_KEY missing");
+          console.error("[destination-photo] Pexels API key missing");
           return fallbackSvg();
         }
 
