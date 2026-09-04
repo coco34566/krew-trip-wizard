@@ -601,3 +601,9 @@ main footer.mt-16 > div.space-y-4 > div + div {
     transform: none !important;
   }
 }
+
+
+/* Width is now driven after React has rendered the real progress value. */
+.krew-journey-progress-fill {
+  animation: none;
+}
