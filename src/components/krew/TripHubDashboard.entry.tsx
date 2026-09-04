@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -45,7 +45,59 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
   };
 }
 
+function enableDashboardMotion(root: HTMLElement) {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const intro = Array.from(
+    root.querySelectorAll<HTMLElement>(
+      "header, nav, [data-krew-dashboard-stage-note=\"true\"]",
+    ),
+  );
+  const sections = Array.from(root.querySelectorAll<HTMLElement>("section[id]"));
+
+  intro.forEach((element, index) => {
+    element.classList.add("krew-dashboard-enter");
+    element.style.setProperty("--krew-dashboard-delay", `${Math.min(index * 70, 210)}ms`);
+    element.dataset.revealed = "true";
+  });
+
+  sections.forEach((section, index) => {
+    section.classList.add("krew-dashboard-reveal");
+    section.style.setProperty("--krew-dashboard-delay", `${Math.min(index * 55, 220)}ms`);
+    section.dataset.revealed = reduced ? "true" : "false";
+  });
+
+  if (reduced || sections.length === 0) {
+    sections.forEach((section) => {
+      section.dataset.revealed = "true";
+    });
+    return () => {};
+  }
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        (entry.target as HTMLElement).dataset.revealed = "true";
+        observer.unobserve(entry.target);
+      });
+    },
+    { threshold: 0.08, rootMargin: "0px 0px -6% 0px" },
+  );
+
+  sections.forEach((section) => observer.observe(section));
+
+  return () => {
+    observer.disconnect();
+    [...intro, ...sections].forEach((element) => {
+      element.classList.remove("krew-dashboard-enter", "krew-dashboard-reveal");
+      element.style.removeProperty("--krew-dashboard-delay");
+      delete element.dataset.revealed;
+    });
+  };
+}
+
 export function TripHubDashboard(props: Props) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const fetchProgress = useServerFn(getParticipantsProgress);
   const { data: centralized, isSuccess: progressReady } = useQuery({
     queryKey: ["trip-progress", props.tripId],
@@ -154,11 +206,31 @@ export function TripHubDashboard(props: Props) {
     trip,
   ]);
 
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    let cleanup = () => {};
+    const frame = window.requestAnimationFrame(() => {
+      cleanup = enableDashboardMotion(root);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      cleanup();
+    };
+  }, [props.tripId, responseReady]);
+
   const suppressPreparationChrome = completed || !responseReady;
 
   return (
     <TripLifecycleProvider lifecycle={lifecycle}>
-      <div data-trip-lifecycle={lifecycle} data-response-progress={responseState.state}>
+      <div
+        ref={rootRef}
+        data-trip-lifecycle={lifecycle}
+        data-response-progress={responseState.state}
+        data-krew-dashboard-root="true"
+      >
         {completed ? (
           <section className="mb-5 rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" aria-label="Voyage terminé">
             <p className="font-display text-2xl font-normal text-foreground">Voyage terminé</p>

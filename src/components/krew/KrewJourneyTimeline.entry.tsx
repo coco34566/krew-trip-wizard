@@ -64,7 +64,9 @@ function enableJourneyMotion(root: HTMLElement) {
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        (entry.target as HTMLElement).dataset.revealed = entry.isIntersecting ? "true" : "false";
+        if (!entry.isIntersecting) return;
+        (entry.target as HTMLElement).dataset.revealed = "true";
+        observer.unobserve(entry.target);
       });
     },
     { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
