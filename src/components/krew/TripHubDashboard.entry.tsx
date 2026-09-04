@@ -13,6 +13,7 @@ import { getDashboardResponseState } from "@/lib/krew/trip-dashboard-response-st
 import { TripLifecycleProvider } from "@/lib/krew/trip-lifecycle-context";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { trackProductEventOnce, type ProductAnalyticsProperties } from "@/lib/product-analytics";
+import "@/styles/krew-product-motion-refinement.css";
 import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
 
 type Props = ComponentProps<typeof TripHubDashboardLegacy>;
@@ -57,7 +58,7 @@ function enableDashboardMotion(root: HTMLElement) {
     node.classList.add("krew-reveal");
     node.style.setProperty("--krew-reveal-delay", `${Math.min(index * 70, 280)}ms`);
     node.dataset.revealed = reduced ? "true" : "false";
-    node.querySelectorAll<HTMLElement>("svg").forEach((icon, iconIndex) => {
+    node.querySelectorAll<HTMLElement>('svg[viewBox="0 0 24 24"]').forEach((icon, iconIndex) => {
       icon.classList.add("krew-icon-draw");
       icon.style.setProperty("--krew-icon-delay", `${170 + Math.min(iconIndex * 70, 420)}ms`);
     });

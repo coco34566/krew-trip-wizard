@@ -1,0 +1,56 @@
+/* Product motion refinement: keep the landing choreography, but only animate semantic KrewIcons. */
+[data-krew-dashboard-root="true"] .krew-icon-draw,
+[data-krew-journey-root="true"] .krew-icon-draw {
+  opacity: 1 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+/* The landing draws the icon strokes themselves; preserve that behaviour on product pages. */
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw path,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw line,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw polyline,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw circle,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw rect,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw path,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw line,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw polyline,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw circle,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw rect {
+  animation: krew-icon-draw 950ms cubic-bezier(.32,0,.18,1) var(--krew-icon-delay, 170ms) forwards !important;
+}
+
+/* Restore the current-step highlighter to the softer sage used before the motion pass. */
+[data-krew-journey-root="true"] [data-krew-current-step="true"] .relative.inline-block > svg[viewBox="0 0 100 64"] {
+  color: hsl(var(--sage) / .68) !important;
+  opacity: .78 !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+/* Keep the current-step node alive without tinting its freehand highlight. */
+[data-krew-journey-root="true"] [data-krew-current-step="true"] > div:first-child > div {
+  animation-duration: 3.2s;
+}
+
+/* Lower sections should feel closer to the landing: a little more travel, still restrained. */
+[data-krew-dashboard-root="true"] .krew-reveal,
+[data-krew-journey-root="true"] .krew-reveal {
+  transform: translate3d(0, 28px, 0) scale(.982);
+  transition-duration: 620ms, 900ms, 900ms;
+}
+
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"],
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] {
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-krew-dashboard-root="true"] .krew-icon-draw,
+  [data-krew-journey-root="true"] .krew-icon-draw,
+  [data-krew-journey-root="true"] [data-krew-current-step="true"] .relative.inline-block > svg[viewBox="0 0 100 64"] {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
