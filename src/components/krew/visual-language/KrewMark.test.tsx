@@ -16,7 +16,9 @@ describe("KrewMark underline rendering", () => {
       />,
     );
 
-    expect(container.querySelector("svg")).toHaveAttribute("preserveAspectRatio", "none");
+    const svg = container.querySelector("svg");
+    expect(svg).toHaveAttribute("preserveAspectRatio", "none");
+    expect(svg).toHaveAttribute("viewBox", "0 28 100 20");
   });
 
   it("does not stretch unrelated marks", () => {

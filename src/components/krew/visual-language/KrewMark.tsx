@@ -56,5 +56,5 @@ export function KrewMark({type,tone="plum",size="md",rotation=0,decorative=true,
     : isLandingChapterMark
       ? <LandingChapterShape type={type as "pin-line"|"stamp-circle"}/>
       : <MarkShape type={type} dashed={dashed}/>;
-  return <svg viewBox={isHeroWave?"0 0 340 24":"0 0 100 64"} preserveAspectRatio={stretchesToContainer?"none":undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}>{shape}</svg>;
+  return <svg viewBox={isHeroWave?"0 0 340 24":isGroupTitleUnderline?"0 28 100 20":"0 0 100 64"} preserveAspectRatio={stretchesToContainer?"none":undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}>{shape}</svg>;
 }
