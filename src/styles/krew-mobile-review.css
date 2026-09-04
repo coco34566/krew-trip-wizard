@@ -531,7 +531,6 @@ main footer.mt-16 > div.space-y-4 > div + div {
 /* Dashboard response bars grow to their real availability/preferences values. */
 [data-krew-dashboard-root="true"] [data-krew-dashboard-progress-fill="true"] {
   transform-origin: left center;
-  animation: krew-dashboard-response-fill 1550ms cubic-bezier(.16,.8,.22,1) 420ms both;
 }
 
 /* Lower dashboard pictograms draw when their section enters the viewport. */
@@ -571,5 +570,34 @@ main footer.mt-16 > div.space-y-4 > div + div {
     stroke-dasharray: none !important;
     stroke-dashoffset: 0 !important;
     animation: none !important;
+  }
+}
+
+
+/* Whole-icon reveal complements stroke drawing for filled and outline pictograms. */
+.krew-dashboard-icon-draw,
+.krew-journey-icon-draw {
+  opacity: 0;
+  transform: scale(.68) rotate(-7deg);
+  transform-origin: center;
+}
+
+.krew-dashboard-reveal[data-revealed="true"] .krew-dashboard-icon-draw,
+.krew-journey-reveal[data-revealed="true"] .krew-journey-icon-draw {
+  animation: krew-pictogram-arrive 720ms cubic-bezier(.16,.8,.22,1) var(--krew-icon-delay, 120ms) forwards;
+}
+
+@keyframes krew-pictogram-arrive {
+  0% { opacity: 0; transform: scale(.68) rotate(-7deg); }
+  72% { opacity: 1; transform: scale(1.08) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .krew-dashboard-icon-draw,
+  .krew-journey-icon-draw {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
