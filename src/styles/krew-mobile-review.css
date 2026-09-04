@@ -526,3 +526,50 @@ main footer.mt-16 > div.space-y-4 > div + div {
     transform: none !important;
   }
 }
+
+
+/* Dashboard response bars grow to their real availability/preferences values. */
+[data-krew-dashboard-root="true"] [data-krew-dashboard-progress-fill="true"] {
+  transform-origin: left center;
+  animation: krew-dashboard-response-fill 1550ms cubic-bezier(.16,.8,.22,1) 420ms both;
+}
+
+/* Lower dashboard pictograms draw when their section enters the viewport. */
+.krew-dashboard-icon-draw path,
+.krew-dashboard-icon-draw line,
+.krew-dashboard-icon-draw polyline,
+.krew-dashboard-icon-draw circle,
+.krew-dashboard-icon-draw rect {
+  stroke-dasharray: 72;
+  stroke-dashoffset: 72;
+}
+
+.krew-dashboard-reveal[data-revealed="true"] .krew-dashboard-icon-draw path,
+.krew-dashboard-reveal[data-revealed="true"] .krew-dashboard-icon-draw line,
+.krew-dashboard-reveal[data-revealed="true"] .krew-dashboard-icon-draw polyline,
+.krew-dashboard-reveal[data-revealed="true"] .krew-dashboard-icon-draw circle,
+.krew-dashboard-reveal[data-revealed="true"] .krew-dashboard-icon-draw rect {
+  animation: krew-dashboard-icon-draw 920ms cubic-bezier(.32,0,.18,1) var(--krew-icon-delay, 140ms) forwards;
+}
+
+@keyframes krew-dashboard-response-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes krew-dashboard-icon-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-krew-dashboard-root="true"] [data-krew-dashboard-progress-fill="true"] {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .krew-dashboard-icon-draw * {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    animation: none !important;
+  }
+}
