@@ -43,6 +43,8 @@ const TITLE_UNDERLINE_STYLE: Record<KrewMarkSize, CSSProperties> = {
 
 export function KrewMark({type,tone="plum",size="md",rotation=0,decorative=true,dashed=false,className}:{type:KrewMarkType;tone?:KrewMarkTone;size?:KrewMarkSize;rotation?:-4|-2|0|2|4;decorative?:boolean;dashed?:boolean;className?:string}){
   const isAbsoluteTitleUnderline = type === "underline-wave" && className?.includes("absolute");
+  const isGroupTitleUnderline = type === "underline-wave" && className?.includes("krew-group-title-underline");
+  const stretchesToContainer = isAbsoluteTitleUnderline || isGroupTitleUnderline;
   const isHeroWave = type === "underline-wave" && className?.includes("krew-hero-mark");
   const isLandingChapterMark = className?.includes("krew-draw-mark") && (type === "pin-line" || type === "stamp-circle");
   const style: CSSProperties = {
@@ -54,5 +56,5 @@ export function KrewMark({type,tone="plum",size="md",rotation=0,decorative=true,
     : isLandingChapterMark
       ? <LandingChapterShape type={type as "pin-line"|"stamp-circle"}/>
       : <MarkShape type={type} dashed={dashed}/>;
-  return <svg viewBox={isHeroWave?"0 0 340 24":"0 0 100 64"} preserveAspectRatio={isAbsoluteTitleUnderline?"none":undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}>{shape}</svg>;
+  return <svg viewBox={isHeroWave?"0 0 340 24":"0 0 100 64"} preserveAspectRatio={stretchesToContainer?"none":undefined} aria-hidden={decorative?true:undefined} role={decorative?undefined:"img"} className={cn("shrink-0 overflow-visible",TONES[tone],SIZES[size],className)} style={style}>{shape}</svg>;
 }
