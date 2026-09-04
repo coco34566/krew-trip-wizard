@@ -607,3 +607,70 @@ main footer.mt-16 > div.space-y-4 > div + div {
 .krew-journey-progress-fill {
   animation: none;
 }
+
+
+/* Product pages now use the exact landing reveal primitive and icon choreography. */
+[data-krew-dashboard-root="true"] .krew-reveal,
+[data-krew-journey-root="true"] .krew-reveal {
+  transition-delay: var(--krew-reveal-delay, 0ms);
+}
+
+[data-krew-dashboard-root="true"] .krew-icon-draw,
+[data-krew-journey-root="true"] .krew-icon-draw {
+  opacity: .35;
+  transform: scale(.84) rotate(-3deg);
+  transform-origin: center;
+}
+
+[data-krew-dashboard-root="true"] .krew-icon-draw path,
+[data-krew-dashboard-root="true"] .krew-icon-draw line,
+[data-krew-dashboard-root="true"] .krew-icon-draw polyline,
+[data-krew-dashboard-root="true"] .krew-icon-draw circle,
+[data-krew-dashboard-root="true"] .krew-icon-draw rect,
+[data-krew-journey-root="true"] .krew-icon-draw path,
+[data-krew-journey-root="true"] .krew-icon-draw line,
+[data-krew-journey-root="true"] .krew-icon-draw polyline,
+[data-krew-journey-root="true"] .krew-icon-draw circle,
+[data-krew-journey-root="true"] .krew-icon-draw rect {
+  stroke-dasharray: 42;
+  stroke-dashoffset: 42;
+}
+
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw {
+  animation: krew-product-icon-settle 920ms cubic-bezier(.18,.74,.24,1) var(--krew-icon-delay, 170ms) both;
+}
+
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw path,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw line,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw polyline,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw circle,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw rect,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw path,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw line,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw polyline,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw circle,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw rect {
+  animation: krew-icon-draw 950ms cubic-bezier(.32,0,.18,1) var(--krew-icon-delay, 170ms) forwards;
+}
+
+@keyframes krew-product-icon-settle {
+  from { opacity: .35; transform: scale(.84) rotate(-3deg); }
+  72% { opacity: 1; transform: scale(1.06) rotate(.6deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-krew-dashboard-root="true"] .krew-icon-draw,
+  [data-krew-journey-root="true"] .krew-icon-draw {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  [data-krew-dashboard-root="true"] .krew-icon-draw *,
+  [data-krew-journey-root="true"] .krew-icon-draw * {
+    animation: none !important;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}
