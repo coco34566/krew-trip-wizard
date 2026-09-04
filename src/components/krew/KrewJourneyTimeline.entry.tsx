@@ -25,68 +25,52 @@ function enableJourneyMotion(root: HTMLElement) {
   const title = Array.from(root.querySelectorAll<HTMLHeadingElement>("h1")).find((heading) =>
     heading.textContent?.trim().startsWith("Parcours de "),
   );
-  const header = title?.closest("header");
+  const header = title?.closest("header") ?? null;
   const heroMark = title?.parentElement?.querySelector<HTMLElement>("svg") ?? null;
   const chapters = Array.from(root.querySelectorAll<HTMLElement>("ol > li"));
+  const nodes = [...(header ? [header] : []), ...chapters];
 
-  if (heroMark) {
-    heroMark.classList.add("krew-journey-draw-mark");
-    heroMark.dataset.revealed = "true";
-  }
-
-  chapters.forEach((chapter) => {
-    chapter.classList.add("krew-journey-reveal");
-    chapter.dataset.revealed = reduced ? "true" : "false";
-    chapter
-      .querySelectorAll<HTMLElement>("svg")
-      .forEach((icon) => icon.classList.add("krew-journey-icon-draw"));
+  nodes.forEach((node, index) => {
+    node.classList.add("krew-reveal");
+    node.style.setProperty("--krew-reveal-delay", `${Math.min(index * 90, 360)}ms`);
+    node.dataset.revealed = reduced ? "true" : "false";
   });
 
-  if (header) header.dataset.krewJourneyHero = "true";
+  if (heroMark) heroMark.classList.add("krew-draw-mark");
 
-  if (reduced || chapters.length === 0) {
-    return () => {
-      if (header) delete header.dataset.krewJourneyHero;
-      if (heroMark) {
-        heroMark.classList.remove("krew-journey-draw-mark");
-        delete heroMark.dataset.revealed;
-      }
-      chapters.forEach((chapter) => {
-        chapter.classList.remove("krew-journey-reveal");
-        delete chapter.dataset.revealed;
-        chapter
-          .querySelectorAll<HTMLElement>("svg")
-          .forEach((icon) => icon.classList.remove("krew-journey-icon-draw"));
-      });
-    };
-  }
+  chapters.forEach((chapter) => {
+    chapter.querySelectorAll<HTMLElement>("svg").forEach((icon, iconIndex) => {
+      icon.classList.add("krew-icon-draw");
+      icon.style.setProperty("--krew-icon-delay", `${170 + Math.min(iconIndex * 70, 420)}ms`);
+    });
+  });
+
+  if (reduced || nodes.length === 0) return () => {};
 
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        (entry.target as HTMLElement).dataset.revealed = "true";
-        observer.unobserve(entry.target);
+        (entry.target as HTMLElement).dataset.revealed = entry.isIntersecting ? "true" : "false";
       });
     },
-    { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+    { threshold: 0.12, rootMargin: "0px 0px -7% 0px" },
   );
 
-  chapters.forEach((chapter) => observer.observe(chapter));
+  nodes.forEach((node) => observer.observe(node));
 
   return () => {
     observer.disconnect();
-    if (header) delete header.dataset.krewJourneyHero;
-    if (heroMark) {
-      heroMark.classList.remove("krew-journey-draw-mark");
-      delete heroMark.dataset.revealed;
-    }
+    nodes.forEach((node) => {
+      node.classList.remove("krew-reveal");
+      node.style.removeProperty("--krew-reveal-delay");
+      delete node.dataset.revealed;
+    });
+    if (heroMark) heroMark.classList.remove("krew-draw-mark");
     chapters.forEach((chapter) => {
-      chapter.classList.remove("krew-journey-reveal");
-      delete chapter.dataset.revealed;
-      chapter
-        .querySelectorAll<HTMLElement>("svg")
-        .forEach((icon) => icon.classList.remove("krew-journey-icon-draw"));
+      chapter.querySelectorAll<HTMLElement>(".krew-icon-draw").forEach((icon) => {
+        icon.classList.remove("krew-icon-draw");
+        icon.style.removeProperty("--krew-icon-delay");
+      });
     });
   };
 }
