@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { KrewIcon, type KrewIconName } from "./KrewIcon";
@@ -76,6 +76,21 @@ function actionCta(action: KrewActionItem) {
 
 export function KrewActionStack({ primary, secondary = [], progress = [], className }: Props) {
   const primaryIcon = actionIcon(primary);
+  const progressSignature = progress.map((item) => item.value).join("|");
+  const [showProgress, setShowProgress] = useState(false);
+
+  useEffect(() => {
+    setShowProgress(false);
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => setShowProgress(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [progressSignature]);
+
 
   return (
     <section className={cn("space-y-6", className)}>
@@ -101,8 +116,8 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                 <div className="h-1.5 overflow-hidden rounded-full bg-muted/70" aria-hidden="true">
                   <div
                     data-krew-dashboard-progress-fill="true"
-                    className={cn("h-full rounded-full transition-[width]", fillClass)}
-                    style={{ width: `${value}%` }}
+                    className={cn("h-full rounded-full transition-[width] duration-[1500ms] ease-[cubic-bezier(.16,.8,.22,1)]", fillClass)}
+                    style={{ width: showProgress ? `${value}%` : "0%" }}
                   />
                 </div>
               </div>

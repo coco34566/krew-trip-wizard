@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
@@ -334,6 +335,7 @@ function ChapterIntro({ category, chapterIndex, current, historical }: { categor
 }
 
 export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
+  const [showJourneyProgress, setShowJourneyProgress] = useState(false);
   const lifecycle = useTripLifecycleState();
   const historical = lifecycle === "completed";
   const roleAndTasksQuery = useQuery({
@@ -411,6 +413,18 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
             ),
       );
   const progress = journeySteps.length > 1 ? (currentIndex / (journeySteps.length - 1)) * 100 : 100;
+  useEffect(() => {
+    setShowJourneyProgress(false);
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => setShowJourneyProgress(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [tripId, progress]);
+
   const completedCount = journeySteps.filter((step) => step.status === "done").length;
   const currentStep = journeySteps[currentIndex];
   const currentCategory = currentStep?.category ?? null;
@@ -475,8 +489,8 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/55 md:mt-3 md:h-2 lg:mt-2 lg:h-1.5" aria-hidden="true">
                   <div
-                    className="krew-journey-progress-fill h-full rounded-full bg-sage transition-[width] duration-300"
-                    style={{ width: `${progress}%` }}
+                    className="krew-journey-progress-fill h-full rounded-full bg-sage transition-[width] duration-[1700ms] ease-[cubic-bezier(.16,.8,.22,1)]"
+                    style={{ width: showJourneyProgress ? `${progress}%` : "0%" }}
                   />
                 </div>
                 <p className="mt-2 text-[11px] text-muted-foreground md:mt-3 md:text-[12px] lg:mt-2 lg:text-[11px]">{completedCount}/{journeySteps.length} étapes terminées</p>
