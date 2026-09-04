@@ -83,10 +83,11 @@ import { cn } from "@/lib/utils";
 import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
-import { TripHubDashboard } from "@/components/krew/TripHubDashboard";
+import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
-import { KrewJourneyTimeline, type TimelineStep } from "@/components/krew/KrewJourneyTimeline";
+import { KrewJourneyTimeline } from "@/components/krew/KrewJourneyTimeline.entry";
+import type { TimelineStep } from "@/components/krew/KrewJourneyTimeline";
 import {
   getTripAvailability,
   chooseTripDates,
