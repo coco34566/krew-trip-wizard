@@ -489,7 +489,7 @@ export function KrewJourneyTimeline({ tripId, tripName, steps }: Props) {
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border/55 md:mt-3 md:h-2 lg:mt-2 lg:h-1.5" aria-hidden="true">
                   <div
-                    className="krew-journey-progress-fill h-full rounded-full bg-sage transition-[width] duration-300"
+                    className="krew-journey-progress-fill h-full rounded-full bg-sage transition-[width] duration-[1700ms] ease-[cubic-bezier(.16,.8,.22,1)]"
                     style={{ width: showJourneyProgress ? `${progress}%` : "0%" }}
                   />
                 </div>
