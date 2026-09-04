@@ -202,6 +202,7 @@ function StepRow({ step, tripId, historical }: { step: TimelineStep; tripId: str
 
   const content = (
     <div
+      data-krew-current-step={isCurrent ? "true" : undefined}
       className={cn(
         "group relative grid grid-cols-[48px_minmax(0,1fr)] gap-3 py-3 sm:grid-cols-[52px_minmax(0,1fr)] sm:gap-4 sm:py-4",
         !isCurrent && "border-b border-border/40 last:border-b-0",
