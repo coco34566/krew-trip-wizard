@@ -1,94 +1,78 @@
-name: KREW one-off planning patch
+name: KREW Smoke E2E
 
 on:
-  push:
-    branches: [fix/transport-mobile-compact-preferences]
-
-permissions:
-  contents: write
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 jobs:
-  patch-planning:
+  smoke:
+    # Repository secrets are never exposed to code coming from a fork.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 20
+    env:
+      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
+      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_API_MODE: safe
+    permissions:
+      contents: read
+      deployments: read
+      pull-requests: read
     steps:
-      - name: Checkout branch
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: fix/transport-mobile-compact-preferences
-          fetch-depth: 0
-      - name: Apply verified-place fallback fix
+      - name: Resolve Vercel preview URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("src/lib/trips.functions.ts")
-          source = path.read_text()
-
-          replacements = [
-              (
-                  "if (candidate && isSameSuggestedPlace(sp, candidate.name)) {",
-                  "// The exact Gemini venue was already tried above. If it cannot be verified,\n          // keep the best verified Geoapify candidate matching the slot intent instead of\n          // rejecting every real place just because its name differs from the AI suggestion.\n          if (candidate) {",
-              ),
-              (
-                  "if (searchCandidate && isSameSuggestedPlace(sp, searchCandidate.name)) {",
-                  "// Same rule after the targeted refresh: prefer a verified intent-compatible\n              // place to a generic map fallback based on an unverified AI venue name.\n              if (searchCandidate) {",
-              ),
-          ]
-
-          for old, new in replacements:
-              count = source.count(old)
-              if count != 1:
-                  raise SystemExit(f"Expected exactly one occurrence of {old!r}, found {count}")
-              source = source.replace(old, new, 1)
-
-          old_fallback = '''    label: (s as any).suggestedPlace || s.label,
-    detail:
-      s.detail ||
-      s.searchIntent ||
-      "Réservation ou choix du lieu à préciser",
-    address: null,
-    verified: false,
-    source: "krew",
-    url: fallbackMapUrl || null,'''
-          new_fallback = '''    // No place was verified: keep the activity wording rather than presenting an
-    // AI-suggested venue name as if KREW had validated it.
-    label: s.label,
-    detail:
-      s.detail ||
-      s.searchIntent ||
-      "Réservation ou choix du lieu à préciser",
-    address: null,
-    verified: false,
-    source: "krew",
-    url: fallbackMapUrl || null,'''
-          if source.count(old_fallback) != 1:
-              raise SystemExit(f"Expected one unverified fallback block, found {source.count(old_fallback)}")
-          source = source.replace(old_fallback, new_fallback, 1)
-
-          old_map = '''            const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
-              { name: s.label, address: destName },
-              destName,
-            );'''
-          new_map = '''            const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
-              { name: s.searchIntent || s.label, address: destName },
-              destName,
-            );'''
-          if source.count(old_map) != 1:
-              raise SystemExit(f"Expected one map fallback block, found {source.count(old_map)}")
-          source = source.replace(old_map, new_map, 1)
-
-          path.write_text(source)
-
-          test = Path("src/lib/__tests__/planning-place-resolution-contract.test.ts")
-          test.write_text('''import { readFileSync } from "node:fs";\nimport { describe, expect, it } from "vitest";\n\nimport { buildFinalItinerarySlot } from "../trips.functions";\n\ndescribe("planning verified-place fallback contract", () => {\n  it("accepts a verified intent-compatible Geoapify fallback even when Gemini suggested another venue name", () => {\n    const source = readFileSync(new URL("../trips.functions.ts", import.meta.url), "utf8");\n    expect(source).not.toContain("candidate && isSameSuggestedPlace(sp, candidate.name)");\n    expect(source).not.toContain("searchCandidate && isSameSuggestedPlace(sp, searchCandidate.name)");\n  });\n\n  it("does not present an unverified AI venue name as a validated place", () => {\n    const slot = buildFinalItinerarySlot({\n      slot: {\n        moment: "Soir",\n        time: "20:00",\n        endTime: "22:00",\n        durationMinutes: 120,\n        type: "resto",\n        category: "repas",\n        venueFamily: "restaurant",\n        searchIntent: "restaurant festif tendance centre Cascais",\n        locationContext: "external",\n        label: "Dîner festif pour la future mariée",\n        suggestedPlace: "Restaurant IA non vérifié",\n        detail: "Une table festive.",\n      },\n      fallbackMapUrl: "https://www.google.com/maps/search/?api=1&query=restaurant%20festif%20Cascais",\n    });\n\n    expect(slot.verified).toBe(false);\n    expect(slot.label).toBe("Dîner festif pour la future mariée");\n  });\n});\n''')
-          PY
-
-          # Restore the normal smoke workflow in the same commit; this one-off runner disappears.
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/krew-e2e.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/lib/trips.functions.ts src/lib/__tests__/planning-place-resolution-contract.test.ts .github/workflows/krew-e2e.yml
-          git commit -m "fix: resolve planning slots to verified real places"
-          git push origin HEAD:fix/transport-mobile-compact-preferences
+          node <<'NODE'
+          const { appendFileSync } = await import("node:fs");
+          const headers = {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${process.env.GH_TOKEN}`,
+            "X-GitHub-Api-Version": "2022-11-28",
+          };
+          const api = async (path) => {
+            const response = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}${path}`, { headers });
+            if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
+            return response.json();
+          };
+          let previewUrl = "";
+          for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
+            const deployments = await api(`/deployments?sha=${process.env.HEAD_SHA}&per_page=20`);
+            for (const deployment of deployments) {
+              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
+              const ready = statuses.find((status) =>
+                status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
+              );
+              if (ready) {
+                previewUrl = ready.environment_url.replace(/\/$/, "");
+                break;
+              }
+            }
+            if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
+          }
+          if (!previewUrl) throw new Error("Vercel preview URL unavailable after 10 minutes");
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
+          NODE
+      - run: npm ci
+      - name: Install Playwright test runner without changing the lockfile
+        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+      - name: Run smoke journey only
+        run: npm run test:e2e:smoke
+      - name: Upload Playwright report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: krew-smoke-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
