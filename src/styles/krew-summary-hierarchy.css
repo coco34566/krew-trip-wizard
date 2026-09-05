@@ -1,7 +1,6 @@
 /*
  * Adaptive hierarchy for Résumé du voyage.
- * This intentionally reuses the existing KREW components instead of creating
- * stage-specific layouts. Only visual priority, spacing and sibling order move.
+ * Reuses the existing KREW components and keeps one visual rhythm across stages.
  */
 
 [data-krew-dashboard-motion="true"][data-krew-summary-stage] {
@@ -10,8 +9,7 @@
   gap: 1.625rem;
 }
 
-/* The route wrapper used Tailwind space-y before becoming a flex hierarchy.
- * Neutralize those inherited sibling margins so spacing comes from one rhythm. */
+/* Neutralize inherited route spacing: this file owns the vertical rhythm. */
 [data-krew-dashboard-motion="true"][data-krew-summary-stage] > * {
   margin-top: 0 !important;
 }
@@ -20,12 +18,10 @@
   order: 0;
 }
 
-/* Inside the Dashboard, related blocks breathe less than full page sections. */
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] > div > [class~="space-y-6"] > * + * {
   margin-top: 1.125rem !important;
 }
 
-/* The hero already carries strong visual separation; avoid a blank spacer below it. */
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-hero="true"] > .h-8 {
   height: 1.125rem !important;
 }
@@ -34,12 +30,11 @@
   height: .75rem !important;
 }
 
-/* Keep explanatory/utility links visually attached to the action area. */
 [data-krew-dashboard-motion="true"] nav[aria-label="Accès aux informations du voyage"] {
   margin-top: .875rem !important;
 }
 
-/* Formation + choices: the group is still one of the main pieces of information. */
+/* Formation + choices: the group remains one of the main pieces of information. */
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #group-section,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #group-section {
   order: 1;
@@ -84,23 +79,79 @@
   margin-top: .75rem !important;
 }
 
-/* Headings and their explanatory copy stay grouped instead of creating a second
- * large vertical break inside a section. */
+/* --------------------------------------------------------------------------
+ * One section-title language across Résumé.
+ * Group + Costs use the same title size, icon size, baseline and sage underline.
+ * -------------------------------------------------------------------------- */
 [data-krew-dashboard-motion="true"] #group-section,
 [data-krew-dashboard-motion="true"] #hub-cost-split {
   row-gap: .875rem;
+}
+
+[data-krew-dashboard-motion="true"] #group-section h2,
+[data-krew-dashboard-motion="true"] #hub-cost-split h2 {
+  font-size: 28px !important;
+  line-height: 1.02 !important;
+  font-weight: 400 !important;
+}
+
+[data-krew-dashboard-motion="true"] #group-section h2::first-letter,
+[data-krew-dashboard-motion="true"] #hub-cost-split h2::first-letter {
+  line-height: inherit;
+}
+
+/* Heading rows: same vertical alignment and same gap around the structural icon. */
+[data-krew-dashboard-motion="true"] #group-section h2.parent,
+[data-krew-dashboard-motion="true"] #hub-cost-split h2.parent {
+  align-items: center;
+}
+
+[data-krew-dashboard-motion="true"] #group-section h2 ~ *,
+[data-krew-dashboard-motion="true"] #hub-cost-split h2 ~ * {
+  vertical-align: middle;
+}
+
+[data-krew-dashboard-motion="true"] #group-section h2 + *,
+[data-krew-dashboard-motion="true"] #hub-cost-split h2 + * {
+  margin-top: 0;
+}
+
+/* Only the structural KrewIcon attached to each h2 is normalized. */
+[data-krew-dashboard-motion="true"] #group-section h2.parent svg,
+[data-krew-dashboard-motion="true"] #hub-cost-split h2.parent svg,
+[data-krew-dashboard-motion="true"] #group-section h2 ~ svg,
+[data-krew-dashboard-motion="true"] #hub-cost-split h2 ~ svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Existing markup puts icon and h2 in the same inline-flex wrapper. */
+[data-krew-dashboard-motion="true"] #group-section h2:where(:not(:first-child)),
+[data-krew-dashboard-motion="true"] #hub-cost-split h2:where(:not(:first-child)) {
+  margin-left: 0;
+}
+
+[data-krew-dashboard-motion="true"] #group-section h2,
+[data-krew-dashboard-motion="true"] #hub-cost-split h2 {
+  transform: translateY(.5px);
+}
+
+/* Same underline footprint on both section titles. The group underline keeps its
+ * dedicated draw animation; the cost underline simply occupies the same visual size. */
+[data-krew-dashboard-motion="true"] #group-section .krew-group-title-underline,
+[data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
+  display: block;
+  width: 170px !important;
+  height: 10px !important;
+  margin-top: .25rem !important;
+  opacity: .9 !important;
 }
 
 [data-krew-dashboard-motion="true"] #group-section > div:first-of-type + ul {
   padding-top: 0 !important;
 }
 
-/* Once a destination exists, Membres du groupe stays available but becomes denser. */
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section h2,
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section h2 {
-  font-size: 26px !important;
-}
-
+/* Keep roster density adaptive without shrinking the section identity itself. */
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section > div.absolute img,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section > div.absolute img {
   width: 48px !important;
@@ -113,14 +164,18 @@
   padding-bottom: .45rem !important;
 }
 
-/* Before destination choice, costs may exist but remain supporting information. */
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #hub-cost-split h2,
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #hub-cost-split h2 {
-  font-size: 25px !important;
+/* Participant rows follow one alignment grid: initial/name on the left, metadata
+ * and actions on the right. Avoid accidental vertical jumps between role variants. */
+[data-krew-dashboard-motion="true"] #group-section ul > li {
+  align-items: center !important;
 }
 
-/* After destination choice, questionnaire completion is still accessible through
- * the existing links, but no longer dominates the active-action panel. */
+[data-krew-dashboard-motion="true"] #group-section ul > li > div:first-child {
+  align-items: center !important;
+}
+
+/* Once a destination exists, questionnaire completion remains accessible but no
+ * longer dominates the active-action panel. */
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] [data-krew-dashboard-root="true"] div.grid:has([data-krew-dashboard-progress-fill="true"]),
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] [data-krew-dashboard-root="true"] div.grid:has([data-krew-dashboard-progress-fill="true"]),
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] [data-krew-dashboard-root="true"] div.grid:has([data-krew-dashboard-progress-fill="true"]),
@@ -128,12 +183,31 @@
   display: none !important;
 }
 
-/* The utility links remain present, but become deliberately secondary once the
- * actual trip is taking shape. */
 [data-krew-summary-stage="destination"] nav[aria-label="Accès aux informations du voyage"],
 [data-krew-summary-stage="organized"] nav[aria-label="Accès aux informations du voyage"] {
   font-size: .8125rem;
   opacity: .82;
+}
+
+/* Post-it balance: keep the physical note for the trip name in the hero. The
+ * stage annotation becomes handwriting on the page instead of a second taped note
+ * immediately afterwards. This preserves KREW character without stacking papers. */
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] [data-krew-note="post-it"] {
+  max-width: 15rem !important;
+  padding: .15rem .25rem !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: hsl(var(--primary)) !important;
+  transform: rotate(-1deg) !important;
+}
+
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] [data-krew-note="post-it"] > span[aria-hidden] {
+  display: none !important;
+}
+
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] [data-krew-note="post-it"] > div {
+  font-size: .94rem !important;
+  line-height: 1.15 !important;
 }
 
 @media (min-width: 640px) {
@@ -148,14 +222,20 @@
   [data-krew-dashboard-motion="true"] nav[aria-label="Accès aux informations du voyage"] {
     margin-top: 1rem !important;
   }
+
+  [data-krew-dashboard-motion="true"] #group-section h2,
+  [data-krew-dashboard-motion="true"] #hub-cost-split h2 {
+    font-size: 30px !important;
+  }
+
+  [data-krew-dashboard-motion="true"] #group-section .krew-group-title-underline,
+  [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
+    width: 210px !important;
+    height: 11px !important;
+  }
 }
 
 @media (max-width: 639px) {
-  [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section h2,
-  [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section h2 {
-    font-size: 25px !important;
-  }
-
   [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section > div.absolute img,
   [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section > div.absolute img {
     width: 44px !important;
