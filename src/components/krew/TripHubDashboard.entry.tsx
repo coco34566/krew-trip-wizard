@@ -14,9 +14,11 @@ import { TripLifecycleProvider } from "@/lib/krew/trip-lifecycle-context";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { trackProductEventOnce, type ProductAnalyticsProperties } from "@/lib/product-analytics";
 import "@/styles/krew-product-motion-refinement.css";
+import "@/styles/krew-summary-hierarchy.css";
 import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
 
 type Props = ComponentProps<typeof TripHubDashboardLegacy>;
+type SummaryStage = "formation" | "choices" | "destination" | "organized" | "live" | "completed";
 
 function setCompletedGroupSectionReadOnly(completed: boolean) {
   if (typeof document === "undefined") return () => {};
@@ -46,13 +48,14 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
   };
 }
 
-function enableDashboardMotion(root: HTMLElement) {
+function enableDashboardMotion(root: HTMLElement, summaryStage: SummaryStage) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Résumé continues after TripHubDashboard with sibling sections such as
-  // Membres du groupe and Répartition des coûts. Their common wrapper must own
-  // the observer so the whole page follows one choreography.
+  // Membres du groupe and Répartition des coûts. Their common wrapper owns both
+  // the visual hierarchy and the single landing-inspired choreography.
   const scope = root.parentElement ?? root;
   scope.dataset.krewDashboardMotion = "true";
+  scope.dataset.krewSummaryStage = summaryStage;
 
   const nodes = Array.from(
     scope.querySelectorAll<HTMLElement>(
@@ -78,6 +81,7 @@ function enableDashboardMotion(root: HTMLElement) {
 
   const cleanup = () => {
     delete scope.dataset.krewDashboardMotion;
+    delete scope.dataset.krewSummaryStage;
     nodes.forEach((node) => {
       node.classList.remove("krew-reveal");
       delete node.dataset.revealed;
@@ -90,7 +94,9 @@ function enableDashboardMotion(root: HTMLElement) {
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        (entry.target as HTMLElement).dataset.revealed = entry.isIntersecting ? "true" : "false";
+        if (!entry.isIntersecting) return;
+        (entry.target as HTMLElement).dataset.revealed = "true";
+        observer.unobserve(entry.target);
       });
     },
     { threshold: 0.12, rootMargin: "0px 0px -7% 0px" },
@@ -131,6 +137,18 @@ export function TripHubDashboard(props: Props) {
   });
   const completed = lifecycle === "completed";
   const isCreator = Boolean(props.viewerUserId && props.viewerUserId === trip?.owner_id);
+  const hasCurrentItinerary = !itineraryStale && Boolean(trip?.group_itinerary?.days?.length);
+  const summaryStage: SummaryStage = completed
+    ? "completed"
+    : lifecycle === "live"
+      ? "live"
+      : props.destinationSelected
+        ? hasCurrentItinerary
+          ? "organized"
+          : "destination"
+        : datesLocked || props.profileReady || props.profileValidated
+          ? "choices"
+          : "formation";
 
   const responseState = getDashboardResponseState({
     progressReady,
@@ -220,14 +238,14 @@ export function TripHubDashboard(props: Props) {
 
     let cleanup = () => {};
     const frame = window.requestAnimationFrame(() => {
-      cleanup = enableDashboardMotion(root);
+      cleanup = enableDashboardMotion(root, summaryStage);
     });
 
     return () => {
       window.cancelAnimationFrame(frame);
       cleanup();
     };
-  }, [props.tripId, responseReady]);
+  }, [props.tripId, responseReady, summaryStage]);
 
   const suppressPreparationChrome = completed || !responseReady;
 
@@ -237,6 +255,7 @@ export function TripHubDashboard(props: Props) {
         ref={rootRef}
         data-trip-lifecycle={lifecycle}
         data-response-progress={responseState.state}
+        data-krew-summary-stage={summaryStage}
         data-krew-dashboard-root="true"
       >
         {completed ? (
