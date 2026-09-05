@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { searchAccommodationPlaces } from "@/lib/accommodation-place-search.functions";
 import { cn } from "@/lib/utils";
 
 export type AccommodationPlaceSelection = {
@@ -72,12 +74,14 @@ export function AccommodationPlaceAutocomplete({
   className,
   destinationHint,
 }: Props) {
+  const searchPlaces = useServerFn(searchAccommodationPlaces);
   const [query, setQuery] = useState(value);
   const [items, setItems] = useState<NominatimHit[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const skipNextSearchRef = useRef(false);
+  const requestIdRef = useRef(0);
 
   useEffect(() => setQuery(value), [value]);
 
@@ -99,53 +103,41 @@ export function AccommodationPlaceAutocomplete({
     }
 
     const trimmed = query.trim();
-    if (trimmed.length < 3) {
+    if (trimmed.length < 2) {
       setItems([]);
       setOpen(false);
       setLoading(false);
       return;
     }
 
-    const controller = new AbortController();
+    const requestId = ++requestIdRef.current;
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const text = destinationHint ? `${trimmed}, ${destinationHint}` : trimmed;
-        const url = new URL("https://nominatim.openstreetmap.org/search");
-        url.searchParams.set("format", "jsonv2");
-        url.searchParams.set("q", text);
-        url.searchParams.set("addressdetails", "1");
-        url.searchParams.set("extratags", "1");
-        url.searchParams.set("namedetails", "1");
-        url.searchParams.set("limit", "8");
-        url.searchParams.set("accept-language", "fr");
+        const payload = (await searchPlaces({
+          data: { query: trimmed, destinationHint: destinationHint || null },
+        })) as NominatimHit[];
+        if (requestId !== requestIdRef.current) return;
 
-        const response = await fetch(url.toString(), {
-          signal: controller.signal,
-          headers: { "User-Agent": "KrewGroupTripPlanner/1.0" },
-        });
-        if (!response.ok) throw new Error("Nominatim API error");
-        const payload = (await response.json()) as NominatimHit[];
-        if (controller.signal.aborted) return;
         const useful = payload.filter((hit) => Number.isFinite(Number(hit.lat)) && Number.isFinite(Number(hit.lon)));
         const preferred = useful.filter(isUsefulPlace);
         setItems((preferred.length ? preferred : useful).slice(0, 8));
         setOpen(true);
       } catch (error) {
-        if ((error as Error)?.name === "AbortError") return;
+        if (requestId !== requestIdRef.current) return;
         console.error("Accommodation autocomplete error", error);
         setItems([]);
         setOpen(false);
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (requestId === requestIdRef.current) setLoading(false);
       }
-    }, 400);
+    }, 350);
 
     return () => {
       clearTimeout(timer);
-      controller.abort();
+      requestIdRef.current += 1;
     };
-  }, [query, destinationHint]);
+  }, [query, destinationHint, searchPlaces]);
 
   function pick(hit: NominatimHit) {
     const name = displayName(hit);
@@ -161,6 +153,7 @@ export function AccommodationPlaceAutocomplete({
     };
 
     skipNextSearchRef.current = true;
+    requestIdRef.current += 1;
     setItems([]);
     setOpen(false);
     setQuery(name);
@@ -187,7 +180,7 @@ export function AccommodationPlaceAutocomplete({
       </div>
 
       {open && items.length > 0 ? (
-        <ul className="absolute z-40 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border bg-card py-1 text-left shadow-lg">
+        <ul className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-border bg-card py-1 text-left shadow-lg">
           {items.map((hit) => {
             const name = displayName(hit);
             const city = cityName(hit);
