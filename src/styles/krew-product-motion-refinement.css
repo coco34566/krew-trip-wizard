@@ -131,7 +131,7 @@
 [data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw polyline,
 [data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw circle,
 [data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw rect {
-  animation: krew-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) forwards !important;
+  animation: krew-heading-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) forwards !important;
 }
 
 /* Parcours: ONLY the KrewIcon beside each chapter title is drawn. */
@@ -150,19 +150,37 @@
 [data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw polyline,
 [data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw circle,
 [data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw rect {
-  animation: krew-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) forwards !important;
+  animation: krew-heading-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) forwards !important;
+}
+
+@keyframes krew-heading-icon-draw {
+  0% {
+    stroke-dasharray: 42;
+    stroke-dashoffset: 42;
+    opacity: .2;
+  }
+  92% {
+    stroke-dasharray: 42;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
 }
 
 /* 5 — Progress bars are the last beat. */
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-progress-fill="true"] {
   transition-delay: 300ms !important;
-  transition-duration: 1450ms !important;
+  transition-duration: 1500ms !important;
 }
 
 [data-krew-journey-root="true"] .krew-journey-progress-fill {
   animation: none !important;
   transition-delay: 300ms !important;
-  transition-duration: 1600ms !important;
+  transition-duration: 1700ms !important;
 }
 
 /* Current journey highlight remains soft sage and static. */
@@ -190,6 +208,7 @@
     animation: none !important;
     stroke-dasharray: none !important;
     stroke-dashoffset: 0 !important;
+    opacity: 1 !important;
   }
 
   [data-krew-dashboard-motion="true"] #group-section .krew-group-title-underline {

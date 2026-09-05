@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { KrewIcon, type KrewIconName } from "./KrewIcon";
@@ -77,25 +77,49 @@ function actionCta(action: KrewActionItem) {
 export function KrewActionStack({ primary, secondary = [], progress = [], className }: Props) {
   const primaryIcon = actionIcon(primary);
   const progressSignature = progress.map((item) => item.value).join("|");
+  const progressRef = useRef<HTMLDivElement>(null);
   const [showProgress, setShowProgress] = useState(false);
 
   useEffect(() => {
     setShowProgress(false);
+    const target = progressRef.current;
+    if (!target || progress.length === 0) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShowProgress(true);
+      return;
+    }
+
+    let firstFrame = 0;
     let secondFrame = 0;
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => setShowProgress(true));
-    });
+    const reveal = () => {
+      firstFrame = window.requestAnimationFrame(() => {
+        secondFrame = window.requestAnimationFrame(() => setShowProgress(true));
+      });
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        observer.disconnect();
+        reveal();
+      },
+      { threshold: 0.2, rootMargin: "0px 0px -6% 0px" },
+    );
+
+    observer.observe(target);
+
     return () => {
-      window.cancelAnimationFrame(firstFrame);
+      observer.disconnect();
+      if (firstFrame) window.cancelAnimationFrame(firstFrame);
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
     };
-  }, [progressSignature]);
-
+  }, [progressSignature, progress.length]);
 
   return (
     <section className={cn("space-y-6", className)}>
       {progress.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 sm:gap-5">
+        <div ref={progressRef} className="grid gap-3 sm:grid-cols-2 sm:gap-5">
           {progress.slice(0, 2).map((item) => {
             const value = Math.max(0, Math.min(100, item.value));
             const fillClass = item.tone === "plum" ? "bg-primary/70" : "bg-sage";
@@ -109,7 +133,6 @@ export function KrewActionStack({ primary, secondary = [], progress = [], classN
                     </span>
                   </div>
                   <span className="shrink-0 font-mono text-[12px] font-semibold text-foreground/70">
-                    {/* Response counts are explicit; the percentage remains only the visual bar width. */}
                     {item.current != null && item.total != null ? `${item.current}/${item.total}` : `${value}%`}
                   </span>
                 </div>
