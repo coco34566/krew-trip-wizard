@@ -277,9 +277,9 @@ export async function generateRecommendationsForTrip(
 }
 
 export async function getDestinationBriefContext(
-  ...args: Parameters<typeof getLegacyDestinationBriefContext>[0][],
+  ...args: Parameters<typeof getLegacyDestinationBriefContext>
 ): Promise<Awaited<ReturnType<typeof getLegacyDestinationBriefContext>>> {
-  const context = await getLegacyDestinationBriefContext(...(args as Parameters<typeof getLegacyDestinationBriefContext>));
+  const context = await getLegacyDestinationBriefContext(...args);
 
   return {
     ...context,
