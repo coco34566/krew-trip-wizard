@@ -21,7 +21,7 @@ import {
   generateGroupItinerary,
   getTripDetail,
   regenerateItinerarySlot,
-} from "@/lib/trips.functions";
+} from "@/lib/trips.functions.entry";
 
 export function planningTypeLabel(type: string | null | undefined) {
   const normalized = String(type ?? "").trim().toLowerCase();
@@ -38,6 +38,47 @@ export function planningTypeLabel(type: string | null | undefined) {
     hébergement: "Hébergement",
   };
   return labels[normalized] ?? (type ? String(type).replace(/_/g, " ").replace(/^./, (char) => char.toUpperCase()) : "");
+}
+
+export function planningLinkForSlot(slot: any, destination?: string | null) {
+  if (!slot || slot.type === "transport" || slot.type === "hotel") return null;
+
+  if (slot.booking?.provider === "getyourguide" && slot.booking?.url) {
+    return {
+      url: slot.booking.url as string,
+      label:
+        slot.booking.type === "exact_product"
+          ? "Voir les disponibilités sur GetYourGuide →"
+          : "Voir les activités sur GetYourGuide →",
+    };
+  }
+
+  if (!slot.url) return null;
+
+  if (slot.resourceKind === "booking") {
+    return { url: slot.url as string, label: "Voir / réserver →" };
+  }
+  if (slot.resourceKind === "ideas") {
+    return { url: slot.url as string, label: "Voir les idées →" };
+  }
+
+  // Un fallback Maps non vérifié ne doit jamais envoyer vers une recherche
+  // générique de l'activité quand la carte affiche déjà un lieu proposé précis.
+  // On recherche explicitement ce nom (+ destination) tout en signalant que
+  // le lieu reste à vérifier, au lieu de le présenter comme une adresse confirmée.
+  if (slot.resourceKind === "maps" && slot.verified !== true && slot.label) {
+    const query = [String(slot.label).trim(), String(destination || "").trim()]
+      .filter(Boolean)
+      .join(", ");
+    if (query) {
+      return {
+        url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`,
+        label: "Rechercher ce lieu →",
+      };
+    }
+  }
+
+  return { url: slot.url as string, label: "Voir le lieu →" };
 }
 
 export function TripPlanningPage({ tripId }: { tripId: string }) {
@@ -124,6 +165,9 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
       endDate: trip.end_date ?? null,
     }) === "completed";
   const days = (trip.group_itinerary?.days ?? []) as any[];
+  const destination = String(
+    trip.group_itinerary?.destination || trip.group_logistics?.destination || "",
+  ).trim();
   const activityCost = computeItineraryActivitiesCost(days);
   const priceStatusLabel =
     activityCost.priceStatus === "verified"
@@ -230,6 +274,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                   const directPrice = Number(slot.pricePerPerson ?? slot.priceHint);
                   const hasDirectPrice = Number.isFinite(directPrice) && directPrice >= 0;
                   const typeLabel = planningTypeLabel(slot.type);
+                  const slotLink = planningLinkForSlot(slot, destination);
 
                   return (
                     <div
@@ -262,29 +307,14 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                             </p>
                           ) : null}
 
-                          {slot.booking?.provider === "getyourguide" && slot.booking?.url ? (
+                          {slotLink ? (
                             <a
-                              href={slot.booking.url}
+                              href={slotLink.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline"
                             >
-                              {slot.booking.type === "exact_product"
-                                ? "Voir les disponibilités sur GetYourGuide →"
-                                : "Voir les activités sur GetYourGuide →"}
-                            </a>
-                          ) : slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
-                            <a
-                              href={slot.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline"
-                            >
-                              {slot.resourceKind === "booking"
-                                ? "Voir / réserver →"
-                                : slot.resourceKind === "ideas"
-                                  ? "Voir les idées →"
-                                  : "Voir le lieu →"}
+                              {slotLink.label}
                             </a>
                           ) : null}
                         </div>

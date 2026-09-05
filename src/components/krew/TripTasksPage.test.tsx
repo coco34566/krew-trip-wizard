@@ -15,6 +15,14 @@ vi.mock("@tanstack/react-router", () => ({
 
 vi.mock("@tanstack/react-start", () => ({
   useServerFn: () => vi.fn(),
+  createMiddleware: () => ({ server: (handler: any) => handler }),
+  createServerFn: () => {
+    const chain: any = {};
+    chain.middleware = () => chain;
+    chain.inputValidator = () => chain;
+    chain.handler = (handler: any) => handler;
+    return chain;
+  },
 }));
 
 vi.mock("@tanstack/react-query", () => ({

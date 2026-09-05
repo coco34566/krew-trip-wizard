@@ -114,6 +114,31 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     });
   }
 
+  if (
+    tripRes.data.co_organizer_id &&
+    !partsList.some((participant: any) => participant.user_id === tripRes.data.co_organizer_id)
+  ) {
+    const coOrganizerPref = prefByUser.get(tripRes.data.co_organizer_id);
+    const ownerIndex = partsList.findIndex(
+      (participant: any) => participant.user_id === tripRes.data.owner_id,
+    );
+    const insertIndex = ownerIndex >= 0 ? ownerIndex + 1 : 0;
+    partsList.splice(insertIndex, 0, {
+      id: `co-organizer-${tripRes.data.co_organizer_id}`,
+      user_id: tripRes.data.co_organizer_id,
+      email: null,
+      display_name: "Co-organisateur·rice",
+      status: "accepte",
+      isStar: false,
+      hasAnswered: Boolean(coOrganizerPref),
+      hasAnsweredAvailability: availabilityUsers.has(tripRes.data.co_organizer_id),
+      answeredAt: coOrganizerPref
+        ? coOrganizerPref.updated_at || coOrganizerPref.submitted_at
+        : null,
+      departure_city: coOrganizerPref?.departure_city || " ",
+    });
+  }
+
   if (counts.secretStarExpected) {
     partsList.push({
       id: "star-secret-progress",

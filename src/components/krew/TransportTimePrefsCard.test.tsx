@@ -4,7 +4,17 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ savePrefs: vi.fn(), toastError: vi.fn(), getUser: vi.fn(), from: vi.fn() }));
-vi.mock("@tanstack/react-start", () => ({ useServerFn: () => mocks.savePrefs }));
+vi.mock("@tanstack/react-start", () => ({
+  useServerFn: () => mocks.savePrefs,
+  createMiddleware: () => ({ server: (handler: any) => handler }),
+  createServerFn: () => {
+    const chain: any = {};
+    chain.middleware = () => chain;
+    chain.inputValidator = () => chain;
+    chain.handler = (handler: any) => handler;
+    return chain;
+  },
+}));
 vi.mock("@/lib/trips.functions", () => ({ setMyTransportTimePrefs: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: mocks.toastError } }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { auth: { getUser: mocks.getUser }, from: mocks.from } }));
