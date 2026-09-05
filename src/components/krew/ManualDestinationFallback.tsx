@@ -47,16 +47,16 @@ export function ManualDestinationFallback({
   });
 
   return (
-    <div className="mt-6 w-full basis-full text-center sm:mt-7">
+    <div className="mt-8 w-full text-center sm:mt-10">
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-center gap-2 text-muted-foreground">
           <KrewIcon name="destination" tone="sage" size="sm" className="size-4" />
           <p className="font-display text-base font-normal text-foreground/80 sm:text-lg">
-            Vous avez déjà votre destination en tête ?
+            KREW n’a pas trouvé la bonne destination ?
           </p>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-          Cherche-la et sélectionne le bon endroit dans la liste pour continuer avec KREW.
+          Si votre groupe a déjà fait son choix, indiquez la destination pour continuer à organiser le voyage avec KREW.
         </p>
 
         <div className="mx-auto mt-3 flex max-w-xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">

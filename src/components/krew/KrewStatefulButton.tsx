@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ComponentProps } from "react";
+import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export function KrewStatefulButton({
 }: KrewStatefulButtonProps) {
   const [status, setStatus] = useState<StatefulStatus>("idle");
   const [manualDestinationTripId, setManualDestinationTripId] = useState<string | null>(null);
+  const [destinationSection, setDestinationSection] = useState<HTMLElement | null>(null);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionLabels = useRef({ loadingLabel, successLabel, errorLabel });
 
@@ -50,10 +52,12 @@ export function KrewStatefulButton({
       idleLabel === "Voir d’autres propositions" || idleLabel === "Voir les destinations";
     if (!isDestinationGenerationAction || typeof window === "undefined") {
       setManualDestinationTripId(null);
+      setDestinationSection(null);
       return;
     }
     const match = window.location.pathname.match(/^\/trips\/([^/]+)/);
     setManualDestinationTripId(match?.[1] ?? null);
+    setDestinationSection(document.getElementById("hub-destination"));
   }, [idleLabel]);
 
   async function run() {
@@ -102,9 +106,12 @@ export function KrewStatefulButton({
           </span>
         </span>
       </Button>
-      {manualDestinationTripId ? (
-        <ManualDestinationFallback tripId={manualDestinationTripId} />
-      ) : null}
+      {manualDestinationTripId && destinationSection
+        ? createPortal(
+            <ManualDestinationFallback tripId={manualDestinationTripId} />,
+            destinationSection,
+          )
+        : null}
     </Fragment>
   );
 }
