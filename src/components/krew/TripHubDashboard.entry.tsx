@@ -48,23 +48,41 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
 
 function enableDashboardMotion(root: HTMLElement) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const scope = root.parentElement ?? root;
+  scope.dataset.krewDashboardMotion = "true";
+
   const nodes = Array.from(
-    root.querySelectorAll<HTMLElement>(
-      "header, nav, [data-krew-dashboard-stage-note=\"true\"], section[id]",
+    scope.querySelectorAll<HTMLElement>(
+      "header, [data-krew-dashboard-stage-note=\"true\"], section[id]",
     ),
   );
+  const animatedIcons: HTMLElement[] = [];
 
   nodes.forEach((node) => {
     node.classList.add("krew-reveal");
-    node.style.setProperty("--krew-reveal-delay", "0ms");
     node.dataset.revealed = reduced ? "true" : "false";
-    node.querySelectorAll<HTMLElement>('svg[viewBox="0 0 24 24"]').forEach((icon, iconIndex) => {
-      icon.classList.add("krew-icon-draw");
-      icon.style.setProperty("--krew-icon-delay", `${180 + Math.min(iconIndex * 60, 300)}ms`);
-    });
+
+    // Only animate the pictogram that belongs to the section heading.
+    // Metadata, buttons, participant states and card icons remain static.
+    const heading = node.querySelector<HTMLHeadingElement>("h2, h3");
+    const candidate = heading?.previousElementSibling;
+    if (candidate instanceof SVGElement && candidate.getAttribute("viewBox") === "0 0 24 24") {
+      const icon = candidate as unknown as HTMLElement;
+      icon.classList.add("krew-structure-icon-draw");
+      animatedIcons.push(icon);
+    }
   });
 
-  if (reduced || nodes.length === 0) return () => {};
+  const cleanup = () => {
+    delete scope.dataset.krewDashboardMotion;
+    nodes.forEach((node) => {
+      node.classList.remove("krew-reveal");
+      delete node.dataset.revealed;
+    });
+    animatedIcons.forEach((icon) => icon.classList.remove("krew-structure-icon-draw"));
+  };
+
+  if (reduced || nodes.length === 0) return cleanup;
 
   const observer = new IntersectionObserver(
     (entries) => {
@@ -79,15 +97,7 @@ function enableDashboardMotion(root: HTMLElement) {
 
   return () => {
     observer.disconnect();
-    nodes.forEach((node) => {
-      node.classList.remove("krew-reveal");
-      node.style.removeProperty("--krew-reveal-delay");
-      delete node.dataset.revealed;
-      node.querySelectorAll<HTMLElement>(".krew-icon-draw").forEach((icon) => {
-        icon.classList.remove("krew-icon-draw");
-        icon.style.removeProperty("--krew-icon-delay");
-      });
-    });
+    cleanup();
   };
 }
 
