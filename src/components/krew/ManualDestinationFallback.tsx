@@ -75,7 +75,7 @@ export function ManualDestinationFallback({
               );
             }}
             placeholder="Chercher une ville ou un endroit…"
-            className="w-full text-left sm:max-w-sm"
+            className="w-full text-left text-sm [&_input]:text-sm [&_input::placeholder]:text-sm sm:max-w-sm"
           />
           <Button
             type="button"
