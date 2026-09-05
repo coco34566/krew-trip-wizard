@@ -77,6 +77,7 @@ export function AccommodationPlaceAutocomplete({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const skipNextSearchRef = useRef(false);
 
   useEffect(() => setQuery(value), [value]);
 
@@ -89,13 +90,23 @@ export function AccommodationPlaceAutocomplete({
   }, []);
 
   useEffect(() => {
+    if (skipNextSearchRef.current) {
+      skipNextSearchRef.current = false;
+      setItems([]);
+      setOpen(false);
+      setLoading(false);
+      return;
+    }
+
     const trimmed = query.trim();
     if (trimmed.length < 3) {
       setItems([]);
       setOpen(false);
+      setLoading(false);
       return;
     }
 
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
@@ -110,23 +121,30 @@ export function AccommodationPlaceAutocomplete({
         url.searchParams.set("accept-language", "fr");
 
         const response = await fetch(url.toString(), {
+          signal: controller.signal,
           headers: { "User-Agent": "KrewGroupTripPlanner/1.0" },
         });
         if (!response.ok) throw new Error("Nominatim API error");
         const payload = (await response.json()) as NominatimHit[];
+        if (controller.signal.aborted) return;
         const useful = payload.filter((hit) => Number.isFinite(Number(hit.lat)) && Number.isFinite(Number(hit.lon)));
         const preferred = useful.filter(isUsefulPlace);
         setItems((preferred.length ? preferred : useful).slice(0, 8));
         setOpen(true);
       } catch (error) {
+        if ((error as Error)?.name === "AbortError") return;
         console.error("Accommodation autocomplete error", error);
         setItems([]);
+        setOpen(false);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }, 400);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query, destinationHint]);
 
   function pick(hit: NominatimHit) {
@@ -141,10 +159,13 @@ export function AccommodationPlaceAutocomplete({
       longitude: Number(hit.lon),
       externalId: String(hit.place_id),
     };
+
+    skipNextSearchRef.current = true;
+    setItems([]);
+    setOpen(false);
     setQuery(name);
     onChange(name);
     onSelect(selection);
-    setOpen(false);
   }
 
   return (
