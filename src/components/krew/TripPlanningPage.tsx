@@ -62,11 +62,10 @@ export function planningLinkForSlot(slot: any, destination?: string | null) {
     return { url: slot.url as string, label: "Voir les idées →" };
   }
 
-  // Un lien Maps issu d'un fallback ne doit pas envoyer vers une recherche
+  // Un fallback Maps non vérifié ne doit jamais envoyer vers une recherche
   // générique de l'activité quand la carte affiche déjà un lieu proposé précis.
-  // Tant que ce lieu n'est pas vérifié, on ouvre explicitement une recherche
-  // sur SON nom (+ destination) et on le présente comme une recherche, pas
-  // comme une adresse confirmée.
+  // On recherche explicitement ce nom (+ destination) tout en signalant que
+  // le lieu reste à vérifier, au lieu de le présenter comme une adresse confirmée.
   if (slot.resourceKind === "maps" && slot.verified !== true && slot.label) {
     const query = [String(slot.label).trim(), String(destination || "").trim()]
       .filter(Boolean)
