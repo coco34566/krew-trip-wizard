@@ -81,7 +81,7 @@ describe("planning verified-place repair", () => {
     expect(repaired.usedCandidateIds).toContain("real-cascais-restaurant");
   });
 
-  it("keeps honest activity wording when no real place can be verified", async () => {
+  it("keeps a concrete AI venue and makes its fallback Maps link precise when no real place can be verified", async () => {
     const itinerary = {
       destination: "Côte de Cascais & Sintra",
       usedCandidateIds: [],
@@ -116,7 +116,7 @@ describe("planning verified-place repair", () => {
               category: "repas",
               venueFamily: "restaurant",
               searchIntent: "restaurant convivial centre Cascais",
-              label: "Nom IA non vérifié",
+              label: "Mar do Inferno",
               verified: false,
               source: "krew",
             },
@@ -132,9 +132,110 @@ describe("planning verified-place repair", () => {
 
     const slot = repaired.days[0].slots[0];
     expect(slot.verified).toBe(false);
-    expect(slot.label).toBe("Dîner convivial au centre");
-    expect(slot.label).not.toBe("Nom IA non vérifié");
-    expect(slot.url).toContain("restaurant%20convivial%20centre%20Cascais");
+    expect(slot.label).toBe("Mar do Inferno");
+    expect(slot.url).toContain("Mar%20do%20Inferno");
+    expect(slot.url).toContain("Cascais");
+  });
+
+  it("keeps a concrete AI venue usable even when all Geoapify pools are empty", async () => {
+    const itinerary = {
+      destination: "Côte de Cascais & Sintra",
+      usedCandidateIds: [],
+      placePools: {
+        "restaurant::catering.restaurant": [],
+      },
+      skeleton: {
+        days: [
+          {
+            day: 1,
+            slots: [
+              {
+                time: "20:00",
+                type: "resto",
+                category: "repas",
+                label: "Dîner convivial au centre",
+                searchIntent: "restaurant convivial centre Cascais",
+                venueFamily: "restaurant",
+              },
+            ],
+          },
+        ],
+      },
+      days: [
+        {
+          day: 1,
+          date: "2026-09-19",
+          slots: [
+            {
+              time: "20:00",
+              type: "resto",
+              category: "repas",
+              venueFamily: "restaurant",
+              searchIntent: "restaurant convivial centre Cascais",
+              label: "Hífen",
+              verified: false,
+              source: "krew",
+              url: "https://www.google.com/maps/search/?api=1&query=generic",
+              resourceKind: "maps",
+            },
+          ],
+        },
+      ],
+    };
+
+    const repaired = await repairPlanningVerifiedPlaces(itinerary);
+    const slot = repaired.days[0].slots[0];
+
+    expect(slot.label).toBe("Hífen");
+    expect(slot.verified).toBe(false);
+    expect(slot.resourceKind).toBe("maps");
+    expect(slot.url).toContain("H%C3%ADfen");
+    expect(repaired.telemetry.verifiedPlaceFallbackRepair).toBe(true);
+  });
+
+  it("falls back to honest activity wording when the AI label is not a concrete place", async () => {
+    const itinerary = {
+      destination: "Cascais",
+      usedCandidateIds: [],
+      placePools: { "restaurant::catering.restaurant": [realRestaurant] },
+      skeleton: {
+        days: [
+          {
+            day: 1,
+            slots: [
+              {
+                time: "20:00",
+                type: "resto",
+                category: "repas",
+                label: "Dîner convivial au centre",
+                venueFamily: "restaurant",
+              },
+            ],
+          },
+        ],
+      },
+      days: [
+        {
+          day: 1,
+          slots: [
+            {
+              time: "20:00",
+              type: "resto",
+              category: "repas",
+              venueFamily: "restaurant",
+              label: "Restaurant local",
+              verified: false,
+            },
+          ],
+        },
+      ],
+    };
+
+    const repaired = await repairPlanningVerifiedPlaces(itinerary, {
+      selectCandidate: async () => null,
+    });
+
+    expect(repaired.days[0].slots[0].label).toBe("Dîner convivial au centre");
   });
 
   it("does not touch self-guided or lodging moments", async () => {
