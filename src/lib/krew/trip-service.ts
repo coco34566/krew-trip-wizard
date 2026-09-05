@@ -183,21 +183,24 @@ async function materializeGroundedCandidatePool(
               Array.isArray(row.anchor_places) && row.anchor_places.length ? row.anchor_places : [name],
             verification_state: "estimated",
           } as any,
-          { onConflict: "source,external_id" },
+          { onConflict: "slug" },
         );
 
-        if (!upsert.error) {
-          created += 1;
-          existing.add(name.toLowerCase());
+        if (upsert.error) {
+          console.error("materializeGroundedCandidatePool upsert", name, upsert.error.message);
+          continue;
         }
-      } catch {
-        // One exploratory candidate must never block the whole recommendation run.
+
+        created += 1;
+        existing.add(name.toLowerCase());
+      } catch (error) {
+        console.error("materializeGroundedCandidatePool candidate", name, error);
       }
     }
 
     return created;
-  } catch {
-    // Candidate-pool enrichment is an optional pre-step; legacy generation remains the fallback.
+  } catch (error) {
+    console.error("materializeGroundedCandidatePool", error);
     return 0;
   }
 }
@@ -274,9 +277,9 @@ export async function generateRecommendationsForTrip(
 }
 
 export async function getDestinationBriefContext(
-  ...args: Parameters<typeof getLegacyDestinationBriefContext>
+  ...args: Parameters<typeof getLegacyDestinationBriefContext>[0][],
 ): Promise<Awaited<ReturnType<typeof getLegacyDestinationBriefContext>>> {
-  const context = await getLegacyDestinationBriefContext(...args);
+  const context = await getLegacyDestinationBriefContext(...(args as Parameters<typeof getLegacyDestinationBriefContext>));
 
   return {
     ...context,
