@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
@@ -10,13 +10,42 @@ import {
 } from "@/components/krew/AccommodationPlaceAutocomplete";
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
 import { Button } from "@/components/ui/button";
-import { selectManualAccommodation } from "@/lib/manual-accommodation.functions";
+import {
+  getManualAccommodationContext,
+  selectManualAccommodation,
+} from "@/lib/manual-accommodation.functions";
 
 export function ManualAccommodationFallback({ tripId }: { tripId: string }) {
   const selectManual = useServerFn(selectManualAccommodation);
+  const getContext = useServerFn(getManualAccommodationContext);
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<AccommodationPlaceSelection | null>(null);
   const [saved, setSaved] = useState(false);
+  const [destinationName, setDestinationName] = useState<string | null>(null);
+  const [destinationCountry, setDestinationCountry] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getContext({ data: { tripId } })
+      .then((result) => {
+        if (!active) return;
+        setDestinationName(result.destinationName ?? null);
+        setDestinationCountry(result.destinationCountry ?? null);
+      })
+      .catch(() => {
+        if (!active) return;
+        setDestinationName(null);
+        setDestinationCountry(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [getContext, tripId]);
+
+  const destinationHint = useMemo(
+    () => [destinationName, destinationCountry].filter(Boolean).join(", ") || null,
+    [destinationName, destinationCountry],
+  );
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -42,8 +71,16 @@ export function ManualAccommodationFallback({ tripId }: { tripId: string }) {
     },
     onError: (error: any) => {
       const message = String(error?.message || "");
+      if (message.includes("Hébergement hors destination")) {
+        toast.error(
+          destinationName
+            ? `Cet hébergement semble être en dehors de ${destinationName}. Choisis un établissement dans la destination sélectionnée.`
+            : "Cet hébergement semble être en dehors de la destination sélectionnée.",
+        );
+        return;
+      }
       toast.error(
-        message.includes("destination")
+        message.includes("Choisis d’abord une destination")
           ? "Choisis d’abord la destination du voyage."
           : "Impossible d’enregistrer cet hébergement pour le moment.",
       );
@@ -76,6 +113,7 @@ export function ManualAccommodationFallback({ tripId }: { tripId: string }) {
               setQuery(place.name);
               setSelection(place);
             }}
+            destinationHint={destinationHint}
             placeholder="Rechercher un hôtel, une maison ou une adresse…"
             className="w-full text-left text-sm [&_input]:text-sm [&_input::placeholder]:text-sm sm:max-w-sm"
           />
