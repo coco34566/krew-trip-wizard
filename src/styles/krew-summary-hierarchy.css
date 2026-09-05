@@ -6,7 +6,7 @@
 [data-krew-dashboard-motion="true"][data-krew-summary-stage] {
   display: flex;
   flex-direction: column;
-  gap: 1.625rem;
+  gap: 1.25rem;
 }
 
 /* Neutralize inherited route spacing: this file owns the vertical rhythm. */
@@ -19,19 +19,19 @@
 }
 
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] > div > [class~="space-y-6"] > * + * {
-  margin-top: 1.125rem !important;
+  margin-top: 1rem !important;
 }
 
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-hero="true"] > .h-8 {
-  height: 1.125rem !important;
+  height: 1rem !important;
 }
 
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-hero="true"] > .h-4 {
-  height: .75rem !important;
+  height: .625rem !important;
 }
 
 [data-krew-dashboard-motion="true"] nav[aria-label="Accès aux informations du voyage"] {
-  margin-top: .875rem !important;
+  margin-top: .75rem !important;
 }
 
 /* Formation + choices: the group remains one of the main pieces of information. */
@@ -44,7 +44,7 @@
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #hub-cost-split,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #hub-cost-split {
   order: 2;
-  margin-top: .25rem !important;
+  margin-top: 0 !important;
 }
 
 /* Destination chosen / organized: useful trip data takes precedence over roster detail. */
@@ -52,13 +52,13 @@
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #hub-cost-split {
   order: 1;
   margin-top: 0 !important;
-  padding-top: .125rem;
+  padding-top: 0;
 }
 
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section {
   order: 2;
-  margin-top: .25rem !important;
+  margin-top: 0 !important;
 }
 
 /* Live / completed keep the existing practical or consultation hierarchy. */
@@ -71,12 +71,12 @@
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] #hub-cost-split,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="completed"] #hub-cost-split {
   order: 2;
-  margin-top: .25rem !important;
+  margin-top: 0 !important;
 }
 
 [data-krew-dashboard-motion="true"][data-krew-summary-stage] > footer {
   order: 4;
-  margin-top: .75rem !important;
+  margin-top: .5rem !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -85,7 +85,7 @@
  * -------------------------------------------------------------------------- */
 [data-krew-dashboard-motion="true"] #group-section,
 [data-krew-dashboard-motion="true"] #hub-cost-split {
-  row-gap: .875rem;
+  row-gap: .75rem;
 }
 
 [data-krew-dashboard-motion="true"] #group-section h2,
@@ -96,9 +96,10 @@
   transform: none !important;
 }
 
-/* Group: first direct div is the otter, second is the heading block.
- * Costs: first direct div is the heading block. */
-[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child,
+/* Group: first direct div is the otter, second is the heading block. The actual
+ * icon + title row is one level deeper than the previous selector targeted.
+ * Costs: first direct div is the heading block and its first child is the title row. */
+[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child > div:first-child,
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div:first-child {
   display: inline-flex !important;
   align-items: center !important;
@@ -107,7 +108,7 @@
   min-height: 34px;
 }
 
-[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child > svg[viewBox="0 0 24 24"],
+[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child > div:first-child > svg[viewBox="0 0 24 24"],
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div:first-child > svg[viewBox="0 0 24 24"] {
   width: 22px !important;
   height: 22px !important;
@@ -115,13 +116,15 @@
   margin: 0 !important;
 }
 
-/* Same green title-mark footprint and same left anchor. */
+/* Same green title-mark footprint. Do not add a left margin here: the wave path
+ * itself starts inside its SVG viewBox, so the old +4px margin visibly pushed the
+ * green stroke to the right of the structural KrewIcon. */
 [data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > svg,
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
   display: block !important;
   width: 170px !important;
   height: 10px !important;
-  margin: .25rem 0 0 .25rem !important;
+  margin: .125rem 0 0 0 !important;
   opacity: .9 !important;
 }
 
@@ -169,7 +172,7 @@
 [data-krew-dashboard-motion="true"] #hub-cost-split {
   display: flex;
   flex-direction: column;
-  gap: .875rem;
+  gap: .75rem;
 }
 
 [data-krew-dashboard-motion="true"] #hub-cost-split > * {
@@ -178,7 +181,7 @@
 
 [data-krew-dashboard-motion="true"] #hub-cost-split > div.flex.justify-end {
   order: 3;
-  margin-top: .375rem !important;
+  margin-top: .25rem !important;
   padding-right: .25rem;
 }
 
@@ -210,15 +213,15 @@
 
 @media (min-width: 640px) {
   [data-krew-dashboard-motion="true"][data-krew-summary-stage] {
-    gap: 1.875rem;
+    gap: 1.5rem;
   }
 
   [data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] > div > [class~="space-y-6"] > * + * {
-    margin-top: 1.375rem !important;
+    margin-top: 1.125rem !important;
   }
 
   [data-krew-dashboard-motion="true"] nav[aria-label="Accès aux informations du voyage"] {
-    margin-top: 1rem !important;
+    margin-top: .875rem !important;
   }
 
   [data-krew-dashboard-motion="true"] #group-section h2,
