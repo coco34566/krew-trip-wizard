@@ -31,6 +31,7 @@ function enableJourneyMotion(root: HTMLElement) {
   const chapters = Array.from(root.querySelectorAll<HTMLElement>("ol > li"));
   const nodes = [...(header ? [header] : []), ...chapters];
   const animatedChapterIcons: HTMLElement[] = [];
+  const animatedChapterMarks: HTMLElement[] = [];
 
   nodes.forEach((node) => {
     node.classList.add("krew-reveal");
@@ -42,12 +43,21 @@ function enableJourneyMotion(root: HTMLElement) {
 
   chapters.forEach((chapter) => {
     const chapterHeading = chapter.querySelector<HTMLHeadingElement>("h2");
-    const chapterIcon = chapterHeading?.nextElementSibling;
-    if (chapterIcon instanceof SVGElement && chapterIcon.getAttribute("viewBox") === "0 0 24 24") {
-      const icon = chapterIcon as unknown as HTMLElement;
-      icon.classList.add("krew-chapter-icon-draw");
-      animatedChapterIcons.push(icon);
+    const chapterGraphic = chapterHeading?.nextElementSibling;
+    if (!(chapterGraphic instanceof SVGElement)) return;
+
+    const graphic = chapterGraphic as unknown as HTMLElement;
+    if (chapterGraphic.getAttribute("viewBox") === "0 0 24 24") {
+      graphic.classList.add("krew-chapter-icon-draw");
+      animatedChapterIcons.push(graphic);
+      return;
     }
+
+    // The final chapter uses a KrewMark heart rather than a KrewIcon.
+    // It is still a structural chapter-heading graphic and should follow the
+    // landing-style freehand draw without animating any other page marks.
+    graphic.classList.add("krew-draw-mark");
+    animatedChapterMarks.push(graphic);
   });
 
   const cleanup = () => {
@@ -58,6 +68,7 @@ function enableJourneyMotion(root: HTMLElement) {
     });
     if (heroMark) heroMark.classList.remove("krew-draw-mark");
     animatedChapterIcons.forEach((icon) => icon.classList.remove("krew-chapter-icon-draw"));
+    animatedChapterMarks.forEach((mark) => mark.classList.remove("krew-draw-mark"));
   };
 
   if (reduced || nodes.length === 0) return cleanup;
