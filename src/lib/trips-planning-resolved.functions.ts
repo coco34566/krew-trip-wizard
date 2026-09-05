@@ -10,6 +10,7 @@ import {
 import {
   buildVerifiedPlaceFallbackUrl,
   convertIntentToPlaceRequirements,
+  isConcretePlaceProposal,
   selectGeoapifyCandidate,
   type GeoapifyPlace,
   type PlaceRequirements,
@@ -112,20 +113,31 @@ function fallbackFamily(slot: any): string {
   return "local_experience";
 }
 
+function unverifiedFallbackSlot(slot: any, honestLabel: string, destination: string) {
+  const proposedLabel = String(slot?.label || "").trim();
+  const label = isConcretePlaceProposal(proposedLabel) ? proposedLabel : honestLabel;
+  const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
+    { name: label, address: destination || null },
+    destination || null,
+  );
+
+  return {
+    ...slot,
+    label,
+    verified: false,
+    source: "krew",
+    url: fallbackMapUrl,
+    resourceKind: fallbackMapUrl ? "maps" : slot?.resourceKind ?? null,
+  };
+}
+
 /**
- * Repairs the legacy planning output without inventing places.
+ * Repairs the legacy planning output without making Geoapify a hard dependency.
  *
- * The legacy generator first tries to verify Gemini's exact venue name. Its old
- * fallback then rejected every otherwise-valid Geoapify candidate when the real
- * venue had a different name. For regional destinations this could leave an
- * entire itinerary with generic Google Maps searches even though verified place
- * pools had already been fetched.
- *
- * This post-processing pass keeps exact verified matches intact, then resolves
- * each still-unverified external slot from the already-grounded Geoapify pools
- * using the slot intent. Only if no verified place is compatible do we keep a
- * generic search, and in that case we restore the honest activity wording from
- * the skeleton instead of displaying an unverified AI venue name as fact.
+ * Verified Geoapify matches enrich the planning when available. If verification
+ * is unavailable or no compatible candidate exists, the already-useful AI venue
+ * proposal is preserved and linked to a precise Maps search. Generic/non-place
+ * AI labels still fall back to the honest activity wording from the skeleton.
  */
 export async function repairPlanningVerifiedPlaces(
   itinerary: any,
@@ -156,7 +168,7 @@ export async function repairPlanningVerifiedPlaces(
         previousCoords = { latitude: Number(slot.latitude), longitude: Number(slot.longitude) };
       }
 
-      if (!shouldResolveRealPlace(slot) || allPlaces.length === 0) {
+      if (!shouldResolveRealPlace(slot)) {
         repairedSlots.push(slot);
         continue;
       }
@@ -167,6 +179,11 @@ export async function repairPlanningVerifiedPlaces(
         slot?.searchIntent || skeletonSlot?.searchIntent || honestLabel,
       ).trim();
       const venueFamily = fallbackFamily(slot);
+
+      if (allPlaces.length === 0) {
+        repairedSlots.push(unverifiedFallbackSlot(slot, honestLabel, destination));
+        continue;
+      }
 
       const req = convertIntentToPlaceRequirements(
         venueFamily,
@@ -218,18 +235,7 @@ export async function repairPlanningVerifiedPlaces(
         continue;
       }
 
-      const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
-        { name: searchIntent || honestLabel, address: destination || null },
-        destination || null,
-      );
-      repairedSlots.push({
-        ...slot,
-        label: honestLabel,
-        verified: false,
-        source: "krew",
-        url: fallbackMapUrl,
-        resourceKind: fallbackMapUrl ? "maps" : null,
-      });
+      repairedSlots.push(unverifiedFallbackSlot(slot, honestLabel, destination));
     }
 
     repairedDays.push({ ...day, slots: repairedSlots });
