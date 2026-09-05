@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isConcretePlaceProposal, resolveSearchIntentLocation } from "@/lib/krew/geoapify.server";
+import { destinationGeographyMatches } from "@/lib/krew/planning-map-geography";
 
 type Slot = Record<string, any>;
 type Day = { day?: number; date?: string; slots?: Slot[] };
@@ -45,7 +46,6 @@ async function resolveConcretePlaceLocation(
     }
 
     const payload = await response.json();
-    const normDestination = normalize(destination);
     const features = Array.isArray(payload?.features) ? payload.features : [];
 
     for (const hit of features) {
@@ -54,12 +54,10 @@ async function resolveConcretePlaceLocation(
       const lon = typeof props.lon === "number" ? props.lon : hit?.geometry?.coordinates?.[0];
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
 
-      const geography = normalize(
-        [props.city, props.municipality, props.county, props.state, props.formatted]
-          .filter(Boolean)
-          .join(" "),
-      );
-      if (!geography.includes(normDestination)) continue;
+      const geography = [props.city, props.municipality, props.county, props.state, props.formatted]
+        .filter(Boolean)
+        .join(" ");
+      if (!destinationGeographyMatches(destination, geography)) continue;
 
       const result = {
         latitude: Number(lat),
