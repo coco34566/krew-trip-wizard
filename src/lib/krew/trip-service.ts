@@ -31,6 +31,33 @@ function slugifyDestination(value: string) {
     .replace(/(^-|-$)/g, "");
 }
 
+export function buildGroundingQueries(row: {
+  name?: string | null;
+  country?: string | null;
+  anchor_places?: unknown;
+}): string[] {
+  const name = String(row.name ?? "").trim();
+  const country = String(row.country ?? "").trim();
+  const anchors = Array.isArray(row.anchor_places)
+    ? row.anchor_places.map((value) => String(value).trim()).filter(Boolean)
+    : [];
+  const ordered = [...anchors, name].filter(Boolean);
+  const seen = new Set<string>();
+  const queries: string[] = [];
+
+  for (const place of ordered) {
+    const key = place
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    queries.push(country ? `${place}, ${country}` : place);
+  }
+
+  return queries;
+}
+
 function candidateSemanticScore(row: any) {
   const activities = Array.isArray(row.activity_fit) ? row.activity_fit.length : 0;
   const environments = Array.isArray(row.environment_fit) ? row.environment_fit.length : 0;
@@ -121,8 +148,11 @@ async function materializeGroundedCandidatePool(
       if (!name || existing.has(name.toLowerCase())) continue;
 
       try {
-        const query = row.country ? `${name}, ${row.country}` : name;
-        const place = await geocodeDestination(query);
+        let place: Awaited<ReturnType<typeof geocodeDestination>> = null;
+        for (const query of buildGroundingQueries(row)) {
+          place = await geocodeDestination(query);
+          if (place) break;
+        }
         if (!place) continue;
 
         const climate = await fetchClimate(place.latitude, place.longitude).catch(() => null);
