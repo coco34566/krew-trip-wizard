@@ -1,4 +1,104 @@
-/* Product motion refinement: keep the landing choreography, but only animate semantic KrewIcons. */
+/*
+ * Canonical product choreography for Dashboard + Parcours.
+ * The landing is the reference: one scene settles first, then its hand-drawn details.
+ * This file intentionally overrides older experimental motion passes below it in the cascade.
+ */
+
+[data-krew-dashboard-root="true"],
+[data-krew-journey-root="true"] {
+  --krew-product-ease: cubic-bezier(.18,.74,.24,1);
+  --krew-product-mark-delay: 180ms;
+  --krew-product-icon-delay: 260ms;
+}
+
+/* 1. ONE scene reveal. No page-wide stagger: each block starts when it enters the viewport. */
+[data-krew-dashboard-root="true"] .krew-reveal,
+[data-krew-journey-root="true"] .krew-reveal {
+  opacity: .82 !important;
+  transform: translate3d(0, 24px, 0) scale(.985) !important;
+  transition:
+    opacity 560ms ease-out 0ms,
+    transform 860ms var(--krew-product-ease) 0ms !important;
+  transition-delay: 0ms !important;
+  animation: none !important;
+  will-change: opacity, transform;
+}
+
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"],
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] {
+  opacity: 1 !important;
+  transform: translate3d(0, 0, 0) scale(1) !important;
+}
+
+/* Stage note follows the same settle, with only a tiny paper-like rotation. */
+[data-krew-dashboard-root="true"] [data-krew-dashboard-stage-note="true"].krew-reveal {
+  transform: translate3d(0, 20px, 0) rotate(1deg) scale(.985) !important;
+  transform-origin: 70% 50%;
+}
+
+[data-krew-dashboard-root="true"] [data-krew-dashboard-stage-note="true"].krew-reveal[data-revealed="true"] {
+  transform: translate3d(0, 0, 0) rotate(0) scale(1) !important;
+}
+
+/* 2. Remove the competing perpetual/independent effects from previous passes. */
+[data-krew-dashboard-root="true"] [data-krew-dashboard-hero="true"],
+[data-krew-dashboard-root="true"] [data-krew-dashboard-photo="true"],
+[data-krew-dashboard-root="true"] [data-krew-dashboard-hero="true"] h1,
+[data-krew-journey-root="true"] [data-krew-journey-hero="true"],
+[data-krew-journey-root="true"] [data-krew-journey-progress="true"],
+[data-krew-journey-root="true"] [data-krew-journey-progress="true"] .font-display,
+[data-krew-journey-root="true"] [data-krew-journey-progress="true"] img,
+[data-krew-journey-root="true"] .krew-journey-roadmap-sparkle,
+[data-krew-journey-root="true"] [data-krew-current-step="true"] > div:first-child > div,
+[data-krew-journey-root="true"] [data-krew-current-step="true"] h3 {
+  animation: none !important;
+}
+
+/* Keep the dashboard photo alive through composition, not through continuous drifting. */
+[data-krew-dashboard-root="true"] [data-krew-dashboard-photo="true"] {
+  transform: none !important;
+}
+
+/* 3. Hand-drawn marks arrive after the block has started settling, as on the landing. */
+[data-krew-dashboard-root="true"] .krew-reveal .krew-draw-mark path,
+[data-krew-dashboard-root="true"] .krew-reveal .krew-draw-mark line,
+[data-krew-dashboard-root="true"] .krew-reveal .krew-draw-mark polyline,
+[data-krew-dashboard-root="true"] .krew-reveal .krew-draw-mark circle,
+[data-krew-dashboard-root="true"] .krew-reveal .krew-draw-mark rect,
+[data-krew-journey-root="true"] .krew-reveal .krew-draw-mark path,
+[data-krew-journey-root="true"] .krew-reveal .krew-draw-mark line,
+[data-krew-journey-root="true"] .krew-reveal .krew-draw-mark polyline,
+[data-krew-journey-root="true"] .krew-reveal .krew-draw-mark circle,
+[data-krew-journey-root="true"] .krew-reveal .krew-draw-mark rect {
+  stroke-dasharray: 110;
+  stroke-dashoffset: 110;
+  animation: none !important;
+}
+
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark path,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark line,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark polyline,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark circle,
+[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark rect,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark path,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark line,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark polyline,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark circle,
+[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-draw-mark rect {
+  animation: krew-mark-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-mark-delay) forwards !important;
+}
+
+/* The dedicated Membres du groupe underline uses the same second beat. */
+[data-krew-dashboard-root="true"] #group-section .krew-group-title-underline {
+  clip-path: inset(0 100% 0 0) !important;
+  animation: none !important;
+}
+
+[data-krew-dashboard-root="true"] #group-section.krew-reveal[data-revealed="true"] .krew-group-title-underline {
+  animation: krew-dashboard-wave-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-mark-delay) forwards !important;
+}
+
+/* 4. Pictograms are drawn, never popped/scaled/rotated. */
 [data-krew-dashboard-root="true"] .krew-icon-draw,
 [data-krew-journey-root="true"] .krew-icon-draw {
   opacity: 1 !important;
@@ -6,7 +106,21 @@
   animation: none !important;
 }
 
-/* The landing draws the icon strokes themselves; preserve that behaviour on product pages. */
+[data-krew-dashboard-root="true"] .krew-icon-draw path,
+[data-krew-dashboard-root="true"] .krew-icon-draw line,
+[data-krew-dashboard-root="true"] .krew-icon-draw polyline,
+[data-krew-dashboard-root="true"] .krew-icon-draw circle,
+[data-krew-dashboard-root="true"] .krew-icon-draw rect,
+[data-krew-journey-root="true"] .krew-icon-draw path,
+[data-krew-journey-root="true"] .krew-icon-draw line,
+[data-krew-journey-root="true"] .krew-icon-draw polyline,
+[data-krew-journey-root="true"] .krew-icon-draw circle,
+[data-krew-journey-root="true"] .krew-icon-draw rect {
+  stroke-dasharray: 42;
+  stroke-dashoffset: 42;
+  animation: none !important;
+}
+
 [data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw path,
 [data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw line,
 [data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw polyline,
@@ -17,10 +131,22 @@
 [data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw polyline,
 [data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw circle,
 [data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] .krew-icon-draw rect {
-  animation: krew-icon-draw 950ms cubic-bezier(.32,0,.18,1) var(--krew-icon-delay, 170ms) forwards !important;
+  animation: krew-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-icon-delay, var(--krew-product-icon-delay)) forwards !important;
 }
 
-/* Restore the current-step highlighter to the softer sage used before the motion pass. */
+/* 5. Progress bars are the final beat, after scene + marks. */
+[data-krew-dashboard-root="true"] [data-krew-dashboard-progress-fill="true"] {
+  transition-delay: 260ms !important;
+  transition-duration: 1450ms !important;
+}
+
+[data-krew-journey-root="true"] .krew-journey-progress-fill {
+  animation: none !important;
+  transition-delay: 260ms !important;
+  transition-duration: 1600ms !important;
+}
+
+/* Current journey highlight stays exactly the soft sage visual language, with no motion. */
 [data-krew-journey-root="true"] [data-krew-current-step="true"] .relative.inline-block > svg[viewBox="0 0 100 64"] {
   color: hsl(var(--sage) / .68) !important;
   opacity: .78 !important;
@@ -28,29 +154,32 @@
   animation: none !important;
 }
 
-/* Keep the current-step node alive without tinting its freehand highlight. */
-[data-krew-journey-root="true"] [data-krew-current-step="true"] > div:first-child > div {
-  animation-duration: 3.2s;
-}
-
-/* Lower sections should feel closer to the landing: a little more travel, still restrained. */
-[data-krew-dashboard-root="true"] .krew-reveal,
-[data-krew-journey-root="true"] .krew-reveal {
-  transform: translate3d(0, 28px, 0) scale(.982);
-  transition-duration: 620ms, 900ms, 900ms;
-}
-
-[data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"],
-[data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] {
-  transform: translate3d(0, 0, 0) scale(1);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  [data-krew-dashboard-root="true"] .krew-icon-draw,
-  [data-krew-journey-root="true"] .krew-icon-draw,
-  [data-krew-journey-root="true"] [data-krew-current-step="true"] .relative.inline-block > svg[viewBox="0 0 100 64"] {
-    animation: none !important;
+  [data-krew-dashboard-root="true"] .krew-reveal,
+  [data-krew-dashboard-root="true"] .krew-reveal[data-revealed="true"],
+  [data-krew-journey-root="true"] .krew-reveal,
+  [data-krew-journey-root="true"] .krew-reveal[data-revealed="true"] {
     opacity: 1 !important;
     transform: none !important;
+    transition: none !important;
+  }
+
+  [data-krew-dashboard-root="true"] .krew-icon-draw *,
+  [data-krew-journey-root="true"] .krew-icon-draw *,
+  [data-krew-dashboard-root="true"] .krew-draw-mark *,
+  [data-krew-journey-root="true"] .krew-draw-mark * {
+    animation: none !important;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+
+  [data-krew-dashboard-root="true"] #group-section .krew-group-title-underline {
+    clip-path: none !important;
+    animation: none !important;
+  }
+
+  [data-krew-dashboard-root="true"] [data-krew-dashboard-progress-fill="true"],
+  [data-krew-journey-root="true"] .krew-journey-progress-fill {
+    transition: none !important;
   }
 }

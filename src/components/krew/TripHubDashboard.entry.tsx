@@ -54,13 +54,13 @@ function enableDashboardMotion(root: HTMLElement) {
     ),
   );
 
-  nodes.forEach((node, index) => {
+  nodes.forEach((node) => {
     node.classList.add("krew-reveal");
-    node.style.setProperty("--krew-reveal-delay", `${Math.min(index * 70, 280)}ms`);
+    node.style.setProperty("--krew-reveal-delay", "0ms");
     node.dataset.revealed = reduced ? "true" : "false";
     node.querySelectorAll<HTMLElement>('svg[viewBox="0 0 24 24"]').forEach((icon, iconIndex) => {
       icon.classList.add("krew-icon-draw");
-      icon.style.setProperty("--krew-icon-delay", `${170 + Math.min(iconIndex * 70, 420)}ms`);
+      icon.style.setProperty("--krew-icon-delay", `${180 + Math.min(iconIndex * 60, 300)}ms`);
     });
   });
 
