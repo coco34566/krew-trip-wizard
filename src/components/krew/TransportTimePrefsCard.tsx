@@ -85,25 +85,57 @@ export function TransportTimePrefsCard({ tripId }: Props) {
   });
 
   return (
-    <section className="space-y-3 border-y border-border/45 py-4">
+    <section className="space-y-3 border-b border-border/45 pb-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-        <div className="flex items-center gap-2"><KrewIcon name="time" tone="plum" size="sm" className="size-4 shrink-0" /><h3 className="font-display text-[19px] font-normal text-foreground">Mes créneaux</h3></div>
-        <p className="text-[12px] leading-relaxed text-muted-foreground">Les deux horaires utiles pour chercher tes trajets.</p>
+        <div className="flex items-center gap-2">
+          <KrewIcon name="time" tone="plum" size="sm" className="size-4 shrink-0" />
+          <h3 className="font-display text-[19px] font-normal text-foreground">Mes créneaux</h3>
+        </div>
+        <p className="text-[12px] leading-relaxed text-muted-foreground">
+          Les deux horaires utiles pour chercher tes trajets.
+        </p>
       </div>
       {isMyPrefsError ? (
-        <div role="alert" className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 text-[13px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div
+          role="alert"
+          className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 text-[13px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between"
+        >
           <span>Impossible de charger tes créneaux pour le moment.</span>
-          <Button type="button" variant="outline" size="sm" className="min-h-10 shrink-0" onClick={() => void refetchMyPrefs()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-10 shrink-0"
+            onClick={() => void refetchMyPrefs()}
+          >
             Réessayer
           </Button>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
-          <label className="space-y-1.5"><span className="block text-[12px] font-semibold text-foreground">Aller · disponible dès</span><Input type="time" className="h-9 min-h-9 rounded-[9px] border-border/55 text-sm font-mono" value={earliest} onChange={(e) => setEarliest(e.target.value)} disabled={isMyPrefsLoading} /></label>
-          <label className="space-y-1.5"><span className="block text-[12px] font-semibold text-foreground">Retour · rentré avant</span><Input type="time" className="h-9 min-h-9 rounded-[9px] border-border/55 text-sm font-mono" value={latest} onChange={(e) => setLatest(e.target.value)} disabled={isMyPrefsLoading} /></label>
+        <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3 sm:grid-cols-[140px_140px_auto] sm:gap-x-4">
+          <label className="min-w-0 space-y-1.5">
+            <span className="block text-[12px] font-semibold text-foreground">Aller · disponible dès</span>
+            <Input
+              type="time"
+              className="h-9 min-h-9 w-full max-w-[150px] rounded-[9px] border-border/55 px-3 text-sm font-mono"
+              value={earliest}
+              onChange={(e) => setEarliest(e.target.value)}
+              disabled={isMyPrefsLoading}
+            />
+          </label>
+          <label className="min-w-0 space-y-1.5">
+            <span className="block text-[12px] font-semibold text-foreground">Retour · rentré avant</span>
+            <Input
+              type="time"
+              className="h-9 min-h-9 w-full max-w-[150px] rounded-[9px] border-border/55 px-3 text-sm font-mono"
+              value={latest}
+              onChange={(e) => setLatest(e.target.value)}
+              disabled={isMyPrefsLoading}
+            />
+          </label>
           <KrewStatefulButton
             size="sm"
-            className="w-full sm:w-auto"
+            className="col-span-2 w-auto justify-self-start px-5 sm:col-span-1 sm:justify-self-auto"
             idleLabel="Enregistrer"
             loadingLabel="Enregistrement…"
             successLabel="Enregistré"
