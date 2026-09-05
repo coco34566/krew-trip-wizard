@@ -31,9 +31,9 @@ function enableJourneyMotion(root: HTMLElement) {
   const chapters = Array.from(root.querySelectorAll<HTMLElement>("ol > li"));
   const nodes = [...(header ? [header] : []), ...chapters];
 
-  nodes.forEach((node, index) => {
+  nodes.forEach((node) => {
     node.classList.add("krew-reveal");
-    node.style.setProperty("--krew-reveal-delay", `${Math.min(index * 90, 360)}ms`);
+    node.style.setProperty("--krew-reveal-delay", "0ms");
     node.dataset.revealed = reduced ? "true" : "false";
   });
 
@@ -42,7 +42,7 @@ function enableJourneyMotion(root: HTMLElement) {
   chapters.forEach((chapter) => {
     chapter.querySelectorAll<HTMLElement>('svg[viewBox="0 0 24 24"]').forEach((icon, iconIndex) => {
       icon.classList.add("krew-icon-draw");
-      icon.style.setProperty("--krew-icon-delay", `${170 + Math.min(iconIndex * 70, 420)}ms`);
+      icon.style.setProperty("--krew-icon-delay", `${180 + Math.min(iconIndex * 60, 300)}ms`);
     });
   });
 
