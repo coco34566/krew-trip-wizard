@@ -81,7 +81,7 @@
 
 /* --------------------------------------------------------------------------
  * One structural heading grid across Résumé.
- * The real markup is targeted: icon + h2 live in the same inline-flex wrapper.
+ * Target the real title rows only; do not style nested card/content wrappers.
  * -------------------------------------------------------------------------- */
 [data-krew-dashboard-motion="true"] #group-section,
 [data-krew-dashboard-motion="true"] #hub-cost-split {
@@ -96,9 +96,10 @@
   transform: none !important;
 }
 
-/* Same left edge, baseline, gap and icon footprint for the two section headings. */
-[data-krew-dashboard-motion="true"] #group-section div:has(> h2),
-[data-krew-dashboard-motion="true"] #hub-cost-split div:has(> h2) {
+/* Group: first direct div is the otter, second is the heading block.
+ * Costs: first direct div is the heading block. */
+[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child,
+[data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div:first-child {
   display: inline-flex !important;
   align-items: center !important;
   gap: .5rem !important;
@@ -106,16 +107,16 @@
   min-height: 34px;
 }
 
-[data-krew-dashboard-motion="true"] #group-section div:has(> h2) > svg[viewBox="0 0 24 24"],
-[data-krew-dashboard-motion="true"] #hub-cost-split div:has(> h2) > svg[viewBox="0 0 24 24"] {
+[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child > svg[viewBox="0 0 24 24"],
+[data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div:first-child > svg[viewBox="0 0 24 24"] {
   width: 22px !important;
   height: 22px !important;
   flex: 0 0 22px !important;
   margin: 0 !important;
 }
 
-/* Same sage underline footprint and same left anchor under both titles. */
-[data-krew-dashboard-motion="true"] #group-section > div:first-of-type > svg,
+/* Same green title-mark footprint and same left anchor. */
+[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > svg,
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
   display: block !important;
   width: 170px !important;
@@ -124,12 +125,12 @@
   opacity: .9 !important;
 }
 
-/* Répartition des coûts must stay clean: no pale plum shape behind its title. */
-[data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child div:has(> h2) > div.absolute {
+/* Répartition des coûts stays clean: no pale plum organic shape around the title. */
+[data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div:first-child > div.absolute {
   display: none !important;
 }
 
-[data-krew-dashboard-motion="true"] #group-section > div:first-of-type + ul {
+[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) + ul {
   padding-top: 0 !important;
 }
 
@@ -163,9 +164,8 @@
   min-height: 28px;
 }
 
-/* Cost block follows the same spacing rhythm as the group block. Its post-it is
- * deliberately placed after the useful cost content so decorative notes do not
- * stack at the top of the page. */
+/* Cost block follows the same spacing rhythm as the group block. Keep the taped
+ * post-it exactly as designed, but place it after the useful cost content. */
 [data-krew-dashboard-motion="true"] #hub-cost-split {
   display: flex;
   flex-direction: column;
@@ -176,17 +176,21 @@
   margin-top: 0 !important;
 }
 
-[data-krew-dashboard-motion="true"] #hub-cost-split > .flex.justify-end {
+[data-krew-dashboard-motion="true"] #hub-cost-split > div.flex.justify-end {
   order: 3;
-  margin-top: .25rem !important;
+  margin-top: .375rem !important;
   padding-right: .25rem;
 }
 
-/* Restore the real taped post-it styling. Only correct its page position: the
- * previous pass had turned it into handwriting and kept a negative bottom margin. */
+/* Keep the stage note as a real taped KREW post-it. Only remove the old negative
+ * overlap so it has a deliberate place between navigation/actions and content. */
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] {
   margin-bottom: 0 !important;
   padding-inline: .25rem !important;
+}
+
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] [data-krew-note="post-it"] {
+  max-width: 13rem;
 }
 
 /* Once a destination exists, questionnaire completion remains accessible but no
@@ -222,7 +226,7 @@
     font-size: 30px !important;
   }
 
-  [data-krew-dashboard-motion="true"] #group-section > div:first-of-type > svg,
+  [data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > svg,
   [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
     width: 210px !important;
     height: 11px !important;
@@ -237,5 +241,10 @@
 
   [data-krew-dashboard-motion="true"] #group-section ul > li {
     gap: .625rem !important;
+  }
+
+  /* Keep role/status information readable without making participant lines sprawl. */
+  [data-krew-dashboard-motion="true"] #group-section ul > li > div:last-child {
+    gap: .375rem !important;
   }
 }
