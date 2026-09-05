@@ -115,58 +115,34 @@
   animation: none !important;
 }
 
-/* Résumé: ONLY the KrewIcon structurally attached to a section title is drawn. */
-[data-krew-dashboard-motion="true"] .krew-structure-icon-draw path,
-[data-krew-dashboard-motion="true"] .krew-structure-icon-draw line,
-[data-krew-dashboard-motion="true"] .krew-structure-icon-draw polyline,
-[data-krew-dashboard-motion="true"] .krew-structure-icon-draw circle,
-[data-krew-dashboard-motion="true"] .krew-structure-icon-draw rect {
-  stroke-dasharray: 42 !important;
-  stroke-dashoffset: 42 !important;
+/* Structural heading icons stay fully rendered at all times. Their SVG is revealed as a whole. */
+[data-krew-dashboard-motion="true"] .krew-structure-icon-draw *,
+[data-krew-journey-root="true"] .krew-chapter-icon-draw * {
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
+  animation: none !important;
+  opacity: 1 !important;
+}
+
+[data-krew-dashboard-motion="true"] .krew-structure-icon-draw,
+[data-krew-journey-root="true"] .krew-chapter-icon-draw {
+  clip-path: inset(0 0 0 0);
+  opacity: 1 !important;
   animation: none !important;
 }
 
-[data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw path,
-[data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw line,
-[data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw polyline,
-[data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw circle,
-[data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw rect {
-  animation: krew-heading-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) forwards !important;
+[data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw,
+[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw {
+  animation: krew-heading-icon-reveal 760ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) both !important;
 }
 
-/* Parcours: ONLY the KrewIcon beside each chapter title is drawn. */
-[data-krew-journey-root="true"] .krew-chapter-icon-draw path,
-[data-krew-journey-root="true"] .krew-chapter-icon-draw line,
-[data-krew-journey-root="true"] .krew-chapter-icon-draw polyline,
-[data-krew-journey-root="true"] .krew-chapter-icon-draw circle,
-[data-krew-journey-root="true"] .krew-chapter-icon-draw rect {
-  stroke-dasharray: 42 !important;
-  stroke-dashoffset: 42 !important;
-  animation: none !important;
-}
-
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw path,
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw line,
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw polyline,
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw circle,
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw rect {
-  animation: krew-heading-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) forwards !important;
-}
-
-@keyframes krew-heading-icon-draw {
+@keyframes krew-heading-icon-reveal {
   0% {
-    stroke-dasharray: 42;
-    stroke-dashoffset: 42;
-    opacity: .2;
-  }
-  92% {
-    stroke-dasharray: 42;
-    stroke-dashoffset: 0;
-    opacity: 1;
+    clip-path: inset(0 100% 0 0);
+    opacity: .25;
   }
   100% {
-    stroke-dasharray: none;
-    stroke-dashoffset: 0;
+    clip-path: inset(0 0 0 0);
     opacity: 1;
   }
 }
@@ -191,6 +167,11 @@
   animation: none !important;
 }
 
+/* Résumé: remove the pale plum organic shape behind “Répartition des coûts”. */
+[data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div.relative.inline-flex > div.absolute {
+  display: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-krew-dashboard-motion="true"] .krew-reveal,
   [data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"],
@@ -201,11 +182,14 @@
     transition: none !important;
   }
 
+  [data-krew-dashboard-motion="true"] .krew-structure-icon-draw,
+  [data-krew-journey-root="true"] .krew-chapter-icon-draw,
   [data-krew-dashboard-motion="true"] .krew-structure-icon-draw *,
   [data-krew-journey-root="true"] .krew-chapter-icon-draw *,
   [data-krew-dashboard-motion="true"] .krew-draw-mark *,
   [data-krew-journey-root="true"] .krew-draw-mark * {
     animation: none !important;
+    clip-path: none !important;
     stroke-dasharray: none !important;
     stroke-dashoffset: 0 !important;
     opacity: 1 !important;
