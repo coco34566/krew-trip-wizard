@@ -7,6 +7,8 @@ import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 export type CitySelection = {
   /** Nom normalisé de la ville (ex. "Lyon") */
   city: string;
+  /** Pays retourné par le fournisseur, utile pour lever les homonymes */
+  country?: string;
   /** Code postal principal si connu */
   postalCode?: string;
   /** Identifiant fournisseur stable */
@@ -87,7 +89,7 @@ type Props = {
   id?: string;
   value: string;
   onChange: (cityName: string) => void;
-  /** Appelé quand une ville est choisie (avec aéroport auto si dispo) */
+  /** Appelé quand une ville est choisie (avec pays + aéroport auto si dispo) */
   onSelect?: (sel: CitySelection) => void;
   placeholder?: string;
   className?: string;
@@ -96,7 +98,7 @@ type Props = {
 /**
  * Autocomplete villes Européennes via OpenStreetMap Nominatim
  * - saisie code postal ou nom de ville → suggestions
- * - sélection → ville normalisée + aéroport IATA auto si connu
+ * - sélection → ville normalisée + pays + aéroport IATA auto si connu
  */
 export function CityAutocomplete({
   id,
@@ -189,6 +191,7 @@ export function CityAutocomplete({
     setOpen(false);
 
     const selection: CitySelection = { city };
+    if (c.pays !== undefined) selection.country = c.pays;
     if (postal !== undefined) selection.postalCode = postal;
     if (c.code !== undefined) selection.code = c.code;
     if (ap?.iata !== undefined) selection.airportIata = ap.iata;
