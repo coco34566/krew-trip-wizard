@@ -33,11 +33,28 @@ function allowedDistanceKm(destinationType: string | null | undefined) {
   return 80;
 }
 
+async function getAdminClient() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin as any;
+}
+
 export const getManualAccommodationContext = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ tripId: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const selectedRecommendation = await context.supabase
+    const tripResult = await context.supabase
+      .from("trips")
+      .select("id, owner_id, co_organizer_id")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (tripResult.error) throw tripResult.error;
+    if (!tripResult.data) throw new Error("Voyage introuvable");
+    if (!isTripAdmin(tripResult.data, context.userId)) {
+      throw new Error("403 Forbidden");
+    }
+
+    const admin = await getAdminClient();
+    const selectedRecommendation = await admin
       .from("recommendations")
       .select("destination_id, destinations(name, country)")
       .eq("trip_id", data.tripId)
@@ -45,8 +62,10 @@ export const getManualAccommodationContext = createServerFn({ method: "POST" })
       .maybeSingle();
     if (selectedRecommendation.error) throw selectedRecommendation.error;
 
-    const destination = (selectedRecommendation.data as any)?.destinations;
-    if (!destination) return { destinationName: null, destinationCountry: null };
+    const destination = selectedRecommendation.data?.destinations as any;
+    if (!selectedRecommendation.data?.destination_id || !destination) {
+      return { destinationName: null, destinationCountry: null };
+    }
     return {
       destinationName: String(destination.name || "") || null,
       destinationCountry: String(destination.country || "") || null,
@@ -70,7 +89,8 @@ export const selectManualAccommodation = createServerFn({ method: "POST" })
       throw new Error("403 Forbidden: seul l’organisateur ou co-organisateur peut choisir l’hébergement");
     }
 
-    const selectedRecommendation = await supabase
+    const admin = await getAdminClient();
+    const selectedRecommendation = await admin
       .from("recommendations")
       .select("id, destination_id, destinations(name, country, latitude, longitude, destination_type)")
       .eq("trip_id", data.tripId)
@@ -81,7 +101,7 @@ export const selectManualAccommodation = createServerFn({ method: "POST" })
       throw new Error("Choisis d’abord une destination avant de renseigner l’hébergement");
     }
 
-    const destination = (selectedRecommendation.data as any).destinations as {
+    const destination = selectedRecommendation.data.destinations as {
       name?: string;
       country?: string;
       latitude?: number | null;
@@ -107,9 +127,6 @@ export const selectManualAccommodation = createServerFn({ method: "POST" })
         );
       }
     }
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as any;
 
     let accommodationId: string | null = null;
     if (data.externalId) {
