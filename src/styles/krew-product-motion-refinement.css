@@ -123,6 +123,7 @@
 [data-krew-dashboard-motion="true"] .krew-structure-icon-draw rect {
   stroke-dasharray: 42 !important;
   stroke-dashoffset: 42 !important;
+  animation: none !important;
 }
 
 [data-krew-dashboard-motion="true"] .krew-reveal[data-revealed="true"] .krew-structure-icon-draw path,
@@ -133,21 +134,22 @@
   animation: krew-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) forwards !important;
 }
 
-/* Parcours: ONLY the KrewIcon immediately beside each chapter h2 is drawn. */
-[data-krew-journey-root="true"] ol > li h2 + svg.krew-icon-draw path,
-[data-krew-journey-root="true"] ol > li h2 + svg.krew-icon-draw line,
-[data-krew-journey-root="true"] ol > li h2 + svg.krew-icon-draw polyline,
-[data-krew-journey-root="true"] ol > li h2 + svg.krew-icon-draw circle,
-[data-krew-journey-root="true"] ol > li h2 + svg.krew-icon-draw rect {
+/* Parcours: ONLY the KrewIcon beside each chapter title is drawn. */
+[data-krew-journey-root="true"] .krew-chapter-icon-draw path,
+[data-krew-journey-root="true"] .krew-chapter-icon-draw line,
+[data-krew-journey-root="true"] .krew-chapter-icon-draw polyline,
+[data-krew-journey-root="true"] .krew-chapter-icon-draw circle,
+[data-krew-journey-root="true"] .krew-chapter-icon-draw rect {
   stroke-dasharray: 42 !important;
   stroke-dashoffset: 42 !important;
+  animation: none !important;
 }
 
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] h2 + svg.krew-icon-draw path,
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] h2 + svg.krew-icon-draw line,
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] h2 + svg.krew-icon-draw polyline,
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] h2 + svg.krew-icon-draw circle,
-[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] h2 + svg.krew-icon-draw rect {
+[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw path,
+[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw line,
+[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw polyline,
+[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw circle,
+[data-krew-journey-root="true"] ol > li.krew-reveal[data-revealed="true"] .krew-chapter-icon-draw rect {
   animation: krew-icon-draw 900ms cubic-bezier(.32,0,.18,1) var(--krew-product-icon-delay) forwards !important;
 }
 
@@ -182,7 +184,7 @@
   }
 
   [data-krew-dashboard-motion="true"] .krew-structure-icon-draw *,
-  [data-krew-journey-root="true"] .krew-icon-draw *,
+  [data-krew-journey-root="true"] .krew-chapter-icon-draw *,
   [data-krew-dashboard-motion="true"] .krew-draw-mark *,
   [data-krew-journey-root="true"] .krew-draw-mark * {
     animation: none !important;
