@@ -48,6 +48,9 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
 
 function enableDashboardMotion(root: HTMLElement) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Résumé continues after TripHubDashboard with sibling sections such as
+  // Membres du groupe and Répartition des coûts. Their common wrapper must own
+  // the observer so the whole page follows one choreography.
   const scope = root.parentElement ?? root;
   scope.dataset.krewDashboardMotion = "true";
 
@@ -62,14 +65,14 @@ function enableDashboardMotion(root: HTMLElement) {
     node.classList.add("krew-reveal");
     node.dataset.revealed = reduced ? "true" : "false";
 
-    // Only animate the pictogram that belongs to the section heading.
-    // Metadata, buttons, participant states and card icons remain static.
-    const heading = node.querySelector<HTMLHeadingElement>("h2, h3");
-    const candidate = heading?.previousElementSibling;
-    if (candidate instanceof SVGElement && candidate.getAttribute("viewBox") === "0 0 24 24") {
-      const icon = candidate as unknown as HTMLElement;
-      icon.classList.add("krew-structure-icon-draw");
-      animatedIcons.push(icon);
+    // Only the KrewIcon visually attached to the section heading is animated.
+    // Icons in rows, cards, buttons, metadata and participant states stay static.
+    const heading = node.querySelector<HTMLHeadingElement>("h2");
+    const headingGroup = heading?.parentElement ?? null;
+    const candidate = headingGroup?.querySelector<HTMLElement>('svg[viewBox="0 0 24 24"]') ?? null;
+    if (candidate) {
+      candidate.classList.add("krew-structure-icon-draw");
+      animatedIcons.push(candidate);
     }
   });
 
