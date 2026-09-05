@@ -2,8 +2,9 @@ import { Fragment, useEffect, useRef, useState, type ComponentProps } from "reac
 import { createPortal } from "react-dom";
 import { Loader2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { ManualAccommodationFallback } from "@/components/krew/ManualAccommodationFallback";
 import { ManualDestinationFallback } from "@/components/krew/ManualDestinationFallback";
+import { Button } from "@/components/ui/button";
 import { KrewMark } from "@/components/krew/visual-language";
 import { cn } from "@/lib/utils";
 
@@ -35,8 +36,9 @@ export function KrewStatefulButton({
   ...props
 }: KrewStatefulButtonProps) {
   const [status, setStatus] = useState<StatefulStatus>("idle");
-  const [manualDestinationTripId, setManualDestinationTripId] = useState<string | null>(null);
-  const [destinationSection, setDestinationSection] = useState<HTMLElement | null>(null);
+  const [tripId, setTripId] = useState<string | null>(null);
+  const [fallbackSection, setFallbackSection] = useState<HTMLElement | null>(null);
+  const [fallbackKind, setFallbackKind] = useState<"destination" | "accommodation" | null>(null);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actionLabels = useRef({ loadingLabel, successLabel, errorLabel });
 
@@ -48,16 +50,29 @@ export function KrewStatefulButton({
   );
 
   useEffect(() => {
-    const isDestinationGenerationAction =
+    if (typeof window === "undefined") return;
+
+    const isDestinationAction =
       idleLabel === "Voir d’autres propositions" || idleLabel === "Voir les destinations";
-    if (!isDestinationGenerationAction || typeof window === "undefined") {
-      setManualDestinationTripId(null);
-      setDestinationSection(null);
+    const isAccommodationAction =
+      idleLabel === "Rechercher des hébergements" || idleLabel === "Actualiser les offres";
+
+    if (!isDestinationAction && !isAccommodationAction) {
+      setTripId(null);
+      setFallbackSection(null);
+      setFallbackKind(null);
       return;
     }
+
     const match = window.location.pathname.match(/^\/trips\/([^/]+)/);
-    setManualDestinationTripId(match?.[1] ?? null);
-    setDestinationSection(document.getElementById("hub-destination"));
+    setTripId(match?.[1] ?? null);
+    if (isDestinationAction) {
+      setFallbackKind("destination");
+      setFallbackSection(document.getElementById("hub-destination"));
+    } else {
+      setFallbackKind("accommodation");
+      setFallbackSection(document.getElementById("hub-logistics"));
+    }
   }, [idleLabel]);
 
   async function run() {
@@ -106,11 +121,11 @@ export function KrewStatefulButton({
           </span>
         </span>
       </Button>
-      {manualDestinationTripId && destinationSection
-        ? createPortal(
-            <ManualDestinationFallback tripId={manualDestinationTripId} />,
-            destinationSection,
-          )
+      {tripId && fallbackSection && fallbackKind === "destination"
+        ? createPortal(<ManualDestinationFallback tripId={tripId} />, fallbackSection)
+        : null}
+      {tripId && fallbackSection && fallbackKind === "accommodation"
+        ? createPortal(<ManualAccommodationFallback tripId={tripId} />, fallbackSection)
         : null}
     </Fragment>
   );
