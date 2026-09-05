@@ -7,51 +7,92 @@
 [data-krew-dashboard-motion="true"][data-krew-summary-stage] {
   display: flex;
   flex-direction: column;
+  gap: 1.625rem;
+}
+
+/* The route wrapper used Tailwind space-y before becoming a flex hierarchy.
+ * Neutralize those inherited sibling margins so spacing comes from one rhythm. */
+[data-krew-dashboard-motion="true"][data-krew-summary-stage] > * {
+  margin-top: 0 !important;
 }
 
 [data-krew-dashboard-motion="true"][data-krew-summary-stage] > [data-krew-dashboard-root="true"] {
   order: 0;
 }
 
+/* Inside the Dashboard, related blocks breathe less than full page sections. */
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] > div > [class~="space-y-6"] > * + * {
+  margin-top: 1.125rem !important;
+}
+
+/* The hero already carries strong visual separation; avoid a blank spacer below it. */
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-hero="true"] > .h-8 {
+  height: 1.125rem !important;
+}
+
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-hero="true"] > .h-4 {
+  height: .75rem !important;
+}
+
+/* Keep explanatory/utility links visually attached to the action area. */
+[data-krew-dashboard-motion="true"] nav[aria-label="Accès aux informations du voyage"] {
+  margin-top: .875rem !important;
+}
+
 /* Formation + choices: the group is still one of the main pieces of information. */
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #group-section,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #group-section {
   order: 1;
+  margin-top: 0 !important;
 }
 
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #hub-cost-split,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #hub-cost-split {
   order: 2;
-  margin-top: 2.25rem !important;
+  margin-top: .25rem !important;
 }
 
 /* Destination chosen / organized: useful trip data takes precedence over roster detail. */
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #hub-cost-split,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #hub-cost-split {
   order: 1;
-  margin-top: 1.5rem !important;
-  padding-top: .25rem;
+  margin-top: 0 !important;
+  padding-top: .125rem;
 }
 
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section {
   order: 2;
-  margin-top: 2rem !important;
+  margin-top: .25rem !important;
 }
 
 /* Live / completed keep the existing practical or consultation hierarchy. */
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] #group-section,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="completed"] #group-section {
   order: 1;
+  margin-top: 0 !important;
 }
 
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] #hub-cost-split,
 [data-krew-dashboard-motion="true"][data-krew-summary-stage="completed"] #hub-cost-split {
   order: 2;
+  margin-top: .25rem !important;
 }
 
 [data-krew-dashboard-motion="true"][data-krew-summary-stage] > footer {
   order: 4;
+  margin-top: .75rem !important;
+}
+
+/* Headings and their explanatory copy stay grouped instead of creating a second
+ * large vertical break inside a section. */
+[data-krew-dashboard-motion="true"] #group-section,
+[data-krew-dashboard-motion="true"] #hub-cost-split {
+  row-gap: .875rem;
+}
+
+[data-krew-dashboard-motion="true"] #group-section > div:first-of-type + ul {
+  padding-top: 0 !important;
 }
 
 /* Once a destination exists, Membres du groupe stays available but becomes denser. */
@@ -93,6 +134,20 @@
 [data-krew-summary-stage="organized"] nav[aria-label="Accès aux informations du voyage"] {
   font-size: .8125rem;
   opacity: .82;
+}
+
+@media (min-width: 640px) {
+  [data-krew-dashboard-motion="true"][data-krew-summary-stage] {
+    gap: 1.875rem;
+  }
+
+  [data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] > div > [class~="space-y-6"] > * + * {
+    margin-top: 1.375rem !important;
+  }
+
+  [data-krew-dashboard-motion="true"] nav[aria-label="Accès aux informations du voyage"] {
+    margin-top: 1rem !important;
+  }
 }
 
 @media (max-width: 639px) {
