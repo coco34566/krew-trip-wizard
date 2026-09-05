@@ -1,0 +1,93 @@
+name: One-off planning place resolution fix
+
+on:
+  push:
+    branches:
+      - fix/transport-mobile-compact-preferences
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/transport-mobile-compact-preferences
+          fetch-depth: 0
+      - name: Patch planning resolution and add regression tests
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          source_path = Path('src/lib/trips.functions.ts')
+          source = source_path.read_text()
+
+          old_candidate = 'if (candidate && isSameSuggestedPlace(sp, candidate.name)) {'
+          old_search_candidate = 'if (searchCandidate && isSameSuggestedPlace(sp, searchCandidate.name)) {'
+          if source.count(old_candidate) != 1:
+              raise SystemExit(f'Expected exactly one primary pool gate, found {source.count(old_candidate)}')
+          if source.count(old_search_candidate) != 1:
+              raise SystemExit(f'Expected exactly one targeted pool gate, found {source.count(old_search_candidate)}')
+
+          source = source.replace(
+              old_candidate,
+              '// The exact Gemini place was already tried above. If it could not be verified,\n          // prefer the best real Geoapify place matching the slot intent instead of rejecting\n          // every verified candidate merely because its name differs from the AI suggestion.\n          if (candidate) {',
+              1,
+          )
+          source = source.replace(
+              old_search_candidate,
+              '// Same rule for the targeted refresh: a verified intent-compatible place is\n              // better than falling back to a generic map search for an unverified AI name.\n              if (searchCandidate) {',
+              1,
+          )
+
+          old_fallback = '''    label: (s as any).suggestedPlace || s.label,
+    detail:
+      s.detail ||
+      s.searchIntent ||
+      "Réservation ou choix du lieu à préciser",
+    address: null,
+    verified: false,
+    source: "krew",
+    url: fallbackMapUrl || null,'''
+          new_fallback = '''    // No place was verified: keep the honest activity label instead of presenting
+    // an AI-suggested venue name as if KREW had validated it.
+    label: s.label,
+    detail:
+      s.detail ||
+      s.searchIntent ||
+      "Réservation ou choix du lieu à préciser",
+    address: null,
+    verified: false,
+    source: "krew",
+    url: fallbackMapUrl || null,'''
+          if source.count(old_fallback) != 1:
+              raise SystemExit(f'Expected exactly one unverified fallback block, found {source.count(old_fallback)}')
+          source = source.replace(old_fallback, new_fallback, 1)
+
+          old_map = '''            const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
+              { name: s.label, address: destName },
+              destName,
+            );'''
+          new_map = '''            const fallbackMapUrl = buildVerifiedPlaceFallbackUrl(
+              { name: s.searchIntent || s.label, address: destName },
+              destName,
+            );'''
+          if source.count(old_map) != 1:
+              raise SystemExit(f'Expected exactly one generic map fallback, found {source.count(old_map)}')
+          source = source.replace(old_map, new_map, 1)
+
+          source_path.write_text(source)
+
+          test_path = Path('src/lib/__tests__/planning-place-resolution-contract.test.ts')
+          test_path.write_text('''import { readFileSync } from "node:fs";\nimport { describe, expect, it } from "vitest";\n\nimport { buildFinalItinerarySlot } from "../trips.functions";\n\ndescribe("planning verified-place fallback contract", () => {\n  it("does not gate a verified Geoapify fallback on matching the unverified Gemini venue name", () => {\n    const source = readFileSync(new URL("../trips.functions.ts", import.meta.url), "utf8");\n\n    expect(source).not.toContain("candidate && isSameSuggestedPlace(sp, candidate.name)");\n    expect(source).not.toContain("searchCandidate && isSameSuggestedPlace(sp, searchCandidate.name)");\n    expect(source).toContain("if (candidate) {");\n    expect(source).toContain("if (searchCandidate) {");\n  });\n\n  it("never presents an unverified AI venue name as the chosen place", () => {\n    const slot = buildFinalItinerarySlot({\n      slot: {\n        moment: "Soir",\n        time: "20:00",\n        endTime: "22:00",\n        durationMinutes: 120,\n        type: "resto",\n        category: "repas",\n        venueFamily: "restaurant",\n        searchIntent: "restaurant festif tendance centre Cascais",\n        locationContext: "external",\n        label: "Dîner festif pour la future mariée",\n        suggestedPlace: "Restaurant IA non vérifié",\n        detail: "Une table festive.",\n      },\n      fallbackMapUrl: "https://www.google.com/maps/search/?api=1&query=restaurant%20festif%20Cascais",\n    });\n\n    expect(slot.verified).toBe(false);\n    expect(slot.label).toBe("Dîner festif pour la future mariée");\n    expect(slot.label).not.toBe("Restaurant IA non vérifié");\n  });\n});\n''')
+          PY
+          rm .github/workflows/oneoff-planning-resolution.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/trips.functions.ts src/lib/__tests__/planning-place-resolution-contract.test.ts .github/workflows/oneoff-planning-resolution.yml
+          git commit -m "fix: resolve planning slots to verified real places"
+          git push origin HEAD:fix/transport-mobile-compact-preferences
