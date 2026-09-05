@@ -30,6 +30,7 @@ function enableJourneyMotion(root: HTMLElement) {
   const heroMark = title?.parentElement?.querySelector<HTMLElement>("svg") ?? null;
   const chapters = Array.from(root.querySelectorAll<HTMLElement>("ol > li"));
   const nodes = [...(header ? [header] : []), ...chapters];
+  const animatedChapterIcons: HTMLElement[] = [];
 
   nodes.forEach((node) => {
     node.classList.add("krew-reveal");
@@ -40,13 +41,26 @@ function enableJourneyMotion(root: HTMLElement) {
   if (heroMark) heroMark.classList.add("krew-draw-mark");
 
   chapters.forEach((chapter) => {
-    chapter.querySelectorAll<HTMLElement>('svg[viewBox="0 0 24 24"]').forEach((icon, iconIndex) => {
+    const chapterHeading = chapter.querySelector<HTMLHeadingElement>("h2");
+    const chapterIcon = chapterHeading?.nextElementSibling;
+    if (chapterIcon instanceof SVGElement && chapterIcon.getAttribute("viewBox") === "0 0 24 24") {
+      const icon = chapterIcon as unknown as HTMLElement;
       icon.classList.add("krew-icon-draw");
-      icon.style.setProperty("--krew-icon-delay", `${180 + Math.min(iconIndex * 60, 300)}ms`);
-    });
+      animatedChapterIcons.push(icon);
+    }
   });
 
-  if (reduced || nodes.length === 0) return () => {};
+  const cleanup = () => {
+    nodes.forEach((node) => {
+      node.classList.remove("krew-reveal");
+      node.style.removeProperty("--krew-reveal-delay");
+      delete node.dataset.revealed;
+    });
+    if (heroMark) heroMark.classList.remove("krew-draw-mark");
+    animatedChapterIcons.forEach((icon) => icon.classList.remove("krew-icon-draw"));
+  };
+
+  if (reduced || nodes.length === 0) return cleanup;
 
   const observer = new IntersectionObserver(
     (entries) => {
@@ -61,18 +75,7 @@ function enableJourneyMotion(root: HTMLElement) {
 
   return () => {
     observer.disconnect();
-    nodes.forEach((node) => {
-      node.classList.remove("krew-reveal");
-      node.style.removeProperty("--krew-reveal-delay");
-      delete node.dataset.revealed;
-    });
-    if (heroMark) heroMark.classList.remove("krew-draw-mark");
-    chapters.forEach((chapter) => {
-      chapter.querySelectorAll<HTMLElement>(".krew-icon-draw").forEach((icon) => {
-        icon.classList.remove("krew-icon-draw");
-        icon.style.removeProperty("--krew-icon-delay");
-      });
-    });
+    cleanup();
   };
 }
 
