@@ -80,8 +80,8 @@
 }
 
 /* --------------------------------------------------------------------------
- * One section-title language across Résumé.
- * Group + Costs use the same title size, icon size, baseline and sage underline.
+ * One structural heading grid across Résumé.
+ * The real markup is targeted: icon + h2 live in the same inline-flex wrapper.
  * -------------------------------------------------------------------------- */
 [data-krew-dashboard-motion="true"] #group-section,
 [data-krew-dashboard-motion="true"] #hub-cost-split {
@@ -93,58 +93,40 @@
   font-size: 28px !important;
   line-height: 1.02 !important;
   font-weight: 400 !important;
+  transform: none !important;
 }
 
-[data-krew-dashboard-motion="true"] #group-section h2::first-letter,
-[data-krew-dashboard-motion="true"] #hub-cost-split h2::first-letter {
-  line-height: inherit;
+/* Same left edge, baseline, gap and icon footprint for the two section headings. */
+[data-krew-dashboard-motion="true"] #group-section div:has(> h2),
+[data-krew-dashboard-motion="true"] #hub-cost-split div:has(> h2) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: .5rem !important;
+  padding: .125rem .25rem !important;
+  min-height: 34px;
 }
 
-/* Heading rows: same vertical alignment and same gap around the structural icon. */
-[data-krew-dashboard-motion="true"] #group-section h2.parent,
-[data-krew-dashboard-motion="true"] #hub-cost-split h2.parent {
-  align-items: center;
+[data-krew-dashboard-motion="true"] #group-section div:has(> h2) > svg[viewBox="0 0 24 24"],
+[data-krew-dashboard-motion="true"] #hub-cost-split div:has(> h2) > svg[viewBox="0 0 24 24"] {
+  width: 22px !important;
+  height: 22px !important;
+  flex: 0 0 22px !important;
+  margin: 0 !important;
 }
 
-[data-krew-dashboard-motion="true"] #group-section h2 ~ *,
-[data-krew-dashboard-motion="true"] #hub-cost-split h2 ~ * {
-  vertical-align: middle;
-}
-
-[data-krew-dashboard-motion="true"] #group-section h2 + *,
-[data-krew-dashboard-motion="true"] #hub-cost-split h2 + * {
-  margin-top: 0;
-}
-
-/* Only the structural KrewIcon attached to each h2 is normalized. */
-[data-krew-dashboard-motion="true"] #group-section h2.parent svg,
-[data-krew-dashboard-motion="true"] #hub-cost-split h2.parent svg,
-[data-krew-dashboard-motion="true"] #group-section h2 ~ svg,
-[data-krew-dashboard-motion="true"] #hub-cost-split h2 ~ svg {
-  width: 22px;
-  height: 22px;
-}
-
-/* Existing markup puts icon and h2 in the same inline-flex wrapper. */
-[data-krew-dashboard-motion="true"] #group-section h2:where(:not(:first-child)),
-[data-krew-dashboard-motion="true"] #hub-cost-split h2:where(:not(:first-child)) {
-  margin-left: 0;
-}
-
-[data-krew-dashboard-motion="true"] #group-section h2,
-[data-krew-dashboard-motion="true"] #hub-cost-split h2 {
-  transform: translateY(.5px);
-}
-
-/* Same underline footprint on both section titles. The group underline keeps its
- * dedicated draw animation; the cost underline simply occupies the same visual size. */
-[data-krew-dashboard-motion="true"] #group-section .krew-group-title-underline,
+/* Same sage underline footprint and same left anchor under both titles. */
+[data-krew-dashboard-motion="true"] #group-section > div:first-of-type > svg,
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
-  display: block;
+  display: block !important;
   width: 170px !important;
   height: 10px !important;
-  margin-top: .25rem !important;
+  margin: .25rem 0 0 .25rem !important;
   opacity: .9 !important;
+}
+
+/* Répartition des coûts must stay clean: no pale plum shape behind its title. */
+[data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child div:has(> h2) > div.absolute {
+  display: none !important;
 }
 
 [data-krew-dashboard-motion="true"] #group-section > div:first-of-type + ul {
@@ -164,14 +146,47 @@
   padding-bottom: .45rem !important;
 }
 
-/* Participant rows follow one alignment grid: initial/name on the left, metadata
- * and actions on the right. Avoid accidental vertical jumps between role variants. */
-[data-krew-dashboard-motion="true"] #group-section ul > li {
+/* Participant rows use one alignment grid regardless of role/status. */
+[data-krew-dashboard-motion="true"] #group-section ul > li,
+[data-krew-dashboard-motion="true"] #group-section ul > li > div:first-child {
   align-items: center !important;
 }
 
-[data-krew-dashboard-motion="true"] #group-section ul > li > div:first-child {
+[data-krew-dashboard-motion="true"] #group-section ul > li > div:first-child > div:last-child > div:first-child {
+  column-gap: .5rem !important;
+  row-gap: .2rem !important;
+  line-height: 1.15;
+}
+
+[data-krew-dashboard-motion="true"] #group-section ul > li > div:last-child {
   align-items: center !important;
+  min-height: 28px;
+}
+
+/* Cost block follows the same spacing rhythm as the group block. Its post-it is
+ * deliberately placed after the useful cost content so decorative notes do not
+ * stack at the top of the page. */
+[data-krew-dashboard-motion="true"] #hub-cost-split {
+  display: flex;
+  flex-direction: column;
+  gap: .875rem;
+}
+
+[data-krew-dashboard-motion="true"] #hub-cost-split > * {
+  margin-top: 0 !important;
+}
+
+[data-krew-dashboard-motion="true"] #hub-cost-split > .flex.justify-end {
+  order: 3;
+  margin-top: .25rem !important;
+  padding-right: .25rem;
+}
+
+/* Restore the real taped post-it styling. Only correct its page position: the
+ * previous pass had turned it into handwriting and kept a negative bottom margin. */
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] {
+  margin-bottom: 0 !important;
+  padding-inline: .25rem !important;
 }
 
 /* Once a destination exists, questionnaire completion remains accessible but no
@@ -187,27 +202,6 @@
 [data-krew-summary-stage="organized"] nav[aria-label="Accès aux informations du voyage"] {
   font-size: .8125rem;
   opacity: .82;
-}
-
-/* Post-it balance: keep the physical note for the trip name in the hero. The
- * stage annotation becomes handwriting on the page instead of a second taped note
- * immediately afterwards. This preserves KREW character without stacking papers. */
-[data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] [data-krew-note="post-it"] {
-  max-width: 15rem !important;
-  padding: .15rem .25rem !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: hsl(var(--primary)) !important;
-  transform: rotate(-1deg) !important;
-}
-
-[data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] [data-krew-note="post-it"] > span[aria-hidden] {
-  display: none !important;
-}
-
-[data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] [data-krew-note="post-it"] > div {
-  font-size: .94rem !important;
-  line-height: 1.15 !important;
 }
 
 @media (min-width: 640px) {
@@ -228,7 +222,7 @@
     font-size: 30px !important;
   }
 
-  [data-krew-dashboard-motion="true"] #group-section .krew-group-title-underline,
+  [data-krew-dashboard-motion="true"] #group-section > div:first-of-type > svg,
   [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
     width: 210px !important;
     height: 11px !important;
@@ -239,5 +233,9 @@
   [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section > div.absolute img,
   [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section > div.absolute img {
     width: 44px !important;
+  }
+
+  [data-krew-dashboard-motion="true"] #group-section ul > li {
+    gap: .625rem !important;
   }
 }
