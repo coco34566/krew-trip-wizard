@@ -45,7 +45,7 @@ function enableJourneyMotion(root: HTMLElement) {
     const chapterIcon = chapterHeading?.nextElementSibling;
     if (chapterIcon instanceof SVGElement && chapterIcon.getAttribute("viewBox") === "0 0 24 24") {
       const icon = chapterIcon as unknown as HTMLElement;
-      icon.classList.add("krew-icon-draw");
+      icon.classList.add("krew-chapter-icon-draw");
       animatedChapterIcons.push(icon);
     }
   });
@@ -57,7 +57,7 @@ function enableJourneyMotion(root: HTMLElement) {
       delete node.dataset.revealed;
     });
     if (heroMark) heroMark.classList.remove("krew-draw-mark");
-    animatedChapterIcons.forEach((icon) => icon.classList.remove("krew-icon-draw"));
+    animatedChapterIcons.forEach((icon) => icon.classList.remove("krew-chapter-icon-draw"));
   };
 
   if (reduced || nodes.length === 0) return cleanup;
