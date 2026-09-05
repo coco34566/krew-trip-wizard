@@ -1,0 +1,108 @@
+/*
+ * Adaptive hierarchy for Résumé du voyage.
+ * This intentionally reuses the existing KREW components instead of creating
+ * stage-specific layouts. Only visual priority, spacing and sibling order move.
+ */
+
+[data-krew-dashboard-motion="true"][data-krew-summary-stage] {
+  display: flex;
+  flex-direction: column;
+}
+
+[data-krew-dashboard-motion="true"][data-krew-summary-stage] > [data-krew-dashboard-root="true"] {
+  order: 0;
+}
+
+/* Formation + choices: the group is still one of the main pieces of information. */
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #group-section,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #group-section {
+  order: 1;
+}
+
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #hub-cost-split,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #hub-cost-split {
+  order: 2;
+  margin-top: 2.25rem !important;
+}
+
+/* Destination chosen / organized: useful trip data takes precedence over roster detail. */
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #hub-cost-split,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #hub-cost-split {
+  order: 1;
+  margin-top: 1.5rem !important;
+  padding-top: .25rem;
+}
+
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section {
+  order: 2;
+  margin-top: 2rem !important;
+}
+
+/* Live / completed keep the existing practical or consultation hierarchy. */
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] #group-section,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="completed"] #group-section {
+  order: 1;
+}
+
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] #hub-cost-split,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="completed"] #hub-cost-split {
+  order: 2;
+}
+
+[data-krew-dashboard-motion="true"][data-krew-summary-stage] > footer {
+  order: 4;
+}
+
+/* Once a destination exists, Membres du groupe stays available but becomes denser. */
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section h2,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section h2 {
+  font-size: 26px !important;
+}
+
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section > div.absolute img,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section > div.absolute img {
+  width: 48px !important;
+}
+
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section ul > li,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section ul > li {
+  min-height: 42px !important;
+  padding-top: .45rem !important;
+  padding-bottom: .45rem !important;
+}
+
+/* Before destination choice, costs may exist but remain supporting information. */
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #hub-cost-split h2,
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #hub-cost-split h2 {
+  font-size: 25px !important;
+}
+
+/* After destination choice, questionnaire completion is still accessible through
+ * the existing links, but no longer dominates the active-action panel. */
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] [data-krew-dashboard-root="true"] div.grid:has([data-krew-dashboard-progress-fill="true"]),
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] [data-krew-dashboard-root="true"] div.grid:has([data-krew-dashboard-progress-fill="true"]),
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] [data-krew-dashboard-root="true"] div.grid:has([data-krew-dashboard-progress-fill="true"]),
+[data-krew-dashboard-motion="true"][data-krew-summary-stage="completed"] [data-krew-dashboard-root="true"] div.grid:has([data-krew-dashboard-progress-fill="true"]) {
+  display: none !important;
+}
+
+/* The utility links remain present, but become deliberately secondary once the
+ * actual trip is taking shape. */
+[data-krew-summary-stage="destination"] nav[aria-label="Accès aux informations du voyage"],
+[data-krew-summary-stage="organized"] nav[aria-label="Accès aux informations du voyage"] {
+  font-size: .8125rem;
+  opacity: .82;
+}
+
+@media (max-width: 639px) {
+  [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section h2,
+  [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section h2 {
+    font-size: 25px !important;
+  }
+
+  [data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section > div.absolute img,
+  [data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section > div.absolute img {
+    width: 44px !important;
+  }
+}
