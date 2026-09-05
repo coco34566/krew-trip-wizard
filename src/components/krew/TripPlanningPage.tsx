@@ -21,7 +21,7 @@ import {
   generateGroupItinerary,
   getTripDetail,
   regenerateItinerarySlot,
-} from "@/lib/trips.functions";
+} from "@/lib/trips.functions.entry";
 
 export function planningTypeLabel(type: string | null | undefined) {
   const normalized = String(type ?? "").trim().toLowerCase();
@@ -30,12 +30,10 @@ export function planningTypeLabel(type: string | null | undefined) {
     activité: "Activité",
     resto: "Restaurant",
     restaurant: "Restaurant",
-    libre: "Temps libre",
-    temps_libre: "Temps libre",
     bar: "Bar",
+    libre: "Temps libre",
     transport: "Transport",
     hotel: "Hébergement",
-    hébergement: "Hébergement",
   };
   return labels[normalized] ?? (type ? String(type).replace(/_/g, " ").replace(/^./, (char) => char.toUpperCase()) : "");
 }
@@ -62,10 +60,6 @@ export function planningLinkForSlot(slot: any, destination?: string | null) {
     return { url: slot.url as string, label: "Voir les idées →" };
   }
 
-  // Un fallback Maps non vérifié ne doit jamais envoyer vers une recherche
-  // générique de l'activité quand la carte affiche déjà un lieu proposé précis.
-  // On recherche explicitement ce nom (+ destination) tout en signalant que
-  // le lieu reste à vérifier, au lieu de le présenter comme une adresse confirmée.
   if (slot.resourceKind === "maps" && slot.verified !== true && slot.label) {
     const query = [String(slot.label).trim(), String(destination || "").trim()]
       .filter(Boolean)
@@ -86,84 +80,43 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
   const fetchDetail = useServerFn(getTripDetail);
   const generatePlanning = useServerFn(generateGroupItinerary);
   const regenerateSlot = useServerFn(regenerateItinerarySlot);
-
-  const detailQuery = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
   });
 
-  const planningMutation = useMutation({
-    mutationFn: () => generatePlanning({ data: { tripId, force: true } }),
+  const generateMutation = useMutation({
+    mutationFn: () => generatePlanning({ data: { tripId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
-    onError: (error) => {
-      console.error("Impossible de préparer le planning:", error);
-      toast.error("Impossible de préparer le planning pour le moment.");
-    },
+    onError: (error: any) => toast.error(error?.message || "Impossible de générer le planning"),
   });
 
-  const slotMutation = useMutation({
+  const regenerateMutation = useMutation({
     mutationFn: ({ day, slotIndex }: { day: number; slotIndex: number }) =>
       regenerateSlot({ data: { tripId, day, slotIndex } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
     },
-    onError: (error) => {
-      console.error("Impossible de proposer une autre option:", error);
-      toast.error("Impossible de proposer une autre option pour le moment.");
-    },
+    onError: (error: any) => toast.error(error?.message || "Impossible de proposer une autre option"),
   });
 
-  if (detailQuery.isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
-        <KrewThinkingState context="planning" />
-      </main>
-    );
+  if (isLoading) {
+    return <KrewThinkingState message="Krew prépare ton planning…" />;
   }
 
-  if (!detailQuery.data || detailQuery.isError) {
-    return (
-      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
-        >
-          <ArrowLeft className="size-4" /> Retour au voyage
-        </Link>
-        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
-          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
-            Impossible de charger le planning
-          </h1>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Le planning n’est pas disponible pour le moment.
-          </p>
-          <Button
-            type="button"
-            className="mt-5"
-            onClick={() => void detailQuery.refetch()}
-            disabled={detailQuery.isFetching}
-            aria-busy={detailQuery.isFetching}
-          >
-            {detailQuery.isFetching ? "Chargement…" : "Réessayer"}
-          </Button>
-        </section>
-      </main>
-    );
+  if (isError || !data?.trip) {
+    return <div className="py-8 text-sm text-muted-foreground">Impossible de charger le planning.</div>;
   }
 
-  const data = detailQuery.data as any;
   const trip = data.trip as any;
-  const isAdmin = Boolean(data.isOwner);
-  const completedTrip =
-    getTripLifecycleState({
-      datesLocked: Boolean(trip.dates_locked ?? trip.datesLocked),
-      startDate: trip.start_date ?? null,
-      endDate: trip.end_date ?? null,
-    }) === "completed";
+  const lifecycleState = getTripLifecycleState({
+    status: trip.status,
+    startDate: trip.start_date ?? null,
+    endDate: trip.end_date ?? null,
+  });
+  const isCompleted = lifecycleState === "completed";
   const days = (trip.group_itinerary?.days ?? []) as any[];
   const destination = String(
     trip.group_itinerary?.destination || trip.group_logistics?.destination || "",
@@ -171,201 +124,147 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
   const activityCost = computeItineraryActivitiesCost(days);
   const priceStatusLabel =
     activityCost.priceStatus === "verified"
-      ? "prix vérifiés"
-      : activityCost.priceStatus === "free"
-        ? "gratuit"
-        : activityCost.priceStatus === "partial"
-          ? "estimation partielle"
-          : "estimation";
+      ? "Prix vérifiés"
+      : activityCost.priceStatus === "mixed"
+        ? "Prix vérifiés + estimés"
+        : "Budget estimé";
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 py-8 sm:px-6 sm:py-10">
-      <Link
-        to="/trips/$tripId"
-        params={{ tripId }}
-        search={{ view: "voyage" }}
-        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
-      >
-        <ArrowLeft className="size-4" /> Retour au parcours
-      </Link>
-
-      <header className="relative border-b border-border/45 pb-5 pr-20 sm:pr-24">
-        <img
-          src="/brand/otter-states/planning.png"
-          alt=""
-          className="pointer-events-none absolute right-0 top-0 w-[72px] object-contain opacity-90 sm:w-[88px]"
-        />
-        <div className="flex items-center gap-3">
-          <h1 className="flex items-center gap-2 font-display text-[30px] font-normal text-foreground sm:text-[36px]">
-            <KrewIcon name="planning" tone="plum" size="sm" className="size-5" />
-            Planning
-            {days.length ? <KrewMark type="burst" tone="sage" size="sm" className="size-6 opacity-75" /> : null}
-          </h1>
-          <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
-            {completedTrip ? "Voyage terminé · consultation" : "Jour par jour"}
-          </KrewNote>
-        </div>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground sm:text-base">
-          {completedTrip
-            ? "Le planning réalisé pendant le séjour, conservé pour consultation."
-            : "Le planning du séjour, de l’arrivée au départ."}
-        </p>
-        {activityCost.activitiesPerPerson != null ? (
-          <p className="mt-3 inline-flex flex-wrap items-baseline gap-2 rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-sm">
-            <span className="font-semibold text-foreground">
-              Activités : ~{Math.round(activityCost.activitiesPerPerson)} € / personne
-            </span>
-            <span className="text-xs text-muted-foreground">{priceStatusLabel}</span>
+    <div className="space-y-5">
+      <div className="flex items-start gap-3">
+        <Button asChild variant="ghost" size="icon" className="mt-0.5 shrink-0">
+          <Link to="/trips/$tripId" params={{ tripId }}>
+            <ArrowLeft className="size-4" />
+          </Link>
+        </Button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <KrewIcon name="planning" tone="plum" size="sm" />
+            <h1 className="font-display text-2xl font-normal text-foreground">Planning</h1>
+            <KrewMark type="sparkle" tone="sage" size="sm" />
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Un programme cohérent avec vos horaires, votre destination et le rythme du groupe.
           </p>
-        ) : null}
-      </header>
-
-      {isAdmin && !completedTrip ? (
-        <div className="flex justify-end">
-          <KrewStatefulButton
-            className="w-full sm:w-auto"
-            idleLabel={days.length ? "Revoir le planning" : "Préparer le planning"}
-            loadingLabel={days.length ? "Mise à jour…" : "Préparation…"}
-            successLabel={days.length ? "Planning actualisé" : "Planning prêt"}
-            errorLabel="Réessayer"
-            resetAfterMs={1400}
-            onAction={() => planningMutation.mutateAsync()}
-          />
         </div>
-      ) : null}
+      </div>
 
-      {planningMutation.isPending ? (
-        <KrewThinkingState context="planning" />
-      ) : days.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          {completedTrip
-            ? "Aucun planning n’a été conservé pour ce voyage."
-            : isAdmin
-              ? "Prépare le planning du séjour, de l’arrivée au départ."
-              : "Le planning du séjour sera bientôt disponible."}
-        </div>
+      {days.length === 0 ? (
+        <KrewNote tone="cream" className="space-y-3">
+          <p className="text-sm text-foreground">Le planning n’a pas encore été généré.</p>
+          {!isCompleted ? (
+            <KrewStatefulButton
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending}
+              loading={generateMutation.isPending}
+              idleLabel="Générer le planning"
+              loadingLabel="Krew construit le planning…"
+              successLabel="Planning généré"
+            />
+          ) : null}
+        </KrewNote>
       ) : (
-        <div className="space-y-8">
-          {days.map((day) => (
-            <article key={day.day} className="space-y-4">
-              <div className="border-b border-border/60 pb-2">
-                <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-                  Jour {day.day}
-                  {day.date
-                    ? ` · ${new Date(`${day.date}T12:00:00`).toLocaleDateString("fr-FR", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "short",
-                      })}`
-                    : ""}
-                </h2>
-              </div>
+        <>
+          {activityCost.totalPerPerson > 0 ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span>{priceStatusLabel}</span>
+              <span>{formatEuro(activityCost.totalPerPerson)} / personne</span>
+            </div>
+          ) : null}
 
-              <div className="relative divide-y divide-border/40 pl-6 before:absolute before:bottom-2 before:left-2 before:top-2 before:w-px before:bg-border/60 sm:pl-8 sm:before:left-3">
-                {(day.slots ?? []).map((slot: any, slotIndex: number) => {
-                  const Icon =
-                    slot.type === "resto"
-                      ? Utensils
-                      : slot.type === "bar"
-                        ? Wine
-                        : slot.type === "activite"
-                          ? Camera
-                          : CalendarDays;
-                  const directPrice = Number(slot.pricePerPerson ?? slot.priceHint);
-                  const hasDirectPrice = Number.isFinite(directPrice) && directPrice >= 0;
-                  const typeLabel = planningTypeLabel(slot.type);
-                  const slotLink = planningLinkForSlot(slot, destination);
+          <div className="space-y-5">
+            {days.map((day: any) => (
+              <section key={`${day.day}-${day.date || ""}`} className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="size-4 text-primary" />
+                  <h2 className="font-display text-xl font-normal">Jour {day.day}</h2>
+                  {day.date ? <span className="text-xs text-muted-foreground">{day.date}</span> : null}
+                </div>
 
-                  return (
-                    <div
-                      key={`${day.day}-${slotIndex}`}
-                      className="relative flex flex-col gap-3 py-3 sm:flex-row sm:items-start sm:justify-between"
-                    >
-                      <span className="absolute -left-6 top-4 size-2.5 rounded-full border border-primary bg-background ring-4 ring-card sm:-left-8" />
-                      <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <Icon className="mt-0.5 size-4 shrink-0 text-primary" />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            {slot.time ? <span className="font-mono font-semibold text-primary">{slot.time}</span> : null}
-                            {slot.moment ? <span>{slot.moment}</span> : null}
-                            {typeLabel ? <span>· {typeLabel}</span> : null}
+                <div className="space-y-2">
+                  {(day.slots ?? []).map((slot: any, slotIndex: number) => {
+                    const Icon =
+                      slot.type === "resto"
+                        ? Utensils
+                        : slot.type === "bar"
+                          ? Wine
+                          : slot.type === "libre"
+                            ? Camera
+                            : CalendarDays;
+                    const directPrice = Number(slot.pricePerPerson ?? slot.priceHint);
+                    const hasDirectPrice = Number.isFinite(directPrice) && directPrice >= 0;
+                    const typeLabel = planningTypeLabel(slot.type);
+                    const slotLink = planningLinkForSlot(slot, destination);
+
+                    return (
+                      <div
+                        key={`${day.day}-${slot.time}-${slotIndex}`}
+                        className="rounded-xl border border-border/55 bg-background/65 px-3.5 py-3"
+                      >
+                        <div className="flex gap-3">
+                          <div className="w-12 shrink-0 pt-0.5 font-mono text-xs font-semibold text-primary">
+                            {slot.time}
                           </div>
-                          <p className="mt-0.5 text-sm font-semibold text-foreground">{slot.label}</p>
-                          {slot.detail ? <p className="mt-0.5 text-xs text-muted-foreground">{slot.detail}</p> : null}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start gap-2">
+                              <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                                  <p className="font-medium text-foreground">{slot.label}</p>
+                                  {typeLabel ? (
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                      {typeLabel}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                {slot.detail ? (
+                                  <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">
+                                    {slot.detail}
+                                  </p>
+                                ) : null}
+                                {slot.address ? (
+                                  <p className="mt-1 text-xs text-muted-foreground">{slot.address}</p>
+                                ) : null}
+                                {hasDirectPrice ? (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {formatEuro(directPrice)} / personne
+                                  </p>
+                                ) : null}
 
-                          {slot.priceStatus === "free" ? (
-                            <p className="mt-1 text-xs text-muted-foreground">Gratuit</p>
-                          ) : hasDirectPrice && (slot.priceStatus === "verified" || slot.priceStatus === "estimated") ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {slot.priceStatus === "estimated" ? "~" : ""}{formatEuro(directPrice)} / pers.
-                              {slot.priceStatus === "estimated" ? " (estimé)" : ""}
-                            </p>
-                          ) : Number.isFinite(Number(slot.estimatedPriceMinPerPerson)) &&
-                            Number.isFinite(Number(slot.estimatedPriceMaxPerPerson)) ? (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Env. {slot.estimatedPriceMinPerPerson}–{slot.estimatedPriceMaxPerPerson}{slot.estimatedPriceCurrency === "EUR" ? " €" : ` ${slot.estimatedPriceCurrency || ""}`} / pers.
-                            </p>
-                          ) : null}
+                                {slotLink ? (
+                                  <a
+                                    href={slotLink.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline"
+                                  >
+                                    {slotLink.label}
+                                  </a>
+                                ) : null}
+                              </div>
+                            </div>
 
-                          {slotLink ? (
-                            <a
-                              href={slotLink.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline"
-                            >
-                              {slotLink.label}
-                            </a>
-                          ) : null}
+                            {!isCompleted && slot.type !== "libre" ? (
+                              <button
+                                type="button"
+                                className="mt-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                                disabled={regenerateMutation.isPending}
+                                onClick={() => regenerateMutation.mutate({ day: Number(day.day), slotIndex })}
+                              >
+                                Proposer autre chose
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-
-                      {isAdmin && !completedTrip ? (
-                        <KrewStatefulButton
-                          size="sm"
-                          variant="outline"
-                          className="w-full shrink-0 sm:w-auto"
-                          idleLabel="Autre option"
-                          loadingLabel="Recherche…"
-                          successLabel="Option actualisée"
-                          errorLabel="Réessayer"
-                          onAction={() => slotMutation.mutateAsync({ day: day.day, slotIndex })}
-                        />
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            </article>
-          ))}
-
-          <section className="flex flex-col gap-3 border-t border-border/50 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                <KrewIcon name="tasks" tone="plum" size="sm" className="size-4" />
-                {completedTrip ? "Tâches du voyage" : isAdmin ? "Répartir les tâches" : "Voir les tâches"}
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {completedTrip
-                  ? "Retrouve les tâches conservées pour mémoire."
-                  : isAdmin
-                    ? "Attribue les tâches utiles aux membres du groupe."
-                    : "Retrouve les tâches du groupe et mets à jour celles qui te sont attribuées."}
-              </p>
-            </div>
-            <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
-              <Link
-                to="/trips/$tripId"
-                params={{ tripId }}
-                search={{ view: "voyage", section: "tasks" }}
-              >
-                <KrewIcon name="tasks" size="sm" className="size-3.5" />
-                {completedTrip ? "Voir les tâches" : isAdmin ? "Répartir les tâches" : "Voir les tâches"}
-              </Link>
-            </Button>
-          </section>
-        </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        </>
       )}
-    </main>
+    </div>
   );
 }
