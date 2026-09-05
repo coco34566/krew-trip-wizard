@@ -34,42 +34,18 @@
   margin-top: .75rem !important;
 }
 
-/* Formation + choices: the group remains one of the main pieces of information. */
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #group-section,
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #group-section {
-  order: 1;
-  margin-top: 0 !important;
-}
-
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="formation"] #hub-cost-split,
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="choices"] #hub-cost-split {
-  order: 2;
-  margin-top: 0 !important;
-}
-
-/* Destination chosen / organized: useful trip data takes precedence over roster detail. */
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #hub-cost-split,
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #hub-cost-split {
+/*
+ * Stable reading order on Résumé whenever both blocks exist:
+ * dashboard/actions -> stage post-it -> costs -> cost post-it -> group.
+ * This matches the intended editorial flow at every lifecycle stage.
+ */
+[data-krew-dashboard-motion="true"][data-krew-summary-stage] #hub-cost-split {
   order: 1;
   margin-top: 0 !important;
   padding-top: 0;
 }
 
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="destination"] #group-section,
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="organized"] #group-section {
-  order: 2;
-  margin-top: 0 !important;
-}
-
-/* Live / completed keep the existing practical or consultation hierarchy. */
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] #group-section,
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="completed"] #group-section {
-  order: 1;
-  margin-top: 0 !important;
-}
-
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="live"] #hub-cost-split,
-[data-krew-dashboard-motion="true"][data-krew-summary-stage="completed"] #hub-cost-split {
+[data-krew-dashboard-motion="true"][data-krew-summary-stage] #group-section {
   order: 2;
   margin-top: 0 !important;
 }
@@ -81,7 +57,7 @@
 
 /* --------------------------------------------------------------------------
  * One structural heading grid across Résumé.
- * Target the real title rows only; do not style nested card/content wrappers.
+ * Icon -> title -> sage underline, aligned exactly the same on both sections.
  * -------------------------------------------------------------------------- */
 [data-krew-dashboard-motion="true"] #group-section,
 [data-krew-dashboard-motion="true"] #hub-cost-split {
@@ -96,39 +72,42 @@
   transform: none !important;
 }
 
-/* Group: first direct div is the otter, second is the heading block. The actual
- * icon + title row is one level deeper than the previous selector targeted.
- * Costs: first direct div is the heading block and its first child is the title row. */
+/* Group: the real icon/title row sits one level below the heading wrapper.
+ * Costs: the first child of the heading block is the icon/title row. */
 [data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child > div:first-child,
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div:first-child {
   display: inline-flex !important;
   align-items: center !important;
   gap: .5rem !important;
-  padding: .125rem .25rem !important;
+  padding: .125rem 0 !important;
   min-height: 34px;
 }
 
+/* Structural KrewIcons: same 22px footprint, same baseline and KREW sage tone. */
 [data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child > div:first-child > svg[viewBox="0 0 24 24"],
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div:first-child > svg[viewBox="0 0 24 24"] {
   width: 22px !important;
   height: 22px !important;
   flex: 0 0 22px !important;
   margin: 0 !important;
+  color: hsl(var(--sage)) !important;
 }
 
-/* Same green title-mark footprint. Do not add a left margin here: the wave path
- * itself starts inside its SVG viewBox, so the old +4px margin visibly pushed the
- * green stroke to the right of the structural KrewIcon. */
+/* Same sage underline footprint and same visual origin under the icon/title row.
+ * The freehand SVG paths begin a few units inside their viewBox, so shift the SVG
+ * 3px left to make the visible stroke line up with the icon rather than its box. */
 [data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > svg,
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
   display: block !important;
   width: 170px !important;
   height: 10px !important;
-  margin: .125rem 0 0 0 !important;
+  margin: .125rem 0 0 -3px !important;
+  color: hsl(var(--sage)) !important;
   opacity: .9 !important;
 }
 
-/* Répartition des coûts stays clean: no pale plum organic shape around the title. */
+/* Section titles stay clean, like the other KREW pages: no plum blob behind them. */
+[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > div:first-child > div:first-child > div.absolute,
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > div:first-child > div.absolute {
   display: none !important;
 }
@@ -185,8 +164,8 @@
   padding-right: .25rem;
 }
 
-/* Keep the stage note as a real taped KREW post-it. Only remove the old negative
- * overlap so it has a deliberate place between navigation/actions and content. */
+/* Keep the stage note as a real taped KREW post-it immediately after shortcuts.
+ * Only neutralize the historic negative overlap. */
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] {
   margin-bottom: 0 !important;
   padding-inline: .25rem !important;
