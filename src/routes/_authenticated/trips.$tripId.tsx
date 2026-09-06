@@ -6,7 +6,11 @@ import type { ReactNode } from "react";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
+import { TripAccommodationPage } from "@/components/krew/TripAccommodationPage";
+import { TripDatesPage } from "@/components/krew/TripDatesPage";
+import { TripDestinationPage } from "@/components/krew/TripDestinationPage";
 import { TripInvitePage } from "@/components/krew/TripInvitePage";
+import { TripPackingPage } from "@/components/krew/TripPackingPage";
 import { TripPlanningPage } from "@/components/krew/TripPlanningPage";
 import { TripProfilePage } from "@/components/krew/TripProfilePage";
 import { TripStarAccessGate } from "@/components/krew/TripStarAccessGate";
@@ -213,13 +217,25 @@ function TripLayout() {
   const showStarGate = location.pathname.endsWith(`/trips/${tripId}/star`);
   const showAvailabilityPage = location.pathname.endsWith(`/trips/${tripId}/availability`);
   const showQuestionnairePage = location.pathname.endsWith(`/trips/${tripId}/questionnaire`);
-  const showDedicatedPreparationPage = ["profile", "dates", "destination", "accommodation", "packing"].some(
+  const showGatedDedicatedPage = ["profile", "dates", "destination", "accommodation", "transport"].some(
     (chapter) => location.pathname.endsWith(`/trips/${tripId}/${chapter}`),
   );
-  const preparationOutletSection =
-    view === "voyage" &&
-    section !== undefined &&
-    ["dates", "destination", "accommodation", "packing"].includes(section);
+
+  const legacyPreparationPage =
+    view === "voyage" && section === "dates" ? (
+      <TripDatesPage tripId={tripId} />
+    ) : view === "voyage" && section === "destination" ? (
+      <TripDestinationPage tripId={tripId} />
+    ) : view === "voyage" && section === "accommodation" ? (
+      <TripAccommodationPage tripId={tripId} />
+    ) : view === "voyage" && section === "packing" ? (
+      <TripPackingPage tripId={tripId} />
+    ) : null;
+
+  const gatedLegacyPreparationPage =
+    legacyPreparationPage && section !== "packing" ? (
+      <CompletedPreparationGate tripId={tripId}>{legacyPreparationPage}</CompletedPreparationGate>
+    ) : legacyPreparationPage;
 
   const outlet = showStarGate ? (
     <TripStarAccessGate tripId={tripId}>
@@ -233,7 +249,7 @@ function TripLayout() {
     <PreferencesResponseGate tripId={tripId}>
       <Outlet />
     </PreferencesResponseGate>
-  ) : showDedicatedPreparationPage || preparationOutletSection ? (
+  ) : showGatedDedicatedPage ? (
     <CompletedPreparationGate tripId={tripId}>
       <Outlet />
     </CompletedPreparationGate>
@@ -248,21 +264,19 @@ function TripLayout() {
           <TripInvitePage tripId={tripId} />
         </CompletedPreparationGate>
       ) : showTasksPage ? (
-        <CompletedPreparationGate tripId={tripId}>
-          <TripTasksPage tripId={tripId} />
-        </CompletedPreparationGate>
+        <TripTasksPage tripId={tripId} />
       ) : showTransportPage ? (
         <CompletedPreparationGate tripId={tripId}>
           <TripTransportPage tripId={tripId} />
         </CompletedPreparationGate>
       ) : showPlanningPage ? (
-        <CompletedPreparationGate tripId={tripId}>
-          <TripPlanningPage tripId={tripId} />
-        </CompletedPreparationGate>
+        <TripPlanningPage tripId={tripId} />
       ) : showProfilePage ? (
         <CompletedPreparationGate tripId={tripId}>
           <TripProfilePage tripId={tripId} />
         </CompletedPreparationGate>
+      ) : gatedLegacyPreparationPage ? (
+        gatedLegacyPreparationPage
       ) : (
         outlet
       )}
