@@ -57,16 +57,30 @@ jobs:
             const exact = await findReadyUrlForSha(commit.sha);
             if (exact) return { url: exact, deploymentSha: commit.sha };
 
-            // GitHub/Vercel can miss a replacement commit when its tree is byte-for-byte
-            // identical to a sibling commit. Reusing that sibling preview is safe because
-            // the rendered repository tree is identical.
-            const commits = await api(`/commits?sha=${encodeURIComponent("audit/css-baseline-safety")}&per_page=80`);
-            for (const candidate of commits) {
-              if (candidate.sha === commit.sha) continue;
-              const full = await api(`/commits/${candidate.sha}`);
-              if (full.commit?.tree?.sha !== commit.commit?.tree?.sha) continue;
-              const url = await findReadyUrlForSha(candidate.sha);
-              if (url) return { url, deploymentSha: candidate.sha };
+            // A replacement commit can have no deployment even though an earlier,
+            // now-unreachable sibling has the exact same Git tree. Scan recent
+            // deployments and reuse one only after proving tree SHA equality.
+            const deployments = await api(`/deployments?per_page=50`);
+            for (const deployment of deployments) {
+              const candidateSha = deployment.sha;
+              if (!candidateSha || candidateSha === commit.sha) continue;
+              let candidate;
+              try {
+                candidate = await api(`/commits/${candidateSha}`);
+              } catch {
+                continue;
+              }
+              if (candidate.commit?.tree?.sha !== commit.commit?.tree?.sha) continue;
+              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
+              const ready = statuses.find((status) =>
+                status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
+              );
+              if (ready) {
+                return {
+                  url: ready.environment_url.replace(/\/$/, ""),
+                  deploymentSha: candidateSha,
+                };
+              }
             }
             return { url: "", deploymentSha: "" };
           };
@@ -87,22 +101,14 @@ jobs:
           };
 
           const targetCommit = await nearestAppCommit(process.env.HEAD_SHA);
-          const headIsPreviewNeutral = targetCommit.sha !== process.env.HEAD_SHA;
-
-          let previousAppCommit = null;
-          if (!headIsPreviewNeutral) {
-            const parentSha = targetCommit.parents?.[0]?.sha;
-            if (parentSha) previousAppCommit = await nearestAppCommit(parentSha);
-          } else {
-            const parentSha = targetCommit.parents?.[0]?.sha;
-            if (parentSha) previousAppCommit = await nearestAppCommit(parentSha);
-          }
+          const parentSha = targetCommit.parents?.[0]?.sha;
+          const previousAppCommit = parentSha ? await nearestAppCommit(parentSha) : null;
 
           const waitForPreview = async (commit) => {
             let resolved = { url: "", deploymentSha: "" };
-            for (let attempt = 0; attempt < 30 && !resolved.url; attempt += 1) {
+            for (let attempt = 0; attempt < 12 && !resolved.url; attempt += 1) {
               resolved = await findReadyUrlForEquivalentTree(commit);
-              if (!resolved.url) await new Promise((resolve) => setTimeout(resolve, 20_000));
+              if (!resolved.url) await new Promise((resolve) => setTimeout(resolve, 10_000));
             }
             if (!resolved.url) throw new Error(`Vercel preview URL unavailable for ${commit.sha}`);
             return resolved;
