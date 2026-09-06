@@ -335,7 +335,7 @@ function ParticipantQuestionnaire() {
 
   if (loading) {
     return (
-      <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7">
+      <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8">
         <KrewThinkingState context="generic" customMessage="Chargement de tes préférences…" delayMs={0} />
       </main>
     );
@@ -343,11 +343,11 @@ function ParticipantQuestionnaire() {
 
   if (loadError) {
     return (
-      <main className="mx-auto w-full max-w-[820px] space-y-6 px-5 py-10 sm:px-7">
+      <main className="mx-auto w-full max-w-[820px] space-y-6 px-5 py-10 sm:px-7 lg:px-8">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <ArrowLeft className="size-4" /> Retour au voyage
         </Link>
@@ -371,11 +371,11 @@ function ParticipantQuestionnaire() {
   }
 
   return (
-    <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 space-y-8">
+    <main className="mx-auto w-full max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
@@ -384,7 +384,6 @@ function ParticipantQuestionnaire() {
         tripName={tripName}
         title="Préférences"
         otterSrc="/brand/otter-states/preferences.png"
-        waveClassName="w-[clamp(96px,38vw,160px)]"
       >
         {isEditing ? (
           <div className="space-y-1.5">
@@ -417,7 +416,7 @@ function ParticipantQuestionnaire() {
         </p>
       </KrewJourneyPageHeader>
 
-      <div className="pt-4">
+      <div>
         <Section
           title="Envies et ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
