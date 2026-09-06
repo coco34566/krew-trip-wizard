@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
@@ -63,10 +64,6 @@ export function planningLinkForSlot(slot: any, destination?: string | null) {
     return { url: slot.url as string, label: "Voir les idées →" };
   }
 
-  // Un fallback Maps non vérifié ne doit jamais envoyer vers une recherche
-  // générique de l'activité quand la carte affiche déjà un lieu proposé précis.
-  // On recherche explicitement ce nom (+ destination) tout en signalant que
-  // le lieu reste à vérifier, au lieu de le présenter comme une adresse confirmée.
   if (slot.resourceKind === "maps" && slot.verified !== true && slot.label) {
     const query = [String(slot.label).trim(), String(destination || "").trim()]
       .filter(Boolean)
@@ -117,42 +114,18 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
   });
 
   if (detailQuery.isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-7 lg:px-8">
-        <KrewThinkingState context="planning" />
-      </main>
-    );
+    return <KrewJourneyLoadingState context="planning" />;
   }
 
   if (!detailQuery.data || detailQuery.isError) {
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-6 px-5 py-10 sm:px-7 lg:px-8">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="size-4" /> Retour au voyage
-        </Link>
-        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
-          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
-            Impossible de charger le planning
-          </h1>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Le planning n’est pas disponible pour le moment.
-          </p>
-          <Button
-            type="button"
-            className="mt-5"
-            onClick={() => void detailQuery.refetch()}
-            disabled={detailQuery.isFetching}
-            aria-busy={detailQuery.isFetching}
-          >
-            {detailQuery.isFetching ? "Chargement…" : "Réessayer"}
-          </Button>
-        </section>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        title="Impossible de charger le planning"
+        description="Le planning n’est pas disponible pour le moment."
+        retrying={detailQuery.isFetching}
+        onRetry={() => void detailQuery.refetch()}
+      />
     );
   }
 
