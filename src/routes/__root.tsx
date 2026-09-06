@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import designTokensCss from "../krew-design-tokens.css?url";
 import reviewCss from "../krew-ux-review.css?url";
 import reviewDetailsCss from "../krew-ux-review-details.css?url";
 import journeyPagesCss from "../krew-journey-pages.css?url";
@@ -83,6 +84,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: designTokensCss },
       { rel: "stylesheet", href: reviewCss },
       { rel: "stylesheet", href: reviewDetailsCss },
       { rel: "stylesheet", href: journeyPagesCss },
