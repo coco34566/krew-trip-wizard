@@ -69,7 +69,7 @@ function FaqPage() {
           <h3 className="font-display text-2xl font-normal text-foreground">Prêt à organiser ton prochain voyage ?</h3>
           <p className="text-sm text-muted-foreground font-sans">Crée ton voyage et invite le groupe.</p>
           <div className="pt-2">
-            <Button asChild className="rounded-xl min-h-[44px] h-auto whitespace-normal text-center leading-tight py-2.5 px-5">
+            <Button asChild size="xl">
               <Link to="/trips/new">
                 <KrewIcon name="plus" size="sm" className="size-4 shrink-0" />
                 Créer mon voyage
