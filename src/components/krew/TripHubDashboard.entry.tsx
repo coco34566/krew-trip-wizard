@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -50,9 +50,6 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
 
 function enableDashboardMotion(root: HTMLElement, summaryStage: SummaryStage) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // Résumé continues after TripHubDashboard with sibling sections such as
-  // Membres du groupe and Répartition des coûts. Their common wrapper owns both
-  // the visual hierarchy and the single landing-inspired choreography.
   const scope = root.parentElement ?? root;
   scope.dataset.krewDashboardMotion = "true";
   scope.dataset.krewSummaryStage = summaryStage;
@@ -68,8 +65,6 @@ function enableDashboardMotion(root: HTMLElement, summaryStage: SummaryStage) {
     node.classList.add("krew-reveal");
     node.dataset.revealed = reduced ? "true" : "false";
 
-    // Only the KrewIcon visually attached to the section heading is animated.
-    // Icons in rows, cards, buttons, metadata and participant states stay static.
     const heading = node.querySelector<HTMLHeadingElement>("h2");
     const headingGroup = heading?.parentElement ?? null;
     const candidate = headingGroup?.querySelector<HTMLElement>('svg[viewBox="0 0 24 24"]') ?? null;
@@ -249,6 +244,19 @@ export function TripHubDashboard(props: Props) {
 
   const suppressPreparationChrome = completed || !responseReady;
 
+  const handleDashboardClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    const anchor = target?.closest<HTMLAnchorElement>("a[href]");
+    if (!anchor) return;
+
+    const url = new URL(anchor.href, window.location.origin);
+    if (url.pathname !== `/trips/${props.tripId}` || url.searchParams.get("section") !== "profile") return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    window.location.assign(`/trips/${props.tripId}/profile`);
+  };
+
   return (
     <TripLifecycleProvider lifecycle={lifecycle}>
       <div
@@ -257,6 +265,7 @@ export function TripHubDashboard(props: Props) {
         data-response-progress={responseState.state}
         data-krew-summary-stage={summaryStage}
         data-krew-dashboard-root="true"
+        onClickCapture={handleDashboardClickCapture}
       >
         {completed ? (
           <section className="mb-5 rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" aria-label="Voyage terminé">
