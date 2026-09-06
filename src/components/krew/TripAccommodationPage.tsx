@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Heart } from "lucide-react";
+import { ArrowLeft, Heart } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -120,7 +120,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
         search={{ view: "voyage" }}
         className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
-        ← Retour au parcours
+        <ArrowLeft className="size-4" /> Retour au parcours
       </Link>
 
       <KrewJourneyPageHeader
