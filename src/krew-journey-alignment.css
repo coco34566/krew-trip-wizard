@@ -1,6 +1,7 @@
 /* KREW journey alignment — transitional rules for legacy journey sections only.
  * Modern journey pages own their header through KrewJourneyPageHeader.
- * Keep this file smaller after every legacy-section extraction; never add modern-page header patches here. */
+ * Questionnaire density lives in krew-visual-baseline.css.
+ * Keep this file smaller after every legacy-section extraction. */
 
 :root {
   --krew-journey-page-title: 34px;
@@ -214,84 +215,6 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*=
 
 #hub-dates > div:first-child > :is(a,button,[data-slot="dialog-trigger"]) {
   align-self: flex-start !important;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Questionnaire content only. Header geometry is owned by KrewJourneyPageHeader. */
-/* -------------------------------------------------------------------------- */
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section > div:first-child > h2 {
-  display: none !important;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section > div:first-child > p {
-  margin-top: 0 !important;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section > div.flex.items-center.justify-end.gap-2 > :first-child:not([data-krew-note]) {
-  display: none !important;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section > div.space-y-3.pt-2:has(p.text-secondary) {
-  display: none !important;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section:first-of-type {
-  margin-top: var(--krew-journey-content-gap) !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 {
-  margin-top: var(--krew-journey-content-gap) !important;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section {
-  position: relative;
-  margin: 0 !important;
-  padding: 28px 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  gap: 14px !important;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section:not(:first-child)::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 64px;
-  height: 2px;
-  border-radius: 999px;
-  background: color-mix(in oklch, var(--sage) 68%, transparent);
-  transform: rotate(-1deg);
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section h2.font-display {
-  font-size: var(--krew-journey-section-title) !important;
-  line-height: 1.04 !important;
-  font-weight: 400 !important;
-  letter-spacing: -.012em !important;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section .grid {
-  gap: 8px !important;
-  align-items: stretch;
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section button.rounded-\[14px\] {
-  min-height: 40px !important;
-  height: 100%;
-  padding: 9px 12px !important;
-  border-radius: 14px !important;
-  box-shadow: none !important;
-  font-size: 14px !important;
-  line-height: 1.25 !important;
 }
 
 /* -------------------------------------------------------------------------- */
