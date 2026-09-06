@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewHighlight } from "@/components/krew/visual-language";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import {
   getMyParticipantPreferences,
@@ -370,38 +371,32 @@ function ParticipantQuestionnaire() {
         title="Préférences"
         otterSrc="/brand/otter-states/preferences.png"
       >
-        {isEditing ? (
-          <div className="space-y-1.5">
-            <KrewNote variant="label" tone="cream" rotation={-1} className="gap-2">
-              <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
-              Réponse enregistrée
-            </KrewNote>
-            <p className="text-sm text-muted-foreground">
-              Tu as déjà répondu
-              {lastSavedAt
-                ? ` (mise à jour le ${new Date(lastSavedAt).toLocaleString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })})`
-                : ""}
-              . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton
-              compte.
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Tes réponses individuelles ne sont pas visibles par les autres participants.
-          </p>
-        )}
-        <p className="mt-2 text-sm sm:text-base text-muted-foreground font-sans">
-          Ces infos permettent à KREW de comprendre tes envies pour proposer au groupe un voyage qui
-          lui correspond.
+        <p>
+          Ces infos permettent à KREW de comprendre tes envies pour proposer au groupe un voyage qui lui correspond.
         </p>
+        {!isEditing ? (
+          <p>Tes réponses individuelles ne sont pas visibles par les autres participants.</p>
+        ) : null}
       </KrewJourneyPageHeader>
 
-      <div className="pt-4">
+      {isEditing ? (
+        <KrewJourneyStatusPanel title="Préférences enregistrées" icon="check" tone="complete">
+          <p>
+            Tu as déjà répondu
+            {lastSavedAt
+              ? ` (mise à jour le ${new Date(lastSavedAt).toLocaleString("fr-FR", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })})`
+              : ""}
+            . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton compte.
+          </p>
+        </KrewJourneyStatusPanel>
+      ) : null}
+
+      <div>
         <Section
           title="Envies et ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
@@ -631,7 +626,7 @@ function ParticipantQuestionnaire() {
                       return;
                     }
                     setLodgingTypes((prev) => {
-                      const without = prev.filter((x) => x !== "peu_importe" && x !== a.value);
+                      const without = prev.filter((x) => x !== "peu_importe");
                       if (without.includes(a.value)) {
                         const next = without.filter((x) => x !== a.value);
                         return next.length ? next : ["peu_importe"];
@@ -695,7 +690,7 @@ function ParticipantQuestionnaire() {
                   onClick={() => {
                     setTransportModeAccepted((prev) => {
                       if (m === "peu importe") return ["peu importe"];
-                      const without = prev.filter((x) => x !== "peu importe" && x !== m);
+                      const without = prev.filter((x) => x !== "peu_importe" && x !== m);
                       const next = prev.includes(m) ? without : [...without, m];
                       return next.length ? next : ["peu importe"];
                     });
