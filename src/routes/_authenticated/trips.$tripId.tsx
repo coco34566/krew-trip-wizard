@@ -6,7 +6,10 @@ import type { ReactNode } from "react";
 
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
-import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
+import {
+  KrewJourneyStatusOverrideProvider,
+  KrewJourneyStatusPanel,
+} from "@/components/krew/KrewJourneyStatusPanel";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
 import { TripAccommodationPage } from "@/components/krew/TripAccommodationPage";
 import { TripDatesPage } from "@/components/krew/TripDatesPage";
@@ -70,6 +73,7 @@ function ClosedResponseState({
   otterSrc,
   intro,
   hasPreviousAnswer,
+  answeredStatusOverride,
   maxWidthClassName = "max-w-5xl",
   children,
 }: {
@@ -79,14 +83,23 @@ function ClosedResponseState({
   otterSrc: string;
   intro: string;
   hasPreviousAnswer: boolean;
+  answeredStatusOverride?: { title: string; content: ReactNode };
   maxWidthClassName?: string;
   children: ReactNode;
 }) {
   if (hasPreviousAnswer) {
-    return (
+    const readOnlyContent = (
       <fieldset disabled className="min-w-0 border-0 p-0 opacity-90">
         {children}
       </fieldset>
+    );
+
+    return answeredStatusOverride ? (
+      <KrewJourneyStatusOverrideProvider override={answeredStatusOverride}>
+        {readOnlyContent}
+      </KrewJourneyStatusOverrideProvider>
+    ) : (
+      readOnlyContent
     );
   }
 
@@ -183,6 +196,12 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
       intro="Les dates du voyage sont confirmées. Les préférences du groupe sont maintenant en lecture seule."
       maxWidthClassName="max-w-[820px]"
       hasPreviousAnswer={Boolean(data.preferences)}
+      answeredStatusOverride={{
+        title: "Préférences clôturées",
+        content: (
+          <p>Ta réponse précédente reste visible ci-dessous en lecture seule. Les dates étant confirmées, cette étape n’est plus modifiable.</p>
+        ),
+      }}
     >
       {children}
     </ClosedResponseState>
