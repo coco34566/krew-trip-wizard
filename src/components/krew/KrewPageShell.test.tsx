@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewPageShell } from "@/components/krew/KrewPageShell";
 
 describe("KrewPageShell", () => {
@@ -32,5 +33,20 @@ describe("KrewPageShell", () => {
     const shell = screen.getByRole("main");
     expect(shell).toHaveAttribute("data-krew-preferences-page");
     expect(shell).toHaveClass("space-y-8", "py-8", "sm:py-10");
+  });
+
+  it("maps the legacy 820px async state to the semantic form shell", () => {
+    render(
+      <KrewJourneyLoadingState
+        maxWidthClassName="max-w-[820px]"
+        message="Chargement…"
+      />,
+    );
+
+    const shell = screen.getByRole("main");
+    expect(shell).toHaveAttribute("data-krew-journey-loading");
+    expect(shell).toHaveAttribute("data-krew-page-size", "form");
+    expect(shell).toHaveClass("krew-page-shell");
+    expect(shell.className).not.toMatch(/max-w-/);
   });
 });
