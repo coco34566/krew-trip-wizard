@@ -5,7 +5,10 @@ import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
-import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import {
+  KrewJourneyAfterHeaderProvider,
+  KrewJourneyPageHeader,
+} from "@/components/krew/KrewJourneyPageHeader";
 import {
   KrewJourneyStatusOverrideProvider,
   KrewJourneyStatusPanel,
@@ -230,31 +233,26 @@ function CompletedPreparationGate({ tripId, children }: { tripId: string; childr
 
   if (!completed) return <>{children}</>;
 
+  const completedStatus = (
+    <KrewJourneyStatusPanel
+      title="Voyage terminé · consultation"
+      icon="check"
+      tone="complete"
+      className="krew-journey-lifecycle-status"
+    >
+      <p>Cette partie reste disponible comme historique du voyage. Les actions de préparation et de modification sont désactivées.</p>
+    </KrewJourneyStatusPanel>
+  );
+
   return (
-    <>
-      <div className="mx-auto mt-8 w-full max-w-5xl px-5 sm:px-7 lg:px-8">
-        <KrewJourneyStatusPanel
-          title="Voyage terminé · consultation"
-          icon="check"
-          tone="complete"
-          action={
-            <Link
-              to="/trips/$tripId"
-              params={{ tripId }}
-              search={{ view: "voyage" }}
-              className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
-            >
-              Retour au parcours
-            </Link>
-          }
-        >
-          <p>Cette partie reste disponible comme historique du voyage. Les actions de préparation sont maintenant désactivées.</p>
-        </KrewJourneyStatusPanel>
-      </div>
-      <div inert className="opacity-90 [&_[data-krew-journey-status]]:hidden">
+    <KrewJourneyAfterHeaderProvider afterHeader={completedStatus}>
+      <fieldset
+        disabled
+        className="min-w-0 border-0 p-0 [&_[data-krew-journey-status]:not(.krew-journey-lifecycle-status)]:hidden"
+      >
         {children}
-      </div>
-    </>
+      </fieldset>
+    </KrewJourneyAfterHeaderProvider>
   );
 }
 
