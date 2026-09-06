@@ -294,12 +294,12 @@ function StarQuestionnaire() {
     },
   });
 
-  if (isLoading) return <main className="mx-auto max-w-[820px] px-5 py-8 sm:px-7 sm:py-10"><KrewThinkingState context="generic" customMessage="Chargement des préférences de la Star…" delayMs={0} /></main>;
+  if (isLoading) return <main className="mx-auto w-full max-w-[820px] px-5 py-8 sm:px-7 sm:py-10 lg:px-8"><KrewThinkingState context="generic" customMessage="Chargement des préférences de la Star…" delayMs={0} /></main>;
 
   if (isError || !data) {
     return (
-      <main className="mx-auto max-w-[820px] space-y-6 px-5 py-8 sm:px-7 sm:py-10">
-        <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
+      <main className="mx-auto w-full max-w-[820px] space-y-6 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+        <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
         <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
           <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">Impossible de charger les préférences de la Star</h1>
           <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">Les informations de la Star ne sont pas disponibles pour le moment.</p>
@@ -310,21 +310,21 @@ function StarQuestionnaire() {
   }
 
   if (!data.trip.hasStar) {
-    return <main className="mx-auto max-w-[820px] space-y-4 px-5 py-8 text-center sm:px-7 sm:py-10"><p className="text-muted-foreground">Ce voyage n’a pas de Star.</p><Button asChild variant="outline" className="rounded-xl"><Link to="/trips/$tripId" params={{ tripId }}>Retour au voyage</Link></Button></main>;
+    return <main className="mx-auto w-full max-w-[820px] space-y-4 px-5 py-8 text-center sm:px-7 sm:py-10 lg:px-8"><p className="text-muted-foreground">Ce voyage n’a pas de Star.</p><Button asChild variant="outline" className="rounded-xl"><Link to="/trips/$tripId" params={{ tripId }}>Retour au voyage</Link></Button></main>;
   }
 
   const starName = data.trip.celebratedPerson || "la Star";
   const disabledSetup = !data.trip.isOwner;
 
   return (
-    <main className="mx-auto max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10">
-      <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
+    <main className="mx-auto w-full max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+      <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
 
-      <KrewJourneyPageHeader tripName={data.trip.name ?? "Voyage"} title={`Préférences de ${starName}`} otterSrc="/brand/otter-states/preferences.png" waveClassName="w-[clamp(96px,38vw,160px)]">
-        <p className="text-sm text-muted-foreground sm:text-base">Complète les réponses au nom de <strong>{starName}</strong>. Toutes les options ci-dessous décrivent ce qui lui ferait envie, à lui ou à elle.</p>
+      <KrewJourneyPageHeader tripName={data.trip.name ?? "Voyage"} title={`Préférences de ${starName}`} otterSrc="/brand/otter-states/preferences.png">
+        <p>Complète les réponses au nom de <strong>{starName}</strong>. Toutes les options ci-dessous décrivent ce qui lui ferait envie, à lui ou à elle.</p>
       </KrewJourneyPageHeader>
 
-      <div className="pt-2">
+      <div>
         <Section title="Pour commencer" hint="Ces deux choix restent modifiables si l’organisation évolue.">
           <div className="space-y-5">
             <div className="space-y-3">
