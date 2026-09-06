@@ -101,24 +101,22 @@ export function KrewStatefulButton({
         data-stateful-status={status}
         onClick={run}
         className={cn(
-          "overflow-hidden transition-[background-color,border-color,color,transform] duration-200 active:scale-[0.98] motion-reduce:transition-none",
+          "transition-[background-color,border-color,color,transform] duration-200 active:scale-[0.98] motion-reduce:transition-none",
           status === "success" && "border-sage/50 bg-sage/15 text-primary hover:bg-sage/15",
           status === "error" && "border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/5",
           className,
         )}
       >
-        <span className="inline-flex items-center justify-center gap-2">
-          {status === "loading" ? <Loader2 className="size-4 animate-spin" /> : null}
-          {status === "success" ? <KrewMark type="check" tone="sage" size="sm" className="size-4" /> : null}
-          <span>
-            {status === "loading"
-              ? actionLabels.current.loadingLabel
-              : status === "success"
-                ? actionLabels.current.successLabel
-                : status === "error"
-                  ? actionLabels.current.errorLabel
-                  : idleLabel}
-          </span>
+        {status === "loading" ? <Loader2 className="size-4 animate-spin" /> : null}
+        {status === "success" ? <KrewMark type="check" tone="sage" size="sm" className="size-4" /> : null}
+        <span className="min-w-0 max-w-full whitespace-normal break-words text-center">
+          {status === "loading"
+            ? actionLabels.current.loadingLabel
+            : status === "success"
+              ? actionLabels.current.successLabel
+              : status === "error"
+                ? actionLabels.current.errorLabel
+                : idleLabel}
         </span>
       </Button>
       {tripId && fallbackSection && fallbackKind === "destination"

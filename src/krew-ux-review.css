@@ -76,21 +76,18 @@ main.max-w-5xl footer[class*="mt-16"] > div > div:first-child > div > p:first-ch
   display: none !important;
 }
 
+/* Archive is intentionally a tertiary text action. Keep its real DOM label visible;
+ * never replace product copy through pseudo-elements. */
 main.max-w-5xl footer[class*="mt-16"] > div > div:first-child > button {
   order: -1;
   min-height: 0;
   margin: 0;
   padding: 0;
-  font-size: 0;
-  justify-content: flex-start;
-  text-align: left;
-}
-
-main.max-w-5xl footer[class*="mt-16"] > div > div:first-child > button::after {
-  content: "Archiver le voyage";
   font-size: 0.875rem;
   line-height: 1.25rem;
   font-weight: 500;
+  justify-content: flex-start;
+  text-align: left;
 }
 
 @media (max-width: 639px) {

@@ -26,63 +26,9 @@
   opacity: 1 !important;
 }
 
-/* Shared compact trip CTA geometry. */
-.krew-trip-primary-cta {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  column-gap: .375rem !important;
-  min-height: 2.5rem !important;
-  height: 2.5rem !important;
-  width: max-content !important;
-  min-width: max-content !important;
-  flex-shrink: 0 !important;
-  border-radius: .75rem !important;
-  padding: 0 1.25rem !important;
-  white-space: nowrap !important;
-  text-align: center !important;
-  font-size: .875rem !important;
-  font-weight: 500 !important;
-  line-height: 1 !important;
-  box-shadow: none !important;
-}
-
-/* Mes voyages: exact same mobile CTA geometry as SiteHeader. */
-main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 0 !important;
-  min-height: 2.5rem !important;
-  height: 2.5rem !important;
-  width: max-content !important;
-  min-width: max-content !important;
-  flex-shrink: 0 !important;
-  border-radius: .75rem !important;
-  padding: 0 1.25rem !important;
-  white-space: nowrap !important;
-  text-align: center !important;
-  font-size: .875rem !important;
-  font-weight: 500 !important;
-  line-height: 1 !important;
-  box-shadow: none !important;
-}
-main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] > svg {
-  display: none !important;
-}
-
 /* Mes voyages: section underlines use the exact same title-to-wave gap as the page title. */
 main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
   bottom: -1.25rem !important;
-}
-
-@media (min-width: 640px) {
-  .krew-trip-primary-cta,
-  main[class*="max-w-[1180px]"] > header > a[href="/trips/new"] {
-    padding-left: 1.75rem !important;
-    padding-right: 1.75rem !important;
-    font-size: 1rem !important;
-  }
 }
 
 /* Résumé du voyage: stage note is the visual replacing the group-section otter. */
@@ -126,38 +72,6 @@ main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
   }
 }
 
-/* Relancer le groupe: icon first, label slightly to its right, both on the same baseline. */
-#group-section > div.pt-4.border-t {
-  display: flex !important;
-  justify-content: flex-start !important;
-}
-#group-section > div.pt-4.border-t > button {
-  display: inline-flex !important;
-  width: auto !important;
-  min-width: 0 !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
-  gap: .625rem !important;
-  padding-left: .375rem !important;
-  padding-right: .625rem !important;
-  text-align: left !important;
-}
-#group-section > div.pt-4.border-t > button > svg {
-  position: static !important;
-  flex: 0 0 1rem !important;
-  margin: 0 !important;
-  transform: none !important;
-}
-#group-section > div.pt-4.border-t > button > span {
-  position: static !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  margin: 0 !important;
-  line-height: 1 !important;
-  white-space: nowrap !important;
-  transform: none !important;
-}
-
 /* Gestion du voyage: no divider between archive and permanent deletion; compact vertical rhythm. */
 main footer.mt-16 > div.space-y-4 {
   row-gap: .5rem !important;
@@ -166,30 +80,6 @@ main footer.mt-16 > div.space-y-4 > div + div {
   border-top: 0 !important;
   padding-top: 0 !important;
   margin-top: 0 !important;
-}
-
-/* Dates du groupe: candidate dates are open rows, never six rectangular cards. */
-#hub-dates > ul > li {
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  padding: .75rem 0 !important;
-  box-shadow: none !important;
-}
-#hub-dates > ul > li + li {
-  border-top: 1px solid color-mix(in oklch, var(--border) 55%, transparent) !important;
-}
-
-/* Journey support otters use the same visual scale as the shared page header. */
-#hub-profile > img[src*="/brand/otter-states/"],
-#hub-dates > img[src*="/brand/otter-states/"] {
-  width: 72px !important;
-}
-@media (min-width: 640px) {
-  #hub-profile > img[src*="/brand/otter-states/"],
-  #hub-dates > img[src*="/brand/otter-states/"] {
-    width: 96px !important;
-  }
 }
 
 /* Journey: subtle upward reveal from "Notre feuille de route" onward. */

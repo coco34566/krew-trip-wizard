@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import "@testing-library/jest-dom/vitest";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { KrewStatefulButton } from "./KrewStatefulButton";
@@ -23,6 +24,21 @@ describe("KrewStatefulButton", () => {
     expect(b.className).toContain("test-hook");
   });
 
+  it("keeps long labels wrap-safe even when a legacy consumer requests a fixed height", () => {
+    render(
+      <KrewStatefulButton
+        size="sm"
+        className="h-8 w-40"
+        idleLabel="Marquer ce trajet comme réservé pour tout le groupe"
+        onAction={() => Promise.resolve()}
+      />,
+    );
+    const b = screen.getByRole("button");
+    const label = b.querySelector("[data-krew-button-label]");
+    expect(b).toHaveStyle({ height: "auto" });
+    expect(label).toHaveClass("whitespace-normal", "break-words", "text-center");
+  });
+
   it("shows custom loading and blocks double click", async () => {
     const d = deferred();
     const onAction = vi.fn(() => d.promise);
@@ -33,6 +49,10 @@ describe("KrewStatefulButton", () => {
     expect(onAction).toHaveBeenCalledTimes(1);
     expect((loadingButton as HTMLButtonElement).disabled).toBe(true);
     expect(loadingButton.getAttribute("aria-busy")).toBe("true");
+    expect(loadingButton.querySelector("[data-krew-button-content]")).toHaveClass(
+      "grid-cols-[1rem_minmax(0,auto)_1rem]",
+    );
+    expect(loadingButton.querySelector("[data-krew-button-label]")).toHaveTextContent("Sauvegarde…");
     await act(async () => d.resolve());
   });
 
@@ -40,7 +60,11 @@ describe("KrewStatefulButton", () => {
     vi.useFakeTimers();
     render(<KrewStatefulButton idleLabel="Inviter" successLabel="Invitation envoyée" resetAfterMs={1200} onAction={() => Promise.resolve({ ok: true })} />);
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Inviter" })));
-    expect(screen.getByRole("button", { name: "Invitation envoyée" }).getAttribute("data-stateful-status")).toBe("success");
+    const success = screen.getByRole("button", { name: "Invitation envoyée" });
+    expect(success.getAttribute("data-stateful-status")).toBe("success");
+    expect(success.querySelector("[data-krew-button-content]")).toHaveClass(
+      "grid-cols-[1rem_minmax(0,auto)_1rem]",
+    );
     act(() => vi.advanceTimersByTime(1200));
     expect(screen.getByRole("button", { name: "Inviter" }).getAttribute("data-stateful-status")).toBe("idle");
   });
