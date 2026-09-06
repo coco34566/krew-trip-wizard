@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
@@ -77,34 +78,18 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
   });
 
   if (detailQuery.isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-        <KrewThinkingState context="accommodations" />
-      </main>
-    );
+    return <KrewJourneyLoadingState context="accommodations" />;
   }
 
   if (!detailQuery.data || detailQuery.isError) {
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          ← Retour au parcours
-        </Link>
-        <KrewJourneyStatusPanel
-          title="Impossible de charger les hébergements"
-          icon="attention"
-          tone="info"
-          role="alert"
-          action={<Button size="sm" onClick={() => void detailQuery.refetch()}>Réessayer</Button>}
-        >
-          <p>Les informations d’hébergement ne sont pas disponibles pour le moment.</p>
-        </KrewJourneyStatusPanel>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        title="Impossible de charger les hébergements"
+        description="Les informations d’hébergement ne sont pas disponibles pour le moment."
+        retrying={detailQuery.isFetching}
+        onRetry={() => void detailQuery.refetch()}
+      />
     );
   }
 
