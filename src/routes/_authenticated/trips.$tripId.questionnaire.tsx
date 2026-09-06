@@ -416,7 +416,7 @@ function ParticipantQuestionnaire() {
         </p>
       </KrewJourneyPageHeader>
 
-      <div>
+      <div className="pt-4">
         <Section
           title="Envies et ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
