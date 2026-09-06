@@ -1,5 +1,5 @@
-/* Scoped corrections from the tablet/mobile KREW UX review.
- * Keep this file deliberately narrow: no business logic and no global journey-shell ownership. */
+/* Temporary page compatibility rules.
+ * Keep this file deliberately narrow while the remaining legacy shells migrate. */
 
 /* Shared page-title rhythm for legacy inline underline SVGs only. */
 main[class*="max-w-[820px]"] h1 + svg[class*="underline"],
