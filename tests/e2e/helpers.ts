@@ -115,6 +115,7 @@ function isExpectedAbortedNavigation(url: string, errorText: string) {
   if (/\/brand\/[^?#]+\.(?:png|jpe?g|webp|svg)(?:\?|$)/i.test(url)) return true;
   if (/\/krew-logo\.jpg(?:\?|$)/i.test(url)) return true;
   if (/supabase\.co\/auth\/v1\/user/i.test(url)) return true;
+  if (/supabase\.co\/rest\/v1\/rpc\/get_trip_member_avatars(?:\?|$)/i.test(url)) return true;
   return false;
 }
 
