@@ -1,9 +1,75 @@
-/* KREW preferences composition.
+/* Preferences-owned visual compatibility rules.
  * Participant and Star questionnaires share the same chapter geometry.
- * The questionnaire body follows either the canonical journey header directly,
- * or a canonical journey status panel when a persistent saved state is present.
- * No asset filename is allowed to own this layout. */
+ * Width-based scoping remains temporarily until the routes expose their semantic page hook. */
 
+/* Controls density. */
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section .grid {
+  gap: 8px !important;
+}
+
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section .pt-4 {
+  padding-top: 12px !important;
+}
+
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section .mt-6 {
+  margin-top: 18px !important;
+}
+
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section label {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section button.rounded-\[14px\] {
+  min-height: 40px !important;
+  border-color: color-mix(in oklch, var(--border) 62%, transparent) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  padding: 9px 12px !important;
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+}
+
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section input.h-12 {
+  height: 44px !important;
+}
+
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section :is(input, textarea) {
+  border-radius: 12px !important;
+  font-size: 15px !important;
+}
+
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section textarea {
+  min-height: 96px !important;
+}
+
+main[class*="max-w-[820px]"]
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > div.pt-2.pb-12 > button {
+  font-size: 14px !important;
+}
+
+@media (min-width: 768px) {
+  main[class*="max-w-[820px]"]
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section label {
+    font-size: 15px !important;
+  }
+
+  main[class*="max-w-[820px]"]
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section button.rounded-\[14px\] {
+    font-size: 15px !important;
+    padding: 10px 13px !important;
+  }
+}
+
+/* Section composition. */
 main[class*="max-w-[820px]"]
   > :is([data-krew-journey-header], [data-krew-journey-status]) + div {
   counter-reset: krew-preferences-section;

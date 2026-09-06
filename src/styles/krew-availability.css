@@ -1,0 +1,17 @@
+/* Availability-owned visual compatibility rules.
+ * Keep current validated rendering while the route receives its semantic hook. */
+
+main[class*="max-w-[820px]"]:has(#availability-notes)
+  > section:not([data-krew-journey-status]) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+main[class*="max-w-[820px]"]:has(#availability-notes)
+  > section:not([data-krew-journey-status]) > .grid {
+  margin-top: 4px;
+}

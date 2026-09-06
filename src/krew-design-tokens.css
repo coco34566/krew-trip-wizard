@@ -13,6 +13,10 @@
   --krew-page-width-site: 1280px;
   --krew-reading-width: 42rem;
 
+  /* Shared component radii */
+  --krew-card-radius: 24px;
+  --krew-inset-radius: 20px;
+
   /* Shared page rhythm — current mobile baseline */
   --krew-page-padding-x: 20px;
   --krew-page-padding-y: 32px;
