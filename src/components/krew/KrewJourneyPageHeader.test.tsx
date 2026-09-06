@@ -19,11 +19,15 @@ describe("KrewJourneyPageHeader", () => {
 
     expect(container.querySelector("[data-krew-journey-header]")).toBeInTheDocument();
     expect(container.querySelector("[data-krew-journey-intro]")).toBeInTheDocument();
+    expect(container.querySelector("[data-krew-journey-title]")).toBeInTheDocument();
+    expect(container.querySelector("[data-krew-journey-otter-slot]")).toBeInTheDocument();
     expect(screen.getByText("Test 1")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Disponibilités" })).toBeInTheDocument();
     expect(screen.getByText("Contenu du chapitre")).toBeInTheDocument();
     expect(container.querySelector('img[src="/brand/otter-states/availability.png"]')).toBeInTheDocument();
-    expect(container.querySelector('[data-krew-journey-intro]')).toHaveClass("leading-[1.55]");
+    expect(container.querySelector('[data-krew-journey-intro]')).toHaveClass(
+      "leading-[var(--krew-journey-intro-leading)]",
+    );
   });
 
   it("renders optional branded title details without making them mandatory", () => {
