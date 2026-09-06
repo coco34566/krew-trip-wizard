@@ -20,6 +20,11 @@ import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
 type Props = ComponentProps<typeof TripHubDashboardLegacy>;
 type SummaryStage = "formation" | "choices" | "destination" | "organized" | "live" | "completed";
 
+const DEDICATED_JOURNEY_ROUTES: Partial<Record<string, string>> = {
+  profile: "profile",
+  dates: "dates",
+};
+
 function setCompletedGroupSectionReadOnly(completed: boolean) {
   if (typeof document === "undefined") return () => {};
   const section = document.getElementById("group-section");
@@ -196,15 +201,11 @@ export function TripHubDashboard(props: Props) {
     if (props.profileValidated) once("trip_profile_validated", "profile-validated");
     if (props.hasRecommendations) once("destination_proposals_generated", "destination-proposals");
     if (props.destinationSelected) once("destination_selected", "destination-selected");
-    if (!accommodationStale && logistics.selectedHotelId) {
-      once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
-    }
+    if (!accommodationStale && logistics.selectedHotelId) once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
     if (!transportStale && viewerId && (logistics.transportPicks ?? []).some((pick: any) => pick?.userId === viewerId && !pick?.stale)) {
       once("transport_selected", `transport:${viewerId}`);
     }
-    if (!itineraryStale && trip?.group_itinerary?.days?.length) {
-      once("planning_generated", "planning-generated");
-    }
+    if (!itineraryStale && trip?.group_itinerary?.days?.length) once("planning_generated", "planning-generated");
     if (lifecycle === "live") once("trip_started", "started");
     if (lifecycle === "completed") once("trip_completed", "completed");
   }, [
@@ -250,11 +251,15 @@ export function TripHubDashboard(props: Props) {
     if (!anchor) return;
 
     const url = new URL(anchor.href, window.location.origin);
-    if (url.pathname !== `/trips/${props.tripId}` || url.searchParams.get("section") !== "profile") return;
+    if (url.pathname !== `/trips/${props.tripId}`) return;
+
+    const section = url.searchParams.get("section");
+    const dedicatedRoute = section ? DEDICATED_JOURNEY_ROUTES[section] : null;
+    if (!dedicatedRoute) return;
 
     event.preventDefault();
     event.stopPropagation();
-    window.location.assign(`/trips/${props.tripId}/profile`);
+    window.location.assign(`/trips/${props.tripId}/${dedicatedRoute}`);
   };
 
   return (
@@ -275,13 +280,7 @@ export function TripHubDashboard(props: Props) {
             </p>
           </section>
         ) : null}
-        <div
-          className={
-            suppressPreparationChrome
-              ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden"
-              : undefined
-          }
-        >
+        <div className={suppressPreparationChrome ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden" : undefined}>
           <TripHubDashboardLegacy
             {...props}
             isOwner={props.isOwner}
