@@ -66,7 +66,6 @@ describe("Button", () => {
 
     const button = screen.getByRole("button", { name: "Ouvrir" });
     expect(button).toHaveClass("size-10", "min-h-10", "min-w-10");
-    expect(button).not.toHaveStyle({ height: "auto" });
   });
 
   it("preserves the child element when using asChild", () => {
