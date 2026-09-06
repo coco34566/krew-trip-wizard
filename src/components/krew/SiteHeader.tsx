@@ -34,7 +34,7 @@ export function SiteHeader() {
 
   const initials = (user?.email ?? "K").slice(0, 2).toUpperCase();
   const tripCtaClassName =
-    "krew-trip-primary-cta h-10 min-h-10 shrink-0 rounded-xl px-5 py-0 text-sm font-medium leading-none shadow-none sm:px-7 sm:text-base";
+    "krew-trip-primary-cta shrink-0 px-4 text-sm font-medium shadow-none sm:text-base";
 
   const publicLinks = (
     <>
@@ -86,7 +86,7 @@ export function SiteHeader() {
                 Mes voyages
               </Link>
               <Button asChild className={tripCtaClassName}>
-                <Link to="/trips/new" className="inline-flex h-full min-w-max items-center justify-center whitespace-nowrap text-center leading-none">Nouveau voyage</Link>
+                <Link to="/trips/new">Nouveau voyage</Link>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -126,7 +126,7 @@ export function SiteHeader() {
                 Connexion
               </Link>
               <Button asChild className={tripCtaClassName}>
-                <Link to="/auth" search={{}} className="inline-flex h-full min-w-max items-center justify-center whitespace-nowrap text-center leading-none">Créer un voyage</Link>
+                <Link to="/auth" search={{}}>Créer un voyage</Link>
               </Button>
             </>
           )}
