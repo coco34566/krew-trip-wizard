@@ -340,6 +340,16 @@ function StarQuestionnaire() {
         <p>Complète les réponses au nom de <strong>{starName}</strong>. Toutes les options ci-dessous décrivent ce qui lui ferait envie, à lui ou à elle.</p>
       </KrewJourneyPageHeader>
 
+      {data.preferences ? (
+        <KrewJourneyStatusPanel title={`Préférences de ${starName} enregistrées`} icon="check" tone="complete">
+          <p>
+            {starMode === "secret"
+              ? `Les réponses de ${starName} sont enregistrées. Tu peux les modifier ci-dessous.`
+              : `Les réponses déjà enregistrées de ${starName} restent visibles ici. La Star répond maintenant elle-même en mode participant.`}
+          </p>
+        </KrewJourneyStatusPanel>
+      ) : null}
+
       <div>
         <Section title="Pour commencer" hint="Ces deux choix restent modifiables si l’organisation évolue.">
           <div className="space-y-5">
