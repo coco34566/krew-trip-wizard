@@ -33,6 +33,7 @@ test.describe("KREW golden smoke journey", () => {
     createdTripId = tripId;
     await page.reload();
     await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/invite`));
+    await expect(page.getByRole("heading", { name: "Inviter le groupe" })).toBeVisible();
     await page.goto("/dashboard");
     await expect(page.getByText(tripName, { exact: false })).toBeVisible();
     await testInfo.attach("created-trip", { body: Buffer.from(JSON.stringify({ tripId, tripName }, null, 2)), contentType: "application/json" });
