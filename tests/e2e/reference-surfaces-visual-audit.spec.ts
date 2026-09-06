@@ -89,6 +89,9 @@ test("reference surfaces visual audit", async ({ page }, testInfo) => {
     ["faq", "/faq"],
     ["tarifs", "/tarifs"],
     ["a-propos", "/a-propos"],
+    ["cgu", "/cgu"],
+    ["confidentialite", "/confidentialite"],
+    ["mentions-legales", "/mentions-legales"],
     ["auth", "/auth"],
   ] as const;
 
