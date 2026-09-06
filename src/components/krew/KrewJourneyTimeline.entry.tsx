@@ -22,6 +22,9 @@ const DEDICATED_JOURNEY_ROUTES: Partial<Record<string, string>> = {
   dates: "dates",
   destination: "destination",
   accommodation: "accommodation",
+  transport: "transport",
+  planning: "planning",
+  tasks: "tasks",
   packing: "packing",
 };
 
