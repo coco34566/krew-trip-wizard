@@ -158,22 +158,21 @@ export function CookieConsent() {
         <footer className="flex flex-col gap-2 pt-1">
           {showCustomize ? (
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="w-1/2 rounded-xl h-10 text-xs" onClick={() => setShowCustomize(false)}>
+              <Button variant="outline" className="w-1/2 text-xs" onClick={() => setShowCustomize(false)}>
                 Retour
               </Button>
-              <Button size="sm" className="w-1/2 rounded-xl h-10 text-xs font-medium" onClick={() => saveConsent(consent)}>
+              <Button className="w-1/2 text-xs font-medium" onClick={() => saveConsent(consent)}>
                 Enregistrer mes choix
               </Button>
             </div>
           ) : (
             <>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="w-1/2 rounded-xl h-10 text-xs" onClick={() => saveConsent(emptyOptionalConsent())}>
+                <Button variant="outline" className="w-1/2 text-xs" onClick={() => saveConsent(emptyOptionalConsent())}>
                   Tout refuser
                 </Button>
                 <Button
-                  size="sm"
-                  className="w-1/2 rounded-xl h-10 text-xs font-medium"
+                  className="w-1/2 text-xs font-medium"
                   onClick={() => saveConsent({
                     analytics: true,
                     personalization: true,
