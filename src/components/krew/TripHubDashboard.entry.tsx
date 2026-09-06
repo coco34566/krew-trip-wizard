@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import {
@@ -276,12 +277,11 @@ export function TripHubDashboard(props: Props) {
         onClickCapture={handleDashboardClickCapture}
       >
         {completed ? (
-          <section className="mb-5 rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" aria-label="Voyage terminé">
-            <p className="font-display text-2xl font-normal text-foreground">Voyage terminé</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Le séjour est terminé. Les choix et l’organisation restent accessibles ci-dessous pour consultation.
-            </p>
-          </section>
+          <div className="mb-5">
+            <KrewJourneyStatusPanel title="Voyage terminé" icon="check" tone="complete">
+              <p>Le séjour est terminé. Les choix et l’organisation restent accessibles ci-dessous pour consultation.</p>
+            </KrewJourneyStatusPanel>
+          </div>
         ) : null}
         <div className={suppressPreparationChrome ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden" : undefined}>
           <TripHubDashboardLegacy
