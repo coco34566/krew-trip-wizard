@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Resolve Vercel preview URL
+      - name: Resolve Vercel preview URLs
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -59,28 +59,52 @@ jobs:
               file.startsWith(".github/") || file.startsWith("docs/") || file.startsWith("tests/"),
             );
           };
+          const nearestAppCommit = async (startSha, maxDepth = 20) => {
+            let commit = await api(`/commits/${startSha}`);
+            for (let depth = 0; depth < maxDepth && isPreviewNeutral(commit); depth += 1) {
+              const parentSha = commit.parents?.[0]?.sha;
+              if (!parentSha) break;
+              commit = await api(`/commits/${parentSha}`);
+            }
+            return commit;
+          };
 
-          let targetCommit = await api(`/commits/${process.env.HEAD_SHA}`);
-          for (let depth = 0; depth < 10 && isPreviewNeutral(targetCommit); depth += 1) {
+          const targetCommit = await nearestAppCommit(process.env.HEAD_SHA);
+          const headIsPreviewNeutral = targetCommit.sha !== process.env.HEAD_SHA;
+
+          let previousAppCommit = null;
+          if (!headIsPreviewNeutral) {
             const parentSha = targetCommit.parents?.[0]?.sha;
-            if (!parentSha) break;
-            targetCommit = await api(`/commits/${parentSha}`);
+            if (parentSha) previousAppCommit = await nearestAppCommit(parentSha);
           }
 
-          let previewUrl = "";
-          for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
-            previewUrl = await findReadyUrlForSha(targetCommit.sha);
-            if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
-          }
+          const waitForPreview = async (sha) => {
+            let url = "";
+            for (let attempt = 0; attempt < 30 && !url; attempt += 1) {
+              url = await findReadyUrlForSha(sha);
+              if (!url) await new Promise((resolve) => setTimeout(resolve, 20_000));
+            }
+            if (!url) throw new Error(`Vercel preview URL unavailable for ${sha}`);
+            return url;
+          };
 
-          if (!previewUrl) throw new Error(`Vercel preview URL unavailable for ${targetCommit.sha}`);
+          const previewUrl = await waitForPreview(targetCommit.sha);
           appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_APP_SHA=${targetCommit.sha}\n`);
+
+          if (previousAppCommit && previousAppCommit.sha !== targetCommit.sha) {
+            const beforeUrl = await waitForPreview(previousAppCommit.sha);
+            appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_URL=${beforeUrl}\n`);
+            appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_SHA=${previousAppCommit.sha}\n`);
+          }
           NODE
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
       - name: Run smoke journey only
         run: npm run test:e2e:smoke
+      - name: Capture and compare design-system migration surfaces
+        run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
       - name: Upload Playwright report
         if: always()
         continue-on-error: true
