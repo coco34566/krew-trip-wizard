@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, Plane } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
@@ -92,46 +93,22 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   });
 
   if (detailQuery.isLoading || progressQuery.isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-7 lg:px-8">
-        <KrewThinkingState context="transport" />
-      </main>
-    );
+    return <KrewJourneyLoadingState context="transport" />;
   }
 
   if (!detailQuery.data || detailQuery.isError || progressQuery.isError) {
     const retrying = detailQuery.isFetching || progressQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-6 px-5 py-10 sm:px-7 lg:px-8">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="size-4" /> Retour au voyage
-        </Link>
-        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
-          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
-            Impossible de charger les trajets
-          </h1>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Les informations de transport du groupe ne sont pas disponibles pour le moment.
-          </p>
-          <Button
-            type="button"
-            className="mt-5"
-            onClick={() => {
-              void detailQuery.refetch();
-              void progressQuery.refetch();
-            }}
-            disabled={retrying}
-            aria-busy={retrying}
-          >
-            {retrying ? "Chargement…" : "Réessayer"}
-          </Button>
-        </section>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        title="Impossible de charger les trajets"
+        description="Les informations de transport du groupe ne sont pas disponibles pour le moment."
+        retrying={retrying}
+        onRetry={() => {
+          void detailQuery.refetch();
+          void progressQuery.refetch();
+        }}
+      />
     );
   }
 
