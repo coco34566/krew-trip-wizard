@@ -32,6 +32,25 @@
   /* Shared product copy */
   --krew-product-subtitle: 14px;
   --krew-product-intro-leading: 1.55;
+
+  /* Journey compatibility aliases — preserve the current validated header/status geometry. */
+  --krew-journey-page-title: var(--krew-title-chapter, 34px);
+  --krew-journey-section-title: var(--krew-title-section, 24px);
+  --krew-journey-subtitle: var(--krew-product-subtitle, 14px);
+  --krew-journey-title-leading: var(--krew-title-leading, .98);
+  --krew-journey-title-tracking: var(--krew-title-tracking, -.02em);
+  --krew-journey-intro-leading: var(--krew-product-intro-leading, 1.55);
+  --krew-journey-intro-width: var(--krew-reading-width, 42rem);
+  --krew-journey-header-gap: var(--krew-header-gap, 12px);
+  --krew-journey-header-stack-gap: 12px;
+  --krew-journey-header-column-gap: 16px;
+  --krew-journey-content-gap: var(--krew-content-gap, 28px);
+  --krew-journey-wave-width: 140px;
+  --krew-journey-otter-slot-width: 88px;
+  --krew-journey-otter-height: 76px;
+  --krew-journey-status-radius: 18px;
+  --krew-journey-status-padding-x: 16px;
+  --krew-journey-status-padding-y: 16px;
 }
 
 @media (min-width: 640px) {
@@ -47,6 +66,11 @@
     --krew-title-hero: 50px;
     --krew-title-section: 26px;
     --krew-product-subtitle: 15px;
+
+    --krew-journey-header-column-gap: 24px;
+    --krew-journey-otter-slot-width: 104px;
+    --krew-journey-otter-height: 88px;
+    --krew-journey-status-padding-x: 20px;
   }
 }
 
