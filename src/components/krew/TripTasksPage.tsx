@@ -5,9 +5,10 @@ import { ArrowLeft, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
+import { KrewMark } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import {
@@ -44,7 +45,7 @@ const STATUS_LABEL: Record<TaskStatus, string> = {
 
 function statusClass(status: TaskStatus) {
   return cn(
-    "rounded-xl border px-2.5 py-1 text-xs font-semibold",
+    "min-h-9 rounded-[10px] border px-2.5 py-1 text-xs font-semibold",
     status === "done" && "border-sage/40 bg-sage/20 text-primary",
     status === "in_progress" && "border-primary/25 bg-primary/8 text-primary",
     status === "todo" && "border-border bg-muted text-muted-foreground",
@@ -140,7 +141,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
 
   if (detailQuery.isLoading || tasksQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-7 lg:px-8">
         <KrewThinkingState context="generic" customMessage="Chargement des tâches…" delayMs={0} />
       </main>
     );
@@ -149,12 +150,12 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   if (!detailQuery.data || detailQuery.isError || tasksQuery.isError) {
     const retrying = detailQuery.isFetching || tasksQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-5 py-10 sm:px-7 lg:px-8">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
           search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <ArrowLeft className="size-4" /> Retour au voyage
         </Link>
@@ -233,7 +234,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   const renderAssignee = (task: TripTask) => {
     if (completedTrip || !isAdmin) {
       return (
-        <span className="rounded-full border border-border/60 bg-surface px-2.5 py-1 text-xs">
+        <span className="inline-flex min-h-9 items-center rounded-[10px] border border-border/60 bg-surface px-2.5 py-1 text-xs">
           {task.assigned_participant
             ? task.assigned_participant.display_name ||
               task.assigned_participant.email?.split("@")[0] ||
@@ -253,7 +254,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
             participantId: event.target.value || null,
           })
         }
-        className="rounded-xl border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+        className="min-h-9 rounded-[10px] border border-border bg-background px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
       >
         <option value="">Non attribué</option>
         {participants.map((participant) => (
@@ -273,28 +274,29 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
         })
       : "Préparation";
 
+  const pageTitle = completedTrip
+    ? "Tâches du voyage"
+    : isAdmin
+      ? "Répartir les tâches"
+      : "Les tâches du groupe";
+
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 py-8 sm:px-6 sm:py-10">
+    <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
         search={{ view: "voyage" }}
-        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au parcours
       </Link>
 
-      <header className="relative border-b border-border/45 pb-5 pr-20 sm:pr-24">
-        <img
-          src="/brand/otter-states/trip-preparation.png"
-          alt=""
-          className="pointer-events-none absolute right-0 top-0 w-[72px] object-contain opacity-90 sm:w-[88px]"
-        />
-        <h1 className="flex items-center gap-2 font-display text-[30px] font-normal text-foreground sm:text-[36px]">
-          <KrewIcon name="tasks" tone="plum" size="sm" className="size-5" />
-          {completedTrip ? "Tâches du voyage" : isAdmin ? "Répartir les tâches" : "Les tâches du groupe"}
-        </h1>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground sm:text-base">
+      <KrewJourneyPageHeader
+        tripName={trip.name ?? "Voyage"}
+        title={pageTitle}
+        otterSrc="/brand/otter-states/trip-preparation.png"
+      >
+        <p>
           {completedTrip
             ? "Historique des tâches du voyage, avec leur responsable et leur dernier statut."
             : isAdmin
@@ -302,12 +304,12 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
               : "Retrouve les tâches du groupe. Tu peux mettre à jour uniquement celles qui te sont attribuées."}
         </p>
         {tasks.length > 0 && !completedTrip ? (
-          <p className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-foreground">
+          <p className="inline-flex items-center gap-2 font-medium text-foreground">
             <KrewMark type={completed === tasks.length ? "check" : "scribble"} tone="sage" size="sm" className="size-4" />
             {completed}/{tasks.length} terminée{tasks.length > 1 ? "s" : ""}
           </p>
         ) : null}
-      </header>
+      </KrewJourneyPageHeader>
 
       {isAdmin && !completedTrip && missingParticipants > 0 ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
