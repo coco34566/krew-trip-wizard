@@ -41,37 +41,60 @@ export interface ButtonProps
   asChild?: boolean;
 }
 
+function ButtonContent({ children, iconOnly }: { children: React.ReactNode; iconOnly: boolean }) {
+  return (
+    <span
+      data-krew-button-content
+      className={cn(
+        "inline-flex min-w-0 max-w-full items-center justify-center gap-2 text-center",
+        iconOnly ? "size-full" : "whitespace-normal break-words",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, children, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
     const resolvedVariant = variant ?? "default";
     const resolvedSize = size ?? "default";
+    const buttonClassName = cn(buttonVariants({ variant, size, className }));
+    const iconOnly = resolvedSize === "icon";
 
-    const content = (
-      <span
-        data-krew-button-content
-        className={cn(
-          "inline-flex min-w-0 max-w-full items-center justify-center gap-2 text-center",
-          resolvedSize === "icon"
-            ? "size-full"
-            : "whitespace-normal break-words",
-        )}
-      >
-        {children}
-      </span>
-    );
+    if (asChild) {
+      const child = React.Children.only(children) as React.ReactElement<{ children?: React.ReactNode }>;
+      const wrappedChild = React.cloneElement(
+        child,
+        undefined,
+        <ButtonContent iconOnly={iconOnly}>{child.props.children}</ButtonContent>,
+      );
+
+      return (
+        <Slot
+          data-slot="button"
+          data-variant={resolvedVariant}
+          data-size={resolvedSize}
+          className={buttonClassName}
+          ref={ref}
+          {...props}
+        >
+          {wrappedChild}
+        </Slot>
+      );
+    }
 
     return (
-      <Comp
+      <button
         data-slot="button"
         data-variant={resolvedVariant}
         data-size={resolvedSize}
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={buttonClassName}
         ref={ref}
         {...props}
       >
-        {content}
-      </Comp>
+        <ButtonContent iconOnly={iconOnly}>{children}</ButtonContent>
+      </button>
     );
   },
 );
