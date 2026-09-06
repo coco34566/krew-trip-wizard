@@ -1,68 +1,13 @@
-/* KREW visual baseline — local canvas and density rules only.
- * The canonical journey hierarchy lives in krew-journey-alignment.css.
- * Button geometry lives in the shared Button primitive / styles.css.
- */
+/* KREW visual baseline — content density only.
+ * Page shells and headers are owned by route JSX + KrewJourneyPageHeader.
+ * Legacy journey chapter alignment lives temporarily in krew-journey-alignment.css. */
 
 :root {
-  --krew-gutter-mobile: 24px;
-  --krew-gutter-tablet: 32px;
-  --krew-gutter-desktop: 48px;
   --krew-card-radius: 24px;
   --krew-inset-radius: 20px;
 }
 
-main.max-w-5xl:has(> div.space-y-6 > a:first-child) {
-  padding-left: var(--krew-gutter-mobile) !important;
-  padding-right: var(--krew-gutter-mobile) !important;
-}
-
-main.max-w-5xl:has(> div.space-y-6 > a:first-child) > div.space-y-6 {
-  max-width: 860px;
-  margin-inline: auto;
-}
-
-@media (min-width: 768px) {
-  main.max-w-5xl:has(> div.space-y-6 > a:first-child) {
-    padding-left: var(--krew-gutter-tablet) !important;
-    padding-right: var(--krew-gutter-tablet) !important;
-  }
-}
-
-@media (min-width: 1200px) {
-  main.max-w-5xl:has(> div.space-y-6 > a:first-child) {
-    padding-left: var(--krew-gutter-desktop) !important;
-    padding-right: var(--krew-gutter-desktop) !important;
-  }
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) {
-  padding-left: var(--krew-gutter-mobile) !important;
-  padding-right: var(--krew-gutter-mobile) !important;
-  padding-top: 32px !important;
-}
-
-@media (min-width: 768px) {
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) {
-    padding-left: var(--krew-gutter-tablet) !important;
-    padding-right: var(--krew-gutter-tablet) !important;
-    padding-top: 40px !important;
-  }
-}
-
-main.max-w-5xl :is(
-  #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
-  #hub-activities-plan,#hub-tasks-org,#hub-packing
-) {
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-}
-
+/* Availability content is open; header geometry is shared elsewhere. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section {
   border: 0 !important;
   border-radius: 0 !important;
@@ -72,11 +17,11 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"
   padding-right: 0 !important;
 }
 
-/* Questionnaire: compact, open and responsive. The page shell is shared with Availability. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.relative {
-  max-width: 880px;
+main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section > .grid {
+  margin-top: 4px;
 }
 
+/* Preferences questionnaire: compact, open and responsive. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 {
   padding-top: 0 !important;
 }
@@ -132,7 +77,7 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   line-height: 1.35 !important;
 }
 
-/* Choice controls are not CTA Buttons, but share the same 12px corner language. */
+/* Choice controls are questionnaire controls, not CTA Buttons. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section button.rounded-\[14px\] {
   min-height: 40px !important;
   border-color: color-mix(in oklch, var(--border) 62%, transparent) !important;
@@ -161,7 +106,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   padding-bottom: 32px !important;
 }
 
-/* Final questionnaire action inherits Button geometry; only typography stays local. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > div.pt-2.pb-12 > button {
   font-size: 14px !important;
 }
@@ -171,47 +115,17 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
     padding: 34px 0 !important;
     gap: 16px !important;
   }
+
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section h2.font-display + p {
     font-size: 14px !important;
   }
+
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section label {
     font-size: 15px !important;
   }
+
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section button.rounded-\[14px\] {
     font-size: 15px !important;
     padding: 10px 13px !important;
-  }
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) > section > .grid {
-  margin-top: 4px;
-}
-
-/* Destination prerequisite remains a local semantic surface only. */
-#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
-  max-width: 680px;
-  margin: 28px 0 8px !important;
-  padding: 24px !important;
-  border: 0 !important;
-  border-radius: var(--krew-inset-radius) !important;
-  background: color-mix(in oklch, var(--sage) 8%, transparent) !important;
-  text-align: left !important;
-}
-
-#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > a,
-#hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > button {
-  margin-top: 22px !important;
-  justify-content: center;
-}
-
-@media (max-width: 639px) {
-  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
-    padding: 20px !important;
-  }
-}
-
-@media (min-width: 768px) {
-  #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 {
-    padding: 28px !important;
   }
 }
