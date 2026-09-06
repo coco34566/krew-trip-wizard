@@ -53,32 +53,33 @@ main[class*="max-w-[820px]"] form button[class*="border-primary/40"]::after {
   margin-left: auto !important;
 }
 
-/* Trip management: no separate heading and exactly one visible archive action plus delete. */
-main.max-w-5xl footer[class*="mt-16"] > p:first-child {
+/* Trip management: no separate heading and exactly one visible archive action plus delete.
+ * Scope through the TripHub group section instead of inferring the surface from page width. */
+#group-section ~ footer[class*="mt-16"] > p:first-child {
   display: none !important;
 }
 
-main.max-w-5xl footer[class*="mt-16"] > div {
+#group-section ~ footer[class*="mt-16"] > div {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start !important;
   gap: 1rem 1.5rem !important;
 }
 
-main.max-w-5xl footer[class*="mt-16"] > div > div:first-child {
+#group-section ~ footer[class*="mt-16"] > div > div:first-child {
   display: flex !important;
   flex-direction: column;
   align-items: flex-start !important;
   gap: 0.25rem !important;
 }
 
-main.max-w-5xl footer[class*="mt-16"] > div > div:first-child > div > p:first-child {
+#group-section ~ footer[class*="mt-16"] > div > div:first-child > div > p:first-child {
   display: none !important;
 }
 
 /* Archive is intentionally a tertiary text action. Keep its real DOM label visible;
  * never replace product copy through pseudo-elements. */
-main.max-w-5xl footer[class*="mt-16"] > div > div:first-child > button {
+#group-section ~ footer[class*="mt-16"] > div > div:first-child > button {
   order: -1;
   min-height: 0;
   margin: 0;
@@ -91,7 +92,7 @@ main.max-w-5xl footer[class*="mt-16"] > div > div:first-child > button {
 }
 
 @media (max-width: 639px) {
-  main.max-w-5xl footer[class*="mt-16"] > div {
+  #group-section ~ footer[class*="mt-16"] > div {
     grid-template-columns: minmax(0, 1fr);
   }
 }
