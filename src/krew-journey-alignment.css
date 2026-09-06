@@ -1,7 +1,6 @@
 /* KREW journey alignment — canonical geometry tokens.
  * Modern journey pages own their markup through KrewJourneyPageHeader.
  * Questionnaire density lives in krew-visual-baseline.css.
- * Invite remains isolated here until its ownership is reconciled.
  *
  * Journey tokens remain as compatibility aliases while pages migrate to the
  * shared KREW design-token layer. Their computed values are unchanged.
@@ -33,91 +32,5 @@
     --krew-journey-otter-slot-width: 104px;
     --krew-journey-otter-height: 88px;
     --krew-journey-status-padding-x: 20px;
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Invite: keep current composition isolated until ownership is reconciled.    */
-/* -------------------------------------------------------------------------- */
-
-main.space-y-8:has(> section[class~="bg-sage/8"]) {
-  width: 100%;
-  max-width: 980px;
-  margin-inline: auto;
-}
-
-main.space-y-8:has(> section[class~="bg-sage/8"]) > div.space-y-2 > h1.font-display {
-  margin: 0 !important;
-  font-size: var(--krew-journey-page-title) !important;
-  line-height: var(--krew-journey-title-leading) !important;
-  font-weight: 400 !important;
-  letter-spacing: var(--krew-journey-title-tracking) !important;
-}
-
-main.space-y-8:has(> section[class~="bg-sage/8"]) > div.space-y-2 > p.text-muted-foreground {
-  margin-top: var(--krew-journey-header-gap) !important;
-  max-width: var(--krew-journey-intro-width);
-  font-size: var(--krew-journey-subtitle) !important;
-  line-height: var(--krew-journey-intro-leading) !important;
-}
-
-main.space-y-8:has(> section[class~="bg-sage/8"]) > section[class~="bg-sage/8"],
-main.space-y-8:has(> section[class~="bg-sage/8"]) > section.rounded-3xl:has(input[type="email"]) {
-  margin-top: 0 !important;
-  padding: 20px 0 !important;
-  border-width: 1px 0 0 !important;
-  border-color: color-mix(in oklch, var(--border) 62%, transparent) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-main.space-y-8:has(> section[class~="bg-sage/8"]) > section[class~="bg-sage/8"] > p.break-all {
-  border-radius: 14px !important;
-  background: color-mix(in oklch, var(--sage) 8%, var(--background)) !important;
-}
-
-main.space-y-8:has(> section[class~="bg-sage/8"]) > section.space-y-4.pt-2 {
-  padding-top: 6px !important;
-}
-
-main.space-y-8:has(> section[class~="bg-sage/8"]) > section.space-y-4.pt-2 h2.font-display {
-  font-size: var(--krew-journey-section-title) !important;
-  line-height: 1.04 !important;
-  letter-spacing: -.012em !important;
-}
-
-@media (min-width: 768px) {
-  main.space-y-8:has(> section[class~="bg-sage/8"]) {
-    display: grid;
-    grid-template-columns: minmax(0, .9fr) minmax(0, 1.25fr);
-    column-gap: 34px;
-    row-gap: 30px;
-    align-items: start;
-  }
-
-  main.space-y-8:has(> section[class~="bg-sage/8"]) > * {
-    grid-column: 1 / -1;
-    min-width: 0;
-  }
-
-  main.space-y-8:has(> section[class~="bg-sage/8"]) > section[class~="bg-sage/8"] {
-    grid-column: 1;
-    padding: 22px 30px 22px 0 !important;
-    border-top: 1px solid color-mix(in oklch, var(--border) 62%, transparent) !important;
-    border-right: 1px solid color-mix(in oklch, var(--border) 62%, transparent) !important;
-  }
-
-  main.space-y-8:has(> section[class~="bg-sage/8"]) > section.rounded-3xl:has(input[type="email"]) {
-    grid-column: 2;
-    padding: 22px 0 !important;
-    border-top: 1px solid color-mix(in oklch, var(--border) 62%, transparent) !important;
-  }
-}
-
-@media (max-width: 767px) {
-  main.space-y-8:has(> section[class~="bg-sage/8"]) > section[class~="bg-sage/8"],
-  main.space-y-8:has(> section[class~="bg-sage/8"]) > section.rounded-3xl:has(input[type="email"]) {
-    padding-block: 18px !important;
   }
 }
