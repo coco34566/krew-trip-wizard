@@ -14,8 +14,9 @@ import {
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
-import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { cn } from "@/lib/utils";
@@ -267,12 +268,27 @@ function AvailabilityPage() {
       </KrewJourneyPageHeader>
 
       {datesLocked && lockedLabel ? (
-        <section className="border-y border-sage/35 py-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3"><KrewMark type="stamp-circle" tone="sage" size="sm" className="mt-0.5 size-7 shrink-0 opacity-80" /><div><h2 className="font-semibold text-foreground">Dates choisies</h2><p className="mt-1 font-mono text-[14px] text-foreground">{lockedLabel}</p></div></div>
-            {data.isOwner ? <button type="button" disabled={unlockMutation.isPending} aria-busy={unlockMutation.isPending} onClick={() => { if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:cursor-wait disabled:opacity-60">{unlockMutation.isPending ? "Modification…" : "Modifier les dates"}</button> : null}
-          </div>
-        </section>
+        <KrewJourneyStatusPanel
+          title="Dates choisies"
+          icon="check"
+          tone="complete"
+          action={data.isOwner ? (
+            <button
+              type="button"
+              disabled={unlockMutation.isPending}
+              aria-busy={unlockMutation.isPending}
+              onClick={() => {
+                if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate();
+              }}
+              className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-60"
+            >
+              {unlockMutation.isPending ? "Modification…" : "Modifier les dates"}
+            </button>
+          ) : undefined}
+        >
+          <p className="font-mono text-foreground">{lockedLabel}</p>
+          <p>Les dates sont confirmées pour la suite de l’organisation.</p>
+        </KrewJourneyStatusPanel>
       ) : null}
 
       <section className="w-full space-y-7">
