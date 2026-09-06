@@ -1,16 +1,38 @@
-/* KREW journey polish — legacy compatibility only.
+/* KREW journey polish — legacy shell compatibility only.
  * Modern page hierarchy and controls are owned by their components. */
+
+main.max-w-5xl:has(:is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing)) {
+  width: 100%;
+  padding: 2rem 1.25rem 2.5rem !important;
+}
+
+@media (min-width: 640px) {
+  main.max-w-5xl:has(:is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing)) {
+    padding: 2.5rem 1.75rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  main.max-w-5xl:has(:is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing)) {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+  }
+}
 
 main.max-w-5xl:has(:is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing))
   > nav[aria-label="Navigation principale du voyage"] {
   display: none;
 }
 
-/* Back-to-trip remains a plain text link on legacy chapters. */
+/* Back-to-trip matches the geometry of modern journey routes. */
 main.max-w-5xl:has(:is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing))
   > div.space-y-6 > a:first-child {
   display: inline-flex;
+  min-height: 40px;
   align-items: center;
+  gap: .375rem;
+  font-size: 14px !important;
+  line-height: 1.25rem;
 }
 
 #hub-packing {
