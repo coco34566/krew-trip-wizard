@@ -29,7 +29,7 @@ async function createAuditTrip(page: Page) {
   await page.locator("#durationDays").fill("3");
   await Promise.all([
     page.waitForURL(/\/trips\/[^/]+\/invite/, { timeout: 30_000 }),
-    userClick(page, page.getByRole("button", { name: /Créer et inviter le groupe/ }), "create join visual-audit trip"),
+    userClick(page, page.getByRole("button", { name: /Créer et inviter la Krew/ }), "create join visual-audit trip"),
   ]);
   const tripId = page.url().match(/\/trips\/([0-9a-f-]{36})\/invite/i)?.[1];
   expect(tripId, "Join visual audit trip should expose a UUID").toBeTruthy();
