@@ -102,7 +102,12 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
   const logistics = (trip.group_logistics ?? {}) as any;
   const hotels = (logistics.hotels ?? []) as any[];
   const votes = (logistics.hotelVotes ?? []) as any[];
-  const isAdmin = Boolean(data.isOwner);
+  const isOwner = Boolean(data.isOwner);
+  const canManageBooking = Boolean(
+    isOwner ||
+      (data.userId &&
+        (trip.co_organizer_id === data.userId || trip.coOrganizerId === data.userId)),
+  );
   const selectedDestination = (data.recommendations ?? []).find((recommendation: any) => recommendation.is_selected);
   const destinationSelected = Boolean(selectedDestination);
   const selectedHotelId = logistics.selectedHotelId as string | null;
@@ -154,7 +159,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
             <p className="text-sm leading-relaxed text-muted-foreground">
               {selectedDestination?.destinations?.name ? `Destination : ${selectedDestination.destinations.name}.` : "Destination choisie."}
             </p>
-            {isAdmin ? (
+            {isOwner ? (
               <KrewStatefulButton
                 className="w-full sm:w-auto"
                 idleLabel={hotels.length ? "Actualiser les offres" : "Rechercher des hébergements"}
@@ -183,7 +188,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
             <KrewThinkingState context="accommodations" />
           ) : hotels.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-              {isAdmin ? "Lance la recherche pour proposer des hébergements." : "L’organisateur·rice proposera bientôt des hébergements."}
+              {isOwner ? "Lance la recherche pour proposer des hébergements." : "L’organisateur·rice proposera bientôt des hébergements."}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -193,7 +198,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
                 const isTop = selectedHotelId === hotel.id && hotelVotes.length > 0;
 
                 return (
-                  <article key={hotel.id} className={cn("rounded-2xl border bg-card p-4 shadow-2xs", isTop ? reserved ? "border-sage/50 bg-sage/10 ring-1 ring-sage/20" : "border-primary/35 bg-primary/5 ring-1 ring-primary/10" : "border-border")}> 
+                  <article key={hotel.id} className={cn("rounded-2xl border bg-card p-4 shadow-2xs", isTop ? reserved ? "border-sage/50 bg-sage/10 ring-1 ring-sage/20" : "border-primary/35 bg-primary/5 ring-1 ring-primary/10" : "border-border")}>
                     {hotel.imageUrl && /^https:\/\//i.test(hotel.imageUrl) ? (
                       <img src={hotel.imageUrl} alt="" className="mb-3 h-40 w-full rounded-xl object-cover" loading="lazy" />
                     ) : (
@@ -247,7 +252,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
             </div>
           )}
 
-          {isAdmin && selectedHotelId && !reserved ? (
+          {canManageBooking && selectedHotelId && !reserved ? (
             <div className="border-t border-border/45 pt-4">
               <KrewStatefulButton
                 idleLabel="Marquer comme réservé"
