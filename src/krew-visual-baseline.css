@@ -51,13 +51,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   }
 }
 
-@media (min-width: 1200px) {
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) {
-    padding-left: var(--krew-gutter-desktop) !important;
-    padding-right: var(--krew-gutter-desktop) !important;
-  }
-}
-
 main.max-w-5xl :is(
   #hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,
   #hub-activities-plan,#hub-tasks-org,#hub-packing
@@ -79,18 +72,13 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"
   padding-right: 0 !important;
 }
 
-/* Questionnaire: compact, open and responsive. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) {
-  max-width: 1040px !important;
-  padding-top: 28px !important;
-}
-
+/* Questionnaire: compact, open and responsive. The page shell is shared with Availability. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.relative {
   max-width: 880px;
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 {
-  padding-top: 8px !important;
+  padding-top: 0 !important;
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section {
@@ -179,9 +167,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
 }
 
 @media (min-width: 768px) {
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) {
-    padding-top: 36px !important;
-  }
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) > div.pt-4 > section {
     padding: 34px 0 !important;
     gap: 16px !important;
