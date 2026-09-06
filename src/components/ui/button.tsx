@@ -100,7 +100,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const resolvedSize = size ?? "default";
     const buttonClassName = cn(buttonVariants({ variant, size, className }));
     const iconOnly = resolvedSize === "icon";
-    const resolvedStyle = iconOnly ? style : { height: "auto", ...style };
+    const resolvedStyle = iconOnly
+      ? style
+      : resolvedVariant === "link"
+        ? { height: "auto", ...style }
+        : { height: "auto", borderRadius: "10px", ...style };
 
     if (asChild) {
       const child = React.Children.only(children) as React.ReactElement<{ children?: React.ReactNode }>;
