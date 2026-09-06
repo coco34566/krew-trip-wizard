@@ -18,6 +18,7 @@ import visualBaselineCss from "../krew-visual-baseline.css?url";
 import journeyAlignmentCss from "../krew-journey-alignment.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CookieConsent } from "@/components/krew/CookieConsent";
+import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,9 +30,9 @@ function NotFoundComponent() {
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page introuvable</h2>
         <p className="mt-2 text-sm text-muted-foreground">La page que tu recherches n’existe pas ou a été déplacée.</p>
         <div className="mt-6">
-          <Link to="/" className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
-            Retour à l’accueil
-          </Link>
+          <Button asChild>
+            <Link to="/">Retour à l’accueil</Link>
+          </Button>
         </div>
       </div>
     </div>
@@ -50,18 +51,17 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="font-display text-3xl font-bold text-foreground">Cette page n’a pas pu être chargée</h1>
         <p className="mt-2 text-sm text-muted-foreground">Une erreur est survenue. Tu peux réessayer ou revenir à l’accueil.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
+          <Button
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Réessayer
-          </button>
-          <a href="/" className="inline-flex items-center justify-center rounded-xl border border-input bg-background px-5 py-2.5 text-sm font-medium text-foreground hover:bg-accent">
-            Retour à l’accueil
-          </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/">Retour à l’accueil</a>
+          </Button>
         </div>
       </div>
     </div>
