@@ -3,9 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { Button } from "@/components/ui/button";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
 import { TripInvitePage } from "@/components/krew/TripInvitePage";
 import { TripPlanningPage } from "@/components/krew/TripPlanningPage";
@@ -28,29 +27,31 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId")({
 
 function ResponseGateLoading() {
   return (
-    <main className="mx-auto w-full max-w-[1020px] px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-      <KrewThinkingState context="generic" customMessage="Vérification de l’étape…" delayMs={0} />
-    </main>
+    <KrewJourneyLoadingState
+      maxWidthClassName="max-w-[1020px]"
+      message="Vérification de l’étape…"
+    />
   );
 }
 
-function ResponseGateError({ onRetry, isFetching }: { onRetry: () => void; isFetching: boolean }) {
+function ResponseGateError({
+  tripId,
+  onRetry,
+  isFetching,
+}: {
+  tripId: string;
+  onRetry: () => void;
+  isFetching: boolean;
+}) {
   return (
-    <main className="mx-auto w-full max-w-[1020px] px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-      <KrewJourneyStatusPanel
-        title="Impossible de vérifier cette étape"
-        icon="attention"
-        tone="info"
-        role="alert"
-        action={
-          <Button type="button" size="sm" onClick={onRetry} disabled={isFetching} aria-busy={isFetching}>
-            {isFetching ? "Chargement…" : "Réessayer"}
-          </Button>
-        }
-      >
-        <p>Les informations nécessaires ne sont pas disponibles pour le moment.</p>
-      </KrewJourneyStatusPanel>
-    </main>
+    <KrewJourneyErrorState
+      tripId={tripId}
+      maxWidthClassName="max-w-[1020px]"
+      title="Impossible de vérifier cette étape"
+      description="Les informations nécessaires ne sont pas disponibles pour le moment."
+      retrying={isFetching}
+      onRetry={onRetry}
+    />
   );
 }
 
@@ -93,7 +94,7 @@ function AvailabilityResponseGate({ tripId, children }: { tripId: string; childr
     queryFn: () => fetchAvailability({ data: { tripId } }),
   });
   if (isLoading) return <ResponseGateLoading />;
-  if (isError) return <ResponseGateError onRetry={() => void refetch()} isFetching={isFetching} />;
+  if (isError) return <ResponseGateError tripId={tripId} onRetry={() => void refetch()} isFetching={isFetching} />;
   if (!data?.trip?.datesLocked) return <>{children}</>;
   return (
     <ClosedResponseState tripId={tripId} title="Disponibilités" hasPreviousAnswer={Boolean(data.mine)}>
@@ -119,7 +120,7 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
     },
   });
   if (isLoading) return <ResponseGateLoading />;
-  if (isError) return <ResponseGateError onRetry={() => void refetch()} isFetching={isFetching} />;
+  if (isError) return <ResponseGateError tripId={tripId} onRetry={() => void refetch()} isFetching={isFetching} />;
   if (!data?.datesLocked) return <>{children}</>;
   return (
     <ClosedResponseState tripId={tripId} title="Préférences" hasPreviousAnswer={Boolean(data.preferences)}>
@@ -137,7 +138,7 @@ function CompletedPreparationGate({ tripId, children }: { tripId: string; childr
   });
 
   if (isLoading) return <ResponseGateLoading />;
-  if (isError) return <ResponseGateError onRetry={() => void refetch()} isFetching={isFetching} />;
+  if (isError) return <ResponseGateError tripId={tripId} onRetry={() => void refetch()} isFetching={isFetching} />;
 
   const trip = data?.trip as any;
   const completed = trip
