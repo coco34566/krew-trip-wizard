@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,9 @@ import {
   unlockTripDates,
 } from "@/lib/availability.functions";
 import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { cn } from "@/lib/utils";
 
@@ -226,20 +226,26 @@ function AvailabilityPage() {
   });
 
   if (isLoading) {
-    return <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8"><KrewThinkingState context="generic" customMessage="Chargement des disponibilités…" delayMs={0} /></main>;
+    return (
+      <KrewJourneyLoadingState
+        maxWidthClassName="max-w-[820px]"
+        message="Chargement des disponibilités…"
+      />
+    );
   }
 
   if (error || !data) {
     console.error("Impossible de charger les disponibilités:", error);
     return (
-      <main className="mx-auto w-full max-w-[820px] space-y-4 px-5 py-10 text-center sm:px-7 lg:px-8" role="alert">
-        <h1 className="font-display text-[30px] font-normal text-foreground">Impossible de charger les disponibilités</h1>
-        <p className="text-sm text-muted-foreground">Les réponses du groupe ne sont pas disponibles pour le moment.</p>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching}>{isFetching ? <><Loader2 className="size-4 animate-spin" /> Chargement…</> : "Réessayer"}</Button>
-          <Button variant="outline" asChild><Link to="/trips/$tripId" params={{ tripId }}>Retour au voyage</Link></Button>
-        </div>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        maxWidthClassName="max-w-[820px]"
+        returnLabel="Retour au voyage"
+        title="Impossible de charger les disponibilités"
+        description="Les réponses du groupe ne sont pas disponibles pour le moment."
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
     );
   }
 
