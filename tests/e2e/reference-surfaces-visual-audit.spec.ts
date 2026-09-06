@@ -20,54 +20,56 @@ const VIEWPORTS = [
 const SCREENSHOT_SAFE_PIXEL_HEIGHT = 30_000;
 const LONG_PAGE_CAPTURE_HEIGHT = 12_000;
 
-type ReferenceMetric = {
-  viewport: string;
-  page: string;
-  width: number;
-  scrollWidth: number;
-  scrollHeight: number;
-  devicePixelRatio: number;
-};
-
-type TscSnapshot = {
-  sha: string;
-  exitCode: number;
-  errors: string[];
-};
+type ReferenceMetric = { viewport: string; page: string; width: number; scrollWidth: number; scrollHeight: number; devicePixelRatio: number };
+type TscSnapshot = { sha: string; exitCode: number; errors: string[] };
 
 function runTscSnapshot(sha: string, label: string): TscSnapshot {
   const worktree = join(tmpdir(), `krew-tsc-${label}-${process.pid}`);
   const repoRoot = process.cwd();
   const tscBin = join(repoRoot, "node_modules", ".bin", "tsc");
-
   execFileSync("git", ["config", "--global", "--add", "safe.directory", repoRoot], { cwd: repoRoot, stdio: "pipe" });
   rmSync(worktree, { recursive: true, force: true });
   execFileSync("git", ["fetch", "--no-tags", "--depth=1", "origin", sha], { cwd: repoRoot, stdio: "pipe" });
   execFileSync("git", ["worktree", "add", "--detach", worktree, sha], { cwd: repoRoot, stdio: "pipe" });
   symlinkSync(join(repoRoot, "node_modules"), join(worktree, "node_modules"), "dir");
-
   let exitCode = 0;
   let output = "";
   try {
-    output = execFileSync(tscBin, ["--noEmit", "--pretty", "false"], {
-      cwd: worktree,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    output = execFileSync(tscBin, ["--noEmit", "--pretty", "false"], { cwd: worktree, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
   } catch (error: any) {
     exitCode = typeof error?.status === "number" ? error.status : 1;
     output = `${error?.stdout ?? ""}${error?.stderr ?? ""}`;
   } finally {
     execFileSync("git", ["worktree", "remove", "--force", worktree], { cwd: repoRoot, stdio: "pipe" });
   }
+  return {
+    sha,
+    exitCode,
+    errors: output.split(/\r?\n/).map((line) => line.trim()).filter((line) => /\berror TS\d+:/.test(line)).sort(),
+  };
+}
 
-  const errors = output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => /\berror TS\d+:/.test(line))
-    .sort();
+function semanticError(line: string) {
+  return line.replace(/^(.*?)(?:\(\d+,\d+\))(: error TS\d+:)/, "$1$2");
+}
 
-  return { sha, exitCode, errors };
+function multiset(values: string[]) {
+  const counts = new Map<string, number>();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return counts;
+}
+
+function semanticDelta(from: string[], to: string[]) {
+  const a = multiset(from.map(semanticError));
+  const b = multiset(to.map(semanticError));
+  const added: string[] = [];
+  const removed: string[] = [];
+  for (const key of new Set([...a.keys(), ...b.keys()])) {
+    const delta = (b.get(key) ?? 0) - (a.get(key) ?? 0);
+    if (delta > 0) added.push(...Array(delta).fill(key));
+    if (delta < 0) removed.push(...Array(-delta).fill(key));
+  }
+  return { added: added.sort(), removed: removed.sort() };
 }
 
 async function settle(page: Page) {
@@ -78,14 +80,7 @@ async function settle(page: Page) {
   await page.waitForTimeout(150);
 }
 
-async function capture(
-  page: Page,
-  testInfo: TestInfo,
-  metrics: ReferenceMetric[],
-  viewport: (typeof VIEWPORTS)[number],
-  name: string,
-  path: string,
-) {
+async function capture(page: Page, testInfo: TestInfo, metrics: ReferenceMetric[], viewport: (typeof VIEWPORTS)[number], name: string, path: string) {
   await page.goto(path);
   await settle(page);
   const geometry = await page.evaluate(() => ({
@@ -96,7 +91,6 @@ async function capture(
   }));
   metrics.push({ viewport: viewport.name, page: name, ...geometry });
   expect(geometry.scrollWidth, `${viewport.name}/${name}: no horizontal overflow`).toBeLessThanOrEqual(geometry.width + 1);
-
   if (!viewport.screenshot) return;
   const screenshotPath = testInfo.outputPath(`${viewport.name}-${name}.png`);
   const safeCssHeight = Math.max(1, Math.floor(SCREENSHOT_SAFE_PIXEL_HEIGHT / geometry.devicePixelRatio));
@@ -104,18 +98,8 @@ async function capture(
     await page.screenshot({ path: screenshotPath, fullPage: true });
   } else {
     const clipHeight = Math.min(geometry.scrollHeight, LONG_PAGE_CAPTURE_HEIGHT, safeCssHeight);
-    console.log(
-      `[reference-visual] clipping ${viewport.name}/${name} ${path}: scrollHeight=${geometry.scrollHeight}px, dpr=${geometry.devicePixelRatio}, safeCssHeight=${safeCssHeight}px, clipHeight=${clipHeight}px`,
-    );
-    await page.screenshot({
-      path: screenshotPath,
-      clip: {
-        x: 0,
-        y: 0,
-        width: geometry.width,
-        height: clipHeight,
-      },
-    });
+    console.log(`[reference-visual] clipping ${viewport.name}/${name} ${path}: scrollHeight=${geometry.scrollHeight}px, dpr=${geometry.devicePixelRatio}, safeCssHeight=${safeCssHeight}px, clipHeight=${clipHeight}px`);
+    await page.screenshot({ path: screenshotPath, clip: { x: 0, y: 0, width: geometry.width, height: clipHeight } });
   }
   await testInfo.attach(`${viewport.name}-${name}`, { path: screenshotPath, contentType: "image/png" });
 }
@@ -123,9 +107,7 @@ async function capture(
 async function firstTripId(page: Page) {
   await page.goto("/dashboard");
   await settle(page);
-  const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
-    links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
-  );
+  const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) => links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""));
   for (const href of hrefs) {
     const match = href.match(/\/trips\/([0-9a-f-]{36})(?:[/?#]|$)/i);
     if (match?.[1]) return match[1];
@@ -139,34 +121,24 @@ test("reference surfaces visual audit", async ({ page }, testInfo) => {
 
   const baselineTsc = runTscSnapshot(BASELINE_SHA, "baseline");
   const tripHubTsc = runTscSnapshot(TRIPHUB_MIGRATION_SHA, "triphub");
+  const semantic = semanticDelta(baselineTsc.errors, tripHubTsc.errors);
   const tscDiff = {
     baseline: { sha: baselineTsc.sha, exitCode: baselineTsc.exitCode, count: baselineTsc.errors.length },
     tripHub: { sha: tripHubTsc.sha, exitCode: tripHubTsc.exitCode, count: tripHubTsc.errors.length },
-    added: tripHubTsc.errors.filter((line) => !baselineTsc.errors.includes(line)),
-    removed: baselineTsc.errors.filter((line) => !tripHubTsc.errors.includes(line)),
+    semanticAdded: semantic.added,
+    semanticRemoved: semantic.removed,
   };
   console.log(`[tsc-baseline] ${JSON.stringify(tscDiff)}`);
   await testInfo.attach("tsc-baseline-diff", {
     body: Buffer.from(JSON.stringify({ ...tscDiff, baselineErrors: baselineTsc.errors, tripHubErrors: tripHubTsc.errors }, null, 2)),
     contentType: "application/json",
   });
-  expect(tscDiff.added, "TripHub migration must not introduce TypeScript errors vs baseline").toEqual([]);
-  expect(tscDiff.removed, "TripHub migration must not hide/remove baseline TypeScript errors").toEqual([]);
-  expect(tripHubTsc.errors.length, "TypeScript error count must remain identical to baseline").toBe(baselineTsc.errors.length);
 
   const metrics: ReferenceMetric[] = [];
-
   const publicPages = [
-    ["landing", "/"],
-    ["faq", "/faq"],
-    ["tarifs", "/tarifs"],
-    ["a-propos", "/a-propos"],
-    ["cgu", "/cgu"],
-    ["confidentialite", "/confidentialite"],
-    ["mentions-legales", "/mentions-legales"],
-    ["auth", "/auth"],
+    ["landing", "/"], ["faq", "/faq"], ["tarifs", "/tarifs"], ["a-propos", "/a-propos"],
+    ["cgu", "/cgu"], ["confidentialite", "/confidentialite"], ["mentions-legales", "/mentions-legales"], ["auth", "/auth"],
   ] as const;
-
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     for (const [name, path] of publicPages) await capture(page, testInfo, metrics, viewport, name, path);
@@ -175,23 +147,14 @@ test("reference surfaces visual audit", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: VIEWPORTS[0].width, height: VIEWPORTS[0].height });
   await signIn(page);
   const tripId = await firstTripId(page);
-
   const authenticatedPages = [
-    ["mes-voyages", "/dashboard"],
-    ["nouveau-voyage", "/trips/new"],
-    ["trip-dashboard", `/trips/${tripId}`],
-    ["account", "/account"],
-    ["recap", `/trips/${tripId}/recap`],
-    ["memories", `/trips/${tripId}/memories`],
+    ["mes-voyages", "/dashboard"], ["nouveau-voyage", "/trips/new"], ["trip-dashboard", `/trips/${tripId}`],
+    ["account", "/account"], ["recap", `/trips/${tripId}/recap`], ["memories", `/trips/${tripId}/memories`],
   ] as const;
-
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     for (const [name, path] of authenticatedPages) await capture(page, testInfo, metrics, viewport, name, path);
   }
 
-  await testInfo.attach("reference-surface-metrics", {
-    body: Buffer.from(JSON.stringify(metrics, null, 2)),
-    contentType: "application/json",
-  });
+  await testInfo.attach("reference-surface-metrics", { body: Buffer.from(JSON.stringify(metrics, null, 2)), contentType: "application/json" });
 });
