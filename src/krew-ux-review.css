@@ -1,7 +1,7 @@
 /* Scoped corrections from the tablet/mobile KREW UX review.
- * Keep this file deliberately narrow: no business logic and no global redesign. */
+ * Keep this file deliberately narrow: no business logic and no global journey-shell ownership. */
 
-/* Shared page-title rhythm: keep the hand-drawn sage underline below, never through, the title. */
+/* Shared page-title rhythm for legacy inline underline SVGs only. */
 main[class*="max-w-[820px]"] h1 + svg[class*="underline"],
 main[class*="max-w-[1020px]"] h1 + svg[class*="underline"],
 main[class*="max-w-[1180px]"] h1 + svg[class*="underline"],
@@ -99,7 +99,7 @@ main.max-w-5xl footer[class*="mt-16"] > div > div:first-child > button::after {
   }
 }
 
-/* Journey header: real title first; annotation becomes a secondary bottom-right note. */
+/* Journey map header — separate feature from zoomed journey pages. */
 div[class*="max-w-[900px]"] > header {
   padding-right: 7.25rem !important;
   padding-bottom: 2rem;
@@ -157,7 +157,6 @@ div[class*="max-w-[900px]"] div[class*="ring-4"][class*="ring-primary/10"] {
   --tw-ring-shadow: 0 0 #0000 !important;
 }
 
-/* Make route annotations a little more legible on tablet without touching mobile interaction. */
 @media (min-width: 640px) {
   div[class*="max-w-[900px]"] div[class*="top-[24%]"] [class*="KrewNote"],
   div[class*="max-w-[900px]"] div[class*="top-[74%]"] [class*="KrewNote"] {
@@ -165,27 +164,7 @@ div[class*="max-w-[900px]"] div[class*="ring-4"][class*="ring-primary/10"] {
   }
 }
 
-/* Star accommodation is a normal questionnaire section, not a disabled grey card. */
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) section.bg-surface\/50 {
-  background: transparent !important;
-  border-radius: 0 !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  border-bottom: 1px solid var(--border);
-}
-
-/* Tablet page rhythm across this flow. */
-@media (min-width: 640px) and (max-width: 1023px) {
-  main[class*="max-w-[820px]"],
-  main[class*="max-w-[1020px]"],
-  main[class*="max-w-[1180px]"],
-  main.max-w-5xl {
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
-  }
-}
-
-/* Do not let decorative additions create horizontal scrolling. */
+/* Decorative additions must never create horizontal scrolling. */
 @media (max-width: 1023px) {
   main[class*="max-w-[820px]"],
   main[class*="max-w-[1020px]"],
