@@ -10,9 +10,3 @@
   --krew-journey-border: color-mix(in oklch, var(--border) 72%, transparent);
   --krew-journey-border-soft: color-mix(in oklch, var(--border) 52%, transparent);
 }
-
-/* Calendar cells are selection controls shared by Availability and Star, not app CTA buttons. */
-main[class*="max-w-[820px]"] button.aspect-square {
-  min-height: 38px;
-  min-width: 38px;
-}
