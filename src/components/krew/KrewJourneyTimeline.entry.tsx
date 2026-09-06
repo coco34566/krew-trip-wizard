@@ -20,6 +20,7 @@ type Props = ComponentProps<typeof KrewJourneyTimelineLegacy>;
 const DEDICATED_JOURNEY_ROUTES: Partial<Record<string, string>> = {
   profile: "profile",
   dates: "dates",
+  packing: "packing",
 };
 
 function pendingStatus(step: TimelineStep) {
