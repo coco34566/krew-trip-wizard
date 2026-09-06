@@ -6,7 +6,7 @@
 [data-krew-dashboard-motion="true"][data-krew-summary-stage] {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: .875rem;
 }
 
 /* Neutralize inherited route spacing: this file owns the vertical rhythm. */
@@ -18,20 +18,37 @@
   order: 0;
 }
 
+/* Dashboard rhythm: keep the Pulse, next action, secondary actions and shortcuts
+ * visually connected instead of leaving large blank bands between them. */
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] > div > [class~="space-y-6"] > * + * {
-  margin-top: 1rem !important;
+  margin-top: .625rem !important;
 }
 
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-hero="true"] > .h-8 {
-  height: 1rem !important;
+  height: .25rem !important;
 }
 
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-hero="true"] > .h-4 {
-  height: .625rem !important;
+  height: .25rem !important;
+}
+
+/* KrewActionStack: compact the card-to-secondary transition without making the
+ * primary action feel cramped. */
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] section.space-y-6 > * + * {
+  margin-top: .75rem !important;
+}
+
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] section.space-y-6 > div.relative.overflow-visible {
+  padding-top: 1.25rem !important;
+  padding-bottom: 1.25rem !important;
+}
+
+[data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] section.space-y-6 > div.relative.space-y-1.pt-2 {
+  padding-top: 0 !important;
 }
 
 [data-krew-dashboard-motion="true"] nav[aria-label="Accès aux informations du voyage"] {
-  margin-top: .75rem !important;
+  margin-top: .625rem !important;
 }
 
 /*
@@ -57,11 +74,11 @@
 
 /* --------------------------------------------------------------------------
  * One structural heading grid across Résumé.
- * Icon -> title -> sage underline, aligned exactly the same on both sections.
+ * Icon -> title -> small sage wave, aligned exactly the same on both sections.
  * -------------------------------------------------------------------------- */
 [data-krew-dashboard-motion="true"] #group-section,
 [data-krew-dashboard-motion="true"] #hub-cost-split {
-  row-gap: .75rem;
+  row-gap: .625rem;
 }
 
 [data-krew-dashboard-motion="true"] #group-section h2,
@@ -93,17 +110,31 @@
   color: hsl(var(--sage)) !important;
 }
 
-/* Same sage underline footprint and same visual origin under the icon/title row.
- * The freehand SVG paths begin a few units inside their viewBox, so shift the SVG
- * 3px left to make the visible stroke line up with the icon rather than its box. */
+/* Hide the two legacy underline SVGs: one is too long and the costs one is the
+ * older straight mark. A single mask below draws the exact same small KREW wave
+ * in both sections and works on iOS Safari as well as desktop browsers. */
 [data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > svg,
 [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
-  display: block !important;
-  width: 170px !important;
-  height: 10px !important;
-  margin: .125rem 0 0 -3px !important;
-  color: hsl(var(--sage)) !important;
-  opacity: .9 !important;
+  display: none !important;
+}
+
+[data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2)::after,
+[data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child::after {
+  content: "";
+  display: block;
+  width: 118px;
+  height: 12px;
+  margin: .125rem 0 0 30px;
+  background: hsl(var(--sage));
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 28 100 20'%3E%3Cpath d='M4 39c13-7 23 5 36-1s24-5 35-1c8 3 14 1 21-2' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: left center;
+  -webkit-mask-size: 100% 100%;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 28 100 20'%3E%3Cpath d='M4 39c13-7 23 5 36-1s24-5 35-1c8 3 14 1 21-2' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-repeat: no-repeat;
+  mask-position: left center;
+  mask-size: 100% 100%;
+  opacity: .92;
 }
 
 /* Section titles stay clean, like the other KREW pages: no plum blob behind them. */
@@ -151,7 +182,7 @@
 [data-krew-dashboard-motion="true"] #hub-cost-split {
   display: flex;
   flex-direction: column;
-  gap: .75rem;
+  gap: .625rem;
 }
 
 [data-krew-dashboard-motion="true"] #hub-cost-split > * {
@@ -160,15 +191,17 @@
 
 [data-krew-dashboard-motion="true"] #hub-cost-split > div.flex.justify-end {
   order: 3;
-  margin-top: .25rem !important;
+  margin-top: .125rem !important;
   padding-right: .25rem;
 }
 
 /* Keep the stage note as a real taped KREW post-it immediately after shortcuts.
- * Only neutralize the historic negative overlap. */
+ * Only neutralize the historic negative overlap and excess white space. */
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] {
+  margin-top: .25rem !important;
   margin-bottom: 0 !important;
   padding-inline: .25rem !important;
+  transform: none !important;
 }
 
 [data-krew-dashboard-motion="true"] [data-krew-dashboard-stage-note="true"] [data-krew-note="post-it"] {
@@ -192,15 +225,15 @@
 
 @media (min-width: 640px) {
   [data-krew-dashboard-motion="true"][data-krew-summary-stage] {
-    gap: 1.5rem;
+    gap: 1rem;
   }
 
   [data-krew-dashboard-motion="true"] [data-krew-dashboard-root="true"] > div > [class~="space-y-6"] > * + * {
-    margin-top: 1.125rem !important;
+    margin-top: .875rem !important;
   }
 
   [data-krew-dashboard-motion="true"] nav[aria-label="Accès aux informations du voyage"] {
-    margin-top: .875rem !important;
+    margin-top: .75rem !important;
   }
 
   [data-krew-dashboard-motion="true"] #group-section h2,
@@ -208,10 +241,10 @@
     font-size: 30px !important;
   }
 
-  [data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2) > svg,
-  [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child > svg {
-    width: 210px !important;
-    height: 11px !important;
+  [data-krew-dashboard-motion="true"] #group-section > div:nth-of-type(2)::after,
+  [data-krew-dashboard-motion="true"] #hub-cost-split > div:first-child::after {
+    width: 132px;
+    height: 12px;
   }
 }
 
