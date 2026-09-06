@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewMark } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
@@ -286,6 +287,12 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
           </p>
         ) : null}
       </KrewJourneyPageHeader>
+
+      {completedTrip ? (
+        <KrewJourneyStatusPanel title="Voyage terminé · consultation" icon="check" tone="complete">
+          <p>Les tâches restent accessibles comme historique du voyage. Les statuts et responsables sont désormais en lecture seule.</p>
+        </KrewJourneyStatusPanel>
+      ) : null}
 
       {isAdmin && !completedTrip && missingParticipants > 0 ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
