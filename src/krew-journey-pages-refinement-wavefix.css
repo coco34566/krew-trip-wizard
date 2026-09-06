@@ -1,19 +1,21 @@
-/* KREW questionnaire composition.
- * This late layer is intentionally restricted to the participant Preferences form.
- * Headers, Transport, Star and Dates must not be patched from here. */
+/* KREW preferences composition.
+ * Participant and Star questionnaires share the same chapter geometry.
+ * The body is identified semantically as the direct sibling of the canonical
+ * journey header; no spacing utility class is allowed to own this layout. */
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-  > div.pt-4 {
+  > [data-krew-journey-header] + div {
   counter-reset: krew-preferences-section;
+  padding-top: 0 !important;
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-  > div.pt-4 > section {
+  > [data-krew-journey-header] + div > section {
   counter-increment: krew-preferences-section;
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-  > div.pt-4 > section > div:first-child::before {
+  > [data-krew-journey-header] + div > section > div:first-child::before {
   content: "0" counter(krew-preferences-section);
   display: block;
   margin-bottom: 6px;
@@ -26,7 +28,7 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-  > div.pt-4 > section > div:first-child h2.font-display {
+  > [data-krew-journey-header] + div > section > div:first-child h2.font-display {
   margin: 0 !important;
   font-size: 28px !important;
   line-height: 1 !important;
@@ -34,7 +36,7 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-  > div.pt-4 > section > div:first-child h2.font-display + p {
+  > [data-krew-journey-header] + div > section > div:first-child h2.font-display + p {
   margin-top: 7px !important;
   max-width: 34rem;
   font-size: 13px !important;
@@ -43,25 +45,25 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
 
 @media (max-width: 767px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section {
+    > [data-krew-journey-header] + div > section {
     padding-top: 32px !important;
     padding-bottom: 30px !important;
   }
 
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section:first-child {
+    > [data-krew-journey-header] + div > section:first-child {
     padding-top: 12px !important;
   }
 
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section > div:first-child {
+    > [data-krew-journey-header] + div > section > div:first-child {
     margin-bottom: 18px;
   }
 }
 
 @media (min-width: 768px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section {
+    > [data-krew-journey-header] + div > section {
     display: grid !important;
     grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
     align-items: start !important;
@@ -70,12 +72,12 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   }
 
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section:first-child {
+    > [data-krew-journey-header] + div > section:first-child {
     padding-top: 20px !important;
   }
 
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section > div:first-child {
+    > [data-krew-journey-header] + div > section > div:first-child {
     grid-column: 1;
     grid-row: 1 / span 20;
     min-width: 0;
@@ -84,42 +86,42 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   }
 
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section > :not(:first-child) {
+    > [data-krew-journey-header] + div > section > :not(:first-child) {
     grid-column: 2;
     min-width: 0;
   }
 
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section > div:first-child h2.font-display {
+    > [data-krew-journey-header] + div > section > div:first-child h2.font-display {
     font-size: 30px !important;
   }
 
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section > :not(:first-child) + :not(:first-child) {
+    > [data-krew-journey-header] + div > section > :not(:first-child) + :not(:first-child) {
     margin-top: 14px;
   }
 }
 
 @media (min-width: 1024px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section {
+    > [data-krew-journey-header] + div > section {
     grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
   }
 
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > section > div:first-child {
+    > [data-krew-journey-header] + div > section > div:first-child {
     margin-right: 32px;
   }
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-  > div.pt-4 > section p.text-xs.text-muted-foreground {
+  > [data-krew-journey-header] + div > section p.text-xs.text-muted-foreground {
   max-width: 38rem;
   line-height: 1.45 !important;
 }
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-  > div.pt-4 > div.pt-2.pb-12 {
+  > [data-krew-journey-header] + div > div.pt-2.pb-12 {
   margin-top: 12px;
   padding-top: 24px !important;
   border-top: 1px solid color-mix(in oklch, var(--sage) 34%, transparent);
@@ -127,14 +129,14 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
 
 @media (min-width: 768px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > div.pt-2.pb-12 {
+    > [data-krew-journey-header] + div > div.pt-2.pb-12 {
     margin-left: 204px;
   }
 }
 
 @media (min-width: 1024px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
-    > div.pt-4 > div.pt-2.pb-12 {
+    > [data-krew-journey-header] + div > div.pt-2.pb-12 {
     margin-left: 238px;
   }
 }
