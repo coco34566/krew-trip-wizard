@@ -331,6 +331,8 @@ export function TripHubDashboard(props: Props) {
         ref={rootRef}
         data-trip-lifecycle={lifecycle}
         data-response-progress={responseState.state}
+        data-krew-page-surface="trip-hub"
+        data-krew-page-size="standard"
         data-krew-summary-stage={summaryStage}
         data-krew-dashboard-root="true"
         onClickCapture={handleDashboardClickCapture}
