@@ -29,10 +29,10 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId")({
   component: TripLayout,
 });
 
-function ResponseGateLoading() {
+function ResponseGateLoading({ maxWidthClassName = "max-w-5xl" }: { maxWidthClassName?: string }) {
   return (
     <KrewJourneyLoadingState
-      maxWidthClassName="max-w-[1020px]"
+      maxWidthClassName={maxWidthClassName}
       message="Vérification de l’étape…"
     />
   );
@@ -42,15 +42,17 @@ function ResponseGateError({
   tripId,
   onRetry,
   isFetching,
+  maxWidthClassName = "max-w-5xl",
 }: {
   tripId: string;
   onRetry: () => void;
   isFetching: boolean;
+  maxWidthClassName?: string;
 }) {
   return (
     <KrewJourneyErrorState
       tripId={tripId}
-      maxWidthClassName="max-w-[1020px]"
+      maxWidthClassName={maxWidthClassName}
       title="Impossible de vérifier cette étape"
       description="Les informations nécessaires ne sont pas disponibles pour le moment."
       retrying={isFetching}
@@ -63,16 +65,16 @@ function ClosedResponseState({
   tripId,
   title,
   hasPreviousAnswer,
-  parentOwnsAnsweredStatus = false,
+  maxWidthClassName = "max-w-5xl",
   children,
 }: {
   tripId: string;
   title: string;
   hasPreviousAnswer: boolean;
-  parentOwnsAnsweredStatus?: boolean;
+  maxWidthClassName?: string;
   children: ReactNode;
 }) {
-  if (hasPreviousAnswer && !parentOwnsAnsweredStatus) {
+  if (hasPreviousAnswer) {
     return (
       <fieldset disabled className="min-w-0 border-0 p-0 opacity-90">
         {children}
@@ -81,42 +83,25 @@ function ClosedResponseState({
   }
 
   return (
-    <>
-      <div className="mx-auto mt-8 w-full max-w-[1020px] px-5 sm:px-7 lg:px-8">
-        <KrewJourneyStatusPanel
-          title={`${title} clôturées`}
-          icon="check"
-          tone="complete"
-          action={
-            !hasPreviousAnswer ? (
-              <Link
-                to="/trips/$tripId"
-                params={{ tripId }}
-                search={{ view: "voyage" }}
-                className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
-              >
-                Retour au voyage
-              </Link>
-            ) : undefined
-          }
-        >
-          <p>
-            Les réponses du groupe sont maintenant clôturées car les dates du voyage sont confirmées.
-            {hasPreviousAnswer
-              ? " Ta réponse précédente reste visible ci-dessous, en lecture seule."
-              : " Tu n’as rien à compléter pour cette étape."}
-          </p>
-        </KrewJourneyStatusPanel>
-      </div>
-      {hasPreviousAnswer ? (
-        <fieldset
-          disabled
-          className="min-w-0 border-0 p-0 opacity-90 [&_[data-krew-journey-status]]:hidden"
-        >
-          {children}
-        </fieldset>
-      ) : null}
-    </>
+    <div className={`mx-auto mt-8 w-full ${maxWidthClassName} px-5 sm:px-7 lg:px-8`}>
+      <KrewJourneyStatusPanel
+        title={`${title} clôturées`}
+        icon="check"
+        tone="complete"
+        action={
+          <Link
+            to="/trips/$tripId"
+            params={{ tripId }}
+            search={{ view: "voyage" }}
+            className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            Retour au voyage
+          </Link>
+        }
+      >
+        <p>Les réponses du groupe sont maintenant clôturées car les dates du voyage sont confirmées. Tu n’as rien à compléter pour cette étape.</p>
+      </KrewJourneyStatusPanel>
+    </div>
   );
 }
 
@@ -126,11 +111,25 @@ function AvailabilityResponseGate({ tripId, children }: { tripId: string; childr
     queryKey: ["trip-availability", tripId],
     queryFn: () => fetchAvailability({ data: { tripId } }),
   });
-  if (isLoading) return <ResponseGateLoading />;
-  if (isError) return <ResponseGateError tripId={tripId} onRetry={() => void refetch()} isFetching={isFetching} />;
+  if (isLoading) return <ResponseGateLoading maxWidthClassName="max-w-[820px]" />;
+  if (isError) {
+    return (
+      <ResponseGateError
+        tripId={tripId}
+        maxWidthClassName="max-w-[820px]"
+        onRetry={() => void refetch()}
+        isFetching={isFetching}
+      />
+    );
+  }
   if (!data?.trip?.datesLocked) return <>{children}</>;
   return (
-    <ClosedResponseState tripId={tripId} title="Disponibilités" hasPreviousAnswer={Boolean(data.mine)}>
+    <ClosedResponseState
+      tripId={tripId}
+      title="Disponibilités"
+      maxWidthClassName="max-w-[820px]"
+      hasPreviousAnswer={Boolean(data.mine)}
+    >
       {children}
     </ClosedResponseState>
   );
@@ -152,15 +151,24 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
       };
     },
   });
-  if (isLoading) return <ResponseGateLoading />;
-  if (isError) return <ResponseGateError tripId={tripId} onRetry={() => void refetch()} isFetching={isFetching} />;
+  if (isLoading) return <ResponseGateLoading maxWidthClassName="max-w-[820px]" />;
+  if (isError) {
+    return (
+      <ResponseGateError
+        tripId={tripId}
+        maxWidthClassName="max-w-[820px]"
+        onRetry={() => void refetch()}
+        isFetching={isFetching}
+      />
+    );
+  }
   if (!data?.datesLocked) return <>{children}</>;
   return (
     <ClosedResponseState
       tripId={tripId}
       title="Préférences"
+      maxWidthClassName="max-w-[820px]"
       hasPreviousAnswer={Boolean(data.preferences)}
-      parentOwnsAnsweredStatus
     >
       {children}
     </ClosedResponseState>
@@ -191,7 +199,7 @@ function CompletedPreparationGate({ tripId, children }: { tripId: string; childr
 
   return (
     <>
-      <div className="mx-auto mt-8 w-full max-w-[1020px] px-5 sm:px-7 lg:px-8">
+      <div className="mx-auto mt-8 w-full max-w-5xl px-5 sm:px-7 lg:px-8">
         <KrewJourneyStatusPanel
           title="Voyage terminé · consultation"
           icon="check"
