@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewThinkingState, type KrewThinkingContext } from "@/components/krew/KrewThinkingState";
 import { Button } from "@/components/ui/button";
 
@@ -21,20 +22,26 @@ type KrewJourneyErrorStateProps = {
   returnLabel?: "Retour au parcours" | "Retour au voyage";
 };
 
-const DEFAULT_WIDTH = "max-w-5xl";
-
 export function KrewJourneyLoadingState({
   context = "generic",
   message,
-  maxWidthClassName = DEFAULT_WIDTH,
+  maxWidthClassName,
 }: KrewJourneyLoadingStateProps) {
+  if (maxWidthClassName) {
+    return (
+      <main
+        data-krew-journey-loading
+        className={`mx-auto w-full ${maxWidthClassName} px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}
+      >
+        <KrewThinkingState context={context} customMessage={message} delayMs={0} />
+      </main>
+    );
+  }
+
   return (
-    <main
-      data-krew-journey-loading
-      className={`mx-auto w-full ${maxWidthClassName} px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}
-    >
+    <KrewPageShell data-krew-journey-loading size="standard" className="py-8 sm:py-10">
       <KrewThinkingState context={context} customMessage={message} delayMs={0} />
-    </main>
+    </KrewPageShell>
   );
 }
 
@@ -44,14 +51,11 @@ export function KrewJourneyErrorState({
   description,
   onRetry,
   retrying = false,
-  maxWidthClassName = DEFAULT_WIDTH,
+  maxWidthClassName,
   returnLabel = "Retour au parcours",
 }: KrewJourneyErrorStateProps) {
-  return (
-    <main
-      data-krew-journey-error
-      className={`mx-auto w-full ${maxWidthClassName} space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}
-    >
+  const content = (
+    <>
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -80,6 +84,23 @@ export function KrewJourneyErrorState({
       >
         <p>{description}</p>
       </KrewJourneyStatusPanel>
-    </main>
+    </>
+  );
+
+  if (maxWidthClassName) {
+    return (
+      <main
+        data-krew-journey-error
+        className={`mx-auto w-full ${maxWidthClassName} space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}
+      >
+        {content}
+      </main>
+    );
+  }
+
+  return (
+    <KrewPageShell data-krew-journey-error size="standard" className="space-y-8 py-8 sm:py-10">
+      {content}
+    </KrewPageShell>
   );
 }
