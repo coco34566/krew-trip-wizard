@@ -1,20 +1,24 @@
 /* KREW journey alignment — canonical geometry tokens.
  * Modern journey pages own their markup through KrewJourneyPageHeader.
  * Questionnaire density lives in krew-visual-baseline.css.
- * Invite remains isolated here until PR #366 ownership is reconciled. */
+ * Invite remains isolated here until its ownership is reconciled.
+ *
+ * Journey tokens remain as compatibility aliases while pages migrate to the
+ * shared KREW design-token layer. Their computed values are unchanged.
+ */
 
 :root {
-  --krew-journey-page-title: 34px;
-  --krew-journey-section-title: 24px;
-  --krew-journey-subtitle: 14px;
-  --krew-journey-title-leading: .98;
-  --krew-journey-title-tracking: -.02em;
-  --krew-journey-intro-leading: 1.55;
-  --krew-journey-intro-width: 42rem;
-  --krew-journey-header-gap: 12px;
+  --krew-journey-page-title: var(--krew-title-chapter, 34px);
+  --krew-journey-section-title: var(--krew-title-section, 24px);
+  --krew-journey-subtitle: var(--krew-product-subtitle, 14px);
+  --krew-journey-title-leading: var(--krew-title-leading, .98);
+  --krew-journey-title-tracking: var(--krew-title-tracking, -.02em);
+  --krew-journey-intro-leading: var(--krew-product-intro-leading, 1.55);
+  --krew-journey-intro-width: var(--krew-reading-width, 42rem);
+  --krew-journey-header-gap: var(--krew-header-gap, 12px);
   --krew-journey-header-stack-gap: 12px;
   --krew-journey-header-column-gap: 16px;
-  --krew-journey-content-gap: 28px;
+  --krew-journey-content-gap: var(--krew-content-gap, 28px);
   --krew-journey-wave-width: 140px;
   --krew-journey-otter-slot-width: 88px;
   --krew-journey-otter-height: 76px;
@@ -25,11 +29,7 @@
 
 @media (min-width: 640px) {
   :root {
-    --krew-journey-page-title: 40px;
-    --krew-journey-section-title: 26px;
-    --krew-journey-subtitle: 15px;
     --krew-journey-header-column-gap: 24px;
-    --krew-journey-content-gap: 32px;
     --krew-journey-otter-slot-width: 104px;
     --krew-journey-otter-height: 88px;
     --krew-journey-status-padding-x: 20px;
@@ -37,7 +37,7 @@
 }
 
 /* -------------------------------------------------------------------------- */
-/* Invite: keep current composition isolated until PR #366 is reconciled.      */
+/* Invite: keep current composition isolated until ownership is reconciled.    */
 /* -------------------------------------------------------------------------- */
 
 main.space-y-8:has(> section[class~="bg-sage/8"]) {
