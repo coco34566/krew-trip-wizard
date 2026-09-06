@@ -94,6 +94,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const fetchReadiness = useServerFn(getGenerationReadiness);
   const validateProfile = useServerFn(validateStayProfile);
   const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
+  const [editingValidatedProfile, setEditingValidatedProfile] = useState(false);
 
   const detailQuery = useQuery({
     queryKey: ["trip", tripId],
@@ -126,6 +127,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const validateMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
     onSuccess: () => {
+      setEditingValidatedProfile(false);
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
@@ -190,6 +192,8 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const destinationSelected = Boolean(
     (data.recommendations ?? []).some((recommendation: any) => recommendation.is_selected),
   );
+  const editingAllowed = isAdmin && validated && !destinationSelected;
+  const effectivelyValidated = validated && !editingValidatedProfile;
 
   return (
     <main data-krew-profile-page className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
@@ -214,7 +218,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
       >
         <p>
           {isAdmin
-            ? validated
+            ? effectivelyValidated
               ? "Voici le Profil du voyage retenu."
               : "Choisis 1 à 3 options pour définir le Profil du voyage."
             : validated
@@ -223,18 +227,33 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
         </p>
       </KrewJourneyPageHeader>
 
-      {validated ? (
+      {effectivelyValidated ? (
         <KrewJourneyStatusPanel
           title="Profil du voyage enregistré"
           icon="check"
           tone="complete"
           action={
             !destinationSelected ? (
-              <Button asChild size="sm">
-                <Link to="/trips/$tripId/destination" params={{ tripId }}>
-                  {isAdmin ? "Choisir la destination" : "Voir la destination"}
-                </Link>
-              </Button>
+              <>
+                {editingAllowed ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedConceptIds(profile?.selectedConcepts?.map((concept) => concept.id) ?? []);
+                      setEditingValidatedProfile(true);
+                    }}
+                  >
+                    Modifier le Profil du voyage
+                  </Button>
+                ) : null}
+                <Button asChild size="sm">
+                  <Link to="/trips/$tripId/destination" params={{ tripId }}>
+                    {isAdmin ? "Choisir la destination" : "Voir la destination"}
+                  </Link>
+                </Button>
+              </>
             ) : undefined
           }
         >
@@ -248,7 +267,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
             {concepts.slice(0, 3).map((concept: StayConcept) => {
               const profileId = concept.id as StayProfileId;
               const label = PROFILE_LABELS[profileId] || concept.title;
-              const selected = validated
+              const selected = effectivelyValidated
                 ? Boolean(profile?.selectedConcepts?.some((item) => item.id === concept.id))
                 : selectedConceptIds.includes(concept.id);
               return (
@@ -258,7 +277,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
                   label={label}
                   rationale={PROFILE_DESCRIPTIONS[profileId] || concept.rationale}
                   selected={selected}
-                  disabled={!isAdmin || validated}
+                  disabled={!isAdmin || effectivelyValidated}
                   onToggle={() =>
                     setSelectedConceptIds((ids) =>
                       ids.includes(concept.id)
@@ -278,16 +297,31 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
           </p>
         )}
 
-        {!validated && isAdmin && (readiness?.profile?.questionnairesReady || profile?.legacyBypass) ? (
-          <KrewStatefulButton
-            className="max-w-full"
-            idleLabel="Enregistrer le Profil du voyage"
-            loadingLabel="Enregistrement…"
-            successLabel="Profil enregistré"
-            errorLabel="Réessayer"
-            disabled={selectedConceptIds.length < 1}
-            onAction={() => validateMutation.mutateAsync()}
-          />
+        {!effectivelyValidated && isAdmin && (readiness?.profile?.questionnairesReady || profile?.legacyBypass) ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {editingValidatedProfile ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSelectedConceptIds(profile?.selectedConcepts?.map((concept) => concept.id) ?? []);
+                  setEditingValidatedProfile(false);
+                }}
+              >
+                Annuler
+              </Button>
+            ) : null}
+            <KrewStatefulButton
+              className="max-w-full"
+              idleLabel={editingValidatedProfile ? "Enregistrer les modifications" : "Enregistrer le Profil du voyage"}
+              loadingLabel="Enregistrement…"
+              successLabel="Profil enregistré"
+              errorLabel="Réessayer"
+              disabled={selectedConceptIds.length < 1}
+              onAction={() => validateMutation.mutateAsync()}
+            />
+          </div>
         ) : null}
       </section>
     </main>
