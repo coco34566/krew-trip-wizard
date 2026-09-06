@@ -23,6 +23,8 @@ type SummaryStage = "formation" | "choices" | "destination" | "organized" | "liv
 const DEDICATED_JOURNEY_ROUTES: Partial<Record<string, string>> = {
   profile: "profile",
   dates: "dates",
+  destination: "destination",
+  accommodation: "accommodation",
   packing: "packing",
 };
 
