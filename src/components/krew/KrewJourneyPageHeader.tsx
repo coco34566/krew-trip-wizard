@@ -24,7 +24,6 @@ export function KrewJourneyPageHeader({
   titleTrailing,
   annotation,
   className,
-  waveClassName,
 }: KrewJourneyPageHeaderProps) {
   const hasTitleDecor = Boolean(titleLeading || titleTrailing);
   const titleBlock = (
@@ -49,17 +48,14 @@ export function KrewJourneyPageHeader({
         type="underline-wave"
         tone="sage"
         size="md"
-        className={cn(
-          "pointer-events-none absolute bottom-0 left-0 w-[140px] max-w-[80%] opacity-78",
-          waveClassName,
-        )}
+        className="pointer-events-none absolute bottom-0 left-0 w-[140px] max-w-[80%] opacity-78"
       />
     </div>
   );
 
   return (
     <header data-krew-journey-header className={cn("relative space-y-3", className)}>
-      <div className="grid grid-cols-[minmax(0,1fr)_76px] items-start gap-4 sm:grid-cols-[minmax(0,1fr)_88px] sm:gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)_88px] items-start gap-4 sm:grid-cols-[minmax(0,1fr)_104px] sm:gap-6">
         <div className="min-w-0">
           <div className="mb-1 flex items-center gap-1.5">
             <p className="text-[13px] font-semibold leading-[1.35] text-muted-foreground">
@@ -77,11 +73,11 @@ export function KrewJourneyPageHeader({
           )}
         </div>
 
-        <div className="flex h-[76px] w-[76px] items-start justify-end justify-self-end sm:h-[88px] sm:w-[88px]">
+        <div className="flex h-[76px] w-[88px] items-start justify-end justify-self-end sm:h-[88px] sm:w-[104px]">
           <img
             src={otterSrc}
             alt=""
-            className="pointer-events-none max-h-full max-w-full object-contain"
+            className="pointer-events-none h-full w-auto max-w-full object-contain object-top"
           />
         </div>
       </div>
