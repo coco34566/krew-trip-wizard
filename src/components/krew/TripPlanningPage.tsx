@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
@@ -170,7 +171,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
         titleTrailing={days.length ? <KrewMark type="burst" tone="sage" size="sm" className="size-6 opacity-75" /> : null}
         annotation={
           <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
-            {completedTrip ? "Voyage terminé · consultation" : "Jour par jour"}
+            {completedTrip ? "Souvenir du voyage" : "Jour par jour"}
           </KrewNote>
         }
       >
@@ -188,6 +189,12 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
           </p>
         ) : null}
       </KrewJourneyPageHeader>
+
+      {completedTrip ? (
+        <KrewJourneyStatusPanel title="Voyage terminé · consultation" icon="check" tone="complete">
+          <p>Le planning reste accessible comme historique du séjour. Les actions de préparation et de modification sont désactivées.</p>
+        </KrewJourneyStatusPanel>
+      ) : null}
 
       {isAdmin && !completedTrip ? (
         <div className="flex justify-end">
