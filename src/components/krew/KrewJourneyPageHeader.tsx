@@ -28,7 +28,7 @@ export function KrewJourneyPageHeader({
 }: KrewJourneyPageHeaderProps) {
   const hasTitleDecor = Boolean(titleLeading || titleTrailing);
   const titleBlock = (
-    <div className="relative inline-block max-w-full pb-2">
+    <div className="relative inline-block max-w-full pb-3">
       <h1
         className={cn(
           "font-display text-[34px] font-normal leading-[0.98] tracking-[-0.02em] text-foreground sm:text-[40px]",
@@ -50,7 +50,7 @@ export function KrewJourneyPageHeader({
         tone="sage"
         size="md"
         className={cn(
-          "pointer-events-none absolute -bottom-1 left-0 w-[140px] max-w-[80%] opacity-78",
+          "pointer-events-none absolute bottom-0 left-0 w-[140px] max-w-[80%] opacity-78",
           waveClassName,
         )}
       />
@@ -59,7 +59,7 @@ export function KrewJourneyPageHeader({
 
   return (
     <header data-krew-journey-header className={cn("relative space-y-3", className)}>
-      <div className="grid grid-cols-[minmax(0,1fr)_72px] items-start gap-4 sm:grid-cols-[minmax(0,1fr)_96px] sm:gap-6">
+      <div className="grid grid-cols-[minmax(0,1fr)_76px] items-start gap-4 sm:grid-cols-[minmax(0,1fr)_88px] sm:gap-6">
         <div className="min-w-0">
           <div className="mb-1 flex items-center gap-1.5">
             <p className="text-[13px] font-semibold leading-[1.35] text-muted-foreground">
@@ -77,16 +77,23 @@ export function KrewJourneyPageHeader({
           )}
         </div>
 
-        <div className="relative justify-self-end">
+        <div className="flex h-[76px] w-[76px] items-start justify-end justify-self-end sm:h-[88px] sm:w-[88px]">
           <img
             src={otterSrc}
             alt=""
-            className="pointer-events-none h-auto w-full max-w-[72px] object-contain sm:max-w-[96px]"
+            className="pointer-events-none max-h-full max-w-full object-contain"
           />
         </div>
       </div>
 
-      {children ? <div className="pt-1">{children}</div> : null}
+      {children ? (
+        <div
+          data-krew-journey-intro
+          className="max-w-[42rem] space-y-2 pt-1 font-sans text-[14px] leading-[1.55] text-muted-foreground sm:text-[15px] [&_p]:text-[14px] [&_p]:leading-[1.55] [&_p]:text-muted-foreground sm:[&_p]:text-[15px]"
+        >
+          {children}
+        </div>
+      ) : null}
     </header>
   );
 }
