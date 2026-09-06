@@ -211,7 +211,15 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
   );
 }
 
-function CompletedPreparationGate({ tripId, children }: { tripId: string; children: ReactNode }) {
+function CompletedPreparationGate({
+  tripId,
+  children,
+  externalStatus = false,
+}: {
+  tripId: string;
+  children: ReactNode;
+  externalStatus?: boolean;
+}) {
   const fetchDetail = useServerFn(getTripDetail);
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["trip", tripId],
@@ -243,6 +251,19 @@ function CompletedPreparationGate({ tripId, children }: { tripId: string; childr
       <p>Cette partie reste disponible comme historique du voyage. Les actions de préparation et de modification sont désactivées.</p>
     </KrewJourneyStatusPanel>
   );
+
+  if (externalStatus) {
+    return (
+      <>
+        <div className="mx-auto mt-8 w-full max-w-5xl px-5 sm:px-7 lg:px-8">
+          {completedStatus}
+        </div>
+        <div inert className="opacity-90">
+          {children}
+        </div>
+      </>
+    );
+  }
 
   return (
     <KrewJourneyAfterHeaderProvider afterHeader={completedStatus}>
@@ -333,7 +354,7 @@ function TripLayout() {
   return (
     <>
       {showInvitePage ? (
-        <CompletedPreparationGate tripId={tripId}>
+        <CompletedPreparationGate tripId={tripId} externalStatus>
           <TripInvitePage tripId={tripId} />
         </CompletedPreparationGate>
       ) : showTasksPage ? (
