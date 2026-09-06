@@ -115,26 +115,3 @@
   padding-inline: 0.82rem !important;
   padding-block: 0.46rem !important;
 }
-
-/* Trip overview — existing KREW otter, visible only where there is enough room. */
-@media (min-width: 640px) {
-  main.max-w-5xl div:has(> header > div.relative.w-full) > header::after {
-    content: "";
-    position: absolute;
-    z-index: 22;
-    right: 1.25rem;
-    bottom: 1.4rem;
-    width: 5.75rem;
-    height: 5.75rem;
-    background: url("/brand/otter-states/trip-progress.png") center / contain no-repeat;
-    pointer-events: none;
-  }
-}
-
-@media (min-width: 1024px) {
-  main.max-w-5xl div:has(> header > div.relative.w-full) > header::after {
-    right: 1.75rem;
-    width: 6.25rem;
-    height: 6.25rem;
-  }
-}
