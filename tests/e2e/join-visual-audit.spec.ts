@@ -43,9 +43,19 @@ async function readRealInviteUrl(page: Page, tripId: string) {
   await expect(copyButton).toBeVisible({ timeout: 20_000 });
   await expect(copyButton).toBeEnabled({ timeout: 20_000 });
 
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(() => {
+    (window as any).__krewCopiedInviteUrl = "";
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          (window as any).__krewCopiedInviteUrl = text;
+        },
+      },
+    });
+  });
   await copyButton.click();
-  const inviteUrl = await page.evaluate(() => navigator.clipboard.readText());
+  const inviteUrl = await page.evaluate(() => (window as any).__krewCopiedInviteUrl as string);
   expect(inviteUrl).toMatch(new RegExp(`/join/${tripId}\\?token=[0-9a-f-]{36}$`, "i"));
   return inviteUrl;
 }
