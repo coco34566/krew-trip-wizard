@@ -17,6 +17,7 @@ import journeyPagesCss from "../krew-journey-pages.css?url";
 import journeyPagesRefinementWavefixCss from "../krew-journey-pages-refinement-wavefix.css?url";
 import visualBaselineCss from "../krew-visual-baseline.css?url";
 import journeyAlignmentCss from "../krew-journey-alignment.css?url";
+import tripHubCss from "../styles/krew-trip-hub.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CookieConsent } from "@/components/krew/CookieConsent";
 import { Button } from "@/components/ui/button";
@@ -91,6 +92,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: journeyPagesRefinementWavefixCss },
       { rel: "stylesheet", href: visualBaselineCss },
       { rel: "stylesheet", href: journeyAlignmentCss },
+      { rel: "stylesheet", href: tripHubCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Kalam:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" },
