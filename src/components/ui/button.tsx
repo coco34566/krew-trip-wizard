@@ -41,16 +41,55 @@ export interface ButtonProps
   asChild?: boolean;
 }
 
+function isButtonAccessory(node: React.ReactNode) {
+  if (!React.isValidElement(node)) return false;
+  if (typeof node.type === "string") return node.type === "svg";
+  return true;
+}
+
 function ButtonContent({ children, iconOnly }: { children: React.ReactNode; iconOnly: boolean }) {
+  if (iconOnly) {
+    return (
+      <span data-krew-button-content className="inline-flex size-full items-center justify-center">
+        {children}
+      </span>
+    );
+  }
+
+  const nodes = React.Children.toArray(children);
+  const leadingAccessory = nodes.length > 1 && isButtonAccessory(nodes[0]) ? nodes.shift() : null;
+  const trailingAccessory = nodes.length > 1 && isButtonAccessory(nodes[nodes.length - 1]) ? nodes.pop() : null;
+  const hasAccessory = Boolean(leadingAccessory || trailingAccessory);
+
+  if (!hasAccessory) {
+    return (
+      <span
+        data-krew-button-content
+        data-krew-button-label
+        className="min-w-0 max-w-full whitespace-normal break-words text-center"
+      >
+        {nodes}
+      </span>
+    );
+  }
+
   return (
     <span
       data-krew-button-content
-      className={cn(
-        "inline-flex min-w-0 max-w-full items-center justify-center gap-2 text-center",
-        iconOnly ? "size-full" : "whitespace-normal break-words",
-      )}
+      className="inline-grid min-w-0 max-w-full grid-cols-[1rem_minmax(0,auto)_1rem] items-center gap-2"
     >
-      {children}
+      <span className="flex size-4 items-center justify-center" aria-hidden={!leadingAccessory || undefined}>
+        {leadingAccessory}
+      </span>
+      <span
+        data-krew-button-label
+        className="min-w-0 max-w-full whitespace-normal break-words text-center"
+      >
+        {nodes}
+      </span>
+      <span className="flex size-4 items-center justify-center" aria-hidden={!trailingAccessory || undefined}>
+        {trailingAccessory}
+      </span>
     </span>
   );
 }
