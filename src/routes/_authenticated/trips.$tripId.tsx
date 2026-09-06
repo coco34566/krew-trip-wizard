@@ -212,6 +212,9 @@ function TripLayout() {
   const showStarGate = location.pathname.endsWith(`/trips/${tripId}/star`);
   const showAvailabilityPage = location.pathname.endsWith(`/trips/${tripId}/availability`);
   const showQuestionnairePage = location.pathname.endsWith(`/trips/${tripId}/questionnaire`);
+  const showDedicatedPreparationPage = ["profile", "dates", "destination", "accommodation", "packing"].some(
+    (chapter) => location.pathname.endsWith(`/trips/${tripId}/${chapter}`),
+  );
   const preparationOutletSection =
     view === "voyage" &&
     section !== undefined &&
@@ -229,7 +232,7 @@ function TripLayout() {
     <PreferencesResponseGate tripId={tripId}>
       <Outlet />
     </PreferencesResponseGate>
-  ) : preparationOutletSection ? (
+  ) : showDedicatedPreparationPage || preparationOutletSection ? (
     <CompletedPreparationGate tripId={tripId}>
       <Outlet />
     </CompletedPreparationGate>
