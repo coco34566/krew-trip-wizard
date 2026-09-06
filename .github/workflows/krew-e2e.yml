@@ -103,7 +103,9 @@ jobs:
         run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
       - name: Run smoke journey only
         run: npm run test:e2e:smoke
-      - name: Capture and compare design-system migration surfaces
+      - name: Run full visual audit contract
+        run: npm run test:e2e:visual
+      - name: Capture and compare TripHub migration reference screenshots
         run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
       - name: Upload Playwright report
         if: always()
