@@ -690,7 +690,7 @@ function ParticipantQuestionnaire() {
                   onClick={() => {
                     setTransportModeAccepted((prev) => {
                       if (m === "peu importe") return ["peu importe"];
-                      const without = prev.filter((x) => x !== "peu_importe" && x !== m);
+                      const without = prev.filter((x) => x !== "peu importe" && x !== m);
                       const next = prev.includes(m) ? without : [...without, m];
                       return next.length ? next : ["peu importe"];
                     });
