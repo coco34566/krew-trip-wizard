@@ -46,7 +46,7 @@ Tous les viewports contrôlent l'overflow horizontal.
 
 ## Chapitres Journey couverts par `journey-visual-audit.spec.ts`
 
-L'audit doit viser les routes canoniques réellement utilisées par le produit, et non les anciens paramètres `?view=voyage&section=...`.
+L'audit vise les routes canoniques réellement utilisées par le produit, et non les anciens paramètres `?view=voyage&section=...`.
 
 | Chapitre | Route canonique |
 | --- | --- |
@@ -64,33 +64,41 @@ L'audit doit viser les routes canoniques réellement utilisées par le produit, 
 | À emporter | `/trips/:tripId/packing` |
 | Star | `/trips/:tripId/star` |
 
-## Surfaces nécessitant un scénario d'état dédié
+## Join couvert par `join-visual-audit.spec.ts`
 
-### Rejoindre un voyage
+Le test Join crée un vrai voyage depuis le parcours organisateur, récupère le vrai lien généré par l'écran Invite, puis retire l'authentification du navigateur avant de capturer le parcours invité. Il n'utilise donc ni token inventé pour le cas nominal, ni capture trompeuse avec un compte déjà membre.
 
-Routes :
+États couverts :
 
-- `/join/:tripId` ;
-- `/join/:tripId/questionnaire`.
+| État | Couverture |
+| --- | --- |
+| Invité non connecté + lien valide | 7 viewports, screenshots mobile/tablette/desktop |
+| Lien sans token | 7 viewports, screenshots mobile/tablette/desktop |
+| Token UUID valide mais non courant | 7 viewports, screenshots mobile/tablette/desktop |
+| Identifiant voyage malformé | 7 viewports, screenshots mobile/tablette/desktop |
+| Utilisateur déjà reconnu comme membre/organisateur | assertion de redirection hors de Join |
 
-Cette surface dépend fortement de l'identité et de l'état du visiteur : invité non connecté, participant déjà reconnu, lien invalide/expiré, questionnaire déjà rempli, etc. Réutiliser simplement le compte QA connecté peut provoquer une redirection et donner une fausse impression de couverture.
+Le parcours `/join/:tripId/questionnaire` reste couvert fonctionnellement par le parcours de questionnaire après adhésion ; s'il reçoit ultérieurement une composition visuelle propre distincte, il devra obtenir sa propre capture de référence avant migration de son CSS.
 
-Décision de sécurité : **ne pas fabriquer une capture trompeuse**. Avant de migrer du CSS appartenant au parcours Join, créer ou réutiliser une fixture déterministe pour les états réellement visibles et capturer au minimum l'état invité nominal mobile/tablette/desktop.
+## États transverses protégés
 
-### États fonctionnels des pages Journey
+La baseline de route ne suffit pas à protéger tous les états métier. Les protections existantes ou ajoutées sont classées ainsi :
 
-Les screenshots de route protègent la composition principale mais ne remplacent pas les contrôles d'état. Lorsqu'une famille CSS concernée est migrée, vérifier explicitement les états pertinents :
+| Famille d'état | Protection actuelle |
+| --- | --- |
+| Loading / thinking | composants `KrewThinkingState` présents sur les surfaces concernées ; contrôle ciblé requis lors de la migration du propriétaire |
+| Empty | contrôle ciblé requis lors de la migration de la surface concernée |
+| Locked / inaccessible | Journey audit accepte explicitement les variantes `data-journey-locked-section` sur les chapitres qui peuvent être verrouillés |
+| Selected / active | contrôle ciblé requis lors de la migration du composant de sélection concerné |
+| Completed / voyage terminé | scénario dédié `manual-completed-trip-user.spec.ts` |
+| Archived / réactivé | scénario organisateur dans `manual-completed-trip-user.spec.ts` |
+| Participant read-only sur voyage terminé | scénario participant dans `manual-completed-trip-user.spec.ts` |
+| Erreur d'invitation | audit Join dédié |
+| Organisateur / participant | Journey et scénario completed-trip selon les surfaces où les actions diffèrent |
 
-- loading / thinking ;
-- empty ;
-- locked / inaccessible ;
-- réponses enregistrées ;
-- selected / active ;
-- completed / voyage terminé ;
-- erreur ;
-- organisateur / co-organisateur / participant lorsque leurs actions visibles diffèrent.
+Le test completed-trip utilise désormais les routes canoniques `/planning`, `/tasks` et `/packing`, et non les anciens paramètres de section.
 
-Aucun de ces états ne doit être modifié opportunément pendant la migration CSS.
+Pour les états `loading`, `empty` et `selected`, il n'est pas sûr de fabriquer une fixture générique globale qui ne représenterait pas le vrai DOM de chaque feature. Ils sont donc **des garde-fous obligatoires par famille** : une règle CSS qui peut les toucher ne peut être supprimée sans vérifier l'état concerné sur son composant réel.
 
 ## Routes volontairement hors baseline visuelle client
 
