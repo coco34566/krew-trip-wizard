@@ -29,6 +29,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           node <<'NODE'
           const { appendFileSync } = await import("node:fs");
@@ -42,22 +43,36 @@ jobs:
             if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
             return response.json();
           };
-          let previewUrl = "";
-          for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
-            const deployments = await api(`/deployments?sha=${process.env.HEAD_SHA}&per_page=20`);
+          const findReadyUrl = async (deployments) => {
             for (const deployment of deployments) {
               const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
               const ready = statuses.find((status) =>
                 status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
               );
-              if (ready) {
-                previewUrl = ready.environment_url.replace(/\/$/, "");
-                break;
-              }
+              if (ready) return ready.environment_url.replace(/\/$/, "");
             }
-            if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
+            return "";
+          };
+
+          const commit = await api(`/commits/${process.env.HEAD_SHA}`);
+          const changedFiles = Array.isArray(commit.files) ? commit.files.map((file) => file.filename) : [];
+          const previewNeutral = changedFiles.length > 0 && changedFiles.every((file) =>
+            file.startsWith(".github/") || file.startsWith("docs/") || file.startsWith("tests/"),
+          );
+
+          let previewUrl = "";
+          if (previewNeutral) {
+            const deployments = await api(`/deployments?ref=${encodeURIComponent(process.env.HEAD_REF)}&per_page=20`);
+            previewUrl = await findReadyUrl(deployments);
+          } else {
+            for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
+              const deployments = await api(`/deployments?sha=${process.env.HEAD_SHA}&per_page=20`);
+              previewUrl = await findReadyUrl(deployments);
+              if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
+            }
           }
-          if (!previewUrl) throw new Error("Vercel preview URL unavailable after 10 minutes");
+
+          if (!previewUrl) throw new Error("Vercel preview URL unavailable");
           appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
           NODE
       - run: npm ci
