@@ -96,6 +96,12 @@
   padding-inline: var(--krew-page-padding-x);
 }
 
+@media (max-width: 1023px) {
+  .krew-page-shell {
+    overflow-x: clip;
+  }
+}
+
 .krew-page-shell[data-krew-page-size="form"] {
   --krew-page-shell-width: var(--krew-page-width-form);
 }
