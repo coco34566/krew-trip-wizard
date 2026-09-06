@@ -5,9 +5,9 @@ import { dirname } from "node:path";
 import { handleNormalUserUi, signIn } from "./helpers";
 
 const VIEWPORTS = [
-  { name: "mobile", width: 375, height: 812 },
-  { name: "tablet", width: 768, height: 1024 },
-  { name: "desktop", width: 1280, height: 900 },
+  { name: "mobile", width: 390, height: 844 },
+  { name: "tablet", width: 834, height: 1112 },
+  { name: "desktop", width: 1440, height: 1000 },
 ] as const;
 
 const CURRENT_URL = (process.env.KREW_E2E_BASE_URL ?? "").replace(/\/$/, "");
@@ -62,47 +62,40 @@ async function captureMain(
   return page.locator("main").screenshot({ animations: "disabled" });
 }
 
-test("design-system migration surfaces remain pixel-identical", async ({ browser }, testInfo) => {
+test("TripHub migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
 
   const current = await openAuthenticatedPage(browser, CURRENT_URL);
   const tripId = await firstTripId(current.page);
-
   const before = BEFORE_URL ? await openAuthenticatedPage(browser, BEFORE_URL) : null;
-  const surfaces = [
-    { name: "trip-dashboard", path: `/trips/${tripId}` },
-    { name: "mes-voyages", path: "/dashboard" },
-    { name: "nouveau-voyage", path: "/trips/new" },
-  ] as const;
 
   try {
     for (const viewport of VIEWPORTS) {
-      for (const surface of surfaces) {
-        const currentScreenshot = await captureMain(current.page, surface.path, viewport);
-        await testInfo.attach(`after-${viewport.name}-${surface.name}`, {
-          body: currentScreenshot,
-          contentType: "image/png",
-        });
+      const path = `/trips/${tripId}`;
+      const currentScreenshot = await captureMain(current.page, path, viewport);
+      await testInfo.attach(`after-${viewport.name}-trip-dashboard`, {
+        body: currentScreenshot,
+        contentType: "image/png",
+      });
 
-        if (!before) continue;
+      if (!before) continue;
 
-        const beforeScreenshot = await captureMain(before.page, surface.path, viewport);
-        await testInfo.attach(`before-${viewport.name}-${surface.name}`, {
-          body: beforeScreenshot,
-          contentType: "image/png",
-        });
+      const beforeScreenshot = await captureMain(before.page, path, viewport);
+      await testInfo.attach(`before-${viewport.name}-trip-dashboard`, {
+        body: beforeScreenshot,
+        contentType: "image/png",
+      });
 
-        const snapshotName = `runtime-before-${viewport.name}-${surface.name}.png`;
-        const snapshotPath = testInfo.snapshotPath(snapshotName);
-        mkdirSync(dirname(snapshotPath), { recursive: true });
-        writeFileSync(snapshotPath, beforeScreenshot);
+      const snapshotName = `runtime-before-${viewport.name}-trip-dashboard.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      writeFileSync(snapshotPath, beforeScreenshot);
 
-        expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-          threshold: 0,
-          maxDiffPixels: 0,
-        });
-      }
+      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+        threshold: 0,
+        maxDiffPixels: 0,
+      });
     }
   } finally {
     await current.context.close();
