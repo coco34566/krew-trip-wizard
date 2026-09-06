@@ -57,7 +57,6 @@ async function createVisualAuditTrip(page: Page) {
 
 async function findAuditTrip(page: Page) {
   const ids = await dashboardTripIds(page);
-
   for (const id of ids) {
     await page.goto(`/trips/${id}/planning`);
     await handleNormalUserUi(page);
@@ -65,20 +64,18 @@ async function findAuditTrip(page: Page) {
     await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 15_000 }).catch(() => undefined);
     if (await page.locator("#hub-activities-plan").isVisible().catch(() => false)) return id;
   }
-
   return createVisualAuditTrip(page);
 }
 
 async function waitForVisibleImages(page: Page) {
   await page.waitForFunction(
-    () =>
-      Array.from(document.querySelectorAll("main img")).every((node) => {
-        const img = node as HTMLImageElement;
-        const box = img.getBoundingClientRect();
-        const style = getComputedStyle(img);
-        const visible = style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
-        return !visible || img.complete;
-      }),
+    () => Array.from(document.querySelectorAll("main img")).every((node) => {
+      const img = node as HTMLImageElement;
+      const box = img.getBoundingClientRect();
+      const style = getComputedStyle(img);
+      const visible = style.display !== "none" && style.visibility !== "hidden" && box.width > 0 && box.height > 0;
+      return !visible || img.complete;
+    }),
     undefined,
     { timeout: 10_000 },
   ).catch(() => undefined);
@@ -90,7 +87,7 @@ async function waitForRenderedChapter(page: Page, name: string) {
   await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 20_000 });
 
   const required: Record<string, () => ReturnType<Page["locator"]>> = {
-    journey: () => page.locator('[data-krew-page-surface="trip-hub"]'),
+    journey: () => page.locator('[data-krew-dashboard-root="true"]'),
     invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
     availability: () => page.locator('main img[src*="/brand/otter-states/availability.png"]'),
     preferences: () => page.getByRole("heading", { name: "Envies & ambiance", exact: true }),
@@ -106,20 +103,11 @@ async function waitForRenderedChapter(page: Page, name: string) {
 
   const marker = required[name]?.();
   if (marker) await expect(marker, `${name}: real or locked chapter content must render before screenshot`).toBeVisible({ timeout: 20_000 });
-
   await waitForVisibleImages(page);
   await page.waitForTimeout(100);
 }
 
-async function capture(
-  page: Page,
-  testInfo: TestInfo,
-  metrics: VisualMetric[],
-  viewportName: string,
-  name: string,
-  path: string,
-  screenshot: boolean,
-) {
+async function capture(page: Page, testInfo: TestInfo, metrics: VisualMetric[], viewportName: string, name: string, path: string, screenshot: boolean) {
   await page.goto(path);
   await handleNormalUserUi(page);
   await waitForRenderedChapter(page, name);
@@ -135,12 +123,7 @@ async function capture(
       .filter(visible)
       .map((element) => {
         const box = (element as HTMLElement).getBoundingClientRect();
-        return {
-          tag: element.tagName.toLowerCase(),
-          text: (element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 80),
-          width: Math.round(box.width),
-          height: Math.round(box.height),
-        };
+        return { tag: element.tagName.toLowerCase(), text: (element.textContent || "").replace(/\s+/g, " ").trim().slice(0, 80), width: Math.round(box.width), height: Math.round(box.height) };
       })
       .filter((control) => control.height < 40 || control.width < 40)
       .slice(0, 40);
@@ -148,49 +131,22 @@ async function capture(
   });
 
   metrics.push({ viewport: viewportName, page: name, ...geometry });
-  expect(
-    geometry.scrollWidth,
-    `${viewportName}/${name}: no horizontal overflow (${geometry.scrollWidth}px content for ${geometry.width}px viewport)`,
-  ).toBeLessThanOrEqual(geometry.width + 1);
-
-  if (name === "invite") {
-    expect(
-      geometry.undersizedControls,
-      `${viewportName}/invite: every visible button/select must expose at least a 40px touch target`,
-    ).toEqual([]);
-  }
-
+  expect(geometry.scrollWidth, `${viewportName}/${name}: no horizontal overflow (${geometry.scrollWidth}px content for ${geometry.width}px viewport)`).toBeLessThanOrEqual(geometry.width + 1);
+  if (name === "invite") expect(geometry.undersizedControls, `${viewportName}/invite: every visible button/select must expose at least a 40px touch target`).toEqual([]);
   if (!screenshot) return;
   const screenshotPath = testInfo.outputPath(`${viewportName}-${name}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   await testInfo.attach(`${viewportName}-${name}`, { path: screenshotPath, contentType: "image/png" });
 }
 
-async function captureJourney(
-  page: Page,
-  testInfo: TestInfo,
-  metrics: VisualMetric[],
-  viewport: (typeof VIEWPORTS)[number],
-  tripId: string,
-) {
+async function captureJourney(page: Page, testInfo: TestInfo, metrics: VisualMetric[], viewport: (typeof VIEWPORTS)[number], tripId: string) {
   const pages = [
-    ["journey", `/trips/${tripId}`],
-    ["invite", `/trips/${tripId}/invite`],
-    ["availability", `/trips/${tripId}/availability`],
-    ["preferences", `/trips/${tripId}/questionnaire`],
-    ["dates", `/trips/${tripId}/dates`],
-    ["profile", `/trips/${tripId}/profile`],
-    ["destination", `/trips/${tripId}/destination`],
-    ["accommodation", `/trips/${tripId}/accommodation`],
-    ["transport", `/trips/${tripId}/transport`],
-    ["planning", `/trips/${tripId}/planning`],
-    ["tasks", `/trips/${tripId}/tasks`],
-    ["packing", `/trips/${tripId}/packing`],
+    ["journey", `/trips/${tripId}`], ["invite", `/trips/${tripId}/invite`], ["availability", `/trips/${tripId}/availability`],
+    ["preferences", `/trips/${tripId}/questionnaire`], ["dates", `/trips/${tripId}/dates`], ["profile", `/trips/${tripId}/profile`],
+    ["destination", `/trips/${tripId}/destination`], ["accommodation", `/trips/${tripId}/accommodation`], ["transport", `/trips/${tripId}/transport`],
+    ["planning", `/trips/${tripId}/planning`], ["tasks", `/trips/${tripId}/tasks`], ["packing", `/trips/${tripId}/packing`],
   ] as const;
-
-  for (const [name, path] of pages) {
-    await capture(page, testInfo, metrics, viewport.name, name, path, viewport.screenshot);
-  }
+  for (const [name, path] of pages) await capture(page, testInfo, metrics, viewport.name, name, path, viewport.screenshot);
 
   if (!viewport.screenshot) return;
   await page.goto(`/trips/${tripId}/star`);
@@ -209,22 +165,13 @@ test("visual audit of every customer-journey chapter without provider calls", as
   test.setTimeout(600_000);
   test.skip(testInfo.project.name !== "mobile-safari", "Visual audit runs once and creates all target viewports itself.");
   const metrics: VisualMetric[] = [];
-
   await page.setViewportSize({ width: VIEWPORTS[0].width, height: VIEWPORTS[0].height });
   await signIn(page);
   const tripId = await findAuditTrip(page);
-
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await captureJourney(page, testInfo, metrics, viewport, tripId);
   }
-
-  await testInfo.attach("visual-audit-metrics", {
-    body: Buffer.from(JSON.stringify(metrics, null, 2)),
-    contentType: "application/json",
-  });
-  await testInfo.attach("visual-audit-trip", {
-    body: Buffer.from(JSON.stringify({ tripId, viewports: VIEWPORTS }, null, 2)),
-    contentType: "application/json",
-  });
+  await testInfo.attach("visual-audit-metrics", { body: Buffer.from(JSON.stringify(metrics, null, 2)), contentType: "application/json" });
+  await testInfo.attach("visual-audit-trip", { body: Buffer.from(JSON.stringify({ tripId, viewports: VIEWPORTS }, null, 2)), contentType: "application/json" });
 });
