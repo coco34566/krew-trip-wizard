@@ -3,12 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft } from "lucide-react";
 
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { KrewNote } from "@/components/krew/visual-language";
-import { Button } from "@/components/ui/button";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { TripLifecycleProvider } from "@/lib/krew/trip-lifecycle-context";
 import { getTripDetail } from "@/lib/trips.functions";
@@ -21,38 +20,18 @@ export function TripPackingPage({ tripId }: { tripId: string }) {
   });
 
   if (detailQuery.isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-        <KrewThinkingState context="generic" customMessage="Préparation de la liste…" delayMs={0} />
-      </main>
-    );
+    return <KrewJourneyLoadingState message="Préparation de la liste…" />;
   }
 
   if (!detailQuery.data || detailQuery.isError) {
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="size-4" /> Retour au parcours
-        </Link>
-        <KrewJourneyStatusPanel
-          title="Impossible de charger À emporter"
-          icon="attention"
-          tone="info"
-          role="alert"
-          action={
-            <Button type="button" size="sm" onClick={() => void detailQuery.refetch()} disabled={detailQuery.isFetching}>
-              {detailQuery.isFetching ? "Chargement…" : "Réessayer"}
-            </Button>
-          }
-        >
-          <p>La liste du voyage n’est pas disponible pour le moment.</p>
-        </KrewJourneyStatusPanel>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        title="Impossible de charger À emporter"
+        description="La liste du voyage n’est pas disponible pour le moment."
+        retrying={detailQuery.isFetching}
+        onRetry={() => void detailQuery.refetch()}
+      />
     );
   }
 
