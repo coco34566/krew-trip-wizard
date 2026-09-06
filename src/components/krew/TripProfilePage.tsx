@@ -231,11 +231,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
           action={
             !destinationSelected ? (
               <Button asChild size="sm">
-                <Link
-                  to="/trips/$tripId"
-                  params={{ tripId }}
-                  search={{ view: "voyage", section: "destination" }}
-                >
+                <Link to="/trips/$tripId/destination" params={{ tripId }}>
                   {isAdmin ? "Choisir la destination" : "Voir la destination"}
                 </Link>
               </Button>
