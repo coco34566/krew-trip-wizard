@@ -40,6 +40,7 @@ function runTscSnapshot(sha: string, label: string): TscSnapshot {
   const repoRoot = process.cwd();
   const tscBin = join(repoRoot, "node_modules", ".bin", "tsc");
 
+  execFileSync("git", ["config", "--global", "--add", "safe.directory", repoRoot], { cwd: repoRoot, stdio: "pipe" });
   rmSync(worktree, { recursive: true, force: true });
   execFileSync("git", ["fetch", "--no-tags", "--depth=1", "origin", sha], { cwd: repoRoot, stdio: "pipe" });
   execFileSync("git", ["worktree", "add", "--detach", worktree, sha], { cwd: repoRoot, stdio: "pipe" });
