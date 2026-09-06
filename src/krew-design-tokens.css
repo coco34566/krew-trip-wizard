@@ -1,0 +1,85 @@
+/* KREW shared design tokens — compatibility layer.
+ *
+ * These values describe existing validated geometry. Introducing them must not
+ * change rendering. Legacy/page-specific CSS can alias to these tokens while
+ * ownership is migrated progressively.
+ */
+
+:root {
+  /* Semantic page widths */
+  --krew-page-width-form: 820px;
+  --krew-page-width-standard: 1024px;
+  --krew-page-width-wide: 1180px;
+  --krew-page-width-site: 1280px;
+  --krew-reading-width: 42rem;
+
+  /* Shared page rhythm — current mobile baseline */
+  --krew-page-padding-x: 20px;
+  --krew-page-padding-y: 32px;
+  --krew-header-gap: 12px;
+  --krew-content-gap: 28px;
+  --krew-section-gap: 48px;
+  --krew-major-section-gap: 64px;
+
+  /* Product title scales. These preserve current validated values by role. */
+  --krew-title-chapter: 34px;
+  --krew-title-editorial: 40px;
+  --krew-title-hero: 42px;
+  --krew-title-section: 24px;
+  --krew-title-leading: .98;
+  --krew-title-tracking: -.02em;
+
+  /* Shared product copy */
+  --krew-product-subtitle: 14px;
+  --krew-product-intro-leading: 1.55;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --krew-page-padding-x: 28px;
+    --krew-page-padding-y: 40px;
+    --krew-content-gap: 32px;
+    --krew-section-gap: 56px;
+    --krew-major-section-gap: 72px;
+
+    --krew-title-chapter: 40px;
+    --krew-title-editorial: 48px;
+    --krew-title-hero: 50px;
+    --krew-title-section: 26px;
+    --krew-product-subtitle: 15px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --krew-page-padding-x: 32px;
+    --krew-title-editorial: 52px;
+    --krew-title-hero: 56px;
+  }
+}
+
+/* Canonical shell geometry. The component is introduced before page migration,
+ * so these rules have no effect until a surface explicitly opts into KrewPageShell. */
+.krew-page-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--krew-page-shell-width, var(--krew-page-width-standard));
+  margin-inline: auto;
+  padding-inline: var(--krew-page-padding-x);
+}
+
+.krew-page-shell[data-krew-page-size="form"] {
+  --krew-page-shell-width: var(--krew-page-width-form);
+}
+
+.krew-page-shell[data-krew-page-size="standard"] {
+  --krew-page-shell-width: var(--krew-page-width-standard);
+}
+
+.krew-page-shell[data-krew-page-size="wide"] {
+  --krew-page-shell-width: var(--krew-page-width-wide);
+}
+
+.krew-page-shell[data-krew-page-size="site"] {
+  --krew-page-shell-width: var(--krew-page-width-site);
+}
