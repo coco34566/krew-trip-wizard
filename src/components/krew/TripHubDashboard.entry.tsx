@@ -1,10 +1,13 @@
 import type { ComponentProps, MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useRef } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
+import { KrewAvatar } from "@/components/krew/KrewAvatar";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
+import { useKrewTripAvatars } from "@/hooks/useKrewTripAvatars";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import {
   getOrganizationRefreshState,
@@ -54,6 +57,53 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
   if (!isCreator) footer.hidden = true;
   return () => {
     footer.hidden = previousHidden;
+  };
+}
+
+function mountGroupMemberAvatars(
+  participants: any[],
+  avatarMap: Map<string, string | null>,
+) {
+  if (typeof document === "undefined") return () => {};
+  const section = document.getElementById("group-section");
+  if (!section) return () => {};
+
+  const rows = Array.from(section.querySelectorAll<HTMLLIElement>("ul > li"));
+  const mounts: Array<{ root: Root; host: HTMLElement; marker: HTMLElement }> = [];
+
+  for (const participant of participants) {
+    if (!participant?.user_id || participant.placeholder) continue;
+    const avatarUrl = avatarMap.get(participant.user_id);
+    if (!avatarUrl) continue;
+
+    const name = String(participant.display_name || participant.email || "Participant").trim();
+    const row = rows.find((candidate) => {
+      const text = candidate.textContent || "";
+      return name && text.includes(name);
+    });
+    if (!row) continue;
+
+    const marker = row.querySelector<HTMLElement>(":scope > div:first-child > span");
+    if (!marker || marker.dataset.krewAvatarMounted === "true") continue;
+
+    const host = document.createElement("span");
+    host.dataset.krewAvatarHost = participant.user_id;
+    marker.before(host);
+    marker.hidden = true;
+    marker.dataset.krewAvatarMounted = "true";
+
+    const root = createRoot(host);
+    root.render(<KrewAvatar name={name} avatarUrl={avatarUrl} size="xs" />);
+    mounts.push({ root, host, marker });
+  }
+
+  return () => {
+    for (const { root, host, marker } of mounts) {
+      root.unmount();
+      host.remove();
+      marker.hidden = false;
+      delete marker.dataset.krewAvatarMounted;
+    }
   };
 }
 
@@ -121,6 +171,7 @@ export function TripHubDashboard(props: Props) {
     queryKey: ["trip-progress", props.tripId],
     queryFn: () => fetchProgress({ data: { tripId: props.tripId } }),
   });
+  const avatarQuery = useKrewTripAvatars(props.tripId);
 
   const centralizedPreferencesExpected = centralized?.preferencesExpected ?? centralized?.total ?? 0;
   const rawPreferencesAnswered = centralized?.answered ?? 0;
@@ -175,6 +226,14 @@ export function TripHubDashboard(props: Props) {
 
   useEffect(() => setCompletedGroupSectionReadOnly(completed), [completed]);
   useEffect(() => setOrganizerOnlyManagementVisible(isCreator), [isCreator]);
+  useEffect(
+    () =>
+      mountGroupMemberAvatars(
+        Array.isArray(trip?.participants) ? trip.participants : [],
+        avatarQuery.data ?? new Map<string, string | null>(),
+      ),
+    [avatarQuery.data, trip?.participants],
+  );
 
   useEffect(() => {
     const viewerId = props.viewerUserId ?? null;

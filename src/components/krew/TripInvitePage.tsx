@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Crown, Shield } from "lucide-react";
 import { toast } from "sonner";
 
+import { KrewAvatar, KrewAvatarStack } from "@/components/krew/KrewAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewIcon } from "@/components/krew/visual-language";
+import { useKrewTripAvatars } from "@/hooks/useKrewTripAvatars";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
 import { STAR_EVENT_TYPES } from "@/lib/krew/constants";
 import { shareOnWhatsApp } from "@/lib/krew/whatsapp";
@@ -52,6 +54,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     queryKey: ["trip", tripId],
     queryFn: () => fetchDetail({ data: { tripId } }),
   });
+  const avatarQuery = useKrewTripAvatars(tripId);
   const inviteLinkQuery = useQuery({
     queryKey: ["trip-invite-link", tripId],
     queryFn: () => fetchInviteLink({ data: { tripId } }),
@@ -168,6 +171,13 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     }),
   );
   const displayedParticipants = [...rawParticipants, ...placeholders];
+  const currentMembers = rawParticipants.filter((participant) => participant.status !== "refuse");
+  const avatarMap = avatarQuery.data ?? new Map<string, string | null>();
+  const stackMembers = currentMembers.map((participant) => ({
+    id: participant.id,
+    name: participant.display_name || participant.email || "Participant",
+    avatarUrl: participant.user_id ? avatarMap.get(participant.user_id) ?? null : null,
+  }));
 
   return (
     <main className="mx-auto w-full max-w-[820px] space-y-8 px-4 py-8 sm:px-6 sm:py-10">
@@ -185,6 +195,18 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
           Partage l’invitation à la team. Chacun pourra rejoindre le voyage et répondre ensuite à son rythme.
         </p>
       </header>
+
+      {currentMembers.length > 0 ? (
+        <div className="flex items-center gap-3">
+          <KrewAvatarStack members={stackMembers} max={5} size="sm" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">Déjà dans la Krew</p>
+            <p className="text-xs text-muted-foreground">
+              {currentMembers.length} membre{currentMembers.length > 1 ? "s" : ""} dans le voyage
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {data.isOwner ? (
         <section className="space-y-4 border-b border-border/50 pb-6">
@@ -240,17 +262,22 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
           {displayedParticipants.map((participant) => {
             const isOwner = Boolean(participant.user_id && participant.user_id === trip.owner_id);
             const isCoOrg = Boolean(participant.user_id && participant.user_id === trip.co_organizer_id);
+            const participantName = participant.display_name || participant.email || "Participant";
+            const avatarUrl = participant.user_id ? avatarMap.get(participant.user_id) ?? null : null;
             return (
               <div key={participant.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-foreground">{participant.display_name || participant.email || "Participant"}</span>
-                  {isOwner ? <Badge variant="sun"><Crown className="mr-1 size-3" />Organisateur·rice</Badge> : null}
-                  {isCoOrg ? <Badge variant="secondary"><Shield className="mr-1 size-3" />Co-organisateur·rice</Badge> : null}
-                  {participant.isStar ? <Badge variant="sun">Star</Badge> : null}
-                  {participant.placeholder ? <Badge variant="muted">À inviter</Badge> : null}
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <KrewAvatar name={participantName} avatarUrl={avatarUrl} size="sm" />
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <span className="truncate font-medium text-foreground">{participantName}</span>
+                    {isOwner ? <Badge variant="sun"><Crown className="mr-1 size-3" />Organisateur·rice</Badge> : null}
+                    {isCoOrg ? <Badge variant="secondary"><Shield className="mr-1 size-3" />Co-organisateur·rice</Badge> : null}
+                    {participant.isStar ? <Badge variant="sun">Star</Badge> : null}
+                    {participant.placeholder ? <Badge variant="muted">À inviter</Badge> : null}
+                  </div>
                 </div>
                 {data.isCreator && participant.user_id && !isOwner && !participant.isStar ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 pl-10 sm:pl-0">
                     <Button size="sm" variant="ghost" onClick={() => roleMutation.mutate(isCoOrg ? null : participant.user_id)}>
                       {isCoOrg ? "Retirer le rôle" : "Nommer co-organisateur·rice"}
                     </Button>
