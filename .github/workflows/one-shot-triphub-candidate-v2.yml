@@ -1,0 +1,165 @@
+name: TripHub zero-diff candidate v2
+
+on:
+  push:
+    branches:
+      - audit/css-baseline-safety
+    paths:
+      - .github/workflows/one-shot-triphub-candidate-v2.yml
+
+permissions:
+  contents: write
+  deployments: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      TARGET_BRANCH: audit/css-baseline-safety
+      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
+      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_API_MODE: safe
+    steps:
+      - name: Checkout migration parent
+        uses: actions/checkout@v4
+        with:
+          ref: audit/css-baseline-safety
+          fetch-depth: 100
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve before preview
+        run: |
+          before_sha=""
+          while read -r sha; do
+            files="$(git diff-tree --no-commit-id --name-only -r "$sha")"
+            if [ -n "$files" ] && printf '%s\n' "$files" | grep -qEv '^(\.github/|docs/|tests/)'; then
+              before_sha="$sha"
+              break
+            fi
+          done < <(git rev-list HEAD)
+          if [ -z "$before_sha" ]; then
+            echo "No app-affecting baseline commit found"
+            exit 1
+          fi
+          before_url="$(node .github/scripts/find-ready-vercel-preview.mjs "$before_sha" 18 10000)"
+          echo "KREW_E2E_BEFORE_SHA=$before_sha" >> "$GITHUB_ENV"
+          echo "KREW_E2E_BEFORE_URL=$before_url" >> "$GITHUB_ENV"
+          echo "Before app SHA: $before_sha"
+          echo "Before preview: $before_url"
+
+      - name: Capture TypeScript baseline
+        run: |
+          npx tsc --noEmit > /tmp/tsc-before.log 2>&1 || true
+          sed -E 's/\([0-9]+,[0-9]+\)//g' /tmp/tsc-before.log | sort -u > /tmp/tsc-before.norm
+
+      - name: Apply TripHub semantic shell patch
+        run: node .github/scripts/apply-triphub-shell-migration.mjs
+
+      - name: Reject new TypeScript errors
+        run: |
+          npx tsc --noEmit > /tmp/tsc-after.log 2>&1 || true
+          sed -E 's/\([0-9]+,[0-9]+\)//g' /tmp/tsc-after.log | sort -u > /tmp/tsc-after.norm
+          comm -13 /tmp/tsc-before.norm /tmp/tsc-after.norm > /tmp/tsc-new-errors.log || true
+          if [ -s /tmp/tsc-new-errors.log ]; then
+            echo "New TypeScript errors introduced:"
+            cat /tmp/tsc-new-errors.log
+            exit 1
+          fi
+          echo "No new normalized TypeScript errors introduced."
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Verify scoped diff
+        run: |
+          git diff --check
+          git diff --name-only
+          unexpected="$(git diff --name-only | grep -Ev '^(src/components/krew/KrewPageShell\.tsx|src/components/krew/KrewPageShell\.test\.tsx|src/krew-design-tokens\.css|src/routes/_authenticated/trips\.\$tripId\.index\.tsx|src/components/krew/TripHubDashboard\.tsx|src/styles/krew-trip-hub\.css)$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected files changed:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit candidate
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "KREW migration bot"
+          git config user.email "actions@users.noreply.github.com"
+          candidate_branch="automation/triphub-zero-diff-${GITHUB_RUN_ID}"
+          git switch -c "$candidate_branch"
+          git add src/components/krew/KrewPageShell.tsx src/components/krew/KrewPageShell.test.tsx src/krew-design-tokens.css src/routes/_authenticated/trips.\$tripId.index.tsx src/components/krew/TripHubDashboard.tsx src/styles/krew-trip-hub.css
+          cat > /tmp/commit-message.txt <<'MSG'
+          refactor(ui): migrate TripHub to semantic page shell
+
+          Zero-visual-diff contract:
+          - 1024px outer width -> KrewPageShell size="standard" (exact match).
+          - 16px page gutter -> gutter="compact" / --krew-page-padding-x-compact: 16px (exact match).
+          - Hero px-4 / -mx-4 that represent that same gutter now read the compact token (exact match).
+          - Loading state keeps the same 1024px / 16px / py-10 geometry.
+
+          Intentionally not migrated because the canonical tokens are not exact matches:
+          - H1 stays text-[42px] sm:text-[56px]; --krew-title-hero is 42px -> 50px -> 56px.
+          - H1 leading stays 0.94; --krew-title-leading is 0.98.
+          - tracking-tight stays unchanged; --krew-title-tracking is -0.02em.
+          - mt-6 stays 24px; --krew-content-gap is 28px -> 32px.
+          - space-y-6 sm:space-y-8 stays 24px -> 32px; no existing token matches exactly.
+
+          Validation before promotion to PR #369:
+          - npx tsc --noEmit executed before and after; existing repo debt preserved, zero new normalized errors required.
+          - npm test and npm run build required to pass.
+          - pixel diff required to be exactly 0 at 375x812, 768x1024 and 1280x900 across TripHub, Mes voyages and Nouveau voyage.
+          MSG
+          git commit -F /tmp/commit-message.txt
+          candidate_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/$candidate_branch"
+          echo "CANDIDATE_BRANCH=$candidate_branch" >> "$GITHUB_ENV"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+
+      - name: Wait for candidate preview
+        run: |
+          candidate_url="$(node .github/scripts/find-ready-vercel-preview.mjs "$CANDIDATE_SHA" 36 20000)"
+          echo "KREW_E2E_BASE_URL=$candidate_url" >> "$GITHUB_ENV"
+          echo "Candidate preview: $candidate_url"
+
+      - name: Install Playwright runner
+        run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
+
+      - name: Require zero pixel difference
+        run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
+
+      - name: Promote exact validated commit to PR branch
+        run: git push origin "$CANDIDATE_SHA:refs/heads/$TARGET_BRANCH"
+
+      - name: Upload validation report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: triphub-zero-diff-candidate-v2
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/tsc-before.log
+            /tmp/tsc-after.log
+            /tmp/tsc-new-errors.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Delete candidate branch
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -n "${CANDIDATE_BRANCH:-}" ]; then
+            git push origin --delete "$CANDIDATE_BRANCH" || true
+          fi
