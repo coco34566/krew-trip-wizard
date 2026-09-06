@@ -1,14 +1,6 @@
-/* KREW journey late-layout refinements.
- * Keep this layer visual-only. No data, validation, permissions or business logic.
- *
- * The former wave-fix rules were consolidated into krew-journey-pages-refinement.css.
- * This compatibility import now carries only the questionnaire composition rules that
- * must sit after the base journey styles and before the final alignment layer.
- */
-
-/* -------------------------------------------------------------------------- */
-/* Preferences questionnaire — editorial scansion without extra cards.         */
-/* -------------------------------------------------------------------------- */
+/* KREW questionnaire composition.
+ * This late layer is intentionally restricted to the participant Preferences form.
+ * Headers, Transport, Star and Dates must not be patched from here. */
 
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 {
@@ -20,7 +12,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   counter-increment: krew-preferences-section;
 }
 
-/* A small mono chapter index makes the long form scannable without adding UI chrome. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 > section > div:first-child::before {
   content: "0" counter(krew-preferences-section);
@@ -34,7 +25,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   color: color-mix(in oklch, var(--sage) 82%, var(--primary));
 }
 
-/* Keep chapter headings visually stronger than individual questions. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 > section > div:first-child h2.font-display {
   margin: 0 !important;
@@ -51,7 +41,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   line-height: 1.45 !important;
 }
 
-/* Mobile stays deliberately linear. Increase separation between chapters, not questions. */
 @media (max-width: 767px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
     > div.pt-4 > section {
@@ -70,8 +59,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   }
 }
 
-/* Tablet and desktop: chapter identity on the left, answers on the right.
- * This uses the available canvas without turning the questionnaire into a dashboard grid. */
 @media (min-width: 768px) {
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
     > div.pt-4 > section {
@@ -107,7 +94,6 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
     font-size: 30px !important;
   }
 
-  /* Related questions remain compact inside the answer column. */
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
     > div.pt-4 > section > :not(:first-child) + :not(:first-child) {
     margin-top: 14px;
@@ -126,14 +112,12 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   }
 }
 
-/* Secondary help copy should support the question, never compete with it. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 > section p.text-xs.text-muted-foreground {
   max-width: 38rem;
   line-height: 1.45 !important;
 }
 
-/* The final action reads as the clear end of the questionnaire. */
 main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
   > div.pt-4 > div.pt-2.pb-12 {
   margin-top: 12px;
@@ -152,332 +136,5 @@ main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]
   main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"])
     > div.pt-4 > div.pt-2.pb-12 {
     margin-left: 238px;
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Transport — use the page canvas, not nested dashboard cards.                */
-/* -------------------------------------------------------------------------- */
-
-/* The opened transport chapter is a page, not a framed module. */
-#hub-transports {
-  margin-top: 1.5rem !important;
-  padding: 1.5rem 0 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  overflow: visible !important;
-}
-
-#hub-transports > div.absolute:has(img[src*="/brand/otter-states/transport.png"]) {
-  top: 1rem !important;
-  right: 0 !important;
-}
-
-#hub-transports > h2.font-display:first-of-type,
-#hub-transports > h2.font-display:first-of-type ~ p:first-of-type {
-  max-width: calc(100% - 6rem);
-}
-
-/* Personal time preferences: remove the outer card and let its three semantic zones breathe. */
-#hub-transports > div.rounded-2xl:has(h3.font-display) {
-  padding: 1.25rem 0 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-#hub-transports > div.rounded-2xl:has(h3.font-display) > div.grid > div.rounded-xl {
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Mobile remains a straightforward vertical flow. */
-@media (max-width: 767px) {
-  #hub-transports {
-    padding-top: 1.25rem !important;
-  }
-
-  #hub-transports > div.rounded-2xl:has(h3.font-display) > div.grid > div.rounded-xl {
-    padding: .9rem 0 !important;
-    border-width: 0 0 1px !important;
-    border-radius: 0 !important;
-    border-color: color-mix(in oklch, var(--border) 58%, transparent) !important;
-  }
-}
-
-/* Tablet / desktop: context on the left, the two time constraints on the right. */
-@media (min-width: 768px) {
-  #hub-transports {
-    padding-top: 1.75rem !important;
-  }
-
-  #hub-transports > div.rounded-2xl:has(h3.font-display) {
-    display: grid !important;
-    grid-template-columns: minmax(180px, .72fr) minmax(0, 2fr);
-    column-gap: clamp(2rem, 4vw, 3.5rem);
-    row-gap: 1.25rem;
-    align-items: start;
-  }
-
-  #hub-transports > div.rounded-2xl:has(h3.font-display) > div:first-child {
-    grid-column: 1;
-    grid-row: 1 / span 2;
-    display: block !important;
-    padding-top: .2rem;
-  }
-
-  #hub-transports > div.rounded-2xl:has(h3.font-display) > div:first-child > p {
-    margin-top: .45rem;
-    max-width: 13rem;
-    line-height: 1.45;
-  }
-
-  #hub-transports > div.rounded-2xl:has(h3.font-display) > div.grid {
-    grid-column: 2;
-    grid-row: 1;
-    gap: 1.25rem !important;
-  }
-
-  #hub-transports > div.rounded-2xl:has(h3.font-display) > div.grid > div.rounded-xl {
-    padding: .25rem 0 1rem !important;
-    border-width: 0 0 1px !important;
-    border-radius: 0 !important;
-    border-color: color-mix(in oklch, var(--border) 58%, transparent) !important;
-  }
-
-  #hub-transports > div.rounded-2xl:has(h3.font-display) > div.flex:last-child {
-    grid-column: 2;
-    grid-row: 2;
-    padding-top: .25rem !important;
-    border-top: 0 !important;
-  }
-}
-
-@media (min-width: 1200px) {
-  #hub-transports > div.rounded-2xl:has(h3.font-display) {
-    grid-template-columns: minmax(210px, .8fr) minmax(0, 2.35fr);
-  }
-}
-
-/* Group timing synthesis may remain highlighted, but it should read as an inline status strip. */
-#hub-transports > div.rounded-2xl.border-primary\/30 {
-  border-width: 0 0 0 3px !important;
-  border-radius: 0 !important;
-  padding: .8rem 1rem !important;
-  box-shadow: none !important;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Participant + Star questionnaires — same composition grammar.               */
-/* -------------------------------------------------------------------------- */
-
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 {
-  counter-reset: krew-star-section;
-}
-
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section {
-  counter-increment: krew-star-section;
-  position: relative;
-  margin: 0 !important;
-  padding: 32px 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section:not(:first-child)::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 64px;
-  height: 2px;
-  border-radius: 999px;
-  background: color-mix(in oklch, var(--sage) 68%, transparent);
-  transform: rotate(-1deg);
-}
-
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section > h2.font-display:first-child::before,
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section > div:first-child > h2.font-display:first-child::before {
-  content: "0" counter(krew-star-section);
-  display: block;
-  margin-bottom: 6px;
-  font-family: "Space Mono", monospace;
-  font-size: 11px;
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: .12em;
-  color: color-mix(in oklch, var(--sage) 82%, var(--primary));
-}
-
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section > h2.font-display:first-child,
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section > div:first-child > h2.font-display:first-child {
-  margin: 0 !important;
-  font-size: 28px !important;
-  line-height: 1 !important;
-  letter-spacing: -.015em !important;
-}
-
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section .grid {
-  gap: 8px !important;
-  align-items: stretch;
-}
-
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section button.rounded-\[14px\] {
-  min-height: 40px !important;
-  height: 100%;
-  padding: 9px 12px !important;
-  border-radius: 14px !important;
-  box-shadow: none !important;
-  font-size: 14px !important;
-  line-height: 1.25 !important;
-}
-
-@media (min-width: 768px) {
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section {
-    display: grid !important;
-    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
-    column-gap: 32px;
-    align-items: start;
-    padding-top: 38px !important;
-    padding-bottom: 38px !important;
-  }
-
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section > h2.font-display:first-child {
-    grid-column: 1;
-    grid-row: 1 / span 20;
-  }
-
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section > div:first-child:has(h2.font-display) {
-    grid-column: 1;
-    grid-row: 1 / span 20;
-    margin-right: 0;
-  }
-
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section > :not(h2):not(:first-child),
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section > h2.font-display:first-child ~ * {
-    grid-column: 2;
-    min-width: 0;
-  }
-
-  /* The first Star chapter contains three real questions under one chapter identity.
-     Keep those question groups together in the answer lane rather than treating them as cards. */
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section:first-child > div {
-    grid-column: 2;
-  }
-
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section:first-child > div:first-child {
-    grid-column: 2;
-    grid-row: auto;
-  }
-}
-
-/* Star calendar is intentionally richer than the participant form, but should keep the same open-page language. */
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) > div.pt-4 > section:has(button[aria-label*="mois"], .grid-cols-7) div.rounded-2xl {
-  box-shadow: none !important;
-}
-
-/* -------------------------------------------------------------------------- */
-/* Locked journey states — informative, light, never fake data.                */
-/* -------------------------------------------------------------------------- */
-
-[data-journey-locked-state] {
-  margin-top: 1.5rem !important;
-  padding-top: .75rem !important;
-  padding-bottom: 1rem !important;
-}
-
-[data-journey-locked-state] > div.grid {
-  max-width: 980px !important;
-  grid-template-columns: minmax(0, 1fr) 82px !important;
-  column-gap: 1.25rem !important;
-}
-
-[data-journey-locked-state] [data-journey-locked-section] {
-  max-width: 620px !important;
-  padding: .8rem 0 .8rem 1rem !important;
-  border-width: 0 0 0 3px !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* A semantic preview explains what will appear next without inventing any trip data. */
-[data-journey-locked-state] .col-span-2::after {
-  content: "";
-  display: block;
-  width: min(100%, 720px);
-  height: 88px;
-  margin-top: 24px;
-  opacity: .42;
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
-}
-
-[data-journey-locked-state="profile"] .col-span-2::after {
-  background-image:
-    linear-gradient(90deg, color-mix(in oklch, var(--sage) 30%, transparent) 0 24%, transparent 24% 28%, color-mix(in oklch, var(--sage) 18%, transparent) 28% 52%, transparent 52% 56%, color-mix(in oklch, var(--sage) 24%, transparent) 56% 80%, transparent 80%),
-    linear-gradient(color-mix(in oklch, var(--primary) 14%, transparent), color-mix(in oklch, var(--primary) 14%, transparent));
-  background-size: 100% 56px, 62% 2px;
-  background-position: 0 0, 0 76px;
-}
-
-[data-journey-locked-state="accommodation"] .col-span-2::after {
-  background-image:
-    linear-gradient(90deg, color-mix(in oklch, var(--sage) 24%, transparent) 0 31%, transparent 31% 35%, color-mix(in oklch, var(--sage) 18%, transparent) 35% 66%, transparent 66% 70%, color-mix(in oklch, var(--sage) 22%, transparent) 70% 100%);
-  border-bottom: 2px solid color-mix(in oklch, var(--primary) 10%, transparent);
-}
-
-[data-journey-locked-state="planning"] .col-span-2::after {
-  background-image:
-    linear-gradient(color-mix(in oklch, var(--sage) 22%, transparent), color-mix(in oklch, var(--sage) 22%, transparent)),
-    radial-gradient(circle, color-mix(in oklch, var(--primary) 30%, transparent) 0 4px, transparent 5px),
-    linear-gradient(90deg, color-mix(in oklch, var(--primary) 14%, transparent) 0 82%, transparent 82%);
-  background-size: 2px 72px, 14px 14px, 100% 2px;
-  background-position: 18px 4px, 12px 0, 18px 42px;
-}
-
-[data-journey-locked-state="tasks"] .col-span-2::after {
-  background-image:
-    radial-gradient(circle, transparent 0 5px, color-mix(in oklch, var(--sage) 35%, transparent) 6px 7px, transparent 8px),
-    linear-gradient(90deg, color-mix(in oklch, var(--primary) 13%, transparent) 0 68%, transparent 68%),
-    radial-gradient(circle, transparent 0 5px, color-mix(in oklch, var(--sage) 35%, transparent) 6px 7px, transparent 8px),
-    linear-gradient(90deg, color-mix(in oklch, var(--primary) 10%, transparent) 0 54%, transparent 54%);
-  background-size: 16px 16px, calc(100% - 34px) 2px, 16px 16px, calc(100% - 34px) 2px;
-  background-position: 0 8px, 34px 15px, 0 48px, 34px 55px;
-}
-
-/* Dates can be locked inside the real chapter rather than the fallback portal.
-   Keep the empty calendar zone informative and open, without fabricating dates. */
-#hub-dates:has([class*="text-muted-foreground"]):not(:has(table)) {
-  min-height: 260px;
-}
-
-#hub-dates:has([class*="text-muted-foreground"]):not(:has(table))::after {
-  content: "";
-  display: block;
-  width: min(100%, 620px);
-  height: 96px;
-  margin-top: 24px;
-  opacity: .32;
-  background-image:
-    linear-gradient(90deg, color-mix(in oklch, var(--sage) 24%, transparent) 0 13%, transparent 13% 16%, color-mix(in oklch, var(--sage) 18%, transparent) 16% 29%, transparent 29% 32%, color-mix(in oklch, var(--sage) 24%, transparent) 32% 45%, transparent 45% 48%, color-mix(in oklch, var(--sage) 18%, transparent) 48% 61%, transparent 61% 64%, color-mix(in oklch, var(--sage) 24%, transparent) 64% 77%, transparent 77% 80%, color-mix(in oklch, var(--sage) 18%, transparent) 80% 93%, transparent 93%);
-  border-top: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-  border-bottom: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-}
-
-@media (min-width: 768px) {
-  [data-journey-locked-state] > div.grid {
-    grid-template-columns: minmax(0, 1fr) 108px !important;
-    column-gap: 2rem !important;
-  }
-
-  [data-journey-locked-state] .col-span-2::after {
-    height: 108px;
-    margin-top: 30px;
   }
 }
