@@ -9,22 +9,6 @@ main.max-w-5xl h1 + svg[class*="underline"] {
   bottom: -0.875rem !important;
 }
 
-/* Create trip — make the existing selected language unmistakable on photo cards. */
-main[class*="max-w-[820px]"] form button[class*="border-primary/40"] {
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 18%, transparent),
-    0 8px 20px -16px color-mix(in oklch, var(--primary) 50%, transparent);
-}
-
-main[class*="max-w-[820px]"] form button[class*="border-primary/40"]::after {
-  content: "";
-  position: absolute;
-  inset: 0.4rem;
-  border: 1.5px solid color-mix(in oklch, var(--primary) 75%, white);
-  border-radius: 0.65rem;
-  pointer-events: none;
-}
-
 /* Group — preserve tablet/desktop, untangle information only on phones. */
 @media (max-width: 639px) {
   #group-section [class*="grid-cols"] {
