@@ -21,9 +21,10 @@ import journeyPagesRefinementWavefixCss from "../krew-journey-pages-refinement-w
 import visualBaselineCss from "../krew-visual-baseline.css?url";
 import journeyAlignmentCss from "../krew-journey-alignment.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { Toaster } from "@/components/ui/sonner";
 import { CookieConsent } from "@/components/krew/CookieConsent";
-import { KrewMark } from "@/components/krew/visual-language/KrewMark";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
+import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -53,21 +54,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 const LOCKED_JOURNEY_SECTIONS = {
-  profile: {
-    title: "Profil du voyage",
-    otter: "/brand/otter-states/preferences.png",
-    description: "Le profil du voyage se construira à partir des réponses du groupe.",
-    requirement: "Il se débloquera quand les préférences nécessaires du groupe auront été renseignées.",
-    realSelector: "#hub-profile",
-  },
   destination: {
     title: "Destination",
     otter: "/brand/otter-states/destination.png",
-    description: "Les destinations seront proposées à partir du profil du voyage et des envies du groupe.",
-    requirement: "Choisis d’abord le profil du voyage pour débloquer les destinations.",
+    description: "Les destinations seront proposées à partir du Profil du voyage et des envies du groupe.",
+    requirement: "Choisis d’abord le Profil du voyage pour débloquer les destinations.",
     realSelector: "#hub-destination > div.flex.flex-wrap.items-end.justify-between",
     actionSection: "profile",
-    actionLabel: "Choisir le profil du voyage",
+    actionLabel: "Choisir le Profil du voyage",
   },
   accommodation: {
     title: "Hébergement",
@@ -75,20 +69,8 @@ const LOCKED_JOURNEY_SECTIONS = {
     description: "Les hébergements seront proposés une fois la destination du groupe choisie.",
     requirement: "Choisis d’abord la destination pour débloquer cette étape.",
     realSelector: "#hub-logistics",
-  },
-  planning: {
-    title: "Planning",
-    otter: "/brand/otter-states/planning.png",
-    description: "KREW construira le planning à partir de la destination et des choix du groupe.",
-    requirement: "Choisis d’abord la destination pour débloquer le planning.",
-    realSelector: "#hub-activities-plan",
-  },
-  tasks: {
-    title: "Tâches",
-    otter: "/brand/otter-states/trip-preparation.png",
-    description: "La répartition des tâches apparaîtra quand le voyage aura suffisamment avancé.",
-    requirement: "Choisis d’abord la destination pour débloquer l’organisation du groupe.",
-    realSelector: "#hub-tasks-org",
+    actionSection: "destination",
+    actionLabel: "Voir la destination",
   },
 } as const;
 
@@ -108,21 +90,6 @@ function getCachedTripName(queryClient: QueryClient, tripId: string | null) {
   return null;
 }
 
-function deriveTripNameFromVisibleHeader() {
-  const questionnaireHeading = document.querySelector<HTMLElement>(
-    'main[class*="max-w-[820px]"] > div.space-y-3.relative h1',
-  );
-  const text = questionnaireHeading?.textContent?.trim() ?? "";
-  const quoted = text.match(/«\s*(.+?)\s*»/);
-  if (quoted?.[1]) return quoted[1].trim();
-
-  const availabilityMain = document.querySelector<HTMLElement>(
-    'main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"])',
-  );
-  if (availabilityMain && text && !/questionnaire|réponses/i.test(text)) return text;
-  return null;
-}
-
 function JourneyChapterDomMetadata({ queryClient }: { queryClient: QueryClient }) {
   const location = useRouterState({ select: (state) => state.location });
 
@@ -135,20 +102,11 @@ function JourneyChapterDomMetadata({ queryClient }: { queryClient: QueryClient }
     let observer: MutationObserver | null = null;
 
     const sync = () => {
-      const tripName = getCachedTripName(queryClient, tripId) ?? deriveTripNameFromVisibleHeader();
+      const tripName = getCachedTripName(queryClient, tripId);
       if (!tripName) return;
-
       document
-        .querySelectorAll<HTMLElement>(
-          "#hub-dates,#hub-profile,#hub-destination,#hub-logistics,#hub-transports,#hub-activities-plan,#hub-tasks-org,#hub-packing",
-        )
+        .querySelectorAll<HTMLElement>("#hub-destination,#hub-logistics")
         .forEach((section) => section.setAttribute("data-krew-trip-name", tripName));
-
-      document
-        .querySelectorAll<HTMLElement>(
-          'main[class*="max-w-[820px]"] > div.space-y-3.relative, main[class*="max-w-[820px]"] > div.space-y-2.relative:has(h1 > span.relative.inline-block)',
-        )
-        .forEach((header) => header.setAttribute("data-krew-trip-name", tripName));
     };
 
     frame = window.requestAnimationFrame(() => {
@@ -177,7 +135,7 @@ function JourneyLockedFallbackPortal({ queryClient }: { queryClient: QueryClient
   const config = lockedSection ? LOCKED_JOURNEY_SECTIONS[lockedSection] : null;
   const isTripJourneyRoute = /^\/trips\/[^/]+\/?$/.test(location.pathname);
   const tripId = location.pathname.match(/^\/trips\/([^/]+)/)?.[1] ?? null;
-  const tripName = getCachedTripName(queryClient, tripId);
+  const tripName = getCachedTripName(queryClient, tripId) ?? "Voyage";
 
   useEffect(() => {
     if (!config || !lockedSection || !isTripJourneyRoute) {
@@ -206,61 +164,32 @@ function JourneyLockedFallbackPortal({ queryClient }: { queryClient: QueryClient
     };
   }, [config, lockedSection, isTripJourneyRoute, location.href]);
 
-  if (!host || !config || !lockedSection || !isTripJourneyRoute) return null;
+  if (!host || !config || !lockedSection || !isTripJourneyRoute || !tripId) return null;
+
+  const actionHref = config.actionSection === "profile"
+    ? `/trips/${tripId}/profile`
+    : `/trips/${tripId}?view=voyage&section=${config.actionSection}`;
 
   return createPortal(
-    <section
-      data-journey-locked-state={lockedSection}
-      aria-labelledby={`locked-${lockedSection}-title`}
-      className="mt-6 py-2 sm:mt-8 sm:py-3"
-    >
-      <div className="grid max-w-[860px] grid-cols-[minmax(0,1fr)_76px] items-start gap-x-4 gap-y-5 sm:grid-cols-[minmax(0,1fr)_108px] sm:gap-x-8 lg:grid-cols-[minmax(0,1fr)_120px] lg:gap-x-10">
-        <div className="min-w-0">
-          <p className="font-sans text-[13px] font-semibold tracking-[0.02em] text-muted-foreground">
-            {tripName ?? "Étape verrouillée"}
-          </p>
-          <div className="relative mt-2 inline-block max-w-full pb-2">
-            <h2
-              id={`locked-${lockedSection}-title`}
-              className="font-display font-normal leading-[0.98] tracking-[-0.02em] text-foreground"
-            >
-              {config.title}
-            </h2>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="md"
-              className="pointer-events-none absolute -bottom-1 left-0 max-w-[80%] opacity-70"
-            />
-          </div>
-          <p className="mt-5 max-w-[590px] text-[17px] leading-[1.5] text-muted-foreground sm:text-[19px]">
-            {config.description}
-          </p>
-        </div>
-
-        <img
-          src={config.otter}
-          alt=""
-          className="pointer-events-none mt-1 h-auto w-full max-w-[76px] justify-self-end object-contain opacity-90 sm:max-w-[108px] lg:max-w-[120px]"
-        />
-
-        <div className="col-[1/-1] max-w-[560px] space-y-3">
-          <div
-            data-journey-locked-section={lockedSection}
-            className="rounded-[16px] border border-sage/20 bg-sage/[0.07] px-4 py-3 text-[15px] leading-[1.5] text-muted-foreground sm:text-[16px]"
+    <section data-journey-locked-state={lockedSection} className="mt-8 space-y-8">
+      <KrewJourneyPageHeader tripName={tripName} title={config.title} otterSrc={config.otter}>
+        <p>{config.description}</p>
+      </KrewJourneyPageHeader>
+      <KrewJourneyStatusPanel
+        title="Étape à débloquer"
+        icon="attention"
+        tone="locked"
+        action={
+          <a
+            href={actionHref}
+            className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
           >
-            {config.requirement}
-          </div>
-          {"actionSection" in config && tripId ? (
-            <a
-              href={`/trips/${tripId}?view=voyage&section=${config.actionSection}`}
-              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-            >
-              {config.actionLabel}
-            </a>
-          ) : null}
-        </div>
-      </div>
+            {config.actionLabel}
+          </a>
+        }
+      >
+        <p>{config.requirement}</p>
+      </KrewJourneyStatusPanel>
     </section>,
     host,
   );
