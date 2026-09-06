@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
@@ -104,44 +105,22 @@ export function TripDestinationPage({ tripId }: { tripId: string }) {
   });
 
   if (detailQuery.isLoading || readinessQuery.isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-        <KrewThinkingState context="destinations" />
-      </main>
-    );
+    return <KrewJourneyLoadingState context="destinations" />;
   }
 
   if (!detailQuery.data || detailQuery.isError || readinessQuery.isError) {
+    const retrying = detailQuery.isFetching || readinessQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="size-4" /> Retour au parcours
-        </Link>
-        <KrewJourneyStatusPanel
-          title="Impossible de charger les destinations"
-          icon="attention"
-          tone="info"
-          role="alert"
-          action={
-            <Button
-              size="sm"
-              onClick={() => {
-                void detailQuery.refetch();
-                void readinessQuery.refetch();
-              }}
-            >
-              Réessayer
-            </Button>
-          }
-        >
-          <p>Les propositions de destination ne sont pas disponibles pour le moment.</p>
-        </KrewJourneyStatusPanel>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        title="Impossible de charger les destinations"
+        description="Les propositions de destination ne sont pas disponibles pour le moment."
+        retrying={retrying}
+        onRetry={() => {
+          void detailQuery.refetch();
+          void readinessQuery.refetch();
+        }}
+      />
     );
   }
 
