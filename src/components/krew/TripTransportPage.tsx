@@ -5,10 +5,11 @@ import { ArrowLeft, Clock, Plane } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
-import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import {
   getGroupTransportTimeWindow,
@@ -92,7 +93,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
 
   if (detailQuery.isLoading || progressQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-7 lg:px-8">
         <KrewThinkingState context="transport" />
       </main>
     );
@@ -101,12 +102,12 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   if (!detailQuery.data || detailQuery.isError || progressQuery.isError) {
     const retrying = detailQuery.isFetching || progressQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-5 py-10 sm:px-7 lg:px-8">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
           search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <ArrowLeft className="size-4" /> Retour au voyage
         </Link>
@@ -154,35 +155,30 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   const groupWindow = groupWindowQuery.data as any;
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 py-8 sm:px-6 sm:py-10">
+    <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
         search={{ view: "voyage" }}
-        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au parcours
       </Link>
 
-      <header className="relative border-b border-border/45 pb-5 pr-20 sm:pr-24">
-        <img
-          src="/brand/otter-states/transport.png"
-          alt=""
-          className="pointer-events-none absolute right-0 top-0 w-[72px] object-contain opacity-90 sm:w-[88px]"
-        />
-        <div className="flex items-center gap-3">
-          <h1 className="flex items-center gap-2 font-display text-[30px] font-normal text-foreground sm:text-[36px]">
-            <KrewIcon name="transport" tone="plum" size="sm" className="size-5" />
-            Transport
-          </h1>
+      <KrewJourneyPageHeader
+        tripName={trip.name ?? "Voyage"}
+        title="Transport"
+        otterSrc="/brand/otter-states/transport.png"
+        annotation={
           <KrewNote variant="tape" tone="cream" rotation={2} size="xs" className="hidden sm:inline-block">
             Comment on vient
           </KrewNote>
-        </div>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground sm:text-base">
+        }
+      >
+        <p>
           Chacun choisit son trajet depuis sa propre ville de départ. Les choix du groupe restent visibles pour faciliter les départs ensemble.
         </p>
-      </header>
+      </KrewJourneyPageHeader>
 
       <TransportTimePrefsCard tripId={tripId} />
 
