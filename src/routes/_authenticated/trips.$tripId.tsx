@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import type { ReactNode } from "react";
 
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { Button } from "@/components/ui/button";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId")({
 
 function ResponseGateLoading() {
   return (
-    <main className="mx-auto w-full max-w-[1020px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+    <main className="mx-auto w-full max-w-[1020px] px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <KrewThinkingState context="generic" customMessage="Vérification de l’étape…" delayMs={0} />
     </main>
   );
@@ -35,13 +36,20 @@ function ResponseGateLoading() {
 
 function ResponseGateError({ onRetry, isFetching }: { onRetry: () => void; isFetching: boolean }) {
   return (
-    <main className="mx-auto w-full max-w-[1020px] space-y-4 px-4 py-8 text-center sm:px-6 sm:py-10 lg:px-8" role="alert">
-      <p className="text-sm text-muted-foreground">Impossible de vérifier l’état de cette étape pour le moment.</p>
-      <div>
-        <Button type="button" onClick={onRetry} disabled={isFetching} aria-busy={isFetching}>
-          {isFetching ? "Chargement…" : "Réessayer"}
-        </Button>
-      </div>
+    <main className="mx-auto w-full max-w-[1020px] px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+      <KrewJourneyStatusPanel
+        title="Impossible de vérifier cette étape"
+        icon="attention"
+        tone="info"
+        role="alert"
+        action={
+          <Button type="button" size="sm" onClick={onRetry} disabled={isFetching} aria-busy={isFetching}>
+            {isFetching ? "Chargement…" : "Réessayer"}
+          </Button>
+        }
+      >
+        <p>Les informations nécessaires ne sont pas disponibles pour le moment.</p>
+      </KrewJourneyStatusPanel>
     </main>
   );
 }
@@ -49,19 +57,29 @@ function ResponseGateError({ onRetry, isFetching }: { onRetry: () => void; isFet
 function ClosedResponseState({ tripId, title, hasPreviousAnswer, children }: { tripId: string; title: string; hasPreviousAnswer: boolean; children: ReactNode }) {
   return (
     <>
-      <div className="mx-auto mt-8 w-full max-w-[1020px] px-4 sm:px-6 lg:px-8">
-        <section className="rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" role="status">
-          <p className="font-display text-2xl font-normal text-foreground">{title} clôturées</p>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+      <div className="mx-auto mt-8 w-full max-w-[1020px] px-5 sm:px-7 lg:px-8">
+        <KrewJourneyStatusPanel
+          title={`${title} clôturées`}
+          icon="check"
+          tone="complete"
+          action={
+            !hasPreviousAnswer ? (
+              <Link
+                to="/trips/$tripId"
+                params={{ tripId }}
+                search={{ view: "voyage" }}
+                className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
+              >
+                Retour au voyage
+              </Link>
+            ) : undefined
+          }
+        >
+          <p>
             Les réponses du groupe sont maintenant clôturées car les dates du voyage sont confirmées.
             {hasPreviousAnswer ? " Ta réponse précédente reste visible ci-dessous, en lecture seule." : " Tu n’as rien à compléter pour cette étape."}
           </p>
-          {!hasPreviousAnswer ? (
-            <Link to="/trips/$tripId" params={{ tripId }} className="mt-3 inline-flex min-h-10 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">
-              Retour au voyage
-            </Link>
-          ) : null}
-        </section>
+        </KrewJourneyStatusPanel>
       </div>
       {hasPreviousAnswer ? <fieldset disabled className="min-w-0 border-0 p-0 opacity-90">{children}</fieldset> : null}
     </>
@@ -134,21 +152,24 @@ function CompletedPreparationGate({ tripId, children }: { tripId: string; childr
 
   return (
     <>
-      <div className="mx-auto mt-8 w-full max-w-[1020px] px-4 sm:px-6 lg:px-8">
-        <section className="rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" role="status">
-          <p className="font-display text-2xl font-normal text-foreground">Voyage terminé · consultation</p>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-            Cette partie reste disponible comme historique du voyage. Les actions de préparation sont maintenant désactivées.
-          </p>
-          <Link
-            to="/trips/$tripId"
-            params={{ tripId }}
-            search={{ view: "voyage" }}
-            className="mt-3 inline-flex min-h-10 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Retour au parcours
-          </Link>
-        </section>
+      <div className="mx-auto mt-8 w-full max-w-[1020px] px-5 sm:px-7 lg:px-8">
+        <KrewJourneyStatusPanel
+          title="Voyage terminé · consultation"
+          icon="check"
+          tone="complete"
+          action={
+            <Link
+              to="/trips/$tripId"
+              params={{ tripId }}
+              search={{ view: "voyage" }}
+              className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              Retour au parcours
+            </Link>
+          }
+        >
+          <p>Cette partie reste disponible comme historique du voyage. Les actions de préparation sont maintenant désactivées.</p>
+        </KrewJourneyStatusPanel>
       </div>
       <div inert className="opacity-90">
         {children}
