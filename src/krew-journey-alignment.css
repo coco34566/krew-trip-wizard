@@ -1,14 +1,23 @@
-/* KREW journey alignment — transitional rules for legacy journey sections only.
- * Modern journey pages own their header through KrewJourneyPageHeader.
- * Questionnaire density lives in krew-visual-baseline.css.
- * Keep this file smaller after every legacy-section extraction. */
+/* KREW journey alignment — canonical geometry tokens + legacy bridge.
+ * Modern journey pages own their markup through KrewJourneyPageHeader.
+ * The four embedded legacy chapters consume the same geometry tokens until extraction.
+ * Questionnaire density lives in krew-visual-baseline.css. */
 
 :root {
   --krew-journey-page-title: 34px;
   --krew-journey-section-title: 24px;
   --krew-journey-subtitle: 14px;
+  --krew-journey-title-leading: .98;
+  --krew-journey-title-tracking: -.02em;
+  --krew-journey-intro-leading: 1.55;
+  --krew-journey-intro-width: 42rem;
   --krew-journey-header-gap: 12px;
+  --krew-journey-header-stack-gap: 12px;
+  --krew-journey-header-column-gap: 16px;
   --krew-journey-content-gap: 28px;
+  --krew-journey-wave-width: 140px;
+  --krew-journey-otter-slot-width: 88px;
+  --krew-journey-otter-height: 76px;
 }
 
 @media (min-width: 640px) {
@@ -16,7 +25,10 @@
     --krew-journey-page-title: 40px;
     --krew-journey-section-title: 26px;
     --krew-journey-subtitle: 15px;
+    --krew-journey-header-column-gap: 24px;
     --krew-journey-content-gap: 32px;
+    --krew-journey-otter-slot-width: 104px;
+    --krew-journey-otter-height: 88px;
   }
 }
 
@@ -52,9 +64,9 @@ main.max-w-5xl :is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing) h2.f
 [data-journey-locked-state] h2.font-display {
   margin: 0 !important;
   font-size: var(--krew-journey-page-title) !important;
-  line-height: .98 !important;
+  line-height: var(--krew-journey-title-leading) !important;
   font-weight: 400 !important;
-  letter-spacing: -.02em !important;
+  letter-spacing: var(--krew-journey-title-tracking) !important;
 }
 
 main.max-w-5xl :is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing) h2.font-display:first-of-type > :is(svg,[data-krew-icon]),
@@ -65,9 +77,9 @@ main.max-w-5xl :is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing) h2.f
 main.max-w-5xl :is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing) h2.font-display:first-of-type ~ p:first-of-type,
 [data-journey-locked-state] h2.font-display ~ p:first-of-type {
   margin-top: var(--krew-journey-header-gap) !important;
-  max-width: 42rem !important;
+  max-width: var(--krew-journey-intro-width) !important;
   font-size: var(--krew-journey-subtitle) !important;
-  line-height: 1.55 !important;
+  line-height: var(--krew-journey-intro-leading) !important;
   font-weight: 400 !important;
 }
 
@@ -75,9 +87,9 @@ main.max-w-5xl :is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing) h2.f
 main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.flex:first-of-type {
   position: relative !important;
   align-items: flex-start !important;
-  min-height: 84px !important;
+  min-height: var(--krew-journey-otter-height) !important;
   margin: 0 0 var(--krew-journey-content-gap) !important;
-  padding: 0 92px 0 0 !important;
+  padding: 0 calc(var(--krew-journey-otter-slot-width) + var(--krew-journey-header-column-gap)) 0 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -85,15 +97,15 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.flex:first-of-type {
 }
 
 main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.flex:first-of-type > div:first-child {
-  width: min(100%, 42rem);
+  width: min(100%, var(--krew-journey-intro-width));
   min-width: 0;
 }
 
 main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.flex:first-of-type p.text-muted-foreground {
   margin-top: var(--krew-journey-header-gap) !important;
-  max-width: 42rem !important;
+  max-width: var(--krew-journey-intro-width) !important;
   font-size: var(--krew-journey-subtitle) !important;
-  line-height: 1.55 !important;
+  line-height: var(--krew-journey-intro-leading) !important;
   font-weight: 400 !important;
 }
 
@@ -104,8 +116,8 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics) img[src*="/brand/otter-state
 main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*="/brand/otter-states/"]) {
   top: 0 !important;
   right: 0 !important;
-  width: 88px !important;
-  height: 76px !important;
+  width: var(--krew-journey-otter-slot-width) !important;
+  height: var(--krew-journey-otter-height) !important;
   display: flex !important;
   align-items: flex-start !important;
   justify-content: flex-end !important;
@@ -113,34 +125,15 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*=
 
 main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*="/brand/otter-states/"]) img {
   width: auto !important;
-  height: 76px !important;
-  max-width: 88px !important;
+  height: var(--krew-journey-otter-height) !important;
+  max-width: var(--krew-journey-otter-slot-width) !important;
   object-fit: contain !important;
   object-position: top right !important;
 }
 
-@media (min-width: 640px) {
-  main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.flex:first-of-type {
-    min-height: 96px !important;
-    padding-right: 112px !important;
-  }
-
-  main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*="/brand/otter-states/"]) {
-    width: 104px !important;
-    height: 88px !important;
-  }
-
-  main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*="/brand/otter-states/"]) img {
-    height: 88px !important;
-    max-width: 104px !important;
-  }
-}
-
 @media (max-width: 639px) {
   main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.flex:first-of-type {
-    min-height: 76px !important;
-    padding-right: 92px !important;
-    margin-bottom: 28px !important;
+    margin-bottom: var(--krew-journey-content-gap) !important;
   }
 
   main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.flex:first-of-type > button {
@@ -179,9 +172,9 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*=
   display: block;
   font-family: "Instrument Serif", serif;
   font-size: var(--krew-journey-page-title);
-  line-height: .98;
+  line-height: var(--krew-journey-title-leading);
   font-weight: 400;
-  letter-spacing: -.02em;
+  letter-spacing: var(--krew-journey-title-tracking);
   color: var(--foreground);
 }
 
@@ -190,7 +183,7 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*=
   position: absolute;
   left: 2px;
   bottom: 0;
-  width: 118px;
+  width: min(var(--krew-journey-wave-width), 80%);
   height: 9px;
   border-bottom: 3px solid color-mix(in oklch, var(--sage) 78%, transparent);
   border-radius: 50%;
@@ -199,9 +192,9 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*=
 
 #hub-destination > div.rounded-2xl.border.border-border\/50.bg-surface\/30 > p {
   margin-top: var(--krew-journey-header-gap) !important;
-  max-width: 42rem !important;
+  max-width: var(--krew-journey-intro-width) !important;
   font-size: var(--krew-journey-subtitle) !important;
-  line-height: 1.55 !important;
+  line-height: var(--krew-journey-intro-leading) !important;
 }
 
 /* Dates must keep natural DOM order. Never reorder its validated state with display:contents/order. */
@@ -210,7 +203,7 @@ main.max-w-5xl :is(#hub-destination,#hub-logistics) > div.absolute:has(img[src*=
   flex-direction: column !important;
   align-items: flex-start !important;
   justify-content: flex-start !important;
-  gap: 12px !important;
+  gap: var(--krew-journey-header-gap) !important;
 }
 
 #hub-dates > div:first-child > :is(a,button,[data-slot="dialog-trigger"]) {
@@ -230,16 +223,16 @@ main.space-y-8:has(> section[class~="bg-sage/8"]) {
 main.space-y-8:has(> section[class~="bg-sage/8"]) > div.space-y-2 > h1.font-display {
   margin: 0 !important;
   font-size: var(--krew-journey-page-title) !important;
-  line-height: .98 !important;
+  line-height: var(--krew-journey-title-leading) !important;
   font-weight: 400 !important;
-  letter-spacing: -.02em !important;
+  letter-spacing: var(--krew-journey-title-tracking) !important;
 }
 
 main.space-y-8:has(> section[class~="bg-sage/8"]) > div.space-y-2 > p.text-muted-foreground {
   margin-top: var(--krew-journey-header-gap) !important;
-  max-width: 42rem;
+  max-width: var(--krew-journey-intro-width);
   font-size: var(--krew-journey-subtitle) !important;
-  line-height: 1.55 !important;
+  line-height: var(--krew-journey-intro-leading) !important;
 }
 
 main.space-y-8:has(> section[class~="bg-sage/8"]) > section[class~="bg-sage/8"],
