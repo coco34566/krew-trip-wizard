@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { KrewHighlight, KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import {
@@ -133,7 +134,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
 
   if (detailQuery.isLoading || readinessQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-7 lg:px-8">
         <KrewThinkingState context="generic" customMessage="Chargement du Profil du voyage…" delayMs={0} />
       </main>
     );
@@ -142,12 +143,12 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   if (!data || detailQuery.isError || readinessQuery.isError) {
     const retrying = detailQuery.isFetching || readinessQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl space-y-6 px-5 py-10 sm:px-7 lg:px-8">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
           search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <ArrowLeft className="size-4" /> Retour au voyage
         </Link>
@@ -184,44 +185,38 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const destinationSelected = Boolean((data.recommendations ?? []).some((recommendation: any) => recommendation.is_selected));
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 py-8 sm:px-6 sm:py-10">
+    <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
         search={{ view: "voyage" }}
-        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au parcours
       </Link>
 
-      <section className="relative space-y-5 overflow-hidden rounded-[20px] bg-surface/30 p-5 sm:p-7">
-        <img
-          src="/brand/otter-states/trip-progress.png"
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute right-3 top-3 w-[72px] object-contain opacity-90 sm:w-[96px]"
-        />
-        <header className="pr-[78px] sm:pr-[106px]">
-          <div className="flex items-center gap-3">
-            <h1 className="flex items-center gap-2 font-display text-2xl font-normal text-foreground sm:text-3xl">
-              <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
-              Profil du voyage
-            </h1>
-            <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
-              Style et ambiance
-            </KrewNote>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-            {isAdmin
-              ? validated
-                ? "Voici le Profil du voyage retenu."
-                : "Choisis 1 à 3 options pour définir le Profil du voyage."
-              : validated
-                ? "Voici le Profil du voyage retenu par l’organisateur·rice."
-                : "L’organisateur·rice choisira le Profil du voyage à partir des réponses du groupe."}
-          </p>
-        </header>
+      <KrewJourneyPageHeader
+        tripName={data.trip?.name ?? "Voyage"}
+        title="Profil du voyage"
+        otterSrc="/brand/otter-states/trip-progress.png"
+        annotation={
+          <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
+            Style et ambiance
+          </KrewNote>
+        }
+      >
+        <p>
+          {isAdmin
+            ? validated
+              ? "Voici le Profil du voyage retenu."
+              : "Choisis 1 à 3 options pour définir le Profil du voyage."
+            : validated
+              ? "Voici le Profil du voyage retenu par l’organisateur·rice."
+              : "L’organisateur·rice choisira le Profil du voyage à partir des réponses du groupe."}
+        </p>
+      </KrewJourneyPageHeader>
 
+      <section className="space-y-5 rounded-[20px] bg-surface/30 p-5 sm:p-7">
         {concepts.length ? (
           <div className="grid gap-3 sm:grid-cols-3">
             {concepts.slice(0, 3).map((concept: StayConcept) => {
