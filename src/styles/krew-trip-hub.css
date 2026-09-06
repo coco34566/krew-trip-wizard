@@ -1,0 +1,102 @@
+/* TripHub-owned visual compatibility rules.
+ * These intentionally mirror the validated rendering while legacy review layers
+ * are drained progressively. Keep selectors tied to semantic TripHub anchors. */
+
+/* Group layout: preserve the current mobile composition. */
+@media (max-width: 639px) {
+  #group-section [class*="grid-cols"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #group-section [class*="flex"][class*="items-center"][class*="gap"] {
+    flex-wrap: wrap;
+    row-gap: 0.45rem;
+  }
+
+  #group-section [class*="text-xs"],
+  #group-section [class*="text-sm"] {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+#group-section ul + div > div {
+  width: 100%;
+}
+
+#group-section ul + div > div > button,
+#group-section ul + div > div > form {
+  margin-left: auto !important;
+}
+
+/* The approved group header no longer shows the old otter/blob treatment. */
+#group-section > div.absolute.top-0.right-0,
+#group-section .relative.inline-flex > div.absolute {
+  display: none !important;
+}
+
+#group-section > div:first-child > div.flex {
+  padding-right: 0 !important;
+}
+
+#group-section .krew-group-title-underline {
+  display: block !important;
+  width: 170px !important;
+  min-width: 170px !important;
+  height: 12px !important;
+}
+
+@media (min-width: 640px) {
+  #group-section .krew-group-title-underline {
+    width: 210px !important;
+    min-width: 210px !important;
+  }
+}
+
+/* Trip management belongs to the Hub, not to every max-w-5xl page. */
+#group-section ~ footer[class*="mt-16"] > p:first-child {
+  display: none !important;
+}
+
+#group-section ~ footer[class*="mt-16"] > div {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start !important;
+  gap: 1rem 1.5rem !important;
+  row-gap: 0.5rem !important;
+}
+
+#group-section ~ footer[class*="mt-16"] > div > div:first-child {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 0.25rem !important;
+}
+
+#group-section ~ footer[class*="mt-16"] > div > div:first-child > div > p:first-child {
+  display: none !important;
+}
+
+#group-section ~ footer[class*="mt-16"] > div > div:first-child > button {
+  order: -1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+#group-section ~ footer[class*="mt-16"] > div > div + div {
+  border-top: 0 !important;
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+@media (max-width: 639px) {
+  #group-section ~ footer[class*="mt-16"] > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
