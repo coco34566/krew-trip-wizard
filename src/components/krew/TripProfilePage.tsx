@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { KrewHighlight, KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
-import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import {
@@ -185,7 +184,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const destinationSelected = Boolean((data.recommendations ?? []).some((recommendation: any) => recommendation.is_selected));
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+    <main data-krew-profile-page className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -195,26 +194,63 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
         <ArrowLeft className="size-4" /> Retour au parcours
       </Link>
 
-      <KrewJourneyPageHeader
-        tripName={data.trip?.name ?? "Voyage"}
-        title="Profil du voyage"
-        otterSrc="/brand/otter-states/trip-progress.png"
-        annotation={
-          <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
-            Style et ambiance
-          </KrewNote>
-        }
-      >
-        <p>
-          {isAdmin
-            ? validated
-              ? "Voici le Profil du voyage retenu."
-              : "Choisis 1 à 3 options pour définir le Profil du voyage."
-            : validated
-              ? "Voici le Profil du voyage retenu par l’organisateur·rice."
-              : "L’organisateur·rice choisira le Profil du voyage à partir des réponses du groupe."}
-        </p>
-      </KrewJourneyPageHeader>
+      <header data-krew-journey-header className="relative space-y-[var(--krew-journey-header-stack-gap)]">
+        <div className="grid grid-cols-[minmax(0,1fr)_var(--krew-journey-otter-slot-width)] items-start gap-[var(--krew-journey-header-column-gap)]">
+          <div className="min-w-0">
+            <div data-krew-journey-trip-context className="mb-1 flex items-center gap-1.5">
+              <p className="text-[13px] font-semibold leading-[1.35] text-muted-foreground">
+                {data.trip?.name ?? "Voyage"}
+              </p>
+              <KrewMark type="sparkle" tone="sage" size="sm" className="h-4 w-5 opacity-70" />
+            </div>
+            <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+              <div data-krew-journey-title-block className="relative inline-block max-w-full pb-3">
+                <h1
+                  data-krew-journey-title
+                  className="font-display text-[length:var(--krew-journey-page-title)] font-normal leading-[var(--krew-journey-title-leading)] tracking-[var(--krew-journey-title-tracking)] text-foreground"
+                >
+                  Profil du voyage
+                </h1>
+                <KrewMark
+                  type="underline-wave"
+                  tone="sage"
+                  size="md"
+                  className="pointer-events-none absolute bottom-0 left-0 w-[var(--krew-journey-wave-width)] max-w-[80%] opacity-78"
+                />
+              </div>
+              <div data-krew-journey-annotation className="shrink-0 pt-0.5">
+                <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
+                  Style et ambiance
+                </KrewNote>
+              </div>
+            </div>
+          </div>
+          <div
+            data-krew-journey-otter-slot
+            className="flex h-[var(--krew-journey-otter-height)] w-[var(--krew-journey-otter-slot-width)] items-start justify-end justify-self-end"
+          >
+            <img
+              src="/brand/otter-states/trip-progress.png"
+              alt=""
+              className="pointer-events-none h-full w-auto max-w-full object-contain object-top"
+            />
+          </div>
+        </div>
+        <div
+          data-krew-journey-intro
+          className="max-w-[var(--krew-journey-intro-width)] pt-1 font-sans text-[length:var(--krew-journey-subtitle)] leading-[var(--krew-journey-intro-leading)] text-muted-foreground"
+        >
+          <p>
+            {isAdmin
+              ? validated
+                ? "Voici le Profil du voyage retenu."
+                : "Choisis 1 à 3 options pour définir le Profil du voyage."
+              : validated
+                ? "Voici le Profil du voyage retenu par l’organisateur·rice."
+                : "L’organisateur·rice choisira le Profil du voyage à partir des réponses du groupe."}
+          </p>
+        </div>
+      </header>
 
       <section className="space-y-5 rounded-[20px] bg-surface/30 p-5 sm:p-7">
         {concepts.length ? (
