@@ -57,9 +57,6 @@ jobs:
             const exact = await findReadyUrlForSha(commit.sha);
             if (exact) return { url: exact, deploymentSha: commit.sha };
 
-            // A replacement commit can have no deployment even though an earlier,
-            // now-unreachable sibling has the exact same Git tree. Scan recent
-            // deployments and reuse one only after proving tree SHA equality.
             const deployments = await api(`/deployments?per_page=50`);
             for (const deployment of deployments) {
               const candidateSha = deployment.sha;
@@ -136,6 +133,7 @@ jobs:
       - name: Run full visual audit contract
         run: npm run test:e2e:visual
       - name: Capture and compare TripHub migration reference screenshots
+        if: always()
         run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
       - name: Upload Playwright report
         if: always()
