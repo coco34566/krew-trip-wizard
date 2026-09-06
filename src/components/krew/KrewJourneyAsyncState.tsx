@@ -2,13 +2,15 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
-import { KrewPageShell } from "@/components/krew/KrewPageShell";
+import { KrewPageShell, type KrewPageShellSize } from "@/components/krew/KrewPageShell";
 import { KrewThinkingState, type KrewThinkingContext } from "@/components/krew/KrewThinkingState";
 import { Button } from "@/components/ui/button";
 
 type KrewJourneyLoadingStateProps = {
   context?: KrewThinkingContext;
   message?: string;
+  size?: KrewPageShellSize;
+  /** @deprecated Prefer `size` for semantic shell ownership. */
   maxWidthClassName?: string;
 };
 
@@ -18,6 +20,8 @@ type KrewJourneyErrorStateProps = {
   description: string;
   onRetry: () => void;
   retrying?: boolean;
+  size?: KrewPageShellSize;
+  /** @deprecated Prefer `size` for semantic shell ownership. */
   maxWidthClassName?: string;
   returnLabel?: "Retour au parcours" | "Retour au voyage";
 };
@@ -25,6 +29,7 @@ type KrewJourneyErrorStateProps = {
 export function KrewJourneyLoadingState({
   context = "generic",
   message,
+  size = "standard",
   maxWidthClassName,
 }: KrewJourneyLoadingStateProps) {
   if (maxWidthClassName) {
@@ -39,7 +44,7 @@ export function KrewJourneyLoadingState({
   }
 
   return (
-    <KrewPageShell data-krew-journey-loading size="standard" className="py-8 sm:py-10">
+    <KrewPageShell data-krew-journey-loading size={size} className="py-8 sm:py-10">
       <KrewThinkingState context={context} customMessage={message} delayMs={0} />
     </KrewPageShell>
   );
@@ -51,6 +56,7 @@ export function KrewJourneyErrorState({
   description,
   onRetry,
   retrying = false,
+  size = "standard",
   maxWidthClassName,
   returnLabel = "Retour au parcours",
 }: KrewJourneyErrorStateProps) {
@@ -99,7 +105,7 @@ export function KrewJourneyErrorState({
   }
 
   return (
-    <KrewPageShell data-krew-journey-error size="standard" className="space-y-8 py-8 sm:py-10">
+    <KrewPageShell data-krew-journey-error size={size} className="space-y-8 py-8 sm:py-10">
       {content}
     </KrewPageShell>
   );
