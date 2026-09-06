@@ -1,42 +1,5 @@
-/* KREW journey refinement — legacy content details only.
- * Modern page headers use KrewJourneyPageHeader and must never be targeted here. */
-
-/* Temporary wave rendering for the three remaining monolithic chapter titles. */
-main.max-w-5xl :is(#hub-dates,#hub-destination,#hub-logistics) h2.font-display:first-of-type {
-  position: relative;
-  width: fit-content;
-  padding-bottom: .35rem;
-}
-
-main.max-w-5xl :is(#hub-dates,#hub-destination,#hub-logistics) h2.font-display:first-of-type::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  bottom: -.5rem;
-  width: min(var(--krew-journey-wave-width), 80%);
-  height: 1rem;
-  background-color: transparent;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 64' preserveAspectRatio='none'%3E%3Cpath d='M4 39c13-7 23 5 36-1s24-5 35-1c8 3 14 1 21-2' fill='none' stroke='%238FA89B' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 100% 100%;
-  opacity: .78;
-  pointer-events: none;
-}
-
-/* Navigation chrome is not part of a zoomed legacy chapter. */
-main.max-w-5xl:has(> div.space-y-6 > a:first-child)
-  > nav[aria-label="Navigation principale du voyage"] {
-  display: none !important;
-}
-
-/* Packing now owns its header geometry in PackingListCard; keep only list density here. */
-#hub-packing ul > li {
-  border-color: color-mix(in oklch, var(--border) 48%, transparent) !important;
-}
-
-@media (min-width: 768px) {
-  main.max-w-5xl :is(#hub-dates,#hub-destination,#hub-logistics,#hub-packing) {
-    margin-inline: auto;
-  }
-}
+/* KREW journey refinement.
+ * The former monolithic chapter title/wave rules were retired after the live
+ * journey chapters moved to dedicated canonical routes.
+ * Keep this file loaded temporarily to preserve stylesheet ordering while the
+ * remaining finishing layers are audited. */
