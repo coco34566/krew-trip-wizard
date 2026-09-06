@@ -178,21 +178,42 @@ function CompletedPreparationGate({ tripId, children }: { tripId: string; childr
   );
 }
 
+function parseHrefSearch(href: string) {
+  const questionMarkIndex = href.indexOf("?");
+  if (questionMarkIndex === -1) return {} as Record<string, string>;
+  const hashIndex = href.indexOf("#", questionMarkIndex);
+  const queryString = href.slice(questionMarkIndex + 1, hashIndex === -1 ? undefined : hashIndex);
+  return Object.fromEntries(new URLSearchParams(queryString));
+}
+
 function TripLayout() {
   const { tripId } = Route.useParams();
   const location = useRouterState({ select: (state) => state.location });
-  const search = location.search as Record<string, unknown>;
-  const section = typeof search.section === "string" ? search.section : undefined;
-  const showPlanningPage = search.view === "voyage" && section === "planning";
-  const showProfilePage = section === "profile";
-  const showTasksPage = search.view === "voyage" && section === "tasks";
-  const showTransportPage = search.view === "voyage" && section === "transport";
+  const locationSearch =
+    location.search && typeof location.search === "object"
+      ? (location.search as Record<string, unknown>)
+      : {};
+  const hrefSearch = parseHrefSearch(location.href ?? "");
+  const view =
+    typeof locationSearch.view === "string"
+      ? locationSearch.view
+      : hrefSearch.view;
+  const section =
+    typeof locationSearch.section === "string"
+      ? locationSearch.section
+      : hrefSearch.section;
+  const hrefHasProfileSection = /(?:\?|&)section=profile(?:&|#|$)/.test(location.href ?? "");
+
+  const showPlanningPage = view === "voyage" && section === "planning";
+  const showProfilePage = section === "profile" || hrefHasProfileSection;
+  const showTasksPage = view === "voyage" && section === "tasks";
+  const showTransportPage = view === "voyage" && section === "transport";
   const showInvitePage = location.pathname.endsWith(`/trips/${tripId}/invite`);
   const showStarGate = location.pathname.endsWith(`/trips/${tripId}/star`);
   const showAvailabilityPage = location.pathname.endsWith(`/trips/${tripId}/availability`);
   const showQuestionnairePage = location.pathname.endsWith(`/trips/${tripId}/questionnaire`);
   const preparationOutletSection =
-    search.view === "voyage" &&
+    view === "voyage" &&
     section !== undefined &&
     ["dates", "destination", "accommodation", "packing"].includes(section);
 
