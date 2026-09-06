@@ -15,7 +15,6 @@ import reviewCss from "../krew-ux-review.css?url";
 import krewNoteCss from "../styles/krew-note.css?url";
 import journeyPagesRefinementWavefixCss from "../krew-journey-pages-refinement-wavefix.css?url";
 import visualBaselineCss from "../krew-visual-baseline.css?url";
-import journeyAlignmentCss from "../krew-journey-alignment.css?url";
 import tripHubCss from "../styles/krew-trip-hub.css?url";
 import mesVoyagesCss from "../styles/krew-mes-voyages.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -90,7 +89,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: krewNoteCss },
       { rel: "stylesheet", href: journeyPagesRefinementWavefixCss },
       { rel: "stylesheet", href: visualBaselineCss },
-      { rel: "stylesheet", href: journeyAlignmentCss },
       { rel: "stylesheet", href: tripHubCss },
       { rel: "stylesheet", href: mesVoyagesCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
