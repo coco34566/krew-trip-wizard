@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -16,6 +16,17 @@ import {
 } from "./KrewJourneyTimeline";
 
 type Props = ComponentProps<typeof KrewJourneyTimelineLegacy>;
+
+const DEDICATED_JOURNEY_ROUTES: Partial<Record<string, string>> = {
+  profile: "profile",
+  dates: "dates",
+  destination: "destination",
+  accommodation: "accommodation",
+  transport: "transport",
+  planning: "planning",
+  tasks: "tasks",
+  packing: "packing",
+};
 
 function pendingStatus(step: TimelineStep) {
   return step.status === "next_action" ? ("next_action" as const) : ("available" as const);
@@ -53,9 +64,6 @@ function enableJourneyMotion(root: HTMLElement) {
       return;
     }
 
-    // The final chapter uses a KrewMark heart rather than a KrewIcon.
-    // It is still a structural chapter-heading graphic and should follow the
-    // landing-style freehand draw without animating any other page marks.
     graphic.classList.add("krew-draw-mark");
     animatedChapterMarks.push(graphic);
   });
@@ -184,6 +192,23 @@ export function KrewJourneyTimeline(props: Props) {
     };
   }, [props.tripId, progressReady, steps.length]);
 
+  const handleJourneyClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    const anchor = target?.closest<HTMLAnchorElement>("a[href]");
+    if (!anchor) return;
+
+    const url = new URL(anchor.href, window.location.origin);
+    if (url.pathname !== `/trips/${props.tripId}`) return;
+
+    const section = url.searchParams.get("section");
+    const dedicatedRoute = section ? DEDICATED_JOURNEY_ROUTES[section] : null;
+    if (!dedicatedRoute) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    window.location.assign(`/trips/${props.tripId}/${dedicatedRoute}`);
+  };
+
   return (
     <TripLifecycleProvider lifecycle={responseQuery.data?.lifecycle ?? "future"}>
       <div
@@ -191,6 +216,7 @@ export function KrewJourneyTimeline(props: Props) {
         className="space-y-5"
         data-response-progress={progressReady ? "ready" : "loading"}
         data-krew-journey-root="true"
+        onClickCapture={handleJourneyClickCapture}
       >
         <OrganizationRefreshNotice
           logistics={responseQuery.data?.logistics}

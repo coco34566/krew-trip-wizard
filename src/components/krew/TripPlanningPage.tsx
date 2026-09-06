@@ -11,6 +11,9 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
@@ -62,10 +65,6 @@ export function planningLinkForSlot(slot: any, destination?: string | null) {
     return { url: slot.url as string, label: "Voir les idées →" };
   }
 
-  // Un fallback Maps non vérifié ne doit jamais envoyer vers une recherche
-  // générique de l'activité quand la carte affiche déjà un lieu proposé précis.
-  // On recherche explicitement ce nom (+ destination) tout en signalant que
-  // le lieu reste à vérifier, au lieu de le présenter comme une adresse confirmée.
   if (slot.resourceKind === "maps" && slot.verified !== true && slot.label) {
     const query = [String(slot.label).trim(), String(destination || "").trim()]
       .filter(Boolean)
@@ -116,42 +115,18 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
   });
 
   if (detailQuery.isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
-        <KrewThinkingState context="planning" />
-      </main>
-    );
+    return <KrewJourneyLoadingState context="planning" />;
   }
 
   if (!detailQuery.data || detailQuery.isError) {
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
-        >
-          <ArrowLeft className="size-4" /> Retour au voyage
-        </Link>
-        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
-          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
-            Impossible de charger le planning
-          </h1>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Le planning n’est pas disponible pour le moment.
-          </p>
-          <Button
-            type="button"
-            className="mt-5"
-            onClick={() => void detailQuery.refetch()}
-            disabled={detailQuery.isFetching}
-            aria-busy={detailQuery.isFetching}
-          >
-            {detailQuery.isFetching ? "Chargement…" : "Réessayer"}
-          </Button>
-        </section>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        title="Impossible de charger le planning"
+        description="Le planning n’est pas disponible pour le moment."
+        retrying={detailQuery.isFetching}
+        onRetry={() => void detailQuery.refetch()}
+      />
     );
   }
 
@@ -179,46 +154,47 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
           : "estimation";
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 py-8 sm:px-6 sm:py-10">
+    <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
         search={{ view: "voyage" }}
-        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au parcours
       </Link>
 
-      <header className="relative border-b border-border/45 pb-5 pr-20 sm:pr-24">
-        <img
-          src="/brand/otter-states/planning.png"
-          alt=""
-          className="pointer-events-none absolute right-0 top-0 w-[72px] object-contain opacity-90 sm:w-[88px]"
-        />
-        <div className="flex items-center gap-3">
-          <h1 className="flex items-center gap-2 font-display text-[30px] font-normal text-foreground sm:text-[36px]">
-            <KrewIcon name="planning" tone="plum" size="sm" className="size-5" />
-            Planning
-            {days.length ? <KrewMark type="burst" tone="sage" size="sm" className="size-6 opacity-75" /> : null}
-          </h1>
+      <KrewJourneyPageHeader
+        tripName={trip.name ?? "Voyage"}
+        title="Planning"
+        otterSrc="/brand/otter-states/planning.png"
+        titleTrailing={days.length ? <KrewMark type="burst" tone="sage" size="sm" className="size-6 opacity-75" /> : null}
+        annotation={
           <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
-            {completedTrip ? "Voyage terminé · consultation" : "Jour par jour"}
+            {completedTrip ? "Souvenir du voyage" : "Jour par jour"}
           </KrewNote>
-        </div>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground sm:text-base">
+        }
+      >
+        <p>
           {completedTrip
             ? "Le planning réalisé pendant le séjour, conservé pour consultation."
             : "Le planning du séjour, de l’arrivée au départ."}
         </p>
         {activityCost.activitiesPerPerson != null ? (
-          <p className="mt-3 inline-flex flex-wrap items-baseline gap-2 rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-sm">
+          <p className="inline-flex flex-wrap items-baseline gap-2 rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-sm">
             <span className="font-semibold text-foreground">
               Activités : ~{Math.round(activityCost.activitiesPerPerson)} € / personne
             </span>
             <span className="text-xs text-muted-foreground">{priceStatusLabel}</span>
           </p>
         ) : null}
-      </header>
+      </KrewJourneyPageHeader>
+
+      {completedTrip ? (
+        <KrewJourneyStatusPanel title="Voyage terminé · consultation" icon="check" tone="complete">
+          <p>Le planning reste accessible comme historique du séjour. Les actions de préparation et de modification sont désactivées.</p>
+        </KrewJourneyStatusPanel>
+      ) : null}
 
       {isAdmin && !completedTrip ? (
         <div className="flex justify-end">

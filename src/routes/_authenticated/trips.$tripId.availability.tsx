@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Loader2, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,9 +14,10 @@ import {
   chooseTripDates,
   unlockTripDates,
 } from "@/lib/availability.functions";
-import { KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewNote } from "@/components/krew/visual-language";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { cn } from "@/lib/utils";
 
@@ -225,20 +226,26 @@ function AvailabilityPage() {
   });
 
   if (isLoading) {
-    return <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8"><KrewThinkingState context="generic" customMessage="Chargement des disponibilités…" delayMs={0} /></main>;
+    return (
+      <KrewJourneyLoadingState
+        maxWidthClassName="max-w-[820px]"
+        message="Chargement des disponibilités…"
+      />
+    );
   }
 
   if (error || !data) {
     console.error("Impossible de charger les disponibilités:", error);
     return (
-      <main className="mx-auto w-full max-w-[820px] space-y-4 px-5 py-10 text-center sm:px-7 lg:px-8" role="alert">
-        <h1 className="font-display text-[30px] font-normal text-foreground">Impossible de charger les disponibilités</h1>
-        <p className="text-sm text-muted-foreground">Les réponses du groupe ne sont pas disponibles pour le moment.</p>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={() => refetch()} disabled={isFetching} aria-busy={isFetching}>{isFetching ? <><Loader2 className="size-4 animate-spin" /> Chargement…</> : "Réessayer"}</Button>
-          <Button variant="outline" asChild><Link to="/trips/$tripId" params={{ tripId }}>Retour au voyage</Link></Button>
-        </div>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        maxWidthClassName="max-w-[820px]"
+        returnLabel="Retour au voyage"
+        title="Impossible de charger les disponibilités"
+        description="Les réponses du groupe ne sont pas disponibles pour le moment."
+        retrying={isFetching}
+        onRetry={() => void refetch()}
+      />
     );
   }
 
@@ -267,12 +274,27 @@ function AvailabilityPage() {
       </KrewJourneyPageHeader>
 
       {datesLocked && lockedLabel ? (
-        <section className="border-y border-sage/35 py-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3"><KrewMark type="stamp-circle" tone="sage" size="sm" className="mt-0.5 size-7 shrink-0 opacity-80" /><div><h2 className="font-semibold text-foreground">Dates choisies</h2><p className="mt-1 font-mono text-[14px] text-foreground">{lockedLabel}</p></div></div>
-            {data.isOwner ? <button type="button" disabled={unlockMutation.isPending} aria-busy={unlockMutation.isPending} onClick={() => { if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate(); }} className="inline-flex min-h-10 items-center text-[14px] font-semibold text-muted-foreground underline-offset-4 hover:text-primary hover:underline disabled:cursor-wait disabled:opacity-60">{unlockMutation.isPending ? "Modification…" : "Modifier les dates"}</button> : null}
-          </div>
-        </section>
+        <KrewJourneyStatusPanel
+          title="Dates choisies"
+          icon="check"
+          tone="complete"
+          action={data.isOwner ? (
+            <button
+              type="button"
+              disabled={unlockMutation.isPending}
+              aria-busy={unlockMutation.isPending}
+              onClick={() => {
+                if (window.confirm("Rendre les dates modifiables à nouveau ?")) unlockMutation.mutate();
+              }}
+              className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-60"
+            >
+              {unlockMutation.isPending ? "Modification…" : "Modifier les dates"}
+            </button>
+          ) : undefined}
+        >
+          <p className="font-mono text-foreground">{lockedLabel}</p>
+          <p>Les dates sont confirmées pour la suite de l’organisation.</p>
+        </KrewJourneyStatusPanel>
       ) : null}
 
       <section className="w-full space-y-7">

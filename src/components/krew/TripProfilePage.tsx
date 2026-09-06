@@ -5,10 +5,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { KrewHighlight, KrewIcon, KrewMark, KrewNote } from "@/components/krew/visual-language";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
+import { KrewHighlight, KrewMark, KrewNote } from "@/components/krew/visual-language";
+import { Button } from "@/components/ui/button";
 import {
   PROFILE_DESCRIPTIONS,
   PROFILE_LABELS,
@@ -56,7 +58,9 @@ export function ProfileConceptCard({
         selected
           ? "border-primary/60 shadow-xs"
           : "border-border/60 text-foreground/80 hover:border-primary/40",
-        disabled ? "cursor-default" : "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+        disabled
+          ? "cursor-default"
+          : "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
       )}
     >
       <div className="flex items-center justify-between gap-2">
@@ -90,6 +94,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const fetchReadiness = useServerFn(getGenerationReadiness);
   const validateProfile = useServerFn(validateStayProfile);
   const [selectedConceptIds, setSelectedConceptIds] = useState<string[]>([]);
+  const [editingValidatedProfile, setEditingValidatedProfile] = useState(false);
 
   const detailQuery = useQuery({
     queryKey: ["trip", tripId],
@@ -122,6 +127,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   const validateMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
     onSuccess: () => {
+      setEditingValidatedProfile(false);
       queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
       queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
     },
@@ -132,46 +138,22 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
   });
 
   if (detailQuery.isLoading || readinessQuery.isLoading) {
-    return (
-      <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
-        <KrewThinkingState context="generic" customMessage="Chargement du Profil du voyage…" delayMs={0} />
-      </main>
-    );
+    return <KrewJourneyLoadingState message="Chargement du Profil du voyage…" />;
   }
 
   if (!data || detailQuery.isError || readinessQuery.isError) {
     const retrying = detailQuery.isFetching || readinessQuery.isFetching;
     return (
-      <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-10 sm:px-6">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          search={{ view: "voyage" }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
-        >
-          <ArrowLeft className="size-4" /> Retour au voyage
-        </Link>
-        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
-          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
-            Impossible de charger le Profil du voyage
-          </h1>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Les informations nécessaires au Profil du voyage ne sont pas disponibles pour le moment.
-          </p>
-          <Button
-            type="button"
-            className="mt-5"
-            onClick={() => {
-              void detailQuery.refetch();
-              void readinessQuery.refetch();
-            }}
-            disabled={retrying}
-            aria-busy={retrying}
-          >
-            {retrying ? "Chargement…" : "Réessayer"}
-          </Button>
-        </section>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        title="Impossible de charger le Profil du voyage"
+        description="Les informations nécessaires au Profil du voyage ne sont pas disponibles pour le moment."
+        retrying={retrying}
+        onRetry={() => {
+          void detailQuery.refetch();
+          void readinessQuery.refetch();
+        }}
+      />
     );
   }
 
@@ -181,53 +163,85 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
     ? profile.calculatedConcepts
     : readiness?.profile?.calculatedConcepts ?? [];
   const validated = Boolean(profile?.validated);
-  const destinationSelected = Boolean((data.recommendations ?? []).some((recommendation: any) => recommendation.is_selected));
+  const destinationSelected = Boolean(
+    (data.recommendations ?? []).some((recommendation: any) => recommendation.is_selected),
+  );
+  const editingAllowed = isAdmin && validated && !destinationSelected;
+  const effectivelyValidated = validated && !editingValidatedProfile;
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-7 px-4 py-8 sm:px-6 sm:py-10">
+    <main data-krew-profile-page className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
         search={{ view: "voyage" }}
-        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary"
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au parcours
       </Link>
 
-      <section className="relative space-y-5 overflow-hidden rounded-[20px] bg-surface/30 p-5 sm:p-7">
-        <img
-          src="/brand/otter-states/trip-progress.png"
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute right-3 top-3 w-[72px] object-contain opacity-90 sm:w-[96px]"
-        />
-        <header className="pr-[78px] sm:pr-[106px]">
-          <div className="flex items-center gap-3">
-            <h1 className="flex items-center gap-2 font-display text-2xl font-normal text-foreground sm:text-3xl">
-              <KrewIcon name="profile" tone="plum" size="sm" className="size-5" />
-              Profil du voyage
-            </h1>
-            <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
-              Style et ambiance
-            </KrewNote>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-            {isAdmin
-              ? validated
-                ? "Voici le Profil du voyage retenu."
-                : "Choisis 1 à 3 options pour définir le Profil du voyage."
-              : validated
-                ? "Voici le Profil du voyage retenu par l’organisateur·rice."
-                : "L’organisateur·rice choisira le Profil du voyage à partir des réponses du groupe."}
-          </p>
-        </header>
+      <KrewJourneyPageHeader
+        tripName={data.trip?.name ?? "Voyage"}
+        title="Profil du voyage"
+        otterSrc="/brand/otter-states/trip-progress.png"
+        annotation={
+          <KrewNote variant="tape" tone="sage" rotation={-2} size="xs" className="hidden sm:inline-block">
+            Style et ambiance
+          </KrewNote>
+        }
+      >
+        <p>
+          {isAdmin
+            ? effectivelyValidated
+              ? "Voici le Profil du voyage retenu."
+              : "Choisis 1 à 3 options pour définir le Profil du voyage."
+            : validated
+              ? "Voici le Profil du voyage retenu par l’organisateur·rice."
+              : "L’organisateur·rice choisira le Profil du voyage à partir des réponses du groupe."}
+        </p>
+      </KrewJourneyPageHeader>
 
+      {effectivelyValidated ? (
+        <KrewJourneyStatusPanel
+          title="Profil du voyage enregistré"
+          icon="check"
+          tone="complete"
+          action={
+            !destinationSelected ? (
+              <>
+                {editingAllowed ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedConceptIds(profile?.selectedConcepts?.map((concept) => concept.id) ?? []);
+                      setEditingValidatedProfile(true);
+                    }}
+                  >
+                    Modifier le Profil du voyage
+                  </Button>
+                ) : null}
+                <Button asChild size="sm">
+                  <Link to="/trips/$tripId/destination" params={{ tripId }}>
+                    {isAdmin ? "Choisir la destination" : "Voir la destination"}
+                  </Link>
+                </Button>
+              </>
+            ) : undefined
+          }
+        >
+          <p>Le Profil est validé et les destinations sont maintenant disponibles.</p>
+        </KrewJourneyStatusPanel>
+      ) : null}
+
+      <section className="space-y-5 rounded-[20px] bg-surface/30 p-5 sm:p-7">
         {concepts.length ? (
           <div className="grid gap-3 sm:grid-cols-3">
             {concepts.slice(0, 3).map((concept: StayConcept) => {
               const profileId = concept.id as StayProfileId;
               const label = PROFILE_LABELS[profileId] || concept.title;
-              const selected = validated
+              const selected = effectivelyValidated
                 ? Boolean(profile?.selectedConcepts?.some((item) => item.id === concept.id))
                 : selectedConceptIds.includes(concept.id);
               return (
@@ -237,7 +251,7 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
                   label={label}
                   rationale={PROFILE_DESCRIPTIONS[profileId] || concept.rationale}
                   selected={selected}
-                  disabled={!isAdmin || validated}
+                  disabled={!isAdmin || effectivelyValidated}
                   onToggle={() =>
                     setSelectedConceptIds((ids) =>
                       ids.includes(concept.id)
@@ -257,37 +271,31 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
           </p>
         )}
 
-        {validated ? (
-          <div className="space-y-3 pt-1">
-            <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-              <KrewIcon name="check" tone="sage" size="sm" className="size-4" />
-              Profil du voyage enregistré — les destinations sont disponibles.
-            </p>
-            {!destinationSelected ? (
-              <div>
-                <Button asChild className="rounded-xl font-medium">
-                  <Link
-                    to="/trips/$tripId"
-                    params={{ tripId }}
-                    search={{ view: "voyage", section: "destination" }}
-                  >
-                    {isAdmin ? "Choisir la destination" : "Voir la destination"}
-                    <KrewMark type="arrow-right" tone="ink" size="sm" className="ml-1.5 size-4" />
-                  </Link>
-                </Button>
-              </div>
+        {!effectivelyValidated && isAdmin && (readiness?.profile?.questionnairesReady || profile?.legacyBypass) ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {editingValidatedProfile ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSelectedConceptIds(profile?.selectedConcepts?.map((concept) => concept.id) ?? []);
+                  setEditingValidatedProfile(false);
+                }}
+              >
+                Annuler
+              </Button>
             ) : null}
+            <KrewStatefulButton
+              className="max-w-full"
+              idleLabel={editingValidatedProfile ? "Enregistrer les modifications" : "Enregistrer le Profil du voyage"}
+              loadingLabel="Enregistrement…"
+              successLabel="Profil enregistré"
+              errorLabel="Réessayer"
+              disabled={selectedConceptIds.length < 1}
+              onAction={() => validateMutation.mutateAsync()}
+            />
           </div>
-        ) : isAdmin && (readiness?.profile?.questionnairesReady || profile?.legacyBypass) ? (
-          <KrewStatefulButton
-            className="max-w-full"
-            idleLabel="Enregistrer le Profil du voyage"
-            loadingLabel="Enregistrement…"
-            successLabel="Profil enregistré"
-            errorLabel="Réessayer"
-            disabled={selectedConceptIds.length < 1}
-            onAction={() => validateMutation.mutateAsync()}
-          />
         ) : null}
       </section>
     </main>

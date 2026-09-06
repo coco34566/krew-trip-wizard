@@ -1,8 +1,9 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, MouseEvent as ReactMouseEvent } from "react";
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { OrganizationRefreshNotice } from "@/components/krew/OrganizationRefreshNotice";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import {
@@ -19,6 +20,14 @@ import { TripHubDashboard as TripHubDashboardLegacy } from "./TripHubDashboard";
 
 type Props = ComponentProps<typeof TripHubDashboardLegacy>;
 type SummaryStage = "formation" | "choices" | "destination" | "organized" | "live" | "completed";
+
+const DEDICATED_JOURNEY_ROUTES: Partial<Record<string, string>> = {
+  profile: "profile",
+  dates: "dates",
+  destination: "destination",
+  accommodation: "accommodation",
+  packing: "packing",
+};
 
 function setCompletedGroupSectionReadOnly(completed: boolean) {
   if (typeof document === "undefined") return () => {};
@@ -50,9 +59,6 @@ function setOrganizerOnlyManagementVisible(isCreator: boolean) {
 
 function enableDashboardMotion(root: HTMLElement, summaryStage: SummaryStage) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // Résumé continues after TripHubDashboard with sibling sections such as
-  // Membres du groupe and Répartition des coûts. Their common wrapper owns both
-  // the visual hierarchy and the single landing-inspired choreography.
   const scope = root.parentElement ?? root;
   scope.dataset.krewDashboardMotion = "true";
   scope.dataset.krewSummaryStage = summaryStage;
@@ -68,8 +74,6 @@ function enableDashboardMotion(root: HTMLElement, summaryStage: SummaryStage) {
     node.classList.add("krew-reveal");
     node.dataset.revealed = reduced ? "true" : "false";
 
-    // Only the KrewIcon visually attached to the section heading is animated.
-    // Icons in rows, cards, buttons, metadata and participant states stay static.
     const heading = node.querySelector<HTMLHeadingElement>("h2");
     const headingGroup = heading?.parentElement ?? null;
     const candidate = headingGroup?.querySelector<HTMLElement>('svg[viewBox="0 0 24 24"]') ?? null;
@@ -201,15 +205,11 @@ export function TripHubDashboard(props: Props) {
     if (props.profileValidated) once("trip_profile_validated", "profile-validated");
     if (props.hasRecommendations) once("destination_proposals_generated", "destination-proposals");
     if (props.destinationSelected) once("destination_selected", "destination-selected");
-    if (!accommodationStale && logistics.selectedHotelId) {
-      once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
-    }
+    if (!accommodationStale && logistics.selectedHotelId) once("accommodation_selected", `hotel:${logistics.selectedHotelId}`);
     if (!transportStale && viewerId && (logistics.transportPicks ?? []).some((pick: any) => pick?.userId === viewerId && !pick?.stale)) {
       once("transport_selected", `transport:${viewerId}`);
     }
-    if (!itineraryStale && trip?.group_itinerary?.days?.length) {
-      once("planning_generated", "planning-generated");
-    }
+    if (!itineraryStale && trip?.group_itinerary?.days?.length) once("planning_generated", "planning-generated");
     if (lifecycle === "live") once("trip_started", "started");
     if (lifecycle === "completed") once("trip_completed", "completed");
   }, [
@@ -249,6 +249,23 @@ export function TripHubDashboard(props: Props) {
 
   const suppressPreparationChrome = completed || !responseReady;
 
+  const handleDashboardClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    const anchor = target?.closest<HTMLAnchorElement>("a[href]");
+    if (!anchor) return;
+
+    const url = new URL(anchor.href, window.location.origin);
+    if (url.pathname !== `/trips/${props.tripId}`) return;
+
+    const section = url.searchParams.get("section");
+    const dedicatedRoute = section ? DEDICATED_JOURNEY_ROUTES[section] : null;
+    if (!dedicatedRoute) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    window.location.assign(`/trips/${props.tripId}/${dedicatedRoute}`);
+  };
+
   return (
     <TripLifecycleProvider lifecycle={lifecycle}>
       <div
@@ -257,22 +274,16 @@ export function TripHubDashboard(props: Props) {
         data-response-progress={responseState.state}
         data-krew-summary-stage={summaryStage}
         data-krew-dashboard-root="true"
+        onClickCapture={handleDashboardClickCapture}
       >
         {completed ? (
-          <section className="mb-5 rounded-3xl border border-sage/30 bg-sage/10 px-5 py-5 sm:px-6" aria-label="Voyage terminé">
-            <p className="font-display text-2xl font-normal text-foreground">Voyage terminé</p>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Le séjour est terminé. Les choix et l’organisation restent accessibles ci-dessous pour consultation.
-            </p>
-          </section>
+          <div className="mb-5">
+            <KrewJourneyStatusPanel title="Voyage terminé" icon="check" tone="complete">
+              <p>Le séjour est terminé. Les choix et l’organisation restent accessibles ci-dessous pour consultation.</p>
+            </KrewJourneyStatusPanel>
+          </div>
         ) : null}
-        <div
-          className={
-            suppressPreparationChrome
-              ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden"
-              : undefined
-          }
-        >
+        <div className={suppressPreparationChrome ? "[&>div>header>.mt-4.px-4]:!hidden [&>div>header+div]:!hidden" : undefined}>
           <TripHubDashboardLegacy
             {...props}
             isOwner={props.isOwner}

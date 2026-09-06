@@ -1,6 +1,6 @@
-/* KREW journey pages — base canvas only.
- * Cross-page hierarchy and all Button geometry are owned by their shared primitives.
- */
+/* KREW journey pages — content-level rules only.
+ * Page shells and headers are owned by route JSX + KrewJourneyPageHeader.
+ * Do not target a page shell by the presence of an otter asset. */
 
 :root {
   --krew-journey-form: 820px;
@@ -11,49 +11,8 @@
   --krew-journey-border-soft: color-mix(in oklch, var(--border) 52%, transparent);
 }
 
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]),
-main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) {
-  width: min(100%, var(--krew-journey-form));
-  margin-inline: auto;
-  padding: 2rem 1rem 3rem !important;
-  overflow-x: clip;
-}
-
-@media (min-width: 640px) {
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]),
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) {
-    padding: 2.5rem 1.5rem 3.5rem !important;
-  }
-}
-
-@media (min-width: 1024px) {
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]),
-  main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]),
-  main[class*="max-w-[820px]"]:has(h1 > span.relative.inline-block) {
-    padding-inline: 2.5rem !important;
-  }
-}
-
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) form > section:not([class*="bg-"]) {
-  border-radius: 0 !important;
-  padding-inline: 0 !important;
-  box-shadow: none !important;
-}
-
-/* Calendar cells are selection controls, not app CTA buttons. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) button.aspect-square {
+/* Calendar cells are selection controls shared by Availability and Star, not app CTA buttons. */
+main[class*="max-w-[820px]"] button.aspect-square {
   min-height: 38px;
   min-width: 38px;
-}
-
-main.max-w-5xl {
-  width: min(100%, var(--krew-journey-standard));
-  padding: 2rem 1rem 3.5rem !important;
-  overflow-x: clip;
-}
-
-@media (min-width: 640px) {
-  main.max-w-5xl { padding: 2.5rem 1.5rem 3.5rem !important; }
 }

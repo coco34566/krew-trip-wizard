@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
+import { KrewIcon, KrewHighlight } from "@/components/krew/visual-language";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import {
   getMyParticipantPreferences,
   submitParticipantPreferences,
@@ -335,47 +336,32 @@ function ParticipantQuestionnaire() {
 
   if (loading) {
     return (
-      <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7">
-        <KrewThinkingState context="generic" customMessage="Chargement de tes préférences…" delayMs={0} />
-      </main>
+      <KrewJourneyLoadingState
+        maxWidthClassName="max-w-[820px]"
+        message="Chargement de tes préférences…"
+      />
     );
   }
 
   if (loadError) {
     return (
-      <main className="mx-auto w-full max-w-[820px] space-y-6 px-5 py-10 sm:px-7">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="size-4" /> Retour au voyage
-        </Link>
-        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
-          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
-            Impossible de charger tes préférences
-          </h1>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-            {loadError} Tes réponses déjà enregistrées sont conservées.
-          </p>
-          <Button
-            type="button"
-            className="mt-5"
-            onClick={() => setLoadAttempt((attempt) => attempt + 1)}
-          >
-            Réessayer
-          </Button>
-        </section>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        maxWidthClassName="max-w-[820px]"
+        returnLabel="Retour au voyage"
+        title="Impossible de charger tes préférences"
+        description={`${loadError} Tes réponses déjà enregistrées sont conservées.`}
+        onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
+      />
     );
   }
 
   return (
-    <main className="mx-auto max-w-[820px] px-5 sm:px-7 py-8 sm:py-10 space-y-8">
+    <main className="mx-auto w-full max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
@@ -384,40 +370,33 @@ function ParticipantQuestionnaire() {
         tripName={tripName}
         title="Préférences"
         otterSrc="/brand/otter-states/preferences.png"
-        waveClassName="w-[clamp(96px,38vw,160px)]"
       >
-        {isEditing ? (
-          <div className="space-y-1.5">
-            <KrewNote variant="label" tone="cream" rotation={-1} className="gap-2">
-              <KrewMark type="check" tone="sage" size="sm" className="size-4 shrink-0" />
-              Réponse enregistrée
-            </KrewNote>
-            <p className="text-sm text-muted-foreground">
-              Tu as déjà répondu
-              {lastSavedAt
-                ? ` (mise à jour le ${new Date(lastSavedAt).toLocaleString("fr-FR", {
-                    day: "numeric",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })})`
-                : ""}
-              . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton
-              compte.
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Tes réponses individuelles ne sont pas visibles par les autres participants.
-          </p>
-        )}
-        <p className="mt-2 text-sm sm:text-base text-muted-foreground font-sans">
-          Ces infos permettent à KREW de comprendre tes envies pour proposer au groupe un voyage qui
-          lui correspond.
+        <p>
+          Ces infos permettent à KREW de comprendre tes envies pour proposer au groupe un voyage qui lui correspond.
         </p>
+        {!isEditing ? (
+          <p>Tes réponses individuelles ne sont pas visibles par les autres participants.</p>
+        ) : null}
       </KrewJourneyPageHeader>
 
-      <div className="pt-4">
+      {isEditing ? (
+        <KrewJourneyStatusPanel title="Préférences enregistrées" icon="check" tone="complete">
+          <p>
+            Tu as déjà répondu
+            {lastSavedAt
+              ? ` (mise à jour le ${new Date(lastSavedAt).toLocaleString("fr-FR", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })})`
+              : ""}
+            . Tu peux modifier uniquement <strong>tes</strong> réponses — elles restent liées à ton compte.
+          </p>
+        </KrewJourneyStatusPanel>
+      ) : null}
+
+      <div>
         <Section
           title="Envies et ambiance"
           hint="Choisis les envies et l’ambiance qui te correspondent."
