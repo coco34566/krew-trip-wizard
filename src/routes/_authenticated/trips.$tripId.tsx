@@ -59,35 +59,45 @@ function ResponseGateError({
   );
 }
 
-function ClosedResponseState({ tripId, title, hasPreviousAnswer, children }: { tripId: string; title: string; hasPreviousAnswer: boolean; children: ReactNode }) {
+function ClosedResponseState({
+  tripId,
+  title,
+  hasPreviousAnswer,
+  children,
+}: {
+  tripId: string;
+  title: string;
+  hasPreviousAnswer: boolean;
+  children: ReactNode;
+}) {
+  if (hasPreviousAnswer) {
+    return (
+      <fieldset disabled className="min-w-0 border-0 p-0 opacity-90">
+        {children}
+      </fieldset>
+    );
+  }
+
   return (
-    <>
-      <div className="mx-auto mt-8 w-full max-w-[1020px] px-5 sm:px-7 lg:px-8">
-        <KrewJourneyStatusPanel
-          title={`${title} clôturées`}
-          icon="check"
-          tone="complete"
-          action={
-            !hasPreviousAnswer ? (
-              <Link
-                to="/trips/$tripId"
-                params={{ tripId }}
-                search={{ view: "voyage" }}
-                className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
-              >
-                Retour au voyage
-              </Link>
-            ) : undefined
-          }
-        >
-          <p>
-            Les réponses du groupe sont maintenant clôturées car les dates du voyage sont confirmées.
-            {hasPreviousAnswer ? " Ta réponse précédente reste visible ci-dessous, en lecture seule." : " Tu n’as rien à compléter pour cette étape."}
-          </p>
-        </KrewJourneyStatusPanel>
-      </div>
-      {hasPreviousAnswer ? <fieldset disabled className="min-w-0 border-0 p-0 opacity-90">{children}</fieldset> : null}
-    </>
+    <div className="mx-auto mt-8 w-full max-w-[1020px] px-5 sm:px-7 lg:px-8">
+      <KrewJourneyStatusPanel
+        title={`${title} clôturées`}
+        icon="check"
+        tone="complete"
+        action={
+          <Link
+            to="/trips/$tripId"
+            params={{ tripId }}
+            search={{ view: "voyage" }}
+            className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            Retour au voyage
+          </Link>
+        }
+      >
+        <p>Les réponses du groupe sont maintenant clôturées car les dates du voyage sont confirmées. Tu n’as rien à compléter pour cette étape.</p>
+      </KrewJourneyStatusPanel>
+    </div>
   );
 }
 
