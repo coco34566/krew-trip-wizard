@@ -3,9 +3,11 @@ import { type ComponentPropsWithoutRef } from "react";
 import { cn } from "@/lib/utils";
 
 export type KrewPageShellSize = "form" | "standard" | "wide" | "site";
+export type KrewPageShellGutter = "default" | "compact";
 
 type KrewPageShellProps = ComponentPropsWithoutRef<"main"> & {
   size?: KrewPageShellSize;
+  gutter?: KrewPageShellGutter;
 };
 
 /**
@@ -16,6 +18,7 @@ type KrewPageShellProps = ComponentPropsWithoutRef<"main"> & {
  */
 export function KrewPageShell({
   size = "standard",
+  gutter = "default",
   className,
   ...props
 }: KrewPageShellProps) {
@@ -23,6 +26,7 @@ export function KrewPageShell({
     <main
       data-krew-page-shell
       data-krew-page-size={size}
+      data-krew-page-gutter={gutter}
       className={cn("krew-page-shell", className)}
       {...props}
     />

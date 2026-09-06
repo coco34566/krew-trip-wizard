@@ -123,3 +123,18 @@
     height: 6.25rem;
   }
 }
+
+/* Page-gutter alignment now reads from the canonical compact shell token. */
+[data-krew-dashboard-root="true"] .krew-trip-hub-gutter-x {
+  padding-inline: var(--krew-page-padding-x-compact);
+}
+
+[data-krew-dashboard-root="true"] .krew-trip-hub-hero-bleed {
+  margin-inline: calc(var(--krew-page-padding-x-compact) * -1);
+}
+
+@media (min-width: 640px) {
+  [data-krew-dashboard-root="true"] .krew-trip-hub-hero-bleed {
+    margin-inline: 0;
+  }
+}

@@ -49,4 +49,12 @@ describe("KrewPageShell", () => {
     expect(shell).toHaveClass("krew-page-shell");
     expect(shell.className).not.toMatch(/max-w-/);
   });
+  it("exposes the compact 16px TripHub gutter semantically", () => {
+    render(<KrewPageShell size="standard" gutter="compact">Contenu</KrewPageShell>);
+
+    const shell = screen.getByRole("main");
+    expect(shell).toHaveAttribute("data-krew-page-size", "standard");
+    expect(shell).toHaveAttribute("data-krew-page-gutter", "compact");
+  });
+
 });

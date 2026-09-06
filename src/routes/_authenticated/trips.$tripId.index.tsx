@@ -84,6 +84,7 @@ import { computeItineraryActivitiesCost } from "@/lib/krew/cost-split";
 import { supabase } from "@/integrations/supabase/client";
 import { CostSplitCard } from "@/components/krew/CostSplitCard";
 import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { KrewJourneyTimeline } from "@/components/krew/KrewJourneyTimeline.entry";
@@ -1027,10 +1028,15 @@ function TripDetail() {
 
   if (isLoading || !data) {
     return (
-      <main className="mx-auto max-w-5xl space-y-4 px-4 py-10">
+      <KrewPageShell
+        size="standard"
+        gutter="compact"
+        data-krew-page-surface="trip-hub"
+        className="space-y-4 py-10"
+      >
         <Skeleton className="h-10 w-2/3" />
         <Skeleton className="h-64 rounded-3xl" />
-      </main>
+      </KrewPageShell>
     );
   }
 
@@ -1163,7 +1169,7 @@ function TripDetail() {
   const tripEndDatePassed = tripLifecycle === "completed";
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10">
+    <KrewPageShell size="standard" gutter="compact" data-krew-page-surface="trip-hub" className="py-10">
       {/* Top Navigation Tabs */}
       <nav aria-label="Navigation principale du voyage" className="flex items-center border-b border-border/50 pb-3 gap-6 font-medium text-sm mb-6">
         <Link
@@ -3477,6 +3483,6 @@ function TripDetail() {
           </div>
         )
       ) : null}
-    </main>
+    </KrewPageShell>
   );
 }

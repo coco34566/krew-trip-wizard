@@ -13,6 +13,9 @@
   --krew-page-width-site: 1280px;
   --krew-reading-width: 42rem;
 
+  /* Semantic horizontal gutters. Compact preserves the current TripHub 16px gutter. */
+  --krew-page-padding-x-compact: 16px;
+
   /* Shared component radii */
   --krew-card-radius: 24px;
   --krew-inset-radius: 20px;
@@ -93,7 +96,7 @@
   width: 100%;
   max-width: var(--krew-page-shell-width, var(--krew-page-width-standard));
   margin-inline: auto;
-  padding-inline: var(--krew-page-padding-x);
+  padding-inline: var(--krew-page-shell-padding-x, var(--krew-page-padding-x));
 }
 
 @media (max-width: 1023px) {
@@ -116,4 +119,8 @@
 
 .krew-page-shell[data-krew-page-size="site"] {
   --krew-page-shell-width: var(--krew-page-width-site);
+}
+
+.krew-page-shell[data-krew-page-gutter="compact"] {
+  --krew-page-shell-padding-x: var(--krew-page-padding-x-compact);
 }
