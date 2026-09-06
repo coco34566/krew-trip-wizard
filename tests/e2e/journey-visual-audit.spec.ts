@@ -59,7 +59,7 @@ async function findAuditTrip(page: Page) {
   const ids = await dashboardTripIds(page);
 
   for (const id of ids) {
-    await page.goto(`/trips/${id}?view=voyage&section=planning`);
+    await page.goto(`/trips/${id}/planning`);
     await handleNormalUserUi(page);
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
     await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 15_000 }).catch(() => undefined);
@@ -178,14 +178,14 @@ async function captureJourney(
     ["invite", `/trips/${tripId}/invite`],
     ["availability", `/trips/${tripId}/availability`],
     ["preferences", `/trips/${tripId}/questionnaire`],
-    ["dates", `/trips/${tripId}?view=voyage&section=dates`],
-    ["profile", `/trips/${tripId}?view=voyage&section=profile`],
-    ["destination", `/trips/${tripId}?view=voyage&section=destination`],
-    ["accommodation", `/trips/${tripId}?view=voyage&section=accommodation`],
-    ["transport", `/trips/${tripId}?view=voyage&section=transport`],
-    ["planning", `/trips/${tripId}?view=voyage&section=planning`],
-    ["tasks", `/trips/${tripId}?view=voyage&section=tasks`],
-    ["packing", `/trips/${tripId}?view=voyage&section=packing`],
+    ["dates", `/trips/${tripId}/dates`],
+    ["profile", `/trips/${tripId}/profile`],
+    ["destination", `/trips/${tripId}/destination`],
+    ["accommodation", `/trips/${tripId}/accommodation`],
+    ["transport", `/trips/${tripId}/transport`],
+    ["planning", `/trips/${tripId}/planning`],
+    ["tasks", `/trips/${tripId}/tasks`],
+    ["packing", `/trips/${tripId}/packing`],
   ] as const;
 
   for (const [name, path] of pages) {
