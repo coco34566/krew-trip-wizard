@@ -24,6 +24,7 @@ type Props = PackingListInput & {
   participants?: { id: string; user_id?: string | null; display_name?: string | null; email?: string | null }[];
   shoppingLinks?: Record<string, ShoppingLink | undefined>;
   musicContext?: MusicContextInput;
+  showHeader?: boolean;
 };
 
 export function getAssignablePackingParticipants<T extends { id: string; user_id?: string | null }>(participants: T[]): T[] {
@@ -35,6 +36,7 @@ export function PackingListCard({
   participants = [],
   shoppingLinks = {},
   musicContext,
+  showHeader = true,
   ...input
 }: Props) {
   const lifecycle = useTripLifecycleState();
@@ -235,44 +237,48 @@ export function PackingListCard({
 
   return (
     <section className="space-y-6 relative overflow-hidden">
-      <div
-        data-krew-journey-otter-slot
-        className="absolute top-0 right-0 flex h-[var(--krew-journey-otter-height)] w-[var(--krew-journey-otter-slot-width)] items-start justify-end pointer-events-none"
-      >
-        <img
-          src="/brand/otter-states/trip-preparation.png"
-          alt=""
-          className="h-full w-auto max-w-full object-contain object-top opacity-90"
-          loading="lazy"
-        />
-      </div>
-
-      <div
-        className="relative"
-        style={{ paddingRight: "calc(var(--krew-journey-otter-slot-width) + var(--krew-journey-header-column-gap))" }}
-      >
-        <div className="flex items-start gap-3">
-          <div className="relative inline-block pb-3">
-            <h2 className="font-display text-[length:var(--krew-journey-page-title)] font-normal leading-[var(--krew-journey-title-leading)] tracking-[var(--krew-journey-title-tracking)] text-foreground">
-              À emporter
-            </h2>
-            <KrewMark
-              type="underline-wave"
-              tone="sage"
-              size="md"
-              className="pointer-events-none absolute bottom-0 left-0 w-[var(--krew-journey-wave-width)] max-w-[80%] opacity-78"
+      {showHeader ? (
+        <>
+          <div
+            data-krew-journey-otter-slot
+            className="absolute top-0 right-0 flex h-[var(--krew-journey-otter-height)] w-[var(--krew-journey-otter-slot-width)] items-start justify-end pointer-events-none"
+          >
+            <img
+              src="/brand/otter-states/trip-preparation.png"
+              alt=""
+              className="h-full w-auto max-w-full object-contain object-top opacity-90"
+              loading="lazy"
             />
           </div>
-          <KrewNote variant="tape" tone="sage" rotation={-2} size="sm" className="hidden sm:inline-block">
-            {historical ? "Souvenir du voyage" : "Adaptée au séjour"}
-          </KrewNote>
-        </div>
-        <p className="mt-[var(--krew-journey-header-gap)] max-w-[var(--krew-journey-intro-width)] text-[length:var(--krew-journey-subtitle)] leading-[var(--krew-journey-intro-leading)] text-muted-foreground font-sans">
-          {historical
-            ? "La liste du voyage, conservée avec son dernier état."
-            : "Une liste adaptée au séjour et aux activités, à compléter avec le groupe."}
-        </p>
-      </div>
+
+          <div
+            className="relative"
+            style={{ paddingRight: "calc(var(--krew-journey-otter-slot-width) + var(--krew-journey-header-column-gap))" }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="relative inline-block pb-3">
+                <h2 className="font-display text-[length:var(--krew-journey-page-title)] font-normal leading-[var(--krew-journey-title-leading)] tracking-[var(--krew-journey-title-tracking)] text-foreground">
+                  À emporter
+                </h2>
+                <KrewMark
+                  type="underline-wave"
+                  tone="sage"
+                  size="md"
+                  className="pointer-events-none absolute bottom-0 left-0 w-[var(--krew-journey-wave-width)] max-w-[80%] opacity-78"
+                />
+              </div>
+              <KrewNote variant="tape" tone="sage" rotation={-2} size="sm" className="hidden sm:inline-block">
+                {historical ? "Souvenir du voyage" : "Adaptée au séjour"}
+              </KrewNote>
+            </div>
+            <p className="mt-[var(--krew-journey-header-gap)] max-w-[var(--krew-journey-intro-width)] text-[length:var(--krew-journey-subtitle)] leading-[var(--krew-journey-intro-leading)] text-muted-foreground font-sans">
+              {historical
+                ? "La liste du voyage, conservée avec son dernier état."
+                : "Une liste adaptée au séjour et aux activités, à compléter avec le groupe."}
+            </p>
+          </div>
+        </>
+      ) : null}
 
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
         <section className="space-y-2 border-t border-border/50 pt-4">
