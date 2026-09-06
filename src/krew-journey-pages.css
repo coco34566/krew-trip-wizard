@@ -11,15 +11,8 @@
   --krew-journey-border-soft: color-mix(in oklch, var(--border) 52%, transparent);
 }
 
-/* Questionnaire sections are content surfaces, not independent page shells. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/preferences.png"]) form > section:not([class*="bg-"]) {
-  border-radius: 0 !important;
-  padding-inline: 0 !important;
-  box-shadow: none !important;
-}
-
-/* Calendar cells are selection controls, not app CTA buttons. */
-main[class*="max-w-[820px]"]:has(img[src*="/brand/otter-states/availability.png"]) button.aspect-square {
+/* Calendar cells are selection controls shared by Availability and Star, not app CTA buttons. */
+main[class*="max-w-[820px]"] button.aspect-square {
   min-height: 38px;
   min-width: 38px;
 }
