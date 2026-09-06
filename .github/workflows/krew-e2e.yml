@@ -53,32 +53,27 @@ jobs:
             }
             return "";
           };
+          const isPreviewNeutral = (commit) => {
+            const changedFiles = Array.isArray(commit.files) ? commit.files.map((file) => file.filename) : [];
+            return changedFiles.length > 0 && changedFiles.every((file) =>
+              file.startsWith(".github/") || file.startsWith("docs/") || file.startsWith("tests/"),
+            );
+          };
 
-          const headCommit = await api(`/commits/${process.env.HEAD_SHA}`);
-          const changedFiles = Array.isArray(headCommit.files) ? headCommit.files.map((file) => file.filename) : [];
-          const previewNeutral = changedFiles.length > 0 && changedFiles.every((file) =>
-            file.startsWith(".github/") || file.startsWith("docs/") || file.startsWith("tests/"),
-          );
-
-          let previewUrl = "";
-          if (previewNeutral) {
-            let candidate = headCommit;
-            for (let depth = 0; depth < 10 && !previewUrl; depth += 1) {
-              const sha = candidate.sha;
-              previewUrl = await findReadyUrlForSha(sha);
-              if (previewUrl) break;
-              const parentSha = candidate.parents?.[0]?.sha;
-              if (!parentSha) break;
-              candidate = await api(`/commits/${parentSha}`);
-            }
-          } else {
-            for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
-              previewUrl = await findReadyUrlForSha(process.env.HEAD_SHA);
-              if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
-            }
+          let targetCommit = await api(`/commits/${process.env.HEAD_SHA}`);
+          for (let depth = 0; depth < 10 && isPreviewNeutral(targetCommit); depth += 1) {
+            const parentSha = targetCommit.parents?.[0]?.sha;
+            if (!parentSha) break;
+            targetCommit = await api(`/commits/${parentSha}`);
           }
 
-          if (!previewUrl) throw new Error("Vercel preview URL unavailable");
+          let previewUrl = "";
+          for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
+            previewUrl = await findReadyUrlForSha(targetCommit.sha);
+            if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
+          }
+
+          if (!previewUrl) throw new Error(`Vercel preview URL unavailable for ${targetCommit.sha}`);
           appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
           NODE
       - run: npm ci
