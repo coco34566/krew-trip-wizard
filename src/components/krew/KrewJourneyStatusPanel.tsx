@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 
-import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
+import { KrewIcon, type KrewIconName } from "@/components/krew/visual-language/KrewIcon";
 import { cn } from "@/lib/utils";
 
 type KrewJourneyStatusPanelProps = {
   title: string;
   children: ReactNode;
   action?: ReactNode;
-  icon?: "check" | "availability" | "lock" | "info";
+  icon?: Extract<KrewIconName, "check" | "availability" | "attention" | "calendar">;
   tone?: "complete" | "locked" | "info";
   className?: string;
   role?: "status" | "alert";
