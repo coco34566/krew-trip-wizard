@@ -184,7 +184,7 @@ function TripLayout() {
   const search = location.search as Record<string, unknown>;
   const section = typeof search.section === "string" ? search.section : undefined;
   const showPlanningPage = search.view === "voyage" && section === "planning";
-  const showProfilePage = search.view === "voyage" && section === "profile";
+  const showProfilePage = section === "profile";
   const showTasksPage = search.view === "voyage" && section === "tasks";
   const showTransportPage = search.view === "voyage" && section === "transport";
   const showInvitePage = location.pathname.endsWith(`/trips/${tripId}/invite`);
