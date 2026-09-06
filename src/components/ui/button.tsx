@@ -95,11 +95,12 @@ function ButtonContent({ children, iconOnly }: { children: React.ReactNode; icon
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, children, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, children, style, ...props }, ref) => {
     const resolvedVariant = variant ?? "default";
     const resolvedSize = size ?? "default";
     const buttonClassName = cn(buttonVariants({ variant, size, className }));
     const iconOnly = resolvedSize === "icon";
+    const resolvedStyle = iconOnly ? style : { height: "auto", ...style };
 
     if (asChild) {
       const child = React.Children.only(children) as React.ReactElement<{ children?: React.ReactNode }>;
@@ -116,6 +117,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           data-size={resolvedSize}
           className={buttonClassName}
           ref={ref}
+          style={resolvedStyle}
           {...props}
         >
           {wrappedChild}
@@ -130,6 +132,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         data-size={resolvedSize}
         className={buttonClassName}
         ref={ref}
+        style={resolvedStyle}
         {...props}
       >
         <ButtonContent iconOnly={iconOnly}>{children}</ButtonContent>
