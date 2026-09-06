@@ -10,9 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { KrewIcon, KrewMark, KrewHighlight, KrewNote } from "@/components/krew/visual-language";
+import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import {
   getMyParticipantPreferences,
   submitParticipantPreferences,
@@ -335,38 +335,23 @@ function ParticipantQuestionnaire() {
 
   if (loading) {
     return (
-      <main className="mx-auto w-full max-w-[820px] px-5 py-10 sm:px-7 lg:px-8">
-        <KrewThinkingState context="generic" customMessage="Chargement de tes préférences…" delayMs={0} />
-      </main>
+      <KrewJourneyLoadingState
+        maxWidthClassName="max-w-[820px]"
+        message="Chargement de tes préférences…"
+      />
     );
   }
 
   if (loadError) {
     return (
-      <main className="mx-auto w-full max-w-[820px] space-y-6 px-5 py-10 sm:px-7 lg:px-8">
-        <Link
-          to="/trips/$tripId"
-          params={{ tripId }}
-          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
-        >
-          <ArrowLeft className="size-4" /> Retour au voyage
-        </Link>
-        <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
-          <h1 className="font-display text-[28px] font-normal text-foreground sm:text-[32px]">
-            Impossible de charger tes préférences
-          </h1>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-            {loadError} Tes réponses déjà enregistrées sont conservées.
-          </p>
-          <Button
-            type="button"
-            className="mt-5"
-            onClick={() => setLoadAttempt((attempt) => attempt + 1)}
-          >
-            Réessayer
-          </Button>
-        </section>
-      </main>
+      <KrewJourneyErrorState
+        tripId={tripId}
+        maxWidthClassName="max-w-[820px]"
+        returnLabel="Retour au voyage"
+        title="Impossible de charger tes préférences"
+        description={`${loadError} Tes réponses déjà enregistrées sont conservées.`}
+        onRetry={() => setLoadAttempt((attempt) => attempt + 1)}
+      />
     );
   }
 
@@ -646,7 +631,7 @@ function ParticipantQuestionnaire() {
                       return;
                     }
                     setLodgingTypes((prev) => {
-                      const without = prev.filter((x) => x !== "peu_importe");
+                      const without = prev.filter((x) => x !== "peu_importe" && x !== a.value);
                       if (without.includes(a.value)) {
                         const next = without.filter((x) => x !== a.value);
                         return next.length ? next : ["peu_importe"];
