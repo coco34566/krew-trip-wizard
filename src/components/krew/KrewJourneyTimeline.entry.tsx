@@ -17,6 +17,11 @@ import {
 
 type Props = ComponentProps<typeof KrewJourneyTimelineLegacy>;
 
+const DEDICATED_JOURNEY_ROUTES: Partial<Record<string, string>> = {
+  profile: "profile",
+  dates: "dates",
+};
+
 function pendingStatus(step: TimelineStep) {
   return step.status === "next_action" ? ("next_action" as const) : ("available" as const);
 }
@@ -187,11 +192,15 @@ export function KrewJourneyTimeline(props: Props) {
     if (!anchor) return;
 
     const url = new URL(anchor.href, window.location.origin);
-    if (url.pathname !== `/trips/${props.tripId}` || url.searchParams.get("section") !== "profile") return;
+    if (url.pathname !== `/trips/${props.tripId}`) return;
+
+    const section = url.searchParams.get("section");
+    const dedicatedRoute = section ? DEDICATED_JOURNEY_ROUTES[section] : null;
+    if (!dedicatedRoute) return;
 
     event.preventDefault();
     event.stopPropagation();
-    window.location.assign(`/trips/${props.tripId}/profile`);
+    window.location.assign(`/trips/${props.tripId}/${dedicatedRoute}`);
   };
 
   return (
