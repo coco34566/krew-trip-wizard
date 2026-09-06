@@ -46,7 +46,11 @@ export function TripStarAccessGate({
   if (detailQuery.data.isOwner) return <>{children}</>;
 
   return (
-    <KrewPageShell size="form" className="space-y-8 py-8 sm:py-10">
+    <KrewPageShell
+      data-krew-preferences-page
+      size="form"
+      className="space-y-8 py-8 sm:py-10"
+    >
       <KrewJourneyStatusPanel
         title="Préférences de la Star"
         icon="attention"
