@@ -6,6 +6,7 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { handleNormalUserUi, signIn } from "./helpers";
 
 const BASELINE_SHA = "57ba68fda3f95b7cac5a440cfc12c88c77352c2d";
+const TRIPHUB_PARENT_SHA = "5329325e2758627f1791bad4b00596610230bac0";
 const TRIPHUB_MIGRATION_SHA = "f9396faf1da1717c8e01029126fe9f79850b0313";
 const VIEWPORTS = [
   { name: "narrow-mobile", width: 320, height: 568, screenshot: false },
@@ -42,11 +43,7 @@ function runTscSnapshot(sha: string, label: string): TscSnapshot {
   } finally {
     execFileSync("git", ["worktree", "remove", "--force", worktree], { cwd: repoRoot, stdio: "pipe" });
   }
-  return {
-    sha,
-    exitCode,
-    errors: output.split(/\r?\n/).map((line) => line.trim()).filter((line) => /\berror TS\d+:/.test(line)).sort(),
-  };
+  return { sha, exitCode, errors: output.split(/\r?\n/).map((line) => line.trim()).filter((line) => /\berror TS\d+:/.test(line)).sort() };
 }
 
 function semanticError(line: string) {
@@ -120,17 +117,20 @@ test("reference surfaces visual audit", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-safari", "Reference audit creates all target viewports itself.");
 
   const baselineTsc = runTscSnapshot(BASELINE_SHA, "baseline");
+  const tripHubParentTsc = runTscSnapshot(TRIPHUB_PARENT_SHA, "triphub-parent");
   const tripHubTsc = runTscSnapshot(TRIPHUB_MIGRATION_SHA, "triphub");
-  const semantic = semanticDelta(baselineTsc.errors, tripHubTsc.errors);
+  const baselineSemantic = semanticDelta(baselineTsc.errors, tripHubTsc.errors);
+  const migrationSemantic = semanticDelta(tripHubParentTsc.errors, tripHubTsc.errors);
   const tscDiff = {
     baseline: { sha: baselineTsc.sha, exitCode: baselineTsc.exitCode, count: baselineTsc.errors.length },
+    tripHubParent: { sha: tripHubParentTsc.sha, exitCode: tripHubParentTsc.exitCode, count: tripHubParentTsc.errors.length },
     tripHub: { sha: tripHubTsc.sha, exitCode: tripHubTsc.exitCode, count: tripHubTsc.errors.length },
-    semanticAdded: semantic.added,
-    semanticRemoved: semantic.removed,
+    baselineToTripHub: { semanticAdded: baselineSemantic.added, semanticRemoved: baselineSemantic.removed },
+    migrationOnly: { semanticAdded: migrationSemantic.added, semanticRemoved: migrationSemantic.removed },
   };
   console.log(`[tsc-baseline] ${JSON.stringify(tscDiff)}`);
   await testInfo.attach("tsc-baseline-diff", {
-    body: Buffer.from(JSON.stringify({ ...tscDiff, baselineErrors: baselineTsc.errors, tripHubErrors: tripHubTsc.errors }, null, 2)),
+    body: Buffer.from(JSON.stringify({ ...tscDiff, baselineErrors: baselineTsc.errors, tripHubParentErrors: tripHubParentTsc.errors, tripHubErrors: tripHubTsc.errors }, null, 2)),
     contentType: "application/json",
   });
 
