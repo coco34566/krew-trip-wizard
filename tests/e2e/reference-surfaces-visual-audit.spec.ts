@@ -103,6 +103,7 @@ test("reference surfaces visual audit", async ({ page }, testInfo) => {
 
   const authenticatedPages = [
     ["mes-voyages", "/dashboard"],
+    ["nouveau-voyage", "/trips/new"],
     ["trip-dashboard", `/trips/${tripId}`],
     ["account", "/account"],
     ["recap", `/trips/${tripId}/recap`],
