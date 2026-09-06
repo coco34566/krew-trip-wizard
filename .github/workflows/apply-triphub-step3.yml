@@ -1,0 +1,61 @@
+name: Apply TripHub migration step 3
+
+on:
+  push:
+    branches:
+      - audit/css-baseline-safety
+    paths:
+      - .github/workflows/apply-triphub-step3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: audit/css-baseline-safety
+          fetch-depth: 2
+
+      - name: Apply deterministic TripHub migration
+        run: node .github/scripts/apply-triphub-shell-migration.mjs
+
+      - name: Verify scoped diff
+        run: |
+          git diff --check
+          git diff --name-only
+          unexpected="$(git diff --name-only | grep -Ev '^(src/components/krew/KrewPageShell\.tsx|src/components/krew/KrewPageShell\.test\.tsx|src/krew-design-tokens\.css|src/routes/_authenticated/trips\.\$tripId\.index\.tsx|src/components/krew/TripHubDashboard\.tsx|src/styles/krew-trip-hub\.css)$' || true)"
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected files changed:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit TripHub step 3
+        run: |
+          git config user.name "KREW migration bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/components/krew/KrewPageShell.tsx src/components/krew/KrewPageShell.test.tsx src/krew-design-tokens.css src/routes/_authenticated/trips.\$tripId.index.tsx src/components/krew/TripHubDashboard.tsx src/styles/krew-trip-hub.css
+          cat > /tmp/message.txt <<'MSG'
+          refactor(ui): migrate TripHub to KrewPageShell
+
+          Exact-match migrations:
+          - page width 1024px -> KrewPageShell size="standard";
+          - page gutter 16px -> semantic compact gutter token at 16px;
+          - TripHub hero px-4 / -mx-4 gutter alignment -> same compact token;
+          - loading container -> same standard/compact shell geometry.
+
+          Values intentionally left unchanged because existing tokens are not exact:
+          - H1 remains 42px -> 56px at 640px; --krew-title-hero is 42px -> 50px -> 56px;
+          - H1 leading remains 0.94; --krew-title-leading is 0.98;
+          - tracking-tight remains unchanged; --krew-title-tracking is -0.02em;
+          - mt-6 remains 24px; --krew-content-gap is 28px -> 32px;
+          - space-y-6 sm:space-y-8 remains 24px -> 32px; no canonical token matches exactly.
+
+          No intrinsic widget dimensions are promoted to global tokens.
+          MSG
+          git commit -F /tmp/message.txt
+          git push origin HEAD:audit/css-baseline-safety
