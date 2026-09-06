@@ -13,7 +13,6 @@ import appCss from "../styles.css?url";
 import designTokensCss from "../krew-design-tokens.css?url";
 import reviewCss from "../krew-ux-review.css?url";
 import reviewDetailsCss from "../krew-ux-review-details.css?url";
-import journeyPagesCss from "../krew-journey-pages.css?url";
 import journeyPagesRefinementWavefixCss from "../krew-journey-pages-refinement-wavefix.css?url";
 import visualBaselineCss from "../krew-visual-baseline.css?url";
 import journeyAlignmentCss from "../krew-journey-alignment.css?url";
@@ -89,7 +88,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: designTokensCss },
       { rel: "stylesheet", href: reviewCss },
       { rel: "stylesheet", href: reviewDetailsCss },
-      { rel: "stylesheet", href: journeyPagesCss },
       { rel: "stylesheet", href: journeyPagesRefinementWavefixCss },
       { rel: "stylesheet", href: visualBaselineCss },
       { rel: "stylesheet", href: journeyAlignmentCss },
