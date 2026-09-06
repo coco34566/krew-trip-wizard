@@ -2,13 +2,11 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewThinkingState, type KrewThinkingContext } from "@/components/krew/KrewThinkingState";
 import { Button } from "@/components/ui/button";
 
-type JourneyThinkingContext = Parameters<typeof KrewThinkingState>[0]["context"];
-
 type KrewJourneyLoadingStateProps = {
-  context?: JourneyThinkingContext;
+  context?: KrewThinkingContext;
   message?: string;
   maxWidthClassName?: string;
 };
