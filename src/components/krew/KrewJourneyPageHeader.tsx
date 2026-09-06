@@ -12,7 +12,6 @@ type KrewJourneyPageHeaderProps = {
   titleTrailing?: ReactNode;
   annotation?: ReactNode;
   className?: string;
-  waveClassName?: string;
 };
 
 const KrewJourneyAfterHeaderContext = createContext<ReactNode>(null);
