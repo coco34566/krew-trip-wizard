@@ -62,7 +62,7 @@ jobs:
           NODE
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
-        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+        run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
       - name: Run smoke journey only
         run: npm run test:e2e:smoke
       - name: Upload Playwright report
