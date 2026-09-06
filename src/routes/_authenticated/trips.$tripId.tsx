@@ -1,9 +1,11 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
+import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
 import { TripAccommodationPage } from "@/components/krew/TripAccommodationPage";
@@ -63,13 +65,19 @@ function ResponseGateError({
 
 function ClosedResponseState({
   tripId,
+  tripName,
   title,
+  otterSrc,
+  intro,
   hasPreviousAnswer,
   maxWidthClassName = "max-w-5xl",
   children,
 }: {
   tripId: string;
+  tripName: string;
   title: string;
+  otterSrc: string;
+  intro: string;
   hasPreviousAnswer: boolean;
   maxWidthClassName?: string;
   children: ReactNode;
@@ -83,25 +91,24 @@ function ClosedResponseState({
   }
 
   return (
-    <div className={`mx-auto mt-8 w-full ${maxWidthClassName} px-5 sm:px-7 lg:px-8`}>
-      <KrewJourneyStatusPanel
-        title={`${title} clôturées`}
-        icon="check"
-        tone="complete"
-        action={
-          <Link
-            to="/trips/$tripId"
-            params={{ tripId }}
-            search={{ view: "voyage" }}
-            className="inline-flex min-h-10 items-center text-[14px] font-semibold text-primary underline-offset-4 hover:underline"
-          >
-            Retour au voyage
-          </Link>
-        }
+    <main className={`mx-auto w-full ${maxWidthClassName} space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}>
+      <Link
+        to="/trips/$tripId"
+        params={{ tripId }}
+        search={{ view: "voyage" }}
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
       >
+        <ArrowLeft className="size-4" /> Retour au voyage
+      </Link>
+
+      <KrewJourneyPageHeader tripName={tripName} title={title} otterSrc={otterSrc}>
+        <p>{intro}</p>
+      </KrewJourneyPageHeader>
+
+      <KrewJourneyStatusPanel title={`${title} clôturées`} icon="check" tone="complete">
         <p>Les réponses du groupe sont maintenant clôturées car les dates du voyage sont confirmées. Tu n’as rien à compléter pour cette étape.</p>
       </KrewJourneyStatusPanel>
-    </div>
+    </main>
   );
 }
 
@@ -126,7 +133,10 @@ function AvailabilityResponseGate({ tripId, children }: { tripId: string; childr
   return (
     <ClosedResponseState
       tripId={tripId}
+      tripName={data.trip.name ?? "Voyage"}
       title="Disponibilités"
+      otterSrc="/brand/otter-states/availability.png"
+      intro="Les dates du voyage sont confirmées. Les réponses de disponibilité sont maintenant en lecture seule."
       maxWidthClassName="max-w-[820px]"
       hasPreviousAnswer={Boolean(data.mine)}
     >
@@ -147,6 +157,7 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
       ]);
       return {
         preferences: mine.preferences,
+        tripName: (mine.trip as any)?.name ?? (detail.trip as any)?.name ?? "Voyage",
         datesLocked: Boolean((detail.trip as any)?.dates_locked),
       };
     },
@@ -166,7 +177,10 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
   return (
     <ClosedResponseState
       tripId={tripId}
+      tripName={data.tripName}
       title="Préférences"
+      otterSrc="/brand/otter-states/preferences.png"
+      intro="Les dates du voyage sont confirmées. Les préférences du groupe sont maintenant en lecture seule."
       maxWidthClassName="max-w-[820px]"
       hasPreviousAnswer={Boolean(data.preferences)}
     >
