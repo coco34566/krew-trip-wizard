@@ -33,8 +33,7 @@ export function SiteHeader() {
   }
 
   const initials = (user?.email ?? "K").slice(0, 2).toUpperCase();
-  const tripCtaClassName =
-    "krew-trip-primary-cta shrink-0 px-4 text-sm font-medium shadow-none sm:text-base";
+  const tripCtaClassName = "shrink-0 px-4 text-sm font-medium shadow-none sm:text-base";
 
   const publicLinks = (
     <>
