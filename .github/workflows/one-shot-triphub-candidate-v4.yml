@@ -1,4 +1,4 @@
-name: Mes voyages zero-diff candidate
+name: Mes voyages migration runner
 
 on:
   push:
@@ -9,235 +9,20 @@ on:
 
 permissions:
   contents: write
-  deployments: read
 
 jobs:
-  candidate:
+  migrate:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.55.0-noble
-    timeout-minutes: 45
-    env:
-      GH_TOKEN: ${{ github.token }}
-      REPOSITORY: ${{ github.repository }}
-      TARGET_BRANCH: audit/css-baseline-safety
-      KREW_E2E_BEFORE_SHA: 881d1e2f837db55748b1c8172ba06b203d405cd5
-      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
-      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
-      KREW_E2E_API_MODE: safe
     steps:
       - uses: actions/checkout@v4
         with:
           ref: audit/css-baseline-safety
-          fetch-depth: 100
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Capture TypeScript parent baseline
+      - name: Apply migration
+        run: node .github/scripts/apply-mes-voyages-shell-migration.mjs
+      - name: Commit migration
         run: |
-          npx tsc --noEmit > /tmp/tsc-before.log 2>&1 || true
-          sed -E 's/\([0-9]+,[0-9]+\)//g' /tmp/tsc-before.log | sort > /tmp/tsc-before.norm
-
-      - name: Apply exact-match Mes voyages migration
-        shell: bash
-        run: |
-          python <<'PY'
-          from pathlib import Path
-
-          p = Path('src/routes/_authenticated/dashboard.tsx')
-          s = p.read_text()
-          anchor = 'import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";\n'
-          assert s.count(anchor) == 1
-          s = s.replace(anchor, anchor + 'import { KrewPageShell } from "@/components/krew/KrewPageShell";\n')
-          old = '<main className="mx-auto max-w-[1180px] space-y-8 overflow-x-clip overflow-y-visible px-4 py-8 sm:space-y-12 sm:px-6 sm:py-10 lg:px-10">'
-          new = '<KrewPageShell size="wide" gutter="wide" data-krew-page-surface="mes-voyages" className="krew-mes-voyages-shell space-y-8 overflow-x-clip overflow-y-visible sm:space-y-12">'
-          assert s.count(old) == 1
-          s = s.replace(old, new)
-          idx = s.rfind('</main>')
-          assert idx != -1
-          s = s[:idx] + '</KrewPageShell>' + s[idx + len('</main>'):]
-          p.write_text(s)
-
-          p = Path('src/components/krew/KrewPageShell.tsx')
-          s = p.read_text()
-          old = 'export type KrewPageShellGutter = "default" | "compact";'
-          assert s.count(old) == 1
-          p.write_text(s.replace(old, 'export type KrewPageShellGutter = "default" | "compact" | "wide";'))
-
-          p = Path('src/krew-design-tokens.css')
-          s = p.read_text()
-          old = '  --krew-page-padding-x-compact: 16px;\n'
-          assert s.count(old) == 1
-          s = s.replace(old, old + '  --krew-page-padding-x-wide: 16px;\n')
-          old = '    --krew-page-padding-x: 28px;\n'
-          assert s.count(old) == 1
-          s = s.replace(old, old + '    --krew-page-padding-x-wide: 24px;\n')
-          old = '    --krew-page-padding-x: 32px;\n'
-          assert s.count(old) == 1
-          s = s.replace(old, old + '    --krew-page-padding-x-wide: 40px;\n')
-          tail = '.krew-page-shell[data-krew-page-gutter="compact"] {\n  --krew-page-shell-padding-x: var(--krew-page-padding-x-compact);\n}'
-          assert s.count(tail) == 1
-          s = s.replace(tail, tail + '\n\n.krew-page-shell[data-krew-page-gutter="wide"] {\n  --krew-page-shell-padding-x: var(--krew-page-padding-x-wide);\n}')
-          p.write_text(s)
-
-          p = Path('src/styles/krew-mes-voyages.css')
-          s = p.read_text().rstrip()
-          assert '.krew-mes-voyages-shell' not in s
-          semantic = r'''
-
-.krew-mes-voyages-shell {
-  padding-block: var(--krew-page-padding-y);
-}
-
-[data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] > div:first-child { animation: krew-dashboard-header-in 1050ms cubic-bezier(.18,.74,.24,1) both; }
-[data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] > p { animation: krew-dashboard-copy-in 920ms cubic-bezier(.18,.74,.24,1) 180ms both; }
-[data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] > div:first-child > svg path {
-  stroke-dasharray: 140;
-  stroke-dashoffset: 140;
-  animation: krew-dashboard-line-draw 1350ms cubic-bezier(.32,0,.18,1) 420ms forwards;
-}
-[data-krew-page-surface="mes-voyages"] > header a[data-slot="button"][href="/trips/new"] {
-  animation: krew-dashboard-cta-in 820ms cubic-bezier(.18,.74,.24,1) 250ms both;
-}
-[data-krew-page-surface="mes-voyages"] h2 + svg[class*="w-[92px]"] { bottom: -1.25rem !important; }
-
-@media (max-width: 639px) {
-  [data-krew-page-surface="mes-voyages"] > header {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    min-height: 0;
-    column-gap: 8px;
-    row-gap: 10px;
-    align-items: start;
-  }
-  [data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] { display: contents; }
-  [data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] > div:first-child { grid-column: 1; grid-row: 1; min-width: 0; }
-  [data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] > p {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: 100%;
-    max-width: none;
-    margin-top: 0;
-    line-height: 1.45;
-  }
-  [data-krew-page-surface="mes-voyages"] > header a[data-slot="button"][href="/trips/new"] {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: center;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  [data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] > div:first-child,
-  [data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] > p,
-  [data-krew-page-surface="mes-voyages"] > header a[data-slot="button"][href="/trips/new"] {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-  [data-krew-page-surface="mes-voyages"] > header > div[class*="max-w-[680px]"] > div:first-child > svg path {
-    stroke-dasharray: none !important;
-    stroke-dashoffset: 0 !important;
-    animation: none !important;
-    opacity: 1 !important;
-  }
-}
-'''
-          p.write_text(s + semantic + '\n')
-
-          p = Path('tests/e2e/design-system-migration-visual.spec.ts')
-          s = p.read_text()
-          assert 'Mes voyages migration remains pixel-identical' not in s
-          s += r'''
-
-test("Mes voyages migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
-  test.setTimeout(360_000);
-  expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
-  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
-  const current = await openAuthenticatedPage(browser, CURRENT_URL);
-  const before = await openAuthenticatedPage(browser, BEFORE_URL);
-  try {
-    for (const viewport of VIEWPORTS) {
-      const currentScreenshot = await captureMain(current.page, "/dashboard", viewport);
-      await testInfo.attach(`after-${viewport.name}-mes-voyages`, { body: currentScreenshot, contentType: "image/png" });
-      const beforeScreenshot = await captureMain(before.page, "/dashboard", viewport);
-      await testInfo.attach(`before-${viewport.name}-mes-voyages`, { body: beforeScreenshot, contentType: "image/png" });
-      const snapshotName = `runtime-before-${viewport.name}-mes-voyages.png`;
-      const snapshotPath = testInfo.snapshotPath(snapshotName);
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, beforeScreenshot);
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, { threshold: 0, maxDiffPixels: 0 });
-    }
-  } finally {
-    await current.context.close();
-    await before.context.close();
-  }
-});
-'''
-          p.write_text(s)
-          PY
-          git diff --check
-
-      - name: Reject new semantic TypeScript errors
-        run: |
-          npx tsc --noEmit > /tmp/tsc-after.log 2>&1 || true
-          sed -E 's/\([0-9]+,[0-9]+\)//g' /tmp/tsc-after.log | sort > /tmp/tsc-after.norm
-          comm -13 /tmp/tsc-before.norm /tmp/tsc-after.norm > /tmp/tsc-added.log || true
-          comm -23 /tmp/tsc-before.norm /tmp/tsc-after.norm > /tmp/tsc-removed.log || true
-          echo '--- added semantic errors ---'; cat /tmp/tsc-added.log || true
-          echo '--- removed semantic errors ---'; cat /tmp/tsc-removed.log || true
-          test ! -s /tmp/tsc-added.log
-
-      - name: Run build
-        run: npm run build
-
-      - name: Commit migration candidate
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config user.name "KREW migration bot"
           git config user.email "actions@users.noreply.github.com"
-          candidate_branch="automation/mes-voyages-zero-diff-${GITHUB_RUN_ID}"
-          git switch -c "$candidate_branch"
           git add src/routes/_authenticated/dashboard.tsx src/components/krew/KrewPageShell.tsx src/krew-design-tokens.css src/styles/krew-mes-voyages.css tests/e2e/design-system-migration-visual.spec.ts
-          git commit -m "refactor(ui): migrate Mes voyages to KrewPageShell" -m "Exact-match migrations: 1180px -> size=wide; gutters 16/24/40 -> wide compatibility token; vertical page padding 32/40 -> existing page-y token. H1 42/52/58 and page stack 32/48 remain hard-coded because no token matches exactly. Legacy Mes voyages header/mobile rules are re-owned semantically without declaration changes. Adds zero-pixel before/after proof at 390x844, 834x1112 and 1440x1000."
-          candidate_sha="$(git rev-parse HEAD)"
-          git push origin "HEAD:refs/heads/$candidate_branch"
-          echo "CANDIDATE_BRANCH=$candidate_branch" >> "$GITHUB_ENV"
-          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
-
-      - name: Resolve baseline and candidate previews
-        shell: bash
-        run: |
-          before_url="$(node .github/scripts/find-ready-vercel-preview.mjs "$KREW_E2E_BEFORE_SHA" 36 20000)"
-          candidate_url="$(node .github/scripts/find-ready-vercel-preview.mjs "$CANDIDATE_SHA" 36 20000)"
-          echo "KREW_E2E_BEFORE_URL=$before_url" >> "$GITHUB_ENV"
-          echo "KREW_E2E_BASE_URL=$candidate_url" >> "$GITHUB_ENV"
-          echo "Before: $before_url"
-          echo "After: $candidate_url"
-
-      - name: Install Playwright runner
-        run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
-
-      - name: Require zero pixel difference
-        run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
-
-      - name: Promote candidate to temporary audit branch
-        run: git push origin "$CANDIDATE_SHA:refs/heads/$TARGET_BRANCH"
-
-      - name: Upload proof
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: mes-voyages-zero-diff
-          path: |
-            playwright-report/
-            test-results/
-            /tmp/tsc-before.log
-            /tmp/tsc-after.log
-            /tmp/tsc-added.log
-            /tmp/tsc-removed.log
-          if-no-files-found: ignore
-          retention-days: 7
+          git commit -m "refactor(ui): migrate Mes voyages to KrewPageShell"
+          git push origin HEAD:audit/css-baseline-safety
