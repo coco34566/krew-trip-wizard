@@ -517,7 +517,7 @@ export function TripHubDashboard({
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <header data-krew-dashboard-hero="true" className="relative overflow-visible -mx-4 sm:mx-0 pb-2">
+      <header data-krew-dashboard-hero="true" className="relative overflow-visible krew-trip-hub-hero-bleed pb-2">
         <div className="relative w-full">
           <KrewOrganicBlob
             tone="sage"
@@ -545,7 +545,7 @@ export function TripHubDashboard({
             </KrewNote>
           </div>
 
-          <div className="relative z-20 -mt-10 px-4 pt-2">
+          <div className="relative z-20 -mt-10 krew-trip-hub-gutter-x pt-2">
             <div className="relative mt-1 text-left inline-block max-w-full">
               <KrewOrganicBlob
                 tone="plum"
@@ -575,7 +575,7 @@ export function TripHubDashboard({
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5 px-4 sm:gap-5">
+        <div className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5 krew-trip-hub-gutter-x sm:gap-5">
           <div className="min-w-0 space-y-2.5 font-sans text-[13px] font-medium leading-[1.2] text-foreground">
             <div className="flex items-start gap-2 text-foreground min-w-0">
               <KrewIcon name="calendar" tone="sage" size="sm" className="size-4 shrink-0 mt-[1px]" />

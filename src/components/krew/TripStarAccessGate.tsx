@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { getTripDetail } from "@/lib/trips.functions";
 
 export function TripStarAccessGate({
@@ -23,7 +24,7 @@ export function TripStarAccessGate({
   if (detailQuery.isLoading) {
     return (
       <KrewJourneyLoadingState
-        maxWidthClassName="max-w-[820px]"
+        size="form"
         message="Chargement des préférences de la Star…"
       />
     );
@@ -33,7 +34,7 @@ export function TripStarAccessGate({
     return (
       <KrewJourneyErrorState
         tripId={tripId}
-        maxWidthClassName="max-w-[820px]"
+        size="form"
         title="Impossible de charger les préférences de la Star"
         description="Les informations du voyage ne sont pas disponibles pour le moment."
         retrying={detailQuery.isFetching}
@@ -45,7 +46,11 @@ export function TripStarAccessGate({
   if (detailQuery.data.isOwner) return <>{children}</>;
 
   return (
-    <main className="mx-auto w-full max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+    <KrewPageShell
+      data-krew-preferences-page
+      size="form"
+      className="space-y-8 py-8 sm:py-10"
+    >
       <KrewJourneyStatusPanel
         title="Préférences de la Star"
         icon="attention"
@@ -64,6 +69,6 @@ export function TripStarAccessGate({
           Cette étape est gérée par l’organisateur·rice ou le co-organisateur·rice. Si la Star participe au voyage, elle renseigne ses propres préférences comme les autres membres du groupe.
         </p>
       </KrewJourneyStatusPanel>
-    </main>
+    </KrewPageShell>
   );
 }

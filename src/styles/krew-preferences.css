@@ -1,0 +1,209 @@
+/* Preferences-owned visual compatibility rules.
+ * Participant and Star questionnaires share the same chapter geometry.
+ * Prefer the semantic page hook; keep the 820px fallback until all routes are migrated. */
+
+/* Controls density. */
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section .grid {
+  gap: 8px !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section .pt-4 {
+  padding-top: 12px !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section .mt-6 {
+  margin-top: 18px !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section label {
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section button.rounded-\[14px\] {
+  min-height: 40px !important;
+  border-color: color-mix(in oklch, var(--border) 62%, transparent) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  padding: 9px 12px !important;
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section input.h-12 {
+  height: 44px !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section :is(input, textarea) {
+  border-radius: 12px !important;
+  font-size: 15px !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section textarea {
+  min-height: 96px !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > div.pt-2.pb-12 > button {
+  font-size: 14px !important;
+}
+
+@media (min-width: 768px) {
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section label {
+    font-size: 15px !important;
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section button.rounded-\[14px\] {
+    font-size: 15px !important;
+    padding: 10px 13px !important;
+  }
+}
+
+/* Section composition. */
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div {
+  counter-reset: krew-preferences-section;
+  padding-top: 0 !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section {
+  counter-increment: krew-preferences-section;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child::before {
+  content: "0" counter(krew-preferences-section);
+  display: block;
+  margin-bottom: 6px;
+  font-family: "Space Mono", monospace;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: color-mix(in oklch, var(--sage) 82%, var(--primary));
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child h2.font-display {
+  margin: 0 !important;
+  font-size: 28px !important;
+  line-height: 1 !important;
+  letter-spacing: -.015em !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child h2.font-display + p {
+  margin-top: 7px !important;
+  max-width: 34rem;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+@media (max-width: 767px) {
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section {
+    padding-top: 32px !important;
+    padding-bottom: 30px !important;
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section:first-child {
+    padding-top: 12px !important;
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child {
+    margin-bottom: 18px;
+  }
+}
+
+@media (min-width: 768px) {
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section {
+    display: grid !important;
+    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+    align-items: start !important;
+    padding-top: 38px !important;
+    padding-bottom: 38px !important;
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section:first-child {
+    padding-top: 20px !important;
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child {
+    grid-column: 1;
+    grid-row: 1 / span 20;
+    min-width: 0;
+    margin-right: 24px;
+    padding-top: 2px;
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > :not(:first-child) {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child h2.font-display {
+    font-size: 30px !important;
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > :not(:first-child) + :not(:first-child) {
+    margin-top: 14px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section {
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  }
+
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child {
+    margin-right: 32px;
+  }
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section p.text-xs.text-muted-foreground {
+  max-width: 38rem;
+  line-height: 1.45 !important;
+}
+
+:is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+  > :is([data-krew-journey-header], [data-krew-journey-status]) + div > div.pt-2.pb-12 {
+  margin-top: 12px;
+  padding-top: 24px !important;
+  border-top: 1px solid color-mix(in oklch, var(--sage) 34%, transparent);
+}
+
+@media (min-width: 768px) {
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > div.pt-2.pb-12 {
+    margin-left: 204px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :is([data-krew-preferences-page], main[class*="max-w-[820px]"])
+    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > div.pt-2.pb-12 {
+    margin-left: 238px;
+  }
+}

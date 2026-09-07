@@ -1,0 +1,39 @@
+/* Mes voyages — semantic ownership for the validated polaroid choreography.
+ * Keep these values aligned with the current rendered baseline. */
+
+.krew-trip-reveal {
+  opacity: .5;
+  transform: translate3d(0, 34px, 0) rotate(2.2deg) scale(.96);
+  transition-property: transform, opacity;
+  transition-duration: 1050ms, 760ms;
+  transition-timing-function: cubic-bezier(.18,.74,.24,1), ease-out;
+}
+
+.krew-trip-reveal[data-revealed="true"] {
+  opacity: 1;
+  transform: translate3d(0,0,0) rotate(0) scale(1);
+}
+
+.krew-trip-photo-settle {
+  transform: scale(1.065);
+  transition-duration: 1100ms;
+}
+
+.krew-trip-reveal[data-revealed="true"] .krew-trip-photo-settle {
+  transform: scale(1);
+}
+
+section article:nth-child(2) .krew-trip-reveal { transition-delay: 90ms; }
+section article:nth-child(3) .krew-trip-reveal { transition-delay: 180ms; }
+section article:nth-child(4) .krew-trip-reveal { transition-delay: 270ms; }
+section article:nth-child(5) .krew-trip-reveal { transition-delay: 360ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .krew-trip-reveal,
+  .krew-trip-photo-settle {
+    transition: none !important;
+    transition-delay: 0ms !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

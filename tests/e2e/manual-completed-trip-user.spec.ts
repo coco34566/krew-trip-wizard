@@ -46,9 +46,9 @@ async function assertCompletedTrip(page: Page) {
   await assertNoPreparationCtas(page);
 }
 
-async function gotoTripSection(page: Page, tripId: string, section?: string) {
-  const search = section ? `?view=voyage&section=${section}` : "?view=voyage";
-  await page.goto(`/trips/${tripId}${search}`);
+async function gotoTripSection(page: Page, tripId: string, section?: "planning" | "tasks" | "packing") {
+  const path = section ? `/trips/${tripId}/${section}` : `/trips/${tripId}`;
+  await page.goto(path);
   await page.waitForLoadState("networkidle");
 }
 

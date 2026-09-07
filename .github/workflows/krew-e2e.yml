@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.55.0-noble
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Resolve Vercel preview URL
+      - name: Resolve Vercel preview URLs
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -42,29 +42,99 @@ jobs:
             if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
             return response.json();
           };
-          let previewUrl = "";
-          for (let attempt = 0; attempt < 30 && !previewUrl; attempt += 1) {
-            const deployments = await api(`/deployments?sha=${process.env.HEAD_SHA}&per_page=20`);
+          const findReadyUrlForSha = async (sha) => {
+            const deployments = await api(`/deployments?sha=${sha}&per_page=20`);
             for (const deployment of deployments) {
               const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
               const ready = statuses.find((status) =>
                 status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
               );
+              if (ready) return ready.environment_url.replace(/\/$/, "");
+            }
+            return "";
+          };
+          const findReadyUrlForEquivalentTree = async (commit) => {
+            const exact = await findReadyUrlForSha(commit.sha);
+            if (exact) return { url: exact, deploymentSha: commit.sha };
+
+            const deployments = await api(`/deployments?per_page=50`);
+            for (const deployment of deployments) {
+              const candidateSha = deployment.sha;
+              if (!candidateSha || candidateSha === commit.sha) continue;
+              let candidate;
+              try {
+                candidate = await api(`/commits/${candidateSha}`);
+              } catch {
+                continue;
+              }
+              if (candidate.commit?.tree?.sha !== commit.commit?.tree?.sha) continue;
+              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
+              const ready = statuses.find((status) =>
+                status.state === "success" && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ""),
+              );
               if (ready) {
-                previewUrl = ready.environment_url.replace(/\/$/, "");
-                break;
+                return {
+                  url: ready.environment_url.replace(/\/$/, ""),
+                  deploymentSha: candidateSha,
+                };
               }
             }
-            if (!previewUrl) await new Promise((resolve) => setTimeout(resolve, 20_000));
+            return { url: "", deploymentSha: "" };
+          };
+          const isPreviewNeutral = (commit) => {
+            const changedFiles = Array.isArray(commit.files) ? commit.files.map((file) => file.filename) : [];
+            return changedFiles.length > 0 && changedFiles.every((file) =>
+              file.startsWith(".github/") || file.startsWith("docs/") || file.startsWith("tests/"),
+            );
+          };
+          const nearestAppCommit = async (startSha, maxDepth = 40) => {
+            let commit = await api(`/commits/${startSha}`);
+            for (let depth = 0; depth < maxDepth && isPreviewNeutral(commit); depth += 1) {
+              const parentSha = commit.parents?.[0]?.sha;
+              if (!parentSha) break;
+              commit = await api(`/commits/${parentSha}`);
+            }
+            return commit;
+          };
+
+          const targetCommit = await nearestAppCommit(process.env.HEAD_SHA);
+          const parentSha = targetCommit.parents?.[0]?.sha;
+          const previousAppCommit = parentSha ? await nearestAppCommit(parentSha) : null;
+
+          const waitForPreview = async (commit) => {
+            let resolved = { url: "", deploymentSha: "" };
+            for (let attempt = 0; attempt < 12 && !resolved.url; attempt += 1) {
+              resolved = await findReadyUrlForEquivalentTree(commit);
+              if (!resolved.url) await new Promise((resolve) => setTimeout(resolve, 10_000));
+            }
+            if (!resolved.url) throw new Error(`Vercel preview URL unavailable for ${commit.sha}`);
+            return resolved;
+          };
+
+          const current = await waitForPreview(targetCommit);
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${current.url}\n`);
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_APP_SHA=${targetCommit.sha}\n`);
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_DEPLOYMENT_SHA=${current.deploymentSha}\n`);
+          console.log(`Current app tree ${targetCommit.commit.tree.sha}: ${current.url} (deployment ${current.deploymentSha})`);
+
+          if (previousAppCommit && previousAppCommit.sha !== targetCommit.sha) {
+            const before = await waitForPreview(previousAppCommit);
+            appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_URL=${before.url}\n`);
+            appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_SHA=${previousAppCommit.sha}\n`);
+            appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_DEPLOYMENT_SHA=${before.deploymentSha}\n`);
+            console.log(`Before app tree ${previousAppCommit.commit.tree.sha}: ${before.url} (deployment ${before.deploymentSha})`);
           }
-          if (!previewUrl) throw new Error("Vercel preview URL unavailable after 10 minutes");
-          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${previewUrl}\n`);
           NODE
       - run: npm ci
       - name: Install Playwright test runner without changing the lockfile
-        run: npm install --no-save --package-lock=false @playwright/test@1.55.0
+        run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
       - name: Run smoke journey only
         run: npm run test:e2e:smoke
+      - name: Run full visual audit contract
+        run: npm run test:e2e:visual
+      - name: Capture and compare TripHub migration reference screenshots
+        if: always()
+        run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
       - name: Upload Playwright report
         if: always()
         continue-on-error: true

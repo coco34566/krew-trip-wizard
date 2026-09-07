@@ -235,7 +235,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
               type="button"
               disabled={rotateMutation.isPending}
               onClick={() => rotateMutation.mutate()}
-              className="font-medium underline underline-offset-3 hover:text-primary disabled:opacity-50"
+              className="inline-flex min-h-10 items-center font-medium underline underline-offset-3 hover:text-primary disabled:opacity-50"
             >
               {rotateMutation.isPending ? "Renouvellement…" : "Renouveler le lien"}
             </button>

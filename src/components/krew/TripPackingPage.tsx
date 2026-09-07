@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { KrewNote } from "@/components/krew/visual-language";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
@@ -58,7 +59,7 @@ export function TripPackingPage({ tripId }: { tripId: string }) {
 
   return (
     <TripLifecycleProvider lifecycle={lifecycle}>
-      <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+      <KrewPageShell size="standard" className="space-y-8 py-8 sm:py-10">
         <Link
           to="/trips/$tripId"
           params={{ tripId }}
@@ -101,7 +102,7 @@ export function TripPackingPage({ tripId }: { tripId: string }) {
           eventType={trip.event_type}
           accommodation={String(selectedHotel?.type || logistics.accommodationType || "")}
         />
-      </main>
+      </KrewPageShell>
     </TripLifecycleProvider>
   );
 }

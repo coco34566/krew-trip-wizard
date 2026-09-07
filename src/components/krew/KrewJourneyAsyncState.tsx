@@ -2,12 +2,15 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
+import { KrewPageShell, type KrewPageShellSize } from "@/components/krew/KrewPageShell";
 import { KrewThinkingState, type KrewThinkingContext } from "@/components/krew/KrewThinkingState";
 import { Button } from "@/components/ui/button";
 
 type KrewJourneyLoadingStateProps = {
   context?: KrewThinkingContext;
   message?: string;
+  size?: KrewPageShellSize;
+  /** @deprecated Prefer `size` for semantic shell ownership. */
   maxWidthClassName?: string;
 };
 
@@ -17,24 +20,39 @@ type KrewJourneyErrorStateProps = {
   description: string;
   onRetry: () => void;
   retrying?: boolean;
+  size?: KrewPageShellSize;
+  /** @deprecated Prefer `size` for semantic shell ownership. */
   maxWidthClassName?: string;
   returnLabel?: "Retour au parcours" | "Retour au voyage";
 };
 
-const DEFAULT_WIDTH = "max-w-5xl";
+function semanticSizeForLegacyWidth(maxWidthClassName?: string): KrewPageShellSize | undefined {
+  return maxWidthClassName === "max-w-[820px]" ? "form" : undefined;
+}
 
 export function KrewJourneyLoadingState({
   context = "generic",
   message,
-  maxWidthClassName = DEFAULT_WIDTH,
+  size = "standard",
+  maxWidthClassName,
 }: KrewJourneyLoadingStateProps) {
+  const legacySemanticSize = semanticSizeForLegacyWidth(maxWidthClassName);
+
+  if (maxWidthClassName && !legacySemanticSize) {
+    return (
+      <main
+        data-krew-journey-loading
+        className={`mx-auto w-full ${maxWidthClassName} px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}
+      >
+        <KrewThinkingState context={context} customMessage={message} delayMs={0} />
+      </main>
+    );
+  }
+
   return (
-    <main
-      data-krew-journey-loading
-      className={`mx-auto w-full ${maxWidthClassName} px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}
-    >
+    <KrewPageShell data-krew-journey-loading size={legacySemanticSize ?? size} className="py-8 sm:py-10">
       <KrewThinkingState context={context} customMessage={message} delayMs={0} />
-    </main>
+    </KrewPageShell>
   );
 }
 
@@ -44,14 +62,12 @@ export function KrewJourneyErrorState({
   description,
   onRetry,
   retrying = false,
-  maxWidthClassName = DEFAULT_WIDTH,
+  size = "standard",
+  maxWidthClassName,
   returnLabel = "Retour au parcours",
 }: KrewJourneyErrorStateProps) {
-  return (
-    <main
-      data-krew-journey-error
-      className={`mx-auto w-full ${maxWidthClassName} space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}
-    >
+  const content = (
+    <>
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -80,6 +96,25 @@ export function KrewJourneyErrorState({
       >
         <p>{description}</p>
       </KrewJourneyStatusPanel>
-    </main>
+    </>
+  );
+
+  const legacySemanticSize = semanticSizeForLegacyWidth(maxWidthClassName);
+
+  if (maxWidthClassName && !legacySemanticSize) {
+    return (
+      <main
+        data-krew-journey-error
+        className={`mx-auto w-full ${maxWidthClassName} space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}
+      >
+        {content}
+      </main>
+    );
+  }
+
+  return (
+    <KrewPageShell data-krew-journey-error size={legacySemanticSize ?? size} className="space-y-8 py-8 sm:py-10">
+      {content}
+    </KrewPageShell>
   );
 }

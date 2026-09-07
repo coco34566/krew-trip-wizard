@@ -16,7 +16,7 @@
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test golden-trip-flow.spec.ts cleanup-e2e-trips.spec.ts --project=mobile-safari",
     "test:e2e:full": "playwright test full-trip-flow.spec.ts --project=mobile-safari",
-    "test:e2e:visual": "playwright test journey-visual-audit.spec.ts reference-surfaces-visual-audit.spec.ts",
+    "test:e2e:visual": "playwright test journey-visual-audit.spec.ts reference-surfaces-visual-audit.spec.ts join-visual-audit.spec.ts",
     "test:ci": "npm run test:unit && npm run test:e2e:smoke"
   },
   "dependencies": {

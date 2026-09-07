@@ -10,12 +10,13 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
-import reviewCss from "../krew-ux-review.css?url";
-import reviewDetailsCss from "../krew-ux-review-details.css?url";
-import journeyPagesCss from "../krew-journey-pages.css?url";
-import journeyPagesRefinementWavefixCss from "../krew-journey-pages-refinement-wavefix.css?url";
-import visualBaselineCss from "../krew-visual-baseline.css?url";
-import journeyAlignmentCss from "../krew-journey-alignment.css?url";
+import designTokensCss from "../krew-design-tokens.css?url";
+import pageCompatCss from "../styles/krew-page-compat.css?url";
+import krewNoteCss from "../styles/krew-note.css?url";
+import availabilityCss from "../styles/krew-availability.css?url";
+import preferencesCss from "../styles/krew-preferences.css?url";
+import tripHubCss from "../styles/krew-trip-hub.css?url";
+import mesVoyagesCss from "../styles/krew-mes-voyages.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { CookieConsent } from "@/components/krew/CookieConsent";
 import { Button } from "@/components/ui/button";
@@ -83,12 +84,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "stylesheet", href: reviewCss },
-      { rel: "stylesheet", href: reviewDetailsCss },
-      { rel: "stylesheet", href: journeyPagesCss },
-      { rel: "stylesheet", href: journeyPagesRefinementWavefixCss },
-      { rel: "stylesheet", href: visualBaselineCss },
-      { rel: "stylesheet", href: journeyAlignmentCss },
+      { rel: "stylesheet", href: designTokensCss },
+      { rel: "stylesheet", href: pageCompatCss },
+      { rel: "stylesheet", href: krewNoteCss },
+      { rel: "stylesheet", href: availabilityCss },
+      { rel: "stylesheet", href: preferencesCss },
+      { rel: "stylesheet", href: tripHubCss },
+      { rel: "stylesheet", href: mesVoyagesCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Kalam:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" },

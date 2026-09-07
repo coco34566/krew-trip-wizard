@@ -1,0 +1,344 @@
+name: One-shot TripHub zero-diff migration
+
+on:
+  push:
+    branches:
+      - audit/css-baseline-safety
+    paths:
+      - .github/workflows/one-shot-triphub-migration.yml
+
+permissions:
+  contents: write
+  deployments: read
+
+jobs:
+  migrate-validate-promote:
+    if: github.event.head_commit.message == 'ci: stage TripHub zero-diff candidate migration'
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      TARGET_BRANCH: audit/css-baseline-safety
+      KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
+      KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
+      KREW_E2E_API_MODE: safe
+    steps:
+      - name: Checkout migration parent
+        uses: actions/checkout@v4
+        with:
+          ref: audit/css-baseline-safety
+          fetch-depth: 80
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve current rendered baseline
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const { appendFileSync } = require('node:fs');
+
+          const commits = execFileSync('git', ['rev-list', 'HEAD'], { encoding: 'utf8' }).trim().split(/\n+/);
+          const neutral = (files) => files.length > 0 && files.every((file) =>
+            file.startsWith('.github/') || file.startsWith('docs/') || file.startsWith('tests/'),
+          );
+          let beforeSha = '';
+          for (const sha of commits) {
+            const files = execFileSync('git', ['diff-tree', '--no-commit-id', '--name-only', '-r', sha], { encoding: 'utf8' })
+              .trim().split(/\n+/).filter(Boolean);
+            if (!neutral(files)) {
+              beforeSha = sha;
+              break;
+            }
+          }
+          if (!beforeSha) throw new Error('Unable to resolve current app-affecting baseline commit');
+
+          const headers = {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${process.env.GH_TOKEN}`,
+            'X-GitHub-Api-Version': '2022-11-28',
+          };
+          const api = async (path) => {
+            const response = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}${path}`, { headers });
+            if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
+            return response.json();
+          };
+          const findReadyUrl = async (sha) => {
+            const deployments = await api(`/deployments?sha=${sha}&per_page=20`);
+            for (const deployment of deployments) {
+              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
+              const ready = statuses.find((status) =>
+                status.state === 'success' && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ''),
+              );
+              if (ready) return ready.environment_url.replace(/\/$/, '');
+            }
+            return '';
+          };
+          const wait = async () => {
+            for (let attempt = 0; attempt < 18; attempt += 1) {
+              const url = await findReadyUrl(beforeSha);
+              if (url) return url;
+              await new Promise((resolve) => setTimeout(resolve, 10_000));
+            }
+            throw new Error(`No READY Vercel baseline for ${beforeSha}`);
+          };
+          const beforeUrl = await wait();
+          appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BEFORE_SHA=${beforeSha}\nKREW_E2E_BEFORE_URL=${beforeUrl}\n`);
+          console.log(`Baseline app commit: ${beforeSha}`);
+          console.log(`Baseline preview: ${beforeUrl}`);
+          NODE
+
+      - name: Capture TypeScript baseline
+        run: |
+          npx tsc --noEmit > /tmp/tsc-before.log 2>&1 || true
+          sed -E 's/\([0-9]+,[0-9]+\)//g' /tmp/tsc-before.log | sort -u > /tmp/tsc-before.norm
+
+      - name: Apply exact TripHub shell migration
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replaceOnce(path, from, to, label) {
+            let source = fs.readFileSync(path, 'utf8');
+            const count = source.split(from).length - 1;
+            if (count !== 1) throw new Error(`${label}: expected exactly one match in ${path}, found ${count}`);
+            source = source.replace(from, to);
+            fs.writeFileSync(path, source);
+          }
+
+          const shell = 'src/components/krew/KrewPageShell.tsx';
+          replaceOnce(
+            shell,
+            'export type KrewPageShellSize = "form" | "standard" | "wide" | "site";\n\ntype KrewPageShellProps = ComponentPropsWithoutRef<"main"> & {\n  size?: KrewPageShellSize;\n};',
+            'export type KrewPageShellSize = "form" | "standard" | "wide" | "site";\nexport type KrewPageShellGutter = "default" | "compact";\n\ntype KrewPageShellProps = ComponentPropsWithoutRef<"main"> & {\n  size?: KrewPageShellSize;\n  gutter?: KrewPageShellGutter;\n};',
+            'shell gutter type',
+          );
+          replaceOnce(
+            shell,
+            'export function KrewPageShell({\n  size = "standard",\n  className,',
+            'export function KrewPageShell({\n  size = "standard",\n  gutter = "default",\n  className,',
+            'shell gutter default',
+          );
+          replaceOnce(
+            shell,
+            '      data-krew-page-size={size}\n      className={cn("krew-page-shell", className)}',
+            '      data-krew-page-size={size}\n      data-krew-page-gutter={gutter}\n      className={cn("krew-page-shell", className)}',
+            'shell gutter attribute',
+          );
+
+          const tokens = 'src/krew-design-tokens.css';
+          replaceOnce(
+            tokens,
+            '  --krew-reading-width: 42rem;\n\n  /* Shared component radii */',
+            '  --krew-reading-width: 42rem;\n\n  /* Semantic horizontal gutters. Compact preserves the current TripHub 16px gutter. */\n  --krew-page-padding-x-compact: 16px;\n\n  /* Shared component radii */',
+            'compact gutter token',
+          );
+          replaceOnce(
+            tokens,
+            '  padding-inline: var(--krew-page-padding-x);',
+            '  padding-inline: var(--krew-page-shell-padding-x, var(--krew-page-padding-x));',
+            'shell padding indirection',
+          );
+          let tokenSource = fs.readFileSync(tokens, 'utf8');
+          if (tokenSource.includes('[data-krew-page-gutter="compact"]')) throw new Error('compact gutter selector already exists');
+          tokenSource = tokenSource.trimEnd() + '\n\n.krew-page-shell[data-krew-page-gutter="compact"] {\n  --krew-page-shell-padding-x: var(--krew-page-padding-x-compact);\n}\n';
+          fs.writeFileSync(tokens, tokenSource);
+
+          const route = 'src/routes/_authenticated/trips.$tripId.index.tsx';
+          replaceOnce(
+            route,
+            'import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";\n',
+            'import { TripHubDashboard } from "@/components/krew/TripHubDashboard.entry";\nimport { KrewPageShell } from "@/components/krew/KrewPageShell";\n',
+            'TripHub shell import',
+          );
+          replaceOnce(
+            route,
+            '  if (isLoading || !data) {\n    return (\n      <main className="mx-auto max-w-5xl space-y-4 px-4 py-10">\n        <Skeleton className="h-10 w-2/3" />\n        <Skeleton className="h-64 rounded-3xl" />\n      </main>\n    );\n  }',
+            '  if (isLoading || !data) {\n    return (\n      <KrewPageShell\n        size="standard"\n        gutter="compact"\n        data-krew-page-surface="trip-hub"\n        className="space-y-4 py-10"\n      >\n        <Skeleton className="h-10 w-2/3" />\n        <Skeleton className="h-64 rounded-3xl" />\n      </KrewPageShell>\n    );\n  }',
+            'TripHub loading shell',
+          );
+          replaceOnce(
+            route,
+            '    <main className="mx-auto max-w-5xl px-4 py-10">',
+            '    <KrewPageShell size="standard" gutter="compact" data-krew-page-surface="trip-hub" className="py-10">',
+            'TripHub page shell opening',
+          );
+          let routeSource = fs.readFileSync(route, 'utf8');
+          const closing = '    </main>\n  );\n}\n';
+          const closeIndex = routeSource.lastIndexOf(closing);
+          if (closeIndex < 0) throw new Error('TripHub page shell closing marker not found');
+          routeSource = routeSource.slice(0, closeIndex) + '    </KrewPageShell>\n  );\n}\n' + routeSource.slice(closeIndex + closing.length);
+          fs.writeFileSync(route, routeSource);
+
+          const dashboard = 'src/components/krew/TripHubDashboard.tsx';
+          replaceOnce(
+            dashboard,
+            'className="relative overflow-visible -mx-4 sm:mx-0 pb-2"',
+            'className="relative overflow-visible krew-trip-hub-hero-bleed pb-2"',
+            'TripHub hero bleed token owner',
+          );
+          replaceOnce(
+            dashboard,
+            'className="relative z-20 -mt-10 px-4 pt-2"',
+            'className="relative z-20 -mt-10 krew-trip-hub-gutter-x pt-2"',
+            'TripHub hero inner gutter token owner',
+          );
+          replaceOnce(
+            dashboard,
+            'className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5 px-4 sm:gap-5"',
+            'className="mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2.5 krew-trip-hub-gutter-x sm:gap-5"',
+            'TripHub metadata gutter token owner',
+          );
+
+          const ownerCss = 'src/styles/krew-trip-hub.css';
+          let ownerSource = fs.readFileSync(ownerCss, 'utf8');
+          if (ownerSource.includes('.krew-trip-hub-gutter-x')) throw new Error('TripHub gutter owner styles already exist');
+          ownerSource = ownerSource.trimEnd() + `\n\n/* Page-gutter alignment now reads from the canonical compact shell token. */\n[data-krew-dashboard-root="true"] .krew-trip-hub-gutter-x {\n  padding-inline: var(--krew-page-padding-x-compact);\n}\n\n[data-krew-dashboard-root="true"] .krew-trip-hub-hero-bleed {\n  margin-inline: calc(var(--krew-page-padding-x-compact) * -1);\n}\n\n@media (min-width: 640px) {\n  [data-krew-dashboard-root="true"] .krew-trip-hub-hero-bleed {\n    margin-inline: 0;\n  }\n}\n`;
+          fs.writeFileSync(ownerCss, ownerSource);
+
+          const test = 'src/components/krew/KrewPageShell.test.tsx';
+          let testSource = fs.readFileSync(test, 'utf8');
+          const final = '\n});\n';
+          const finalIndex = testSource.lastIndexOf(final);
+          if (finalIndex < 0) throw new Error('KrewPageShell test closing marker not found');
+          const addition = `\n  it("exposes the compact 16px TripHub gutter semantically", () => {\n    render(<KrewPageShell size="standard" gutter="compact">Contenu</KrewPageShell>);\n\n    const shell = screen.getByRole("main");\n    expect(shell).toHaveAttribute("data-krew-page-size", "standard");\n    expect(shell).toHaveAttribute("data-krew-page-gutter", "compact");\n  });\n`;
+          testSource = testSource.slice(0, finalIndex) + addition + testSource.slice(finalIndex);
+          fs.writeFileSync(test, testSource);
+          NODE
+
+      - name: Verify no new TypeScript errors were introduced
+        run: |
+          npx tsc --noEmit > /tmp/tsc-after.log 2>&1 || true
+          sed -E 's/\([0-9]+,[0-9]+\)//g' /tmp/tsc-after.log | sort -u > /tmp/tsc-after.norm
+          comm -13 /tmp/tsc-before.norm /tmp/tsc-after.norm > /tmp/tsc-new-errors.log || true
+          if [ -s /tmp/tsc-new-errors.log ]; then
+            echo 'New TypeScript errors introduced by TripHub migration:'
+            cat /tmp/tsc-new-errors.log
+            exit 1
+          fi
+          echo 'No new normalized TypeScript errors introduced.'
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Verify migration diff is scoped
+        run: |
+          git diff --check
+          git diff --name-only
+          unexpected=$(git diff --name-only | grep -Ev '^(src/components/krew/KrewPageShell\.tsx|src/components/krew/KrewPageShell\.test\.tsx|src/krew-design-tokens\.css|src/routes/_authenticated/trips\.\$tripId\.index\.tsx|src/components/krew/TripHubDashboard\.tsx|src/styles/krew-trip-hub\.css)$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected files changed:"
+            echo "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit and push candidate branch
+        run: |
+          git config user.name "KREW migration bot"
+          git config user.email "actions@users.noreply.github.com"
+          candidate_branch="automation/triphub-zero-diff-${GITHUB_RUN_ID}"
+          git switch -c "$candidate_branch"
+          git add src/components/krew/KrewPageShell.tsx src/components/krew/KrewPageShell.test.tsx src/krew-design-tokens.css src/routes/_authenticated/trips.\$tripId.index.tsx src/components/krew/TripHubDashboard.tsx src/styles/krew-trip-hub.css
+          cat > /tmp/commit-message.txt <<'MSG'
+          refactor(ui): migrate TripHub to semantic page shell
+
+          Zero-visual-diff contract:
+          - 1024px outer width -> KrewPageShell size="standard" (exact match).
+          - 16px page gutter -> semantic gutter="compact" / --krew-page-padding-x-compact: 16px (exact match).
+          - TripHub hero horizontal px-4 / -mx-4 that represented that same 16px gutter now read the compact token (exact match).
+          - Loading state uses the same standard + compact shell geometry as before.
+
+          Intentionally NOT migrated because existing tokens do not match exactly:
+          - Hero H1 remains text-[42px] sm:text-[56px]; --krew-title-hero is 42px -> 50px -> 56px.
+          - Hero leading remains 0.94; --krew-title-leading is 0.98.
+          - tracking-tight remains unchanged; --krew-title-tracking is -0.02em.
+          - mt-6 remains 24px; --krew-content-gap is 28px -> 32px.
+          - space-y-6 sm:space-y-8 remains 24px -> 32px; no existing token has that exact curve.
+
+          Validation gate before promotion to PR #369:
+          - npx tsc --noEmit executed before/after; pre-existing repository debt tolerated, no new normalized errors allowed.
+          - npm test and npm run build must pass.
+          - Pixel comparison must be exactly 0 differing pixels at 375x812, 768x1024, and 1280x900 for TripHub, Mes voyages, and Nouveau voyage.
+          MSG
+          git commit -F /tmp/commit-message.txt
+          candidate_sha=$(git rev-parse HEAD)
+          git push origin "HEAD:refs/heads/$candidate_branch"
+          echo "CANDIDATE_BRANCH=$candidate_branch" >> "$GITHUB_ENV"
+          echo "CANDIDATE_SHA=$candidate_sha" >> "$GITHUB_ENV"
+
+      - name: Wait for exact candidate Vercel preview
+        run: |
+          node <<'NODE'
+          const { appendFileSync } = require('node:fs');
+          const headers = {
+            Accept: 'application/vnd.github+json',
+            Authorization: `Bearer ${process.env.GH_TOKEN}`,
+            'X-GitHub-Api-Version': '2022-11-28',
+          };
+          const api = async (path) => {
+            const response = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}${path}`, { headers });
+            if (!response.ok) throw new Error(`GitHub API ${response.status}: ${path}`);
+            return response.json();
+          };
+          const findReadyUrl = async () => {
+            const deployments = await api(`/deployments?sha=${process.env.CANDIDATE_SHA}&per_page=20`);
+            for (const deployment of deployments) {
+              const statuses = await api(`/deployments/${deployment.id}/statuses?per_page=20`);
+              const ready = statuses.find((status) =>
+                status.state === 'success' && /^https:\/\/[a-z0-9.-]+\.vercel\.app\/?$/i.test(status.environment_url || ''),
+              );
+              if (ready) return ready.environment_url.replace(/\/$/, '');
+            }
+            return '';
+          };
+          for (let attempt = 0; attempt < 36; attempt += 1) {
+            const url = await findReadyUrl();
+            if (url) {
+              appendFileSync(process.env.GITHUB_ENV, `KREW_E2E_BASE_URL=${url}\n`);
+              console.log(`Candidate preview: ${url}`);
+              process.exit(0);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 20_000));
+          }
+          throw new Error(`No READY Vercel preview for candidate ${process.env.CANDIDATE_SHA}`);
+          NODE
+
+      - name: Install Playwright test runner without changing lockfile
+        run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
+
+      - name: Compare candidate to baseline pixel by pixel
+        run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
+
+      - name: Promote validated candidate to PR branch
+        run: |
+          git push origin "$CANDIDATE_SHA:refs/heads/$TARGET_BRANCH"
+          echo "Promoted $CANDIDATE_SHA to $TARGET_BRANCH after zero-pixel-diff validation."
+
+      - name: Upload candidate visual report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: triphub-zero-diff-candidate-report
+          path: |
+            playwright-report/
+            test-results/
+            /tmp/tsc-before.log
+            /tmp/tsc-after.log
+            /tmp/tsc-new-errors.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Delete temporary candidate branch
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -n "${CANDIDATE_BRANCH:-}" ]; then
+            git push origin --delete "$CANDIDATE_BRANCH" || true
+          fi
