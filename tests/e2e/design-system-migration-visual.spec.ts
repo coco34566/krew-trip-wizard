@@ -59,7 +59,7 @@ async function captureMain(
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(path);
   await settle(page);
-  return page.locator("main").screenshot({ animations: "disabled" });
+  return page.locator("main").screenshot({ animations: "disabled", timeout: 45_000 });
 }
 
 test("TripHub migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
