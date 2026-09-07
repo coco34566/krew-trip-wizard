@@ -46,6 +46,19 @@ async function firstTripId(page: Page) {
 
 async function openAuthenticatedPage(browser: Browser, baseURL: string) {
   const context = await browser.newContext({ baseURL });
+  await context.addInitScript(() => {
+    localStorage.setItem("krew-cookie-consent", JSON.stringify({
+      essential: true,
+      analytics: false,
+      personalization: false,
+      advertising: false,
+      retargeting: false,
+      social: false,
+      affiliate: false,
+      date: "1970-01-01T00:00:00.000Z",
+      version: 1,
+    }));
+  });
   const page = await context.newPage();
   await signIn(page);
   return { context, page };
