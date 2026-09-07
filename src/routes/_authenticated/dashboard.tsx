@@ -17,6 +17,7 @@ import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewOrganicBlob } from "@/components/krew/visual-language/KrewOrganicBlob";
 import { KrewPhotoFallback } from "@/components/krew/KrewPhotoFallback";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewNote } from "@/components/krew/visual-language/KrewNote";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -310,7 +311,7 @@ function Dashboard() {
   const hasCompletedTrips = completedTrips.length > 0 || completedInvitations.length > 0;
 
   return (
-    <main className="mx-auto max-w-[1180px] space-y-8 overflow-x-clip overflow-y-visible px-4 py-8 sm:space-y-12 sm:px-6 sm:py-10 lg:px-10">
+    <KrewPageShell size="wide" gutter="wide" data-krew-page-surface="mes-voyages" className="krew-mes-voyages-shell space-y-8 overflow-x-clip overflow-y-visible sm:space-y-12">
       <header className="relative flex min-h-[118px] items-start justify-between gap-4 sm:min-h-[142px]">
         <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-8 -top-6 h-[110px] w-[300px] opacity-45 pointer-events-none" />
         <div className="relative z-10 max-w-[680px]"><div className="relative inline-block"><h1 className="font-display text-[42px] font-normal leading-[.92] tracking-tight text-foreground sm:text-[52px] lg:text-[58px]">Mes voyages</h1><KrewMark type="underline-wave" tone="sage" size="lg" className="absolute -bottom-5 left-1 h-5 w-[150px] opacity-70 sm:w-[190px]" /></div><p className="mt-5 text-sm text-muted-foreground sm:text-base">Ce qui se prépare, ce qui approche et les voyages auxquels tu participes.</p></div>
@@ -328,6 +329,6 @@ function Dashboard() {
           {archivedTrips.length ? <section className="border-t border-dashed border-border/70 pt-7 opacity-75"><SectionHeading note="tu peux les réactiver sans perdre leur organisation">Voyages archivés</SectionHeading><div className="flex flex-wrap items-start justify-center gap-x-9 gap-y-7 md:justify-center">{archivedTrips.map((t, index) => <NotebookTrip key={t.id} trip={t} index={index} onReactivate={(id) => reactivateMutation.mutateAsync(id)} />)}</div></section> : null}
         </div>
       )}
-    </main>
+    </KrewPageShell>
   );
 }
