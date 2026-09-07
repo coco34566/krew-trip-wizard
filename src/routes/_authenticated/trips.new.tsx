@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { createTrip } from "@/lib/trips.functions";
 import {
   EVENT_TYPES,
@@ -159,7 +160,12 @@ function NewTripPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[51.25rem] px-4 pb-12 pt-4 sm:px-6 sm:pb-14 sm:pt-6 lg:px-8">
+    <KrewPageShell
+      size="form"
+      gutter="form"
+      data-krew-page-surface="new-trip"
+      className="pb-12 pt-4 sm:pb-14 sm:pt-6"
+    >
       <Link
         to="/dashboard"
         className="inline-flex min-h-10 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
@@ -172,7 +178,7 @@ function NewTripPage() {
           <div className="min-w-0">
             <p className="mb-2 text-xs font-medium uppercase tracking-[0.15em] text-primary/75">Nouveau voyage</p>
             <div className="relative inline-block max-w-full pb-2">
-              <h1 className="font-display text-[40px] font-normal leading-[0.98] tracking-tight text-foreground sm:text-[50px] lg:text-[52px]">
+              <h1 className="font-display text-[40px] font-normal leading-[var(--krew-title-leading)] tracking-tight text-foreground sm:text-[50px] lg:text-[52px]">
                 On lance la Krew.
               </h1>
               <KrewMark
@@ -426,6 +432,6 @@ function NewTripPage() {
           />
         </div>
       </form>
-    </main>
+    </KrewPageShell>
   );
 }
