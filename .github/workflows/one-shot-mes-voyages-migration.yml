@@ -1,0 +1,144 @@
+name: One-shot Mes voyages migration
+
+on:
+  push:
+    branches: [refactor/mes-voyages-page-shell]
+    paths: [.github/workflows/one-shot-mes-voyages-migration.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Apply exact-match Mes voyages migration
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          # Dashboard: exact 1180px width -> wide shell; exact 16/24/40 gutters -> wide gutter token;
+          # exact 32/40 vertical page padding -> page-y token via semantic page CSS.
+          p = Path('src/routes/_authenticated/dashboard.tsx')
+          s = p.read_text()
+          anchor = 'import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";\n'
+          assert s.count(anchor) == 1
+          s = s.replace(anchor, anchor + 'import { KrewPageShell } from "@/components/krew/KrewPageShell";\n')
+          old = '<main className="mx-auto max-w-[1180px] space-y-8 overflow-x-clip overflow-y-visible px-4 py-8 sm:space-y-12 sm:px-6 sm:py-10 lg:px-10">'
+          new = '<KrewPageShell size="wide" gutter="wide" data-krew-page-surface="mes-voyages" className="krew-mes-voyages-shell space-y-8 overflow-x-clip overflow-y-visible sm:space-y-12">'
+          assert s.count(old) == 1
+          s = s.replace(old, new)
+          assert s.count('</main>') >= 1
+          # The final main close belongs to Dashboard; replace the final occurrence only.
+          idx = s.rfind('</main>')
+          s = s[:idx] + '</KrewPageShell>' + s[idx + len('</main>'):]
+          p.write_text(s)
+
+          # Shell: add exact legacy wide-dashboard gutter role.
+          p = Path('src/components/krew/KrewPageShell.tsx')
+          s = p.read_text()
+          old = 'export type KrewPageShellGutter = "default" | "compact";'
+          new = 'export type KrewPageShellGutter = "default" | "compact" | "wide";'
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, new))
+
+          # Tokens: wide gutter is exactly 16 -> 24 -> 40; do not alter default shell gutters.
+          p = Path('src/krew-design-tokens.css')
+          s = p.read_text()
+          old = '  --krew-page-padding-x-compact: 16px;\n'
+          new = old + '  --krew-page-padding-x-wide: 16px;\n'
+          assert s.count(old) == 1
+          s = s.replace(old, new)
+          old = '    --krew-page-padding-x: 28px;\n'
+          new = old + '    --krew-page-padding-x-wide: 24px;\n'
+          assert s.count(old) == 1
+          s = s.replace(old, new)
+          old = '    --krew-page-padding-x: 32px;\n'
+          new = old + '    --krew-page-padding-x-wide: 40px;\n'
+          assert s.count(old) == 1
+          s = s.replace(old, new)
+          tail = '.krew-page-shell[data-krew-page-gutter="compact"] {\n  --krew-page-shell-padding-x: var(--krew-page-padding-x-compact);\n}'
+          assert s.count(tail) == 1
+          s = s.replace(tail, tail + '\n\n.krew-page-shell[data-krew-page-gutter="wide"] {\n  --krew-page-shell-padding-x: var(--krew-page-padding-x-wide);\n}')
+          p.write_text(s)
+
+          # Preserve legacy Mes voyages selectors exactly, but target semantic surface instead of width inference.
+          p = Path('src/styles.css')
+          s = p.read_text()
+          needle = 'main[class*="max-w-[1180px]"]'
+          assert s.count(needle) >= 10, s.count(needle)
+          p.write_text(s.replace(needle, '[data-krew-page-surface="mes-voyages"]'))
+
+          p = Path('src/styles/krew-mobile-review.css')
+          s = p.read_text()
+          needle = 'main[class*="max-w-[1180px]"]'
+          assert s.count(needle) == 1, s.count(needle)
+          p.write_text(s.replace(needle, '[data-krew-page-surface="mes-voyages"]'))
+
+          # Dedicated page owner carries the exact vertical page padding token.
+          p = Path('src/styles/krew-mes-voyages.css')
+          s = p.read_text()
+          addition = '''\n.krew-mes-voyages-shell {\n  padding-block: var(--krew-page-padding-y);\n}\n'''
+          assert '.krew-mes-voyages-shell' not in s
+          p.write_text(s.rstrip() + '\n' + addition)
+
+          # Dedicated zero-pixel before/after proof for Mes voyages, same contract as TripHub.
+          p = Path('tests/e2e/design-system-migration-visual.spec.ts')
+          s = p.read_text()
+          marker = 'test("TripHub migration remains pixel-identical at contract reference viewports"'
+          assert marker in s
+          append = r'''
+
+test("Mes voyages migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+  test.setTimeout(360_000);
+  expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
+  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+
+  const current = await openAuthenticatedPage(browser, CURRENT_URL);
+  const before = await openAuthenticatedPage(browser, BEFORE_URL);
+
+  try {
+    for (const viewport of VIEWPORTS) {
+      const currentScreenshot = await captureMain(current.page, "/dashboard", viewport);
+      await testInfo.attach(`after-${viewport.name}-mes-voyages`, {
+        body: currentScreenshot,
+        contentType: "image/png",
+      });
+
+      const beforeScreenshot = await captureMain(before.page, "/dashboard", viewport);
+      await testInfo.attach(`before-${viewport.name}-mes-voyages`, {
+        body: beforeScreenshot,
+        contentType: "image/png",
+      });
+
+      const snapshotName = `runtime-before-${viewport.name}-mes-voyages.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      writeFileSync(snapshotPath, beforeScreenshot);
+
+      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+        threshold: 0,
+        maxDiffPixels: 0,
+      });
+    }
+  } finally {
+    await current.context.close();
+    await before.context.close();
+  }
+});
+'''
+          assert 'Mes voyages migration remains pixel-identical' not in s
+          p.write_text(s.rstrip() + append + '\n')
+          PY
+
+          git diff --check
+          git status --short
+          git config user.name "KREW Migration Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/routes/_authenticated/dashboard.tsx src/components/krew/KrewPageShell.tsx src/krew-design-tokens.css src/styles.css src/styles/krew-mobile-review.css src/styles/krew-mes-voyages.css tests/e2e/design-system-migration-visual.spec.ts
+          git commit -m "refactor(ui): migrate Mes voyages to KrewPageShell" -m "Exact-match migrations: 1180px -> size=wide; gutters 16/24/40 -> wide compatibility token; vertical page padding 32/40 -> existing page-y token. H1 42/52/58 and page stack 32/48 remain hard-coded because no token matches exactly. Legacy Mes voyages width-inferred selectors now target data-krew-page-surface=mes-voyages without changing their declarations. Adds zero-pixel before/after proof at 390x844, 834x1112 and 1440x1000."
+          git push origin HEAD:refactor/mes-voyages-page-shell
