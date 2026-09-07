@@ -62,6 +62,17 @@ async function captureMain(
   return page.locator("main").screenshot({ animations: "disabled", timeout: 45_000 });
 }
 
+async function captureFullPage(
+  page: Page,
+  path: string,
+  viewport: (typeof VIEWPORTS)[number],
+) {
+  await page.setViewportSize({ width: viewport.width, height: viewport.height });
+  await page.goto(path);
+  await settle(page);
+  return page.screenshot({ animations: "disabled", fullPage: true, timeout: 45_000 });
+}
+
 test("TripHub migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
@@ -201,13 +212,13 @@ test("Dates shell remains pixel-identical at contract reference viewports", asyn
   try {
     for (const viewport of VIEWPORTS) {
       const path = `/trips/${tripId}/dates`;
-      const currentScreenshot = await captureMain(current.page, path, viewport);
+      const currentScreenshot = await captureFullPage(current.page, path, viewport);
       await testInfo.attach(`after-${viewport.name}-dates`, {
         body: currentScreenshot,
         contentType: "image/png",
       });
 
-      const beforeScreenshot = await captureMain(before.page, path, viewport);
+      const beforeScreenshot = await captureFullPage(before.page, path, viewport);
       await testInfo.attach(`before-${viewport.name}-dates`, {
         body: beforeScreenshot,
         contentType: "image/png",
