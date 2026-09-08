@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
@@ -132,7 +133,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   const groupWindow = groupWindowQuery.data as any;
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+    <KrewPageShell size="standard" className="space-y-8 py-8 sm:py-10">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -363,6 +364,6 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
           </Button>
         ) : null}
       </div>
-    </main>
+    </KrewPageShell>
   );
 }
