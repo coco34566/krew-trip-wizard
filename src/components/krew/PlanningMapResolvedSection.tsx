@@ -308,7 +308,13 @@ export function PlanningMapSection({ tripId }: { tripId: string }) {
   if (!payload?.hasPlanning && !failed) return null;
 
   return (
-    <section className="mx-auto max-w-5xl px-4 pb-12" aria-labelledby="planning-map-title">
+    <section
+      data-krew-page-shell
+      data-krew-page-size="standard"
+      data-krew-page-gutter="compact"
+      className="krew-page-shell pb-12"
+      aria-labelledby="planning-map-title"
+    >
       <div className="overflow-hidden rounded-[24px] border border-primary/10 bg-card shadow-[0_18px_48px_rgba(55,34,50,0.06)]">
         <div className="relative px-4 pb-4 pt-5 sm:px-6 sm:pb-5 sm:pt-6">
           <KrewMark type="sparkle" tone="sage" size="sm" className="pointer-events-none absolute right-5 top-4 hidden opacity-60 sm:block" />
