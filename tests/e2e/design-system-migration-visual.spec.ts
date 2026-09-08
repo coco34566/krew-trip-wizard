@@ -26,6 +26,11 @@ async function settle(page: Page) {
         transition: none !important;
         caret-color: transparent !important;
       }
+      vercel-live-feedback,
+      #vercel-toolbar,
+      iframe[src*="vercel.live"] {
+        display: none !important;
+      }
     `,
   });
   await page.waitForTimeout(250);
