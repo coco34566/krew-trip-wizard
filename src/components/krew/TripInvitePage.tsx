@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewIcon } from "@/components/krew/visual-language";
 import { useKrewTripAvatars } from "@/hooks/useKrewTripAvatars";
 import { getTripInviteLink, rotateTripInviteLink } from "@/lib/join.functions";
@@ -142,13 +143,13 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
 
   if (detailQuery.isLoading) {
     return (
-      <main className="mx-auto w-full max-w-[820px] px-4 py-10">
+      <KrewPageShell data-krew-invite-page size="form" gutter="narrow" className="py-10">
         <KrewThinkingState context="generic" customMessage="Chargement des invitations…" delayMs={0} />
-      </main>
+      </KrewPageShell>
     );
   }
   if (!data || !trip || detailQuery.isError) {
-    return <main className="mx-auto max-w-[820px] px-4 py-10 text-sm text-muted-foreground">Impossible de charger les invitations.</main>;
+    return <KrewPageShell data-krew-invite-page size="form" gutter="narrow" className="py-10 text-sm text-muted-foreground">Impossible de charger les invitations.</KrewPageShell>;
   }
 
   const rawParticipants = (data.participants ?? []) as any[];
@@ -180,7 +181,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
   }));
 
   return (
-    <main className="mx-auto w-full max-w-[820px] space-y-8 px-4 py-8 sm:px-6 sm:py-10">
+    <KrewPageShell data-krew-invite-page size="form" gutter="narrow" className="space-y-8 py-8 sm:py-10">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -303,6 +304,6 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       ) : (
         <p className="border-t border-border/50 pt-6 text-sm text-muted-foreground">Tu peux consulter le groupe ici. Les invitations et les rôles sont gérés par l’organisateur·rice.</p>
       )}
-    </main>
+    </KrewPageShell>
   );
 }

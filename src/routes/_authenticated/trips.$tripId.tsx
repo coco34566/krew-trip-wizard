@@ -265,7 +265,12 @@ function CompletedPreparationGate({
   if (externalStatus) {
     return (
       <>
-        <div className="mx-auto mt-8 w-full max-w-5xl px-5 sm:px-7 lg:px-8">
+        <div
+          data-krew-page-shell
+          data-krew-page-size="standard"
+          data-krew-page-gutter="default"
+          className="krew-page-shell mt-8"
+        >
           {completedStatus}
         </div>
         <div inert className="opacity-90">
