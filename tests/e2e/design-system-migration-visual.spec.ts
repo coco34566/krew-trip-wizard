@@ -516,3 +516,48 @@ test("Planning surface remains pixel-identical at contract reference viewports",
     await before.context.close();
   }
 });
+
+for (const surface of [
+  { name: "Availability", slug: "availability" },
+  { name: "Questionnaire", slug: "questionnaire" },
+  { name: "Star", slug: "star" },
+] as const) {
+  test(`${surface.name} shell remains pixel-identical at contract reference viewports`, async ({ browser }, testInfo) => {
+    test.setTimeout(360_000);
+    expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
+    expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+    const current = await openAuthenticatedPage(browser, CURRENT_URL);
+    const tripId = await firstTripId(current.page);
+    const before = await openAuthenticatedPage(browser, BEFORE_URL);
+
+    try {
+      for (const viewport of VIEWPORTS) {
+        const path = `/trips/${tripId}/${surface.slug}`;
+        const currentScreenshot = await captureJourneySurface(current.page, path, viewport);
+        await testInfo.attach(`after-${viewport.name}-${surface.slug}`, {
+          body: currentScreenshot,
+          contentType: "image/png",
+        });
+
+        const beforeScreenshot = await captureJourneySurface(before.page, path, viewport);
+        await testInfo.attach(`before-${viewport.name}-${surface.slug}`, {
+          body: beforeScreenshot,
+          contentType: "image/png",
+        });
+
+        const snapshotName = `runtime-before-${viewport.name}-${surface.slug}.png`;
+        const snapshotPath = testInfo.snapshotPath(snapshotName);
+        mkdirSync(dirname(snapshotPath), { recursive: true });
+        writeFileSync(snapshotPath, beforeScreenshot);
+
+        expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+          threshold: 0,
+          maxDiffPixels: 0,
+        });
+      }
+    } finally {
+      await current.context.close();
+      await before.context.close();
+    }
+  });
+}
