@@ -335,3 +335,42 @@ test("Tasks shell remains pixel-identical at contract reference viewports", asyn
     await before.context.close();
   }
 });
+
+test("Transport shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+  test.setTimeout(360_000);
+  expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
+  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+  const current = await openAuthenticatedPage(browser, CURRENT_URL);
+  const tripId = await firstTripId(current.page);
+  const before = await openAuthenticatedPage(browser, BEFORE_URL);
+
+  try {
+    for (const viewport of VIEWPORTS) {
+      const path = `/trips/${tripId}/transport`;
+      const currentScreenshot = await captureMain(current.page, path, viewport);
+      await testInfo.attach(`after-${viewport.name}-transport`, {
+        body: currentScreenshot,
+        contentType: "image/png",
+      });
+
+      const beforeScreenshot = await captureMain(before.page, path, viewport);
+      await testInfo.attach(`before-${viewport.name}-transport`, {
+        body: beforeScreenshot,
+        contentType: "image/png",
+      });
+
+      const snapshotName = `runtime-before-${viewport.name}-transport.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      writeFileSync(snapshotPath, beforeScreenshot);
+
+      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+        threshold: 0,
+        maxDiffPixels: 0,
+      });
+    }
+  } finally {
+    await current.context.close();
+    await before.context.close();
+  }
+});
