@@ -76,16 +76,11 @@ async function submitQaSignIn(page: Page, attempt: number) {
   }
 
   const stillOnAuth = /\/auth(?:\?|$)/.test(new URL(page.url()).pathname);
-  const emailValue = stillOnAuth && await email.isVisible().catch(() => false)
-    ? await email.inputValue().catch(() => "")
-    : "";
-  const passwordValue = stillOnAuth && await password.isVisible().catch(() => false)
-    ? await password.inputValue().catch(() => "")
-    : "";
 
-  // A complete remount can clear both fields and re-show cookie consent even though the
-  // submitted credentials were valid. Retry exactly once from a clean UI state.
-  if (attempt === 0 && stillOnAuth && !emailValue && !passwordValue) return false;
+  // Preview authentication can stay on /auth without returning an explicit credential
+  // error (for example after a remount or a transient network response). Retry exactly
+  // once from a clean UI state; explicit authentication failures never reach this branch.
+  if (attempt === 0 && stillOnAuth) return false;
 
   throw new Error(
     `TEST_SETUP: QA sign-in did not reach dashboard after ${attempt + 1} attempt(s) (url=${page.url()})`,
