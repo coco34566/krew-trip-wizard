@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -12,6 +12,10 @@ const VIEWPORTS = [
 
 const CURRENT_URL = (process.env.KREW_E2E_BASE_URL ?? "").replace(/\/$/, "");
 const BEFORE_URL = (process.env.KREW_E2E_BEFORE_URL ?? "").replace(/\/$/, "");
+const AUTHENTICATED_STATES = new Map<
+  string,
+  Awaited<ReturnType<BrowserContext["storageState"]>>
+>();
 
 async function settle(page: Page) {
   await handleNormalUserUi(page);
@@ -50,7 +54,8 @@ async function firstTripId(page: Page) {
 }
 
 async function openAuthenticatedPage(browser: Browser, baseURL: string) {
-  const context = await browser.newContext({ baseURL });
+  const storageState = AUTHENTICATED_STATES.get(baseURL);
+  const context = await browser.newContext({ baseURL, storageState });
   await context.addInitScript(() => {
     localStorage.setItem("krew-cookie-consent", JSON.stringify({
       essential: true,
@@ -65,7 +70,10 @@ async function openAuthenticatedPage(browser: Browser, baseURL: string) {
     }));
   });
   const page = await context.newPage();
-  await signIn(page);
+  if (!storageState) {
+    await signIn(page);
+    AUTHENTICATED_STATES.set(baseURL, await context.storageState());
+  }
   return { context, page };
 }
 
