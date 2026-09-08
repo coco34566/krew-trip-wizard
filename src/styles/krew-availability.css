@@ -1,10 +1,6 @@
-/* Availability-owned visual compatibility rules.
- * Prefer the semantic page hook; keep the legacy selector until the route migration lands. */
+/* Availability-owned visual rules. */
 
-:is(
-  [data-krew-availability-page],
-  main[class*="max-w-[820px]"]:has(#availability-notes)
-) > section:not([data-krew-journey-status]) {
+[data-krew-availability-page] > section:not([data-krew-journey-status]) {
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -13,9 +9,6 @@
   padding-right: 0 !important;
 }
 
-:is(
-  [data-krew-availability-page],
-  main[class*="max-w-[820px]"]:has(#availability-notes)
-) > section:not([data-krew-journey-status]) > .grid {
+[data-krew-availability-page] > section:not([data-krew-journey-status]) > .grid {
   margin-top: 4px;
 }

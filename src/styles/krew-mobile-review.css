@@ -26,11 +26,6 @@
   opacity: 1 !important;
 }
 
-/* Mes voyages: section underlines use the exact same title-to-wave gap as the page title. */
-main[class*="max-w-[1180px]"] h2 + svg[class*="w-[92px]"] {
-  bottom: -1.25rem !important;
-}
-
 /* Résumé du voyage: stage note is the visual replacing the group-section otter. */
 [data-krew-dashboard-stage-note="true"] {
   position: relative;
