@@ -13,6 +13,7 @@ import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewIcon } from "@/components/krew/visual-language";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
@@ -320,12 +321,12 @@ function StarQuestionnaire() {
 
   if (!data.trip.hasStar) {
     return (
-      <main className="mx-auto w-full max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+      <KrewPageShell data-krew-preferences-page size="form" className="space-y-8 py-8 sm:py-10">
         <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
         <KrewJourneyStatusPanel title="Aucune Star pour ce voyage" icon="attention" tone="info">
           <p>Cette étape n’est pas nécessaire pour ce voyage.</p>
         </KrewJourneyStatusPanel>
-      </main>
+      </KrewPageShell>
     );
   }
 
@@ -333,7 +334,7 @@ function StarQuestionnaire() {
   const disabledSetup = !data.trip.isOwner;
 
   return (
-    <main className="mx-auto w-full max-w-[820px] space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+    <KrewPageShell data-krew-preferences-page size="form" className="space-y-8 py-8 sm:py-10">
       <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
 
       <KrewJourneyPageHeader tripName={data.trip.name ?? "Voyage"} title={`Préférences de ${starName}`} otterSrc="/brand/otter-states/preferences.png">
@@ -478,6 +479,6 @@ function StarQuestionnaire() {
           <KrewStatefulButton className="max-w-full" idleLabel={starMode !== "secret" ? "La Star répond elle-même en mode participant" : data.preferences ? "Enregistrer les modifications" : "Enregistrer les préférences de la Star"} loadingLabel="Enregistrement…" successLabel="Préférences enregistrées" errorLabel="Réessayer" disabled={starMode !== "secret"} onAction={() => mutation.mutateAsync()} />
         </div>
       </div>
-    </main>
+    </KrewPageShell>
   );
 }

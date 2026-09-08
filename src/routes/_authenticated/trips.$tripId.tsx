@@ -14,6 +14,7 @@ import {
   KrewJourneyStatusPanel,
 } from "@/components/krew/KrewJourneyStatusPanel";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { TripAccommodationPage } from "@/components/krew/TripAccommodationPage";
 import { TripDatesPage } from "@/components/krew/TripDatesPage";
 import { TripDestinationPage } from "@/components/krew/TripDestinationPage";
@@ -78,6 +79,7 @@ function ClosedResponseState({
   hasPreviousAnswer,
   answeredStatusOverride,
   maxWidthClassName = "max-w-5xl",
+  surface,
   children,
 }: {
   tripId: string;
@@ -88,6 +90,7 @@ function ClosedResponseState({
   hasPreviousAnswer: boolean;
   answeredStatusOverride?: { title: string; content: ReactNode };
   maxWidthClassName?: string;
+  surface?: "availability" | "preferences";
   children: ReactNode;
 }) {
   if (hasPreviousAnswer) {
@@ -107,7 +110,12 @@ function ClosedResponseState({
   }
 
   return (
-    <main className={`mx-auto w-full ${maxWidthClassName} space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8`}>
+    <KrewPageShell
+      size={maxWidthClassName === "max-w-[820px]" ? "form" : "standard"}
+      data-krew-availability-page={surface === "availability" ? true : undefined}
+      data-krew-preferences-page={surface === "preferences" ? true : undefined}
+      className="space-y-8 py-8 sm:py-10"
+    >
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -124,7 +132,7 @@ function ClosedResponseState({
       <KrewJourneyStatusPanel title={`${title} clôturées`} icon="check" tone="complete">
         <p>Les réponses du groupe sont maintenant clôturées car les dates du voyage sont confirmées. Tu n’as rien à compléter pour cette étape.</p>
       </KrewJourneyStatusPanel>
-    </main>
+    </KrewPageShell>
   );
 }
 
@@ -154,6 +162,7 @@ function AvailabilityResponseGate({ tripId, children }: { tripId: string; childr
       otterSrc="/brand/otter-states/availability.png"
       intro="Les dates du voyage sont confirmées. Les réponses de disponibilité sont maintenant en lecture seule."
       maxWidthClassName="max-w-[820px]"
+      surface="availability"
       hasPreviousAnswer={Boolean(data.mine)}
     >
       {children}
@@ -198,6 +207,7 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
       otterSrc="/brand/otter-states/preferences.png"
       intro="Les dates du voyage sont confirmées. Les préférences du groupe sont maintenant en lecture seule."
       maxWidthClassName="max-w-[820px]"
+      surface="preferences"
       hasPreviousAnswer={Boolean(data.preferences)}
       answeredStatusOverride={{
         title: "Préférences clôturées",
