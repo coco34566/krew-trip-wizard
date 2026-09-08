@@ -58,4 +58,12 @@ describe("KrewPageShell", () => {
     expect(shell).toHaveAttribute("data-krew-page-gutter", "compact");
   });
 
+  it("exposes the 16 to 24px narrow gutter semantically", () => {
+    render(<KrewPageShell size="form" gutter="narrow">Contenu</KrewPageShell>);
+
+    const shell = screen.getByRole("main");
+    expect(shell).toHaveAttribute("data-krew-page-size", "form");
+    expect(shell).toHaveAttribute("data-krew-page-gutter", "narrow");
+  });
+
 });

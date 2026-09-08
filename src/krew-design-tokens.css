@@ -15,6 +15,7 @@
 
   /* Semantic horizontal gutters. Compatibility variants preserve validated page families exactly. */
   --krew-page-padding-x-compact: 16px;
+  --krew-page-padding-x-narrow: 16px;
   --krew-page-padding-x-form: 16px;
   --krew-page-padding-x-wide: 16px;
 
@@ -65,6 +66,7 @@
 @media (min-width: 640px) {
   :root {
     --krew-page-padding-x: 28px;
+    --krew-page-padding-x-narrow: 24px;
     --krew-page-padding-x-form: 24px;
     --krew-page-padding-x-wide: 24px;
     --krew-page-padding-y: 40px;
@@ -129,6 +131,10 @@
 
 .krew-page-shell[data-krew-page-gutter="compact"] {
   --krew-page-shell-padding-x: var(--krew-page-padding-x-compact);
+}
+
+.krew-page-shell[data-krew-page-gutter="narrow"] {
+  --krew-page-shell-padding-x: var(--krew-page-padding-x-narrow);
 }
 
 .krew-page-shell[data-krew-page-gutter="form"] {

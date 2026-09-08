@@ -3,7 +3,7 @@ import { type ComponentPropsWithoutRef } from "react";
 import { cn } from "@/lib/utils";
 
 export type KrewPageShellSize = "form" | "standard" | "wide" | "site";
-export type KrewPageShellGutter = "default" | "compact" | "form" | "wide";
+export type KrewPageShellGutter = "default" | "compact" | "narrow" | "form" | "wide";
 
 type KrewPageShellProps = ComponentPropsWithoutRef<"main"> & {
   size?: KrewPageShellSize;
