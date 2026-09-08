@@ -99,6 +99,23 @@ async function captureFullPage(
   return page.screenshot({ animations: "disabled", fullPage: true, timeout: 45_000 });
 }
 
+async function captureJourneySurface(
+  page: Page,
+  path: string,
+  viewport: (typeof VIEWPORTS)[number],
+) {
+  await page.setViewportSize({ width: viewport.width, height: viewport.height });
+  await page.goto(path);
+  await settle(page);
+  return page.screenshot({
+    animations: "disabled",
+    fullPage: true,
+    mask: [page.locator("header").first()],
+    maskColor: "#ffffff",
+    timeout: 45_000,
+  });
+}
+
 test("TripHub migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
@@ -446,6 +463,45 @@ test("Accommodation shell remains pixel-identical at contract reference viewport
       });
 
       const snapshotName = `runtime-before-${viewport.name}-accommodation.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      writeFileSync(snapshotPath, beforeScreenshot);
+
+      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+        threshold: 0,
+        maxDiffPixels: 0,
+      });
+    }
+  } finally {
+    await current.context.close();
+    await before.context.close();
+  }
+});
+
+test("Planning surface remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+  test.setTimeout(360_000);
+  expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
+  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+  const current = await openAuthenticatedPage(browser, CURRENT_URL);
+  const tripId = await firstTripId(current.page);
+  const before = await openAuthenticatedPage(browser, BEFORE_URL);
+
+  try {
+    for (const viewport of VIEWPORTS) {
+      const path = `/trips/${tripId}/planning`;
+      const currentScreenshot = await captureJourneySurface(current.page, path, viewport);
+      await testInfo.attach(`after-${viewport.name}-planning`, {
+        body: currentScreenshot,
+        contentType: "image/png",
+      });
+
+      const beforeScreenshot = await captureJourneySurface(before.page, path, viewport);
+      await testInfo.attach(`before-${viewport.name}-planning`, {
+        body: beforeScreenshot,
+        contentType: "image/png",
+      });
+
+      const snapshotName = `runtime-before-${viewport.name}-planning.png`;
       const snapshotPath = testInfo.snapshotPath(snapshotName);
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
