@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import { KrewJourneyPageHeader } from "@/components/krew/KrewJourneyPageHeader";
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewMark } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
@@ -258,7 +259,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
       : "Les tâches du groupe";
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-8 px-5 py-8 sm:px-7 sm:py-10 lg:px-8">
+    <KrewPageShell size="standard" className="space-y-8 py-8 sm:py-10">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -417,6 +418,6 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
           />
         </div>
       ) : null}
-    </main>
+    </KrewPageShell>
   );
 }

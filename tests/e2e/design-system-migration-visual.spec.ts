@@ -26,6 +26,11 @@ async function settle(page: Page) {
         transition: none !important;
         caret-color: transparent !important;
       }
+      vercel-live-feedback,
+      #vercel-toolbar,
+      iframe[src*="vercel.live"] {
+        display: none !important;
+      }
     `,
   });
   await page.waitForTimeout(250);
@@ -46,6 +51,19 @@ async function firstTripId(page: Page) {
 
 async function openAuthenticatedPage(browser: Browser, baseURL: string) {
   const context = await browser.newContext({ baseURL });
+  await context.addInitScript(() => {
+    localStorage.setItem("krew-cookie-consent", JSON.stringify({
+      essential: true,
+      analytics: false,
+      personalization: false,
+      advertising: false,
+      retargeting: false,
+      social: false,
+      affiliate: false,
+      date: "1970-01-01T00:00:00.000Z",
+      version: 1,
+    }));
+  });
   const page = await context.newPage();
   await signIn(page);
   return { context, page };
@@ -264,6 +282,45 @@ test("Profile shell remains pixel-identical at contract reference viewports", as
       });
 
       const snapshotName = `runtime-before-${viewport.name}-profile.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      writeFileSync(snapshotPath, beforeScreenshot);
+
+      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+        threshold: 0,
+        maxDiffPixels: 0,
+      });
+    }
+  } finally {
+    await current.context.close();
+    await before.context.close();
+  }
+});
+
+test("Tasks shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+  test.setTimeout(360_000);
+  expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
+  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+  const current = await openAuthenticatedPage(browser, CURRENT_URL);
+  const tripId = await firstTripId(current.page);
+  const before = await openAuthenticatedPage(browser, BEFORE_URL);
+
+  try {
+    for (const viewport of VIEWPORTS) {
+      const path = `/trips/${tripId}/tasks`;
+      const currentScreenshot = await captureMain(current.page, path, viewport);
+      await testInfo.attach(`after-${viewport.name}-tasks`, {
+        body: currentScreenshot,
+        contentType: "image/png",
+      });
+
+      const beforeScreenshot = await captureMain(before.page, path, viewport);
+      await testInfo.attach(`before-${viewport.name}-tasks`, {
+        body: beforeScreenshot,
+        contentType: "image/png",
+      });
+
+      const snapshotName = `runtime-before-${viewport.name}-tasks.png`;
       const snapshotPath = testInfo.snapshotPath(snapshotName);
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
