@@ -7,7 +7,7 @@ import { KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState
 import { KrewPageShell } from "@/components/krew/KrewPageShell";
 
 describe("KrewPageShell", () => {
-  it.each(["form", "standard", "wide", "site"] as const)(
+  it.each(["form", "standard", "story", "wide", "site"] as const)(
     "exposes the %s semantic page size without encoding a Tailwind width",
     (size) => {
       render(<KrewPageShell size={size}>Contenu</KrewPageShell>);

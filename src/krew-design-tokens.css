@@ -9,6 +9,7 @@
   /* Semantic page widths */
   --krew-page-width-form: 820px;
   --krew-page-width-standard: 1024px;
+  --krew-page-width-story: 1020px;
   --krew-page-width-wide: 1180px;
   --krew-page-width-site: 1280px;
   --krew-reading-width: 42rem;
@@ -119,6 +120,10 @@
 
 .krew-page-shell[data-krew-page-size="standard"] {
   --krew-page-shell-width: var(--krew-page-width-standard);
+}
+
+.krew-page-shell[data-krew-page-size="story"] {
+  --krew-page-shell-width: var(--krew-page-width-story);
 }
 
 .krew-page-shell[data-krew-page-size="wide"] {

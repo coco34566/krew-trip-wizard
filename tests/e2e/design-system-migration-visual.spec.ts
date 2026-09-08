@@ -110,7 +110,7 @@ async function captureJourneySurface(
   return page.screenshot({
     animations: "disabled",
     fullPage: true,
-    mask: [page.locator("header").first()],
+    mask: [page.locator("header.sticky.top-0.z-40").first()],
     maskColor: "#ffffff",
     timeout: 45_000,
   });
@@ -585,6 +585,128 @@ test("Invite surface remains pixel-identical at contract reference viewports", a
       });
 
       const snapshotName = `runtime-before-${viewport.name}-invite.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      writeFileSync(snapshotPath, beforeScreenshot);
+
+      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+        threshold: 0,
+        maxDiffPixels: 0,
+      });
+    }
+  } finally {
+    await current.context.close();
+    await before.context.close();
+  }
+});
+
+test("Recap surface remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+  test.setTimeout(360_000);
+  expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
+  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+  const current = await openAuthenticatedPage(browser, CURRENT_URL);
+  const tripId = await firstTripId(current.page);
+  const before = await openAuthenticatedPage(browser, BEFORE_URL);
+
+  try {
+    for (const viewport of VIEWPORTS) {
+      const path = `/trips/${tripId}/recap`;
+      const currentScreenshot = await captureJourneySurface(current.page, path, viewport);
+      await testInfo.attach(`after-${viewport.name}-recap`, {
+        body: currentScreenshot,
+        contentType: "image/png",
+      });
+
+      const beforeScreenshot = await captureJourneySurface(before.page, path, viewport);
+      await testInfo.attach(`before-${viewport.name}-recap`, {
+        body: beforeScreenshot,
+        contentType: "image/png",
+      });
+
+      const snapshotName = `runtime-before-${viewport.name}-recap.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      writeFileSync(snapshotPath, beforeScreenshot);
+
+      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+        threshold: 0,
+        maxDiffPixels: 0,
+      });
+    }
+  } finally {
+    await current.context.close();
+    await before.context.close();
+  }
+});
+
+test("Account surface remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+  test.setTimeout(360_000);
+  expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
+  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+  const current = await openAuthenticatedPage(browser, CURRENT_URL);
+  const before = await openAuthenticatedPage(browser, BEFORE_URL);
+
+  try {
+    for (const viewport of VIEWPORTS) {
+      const snapshotName = `runtime-before-${viewport.name}-account.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      let currentScreenshot = await captureJourneySurface(current.page, "/account", viewport);
+      let beforeScreenshot = await captureJourneySurface(before.page, "/account", viewport);
+      let comparisonError: unknown;
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        mkdirSync(dirname(snapshotPath), { recursive: true });
+        writeFileSync(snapshotPath, beforeScreenshot);
+        try {
+          expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+            threshold: 0,
+            maxDiffPixels: 0,
+          });
+          comparisonError = undefined;
+          break;
+        } catch (error) {
+          comparisonError = error;
+          if (attempt < 2) {
+            currentScreenshot = await captureJourneySurface(current.page, "/account", viewport);
+            beforeScreenshot = await captureJourneySurface(before.page, "/account", viewport);
+          }
+        }
+      }
+
+      if (comparisonError) throw comparisonError;
+      await testInfo.attach(`after-${viewport.name}-account`, { body: currentScreenshot, contentType: "image/png" });
+      await testInfo.attach(`before-${viewport.name}-account`, { body: beforeScreenshot, contentType: "image/png" });
+    }
+  } finally {
+    await current.context.close();
+    await before.context.close();
+  }
+});
+
+test("Memories surface remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+  test.setTimeout(360_000);
+  expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
+  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+  const current = await openAuthenticatedPage(browser, CURRENT_URL);
+  const tripId = await firstTripId(current.page);
+  const before = await openAuthenticatedPage(browser, BEFORE_URL);
+
+  try {
+    for (const viewport of VIEWPORTS) {
+      const path = `/trips/${tripId}/memories`;
+      const currentScreenshot = await captureJourneySurface(current.page, path, viewport);
+      await testInfo.attach(`after-${viewport.name}-memories`, {
+        body: currentScreenshot,
+        contentType: "image/png",
+      });
+
+      const beforeScreenshot = await captureJourneySurface(before.page, path, viewport);
+      await testInfo.attach(`before-${viewport.name}-memories`, {
+        body: beforeScreenshot,
+        contentType: "image/png",
+      });
+
+      const snapshotName = `runtime-before-${viewport.name}-memories.png`;
       const snapshotPath = testInfo.snapshotPath(snapshotName);
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);

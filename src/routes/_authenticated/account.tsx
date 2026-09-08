@@ -210,7 +210,7 @@ function AccountPage() {
   const avatarName = firstName || user?.email?.split("@")[0] || "Krew";
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
+    <main data-krew-account-page className="mx-auto w-full max-w-3xl px-4 sm:px-6 py-8 sm:py-12">
       <div className="mb-8 space-y-1">
         <div className="relative inline-block">
           <h1 className="font-display text-[36px] sm:text-[44px] font-normal leading-tight text-foreground">Mon compte</h1>
