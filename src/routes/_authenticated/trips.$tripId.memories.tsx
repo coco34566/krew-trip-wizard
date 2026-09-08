@@ -10,6 +10,7 @@ import { createPhotosZip } from "@/lib/souvenirs-download";
 import { KrewIcon, KrewMark, KrewNote, KrewOrganicBlob } from "@/components/krew/visual-language";
 import { KrewRecapCard } from "@/components/krew/KrewRecapCard";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { buildTripRecap } from "@/lib/krew/trip-recap";
 import { cn } from "@/lib/utils";
 
@@ -72,19 +73,19 @@ function MemoriesPage(){
 
  if(isError){
    return (
-     <main className="mx-auto max-w-[1020px] space-y-6 px-4 py-8 sm:px-6 sm:py-12 lg:px-10">
+     <KrewPageShell data-krew-story-page="memories" size="story" gutter="wide" className="space-y-6 py-8 sm:py-12">
        <Link to="/trips/$tripId" params={{tripId}} className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4"/> Retour au voyage</Link>
        <section className="rounded-[24px] border border-border/60 bg-surface/30 p-6 text-center sm:p-8" role="alert">
          <h1 className="font-display text-2xl font-normal text-foreground">Impossible de charger les souvenirs</h1>
          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">L’album n’est pas disponible pour le moment. Tes photos n’ont pas été supprimées.</p>
          <Button className="mt-5" onClick={()=>refetch()}>Réessayer</Button>
        </section>
-     </main>
+     </KrewPageShell>
    );
  }
 
  return (
-    <main className="mx-auto max-w-[1020px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
+    <KrewPageShell data-krew-story-page="memories" size="story" gutter="wide" className="space-y-8 py-8 sm:py-12">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -335,6 +336,6 @@ function MemoriesPage(){
           </div>
         </div>
       )}
-    </main>
+    </KrewPageShell>
   );
 }

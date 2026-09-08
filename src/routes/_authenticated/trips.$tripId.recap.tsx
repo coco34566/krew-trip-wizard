@@ -15,6 +15,7 @@ import { buildTripIcs } from "@/lib/krew/calendar-export";
 import { PackingListCard } from "@/components/krew/PackingListCard";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 import { KrewIcon, KrewMark, KrewHighlight, KrewSectionWave } from "@/components/krew/visual-language";
@@ -145,20 +146,20 @@ function TripRecapPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6 lg:px-10">
+      <KrewPageShell data-krew-story-page="recap" size="story" gutter="wide" className="py-10">
         <KrewThinkingState
           context="generic"
           customMessage="KREW rassemble les choix du groupe pour préparer le récap…"
           delayMs={300}
         />
-      </main>
+      </KrewPageShell>
     );
   }
 
   if (error || !data) {
     console.error("Impossible de charger le récap:", error);
     return (
-      <main className="mx-auto w-full max-w-[1020px] px-4 py-10 sm:px-6 lg:px-10">
+      <KrewPageShell data-krew-story-page="recap" size="story" gutter="wide" className="py-10">
         <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
           <img
             src="/brand/otter-states/searching.png"
@@ -185,7 +186,7 @@ function TripRecapPage() {
             </Button>
           </div>
         </section>
-      </main>
+      </KrewPageShell>
     );
   }
 
@@ -224,7 +225,7 @@ function TripRecapPage() {
   const selectedPhotoUrl = selectedDestinationReco?.destination?.imageUrl;
 
   return (
-    <main className="mx-auto max-w-[1020px] px-4 sm:px-6 lg:px-10 py-8 sm:py-12 space-y-8">
+    <KrewPageShell data-krew-story-page="recap" size="story" gutter="wide" className="space-y-8 py-8 sm:py-12">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -538,6 +539,6 @@ function TripRecapPage() {
           eventType={null}
         />
       </div>
-    </main>
+    </KrewPageShell>
   );
 }
