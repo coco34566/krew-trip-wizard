@@ -533,13 +533,13 @@ for (const surface of [
     try {
       for (const viewport of VIEWPORTS) {
         const path = `/trips/${tripId}/${surface.slug}`;
-        const currentScreenshot = await captureFullPage(current.page, path, viewport);
+        const currentScreenshot = await captureJourneySurface(current.page, path, viewport);
         await testInfo.attach(`after-${viewport.name}-${surface.slug}`, {
           body: currentScreenshot,
           contentType: "image/png",
         });
 
-        const beforeScreenshot = await captureFullPage(before.page, path, viewport);
+        const beforeScreenshot = await captureJourneySurface(before.page, path, viewport);
         await testInfo.attach(`before-${viewport.name}-${surface.slug}`, {
           body: beforeScreenshot,
           contentType: "image/png",
