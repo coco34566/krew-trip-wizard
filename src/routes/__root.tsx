@@ -11,7 +11,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import designTokensCss from "../krew-design-tokens.css?url";
-import pageCompatCss from "../styles/krew-page-compat.css?url";
 import krewNoteCss from "../styles/krew-note.css?url";
 import availabilityCss from "../styles/krew-availability.css?url";
 import preferencesCss from "../styles/krew-preferences.css?url";
@@ -85,7 +84,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: designTokensCss },
-      { rel: "stylesheet", href: pageCompatCss },
       { rel: "stylesheet", href: krewNoteCss },
       { rel: "stylesheet", href: availabilityCss },
       { rel: "stylesheet", href: preferencesCss },
