@@ -29,6 +29,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           node <<'NODE'
           const { appendFileSync } = await import("node:fs");
@@ -98,8 +99,9 @@ jobs:
           };
 
           const targetCommit = await nearestAppCommit(process.env.HEAD_SHA);
-          const parentSha = targetCommit.parents?.[0]?.sha;
-          const previousAppCommit = parentSha ? await nearestAppCommit(parentSha) : null;
+          const previousAppCommit = process.env.BASE_SHA
+            ? await nearestAppCommit(process.env.BASE_SHA)
+            : null;
 
           const waitForPreview = async (commit) => {
             let resolved = { url: "", deploymentSha: "" };
