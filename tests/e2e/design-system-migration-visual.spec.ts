@@ -160,6 +160,16 @@ async function expectApprovedChapterTitleTransition({
   beforeScreenshot: Buffer;
   viewport: (typeof VIEWPORTS)[number];
 }) {
+  const currentTitleCount = await currentPage.locator("main h1").count();
+  const beforeTitleCount = await beforePage.locator("main h1").count();
+  if (currentTitleCount === 0 || beforeTitleCount === 0) {
+    // Some QA trips legitimately expose a locked/empty chapter state (for example,
+    // no Star configured). Keep its before/after evidence without asserting a title
+    // token that is not rendered in either version.
+    expect(currentTitleCount).toBe(beforeTitleCount);
+    return;
+  }
+
   expect(await renderedPrimaryTitleSize(currentPage)).toBe(viewport.name === "mobile" ? 30 : 34);
   expect(await renderedPrimaryTitleSize(beforePage)).toBe(viewport.name === "mobile" ? 34 : 40);
   // D1 intentionally establishes a new visual reference for every chapter viewport.
