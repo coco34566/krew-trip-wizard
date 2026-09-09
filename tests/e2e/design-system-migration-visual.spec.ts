@@ -116,6 +116,38 @@ async function captureJourneySurface(
   });
 }
 
+async function renderedPageShellWidth(page: Page) {
+  return page.locator("main[data-krew-page-shell]").first().evaluate((shell) => Math.round(shell.getBoundingClientRect().width));
+}
+
+function expectApprovedWidthTransition({
+  currentScreenshot,
+  beforeScreenshot,
+  currentWidth,
+  beforeWidth,
+  expectedCurrentWidth,
+  expectedBeforeWidth,
+}: {
+  currentScreenshot: Buffer;
+  beforeScreenshot: Buffer;
+  currentWidth: number;
+  beforeWidth: number;
+  expectedCurrentWidth: number;
+  expectedBeforeWidth: number;
+}) {
+  expect(currentWidth).toBe(expectedCurrentWidth);
+  expect(beforeWidth).toBe(expectedBeforeWidth);
+
+  if (expectedCurrentWidth === expectedBeforeWidth) {
+    expect(currentScreenshot.equals(beforeScreenshot)).toBe(true);
+    return;
+  }
+
+  // D5 intentionally replaces the former pixel-identical migration baseline:
+  // screenshots differ only at the desktop width where the approved shell width changes.
+  expect(currentScreenshot.equals(beforeScreenshot)).toBe(false);
+}
+
 test("TripHub migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
@@ -157,7 +189,7 @@ test("TripHub migration remains pixel-identical at contract reference viewports"
   }
 });
 
-test("Mes voyages migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Mes voyages matches the approved D5 wide-shell contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -169,11 +201,14 @@ test("Mes voyages migration remains pixel-identical at contract reference viewpo
       await testInfo.attach(`after-${viewport.name}-mes-voyages`, { body: currentScreenshot, contentType: "image/png" });
       const beforeScreenshot = await captureMain(before.page, "/dashboard", viewport);
       await testInfo.attach(`before-${viewport.name}-mes-voyages`, { body: beforeScreenshot, contentType: "image/png" });
-      const snapshotName = `runtime-before-${viewport.name}-mes-voyages.png`;
-      const snapshotPath = testInfo.snapshotPath(snapshotName);
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, beforeScreenshot);
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, { threshold: 0, maxDiffPixels: 0 });
+      expectApprovedWidthTransition({
+        currentScreenshot,
+        beforeScreenshot,
+        currentWidth: await renderedPageShellWidth(current.page),
+        beforeWidth: await renderedPageShellWidth(before.page),
+        expectedCurrentWidth: viewport.name === "desktop" ? 1200 : viewport.width,
+        expectedBeforeWidth: viewport.name === "desktop" ? 1180 : viewport.width,
+      });
     }
   } finally {
     await current.context.close();
@@ -600,7 +635,7 @@ test("Invite surface remains pixel-identical at contract reference viewports", a
   }
 });
 
-test("Recap surface remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Recap matches the approved D5 story-shell contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -623,14 +658,13 @@ test("Recap surface remains pixel-identical at contract reference viewports", as
         contentType: "image/png",
       });
 
-      const snapshotName = `runtime-before-${viewport.name}-recap.png`;
-      const snapshotPath = testInfo.snapshotPath(snapshotName);
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, beforeScreenshot);
-
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      expectApprovedWidthTransition({
+        currentScreenshot,
+        beforeScreenshot,
+        currentWidth: await renderedPageShellWidth(current.page),
+        beforeWidth: await renderedPageShellWidth(before.page),
+        expectedCurrentWidth: viewport.name === "desktop" ? 1024 : viewport.width,
+        expectedBeforeWidth: viewport.name === "desktop" ? 1020 : viewport.width,
       });
     }
   } finally {
@@ -683,7 +717,7 @@ test("Account surface remains pixel-identical at contract reference viewports", 
   }
 });
 
-test("Memories surface remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Memories matches the approved D5 story-shell contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -706,14 +740,13 @@ test("Memories surface remains pixel-identical at contract reference viewports",
         contentType: "image/png",
       });
 
-      const snapshotName = `runtime-before-${viewport.name}-memories.png`;
-      const snapshotPath = testInfo.snapshotPath(snapshotName);
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, beforeScreenshot);
-
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      expectApprovedWidthTransition({
+        currentScreenshot,
+        beforeScreenshot,
+        currentWidth: await renderedPageShellWidth(current.page),
+        beforeWidth: await renderedPageShellWidth(before.page),
+        expectedCurrentWidth: viewport.name === "desktop" ? 1024 : viewport.width,
+        expectedBeforeWidth: viewport.name === "desktop" ? 1020 : viewport.width,
       });
     }
   } finally {
