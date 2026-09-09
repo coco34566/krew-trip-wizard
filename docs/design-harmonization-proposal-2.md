@@ -72,7 +72,7 @@ Il n’y a pas lieu de créer une taille unique entre TripHub et les pages journ
 
 ### Décision à valider
 
-- [ ] **D6 validée :** conserver l’échelle journey actuelle et classer la comparaison avec TripHub comme faux positif (blob et loutre = rôles différents).
+- [x] **D6 validée :** conserver l’échelle journey actuelle et classer la comparaison avec TripHub comme faux positif (blob et loutre = rôles différents).
 
 ---
 

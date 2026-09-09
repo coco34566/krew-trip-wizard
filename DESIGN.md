@@ -112,13 +112,13 @@ Ces valeurs peuvent s’adapter au responsive sans casser la hiérarchie.
 
 ## 4. PALETTE OFFICIELLE
 
-| Rôle | Couleur | Hex |
-|---|---|---|
-| Accent principal / CTA / highlights | Prune Profond | `#6B3A5D` |
-| Secondaire / équilibre / progression | Vert Sauge | `#8FA89B` |
-| Fond principal | Blanc | `#FFFFFF` |
-| Texte principal | Encre Prune | `#1C151B` |
-| Surfaces secondaires / séparateurs | Gris Neutre | `#F7F8F7` |
+| Rôle                                 | Couleur       | Hex       |
+| ------------------------------------ | ------------- | --------- |
+| Accent principal / CTA / highlights  | Prune Profond | `#6B3A5D` |
+| Secondaire / équilibre / progression | Vert Sauge    | `#8FA89B` |
+| Fond principal                       | Blanc         | `#FFFFFF` |
+| Texte principal                      | Encre Prune   | `#1C151B` |
+| Surfaces secondaires / séparateurs   | Gris Neutre   | `#F7F8F7` |
 
 Le **blanc + la photographie** doivent occuper la majorité de l’espace. Le prune est une **signature**, pas une couleur de remplissage omniprésente. Le sauge apporte fraîcheur, équilibre et mouvement. L’encre prune remplace le noir pur. Le gris neutre sert aux surfaces secondaires.
 
@@ -194,7 +194,7 @@ Mapping officiel :
 
 ### Tailles de référence
 
-- loutre de header de grand chapitre produit : **72px mobile**, **84–88px tablette/desktop**
+- loutre de header de grand chapitre produit : slot réservé **88 × 76px mobile**, **104 × 88px tablette/desktop**
 - micro exceptionnel : **40–48px**
 - petite illustration secondaire : **48–56px**
 - moyenne : **64–84px**
@@ -208,6 +208,12 @@ Règles :
 - une loutre ne doit jamais masquer un texte, bouton ou contrôle ;
 - une loutre ne doit jamais être ajoutée uniquement pour remplir du vide ;
 - une loutre de header doit disposer d’une zone de composition sûre et ne jamais dépendre d’un chevauchement avec un titre dynamique.
+
+### Loutre de chapitre et décor de hero
+
+La loutre du header journey est une illustration d’étape : elle occupe une colonne réservée, utilise le mapping sémantique ci-dessus et respecte l’échelle commune `88 × 76px` puis `104 × 88px`.
+
+Un `KrewOrganicBlob` placé derrière un hero est une forme décorative de composition. Il ne représente pas la mascotte, ne porte aucun état et ne doit pas être redimensionné à partir des tokens de loutre. Les deux rôles restent volontairement indépendants.
 
 ---
 
@@ -857,17 +863,20 @@ Réutiliser ces primitives avant de créer un nouveau pattern one-off.
 Avant de considérer une grande zone terminée, vérifier :
 
 ### Identité
+
 - Est-ce clairement KREW ?
 - Est-ce éditorial, contemporain, humain ?
 - Est-ce suffisamment fun sans devenir enfantin ?
 
 ### Simplicité
+
 - L’information essentielle se comprend-elle immédiatement ?
 - Y a-t-il trop de texte ou trop de composants ?
 - Le design masque-t-il correctement la complexité du moteur ?
 - Une action principale se distingue-t-elle immédiatement des actions secondaires ?
 
 ### Cohérence
+
 - Les tokens sont-ils respectés ?
 - Les composants similaires se comportent-ils de la même manière ?
 - Aucune couleur / typo / ombre / radius arbitraire n’a-t-il été introduit ?
@@ -883,12 +892,14 @@ Avant de considérer une grande zone terminée, vérifier :
 - La page est-elle cohérente avec celles qui la précèdent et la suivent dans le parcours ?
 
 ### Chevauchements
+
 - Aucun élément décoratif ne recouvre-t-il un titre, texte, contrôle ou CTA ?
 - La composition reste-t-elle sûre avec un titre sur deux lignes ?
 - La composition reste-t-elle sûre avec des messages d’erreur, états vides et textes plus longs ?
 - Aucun correctif de collision ne dépend-il d’un seul viewport ou d’un texte de test précis ?
 
 ### Fonctionnel
+
 - Questionnaires inchangés fonctionnellement ?
 - Moteur inchangé ?
 - Données non inventées ?
@@ -897,6 +908,7 @@ Avant de considérer une grande zone terminée, vérifier :
 - Aucun paiement réintroduit ?
 
 ### Qualité
+
 - Mobile vérifié ?
 - Tablette vérifiée ?
 - Desktop vérifié ?
