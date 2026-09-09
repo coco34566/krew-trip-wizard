@@ -138,7 +138,7 @@ export function TripDestinationPage({ tripId }: { tripId: string }) {
   const noAdmissibleProposals = trip?.group_logistics?.destinationGenerationState === "no_admissible_proposals";
 
   return (
-    <KrewPageShell size="standard" className="space-y-8 py-8 sm:py-10">
+    <KrewPageShell size="standard" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}

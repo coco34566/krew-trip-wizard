@@ -114,7 +114,7 @@ function ClosedResponseState({
       size={maxWidthClassName === "max-w-[820px]" ? "form" : "standard"}
       data-krew-availability-page={surface === "availability" ? true : undefined}
       data-krew-preferences-page={surface === "preferences" ? true : undefined}
-      className="space-y-8 py-8 sm:py-10"
+      className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10"
     >
       <Link
         to="/trips/$tripId"

@@ -114,7 +114,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
   const reserved = logistics.hotelBookingStatus === "réservé";
 
   return (
-    <KrewPageShell size="standard" className="space-y-8 py-8 sm:py-10">
+    <KrewPageShell size="standard" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}

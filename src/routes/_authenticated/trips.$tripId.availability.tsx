@@ -254,7 +254,7 @@ function AvailabilityPage() {
   const lockedLabel = data.trip.lockedStart && data.trip.lockedEnd ? formatRange(data.trip.lockedStart, data.trip.lockedEnd) : null;
 
   return (
-    <KrewPageShell data-krew-availability-page size="form" className="space-y-8 py-8 sm:py-10">
+    <KrewPageShell data-krew-availability-page size="form" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
       <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
 
       <KrewJourneyPageHeader tripName={data.trip.name} title="Disponibilités" otterSrc="/brand/otter-states/availability.png">

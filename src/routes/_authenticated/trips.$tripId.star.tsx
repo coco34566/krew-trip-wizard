@@ -321,7 +321,7 @@ function StarQuestionnaire() {
 
   if (!data.trip.hasStar) {
     return (
-      <KrewPageShell data-krew-preferences-page size="form" className="space-y-8 py-8 sm:py-10">
+      <KrewPageShell data-krew-preferences-page size="form" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
         <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
         <KrewJourneyStatusPanel title="Aucune Star pour ce voyage" icon="attention" tone="info">
           <p>Cette étape n’est pas nécessaire pour ce voyage.</p>
@@ -334,7 +334,7 @@ function StarQuestionnaire() {
   const disabledSetup = !data.trip.isOwner;
 
   return (
-    <KrewPageShell data-krew-preferences-page size="form" className="space-y-8 py-8 sm:py-10">
+    <KrewPageShell data-krew-preferences-page size="form" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
       <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
 
       <KrewJourneyPageHeader tripName={data.trip.name ?? "Voyage"} title={`Préférences de ${starName}`} otterSrc="/brand/otter-states/preferences.png">

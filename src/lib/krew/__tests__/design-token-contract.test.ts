@@ -15,4 +15,12 @@ describe("KREW design token contract", () => {
       /@media \(min-width: 1024px\)[\s\S]*--krew-page-padding-x-form: 32px;[\s\S]*--krew-page-padding-x-wide: 40px;/,
     );
   });
+
+  it("keeps the approved D2 compact and overview rhythms", () => {
+    expect(tokens).toContain("--krew-content-gap: 32px;");
+    expect(tokens).toContain("--krew-overview-content-gap: 32px;");
+    expect(tokens).toMatch(
+      /@media \(min-width: 640px\)[\s\S]*--krew-overview-content-gap: 48px;/,
+    );
+  });
 });
