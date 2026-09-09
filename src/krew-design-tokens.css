@@ -40,6 +40,8 @@
   --krew-title-editorial: 40px;
   --krew-title-hero: 42px;
   --krew-title-section: 24px;
+  --krew-title-hero-leading: .94;
+  --krew-title-hero-tracking: -.025em;
   --krew-title-leading: .98;
   --krew-title-tracking: -.02em;
 

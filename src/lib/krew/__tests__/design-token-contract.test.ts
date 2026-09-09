@@ -34,4 +34,11 @@ describe("KREW design token contract", () => {
       /@media \(min-width: 1024px\)[\s\S]*--krew-title-hero: 56px;/,
     );
   });
+
+  it("keeps the approved D4 title rhythm by semantic role", () => {
+    expect(tokens).toContain("--krew-title-hero-leading: .94;");
+    expect(tokens).toContain("--krew-title-hero-tracking: -.025em;");
+    expect(tokens).toContain("--krew-title-leading: .98;");
+    expect(tokens).toContain("--krew-title-tracking: -.02em;");
+  });
 });

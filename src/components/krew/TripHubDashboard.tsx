@@ -553,7 +553,7 @@ export function TripHubDashboard({
                 className="absolute right-0 bottom-0 w-[130px] sm:w-[160px] h-[65px] sm:h-[75px] text-primary opacity-20 pointer-events-none z-0"
               />
 
-              <h1 className="relative z-10 inline-block max-w-full break-words rounded-[10px] bg-background/75 px-2.5 py-1.5 font-display text-[length:var(--krew-title-hero)] font-normal leading-[0.94] tracking-tight text-foreground backdrop-blur-[2px]">
+              <h1 className="relative z-10 inline-block max-w-full break-words rounded-[10px] bg-background/75 px-2.5 py-1.5 font-display text-[length:var(--krew-title-hero)] font-normal leading-[var(--krew-title-hero-leading)] tracking-[var(--krew-title-hero-tracking)] text-foreground backdrop-blur-[2px]">
                 <span className="relative inline-block max-w-full">
                   {destinationName || "Destination à définir"}
                   {destinationName ? (

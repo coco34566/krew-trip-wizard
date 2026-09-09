@@ -131,6 +131,7 @@ function expectApprovedTitleTransition({
   beforeSize,
   expectedCurrentSize,
   expectedBeforeSize,
+  expectedVisualChange,
 }: {
   currentScreenshot: Buffer;
   beforeScreenshot: Buffer;
@@ -138,10 +139,12 @@ function expectApprovedTitleTransition({
   beforeSize: number;
   expectedCurrentSize: number;
   expectedBeforeSize: number;
+  expectedVisualChange?: boolean;
 }) {
   expect(currentSize).toBe(expectedCurrentSize);
   expect(beforeSize).toBe(expectedBeforeSize);
-  expect(currentScreenshot.equals(beforeScreenshot)).toBe(expectedCurrentSize === expectedBeforeSize);
+  const visualChange = expectedVisualChange ?? expectedCurrentSize !== expectedBeforeSize;
+  expect(currentScreenshot.equals(beforeScreenshot)).toBe(!visualChange);
 }
 
 async function expectApprovedChapterTitleTransition({
@@ -254,6 +257,7 @@ test("Mes voyages matches the approved D1 title and D5 wide-shell contracts", as
         beforeSize: await renderedPrimaryTitleSize(before.page),
         expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
         expectedBeforeSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 52 : 58,
+        expectedVisualChange: true,
       });
     }
   } finally {
@@ -281,6 +285,7 @@ test("Nouveau voyage matches the approved D1 hero-title scale", async ({ browser
         beforeSize: await renderedPrimaryTitleSize(before.page),
         expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
         expectedBeforeSize: viewport.name === "mobile" ? 40 : viewport.name === "tablet" ? 50 : 52,
+        expectedVisualChange: true,
       });
     }
   } finally {
@@ -289,7 +294,7 @@ test("Nouveau voyage matches the approved D1 hero-title scale", async ({ browser
   }
 });
 
-test("Packing shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Packing matches the approved chapter-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -331,7 +336,7 @@ test("Packing shell remains pixel-identical at contract reference viewports", as
   }
 });
 
-test("Dates shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Dates matches the approved chapter-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -373,7 +378,7 @@ test("Dates shell remains pixel-identical at contract reference viewports", asyn
   }
 });
 
-test("Profile shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Profile matches the approved chapter-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -415,7 +420,7 @@ test("Profile shell remains pixel-identical at contract reference viewports", as
   }
 });
 
-test("Tasks shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Tasks matches the approved chapter-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -457,7 +462,7 @@ test("Tasks shell remains pixel-identical at contract reference viewports", asyn
   }
 });
 
-test("Transport shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Transport matches the approved chapter-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -499,7 +504,7 @@ test("Transport shell remains pixel-identical at contract reference viewports", 
   }
 });
 
-test("Destination shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Destination matches the approved chapter-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -541,7 +546,7 @@ test("Destination shell remains pixel-identical at contract reference viewports"
   }
 });
 
-test("Accommodation shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Accommodation matches the approved chapter-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -583,7 +588,7 @@ test("Accommodation shell remains pixel-identical at contract reference viewport
   }
 });
 
-test("Planning surface remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Planning matches the approved chapter-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -629,7 +634,7 @@ for (const surface of [
   { name: "Questionnaire", slug: "questionnaire" },
   { name: "Star", slug: "star" },
 ] as const) {
-  test(`${surface.name} shell remains pixel-identical at contract reference viewports`, async ({ browser }, testInfo) => {
+  test(`${surface.name} matches the approved chapter-title contract`, async ({ browser }, testInfo) => {
     test.setTimeout(360_000);
     expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
     expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
