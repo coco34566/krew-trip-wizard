@@ -23,4 +23,15 @@ describe("KREW design token contract", () => {
       /@media \(min-width: 640px\)[\s\S]*--krew-overview-content-gap: 48px;/,
     );
   });
+
+  it("keeps the approved D1 hero and chapter title scales", () => {
+    expect(tokens).toContain("--krew-title-hero: 42px;");
+    expect(tokens).toContain("--krew-title-chapter: 30px;");
+    expect(tokens).toMatch(
+      /@media \(min-width: 640px\)[\s\S]*--krew-title-chapter: 34px;[\s\S]*--krew-title-hero: 50px;/,
+    );
+    expect(tokens).toMatch(
+      /@media \(min-width: 1024px\)[\s\S]*--krew-title-hero: 56px;/,
+    );
+  });
 });

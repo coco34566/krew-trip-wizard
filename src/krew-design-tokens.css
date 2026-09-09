@@ -36,7 +36,7 @@
   --krew-major-section-gap: 64px;
 
   /* Product title scales. These preserve current validated values by role. */
-  --krew-title-chapter: 34px;
+  --krew-title-chapter: 30px;
   --krew-title-editorial: 40px;
   --krew-title-hero: 42px;
   --krew-title-section: 24px;
@@ -78,7 +78,7 @@
     --krew-section-gap: 56px;
     --krew-major-section-gap: 72px;
 
-    --krew-title-chapter: 40px;
+    --krew-title-chapter: 34px;
     --krew-title-editorial: 48px;
     --krew-title-hero: 50px;
     --krew-title-section: 26px;

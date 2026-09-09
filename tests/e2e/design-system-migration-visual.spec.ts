@@ -120,6 +120,49 @@ async function renderedPageShellWidth(page: Page) {
   return page.locator("main[data-krew-page-shell]").first().evaluate((shell) => Math.round(shell.getBoundingClientRect().width));
 }
 
+async function renderedPrimaryTitleSize(page: Page) {
+  return page.locator("main h1").first().evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize));
+}
+
+function expectApprovedTitleTransition({
+  currentScreenshot,
+  beforeScreenshot,
+  currentSize,
+  beforeSize,
+  expectedCurrentSize,
+  expectedBeforeSize,
+}: {
+  currentScreenshot: Buffer;
+  beforeScreenshot: Buffer;
+  currentSize: number;
+  beforeSize: number;
+  expectedCurrentSize: number;
+  expectedBeforeSize: number;
+}) {
+  expect(currentSize).toBe(expectedCurrentSize);
+  expect(beforeSize).toBe(expectedBeforeSize);
+  expect(currentScreenshot.equals(beforeScreenshot)).toBe(expectedCurrentSize === expectedBeforeSize);
+}
+
+async function expectApprovedChapterTitleTransition({
+  currentPage,
+  beforePage,
+  currentScreenshot,
+  beforeScreenshot,
+  viewport,
+}: {
+  currentPage: Page;
+  beforePage: Page;
+  currentScreenshot: Buffer;
+  beforeScreenshot: Buffer;
+  viewport: (typeof VIEWPORTS)[number];
+}) {
+  expect(await renderedPrimaryTitleSize(currentPage)).toBe(viewport.name === "mobile" ? 30 : 34);
+  expect(await renderedPrimaryTitleSize(beforePage)).toBe(viewport.name === "mobile" ? 34 : 40);
+  // D1 intentionally establishes a new visual reference for every chapter viewport.
+  expect(currentScreenshot.equals(beforeScreenshot)).toBe(false);
+}
+
 function expectApprovedWidthTransition({
   currentScreenshot,
   beforeScreenshot,
@@ -148,7 +191,7 @@ function expectApprovedWidthTransition({
   expect(currentScreenshot.equals(beforeScreenshot)).toBe(false);
 }
 
-test("TripHub migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("TripHub matches the approved D1 hero-title scale", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
 
@@ -173,14 +216,13 @@ test("TripHub migration remains pixel-identical at contract reference viewports"
         contentType: "image/png",
       });
 
-      const snapshotName = `runtime-before-${viewport.name}-trip-dashboard.png`;
-      const snapshotPath = testInfo.snapshotPath(snapshotName);
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, beforeScreenshot);
-
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      expectApprovedTitleTransition({
+        currentScreenshot,
+        beforeScreenshot,
+        currentSize: await renderedPrimaryTitleSize(current.page),
+        beforeSize: await renderedPrimaryTitleSize(before.page),
+        expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
+        expectedBeforeSize: viewport.name === "mobile" ? 42 : 56,
       });
     }
   } finally {
@@ -189,7 +231,7 @@ test("TripHub migration remains pixel-identical at contract reference viewports"
   }
 });
 
-test("Mes voyages matches the approved D5 wide-shell contract", async ({ browser }, testInfo) => {
+test("Mes voyages matches the approved D1 title and D5 wide-shell contracts", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -201,13 +243,17 @@ test("Mes voyages matches the approved D5 wide-shell contract", async ({ browser
       await testInfo.attach(`after-${viewport.name}-mes-voyages`, { body: currentScreenshot, contentType: "image/png" });
       const beforeScreenshot = await captureMain(before.page, "/dashboard", viewport);
       await testInfo.attach(`before-${viewport.name}-mes-voyages`, { body: beforeScreenshot, contentType: "image/png" });
-      expectApprovedWidthTransition({
+      const currentWidth = await renderedPageShellWidth(current.page);
+      const beforeWidth = await renderedPageShellWidth(before.page);
+      expect(currentWidth).toBe(viewport.name === "desktop" ? 1200 : viewport.width);
+      expect(beforeWidth).toBe(viewport.name === "desktop" ? 1180 : viewport.width);
+      expectApprovedTitleTransition({
         currentScreenshot,
         beforeScreenshot,
-        currentWidth: await renderedPageShellWidth(current.page),
-        beforeWidth: await renderedPageShellWidth(before.page),
-        expectedCurrentWidth: viewport.name === "desktop" ? 1200 : viewport.width,
-        expectedBeforeWidth: viewport.name === "desktop" ? 1180 : viewport.width,
+        currentSize: await renderedPrimaryTitleSize(current.page),
+        beforeSize: await renderedPrimaryTitleSize(before.page),
+        expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
+        expectedBeforeSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 52 : 58,
       });
     }
   } finally {
@@ -216,7 +262,7 @@ test("Mes voyages matches the approved D5 wide-shell contract", async ({ browser
   }
 });
 
-test("Nouveau voyage migration remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Nouveau voyage matches the approved D1 hero-title scale", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -228,11 +274,14 @@ test("Nouveau voyage migration remains pixel-identical at contract reference vie
       await testInfo.attach(`after-${viewport.name}-new-trip`, { body: currentScreenshot, contentType: "image/png" });
       const beforeScreenshot = await captureMain(before.page, "/trips/new", viewport);
       await testInfo.attach(`before-${viewport.name}-new-trip`, { body: beforeScreenshot, contentType: "image/png" });
-      const snapshotName = `runtime-before-${viewport.name}-new-trip.png`;
-      const snapshotPath = testInfo.snapshotPath(snapshotName);
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, beforeScreenshot);
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, { threshold: 0, maxDiffPixels: 0 });
+      expectApprovedTitleTransition({
+        currentScreenshot,
+        beforeScreenshot,
+        currentSize: await renderedPrimaryTitleSize(current.page),
+        beforeSize: await renderedPrimaryTitleSize(before.page),
+        expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
+        expectedBeforeSize: viewport.name === "mobile" ? 40 : viewport.name === "tablet" ? 50 : 52,
+      });
     }
   } finally {
     await current.context.close();
@@ -268,9 +317,12 @@ test("Packing shell remains pixel-identical at contract reference viewports", as
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
 
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      await expectApprovedChapterTitleTransition({
+        currentPage: current.page,
+        beforePage: before.page,
+        currentScreenshot,
+        beforeScreenshot,
+        viewport,
       });
     }
   } finally {
@@ -307,9 +359,12 @@ test("Dates shell remains pixel-identical at contract reference viewports", asyn
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
 
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      await expectApprovedChapterTitleTransition({
+        currentPage: current.page,
+        beforePage: before.page,
+        currentScreenshot,
+        beforeScreenshot,
+        viewport,
       });
     }
   } finally {
@@ -346,9 +401,12 @@ test("Profile shell remains pixel-identical at contract reference viewports", as
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
 
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      await expectApprovedChapterTitleTransition({
+        currentPage: current.page,
+        beforePage: before.page,
+        currentScreenshot,
+        beforeScreenshot,
+        viewport,
       });
     }
   } finally {
@@ -385,9 +443,12 @@ test("Tasks shell remains pixel-identical at contract reference viewports", asyn
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
 
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      await expectApprovedChapterTitleTransition({
+        currentPage: current.page,
+        beforePage: before.page,
+        currentScreenshot,
+        beforeScreenshot,
+        viewport,
       });
     }
   } finally {
@@ -424,9 +485,12 @@ test("Transport shell remains pixel-identical at contract reference viewports", 
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
 
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      await expectApprovedChapterTitleTransition({
+        currentPage: current.page,
+        beforePage: before.page,
+        currentScreenshot,
+        beforeScreenshot,
+        viewport,
       });
     }
   } finally {
@@ -463,9 +527,12 @@ test("Destination shell remains pixel-identical at contract reference viewports"
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
 
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      await expectApprovedChapterTitleTransition({
+        currentPage: current.page,
+        beforePage: before.page,
+        currentScreenshot,
+        beforeScreenshot,
+        viewport,
       });
     }
   } finally {
@@ -502,9 +569,12 @@ test("Accommodation shell remains pixel-identical at contract reference viewport
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
 
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      await expectApprovedChapterTitleTransition({
+        currentPage: current.page,
+        beforePage: before.page,
+        currentScreenshot,
+        beforeScreenshot,
+        viewport,
       });
     }
   } finally {
@@ -541,9 +611,12 @@ test("Planning surface remains pixel-identical at contract reference viewports",
       mkdirSync(dirname(snapshotPath), { recursive: true });
       writeFileSync(snapshotPath, beforeScreenshot);
 
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      await expectApprovedChapterTitleTransition({
+        currentPage: current.page,
+        beforePage: before.page,
+        currentScreenshot,
+        beforeScreenshot,
+        viewport,
       });
     }
   } finally {
@@ -584,9 +657,12 @@ for (const surface of [
         mkdirSync(dirname(snapshotPath), { recursive: true });
         writeFileSync(snapshotPath, beforeScreenshot);
 
-        expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-          threshold: 0,
-          maxDiffPixels: 0,
+        await expectApprovedChapterTitleTransition({
+          currentPage: current.page,
+          beforePage: before.page,
+          currentScreenshot,
+          beforeScreenshot,
+          viewport,
         });
       }
     } finally {
