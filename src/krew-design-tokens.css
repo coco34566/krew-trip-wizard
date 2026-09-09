@@ -14,7 +14,9 @@
   --krew-page-width-site: 1280px;
   --krew-reading-width: 42rem;
 
-  /* Semantic horizontal gutters. Compatibility variants preserve validated page families exactly. */
+  /* Semantic horizontal gutters.
+   * Form and wide converge at 16/24px, then intentionally diverge at desktop:
+   * form keeps 32px for usable controls while wide uses 40px for editorial framing. */
   --krew-page-padding-x-compact: 16px;
   --krew-page-padding-x-narrow: 16px;
   --krew-page-padding-x-form: 16px;
