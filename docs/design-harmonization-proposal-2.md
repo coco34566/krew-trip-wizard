@@ -136,7 +136,7 @@ L’écart historique de largeur a également disparu : tous les états utilisen
 
 ### Décision à valider
 
-- [ ] **D7 validée :** même shell pour tous les états pleine page ; corriger le gate Invite et le rythme de Récap, sans restructurer Souvenirs sans arbitrage séparé.
+- [x] **D7 validée avec portée réduite :** corriger le gate Invite et le rythme de Récap ; Souvenirs reste explicitement hors de ce lot.
 
 ---
 
