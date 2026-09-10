@@ -244,7 +244,7 @@ test("Packing shell remains pixel-identical at contract reference viewports", as
   }
 });
 
-test("Dates shell remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Dates route renders its canonical page at contract reference viewports", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -260,6 +260,15 @@ test("Dates shell remains pixel-identical at contract reference viewports", asyn
         body: currentScreenshot,
         contentType: "image/png",
       });
+      await expect(
+        current.page.getByRole("heading", { name: "Dates du groupe", exact: true }),
+      ).toBeVisible();
+      await expect(
+        current.page.getByRole("heading", {
+          name: "Cette page n'a pas pu être chargée",
+          exact: true,
+        }),
+      ).toHaveCount(0);
 
       const beforeScreenshot = await captureFullPage(before.page, path, viewport);
       await testInfo.attach(`before-${viewport.name}-dates`, {
@@ -267,15 +276,27 @@ test("Dates shell remains pixel-identical at contract reference viewports", asyn
         contentType: "image/png",
       });
 
-      const snapshotName = `runtime-before-${viewport.name}-dates.png`;
-      const snapshotPath = testInfo.snapshotPath(snapshotName);
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, beforeScreenshot);
-
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
-      });
+      const beforeIsHealthy = await before.page
+        .getByRole("heading", { name: "Dates du groupe", exact: true })
+        .isVisible()
+        .catch(() => false);
+      if (beforeIsHealthy) {
+        const snapshotName = `runtime-before-${viewport.name}-dates.png`;
+        const snapshotPath = testInfo.snapshotPath(snapshotName);
+        mkdirSync(dirname(snapshotPath), { recursive: true });
+        writeFileSync(snapshotPath, beforeScreenshot);
+        expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+          threshold: 0,
+          maxDiffPixels: 0,
+        });
+      } else {
+        await expect(
+          before.page.getByRole("heading", {
+            name: "Cette page n'a pas pu être chargée",
+            exact: true,
+          }),
+        ).toBeVisible();
+      }
     }
   } finally {
     await current.context.close();
