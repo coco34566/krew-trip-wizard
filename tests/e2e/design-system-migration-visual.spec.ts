@@ -265,7 +265,7 @@ test("Dates route renders its canonical page at contract reference viewports", a
       ).toBeVisible();
       await expect(
         current.page.getByRole("heading", {
-          name: "Cette page n'a pas pu être chargée",
+          name: "Cette page n’a pas pu être chargée",
           exact: true,
         }),
       ).toHaveCount(0);
@@ -292,7 +292,7 @@ test("Dates route renders its canonical page at contract reference viewports", a
       } else {
         await expect(
           before.page.getByRole("heading", {
-            name: "Cette page n'a pas pu être chargée",
+            name: "Cette page n’a pas pu être chargée",
             exact: true,
           }),
         ).toBeVisible();
