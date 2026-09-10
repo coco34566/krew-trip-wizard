@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -112,7 +112,7 @@ export function TripDatesPage({ tripId }: { tripId: string }) {
     ? calculateTripDateRange(manualStartDate, Number(trip.duration_nights || 1))
     : null;
 
-  const calendarUrls = useMemo(() => {
+  const calendarUrls = (() => {
     if (!startDate || !endDate) return null;
     const start = String(startDate).replace(/-/g, "");
     const end = new Date(`${endDate}T12:00:00`);
@@ -125,7 +125,7 @@ export function TripDatesPage({ tripId }: { tripId: string }) {
       outlook: `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${title}&startdt=${startDate}&enddt=${exclusiveEnd}&allday=true`,
       office365: `https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${title}&startdt=${startDate}&enddt=${exclusiveEnd}&allday=true`,
     };
-  }, [endDate, startDate, trip.name]);
+  })();
 
   const downloadIcs = () => {
     const content = buildTripIcs(trip, trip.group_itinerary);
