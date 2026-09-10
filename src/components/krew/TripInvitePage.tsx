@@ -212,7 +212,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       {data.isOwner ? (
         <section className="space-y-4 border-b border-border/50 pb-6">
           <div className="space-y-1">
-            <h2 className="font-display text-2xl font-normal text-foreground">Fais entrer la Krew</h2>
+            <h2 className="font-display text-[length:var(--krew-title-section)] leading-8 font-normal text-foreground">Fais entrer la Krew</h2>
             <p className="text-sm text-muted-foreground">Un petit message, le lien du voyage, et chacun peut rejoindre la team directement.</p>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2">

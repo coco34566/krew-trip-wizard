@@ -95,7 +95,7 @@ function Section({ title, hint, bgClass, children }: { title: string; hint?: str
   return (
     <section className={cn("mb-6 space-y-4 pb-6", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-6` : "border-b border-border/50")}>
       <div>
-        <h2 className="font-display text-2xl font-normal text-foreground sm:text-3xl">{title}</h2>
+        <h2 className="font-display text-[length:var(--krew-title-section)] leading-8 font-normal text-foreground sm:leading-9">{title}</h2>
         {hint ? <p className="mt-1 text-sm text-muted-foreground">{hint}</p> : null}
       </div>
       {children}

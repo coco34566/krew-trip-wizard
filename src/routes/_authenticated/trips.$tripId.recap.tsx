@@ -496,7 +496,7 @@ function TripRecapPage() {
 
       {costSplitData?.split ? (
         <section className="space-y-4 pt-4">
-          <h2 className="font-display text-2xl font-normal text-foreground">
+          <h2 className="font-display text-[length:var(--krew-title-section)] leading-8 font-normal text-foreground">
             {costSplitData.isSelected ? "Destination choisie — répartition des coûts" : "Répartition estimée des coûts"}
           </h2>
           <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />

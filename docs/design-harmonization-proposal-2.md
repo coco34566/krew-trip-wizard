@@ -155,7 +155,7 @@ Les tailles locales ne représentent pas toutes le même rôle :
 | Rôle observé                     | Pages / exemples                            | Taille actuelle                                          |
 | -------------------------------- | ------------------------------------------- | -------------------------------------------------------- |
 | Section principale de formulaire | Disponibilités « Mes disponibilités »       | `25 → 28 px`                                             |
-| Sections de questionnaire        | Préférences et Star                         | `24 → 30 px`                                             |
+| Sections de questionnaire        | Préférences et Star                         | `28 → 30 px`                                             |
 | Section principale journey       | Planning, Destination                       | `24 px` constant                                         |
 | Section de page étroite          | Invite « Fais entrer la Krew »              | `24 px` constant                                         |
 | Section éditoriale mise en avant | Récap « Le voyage en bref »                 | `28 → 32 px`                                             |
@@ -181,8 +181,8 @@ Cette proposition harmonise le même rôle sans transformer tous les `h2` en un 
 | --------------------------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | Disponibilités                                            | « Mes disponibilités »                             | `25 / 28 / 28` → `24 / 26 / 26` : −1 / −2 / −2 px                                            |
 | Disponibilités                                            | « Créneaux possibles »                             | `24 / 24 / 24` → `24 / 26 / 26` : 0 / +2 / +2 px                                             |
-| Préférences                                               | Titres des sections du questionnaire               | `24 / 30 / 30` → `24 / 26 / 26` : 0 / −4 / −4 px                                             |
-| Préférences de la Star                                    | Titres des sections du questionnaire               | `24 / 30 / 30` → `24 / 26 / 26` : 0 / −4 / −4 px                                             |
+| Préférences                                               | Titres des sections du questionnaire               | `28 / 30 / 30` → `24 / 26 / 26` : −4 / −4 / −4 px                                            |
+| Préférences de la Star                                    | Titres des sections du questionnaire               | `28 / 30 / 30` → `24 / 26 / 26` : −4 / −4 / −4 px                                            |
 | Planning                                                  | Titre principal de la section générée              | `24 / 24 / 24` → `24 / 26 / 26` : 0 / +2 / +2 px                                             |
 | Destination                                               | Titre de la destination dans la section principale | `24 / 24 / 24` → `24 / 26 / 26` : 0 / +2 / +2 px ; conserver sa graisse comme choix de carte |
 | Invite                                                    | « Fais entrer la Krew »                            | `24 / 24 / 24` → `24 / 26 / 26` : 0 / +2 / +2 px                                             |
@@ -201,7 +201,7 @@ Cette proposition harmonise le même rôle sans transformer tous les `h2` en un 
 
 ### Décision à valider
 
-- [ ] **D8 validée :** `24 → 26 px` pour les vrais titres de section de page, avec exceptions sémantiques documentées pour cartes, modales et intertitres éditoriaux.
+- [x] **D8 validée :** `24 → 26 px` pour les vrais titres de section de page, avec exceptions sémantiques documentées pour cartes, modales et intertitres éditoriaux.
 
 ---
 

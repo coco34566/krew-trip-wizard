@@ -302,7 +302,7 @@ export function TripDestinationPage({ tripId }: { tripId: string }) {
                                   ? ` · ${recommendation.destinations.country}`
                                   : ""}
                               </p>
-                              <h2 className="font-display text-2xl font-semibold leading-tight">
+                              <h2 className="font-display text-[length:var(--krew-title-section)] font-semibold leading-tight">
                                 {recommendation.destinations?.name}
                               </h2>
                             </div>

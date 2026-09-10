@@ -687,7 +687,7 @@ for (const surface of [
   });
 }
 
-test("Invite surface remains pixel-identical at contract reference viewports", async ({ browser }, testInfo) => {
+test("Invite matches the approved D8 section-title contract", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -710,14 +710,15 @@ test("Invite surface remains pixel-identical at contract reference viewports", a
         contentType: "image/png",
       });
 
-      const snapshotName = `runtime-before-${viewport.name}-invite.png`;
-      const snapshotPath = testInfo.snapshotPath(snapshotName);
-      mkdirSync(dirname(snapshotPath), { recursive: true });
-      writeFileSync(snapshotPath, beforeScreenshot);
-
-      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
-        threshold: 0,
-        maxDiffPixels: 0,
+      const currentTitle = current.page.getByRole("heading", { name: "Fais entrer la Krew" });
+      const beforeTitle = before.page.getByRole("heading", { name: "Fais entrer la Krew" });
+      expectApprovedTitleTransition({
+        currentScreenshot,
+        beforeScreenshot,
+        currentSize: await currentTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize)),
+        beforeSize: await beforeTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize)),
+        expectedCurrentSize: viewport.name === "mobile" ? 24 : 26,
+        expectedBeforeSize: 24,
       });
     }
   } finally {
@@ -726,7 +727,7 @@ test("Invite surface remains pixel-identical at contract reference viewports", a
   }
 });
 
-test("Recap matches the approved D5 story-shell contract", async ({ browser }, testInfo) => {
+test("Recap matches the approved D5 shell and D8 section-title contracts", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
   expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
@@ -749,14 +750,33 @@ test("Recap matches the approved D5 story-shell contract", async ({ browser }, t
         contentType: "image/png",
       });
 
-      expectApprovedWidthTransition({
-        currentScreenshot,
-        beforeScreenshot,
-        currentWidth: await renderedPageShellWidth(current.page),
-        beforeWidth: await renderedPageShellWidth(before.page),
-        expectedCurrentWidth: viewport.name === "desktop" ? 1024 : viewport.width,
-        expectedBeforeWidth: viewport.name === "desktop" ? 1020 : viewport.width,
-      });
+      expect(await renderedPageShellWidth(current.page)).toBe(
+        viewport.name === "desktop" ? 1024 : viewport.width,
+      );
+      expect(await renderedPageShellWidth(before.page)).toBe(
+        viewport.name === "desktop" ? 1020 : viewport.width,
+      );
+
+      const selector = "main section.space-y-4.pt-4 > h2";
+      const currentTitle = current.page.locator(selector).first();
+      const beforeTitle = before.page.locator(selector).first();
+      const currentCount = await currentTitle.count();
+      const beforeCount = await beforeTitle.count();
+      expect(currentCount).toBe(beforeCount);
+
+      if (currentCount > 0) {
+        expect(await currentTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize))).toBe(
+          viewport.name === "mobile" ? 24 : 26,
+        );
+        expect(await beforeTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize))).toBe(24);
+      }
+
+      // Récap contains live cost/weather data. The before/after PNGs remain
+      // attached for review, while deterministic D5 width and D8 font-size
+      // values above form the automated visual contract.
+      if (viewport.name === "desktop" || (viewport.name === "tablet" && currentCount > 0)) {
+        expect(currentScreenshot.equals(beforeScreenshot)).toBe(false);
+      }
     }
   } finally {
     await current.context.close();

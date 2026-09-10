@@ -35,6 +35,13 @@ describe("KREW design token contract", () => {
     );
   });
 
+  it("keeps the approved D8 page-section title scale", () => {
+    expect(tokens).toContain("--krew-title-section: 24px;");
+    expect(tokens).toMatch(
+      /@media \(min-width: 640px\)[\s\S]*--krew-title-section: 26px;/,
+    );
+  });
+
   it("keeps the approved D4 title rhythm by semantic role", () => {
     expect(tokens).toContain("--krew-title-hero-leading: .94;");
     expect(tokens).toContain("--krew-title-hero-tracking: -.025em;");

@@ -300,7 +300,7 @@ function AvailabilityPage() {
 
       <section className="w-full space-y-7">
         <div>
-          <h2 className="flex items-center gap-2 font-display text-[25px] font-normal text-foreground sm:text-[28px]"><KrewIcon name="calendar" tone="plum" size="sm" className="size-5" /> Mes disponibilités</h2>
+          <h2 className="flex items-center gap-2 font-display text-[length:var(--krew-title-section)] font-normal text-foreground"><KrewIcon name="calendar" tone="plum" size="sm" className="size-5" /> Mes disponibilités</h2>
           <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">{datesLocked ? "Voici les disponibilités que tu avais renseignées avant la confirmation des dates." : <>Tape sur les jours pour les sélectionner — tu peux en choisir autant que tu veux. Tes réponses sont liées à <strong>ton compte</strong> : personne d&apos;autre ne peut les modifier.</>}</p>
         </div>
 
@@ -338,7 +338,7 @@ function AvailabilityPage() {
 
       {!datesLocked && data.isOwner && (data.windows ?? []).length > 0 ? (
         <section className="space-y-3 border-t border-border/45 pt-6">
-          <h2 className="font-display text-[24px] font-normal text-foreground">Créneaux possibles</h2>
+          <h2 className="font-display text-[length:var(--krew-title-section)] font-normal text-foreground">Créneaux possibles</h2>
           <ul className="space-y-2">
             {(data.windows ?? []).map((window: any) => (
               <li key={`${window.start}-${window.end}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/50 px-4 py-3">

@@ -134,9 +134,9 @@ jobs:
         run: npm run test:e2e:smoke
       - name: Run full visual audit contract
         run: npm run test:e2e:visual
-      - name: Capture and compare TripHub migration reference screenshots
+      - name: Capture and compare approved design reference screenshots
         if: always()
-        run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
+        run: npx playwright test design-system-migration-visual.spec.ts design-harmonization-d7-visual.spec.ts design-harmonization-d8-visual.spec.ts --project=desktop-chromium
       - name: Upload Playwright report
         if: always()
         continue-on-error: true
