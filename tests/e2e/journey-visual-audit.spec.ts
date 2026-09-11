@@ -93,11 +93,11 @@ async function waitForRenderedChapter(page: Page, name: string) {
     preferences: () => page.getByRole("heading", { name: "Envies et ambiance", exact: true }),
     dates: () => page.getByRole("heading", { name: "Dates du groupe", exact: true }),
     profile: () => page.getByRole("heading", { name: "Profil du voyage", exact: true }),
-    destination: () => page.locator("#hub-destination"),
-    accommodation: () => page.locator('#hub-logistics, [data-journey-locked-section="accommodation"]'),
-    transport: () => page.locator("#hub-transports"),
-    planning: () => page.locator('#hub-activities-plan, [data-journey-locked-section="planning"]'),
-    tasks: () => page.locator('#hub-tasks-org, [data-journey-locked-section="tasks"]'),
+    destination: () => page.getByRole("heading", { name: "Destination", exact: true }),
+    accommodation: () => page.getByRole("heading", { name: "Hébergement", exact: true }),
+    transport: () => page.getByRole("heading", { name: "Transport", exact: true }),
+    planning: () => page.getByRole("heading", { name: "Planning", exact: true }),
+    tasks: () => page.getByRole("heading", { name: /^(Répartir les tâches|Les tâches du groupe|Tâches du voyage)$/ }),
     packing: () => page.getByRole("heading", { name: "À emporter", exact: true }),
   };
 
