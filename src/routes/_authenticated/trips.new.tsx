@@ -178,7 +178,7 @@ function NewTripPage() {
           <div className="min-w-0">
             <p className="mb-2 text-xs font-medium uppercase tracking-[0.15em] text-primary/75">Nouveau voyage</p>
             <div className="relative inline-block max-w-full pb-2">
-              <h1 className="font-display text-[40px] font-normal leading-[var(--krew-title-leading)] tracking-tight text-foreground sm:text-[50px] lg:text-[52px]">
+              <h1 className="font-display text-[length:var(--krew-title-hero)] font-normal leading-[var(--krew-title-hero-leading)] tracking-[var(--krew-title-hero-tracking)] text-foreground">
                 On lance la Krew.
               </h1>
               <KrewMark

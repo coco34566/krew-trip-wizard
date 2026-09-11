@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
 import { KrewJourneyStatusPanel } from "@/components/krew/KrewJourneyStatusPanel";
-import { KrewPageShell, type KrewPageShellSize } from "@/components/krew/KrewPageShell";
+import { KrewPageShell, type KrewPageShellGutter, type KrewPageShellSize } from "@/components/krew/KrewPageShell";
 import { KrewThinkingState, type KrewThinkingContext } from "@/components/krew/KrewThinkingState";
 import { Button } from "@/components/ui/button";
 
@@ -10,6 +10,7 @@ type KrewJourneyLoadingStateProps = {
   context?: KrewThinkingContext;
   message?: string;
   size?: KrewPageShellSize;
+  gutter?: KrewPageShellGutter;
   /** @deprecated Prefer `size` for semantic shell ownership. */
   maxWidthClassName?: string;
 };
@@ -21,6 +22,7 @@ type KrewJourneyErrorStateProps = {
   onRetry: () => void;
   retrying?: boolean;
   size?: KrewPageShellSize;
+  gutter?: KrewPageShellGutter;
   /** @deprecated Prefer `size` for semantic shell ownership. */
   maxWidthClassName?: string;
   returnLabel?: "Retour au parcours" | "Retour au voyage";
@@ -34,6 +36,7 @@ export function KrewJourneyLoadingState({
   context = "generic",
   message,
   size = "standard",
+  gutter = "default",
   maxWidthClassName,
 }: KrewJourneyLoadingStateProps) {
   const legacySemanticSize = semanticSizeForLegacyWidth(maxWidthClassName);
@@ -50,7 +53,7 @@ export function KrewJourneyLoadingState({
   }
 
   return (
-    <KrewPageShell data-krew-journey-loading size={legacySemanticSize ?? size} className="py-8 sm:py-10">
+    <KrewPageShell data-krew-journey-loading size={legacySemanticSize ?? size} gutter={gutter} className="py-8 sm:py-10">
       <KrewThinkingState context={context} customMessage={message} delayMs={0} />
     </KrewPageShell>
   );
@@ -63,6 +66,7 @@ export function KrewJourneyErrorState({
   onRetry,
   retrying = false,
   size = "standard",
+  gutter = "default",
   maxWidthClassName,
   returnLabel = "Retour au parcours",
 }: KrewJourneyErrorStateProps) {
@@ -113,7 +117,7 @@ export function KrewJourneyErrorState({
   }
 
   return (
-    <KrewPageShell data-krew-journey-error size={legacySemanticSize ?? size} className="space-y-8 py-8 sm:py-10">
+    <KrewPageShell data-krew-journey-error size={legacySemanticSize ?? size} gutter={gutter} className="space-y-8 py-8 sm:py-10">
       {content}
     </KrewPageShell>
   );

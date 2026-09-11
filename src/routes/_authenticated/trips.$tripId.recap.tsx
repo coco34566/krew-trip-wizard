@@ -146,7 +146,7 @@ function TripRecapPage() {
 
   if (isLoading) {
     return (
-      <KrewPageShell data-krew-story-page="recap" size="story" gutter="wide" className="py-10">
+      <KrewPageShell data-krew-story-page="recap" size="story" gutter="wide" className="py-8 sm:py-12">
         <KrewThinkingState
           context="generic"
           customMessage="KREW rassemble les choix du groupe pour préparer le récap…"
@@ -159,7 +159,7 @@ function TripRecapPage() {
   if (error || !data) {
     console.error("Impossible de charger le récap:", error);
     return (
-      <KrewPageShell data-krew-story-page="recap" size="story" gutter="wide" className="py-10">
+      <KrewPageShell data-krew-story-page="recap" size="story" gutter="wide" className="py-8 sm:py-12">
         <section className="rounded-3xl border border-border/60 bg-card p-6 text-center sm:p-8" role="alert">
           <img
             src="/brand/otter-states/searching.png"
@@ -496,7 +496,7 @@ function TripRecapPage() {
 
       {costSplitData?.split ? (
         <section className="space-y-4 pt-4">
-          <h2 className="font-display text-2xl font-normal text-foreground">
+          <h2 className="font-display text-[length:var(--krew-title-section)] leading-8 font-normal text-foreground">
             {costSplitData.isSelected ? "Destination choisie — répartition des coûts" : "Répartition estimée des coûts"}
           </h2>
           <CostSplitCard split={costSplitData.split} tripName={trip.name} tripId={tripId} />

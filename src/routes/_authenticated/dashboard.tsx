@@ -311,10 +311,10 @@ function Dashboard() {
   const hasCompletedTrips = completedTrips.length > 0 || completedInvitations.length > 0;
 
   return (
-    <KrewPageShell size="wide" gutter="wide" data-krew-page-surface="mes-voyages" className="krew-mes-voyages-shell space-y-8 overflow-x-clip overflow-y-visible sm:space-y-12">
+    <KrewPageShell size="wide" gutter="wide" data-krew-page-surface="mes-voyages" className="krew-mes-voyages-shell space-y-[var(--krew-overview-content-gap)] overflow-x-clip overflow-y-visible">
       <header className="relative flex min-h-[118px] items-start justify-between gap-4 sm:min-h-[142px]">
         <KrewOrganicBlob tone="sage" variant="soft" className="absolute -left-8 -top-6 h-[110px] w-[300px] opacity-45 pointer-events-none" />
-        <div className="relative z-10 max-w-[680px]"><div className="relative inline-block"><h1 className="font-display text-[42px] font-normal leading-[.92] tracking-tight text-foreground sm:text-[52px] lg:text-[58px]">Mes voyages</h1><KrewMark type="underline-wave" tone="sage" size="lg" className="absolute -bottom-5 left-1 h-5 w-[150px] opacity-70 sm:w-[190px]" /></div><p className="mt-5 text-sm text-muted-foreground sm:text-base">Ce qui se prépare, ce qui approche et les voyages auxquels tu participes.</p></div>
+        <div className="relative z-10 max-w-[680px]"><div className="relative inline-block"><h1 className="font-display text-[length:var(--krew-title-hero)] font-normal leading-[var(--krew-title-hero-leading)] tracking-[var(--krew-title-hero-tracking)] text-foreground">Mes voyages</h1><KrewMark type="underline-wave" tone="sage" size="lg" className="absolute -bottom-5 left-1 h-5 w-[150px] opacity-70 sm:w-[190px]" /></div><p className="mt-5 text-sm text-muted-foreground sm:text-base">Ce qui se prépare, ce qui approche et les voyages auxquels tu participes.</p></div>
         <Button asChild className="relative z-10 h-10 shrink-0 rounded-xl px-3 text-sm font-medium sm:px-4"><Link to="/trips/new" className="inline-flex min-w-max items-center justify-center gap-1.5 whitespace-nowrap text-center"><KrewIcon name="plus" size="sm" className="size-4 shrink-0" />Nouveau voyage</Link></Button>
         <KrewNote variant="margin" rotation={-2} className="absolute bottom-0 right-2 hidden text-sage sm:block">Le carnet des voyages</KrewNote>
       </header>

@@ -14,7 +14,7 @@ import {
   KrewJourneyStatusPanel,
 } from "@/components/krew/KrewJourneyStatusPanel";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
-import { KrewPageShell } from "@/components/krew/KrewPageShell";
+import { KrewPageShell, type KrewPageShellGutter, type KrewPageShellSize } from "@/components/krew/KrewPageShell";
 import { TripAccommodationPage } from "@/components/krew/TripAccommodationPage";
 import { TripDatesPage } from "@/components/krew/TripDatesPage";
 import { TripDestinationPage } from "@/components/krew/TripDestinationPage";
@@ -38,10 +38,13 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId")({
   component: TripLayout,
 });
 
-function ResponseGateLoading({ maxWidthClassName = "max-w-5xl" }: { maxWidthClassName?: string }) {
+function ResponseGateLoading({ maxWidthClassName, size, gutter }: { maxWidthClassName?: string; size?: KrewPageShellSize; gutter?: KrewPageShellGutter }) {
+  const resolvedMaxWidthClassName = maxWidthClassName ?? (size ? undefined : "max-w-5xl");
   return (
     <KrewJourneyLoadingState
-      maxWidthClassName={maxWidthClassName}
+      maxWidthClassName={resolvedMaxWidthClassName}
+      size={size}
+      gutter={gutter}
       message="Vérification de l’étape…"
     />
   );
@@ -51,17 +54,24 @@ function ResponseGateError({
   tripId,
   onRetry,
   isFetching,
-  maxWidthClassName = "max-w-5xl",
+  maxWidthClassName,
+  size,
+  gutter,
 }: {
   tripId: string;
   onRetry: () => void;
   isFetching: boolean;
   maxWidthClassName?: string;
+  size?: KrewPageShellSize;
+  gutter?: KrewPageShellGutter;
 }) {
+  const resolvedMaxWidthClassName = maxWidthClassName ?? (size ? undefined : "max-w-5xl");
   return (
     <KrewJourneyErrorState
       tripId={tripId}
-      maxWidthClassName={maxWidthClassName}
+      maxWidthClassName={resolvedMaxWidthClassName}
+      size={size}
+      gutter={gutter}
       title="Impossible de vérifier cette étape"
       description="Les informations nécessaires ne sont pas disponibles pour le moment."
       retrying={isFetching}
@@ -114,7 +124,7 @@ function ClosedResponseState({
       size={maxWidthClassName === "max-w-[820px]" ? "form" : "standard"}
       data-krew-availability-page={surface === "availability" ? true : undefined}
       data-krew-preferences-page={surface === "preferences" ? true : undefined}
-      className="space-y-8 py-8 sm:py-10"
+      className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10"
     >
       <Link
         to="/trips/$tripId"
@@ -225,10 +235,14 @@ function CompletedPreparationGate({
   tripId,
   children,
   externalStatus = false,
+  size = "standard",
+  gutter = "default",
 }: {
   tripId: string;
   children: ReactNode;
   externalStatus?: boolean;
+  size?: KrewPageShellSize;
+  gutter?: KrewPageShellGutter;
 }) {
   const fetchDetail = useServerFn(getTripDetail);
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
@@ -237,8 +251,8 @@ function CompletedPreparationGate({
     retry: false,
   });
 
-  if (isLoading) return <ResponseGateLoading />;
-  if (isError) return <ResponseGateError tripId={tripId} onRetry={() => void refetch()} isFetching={isFetching} />;
+  if (isLoading) return <ResponseGateLoading size={size} gutter={gutter} />;
+  if (isError) return <ResponseGateError tripId={tripId} onRetry={() => void refetch()} isFetching={isFetching} size={size} gutter={gutter} />;
 
   const trip = data?.trip as any;
   const completed = trip
@@ -265,14 +279,9 @@ function CompletedPreparationGate({
   if (externalStatus) {
     return (
       <>
-        <div
-          data-krew-page-shell
-          data-krew-page-size="standard"
-          data-krew-page-gutter="default"
-          className="krew-page-shell mt-8"
-        >
+        <KrewPageShell size={size} gutter={gutter} className="mt-8">
           {completedStatus}
-        </div>
+        </KrewPageShell>
         <div inert className="opacity-90">
           {children}
         </div>
@@ -369,7 +378,7 @@ function TripLayout() {
   return (
     <>
       {showInvitePage ? (
-        <CompletedPreparationGate tripId={tripId} externalStatus>
+        <CompletedPreparationGate tripId={tripId} externalStatus size="form" gutter="narrow">
           <TripInvitePage tripId={tripId} />
         </CompletedPreparationGate>
       ) : showTasksPage ? (

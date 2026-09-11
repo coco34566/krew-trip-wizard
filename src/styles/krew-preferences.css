@@ -96,7 +96,6 @@
 [data-krew-preferences-page]
   > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child h2.font-display {
   margin: 0 !important;
-  font-size: 28px !important;
   line-height: 1 !important;
   letter-spacing: -.015em !important;
 }
@@ -155,11 +154,6 @@
     > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > :not(:first-child) {
     grid-column: 2;
     min-width: 0;
-  }
-
-  [data-krew-preferences-page]
-    > :is([data-krew-journey-header], [data-krew-journey-status]) + div > section > div:first-child h2.font-display {
-    font-size: 30px !important;
   }
 
   [data-krew-preferences-page]

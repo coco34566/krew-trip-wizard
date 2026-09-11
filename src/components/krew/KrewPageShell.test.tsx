@@ -50,6 +50,13 @@ describe("KrewPageShell", () => {
     expect(shell).toHaveClass("krew-page-shell");
     expect(shell.className).not.toMatch(/max-w-/);
   });
+  it("preserves the approved size and gutter on a semantic async state", () => {
+    render(<KrewJourneyLoadingState size="form" gutter="narrow" message="Vérification…" />);
+
+    const shell = screen.getByRole("main");
+    expect(shell).toHaveAttribute("data-krew-page-size", "form");
+    expect(shell).toHaveAttribute("data-krew-page-gutter", "narrow");
+  });
   it("exposes the compact 16px TripHub gutter semantically", () => {
     render(<KrewPageShell size="standard" gutter="compact">Contenu</KrewPageShell>);
 

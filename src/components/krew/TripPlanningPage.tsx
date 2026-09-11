@@ -155,7 +155,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
           : "estimation";
 
   return (
-    <KrewPageShell size="standard" className="space-y-8 py-8 sm:py-10">
+    <KrewPageShell size="standard" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
@@ -226,7 +226,7 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
           {days.map((day) => (
             <article key={day.day} className="space-y-4">
               <div className="border-b border-border/60 pb-2">
-                <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+                <h2 className="font-display text-[length:var(--krew-title-section)] leading-8 font-semibold tracking-tight text-foreground">
                   Jour {day.day}
                   {day.date
                     ? ` · ${new Date(`${day.date}T12:00:00`).toLocaleDateString("fr-FR", {

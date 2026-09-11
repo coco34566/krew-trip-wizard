@@ -29,6 +29,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           node <<'NODE'
           const { appendFileSync } = await import("node:fs");
@@ -98,8 +99,9 @@ jobs:
           };
 
           const targetCommit = await nearestAppCommit(process.env.HEAD_SHA);
-          const parentSha = targetCommit.parents?.[0]?.sha;
-          const previousAppCommit = parentSha ? await nearestAppCommit(parentSha) : null;
+          const previousAppCommit = process.env.BASE_SHA
+            ? await nearestAppCommit(process.env.BASE_SHA)
+            : null;
 
           const waitForPreview = async (commit) => {
             let resolved = { url: "", deploymentSha: "" };
@@ -132,9 +134,9 @@ jobs:
         run: npm run test:e2e:smoke
       - name: Run full visual audit contract
         run: npm run test:e2e:visual
-      - name: Capture and compare TripHub migration reference screenshots
+      - name: Capture and compare approved design reference screenshots
         if: always()
-        run: npx playwright test design-system-migration-visual.spec.ts --project=desktop-chromium
+        run: npx playwright test design-system-migration-visual.spec.ts design-harmonization-d7-visual.spec.ts design-harmonization-d8-visual.spec.ts --project=desktop-chromium
       - name: Upload Playwright report
         if: always()
         continue-on-error: true
