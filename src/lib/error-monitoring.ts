@@ -9,11 +9,11 @@ type MonitoringContext = {
   [key: string]: unknown;
 };
 
-const SENSITIVE_KEY = /email|e-mail|first.?name|last.?name|full.?name|display.?name|questionnaire|free.?text|note|allerg|diet|food|password|secret|token|authorization|cookie|session|access.?key|api.?key/i;
+export const SENSITIVE_KEY = /email|e-mail|first.?name|last.?name|full.?name|display.?name|questionnaire|free.?text|note|allerg|diet|food|password|secret|token|authorization|cookie|session|access.?key|api.?key/i;
 const capturedErrors = new WeakSet<Error>();
 let installed = false;
 
-function scrubString(value: string) {
+export function scrubString(value: string) {
   return value
     .replace(/([?&](?:token|key|secret|code|auth)[^=]*)=[^&#\s]*/gi, "$1=[Redacted]")
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[Redacted email]")
@@ -21,7 +21,7 @@ function scrubString(value: string) {
     .replace(/\b(password|passwd|token|secret|authorization|api[_ -]?key|access[_ -]?key)\s*[:=]\s*[^\s,;&#]+/gi, "$1=[Redacted]");
 }
 
-function scrub(value: unknown, depth = 0): unknown {
+export function scrubMonitoringValue(value: unknown, depth = 0): unknown {
   if (depth > 4) return "[Truncated]";
   if (value == null || typeof value === "number" || typeof value === "boolean") return value;
   if (typeof value === "string") {
@@ -29,12 +29,12 @@ function scrub(value: unknown, depth = 0): unknown {
     if (redacted.length > 500) return `${redacted.slice(0, 500)}…`;
     return redacted;
   }
-  if (Array.isArray(value)) return value.slice(0, 20).map((item) => scrub(item, depth + 1));
+  if (Array.isArray(value)) return value.slice(0, 20).map((item) => scrubMonitoringValue(item, depth + 1));
   if (typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([key, child]) => [
         key,
-        SENSITIVE_KEY.test(key) ? "[Redacted]" : scrub(child, depth + 1),
+        SENSITIVE_KEY.test(key) ? "[Redacted]" : scrubMonitoringValue(child, depth + 1),
       ]),
     );
   }
@@ -66,7 +66,7 @@ function environment() {
 }
 
 export function scrubMonitoringContext(context: MonitoringContext) {
-  return scrub(context) as Record<string, unknown>;
+  return scrubMonitoringValue(context) as Record<string, unknown>;
 }
 
 /**
@@ -101,9 +101,9 @@ export async function captureProductionError(error: unknown, context: Monitoring
     level: "error",
     environment: safeContext.environment,
     release: safeContext.build,
-    exception: { values: [{ type: err.name || "Error", value: String(scrub(err.message)) }] },
+    exception: { values: [{ type: err.name || "Error", value: String(scrubMonitoringValue(err.message)) }] },
     contexts: { krew: safeContext },
-    extra: { stack: scrub(err.stack) },
+    extra: { stack: scrubMonitoringValue(err.stack) },
   };
   const envelope = `${JSON.stringify({ event_id: eventId, sent_at: new Date().toISOString() })}\n${JSON.stringify({ type: "event" })}\n${JSON.stringify(payload)}`;
 
