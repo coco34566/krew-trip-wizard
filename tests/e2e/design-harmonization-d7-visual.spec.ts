@@ -136,12 +136,11 @@ test("D7 records the approved Invite and Recap pending-state geometry", async ({
       expect(currentInvite.geometry.size).toBe("form");
       expect(currentInvite.geometry.gutter).toBe("narrow");
       expect(currentInvite.geometry.paddingLeft).toBe(viewport.name === "mobile" ? 16 : 24);
-      expect(beforeInvite.geometry.paddingLeft).toBe(
-        viewport.name === "mobile" ? 20 : viewport.name === "tablet" ? 28 : 32,
-      );
+      // Baseline rebased after PR #387: main already contains the approved D7 Invite geometry.
+      expect(beforeInvite.geometry.paddingLeft).toBe(viewport.name === "mobile" ? 16 : 24);
       expect(currentInvite.geometry.width).toBe(viewport.name === "mobile" ? viewport.width : 820);
-      expect(beforeInvite.geometry.width).toBe(viewport.name === "desktop" ? 1024 : viewport.width);
-      expect(currentInvite.screenshot.equals(beforeInvite.screenshot)).toBe(false);
+      expect(beforeInvite.geometry.width).toBe(viewport.name === "mobile" ? viewport.width : 820);
+      expect(currentInvite.screenshot.equals(beforeInvite.screenshot)).toBe(true);
 
       const currentRecap = await capturePendingState(
         current.page,
@@ -165,8 +164,9 @@ test("D7 records the approved Invite and Recap pending-state geometry", async ({
       });
 
       expect(currentRecap.geometry.paddingTop).toBe(viewport.name === "mobile" ? 32 : 48);
-      expect(beforeRecap.geometry.paddingTop).toBe(40);
-      expect(currentRecap.screenshot.equals(beforeRecap.screenshot)).toBe(false);
+      // Baseline rebased after PR #387: main already contains the approved D7 Recap spacing.
+      expect(beforeRecap.geometry.paddingTop).toBe(viewport.name === "mobile" ? 32 : 48);
+      expect(currentRecap.screenshot.equals(beforeRecap.screenshot)).toBe(true);
     }
   } finally {
     await current.context.close();

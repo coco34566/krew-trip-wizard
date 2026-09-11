@@ -171,9 +171,10 @@ async function expectApprovedChapterTitleTransition({
   }
 
   expect(await renderedPrimaryTitleSize(currentPage)).toBe(viewport.name === "mobile" ? 30 : 34);
-  expect(await renderedPrimaryTitleSize(beforePage)).toBe(viewport.name === "mobile" ? 34 : 40);
-  // D1 intentionally establishes a new visual reference for every chapter viewport.
-  expect(currentScreenshot.equals(beforeScreenshot)).toBe(false);
+  // Baseline rebased after PR #387: main already contains the approved D1 chapter scale.
+  // Dates also includes the #388 runtime fix, which restored the normal page before #387 merged.
+  expect(await renderedPrimaryTitleSize(beforePage)).toBe(viewport.name === "mobile" ? 30 : 34);
+  expect(currentScreenshot.equals(beforeScreenshot)).toBe(true);
 }
 
 function expectApprovedWidthTransition({
@@ -235,7 +236,8 @@ test("TripHub matches the approved D1 hero-title scale", async ({ browser }, tes
         currentSize: await renderedPrimaryTitleSize(current.page),
         beforeSize: await renderedPrimaryTitleSize(before.page),
         expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
-        expectedBeforeSize: viewport.name === "mobile" ? 42 : 56,
+        // PR #387 D1 is now the main baseline.
+        expectedBeforeSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
       });
     }
   } finally {
@@ -259,15 +261,16 @@ test("Mes voyages matches the approved D1 title and D5 wide-shell contracts", as
       const currentWidth = await renderedPageShellWidth(current.page);
       const beforeWidth = await renderedPageShellWidth(before.page);
       expect(currentWidth).toBe(viewport.name === "desktop" ? 1200 : viewport.width);
-      expect(beforeWidth).toBe(viewport.name === "desktop" ? 1180 : viewport.width);
+      // PR #387 D5 is now the main baseline.
+      expect(beforeWidth).toBe(viewport.name === "desktop" ? 1200 : viewport.width);
       expectApprovedTitleTransition({
         currentScreenshot,
         beforeScreenshot,
         currentSize: await renderedPrimaryTitleSize(current.page),
         beforeSize: await renderedPrimaryTitleSize(before.page),
         expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
-        expectedBeforeSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 52 : 58,
-        expectedVisualChange: true,
+        expectedBeforeSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
+        expectedVisualChange: false,
       });
     }
   } finally {
@@ -294,8 +297,9 @@ test("Nouveau voyage matches the approved D1 hero-title scale", async ({ browser
         currentSize: await renderedPrimaryTitleSize(current.page),
         beforeSize: await renderedPrimaryTitleSize(before.page),
         expectedCurrentSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
-        expectedBeforeSize: viewport.name === "mobile" ? 40 : viewport.name === "tablet" ? 50 : 52,
-        expectedVisualChange: true,
+        // PR #387 D1 is now the main baseline.
+        expectedBeforeSize: viewport.name === "mobile" ? 42 : viewport.name === "tablet" ? 50 : 56,
+        expectedVisualChange: false,
       });
     }
   } finally {
@@ -718,7 +722,8 @@ test("Invite matches the approved D8 section-title contract", async ({ browser }
         currentSize: await currentTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize)),
         beforeSize: await beforeTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize)),
         expectedCurrentSize: viewport.name === "mobile" ? 24 : 26,
-        expectedBeforeSize: 24,
+        // PR #387 D8 is now the main baseline.
+        expectedBeforeSize: viewport.name === "mobile" ? 24 : 26,
       });
     }
   } finally {
@@ -753,8 +758,9 @@ test("Recap matches the approved D5 shell and D8 section-title contracts", async
       expect(await renderedPageShellWidth(current.page)).toBe(
         viewport.name === "desktop" ? 1024 : viewport.width,
       );
+      // PR #387 D5 is now the main baseline.
       expect(await renderedPageShellWidth(before.page)).toBe(
-        viewport.name === "desktop" ? 1020 : viewport.width,
+        viewport.name === "desktop" ? 1024 : viewport.width,
       );
 
       const selector = "main section.space-y-4.pt-4 > h2";
@@ -768,15 +774,15 @@ test("Recap matches the approved D5 shell and D8 section-title contracts", async
         expect(await currentTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize))).toBe(
           viewport.name === "mobile" ? 24 : 26,
         );
-        expect(await beforeTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize))).toBe(24);
+        // PR #387 D8 is now the main baseline.
+        expect(await beforeTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize))).toBe(
+          viewport.name === "mobile" ? 24 : 26,
+        );
       }
 
       // Récap contains live cost/weather data. The before/after PNGs remain
-      // attached for review, while deterministic D5 width and D8 font-size
+      // attached for review, while deterministic post-#387 D5 width and D8 font-size
       // values above form the automated visual contract.
-      if (viewport.name === "desktop" || (viewport.name === "tablet" && currentCount > 0)) {
-        expect(currentScreenshot.equals(beforeScreenshot)).toBe(false);
-      }
     }
   } finally {
     await current.context.close();
@@ -857,7 +863,8 @@ test("Memories matches the approved D5 story-shell contract", async ({ browser }
         currentWidth: await renderedPageShellWidth(current.page),
         beforeWidth: await renderedPageShellWidth(before.page),
         expectedCurrentWidth: viewport.name === "desktop" ? 1024 : viewport.width,
-        expectedBeforeWidth: viewport.name === "desktop" ? 1020 : viewport.width,
+        // PR #387 D5 is now the main baseline.
+        expectedBeforeWidth: viewport.name === "desktop" ? 1024 : viewport.width,
       });
     }
   } finally {
