@@ -167,7 +167,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   const isAdmin = Boolean(data.isOwner);
   const completedTrip =
     getTripLifecycleState({
-      datesLocked: Boolean(trip.dates_locked ?? trip.datesLocked),
+      datesLocked: Boolean(trip.dates_locked),
       startDate: trip.start_date ?? null,
       endDate: trip.end_date ?? null,
     }) === "completed";
@@ -180,7 +180,12 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
       participant.status !== "refuse",
   );
   const tasks = tasksQuery.data ?? [];
-  const hasItinerary = Boolean(trip.group_itinerary?.days?.length);
+  const rawItinerary = trip.group_itinerary;
+  const itinerary =
+    rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
+      ? rawItinerary
+      : {};
+  const hasItinerary = Array.isArray(itinerary.days) && itinerary.days.length > 0;
   const completed = tasks.filter((task) => task.status === "done").length;
   const identifiedActiveCount = participants.length;
   const missingParticipants = Math.max(

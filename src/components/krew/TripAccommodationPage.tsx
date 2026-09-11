@@ -104,7 +104,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
   const canManageBooking = Boolean(
     isOwner ||
       (data.userId &&
-        (trip.co_organizer_id === data.userId || trip.coOrganizerId === data.userId)),
+        trip.co_organizer_id === data.userId),
   );
   const selectedDestination = (data.recommendations ?? []).find(
     (recommendation: any) => recommendation.is_selected,

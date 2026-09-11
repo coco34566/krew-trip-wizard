@@ -41,7 +41,12 @@ export function TripPackingPage({ tripId }: { tripId: string }) {
   const trip = data.trip as Tables<"trips">;
   const logistics = (trip.group_logistics ?? {}) as any;
   const activities = (data.activities ?? []) as any[];
-  const itineraryDays = (trip.group_itinerary?.days ?? []) as any[];
+  const rawItinerary = trip.group_itinerary;
+  const itinerary =
+    rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
+      ? rawItinerary
+      : {};
+  const itineraryDays = Array.isArray(itinerary.days) ? itinerary.days : [];
   const selectedHotel = (logistics.hotels ?? []).find((hotel: any) => hotel.id === logistics.selectedHotelId);
   const lifecycle = getTripLifecycleState({
     datesLocked: Boolean(trip.dates_locked),

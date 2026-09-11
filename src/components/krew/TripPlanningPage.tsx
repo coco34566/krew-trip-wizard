@@ -137,14 +137,22 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
   const isAdmin = Boolean(data.isOwner);
   const completedTrip =
     getTripLifecycleState({
-      datesLocked: Boolean(trip.dates_locked ?? trip.datesLocked),
+      datesLocked: Boolean(trip.dates_locked),
       startDate: trip.start_date ?? null,
       endDate: trip.end_date ?? null,
     }) === "completed";
-  const days = (trip.group_itinerary?.days ?? []) as any[];
-  const destination = String(
-    trip.group_itinerary?.destination || trip.group_logistics?.destination || "",
-  ).trim();
+  const rawItinerary = trip.group_itinerary;
+  const itinerary =
+    rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
+      ? rawItinerary
+      : {};
+  const rawLogistics = trip.group_logistics;
+  const logistics =
+    rawLogistics && typeof rawLogistics === "object" && !Array.isArray(rawLogistics)
+      ? rawLogistics
+      : {};
+  const days = Array.isArray(itinerary.days) ? itinerary.days : [];
+  const destination = String(itinerary.destination || logistics.destination || "").trim();
   const activityCost = computeItineraryActivitiesCost(days);
   const priceStatusLabel =
     activityCost.priceStatus === "verified"

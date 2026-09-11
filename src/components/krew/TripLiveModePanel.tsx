@@ -54,7 +54,7 @@ function eventTone(status: LiveSlotState["status"], featured: boolean) {
 
 export function TripLiveModePanel({ tripId, trip, destinationName = null, weather = null }: Props) {
   const now = new Date();
-  const datesLocked = Boolean(trip?.dates_locked || trip?.datesLocked);
+  const datesLocked = Boolean(trip.dates_locked);
   const live = isTripLiveMode({
     datesLocked,
     startDate: trip?.start_date,
@@ -63,8 +63,13 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
   });
   if (!live) return null;
 
-  const dayNumber = tripDayNumber(trip?.start_date, now);
-  const days = Array.isArray(trip?.group_itinerary?.days) ? trip.group_itinerary.days : [];
+  const dayNumber = tripDayNumber(trip.start_date, now);
+  const rawItinerary = trip.group_itinerary;
+  const itinerary =
+    rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
+      ? rawItinerary
+      : {};
+  const days = Array.isArray(itinerary.days) ? itinerary.days : [];
   const todayDay = days.find((day: any) => Number(day?.day) === dayNumber) ?? null;
   const slots = Array.isArray(todayDay?.slots) ? todayDay.slots : [];
   const states = classifyLiveSlots(slots, now);
