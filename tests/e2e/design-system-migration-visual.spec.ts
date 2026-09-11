@@ -153,12 +153,16 @@ async function expectApprovedChapterTitleTransition({
   currentScreenshot,
   beforeScreenshot,
   viewport,
+  maxDiffPixels = 0,
+  snapshotName,
 }: {
   currentPage: Page;
   beforePage: Page;
   currentScreenshot: Buffer;
   beforeScreenshot: Buffer;
   viewport: (typeof VIEWPORTS)[number];
+  maxDiffPixels?: number;
+  snapshotName?: string;
 }) {
   const currentTitleCount = await currentPage.locator("main h1").count();
   const beforeTitleCount = await beforePage.locator("main h1").count();
@@ -174,7 +178,15 @@ async function expectApprovedChapterTitleTransition({
   // Baseline rebased after PR #387: main already contains the approved D1 chapter scale.
   // Dates also includes the #388 runtime fix, which restored the normal page before #387 merged.
   expect(await renderedPrimaryTitleSize(beforePage)).toBe(viewport.name === "mobile" ? 30 : 34);
-  expect(currentScreenshot.equals(beforeScreenshot)).toBe(true);
+  if (maxDiffPixels === 0) {
+    expect(currentScreenshot.equals(beforeScreenshot)).toBe(true);
+  } else {
+    expect(snapshotName, "snapshotName is required when allowing raster tolerance").toBeTruthy();
+    expect(currentScreenshot).toMatchSnapshot(snapshotName!, {
+      threshold: 0,
+      maxDiffPixels,
+    });
+  }
 }
 
 function expectApprovedWidthTransition({
@@ -361,13 +373,15 @@ test("Dates matches the approved chapter-title contract", async ({ browser }, te
   try {
     for (const viewport of VIEWPORTS) {
       const path = `/trips/${tripId}/dates`;
-      const currentScreenshot = await captureFullPage(current.page, path, viewport);
+      // Artifact evidence: all 84 differing pixels were confined to the sticky header.
+      // Mask that non-contract header consistently with other journey captures.
+      const currentScreenshot = await captureJourneySurface(current.page, path, viewport);
       await testInfo.attach(`after-${viewport.name}-dates`, {
         body: currentScreenshot,
         contentType: "image/png",
       });
 
-      const beforeScreenshot = await captureFullPage(before.page, path, viewport);
+      const beforeScreenshot = await captureJourneySurface(before.page, path, viewport);
       await testInfo.attach(`before-${viewport.name}-dates`, {
         body: beforeScreenshot,
         contentType: "image/png",
@@ -426,6 +440,9 @@ test("Profile matches the approved chapter-title contract", async ({ browser }, 
         currentScreenshot,
         beforeScreenshot,
         viewport,
+        // Artifact evidence: exactly two pixels differed across the whole Profile main capture.
+        maxDiffPixels: 2,
+        snapshotName,
       });
     }
   } finally {

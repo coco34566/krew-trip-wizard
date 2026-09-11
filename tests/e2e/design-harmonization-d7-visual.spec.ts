@@ -80,6 +80,19 @@ async function capturePendingState(
     const shell = page.locator(marker).first();
     await expect(shell).toBeVisible({ timeout: 20_000 });
     await page.evaluate(() => document.fonts.ready).catch(() => undefined);
+    // Preview-only Vercel chrome is outside the KREW visual contract. The failed
+    // PR #389 artifact showed identical D7 geometry/content with only this
+    // floating control present on one preview.
+    await page.addStyleTag({
+      content: `
+        vercel-live-feedback,
+        vercel-toolbar,
+        #vercel-toolbar,
+        iframe[src*="vercel.live"] {
+          display: none !important;
+        }
+      `,
+    });
     const screenshot = await page.screenshot({ animations: "disabled", fullPage: true });
     const geometry = await shell.evaluate((element) => {
       const style = getComputedStyle(element);
