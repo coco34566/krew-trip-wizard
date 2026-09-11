@@ -18,9 +18,11 @@ import {
   type KrewActionItem,
 } from "@/components/krew/visual-language";
 
+type TripHubTrip = Tables<"trips"> & { participants?: unknown[] };
+
 type Props = {
   tripId: string;
-  trip: Tables<"trips">;
+  trip: TripHubTrip;
   isOwner: boolean;
   participantsCount: number;
   progressAnswered: number;
