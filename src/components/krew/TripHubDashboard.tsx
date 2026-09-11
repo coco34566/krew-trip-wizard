@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,7 +20,7 @@ import {
 
 type Props = {
   tripId: string;
-  trip: any;
+  trip: Tables<"trips">;
   isOwner: boolean;
   participantsCount: number;
   progressAnswered: number;
@@ -85,7 +86,7 @@ function heroImageForEvent(eventType?: string | null) {
 type NextActionsPanelProps = {
   tripId: string;
   isOwner: boolean;
-  trip: any;
+  trip: Tables<"trips">;
   myAvailabilityDone: boolean;
   myPreferencesDone: boolean;
   starDone: boolean;

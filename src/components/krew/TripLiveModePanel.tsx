@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
@@ -21,7 +22,7 @@ export { isTripLiveMode } from "@/lib/krew/trip-live-mode";
 
 type Props = {
   tripId: string;
-  trip: any;
+  trip: Tables<"trips">;
   destinationName?: string | null;
   weather?: TripWeatherSummary | null;
   isOwner: boolean;
