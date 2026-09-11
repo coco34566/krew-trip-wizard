@@ -91,7 +91,7 @@ async function waitForRenderedChapter(page: Page, name: string) {
     invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
     availability: () => page.locator('main img[src*="/brand/otter-states/availability.png"]'),
     preferences: () => page.getByRole("heading", { name: "Envies et ambiance", exact: true }),
-    dates: () => page.locator("#hub-dates"),
+    dates: () => page.getByRole("heading", { name: "Dates du groupe", exact: true }),
     profile: () => page.locator('#hub-profile, [data-journey-locked-section="profile"]'),
     destination: () => page.locator("#hub-destination"),
     accommodation: () => page.locator('#hub-logistics, [data-journey-locked-section="accommodation"]'),
