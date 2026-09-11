@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -99,7 +100,7 @@ export function TripDatesPage({ tripId }: { tripId: string }) {
   }
 
   const data = detailQuery.data as any;
-  const trip = data.trip as any;
+  const trip = data.trip as Tables<"trips">;
   const availability = availabilityQuery.data as any;
   const isAdmin = Boolean(data.isOwner);
   const datesLocked = Boolean(trip.dates_locked || availability?.trip?.datesLocked);

@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -114,7 +115,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   }
 
   const data = detailQuery.data as any;
-  const trip = data.trip as any;
+  const trip = data.trip as Tables<"trips">;
   const logistics = (trip.group_logistics || {}) as any;
   const transports = (logistics.transports ?? []) as any[];
   const picks = (logistics.transportPicks ?? []) as any[];
