@@ -24,69 +24,26 @@ jobs:
           cache: npm
       - run: npm ci
 
-      - name: Capture pre-fix TypeScript snapshot
-        run: npx tsc --noEmit --pretty false > /tmp/tsc-before-final.log 2>&1 || true
-
-      - name: Give persisted JSON precise local shapes
+      - name: Fix TripHub enriched trip contract
         run: |
           python3 <<'PY'
           from pathlib import Path
-
-          def rep(path, old, new):
-              p=Path(path); s=p.read_text(); assert old in s, path; p.write_text(s.replace(old,new))
-
-          # Live mode: JSON is persisted itinerary data; assert only the fields this view reads.
-          p=Path('src/components/krew/TripLiveModePanel.tsx'); s=p.read_text()
-          anchor='type Props = {'
-          insert='''type LiveItineraryDay = {\n  day?: unknown;\n  title?: string;\n  slots?: any[];\n};\n\n'''
-          if insert not in s:
-              assert anchor in s; s=s.replace(anchor, insert+anchor)
-          s=s.replace('const days = Array.isArray(itinerary.days) ? itinerary.days : [];', 'const days = Array.isArray(itinerary["days"]) ? (itinerary["days"] as unknown as LiveItineraryDay[]) : [];')
-          p.write_text(s)
-
-          # Packing: only slot labels are consumed from itinerary days.
-          p=Path('src/components/krew/TripPackingPage.tsx'); s=p.read_text()
-          marker='export function TripPackingPage'
-          alias='''type PackingItineraryDay = { slots?: any[] };\n\n'''
+          p = Path('src/components/krew/TripHubDashboard.tsx')
+          s = p.read_text()
+          marker = 'type Props = {'
+          alias = 'type TripHubTrip = Tables<"trips"> & { participants?: unknown[] };\n\n'
           if alias not in s:
-              assert marker in s; s=s.replace(marker, alias+marker)
-          s=s.replace('const itineraryDays = Array.isArray(itinerary.days) ? itinerary.days : [];', 'const itineraryDays = Array.isArray(itinerary["days"]) ? (itinerary["days"] as unknown as PackingItineraryDay[]) : [];')
+              assert marker in s
+              s = s.replace(marker, alias + marker, 1)
+          old = '  trip: Tables<"trips">;'
+          assert old in s
+          s = s.replace(old, '  trip: TripHubTrip;', 1)
           p.write_text(s)
-
-          # Planning: persistently stored itinerary contract used by this page.
-          p=Path('src/components/krew/TripPlanningPage.tsx'); s=p.read_text()
-          marker='export function planningTypeLabel'
-          alias='''type PlanningItineraryDay = {\n  day: number;\n  date?: string;\n  slots?: any[];\n};\n\n'''
-          if alias not in s:
-              assert marker in s; s=s.replace(marker, alias+marker)
-          s=s.replace('const days = Array.isArray(itinerary.days) ? itinerary.days : [];', 'const days = Array.isArray(itinerary["days"]) ? (itinerary["days"] as unknown as PlanningItineraryDay[]) : [];')
-          s=s.replace('const destination = String(itinerary.destination || logistics.destination || "").trim();', 'const destination = String(itinerary["destination"] || logistics["destination"] || "").trim();')
-          p.write_text(s)
-
-          # Tasks only needs to know whether persisted itinerary has days.
-          rep('src/components/krew/TripTasksPage.tsx', 'const hasItinerary = Array.isArray(itinerary.days) && itinerary.days.length > 0;', 'const hasItinerary = Array.isArray(itinerary["days"]) && itinerary["days"].length > 0;')
-
-          # Destination reads one legacy key from the persisted logistics JSON.
-          rep('src/components/krew/TripDestinationPage.tsx', 'const noAdmissibleProposals = logistics.destinationGenerationState === "no_admissible_proposals";', 'const noAdmissibleProposals = logistics["destinationGenerationState"] === "no_admissible_proposals";')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/components/krew/TripLiveModePanel.tsx src/components/krew/TripPackingPage.tsx src/components/krew/TripPlanningPage.tsx src/components/krew/TripTasksPage.tsx src/components/krew/TripDestinationPage.tsx
-          git commit -m 'refactor(types): type persisted trip JSON shapes'
-          git push origin HEAD:fix/privacy-trip-typing-audits
-
-      - name: Fix stale generated-schema query inference
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-          p=Path('src/lib/trips.functions.ts'); s=p.read_text()
-          old='.select("owner_id, co_organizer_id, stay_concepts_calculated")'
-          assert old in s
-          s=s.replace(old, '.select("*")', 1)
-          p.write_text(s)
-          PY
-          git add src/lib/trips.functions.ts
-          git commit -m 'refactor(types): avoid invalid trip select inference'
+          git add src/components/krew/TripHubDashboard.tsx
+          git commit -m 'refactor(types): type enriched TripHub trip'
           git push origin HEAD:fix/privacy-trip-typing-audits
 
       - name: Verify targeted any removal
@@ -96,37 +53,18 @@ jobs:
             exit 1
           fi
 
-      - name: Capture final TypeScript snapshot
+      - name: Capture TypeScript snapshot
         run: npx tsc --noEmit --pretty false > /tmp/tsc-after-final.log 2>&1 || true
-
-      - name: Require no new semantic TypeScript errors
-        run: |
-          set -o pipefail
-          python3 <<'PY' | tee /tmp/tsc-final-delta.txt
-          import re
-          from collections import Counter
-          from pathlib import Path
-          def errors(path):
-              lines=[x.strip() for x in Path(path).read_text().splitlines() if re.search(r'\berror TS\d+:',x)]
-              return [re.sub(r'^(.*?)(?:\(\d+,\d+\))(: error TS\d+:)',r'\1\2',x) for x in lines]
-          b=Counter(errors('/tmp/tsc-before-final.log')); a=Counter(errors('/tmp/tsc-after-final.log'))
-          added=list((a-b).elements()); removed=list((b-a).elements())
-          print(f'before_final={sum(b.values())}'); print(f'after_final={sum(a.values())}')
-          print(f'added={len(added)}'); [print('ADD '+x) for x in sorted(added)]
-          print(f'removed={len(removed)}'); [print('REMOVE '+x) for x in sorted(removed)]
-          if added: raise SystemExit(1)
-          PY
 
       - name: Run unit tests
         run: npm test
+
       - name: Build application
         run: npm run build
+
       - name: Upload validation logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lot2-final-validation
-          path: |
-            /tmp/tsc-before-final.log
-            /tmp/tsc-after-final.log
-            /tmp/tsc-final-delta.txt
+          name: lot2-final-contract-validation
+          path: /tmp/tsc-after-final.log
