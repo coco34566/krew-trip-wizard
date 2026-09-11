@@ -1243,3 +1243,16 @@ La géométrie commune appartient au composant `Button` / à la primitive partag
 Lors d’un audit boutons, rechercher et supprimer les anciens `h-*`, `min-h-*`, `rounded-*`, paddings et règles CSS spécifiques qui concurrencent le contrat officiel.
 
 Le but n’est pas d’avoir davantage de boutons cohérents : le but est d’avoir **moins de boutons, mieux hiérarchisés et plus lisibles**.
+
+---
+
+## Chargement de la page Souvenirs — exception produit intentionnelle
+
+La page **Souvenirs** (`/trips/:tripId/memories`) suit volontairement un pattern de chargement différent du chargement pleine page standard des autres pages journey.
+
+Pendant le chargement initial des photos, **la structure de page reste immédiatement visible** : header, titre et carte d’import sont rendus avant le `KrewThinkingState`, qui reste inline à l’emplacement de la galerie.
+
+Cette exception correspond à la **décision B du lot Souvenirs** : l’album peut être potentiellement lourd (photos, métadonnées, signed URLs), et rendre immédiatement sa structure donne une perception de disponibilité préférable à un écran de chargement plein page qui bloquerait tout affichage.
+
+Ce comportement est un **contrat produit explicite**. Il ne doit pas être aligné sur le pattern pleine page des autres pages journey sans nouvelle décision produit explicite et mise à jour du test de contrat associé.
+

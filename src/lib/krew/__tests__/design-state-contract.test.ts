@@ -22,10 +22,19 @@ describe("approved D7 secondary-state contract", () => {
     expect(recapRoute).not.toContain('className="py-10"');
   });
 
-  it("keeps Memories outside the reduced D7 implementation scope", () => {
-    expect(memoriesRoute).toContain(
-      '<KrewThinkingState context="generic" customMessage="Chargement des souvenirs…" delayMs={0} />',
-    );
+  it("locks Memories progressive loading as the intentional D7 decision-B contract", () => {
+    const headerIndex = memoriesRoute.indexOf("L&apos;album du voyage");
+    const importCardIndex = memoriesRoute.indexOf("Ajoute tes photos de voyage");
+    const thinkingState =
+      '<KrewThinkingState context="generic" customMessage="Chargement des souvenirs…" delayMs={0} />';
+    const thinkingIndex = memoriesRoute.indexOf(thinkingState);
+
+    expect(headerIndex).toBeGreaterThanOrEqual(0);
+    expect(importCardIndex).toBeGreaterThanOrEqual(0);
+    expect(thinkingIndex).toBeGreaterThanOrEqual(0);
+    expect(headerIndex).toBeLessThan(thinkingIndex);
+    expect(importCardIndex).toBeLessThan(thinkingIndex);
+    expect(memoriesRoute.slice(0, thinkingIndex)).not.toMatch(/if\s*\(\s*isLoading\s*\)/);
     expect(memoriesRoute).not.toContain("KrewJourneyLoadingState");
   });
 });

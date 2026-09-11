@@ -116,7 +116,7 @@ L’état normal, son chargement local et son erreur locale sont maintenant tous
 
 L’écart historique `1020 / 1024` a disparu avec D5 : normal, erreur et chargement vivent tous dans `story = 1024` avec gutter `wide`. En revanche, le chargement n’est pas une branche pleine page : le header, la carte d’import et un état vide provisoire sont déjà rendus, puis `KrewThinkingState` apparaît plus bas.
 
-**Cible :** ne pas forcer une migration CSS. Décider en Phase 2 si le chargement progressif est intentionnel. S’il ne l’est pas, séparer le chargement initial avant le rendu du contenu ; cela constitue un changement structurel et comportemental à valider à part.
+**Décision résolue — Option B :** conserver le chargement progressif comme choix produit intentionnel. Souvenirs est une page potentiellement lourde en photos ; le header et la carte d’import restent donc visibles immédiatement, tandis que `KrewThinkingState` charge la galerie plus bas. Ce comportement est documenté dans `DESIGN.md` et protégé par un test de contrat ; aucun changement de rendu n’est requis.
 
 #### Récap
 
@@ -130,13 +130,13 @@ L’écart historique de largeur a également disparu : tous les états utilisen
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Invite          | Gate de vérification : largeur 1024 → 820 px et gutter défaut → `narrow` ; panneau de voyage terminé à réaligner avec la page |
 | Récap           | Loading/erreur : `py 40` → `32 px` à 390 px et `48 px` à 834/1440 px                                                          |
-| Souvenirs       | Aucun changement automatique ; revue structurelle préalable obligatoire                                                       |
+| Souvenirs       | **Résolu par décision B** : chargement progressif conservé et assumé ; aucun changement de rendu                                |
 | 11 autres pages | Aucun changement attendu ; leur conformité devient un contrat explicite                                                       |
 | Compte          | Aucun changement ; son conteneur local reste une exception documentée                                                         |
 
 ### Décision à valider
 
-- [x] **D7 validée avec portée réduite :** corriger le gate Invite et le rythme de Récap ; Souvenirs reste explicitement hors de ce lot.
+- [x] **D7 validée :** gate Invite et rythme de Récap corrigés ; **partie Souvenirs résolue par décision B (chargement progressif assumé)**, documentée et protégée par un test de contrat.
 
 ---
 

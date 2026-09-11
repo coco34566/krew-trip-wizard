@@ -197,6 +197,9 @@ function MemoriesPage(){
         </div>
       </section>
 
+      {/* D7 — décision B (lot Souvenirs) : chargement progressif intentionnel.
+          Le header et la carte d’import restent visibles pendant le chargement des photos ;
+          ne pas remplacer par un chargement plein page sans nouvelle décision produit explicite. */}
       {isLoading ? (
         <div className="py-8">
           <KrewThinkingState context="generic" customMessage="Chargement des souvenirs…" delayMs={0} />
