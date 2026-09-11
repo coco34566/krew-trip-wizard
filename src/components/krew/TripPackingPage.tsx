@@ -14,6 +14,8 @@ import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { TripLifecycleProvider } from "@/lib/krew/trip-lifecycle-context";
 import { getTripDetail } from "@/lib/trips.functions";
 
+type PackingItineraryDay = { slots?: any[] };
+
 export function TripPackingPage({ tripId }: { tripId: string }) {
   const fetchDetail = useServerFn(getTripDetail);
   const detailQuery = useQuery({
@@ -46,7 +48,7 @@ export function TripPackingPage({ tripId }: { tripId: string }) {
     rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
       ? rawItinerary
       : {};
-  const itineraryDays = Array.isArray(itinerary.days) ? itinerary.days : [];
+  const itineraryDays = Array.isArray(itinerary["days"]) ? (itinerary["days"] as unknown as PackingItineraryDay[]) : [];
   const selectedHotel = (logistics.hotels ?? []).find((hotel: any) => hotel.id === logistics.selectedHotelId);
   const lifecycle = getTripLifecycleState({
     datesLocked: Boolean(trip.dates_locked),

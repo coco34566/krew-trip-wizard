@@ -185,7 +185,7 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
     rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
       ? rawItinerary
       : {};
-  const hasItinerary = Array.isArray(itinerary.days) && itinerary.days.length > 0;
+  const hasItinerary = Array.isArray(itinerary["days"]) && itinerary["days"].length > 0;
   const completed = tasks.filter((task) => task.status === "done").length;
   const identifiedActiveCount = participants.length;
   const missingParticipants = Math.max(

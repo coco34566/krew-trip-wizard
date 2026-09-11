@@ -141,7 +141,7 @@ export function TripDestinationPage({ tripId }: { tripId: string }) {
     rawLogistics && typeof rawLogistics === "object" && !Array.isArray(rawLogistics)
       ? rawLogistics
       : {};
-  const noAdmissibleProposals = logistics.destinationGenerationState === "no_admissible_proposals";
+  const noAdmissibleProposals = logistics["destinationGenerationState"] === "no_admissible_proposals";
 
   return (
     <KrewPageShell size="standard" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">

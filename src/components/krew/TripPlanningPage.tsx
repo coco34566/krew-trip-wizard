@@ -28,6 +28,12 @@ import {
   regenerateItinerarySlot,
 } from "@/lib/trips.functions.entry";
 
+type PlanningItineraryDay = {
+  day: number;
+  date?: string;
+  slots?: any[];
+};
+
 export function planningTypeLabel(type: string | null | undefined) {
   const normalized = String(type ?? "").trim().toLowerCase();
   const labels: Record<string, string> = {
@@ -151,8 +157,8 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
     rawLogistics && typeof rawLogistics === "object" && !Array.isArray(rawLogistics)
       ? rawLogistics
       : {};
-  const days = Array.isArray(itinerary.days) ? itinerary.days : [];
-  const destination = String(itinerary.destination || logistics.destination || "").trim();
+  const days = Array.isArray(itinerary["days"]) ? (itinerary["days"] as unknown as PlanningItineraryDay[]) : [];
+  const destination = String(itinerary["destination"] || logistics["destination"] || "").trim();
   const activityCost = computeItineraryActivitiesCost(days);
   const priceStatusLabel =
     activityCost.priceStatus === "verified"

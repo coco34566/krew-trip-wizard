@@ -20,6 +20,12 @@ import {
 
 export { isTripLiveMode } from "@/lib/krew/trip-live-mode";
 
+type LiveItineraryDay = {
+  day?: unknown;
+  title?: string;
+  slots?: any[];
+};
+
 type Props = {
   tripId: string;
   trip: Tables<"trips">;
@@ -69,7 +75,7 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
     rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
       ? rawItinerary
       : {};
-  const days = Array.isArray(itinerary.days) ? itinerary.days : [];
+  const days = Array.isArray(itinerary["days"]) ? (itinerary["days"] as unknown as LiveItineraryDay[]) : [];
   const todayDay = days.find((day: any) => Number(day?.day) === dayNumber) ?? null;
   const slots = Array.isArray(todayDay?.slots) ? todayDay.slots : [];
   const states = classifyLiveSlots(slots, now);
