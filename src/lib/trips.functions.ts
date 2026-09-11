@@ -873,7 +873,7 @@ export const validateStayProfile = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const trip = await supabase
       .from("trips")
-      .select("owner_id, co_organizer_id, stay_concepts_calculated")
+      .select("*")
       .eq("id", data.tripId)
       .maybeSingle();
     if (trip.error) throw trip.error;
