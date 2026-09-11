@@ -35,7 +35,7 @@ import {
 import { aggregateStayProfiles, buildStayConcepts, routeDiscovery, type StayProfileId } from "./stay-profiles";
 import { attachAnchorEnrichments } from "./discovery-enrichment";
 
-export function getEffectiveParticipantsCount(trip: Tables<"trips"> | null | undefined, participants: any[]): number {
+export function getEffectiveParticipantsCount(trip: Pick<Tables<"trips">, "participants_count"> | null | undefined, participants: any[]): number {
   if (!trip) return Math.max(1, participants?.length || 1);
   const declaredCount = Number(trip.participants_count) || 0;
   const actualCount = Array.isArray(participants) ? participants.length : 0;
