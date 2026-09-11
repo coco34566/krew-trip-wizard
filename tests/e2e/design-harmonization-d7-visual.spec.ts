@@ -100,6 +100,7 @@ async function capturePendingState(
   }
 }
 
+// Post-merge baseline: PR #387 is already in main, so before/after must agree unless a later PR changes D7.
 test("D7 records the approved Invite and Recap pending-state geometry", async ({
   browser,
 }, testInfo) => {
