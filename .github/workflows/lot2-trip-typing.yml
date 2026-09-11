@@ -1,0 +1,177 @@
+name: Lot 2 trip typing migration
+
+on:
+  push:
+    branches: [fix/privacy-trip-typing-audits]
+    paths: [.github/workflows/lot2-trip-typing.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/privacy-trip-typing-audits
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Capture TypeScript baseline
+        run: |
+          npx tsc --noEmit --pretty false > /tmp/tsc-before.log 2>&1 || true
+
+      - name: Type domain helpers
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def add_tables_import(path):
+              p = Path(path)
+              s = p.read_text()
+              marker = 'import type { Tables } from "@/integrations/supabase/types";\n'
+              if marker not in s:
+                  s = marker + s
+              p.write_text(s)
+
+          p = Path('src/lib/krew/engine-legacy.ts')
+          s = p.read_text()
+          old = 'export function isTripAdmin(trip: any, userId: string): boolean {'
+          assert old in s
+          s = s.replace(old, 'export function isTripAdmin(trip: Tables<"trips"> | null | undefined, userId: string): boolean {')
+          p.write_text(s)
+          add_tables_import(p)
+
+          p = Path('src/lib/krew/trip-service-legacy.ts')
+          s = p.read_text()
+          old1 = 'export function getEffectiveParticipantsCount(trip: any, participants: any[]): number {'
+          old2 = '  trip: any;'
+          assert old1 in s
+          assert old2 in s
+          s = s.replace(old1, 'export function getEffectiveParticipantsCount(trip: Tables<"trips"> | null | undefined, participants: any[]): number {')
+          s = s.replace(old2, '  trip: Tables<"trips">;', 1)
+          p.write_text(s)
+          add_tables_import(p)
+
+          p = Path('src/lib/__tests__/star-identity-weighting.test.ts')
+          s = p.read_text()
+          old = 'function supabaseFor(rows: any[], trip: any, star: any) {'
+          assert old in s
+          s = s.replace(old, 'function supabaseFor(rows: any[], trip: Record<string, unknown>, star: any) {')
+          p.write_text(s)
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/krew/engine-legacy.ts src/lib/krew/trip-service-legacy.ts src/lib/__tests__/star-identity-weighting.test.ts
+          git commit -m 'refactor(types): type trip domain helpers'
+          git push origin HEAD:fix/privacy-trip-typing-audits
+
+      - name: Type dashboard components
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          files = [
+              'src/components/krew/TripHubDashboard.tsx',
+              'src/components/krew/TripLiveModePanel.tsx',
+          ]
+          marker = 'import type { Tables } from "@/integrations/supabase/types";\n'
+          for path in files:
+              p = Path(path)
+              s = p.read_text()
+              count = s.count('trip: any')
+              assert count > 0, (path, count)
+              s = s.replace('trip: any', 'trip: Tables<"trips">')
+              if marker not in s:
+                  s = marker + s
+              p.write_text(s)
+          PY
+          git add src/components/krew/TripHubDashboard.tsx src/components/krew/TripLiveModePanel.tsx
+          git commit -m 'refactor(types): type trip dashboard components'
+          git push origin HEAD:fix/privacy-trip-typing-audits
+
+      - name: Type trip pages
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          files = [
+              'src/components/krew/TripPackingPage.tsx',
+              'src/components/krew/TripDatesPage.tsx',
+              'src/components/krew/TripTasksPage.tsx',
+              'src/components/krew/TripPlanningPage.tsx',
+              'src/components/krew/TripTransportPage.tsx',
+              'src/components/krew/TripDestinationPage.tsx',
+              'src/components/krew/TripAccommodationPage.tsx',
+          ]
+          marker = 'import type { Tables } from "@/integrations/supabase/types";\n'
+          for path in files:
+              p = Path(path)
+              s = p.read_text()
+              old = 'const trip = data.trip as any;'
+              assert old in s, path
+              s = s.replace(old, 'const trip = data.trip as Tables<"trips">;')
+              if marker not in s:
+                  s = marker + s
+              p.write_text(s)
+          PY
+          git add src/components/krew/TripPackingPage.tsx src/components/krew/TripDatesPage.tsx src/components/krew/TripTasksPage.tsx src/components/krew/TripPlanningPage.tsx src/components/krew/TripTransportPage.tsx src/components/krew/TripDestinationPage.tsx src/components/krew/TripAccommodationPage.tsx
+          git commit -m 'refactor(types): type trip page data'
+          git push origin HEAD:fix/privacy-trip-typing-audits
+
+      - name: Verify targeted any removal
+        run: |
+          if grep -R -n -E 'trip: any|data\.trip as any' src --include='*.ts' --include='*.tsx'; then
+            echo 'Targeted trip any usages remain' >&2
+            exit 1
+          fi
+
+      - name: TypeScript semantic multiset delta
+        run: |
+          npx tsc --noEmit --pretty false > /tmp/tsc-after.log 2>&1 || true
+          python3 <<'PY' | tee /tmp/tsc-semantic-delta.txt
+          import re
+          from collections import Counter
+          from pathlib import Path
+
+          def errors(path):
+              lines = [line.strip() for line in Path(path).read_text().splitlines() if re.search(r'\berror TS\d+:', line)]
+              return [re.sub(r'^(.*?)(?:\(\d+,\d+\))(: error TS\d+:)', r'\1\2', line) for line in lines]
+
+          before = Counter(errors('/tmp/tsc-before.log'))
+          after = Counter(errors('/tmp/tsc-after.log'))
+          added = list((after - before).elements())
+          removed = list((before - after).elements())
+          print(f'before={sum(before.values())}')
+          print(f'after={sum(after.values())}')
+          print(f'added={len(added)}')
+          for line in sorted(added): print('ADD ' + line)
+          print(f'removed={len(removed)}')
+          for line in sorted(removed): print('REMOVE ' + line)
+          if added:
+              raise SystemExit(1)
+          PY
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload Lot 2 validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot2-trip-typing-validation
+          path: |
+            /tmp/tsc-before.log
+            /tmp/tsc-after.log
+            /tmp/tsc-semantic-delta.txt
