@@ -2,11 +2,13 @@
  * Module de reporting des erreurs serveur pour le monitoring (Chantier 1.3)
  */
 
+import { scrubMonitoringContext, scrubMonitoringValue, scrubString } from "@/lib/error-monitoring";
+
 export type ServerErrorContext = {
   tripId?: string;
   provider?: string;
   kind?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 /**
@@ -16,17 +18,20 @@ export type ServerErrorContext = {
 export function reportServerError(error: unknown, context: ServerErrorContext = {}): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
+  const safeContext = scrubMonitoringContext(context);
+  const safeErrorMessage = scrubString(errorMessage);
+  const safeErrorStack = scrubMonitoringValue(errorStack);
 
   const logPayload = {
     timestamp: new Date().toISOString(),
     level: "ERROR",
-    message: errorMessage,
-    stack: errorStack,
+    message: safeErrorMessage,
+    stack: safeErrorStack,
     context: {
-      trip_id: context.tripId,
-      provider: context.provider,
-      kind: context.kind,
-      ...context,
+      trip_id: safeContext.tripId,
+      provider: safeContext.provider,
+      kind: safeContext.kind,
+      ...safeContext,
     },
   };
 
@@ -37,10 +42,10 @@ export function reportServerError(error: unknown, context: ServerErrorContext = 
   const webhookUrl = process.env["ALERT_WEBHOOK_URL"];
   if (webhookUrl && webhookUrl.trim() !== "") {
     const summary = `🚨 *Krew Server Error Alert* 🚨\n` +
-      `*Message:* ${errorMessage}\n` +
-      `*Kind:* ${context.kind || "N/A"}\n` +
-      `*Provider:* ${context.provider || "N/A"}\n` +
-      `*Trip ID:* ${context.tripId || "N/A"}\n` +
+      `*Message:* ${safeErrorMessage}\n` +
+      `*Kind:* ${String(safeContext.kind ?? "N/A")}\n` +
+      `*Provider:* ${String(safeContext.provider ?? "N/A")}\n` +
+      `*Trip ID:* ${String(safeContext.tripId ?? "N/A")}\n` +
       `*Time:* ${logPayload.timestamp}`;
 
     fetch(webhookUrl, {
@@ -53,7 +58,7 @@ export function reportServerError(error: unknown, context: ServerErrorContext = 
         content: summary, // Pour Discord
       }),
     }).catch((webhookError) => {
-      console.warn("[reportServerError] Échec de l'envoi du webhook d'alerte:", String(webhookError));
+      console.warn("[reportServerError] Échec de l'envoi du webhook d'alerte:", scrubString(String(webhookError)));
     });
   }
 }
