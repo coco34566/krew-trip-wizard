@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 /**
  * Moteur de recommandation Krew.
  *
@@ -2051,7 +2052,7 @@ export function selectDiverseTop(sorted: Proposal[], limit: number): Proposal[] 
   return [...sorted].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
-export function isTripAdmin(trip: any, userId: string): boolean {
+export function isTripAdmin(trip: Tables<"trips"> | null | undefined, userId: string): boolean {
   if (!trip) return false;
   return (
     trip.owner_id === userId ||
