@@ -82,7 +82,7 @@ async function capturePendingState(
     await page.evaluate(() => document.fonts.ready).catch(() => undefined);
     // Preview-only Vercel chrome is outside the KREW visual contract. The failed
     // PR #389 artifact showed identical D7 geometry/content with only this
-    // floating control present on one preview.
+    // floating control present on one preview. Keep the KREW pixels strict after hiding it.
     await page.addStyleTag({
       content: `
         vercel-live-feedback,
