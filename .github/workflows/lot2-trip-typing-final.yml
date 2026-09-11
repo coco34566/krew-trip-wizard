@@ -5,12 +5,8 @@ on:
     branches: [fix/privacy-trip-typing-audits]
     paths: [.github/workflows/lot2-trip-typing-final.yml]
 
-permissions:
-  contents: write
-
 jobs:
-  fix-and-validate:
-    if: github.actor != 'github-actions[bot]'
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -23,45 +19,18 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-
-      - name: Fix TripHub enriched trip contract
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-          p = Path('src/components/krew/TripHubDashboard.tsx')
-          s = p.read_text()
-          marker = 'type Props = {'
-          alias = 'type TripHubTrip = Tables<"trips"> & { participants?: unknown[] };\n\n'
-          if alias not in s:
-              assert marker in s
-              s = s.replace(marker, alias + marker, 1)
-          old = '  trip: Tables<"trips">;'
-          assert old in s
-          s = s.replace(old, '  trip: TripHubTrip;', 1)
-          p.write_text(s)
-          PY
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/components/krew/TripHubDashboard.tsx
-          git commit -m 'refactor(types): type enriched TripHub trip'
-          git push origin HEAD:fix/privacy-trip-typing-audits
-
       - name: Verify targeted any removal
         run: |
           if grep -R -n -E 'trip: any|data\.trip as any' src --include='*.ts' --include='*.tsx'; then
             echo 'Targeted trip any usages remain' >&2
             exit 1
           fi
-
       - name: Capture TypeScript snapshot
         run: npx tsc --noEmit --pretty false > /tmp/tsc-after-final.log 2>&1 || true
-
       - name: Run unit tests
         run: npm test
-
       - name: Build application
         run: npm run build
-
       - name: Upload validation logs
         if: always()
         uses: actions/upload-artifact@v4
