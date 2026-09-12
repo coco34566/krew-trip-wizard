@@ -1,4 +1,4 @@
-name: Locate Memories generated-types baseline
+name: Diagnose PR390 unit suite
 
 on:
   push:
@@ -6,21 +6,29 @@ on:
     paths: [.github/workflows/one-shot-memories-final-rebase.yml]
 
 jobs:
-  locate:
+  diagnose:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           ref: refactor/memories-architecture-phased
           fetch-depth: 0
-      - name: Locate stale assertions
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run exact unit suite and print failures
+        shell: bash
         run: |
-          set -euo pipefail
-          echo '=== files mentioning not.toContain trip_photos ==='
-          grep -RIn --exclude-dir=node_modules --exclude-dir=.git 'not.toContain.*trip_photos' . || true
-          echo '=== files mentioning Tables negative ==='
-          grep -RIn --exclude-dir=node_modules --exclude-dir=.git 'not.toContain.*Tables<' . || true
-          echo '=== files mentioning legacy generated baseline ==='
-          grep -RIn --exclude-dir=node_modules --exclude-dir=.git 'legacy generated baseline' . || true
-          echo '=== Supabase generated type tests ==='
-          find . -type f \( -name '*generated*test*' -o -name '*types*test*' \) | sort | grep -i supabase || true
+          set +e
+          npm run test:unit > /tmp/unit.log 2>&1
+          status=$?
+          set -e
+          echo "unit_status=$status"
+          echo '=== failure markers ==='
+          grep -n -E 'FAIL|Failed Tests|AssertionError|Test Files|Tests ' /tmp/unit.log | tail -n 120 || true
+          echo '=== last 240 lines ==='
+          tail -n 240 /tmp/unit.log
+          exit "$status"
