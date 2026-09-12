@@ -229,7 +229,6 @@ jobs:
 
           qstart = s.index('  const { data: recapSource } = useQuery({')
           qend = s.index('  const recap = recapSource', qstart)
-          oldblock = s[qstart:qend]
           newblock = '''  const { data: recapSource } = useQuery({\n    queryKey: ["trip-recap-source", tripId],\n    queryFn: () => getMemoriesRecapSource(tripId),\n    enabled: Boolean(tripId),\n    retry: false,\n  });\n'''
           s = s[:qstart] + newblock + s[qend:]
 
@@ -245,7 +244,6 @@ jobs:
 
           start = s.index('        const hash = await sha256File(file);')
           end = s.index('        added++;', start) + len('        added++;')
-          old = s[start:end]
           new = '''        const hash = await sha256File(file);\n        const result = await uploadTripPhoto({ tripId, userId, userName, file, hash });\n        if (result.duplicate) {\n          duplicates++;\n          continue;\n        }\n        added++;'''
           s = s[:start] + new + s[end:]
           p.write_text(s)
@@ -258,7 +256,7 @@ jobs:
             exit 1
           fi
           git diff --check
-          changed="$(git diff --name-only)"
+          changed="$(git status --short | sed -E 's/^.. //' | sort)"
           echo "$changed"
           test "$changed" = $'src/lib/memories-service.ts\nsrc/routes/_authenticated/trips.$tripId.memories.tsx'
 
