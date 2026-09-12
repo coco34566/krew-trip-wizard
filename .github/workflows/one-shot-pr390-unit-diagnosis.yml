@@ -1,0 +1,43 @@
+name: PR390 unit diagnosis
+
+on:
+  push:
+    branches:
+      - automation/pr390-final-unit-diagnosis
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/memories-architecture-phased
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run unit tests and capture output
+        id: tests
+        shell: bash
+        run: |
+          set +e
+          npm test -- --run > /tmp/unit-tests.log 2>&1
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          cat /tmp/unit-tests.log
+          exit 0
+      - name: Upload unit-test log
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr390-unit-test-log
+          path: /tmp/unit-tests.log
+      - name: Fail if tests failed
+        if: steps.tests.outputs.exit_code != '0'
+        run: exit 1
