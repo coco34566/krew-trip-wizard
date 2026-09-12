@@ -38,10 +38,12 @@ jobs:
           git checkout -B memories-phase-rewrite "$phase3"
           git cherry-pick "$phase4"
 
-          test_file="$(grep -RIl --include='*.test.ts' --include='*.test.tsx' 'keeps snapshots on the legacy generated baseline' src | head -n 1)"
-          test -n "$test_file"
+          mapfile -t candidates < <(grep -RIl --include='*.test.ts' --include='*.test.tsx' 'not.toContain("trip_photos")' src || true)
+          test "${#candidates[@]}" -eq 1
+          test_file="${candidates[0]}"
+          grep -q 'not.toContain("export type Tables<")' "$test_file"
           echo "Updating stale generated-types contract: $test_file"
-          sed -n '1,120p' "$test_file"
+          sed -n '1,140p' "$test_file"
 
           TEST_FILE="$test_file" python3 <<'PY'
           import os
@@ -51,20 +53,15 @@ jobs:
           s = p.read_text()
           old_trip = 'expect(content).not.toContain("trip_photos");'
           old_tables = 'expect(content).not.toContain("export type Tables<");'
-          assert old_trip in s, 'legacy trip_photos negative assertion not found'
-          assert old_tables in s, 'legacy Tables<> negative assertion not found'
+          assert s.count(old_trip) == 1
+          assert s.count(old_tables) == 1
           s = s.replace(
               old_trip,
               'expect(content).toContain("trip_photos: {");\n'
               '    expect(content).toContain("trip_photo_likes: {");\n'
               '    expect(content).toContain("toggle_trip_photo_like: {");',
-              1,
           )
-          s = s.replace(
-              old_tables,
-              'expect(content).toContain("export type Tables<");',
-              1,
-          )
+          s = s.replace(old_tables, 'expect(content).toContain("export type Tables<");')
           p.write_text(s)
           PY
 
