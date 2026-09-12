@@ -1,0 +1,33 @@
+name: One-shot PR389 workflow cleanup
+
+on:
+  push:
+    branches:
+      - automation/pr389-final-visual
+    paths:
+      - .github/workflows/one-shot-pr389-workflow-cleanup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/privacy-trip-typing-audits
+          fetch-depth: 0
+      - name: Remove temporary validators and restore main workflow
+        run: |
+          git fetch origin main
+          rm -f .github/workflows/lot2-trip-typing.yml
+          rm -f .github/workflows/lot2-trip-typing-fix.yml
+          rm -f .github/workflows/lot2-trip-typing-final.yml
+          git checkout origin/main -- .github/workflows/one-shot-triphub-candidate-v4.yml
+          git diff --check
+          git config user.name 'KREW cleanup bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add .github/workflows/lot2-trip-typing.yml .github/workflows/lot2-trip-typing-fix.yml .github/workflows/lot2-trip-typing-final.yml .github/workflows/one-shot-triphub-candidate-v4.yml
+          git commit -m 'chore(ci): remove PR389 one-shot validation workflows' -m 'Remove the three Lot 2 temporary validation workflows and restore the pre-existing TripHub candidate workflow exactly from main. This leaves PR #389 with no net workflow-file changes.'
+          git push origin HEAD:fix/privacy-trip-typing-audits
