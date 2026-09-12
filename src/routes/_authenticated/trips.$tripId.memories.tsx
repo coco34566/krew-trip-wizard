@@ -12,10 +12,18 @@ import {
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { sha256File } from "@/lib/souvenirs-photo-upload";
 import { createPhotosZip } from "@/lib/souvenirs-download";
+import {
+  getMemoriesRecapSource,
+  getMemoriesViewer,
+  listTripPhotos,
+  removeTripPhoto,
+  toggleTripPhotoLike,
+  uploadTripPhoto,
+  type Photo,
+} from "@/lib/memories-service";
 import { KrewIcon, KrewMark, KrewNote, KrewOrganicBlob } from "@/components/krew/visual-language";
 import { KrewRecapCard } from "@/components/krew/KrewRecapCard";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
@@ -34,47 +42,6 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/memories")({
   head: () => ({ meta: [{ title: "Souvenirs du voyage — KREW" }] }),
   component: MemoriesPage,
 });
-type Photo = {
-  id: string;
-  trip_id: string;
-  url: string;
-  author: string;
-  likes: number;
-  likedByMe: boolean;
-  created_at: string;
-  storage_path?: string | null;
-  owner_user_id?: string | null;
-  original_filename?: string | null;
-};
-
-async function signPhotoUrls(rows: any[]): Promise<Photo[]> {
-  const photos = rows.map((row) => {
-    const photo = {
-      ...row,
-      likedByMe: Array.isArray(row.trip_photo_likes) && row.trip_photo_likes.length > 0,
-    };
-    delete photo.trip_photo_likes;
-    return photo;
-  });
-  const paths = photos
-    .map((photo) => photo.storage_path)
-    .filter((path): path is string => Boolean(path));
-  if (!paths.length) return photos.map((photo) => ({ ...photo, url: photo.url || "" })) as Photo[];
-  const { data, error } = await supabase.storage.from("trip-photos").createSignedUrls(paths, 3600);
-  if (error) throw error;
-  const signedByPath = new Map<string, string>();
-  for (let i = 0; i < (data || []).length; i++) {
-    const item = (data || [])[i] as any;
-    if (item?.error) throw new Error(String(item.error));
-    const path = item?.path || paths[i];
-    if (path && item?.signedUrl) signedByPath.set(path, item.signedUrl);
-  }
-  return photos.map((photo) =>
-    photo.storage_path
-      ? { ...photo, url: signedByPath.get(photo.storage_path) || "" }
-      : { ...photo, url: photo.url || "" },
-  ) as Photo[];
-}
 function fileName(p: Photo, i: number) {
   return (p.original_filename?.trim() || `photo-${String(i + 1).padStart(3, "0")}.jpg`).replace(
     /[\\/:*?"<>|]/g,
@@ -128,18 +95,10 @@ function MemoriesPage() {
   useEffect(() => {
     const saved = localStorage.getItem("krew_photo_permission");
     if (saved === "granted" || saved === "denied") setPermission(saved);
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      setUserId(user.id);
-      supabase
-        .from("trip_participants")
-        .select("display_name")
-        .eq("trip_id", tripId)
-        .eq("user_id", user.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.display_name) setUserName(data.display_name);
-        });
+    getMemoriesViewer(tripId).then((viewer) => {
+      if (!viewer) return;
+      setUserId(viewer.userId);
+      if (viewer.userName !== "Moi") setUserName(viewer.userName);
     });
   }, [tripId]);
   const {
@@ -149,44 +108,12 @@ function MemoriesPage() {
     refetch,
   } = useQuery<Photo[]>({
     queryKey: ["trip-photos", tripId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("trip_photos" as any)
-        .select("*, trip_photo_likes(user_id)")
-        .eq("trip_id", tripId)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return signPhotoUrls(data || []);
-    },
+    queryFn: () => listTripPhotos(tripId),
   });
   const selection = buildKrewSelection(photos);
   const { data: recapSource } = useQuery({
     queryKey: ["trip-recap-source", tripId],
-    queryFn: async () => {
-      const [tripResult, recoResult] = await Promise.all([
-        supabase
-          .from("trips")
-          .select(
-            "id,name,start_date,end_date,participants_count,selected_activity_ids,group_itinerary,group_logistics",
-          )
-          .eq("id", tripId)
-          .single(),
-        supabase
-          .from("recommendations")
-          .select("destinations(name,country)")
-          .eq("trip_id", tripId)
-          .eq("is_selected", true)
-          .maybeSingle(),
-      ]);
-      if (tripResult.error) throw tripResult.error;
-      if (recoResult.error) throw recoResult.error;
-      const rawDestination = (recoResult.data as any)?.destinations;
-      const destination = Array.isArray(rawDestination)
-        ? (rawDestination[0] ?? null)
-        : (rawDestination ?? null);
-      return { trip: tripResult.data as any, destination };
-    },
+    queryFn: () => getMemoriesRecapSource(tripId),
     enabled: Boolean(tripId),
     retry: false,
   });
@@ -209,10 +136,7 @@ function MemoriesPage() {
     daysMap.set(key, list);
   }
   const like = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.rpc("toggle_trip_photo_like" as any, { p_photo_id: id });
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => toggleTripPhotoLike(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["trip-photos", tripId] }),
     onError: (e) => {
       console.error("Impossible d'enregistrer l'appréciation:", e);
@@ -220,17 +144,7 @@ function MemoriesPage() {
     },
   });
   const remove = useMutation({
-    mutationFn: async (p: Photo) => {
-      if (p.storage_path) {
-        const { error } = await supabase.storage.from("trip-photos").remove([p.storage_path]);
-        if (error) throw error;
-      }
-      const { error } = await supabase
-        .from("trip_photos" as any)
-        .update({ deleted_at: new Date().toISOString() })
-        .eq("id", p.id);
-      if (error) throw error;
-    },
+    mutationFn: (p: Photo) => removeTripPhoto(p),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trip-photos", tripId] });
       toast.success("Photo supprimée");
@@ -294,47 +208,10 @@ function MemoriesPage() {
           continue;
         }
         const hash = await sha256File(file);
-        const { data: dup, error: de } = await supabase
-          .from("trip_photos" as any)
-          .select("id")
-          .eq("trip_id", tripId)
-          .eq("content_hash", hash)
-          .is("deleted_at", null)
-          .maybeSingle();
-        if (de) throw de;
-        if (dup) {
+        const result = await uploadTripPhoto({ tripId, userId, userName, file, hash });
+        if (result.duplicate) {
           duplicates++;
           continue;
-        }
-        const id = crypto.randomUUID(),
-          ext =
-            file.name
-              .split(".")
-              .pop()
-              ?.toLowerCase()
-              .replace(/[^a-z0-9]/g, "") || "jpg",
-          path = `${tripId}/${userId}/${id}.${ext}`;
-        const { error: ue } = await supabase.storage
-          .from("trip-photos")
-          .upload(path, file, { contentType: file.type, upsert: false });
-        if (ue) throw ue;
-        const { error: ie } = await supabase
-          .from("trip_photos" as any)
-          .insert({
-            id,
-            trip_id: tripId,
-            owner_user_id: userId,
-            storage_path: path,
-            author: userName,
-            likes: 0,
-            content_hash: hash,
-            original_filename: file.name,
-            mime_type: file.type,
-            file_size_bytes: file.size,
-          });
-        if (ie) {
-          await supabase.storage.from("trip-photos").remove([path]);
-          throw ie;
         }
         added++;
       }
