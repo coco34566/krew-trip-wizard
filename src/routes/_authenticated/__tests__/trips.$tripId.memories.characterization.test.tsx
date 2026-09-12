@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   storageRemove: vi.fn().mockResolvedValue({ error: null }),
   storageCreateSignedUrls: vi.fn().mockResolvedValue({ data: [], error: null }),
   rpc: vi.fn().mockResolvedValue({ error: null }),
+  photoQueryLoading: false,
 }));
 
 const existingPhoto = {
@@ -53,8 +54,8 @@ vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: any) => {
     if (queryKey?.[0] === "trip-photos") {
       return {
-        data: [existingPhoto],
-        isLoading: false,
+        data: mocks.photoQueryLoading ? [] : [existingPhoto],
+        isLoading: mocks.photoQueryLoading,
         isError: false,
         refetch: vi.fn(),
       };
@@ -127,7 +128,7 @@ vi.mock("@/components/ui/button", () => ({
   Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
 }));
 vi.mock("@/components/krew/KrewRecapCard", () => ({ KrewRecapCard: () => null }));
-vi.mock("@/components/krew/KrewThinkingState", () => ({ KrewThinkingState: () => <div>loading</div> }));
+vi.mock("@/components/krew/KrewThinkingState", () => ({ KrewThinkingState: ({ customMessage }: any) => <div role="status">{customMessage}</div> }));
 vi.mock("@/components/krew/KrewPageShell", () => ({
   KrewPageShell: ({ children, ...props }: any) => <main {...props}>{children}</main>,
 }));
@@ -157,6 +158,7 @@ describe("Memories route characterization", () => {
     mocks.storageUpload.mockResolvedValue({ error: null });
     mocks.storageRemove.mockResolvedValue({ error: null });
     mocks.createPhotosZip.mockResolvedValue(new Blob(["zip"]));
+    mocks.photoQueryLoading = false;
     vi.stubGlobal("crypto", { randomUUID: vi.fn(() => "new-photo-id") });
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:memories") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -179,6 +181,15 @@ describe("Memories route characterization", () => {
     expect(localStorage.getItem("krew_photo_permission")).toBe("denied");
     expect(screen.queryByRole("dialog", { name: /Autoriser l’import de photos/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Réinitialiser l’autorisation d’import de photos/i })).toBeInTheDocument();
+  });
+
+  it("keeps the page shell and primary actions visible while photos load progressively", () => {
+    mocks.photoQueryLoading = true;
+    renderMemories();
+
+    expect(screen.getByRole("heading", { name: "L'album du voyage" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choisir des photos" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Chargement des souvenirs…");
   });
 
   it("uploads an accepted image to Storage then inserts its trip_photos row", async () => {

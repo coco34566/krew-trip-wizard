@@ -23,8 +23,8 @@ describe("approved D7 secondary-state contract", () => {
   });
 
   it("keeps Memories outside the reduced D7 implementation scope", () => {
-    expect(memoriesRoute).toContain(
-      '<KrewThinkingState context="generic" customMessage="Chargement des souvenirs…" delayMs={0} />',
+    expect(memoriesRoute).toMatch(
+      /<KrewThinkingState\s+context="generic"\s+customMessage="Chargement des souvenirs…"\s+delayMs=\{0\}\s*\/>/,
     );
     expect(memoriesRoute).not.toContain("KrewJourneyLoadingState");
   });

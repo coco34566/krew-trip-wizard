@@ -869,10 +869,10 @@ test("Account surface remains pixel-identical at contract reference viewports", 
   }
 });
 
-test("Memories matches the approved D5 story-shell contract", async ({ browser }, testInfo) => {
+test("Memories remains pixel-identical at the three reference viewports", async ({ browser }, testInfo) => {
   test.setTimeout(360_000);
   expect(CURRENT_URL, "KREW_E2E_BASE_URL must be configured").not.toBe("");
-  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for migration proof").not.toBe("");
+  expect(BEFORE_URL, "KREW_E2E_BEFORE_URL must be configured for Memories Phase 5 proof").not.toBe("");
   const current = await openAuthenticatedPage(browser, CURRENT_URL);
   const tripId = await firstTripId(current.page);
   const before = await openAuthenticatedPage(browser, BEFORE_URL);
@@ -881,25 +881,30 @@ test("Memories matches the approved D5 story-shell contract", async ({ browser }
     for (const viewport of VIEWPORTS) {
       const path = `/trips/${tripId}/memories`;
       const currentScreenshot = await captureJourneySurface(current.page, path, viewport);
-      await testInfo.attach(`after-${viewport.name}-memories`, {
+      const beforeScreenshot = await captureJourneySurface(before.page, path, viewport);
+      const expectedWidth = viewport.name === "desktop" ? 1024 : viewport.width;
+
+      expect(await renderedPageShellWidth(current.page)).toBe(expectedWidth);
+      expect(await renderedPageShellWidth(before.page)).toBe(expectedWidth);
+      await expect(current.page.locator('main[data-krew-page-shell][data-krew-story-page="memories"]')).toHaveCount(1);
+      await expect(before.page.locator('main[data-krew-page-shell][data-krew-story-page="memories"]')).toHaveCount(1);
+
+      const snapshotName = `runtime-before-${viewport.name}-memories-phase5.png`;
+      const snapshotPath = testInfo.snapshotPath(snapshotName);
+      mkdirSync(dirname(snapshotPath), { recursive: true });
+      writeFileSync(snapshotPath, beforeScreenshot);
+      expect(currentScreenshot).toMatchSnapshot(snapshotName, {
+        threshold: 0,
+        maxDiffPixels: 0,
+      });
+
+      await testInfo.attach(`after-${viewport.name}-memories-phase5`, {
         body: currentScreenshot,
         contentType: "image/png",
       });
-
-      const beforeScreenshot = await captureJourneySurface(before.page, path, viewport);
-      await testInfo.attach(`before-${viewport.name}-memories`, {
+      await testInfo.attach(`before-${viewport.name}-memories-phase5`, {
         body: beforeScreenshot,
         contentType: "image/png",
-      });
-
-      expectApprovedWidthTransition({
-        currentScreenshot,
-        beforeScreenshot,
-        currentWidth: await renderedPageShellWidth(current.page),
-        beforeWidth: await renderedPageShellWidth(before.page),
-        expectedCurrentWidth: viewport.name === "desktop" ? 1024 : viewport.width,
-        // PR #387 D5 is now the main baseline.
-        expectedBeforeWidth: viewport.name === "desktop" ? 1024 : viewport.width,
       });
     }
   } finally {
