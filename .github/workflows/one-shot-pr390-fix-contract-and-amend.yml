@@ -1,0 +1,59 @@
+name: PR390 fix contract and amend Phase 5
+
+on:
+  push:
+    branches:
+      - automation/pr390-final-unit-diagnosis
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-amend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/memories-architecture-phased
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Make D7 Memories contract formatting-insensitive
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/krew/__tests__/design-state-contract.test.ts')
+          s = p.read_text()
+          old = '''    expect(memoriesRoute).toContain(\n      '<KrewThinkingState context="generic" customMessage="Chargement des souvenirs…" delayMs={0} />',\n    );'''
+          new = '''    expect(memoriesRoute).toMatch(\n      /<KrewThinkingState\\s+context="generic"\\s+customMessage="Chargement des souvenirs…"\\s+delayMs=\\{0\\}\\s*\\/>/,\n    );'''
+          if old not in s:
+              raise SystemExit('Expected brittle D7 assertion not found; refusing to edit')
+          p.write_text(s.replace(old, new))
+          PY
+          git diff --check
+          git diff -- src/lib/krew/__tests__/design-state-contract.test.ts
+      - name: Run targeted D7 contract
+        run: npx vitest run src/lib/krew/__tests__/design-state-contract.test.ts
+      - name: Run full unit suite
+        run: npm run test:unit
+      - name: TypeScript check
+        run: npx tsc --noEmit --pretty false
+      - name: Build application
+        run: npm run build
+      - name: Amend Phase 5 and push
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "73ba29ef641451c581a1a253d57a8e8c0e48b72f"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/krew/__tests__/design-state-contract.test.ts
+          git commit --amend --no-edit
+          git push --force-with-lease origin HEAD:refactor/memories-architecture-phased
