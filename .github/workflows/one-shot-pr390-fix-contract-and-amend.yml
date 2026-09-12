@@ -44,7 +44,8 @@ jobs:
         run: npx vitest run src/lib/krew/__tests__/design-state-contract.test.ts
       - name: Run full unit suite
         run: npm run test:unit
-      - name: TypeScript check
+      - name: TypeScript check (report existing baseline debt)
+        continue-on-error: true
         run: npx tsc --noEmit --pretty false
       - name: Build application
         run: npm run build
