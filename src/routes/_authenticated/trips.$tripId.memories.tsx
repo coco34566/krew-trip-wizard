@@ -30,6 +30,7 @@ import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { buildTripRecap } from "@/lib/krew/trip-recap";
 import { cn } from "@/lib/utils";
+import { useMemoriesPhotoPermission } from "@/hooks/use-memories-photo-permission";
 
 const MAX_PHOTO_SIZE_BYTES = 20 * 1024 * 1024;
 const PHOTO_BOOK_PARTNER = {
@@ -90,11 +91,9 @@ function MemoriesPage() {
   const [downloading, setDownloading] = useState(false);
   const [showAlbum, setShowAlbum] = useState(false);
   const [showPartner, setShowPartner] = useState(false);
-  const [permission, setPermission] = useState<"granted" | "denied" | "prompt">("prompt");
+  const { permission, grantPermission, denyPermission, resetPermission } = useMemoriesPhotoPermission();
   const [showModal, setShowModal] = useState(false);
   useEffect(() => {
-    const saved = localStorage.getItem("krew_photo_permission");
-    if (saved === "granted" || saved === "denied") setPermission(saved);
     getMemoriesViewer(tripId).then((viewer) => {
       if (!viewer) return;
       setUserId(viewer.userId);
@@ -385,10 +384,7 @@ function MemoriesPage() {
               size="icon"
               className="rounded-xl"
               aria-label="Réinitialiser l’autorisation d’import de photos"
-              onClick={() => {
-                localStorage.removeItem("krew_photo_permission");
-                setPermission("prompt");
-              }}
+              onClick={resetPermission}
             >
               <Settings className="size-3.5 shrink-0" />
             </Button>
@@ -567,8 +563,7 @@ function MemoriesPage() {
                 size="sm"
                 className="min-h-10 rounded-xl font-medium w-full"
                 onClick={() => {
-                  localStorage.setItem("krew_photo_permission", "granted");
-                  setPermission("granted");
+                  grantPermission();
                   setShowModal(false);
                   setTimeout(() => fileInputRef.current?.click(), 150);
                 }}
@@ -580,8 +575,7 @@ function MemoriesPage() {
                 size="sm"
                 className="min-h-10 rounded-xl font-medium w-full"
                 onClick={() => {
-                  localStorage.setItem("krew_photo_permission", "denied");
-                  setPermission("denied");
+                  denyPermission();
                   setShowModal(false);
                 }}
               >
