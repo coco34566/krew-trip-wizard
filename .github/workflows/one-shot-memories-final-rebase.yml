@@ -1,83 +1,26 @@
-name: Memories final phase rewrite
+name: Locate Memories generated-types baseline
 
 on:
   push:
     branches: [automation/memories-final-rebase]
     paths: [.github/workflows/one-shot-memories-final-rebase.yml]
 
-permissions:
-  contents: write
-
 jobs:
-  rewrite:
+  locate:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
           ref: refactor/memories-architecture-phased
           fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - name: Fold the generated-types contract update into Phase 4
+      - name: Locate stale assertions
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin main
-          test "$(git rev-list --count origin/main..HEAD)" -eq 6
-
-          phase5="$(git rev-parse HEAD)"
-          phase4="$(git rev-parse HEAD^)"
-          phase3="$(git rev-parse HEAD^^)"
-          echo "phase3=$phase3 phase4=$phase4 phase5=$phase5"
-
-          git checkout -B memories-phase-rewrite "$phase3"
-          git cherry-pick "$phase4"
-
-          mapfile -t candidates < <(grep -RIl --include='*.test.ts' --include='*.test.tsx' 'not.toContain("trip_photos")' src || true)
-          test "${#candidates[@]}" -eq 1
-          test_file="${candidates[0]}"
-          grep -q 'not.toContain("export type Tables<")' "$test_file"
-          echo "Updating stale generated-types contract: $test_file"
-          sed -n '1,140p' "$test_file"
-
-          TEST_FILE="$test_file" python3 <<'PY'
-          import os
-          from pathlib import Path
-
-          p = Path(os.environ['TEST_FILE'])
-          s = p.read_text()
-          old_trip = 'expect(content).not.toContain("trip_photos");'
-          old_tables = 'expect(content).not.toContain("export type Tables<");'
-          assert s.count(old_trip) == 1
-          assert s.count(old_tables) == 1
-          s = s.replace(
-              old_trip,
-              'expect(content).toContain("trip_photos: {");\n'
-              '    expect(content).toContain("trip_photo_likes: {");\n'
-              '    expect(content).toContain("toggle_trip_photo_like: {");',
-          )
-          s = s.replace(old_tables, 'expect(content).toContain("export type Tables<");')
-          p.write_text(s)
-          PY
-
-          git diff --check
-          npx vitest run "$test_file"
-          git add "$test_file"
-          git commit --amend --no-edit
-
-          git cherry-pick "$phase5"
-          test "$(git rev-list --count origin/main..HEAD)" -eq 6
-          echo 'Six phase commits after rewrite:'
-          git log --oneline --reverse origin/main..HEAD
-
-          npm run test:unit
-          npx tsc --noEmit
-          npm run build
-          git diff --check origin/main...HEAD
-
-          git push --force-with-lease origin HEAD:refactor/memories-architecture-phased
+          echo '=== files mentioning not.toContain trip_photos ==='
+          grep -RIn --exclude-dir=node_modules --exclude-dir=.git 'not.toContain.*trip_photos' . || true
+          echo '=== files mentioning Tables negative ==='
+          grep -RIn --exclude-dir=node_modules --exclude-dir=.git 'not.toContain.*Tables<' . || true
+          echo '=== files mentioning legacy generated baseline ==='
+          grep -RIn --exclude-dir=node_modules --exclude-dir=.git 'legacy generated baseline' . || true
+          echo '=== Supabase generated type tests ==='
+          find . -type f \( -name '*generated*test*' -o -name '*types*test*' \) | sort | grep -i supabase || true
