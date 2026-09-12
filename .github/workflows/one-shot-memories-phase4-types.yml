@@ -5,6 +5,8 @@ on:
     branches: [automation/memories-phase4-types]
     paths:
       - .github/workflows/one-shot-memories-phase4-types.yml
+      - .github/scripts/memories-phase4.sh
+      - .github/scripts/memories-phase4-fix.py
 
 permissions:
   contents: write
