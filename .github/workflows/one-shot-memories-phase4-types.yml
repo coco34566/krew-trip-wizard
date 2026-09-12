@@ -24,4 +24,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Run Phase 4 extraction and validation
-        run: bash <(curl -fsSL https://raw.githubusercontent.com/coco34566/krew-trip-wizard/automation/memories-phase4-types/.github/scripts/memories-phase4.sh)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/coco34566/krew-trip-wizard/automation/memories-phase4-types/.github/scripts/memories-phase4.sh -o /tmp/memories-phase4.sh
+          curl -fsSL https://raw.githubusercontent.com/coco34566/krew-trip-wizard/automation/memories-phase4-types/.github/scripts/memories-phase4-fix.py -o /tmp/memories-phase4-fix.py
+          python3 /tmp/memories-phase4-fix.py
+          bash /tmp/memories-phase4.sh
