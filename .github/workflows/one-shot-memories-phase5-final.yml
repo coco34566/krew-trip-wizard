@@ -1,0 +1,28 @@
+name: Memories Phase 5 final contracts
+
+on:
+  push:
+    branches: [automation/memories-phase5-final]
+    paths:
+      - .github/workflows/one-shot-memories-phase5-final.yml
+      - .github/scripts/memories-phase5.sh
+
+permissions:
+  contents: write
+
+jobs:
+  phase5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/memories-architecture-phased
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Apply and validate Phase 5
+        run: bash <(curl -fsSL https://raw.githubusercontent.com/coco34566/krew-trip-wizard/automation/memories-phase5-final/.github/scripts/memories-phase5.sh)
