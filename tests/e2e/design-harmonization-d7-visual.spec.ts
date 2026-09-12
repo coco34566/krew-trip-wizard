@@ -139,12 +139,14 @@ test("D7 records the approved Invite and Recap pending-state geometry", async ({
         `/trips/${tripId}/invite`,
         "[data-krew-journey-loading]",
         viewport,
+        '[role="status"]',
       );
       const beforeInvite = await capturePendingState(
         before.page,
         `/trips/${tripId}/invite`,
         "[data-krew-journey-loading]",
         viewport,
+        '[role="status"]',
       );
       await testInfo.attach(`after-d7-${viewport.name}-invite-loading`, {
         body: currentInvite.screenshot,
