@@ -1,0 +1,70 @@
+name: One-shot Memories Phase 1 formatting
+
+on:
+  push:
+    branches:
+      - automation/memories-phase1-format
+    paths:
+      - .github/workflows/one-shot-memories-phase1-format.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/memories-architecture-phased
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Snapshot original source
+        run: cp 'src/routes/_authenticated/trips.$tripId.memories.tsx' /tmp/memories-before.tsx
+
+      - name: Format Memories only
+        run: npx prettier --write 'src/routes/_authenticated/trips.$tripId.memories.tsx'
+
+      - name: Verify token stream is unchanged
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import ts from 'typescript';
+
+          function tokens(file) {
+            const source = fs.readFileSync(file, 'utf8');
+            const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX, source);
+            const out = [];
+            let kind;
+            while ((kind = scanner.scan()) !== ts.SyntaxKind.EndOfFileToken) {
+              out.push([kind, scanner.getTokenText()]);
+            }
+            return out;
+          }
+
+          const before = tokens('/tmp/memories-before.tsx');
+          const after = tokens('src/routes/_authenticated/trips.$tripId.memories.tsx');
+          if (JSON.stringify(before) !== JSON.stringify(after)) {
+            console.error('Non-trivia token stream changed during formatting.');
+            process.exit(1);
+          }
+          console.log(`Semantic token stream unchanged (${before.length} tokens).`);
+          NODE
+
+      - name: Run Memories characterization tests
+        run: npx vitest run 'src/routes/_authenticated/__tests__/trips.$tripId.memories.characterization.test.tsx'
+
+      - name: Commit Phase 1 only
+        run: |
+          git diff --check
+          changed="$(git diff --name-only)"
+          test "$changed" = 'src/routes/_authenticated/trips.$tripId.memories.tsx'
+          git config user.name 'KREW phase bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add 'src/routes/_authenticated/trips.$tripId.memories.tsx'
+          git commit -m 'style(memories): format route without behavior changes' -m 'Phase 1 only. Prettier formatting of Memories; TypeScript lexical token stream verified unchanged; Phase 0 characterization tests pass.'
+          git push origin HEAD:refactor/memories-architecture-phased
