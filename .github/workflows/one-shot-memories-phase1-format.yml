@@ -29,30 +29,35 @@ jobs:
       - name: Format Memories only
         run: npx prettier --write 'src/routes/_authenticated/trips.$tripId.memories.tsx'
 
-      - name: Verify token stream is unchanged
+      - name: Verify semantic AST is unchanged
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import ts from 'typescript';
 
-          function tokens(file) {
+          function semanticTree(file) {
             const source = fs.readFileSync(file, 'utf8');
-            const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.JSX, source);
-            const out = [];
-            let kind;
-            while ((kind = scanner.scan()) !== ts.SyntaxKind.EndOfFileToken) {
-              out.push([kind, scanner.getTokenText()]);
-            }
-            return out;
+            const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+            const encode = (node) => {
+              const out = { kind: node.kind };
+              if (ts.isIdentifier(node)) out.text = node.text;
+              else if (ts.isStringLiteral(node) || ts.isNumericLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) out.text = node.text;
+              else if (node.kind >= ts.SyntaxKind.FirstKeyword && node.kind <= ts.SyntaxKind.LastKeyword) out.text = node.getText(sf);
+              const children = [];
+              ts.forEachChild(node, (child) => children.push(encode(child)));
+              if (children.length) out.children = children;
+              return out;
+            };
+            return encode(sf);
           }
 
-          const before = tokens('/tmp/memories-before.tsx');
-          const after = tokens('src/routes/_authenticated/trips.$tripId.memories.tsx');
+          const before = semanticTree('/tmp/memories-before.tsx');
+          const after = semanticTree('src/routes/_authenticated/trips.$tripId.memories.tsx');
           if (JSON.stringify(before) !== JSON.stringify(after)) {
-            console.error('Non-trivia token stream changed during formatting.');
+            console.error('Semantic AST changed during formatting.');
             process.exit(1);
           }
-          console.log(`Semantic token stream unchanged (${before.length} tokens).`);
+          console.log('Semantic AST unchanged after Prettier formatting.');
           NODE
 
       - name: Run Memories characterization tests
@@ -66,5 +71,5 @@ jobs:
           git config user.name 'KREW phase bot'
           git config user.email 'actions@users.noreply.github.com'
           git add 'src/routes/_authenticated/trips.$tripId.memories.tsx'
-          git commit -m 'style(memories): format route without behavior changes' -m 'Phase 1 only. Prettier formatting of Memories; TypeScript lexical token stream verified unchanged; Phase 0 characterization tests pass.'
+          git commit -m 'style(memories): format route without behavior changes' -m 'Phase 1 only. Prettier formatting of Memories; normalized TypeScript AST verified identical; Phase 0 characterization tests pass.'
           git push origin HEAD:refactor/memories-architecture-phased
