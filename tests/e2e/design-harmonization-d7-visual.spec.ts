@@ -95,7 +95,7 @@ async function capturePendingState(
     });
     // D7 contracts the pending shell itself. Artifact evidence from run 34645670196
     // localized the remaining 16-pixel delta to the unrelated account avatar in the
-    // sticky header, so capture the contract surface rather than the whole page.
+    // sticky header, so capture the pending contract surface rather than the whole page.
     const screenshot = await shell.screenshot({ animations: "disabled" });
     const geometry = await shell.evaluate((element) => {
       const style = getComputedStyle(element);
