@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { reportServerError } from "@/lib/server-error-reporting.server";
 
+// CI retrigger after test-only visual gate stabilization.
 describe("reportServerError", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
