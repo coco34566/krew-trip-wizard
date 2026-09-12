@@ -1,0 +1,214 @@
+name: Memories Phase 3 preference extraction
+
+on:
+  push:
+    branches: [automation/memories-phase3-preference]
+    paths: [.github/workflows/one-shot-memories-phase3-preference.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  phase3:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/memories-architecture-phased
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Capture pre-phase TypeScript baseline
+        run: npx tsc --noEmit --pretty false > /tmp/tsc-before.log 2>&1 || true
+
+      - name: Extract photo permission preference
+        run: |
+          mkdir -p src/hooks/__tests__
+          cat > src/hooks/use-memories-photo-permission.ts <<'EOF'
+          import { useEffect, useState } from "react";
+
+          export type MemoriesPhotoPermission = "granted" | "denied" | "prompt";
+
+          const MEMORIES_PHOTO_PERMISSION_KEY = "krew_photo_permission";
+
+          export function readMemoriesPhotoPermission(
+            storage: Pick<Storage, "getItem"> = localStorage,
+          ): MemoriesPhotoPermission {
+            const saved = storage.getItem(MEMORIES_PHOTO_PERMISSION_KEY);
+            return saved === "granted" || saved === "denied" ? saved : "prompt";
+          }
+
+          export function writeMemoriesPhotoPermission(
+            value: Exclude<MemoriesPhotoPermission, "prompt">,
+            storage: Pick<Storage, "setItem"> = localStorage,
+          ) {
+            storage.setItem(MEMORIES_PHOTO_PERMISSION_KEY, value);
+          }
+
+          export function clearMemoriesPhotoPermission(
+            storage: Pick<Storage, "removeItem"> = localStorage,
+          ) {
+            storage.removeItem(MEMORIES_PHOTO_PERMISSION_KEY);
+          }
+
+          export function useMemoriesPhotoPermission() {
+            const [permission, setPermission] = useState<MemoriesPhotoPermission>("prompt");
+
+            useEffect(() => {
+              setPermission(readMemoriesPhotoPermission());
+            }, []);
+
+            const grantPermission = () => {
+              writeMemoriesPhotoPermission("granted");
+              setPermission("granted");
+            };
+
+            const denyPermission = () => {
+              writeMemoriesPhotoPermission("denied");
+              setPermission("denied");
+            };
+
+            const resetPermission = () => {
+              clearMemoriesPhotoPermission();
+              setPermission("prompt");
+            };
+
+            return { permission, grantPermission, denyPermission, resetPermission };
+          }
+          EOF
+
+          cat > src/hooks/__tests__/use-memories-photo-permission.test.ts <<'EOF'
+          // @vitest-environment jsdom
+          import { describe, expect, it, vi } from "vitest";
+          import {
+            clearMemoriesPhotoPermission,
+            readMemoriesPhotoPermission,
+            writeMemoriesPhotoPermission,
+          } from "../use-memories-photo-permission";
+
+          describe("Memories photo permission preference", () => {
+            it("maps a missing preference to prompt", () => {
+              expect(readMemoriesPhotoPermission({ getItem: () => null })).toBe("prompt");
+            });
+
+            it("maps a corrupt preference to prompt", () => {
+              expect(readMemoriesPhotoPermission({ getItem: () => "unexpected" })).toBe("prompt");
+            });
+
+            it.each(["granted", "denied"] as const)("preserves the valid %s value", (value) => {
+              expect(readMemoriesPhotoPermission({ getItem: () => value })).toBe(value);
+            });
+
+            it("preserves the current storage failure behavior", () => {
+              const storage = {
+                getItem: () => {
+                  throw new DOMException("storage disabled", "SecurityError");
+                },
+              };
+              expect(() => readMemoriesPhotoPermission(storage)).toThrow("storage disabled");
+            });
+
+            it("writes and clears only the existing KREW permission key", () => {
+              const setItem = vi.fn();
+              const removeItem = vi.fn();
+              writeMemoriesPhotoPermission("granted", { setItem });
+              writeMemoriesPhotoPermission("denied", { setItem });
+              clearMemoriesPhotoPermission({ removeItem });
+              expect(setItem).toHaveBeenNthCalledWith(1, "krew_photo_permission", "granted");
+              expect(setItem).toHaveBeenNthCalledWith(2, "krew_photo_permission", "denied");
+              expect(removeItem).toHaveBeenCalledWith("krew_photo_permission");
+            });
+          });
+          EOF
+
+          python3 <<'PY'
+          from pathlib import Path
+          p = Path('src/routes/_authenticated/trips.$tripId.memories.tsx')
+          s = p.read_text()
+          marker = 'import { cn } from "@/lib/utils";\n'
+          imp = 'import { useMemoriesPhotoPermission } from "@/hooks/use-memories-photo-permission";\n'
+          assert marker in s
+          s = s.replace(marker, marker + imp, 1)
+          old = '  const [permission, setPermission] = useState<"granted" | "denied" | "prompt">("prompt");\n'
+          new = '  const { permission, grantPermission, denyPermission, resetPermission } = useMemoriesPhotoPermission();\n'
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''  useEffect(() => {\n    const saved = localStorage.getItem("krew_photo_permission");\n    if (saved === "granted" || saved === "denied") setPermission(saved);\n    getMemoriesViewer(tripId).then((viewer) => {'''
+          new = '''  useEffect(() => {\n    getMemoriesViewer(tripId).then((viewer) => {'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''              onClick={() => {\n                localStorage.removeItem("krew_photo_permission");\n                setPermission("prompt");\n              }}'''
+          new = '''              onClick={resetPermission}'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''                onClick={() => {\n                  localStorage.setItem("krew_photo_permission", "granted");\n                  setPermission("granted");\n                  setShowModal(false);\n                  setTimeout(() => fileInputRef.current?.click(), 150);\n                }}'''
+          new = '''                onClick={() => {\n                  grantPermission();\n                  setShowModal(false);\n                  setTimeout(() => fileInputRef.current?.click(), 150);\n                }}'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''                onClick={() => {\n                  localStorage.setItem("krew_photo_permission", "denied");\n                  setPermission("denied");\n                  setShowModal(false);\n                }}'''
+          new = '''                onClick={() => {\n                  denyPermission();\n                  setShowModal(false);\n                }}'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+
+      - name: Enforce Phase 3 boundary
+        run: |
+          if grep -nE 'localStorage|krew_photo_permission' 'src/routes/_authenticated/trips.$tripId.memories.tsx'; then
+            echo 'Direct local preference access remains in Memories route' >&2
+            exit 1
+          fi
+          git diff --check
+          changed="$(git status --short | sed -E 's/^.. //' | sort)"
+          echo "$changed"
+          expected="$(printf '%s\n' \
+            'src/hooks/__tests__/use-memories-photo-permission.test.ts' \
+            'src/hooks/use-memories-photo-permission.ts' \
+            'src/routes/_authenticated/trips.$tripId.memories.tsx' | sort)"
+          test "$changed" = "$expected"
+
+      - name: Run Memories characterization and preference edge tests
+        run: npx vitest run 'src/routes/_authenticated/__tests__/trips.$tripId.memories.characterization.test.tsx' 'src/hooks/__tests__/use-memories-photo-permission.test.ts'
+
+      - name: Run Phase 3 TypeScript check
+        run: npx tsc --noEmit --pretty false > /tmp/tsc-after.log 2>&1 || true
+
+      - name: Reject new semantic TypeScript errors
+        run: |
+          python3 <<'PY'
+          import re
+          from collections import Counter
+          from pathlib import Path
+          def errs(path):
+              out=[]
+              for line in Path(path).read_text().splitlines():
+                  line=line.strip()
+                  if re.search(r'\berror TS\d+:', line):
+                      line=re.sub(r'^(.*?)(?:\(\d+,\d+\))(: error TS\d+:)', r'\1\2', line)
+                      out.append(line)
+              return Counter(out)
+          before=errs('/tmp/tsc-before.log')
+          after=errs('/tmp/tsc-after.log')
+          added=list((after-before).elements())
+          print(f'before={sum(before.values())} after={sum(after.values())} added={len(added)}')
+          for line in sorted(added): print('ADD '+line)
+          if added: raise SystemExit(1)
+          PY
+
+      - name: Build application
+        run: npm run build
+
+      - name: Commit Phase 3 only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/hooks/use-memories-photo-permission.ts src/hooks/__tests__/use-memories-photo-permission.test.ts 'src/routes/_authenticated/trips.$tripId.memories.tsx'
+          git commit -m 'refactor(memories): encapsulate photo permission preference'
+          git push origin HEAD:refactor/memories-architecture-phased
