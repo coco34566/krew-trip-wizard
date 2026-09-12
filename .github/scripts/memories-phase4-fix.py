@@ -14,7 +14,7 @@ assert old in s
 s = s.replace(old, new, 1)
 
 old = '''type MemoriesTrip = Pick<\n  Tables<"trips">,\n  | "id"\n  | "name"\n  | "start_date"\n  | "end_date"\n  | "participants_count"\n  | "selected_activity_ids"\n  | "group_itinerary"\n  | "group_logistics"\n>;'''
-new = '''type MemoriesTripRow = Pick<\n  Tables<"trips">,\n  | "id"\n  | "name"\n  | "start_date"\n  | "end_date"\n  | "participants_count"\n  | "selected_activity_ids"\n  | "group_itinerary"\n  | "group_logistics"\n>;\ntype MemoriesTrip = Omit<MemoriesTripRow, "group_itinerary" | "group_logistics"> & {\n  group_itinerary: TripRecapSource["trip"]["group_itinerary"];\n  group_logistics: TripRecapSource["trip"]["group_logistics"];\n};'''
+new = '''type MemoriesTripRow = Pick<\n  Tables<"trips">,\n  | "id"\n  | "name"\n  | "start_date"\n  | "end_date"\n  | "participants_count"\n  | "selected_activity_ids"\n  | "group_itinerary"\n  | "group_logistics"\n>;\ntype MemoriesTrip = Omit<MemoriesTripRow, "group_itinerary" | "group_logistics"> & {\n  group_itinerary: Exclude<TripRecapSource["trip"]["group_itinerary"], undefined>;\n  group_logistics: Exclude<TripRecapSource["trip"]["group_logistics"], undefined>;\n};'''
 assert old in s
 s = s.replace(old, new, 1)
 
