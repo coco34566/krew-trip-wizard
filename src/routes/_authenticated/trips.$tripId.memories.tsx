@@ -282,7 +282,7 @@ function MemoriesPage() {
       {recap?.eligible ? (
         <KrewRecapCard
           recap={recap}
-          tripName={recapSource?.trip?.name}
+          tripName={recapSource?.trip?.name as string | null}
           photos={selection
             .slice(0, 3)
             .map((photo) => ({ id: photo.id, url: photo.url, alt: photoAlt(photo) }))}

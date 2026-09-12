@@ -1,38 +1,50 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
+import type { TripRecapSource } from "@/lib/krew/trip-recap";
 
-export type Photo = {
-  id: string;
-  trip_id: string;
-  url: string;
-  author: string;
-  likes: number;
-  likedByMe: boolean;
-  created_at: string;
-  storage_path?: string | null;
-  owner_user_id?: string | null;
-  original_filename?: string | null;
+type TripPhotoRow = Tables<"trip_photos">;
+type TripPhotoLikeRow = Tables<"trip_photo_likes">;
+type MemoriesTripRow = Pick<
+  Tables<"trips">,
+  | "id"
+  | "name"
+  | "start_date"
+  | "end_date"
+  | "participants_count"
+  | "selected_activity_ids"
+  | "group_itinerary"
+  | "group_logistics"
+>;
+type MemoriesTrip = Omit<MemoriesTripRow, "group_itinerary" | "group_logistics"> & {
+  group_itinerary: Exclude<TripRecapSource["trip"]["group_itinerary"], undefined>;
+  group_logistics: Exclude<TripRecapSource["trip"]["group_logistics"], undefined>;
+};
+type MemoriesDestination = Pick<Tables<"destinations">, "name" | "country">;
+type PhotoWithLikes = TripPhotoRow & {
+  trip_photo_likes: Array<Pick<TripPhotoLikeRow, "user_id">> | null;
 };
 
-async function signPhotoUrls(rows: any[]): Promise<Photo[]> {
-  const photos = rows.map((row) => {
-    const photo = {
-      ...row,
-      likedByMe: Array.isArray(row.trip_photo_likes) && row.trip_photo_likes.length > 0,
-    };
-    delete photo.trip_photo_likes;
-    return photo;
-  });
+export type Photo = Omit<TripPhotoRow, "url"> & {
+  url: string;
+  likedByMe: boolean;
+};
+
+async function signPhotoUrls(rows: PhotoWithLikes[]): Promise<Photo[]> {
+  const photos = rows.map(({ trip_photo_likes, ...row }) => ({
+    ...row,
+    likedByMe: Array.isArray(trip_photo_likes) && trip_photo_likes.length > 0,
+  }));
   const paths = photos
     .map((photo) => photo.storage_path)
     .filter((path): path is string => Boolean(path));
   if (!paths.length) {
-    return photos.map((photo) => ({ ...photo, url: photo.url || "" })) as Photo[];
+    return photos.map((photo) => ({ ...photo, url: photo.url || "" }));
   }
   const { data, error } = await supabase.storage.from("trip-photos").createSignedUrls(paths, 3600);
   if (error) throw error;
   const signedByPath = new Map<string, string>();
   for (let i = 0; i < (data || []).length; i++) {
-    const item = (data || [])[i] as any;
+    const item = (data || [])[i];
     if (item?.error) throw new Error(String(item.error));
     const path = item?.path || paths[i];
     if (path && item?.signedUrl) signedByPath.set(path, item.signedUrl);
@@ -41,7 +53,7 @@ async function signPhotoUrls(rows: any[]): Promise<Photo[]> {
     photo.storage_path
       ? { ...photo, url: signedByPath.get(photo.storage_path) || "" }
       : { ...photo, url: photo.url || "" },
-  ) as Photo[];
+  );
 }
 
 export async function getMemoriesViewer(tripId: string) {
@@ -60,13 +72,13 @@ export async function getMemoriesViewer(tripId: string) {
 
 export async function listTripPhotos(tripId: string): Promise<Photo[]> {
   const { data, error } = await supabase
-    .from("trip_photos" as any)
+    .from("trip_photos")
     .select("*, trip_photo_likes(user_id)")
     .eq("trip_id", tripId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return signPhotoUrls(data || []);
+  return signPhotoUrls((data || []) as PhotoWithLikes[]);
 }
 
 export async function getMemoriesRecapSource(tripId: string) {
@@ -87,15 +99,25 @@ export async function getMemoriesRecapSource(tripId: string) {
   ]);
   if (tripResult.error) throw tripResult.error;
   if (recoResult.error) throw recoResult.error;
-  const rawDestination = (recoResult.data as any)?.destinations;
+  const rawDestination = recoResult.data?.destinations as
+    | MemoriesDestination
+    | MemoriesDestination[]
+    | null
+    | undefined;
   const destination = Array.isArray(rawDestination)
     ? (rawDestination[0] ?? null)
     : (rawDestination ?? null);
-  return { trip: tripResult.data as any, destination };
+  const row = tripResult.data as MemoriesTripRow;
+  const trip: MemoriesTrip = {
+    ...row,
+    group_itinerary: row.group_itinerary as MemoriesTrip["group_itinerary"],
+    group_logistics: row.group_logistics as MemoriesTrip["group_logistics"],
+  };
+  return { trip, destination };
 }
 
 export async function toggleTripPhotoLike(photoId: string) {
-  const { error } = await supabase.rpc("toggle_trip_photo_like" as any, {
+  const { error } = await supabase.rpc("toggle_trip_photo_like", {
     p_photo_id: photoId,
   });
   if (error) throw error;
@@ -107,7 +129,7 @@ export async function removeTripPhoto(photo: Photo) {
     if (error) throw error;
   }
   const { error } = await supabase
-    .from("trip_photos" as any)
+    .from("trip_photos")
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", photo.id);
   if (error) throw error;
@@ -127,7 +149,7 @@ export async function uploadTripPhoto({
   hash: string;
 }): Promise<{ duplicate: boolean }> {
   const { data: duplicate, error: duplicateError } = await supabase
-    .from("trip_photos" as any)
+    .from("trip_photos")
     .select("id")
     .eq("trip_id", tripId)
     .eq("content_hash", hash)
@@ -149,7 +171,7 @@ export async function uploadTripPhoto({
     .upload(path, file, { contentType: file.type, upsert: false });
   if (uploadError) throw uploadError;
 
-  const { error: insertError } = await supabase.from("trip_photos" as any).insert({
+  const { error: insertError } = await supabase.from("trip_photos").insert({
     id,
     trip_id: tripId,
     owner_user_id: userId,
