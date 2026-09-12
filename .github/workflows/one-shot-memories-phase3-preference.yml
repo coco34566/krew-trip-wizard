@@ -166,7 +166,7 @@ jobs:
             exit 1
           fi
           git diff --check
-          changed="$(git status --short | sed -E 's/^.. //' | sort)"
+          changed="$(git status --short -uall | sed -E 's/^.. //' | sort)"
           echo "$changed"
           expected="$(printf '%s\n' \
             'src/hooks/__tests__/use-memories-photo-permission.test.ts' \
