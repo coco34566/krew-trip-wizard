@@ -1042,6 +1042,100 @@ export type Database = {
           },
         ]
       }
+      trip_photo_likes: {
+        Row: {
+          created_at: string
+          photo_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          photo_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          photo_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_photo_likes_photo_id_fkey"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "trip_photos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_photos: {
+        Row: {
+          author: string
+          captured_at: string | null
+          content_hash: string | null
+          created_at: string
+          deleted_at: string | null
+          file_size_bytes: number | null
+          height: number | null
+          id: string
+          likes: number
+          mime_type: string | null
+          original_filename: string | null
+          owner_user_id: string | null
+          perceptual_hash: string | null
+          storage_path: string | null
+          trip_id: string
+          url: string | null
+          width: number | null
+        }
+        Insert: {
+          author: string
+          captured_at?: string | null
+          content_hash?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          likes?: number
+          mime_type?: string | null
+          original_filename?: string | null
+          owner_user_id?: string | null
+          perceptual_hash?: string | null
+          storage_path?: string | null
+          trip_id: string
+          url?: string | null
+          width?: number | null
+        }
+        Update: {
+          author?: string
+          captured_at?: string | null
+          content_hash?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          file_size_bytes?: number | null
+          height?: number | null
+          id?: string
+          likes?: number
+          mime_type?: string | null
+          original_filename?: string | null
+          owner_user_id?: string | null
+          perceptual_hash?: string | null
+          storage_path?: string | null
+          trip_id?: string
+          url?: string | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_photos_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_preferences: {
         Row: {
           activity_categories: string[]
@@ -1403,6 +1497,14 @@ export type Database = {
       is_trip_owner: {
         Args: { _trip_id: string; _user_id: string }
         Returns: boolean
+      }
+      get_recalibrate_cron_secret: { Args: never; Returns: string }
+      toggle_trip_photo_like: {
+        Args: { p_photo_id: string }
+        Returns: {
+          liked: boolean
+          likes: number
+        }[]
       }
     }
     Enums: {
