@@ -63,6 +63,7 @@ async function capturePendingState(
   path: string,
   marker: string,
   viewport: (typeof VIEWPORTS)[number],
+  visualMarker?: string,
 ) {
   let releaseRequests = () => undefined;
   const requestBarrier = new Promise<void>((resolve) => {
@@ -93,10 +94,14 @@ async function capturePendingState(
         }
       `,
     });
-    // D7 contracts the pending shell itself. Artifact evidence from run 34645670196
-    // localized the remaining 16-pixel delta to the unrelated account avatar in the
-    // sticky header, so capture the pending contract surface rather than the whole page.
-    const screenshot = await shell.screenshot({ animations: "disabled" });
+    // D7 measures geometry on the page shell, but the pixel contract concerns the
+    // pending visual itself. For Recap, run 34681047847 proved the two thinking cards
+    // are pixel-identical while the outer shell differs only by two trailing blank rows
+    // from subpixel element-height rounding. Capture the semantic pending visual when
+    // supplied, keeping the comparison at exact pixel equality.
+    const visual = visualMarker ? page.locator(visualMarker).first() : shell;
+    await expect(visual).toBeVisible({ timeout: 20_000 });
+    const screenshot = await visual.screenshot({ animations: "disabled" });
     const geometry = await shell.evaluate((element) => {
       const style = getComputedStyle(element);
       return {
@@ -164,12 +169,14 @@ test("D7 records the approved Invite and Recap pending-state geometry", async ({
         `/trips/${tripId}/recap`,
         'main[data-krew-story-page="recap"]',
         viewport,
+        '[role="status"]',
       );
       const beforeRecap = await capturePendingState(
         before.page,
         `/trips/${tripId}/recap`,
         'main[data-krew-story-page="recap"]',
         viewport,
+        '[role="status"]',
       );
       await testInfo.attach(`after-d7-${viewport.name}-recap-loading`, {
         body: currentRecap.screenshot,
