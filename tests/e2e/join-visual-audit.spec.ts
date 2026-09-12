@@ -87,7 +87,15 @@ async function captureState(
 ) {
   await page.goto(path);
   await settleJoin(page);
-  await expect(page.getByRole("heading", { name: expectedHeading }).first()).toBeVisible({ timeout: 20_000 });
+  let heading = page.getByRole("heading", { name: expectedHeading }).first();
+  if (state === "valid-invite" && !(await heading.isVisible().catch(() => false))) {
+    // The invite fixture is live data. Retry only this read once so transient QA/API
+    // timing cannot turn a valid token into a false visual regression.
+    await page.goto(path);
+    await settleJoin(page);
+    heading = page.getByRole("heading", { name: expectedHeading }).first();
+  }
+  await expect(heading).toBeVisible({ timeout: 20_000 });
 
   const geometry = await page.evaluate(() => ({
     width: document.documentElement.clientWidth,
@@ -120,6 +128,14 @@ test("join invitation visual states use a real invite token", async ({ page }, t
   await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/availability(?:\\?|$)`), { timeout: 20_000 });
 
   await clearAuthentication(page);
+
+  // Fail at fixture setup, not deep inside the viewport loop, if the freshly-created
+  // trip/token cannot be read anonymously. This distinguishes fixture failure from UI failure.
+  await page.goto(invitePath);
+  await settleJoin(page);
+  await expect(page.getByRole("heading", { name: /JOIN-VISUAL-AUDIT-/i }).first()).toBeVisible({
+    timeout: 20_000,
+  });
 
   const invalidToken = "00000000-0000-4000-8000-000000000000";
   const states = [

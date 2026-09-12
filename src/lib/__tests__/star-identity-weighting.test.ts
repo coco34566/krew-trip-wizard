@@ -41,7 +41,7 @@ const participantRow = (userId: string, ambiances: string[] = []) => ({
   accommodation_role: null,
 });
 
-function supabaseFor(rows: any[], trip: any, star: any) {
+function supabaseFor(rows: any[], trip: Record<string, unknown>, star: any) {
   return {
     from(table: string) {
       const data =

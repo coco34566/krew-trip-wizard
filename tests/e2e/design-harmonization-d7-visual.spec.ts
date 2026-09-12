@@ -63,6 +63,7 @@ async function capturePendingState(
   path: string,
   marker: string,
   viewport: (typeof VIEWPORTS)[number],
+  visualMarker?: string,
 ) {
   let releaseRequests = () => undefined;
   const requestBarrier = new Promise<void>((resolve) => {
@@ -80,7 +81,27 @@ async function capturePendingState(
     const shell = page.locator(marker).first();
     await expect(shell).toBeVisible({ timeout: 20_000 });
     await page.evaluate(() => document.fonts.ready).catch(() => undefined);
-    const screenshot = await page.screenshot({ animations: "disabled", fullPage: true });
+    // Preview-only Vercel chrome is outside the KREW visual contract. The failed
+    // PR #389 artifact showed identical D7 geometry/content with only this
+    // floating control present on one preview. Keep the KREW pixels strict after hiding it.
+    await page.addStyleTag({
+      content: `
+        vercel-live-feedback,
+        vercel-toolbar,
+        #vercel-toolbar,
+        iframe[src*="vercel.live"] {
+          display: none !important;
+        }
+      `,
+    });
+    // D7 measures geometry on the page shell, but the pixel contract concerns the
+    // pending visual itself. For Recap, run 34681047847 proved the two thinking cards
+    // are pixel-identical while the outer shell differs only by two trailing blank rows
+    // from subpixel element-height rounding. Capture the semantic pending visual when
+    // supplied, keeping the comparison at exact pixel equality.
+    const visual = visualMarker ? page.locator(visualMarker).first() : shell;
+    await expect(visual).toBeVisible({ timeout: 20_000 });
+    const screenshot = await visual.screenshot({ animations: "disabled" });
     const geometry = await shell.evaluate((element) => {
       const style = getComputedStyle(element);
       return {
@@ -100,6 +121,7 @@ async function capturePendingState(
   }
 }
 
+// Post-merge baseline: PR #387 is already in main, so before/after must agree unless a later PR changes D7.
 test("D7 records the approved Invite and Recap pending-state geometry", async ({
   browser,
 }, testInfo) => {
@@ -117,12 +139,14 @@ test("D7 records the approved Invite and Recap pending-state geometry", async ({
         `/trips/${tripId}/invite`,
         "[data-krew-journey-loading]",
         viewport,
+        '[role="status"]',
       );
       const beforeInvite = await capturePendingState(
         before.page,
         `/trips/${tripId}/invite`,
         "[data-krew-journey-loading]",
         viewport,
+        '[role="status"]',
       );
       await testInfo.attach(`after-d7-${viewport.name}-invite-loading`, {
         body: currentInvite.screenshot,
@@ -136,24 +160,25 @@ test("D7 records the approved Invite and Recap pending-state geometry", async ({
       expect(currentInvite.geometry.size).toBe("form");
       expect(currentInvite.geometry.gutter).toBe("narrow");
       expect(currentInvite.geometry.paddingLeft).toBe(viewport.name === "mobile" ? 16 : 24);
-      expect(beforeInvite.geometry.paddingLeft).toBe(
-        viewport.name === "mobile" ? 20 : viewport.name === "tablet" ? 28 : 32,
-      );
+      // Baseline rebased after PR #387: main already contains the approved D7 Invite geometry.
+      expect(beforeInvite.geometry.paddingLeft).toBe(viewport.name === "mobile" ? 16 : 24);
       expect(currentInvite.geometry.width).toBe(viewport.name === "mobile" ? viewport.width : 820);
-      expect(beforeInvite.geometry.width).toBe(viewport.name === "desktop" ? 1024 : viewport.width);
-      expect(currentInvite.screenshot.equals(beforeInvite.screenshot)).toBe(false);
+      expect(beforeInvite.geometry.width).toBe(viewport.name === "mobile" ? viewport.width : 820);
+      expect(currentInvite.screenshot.equals(beforeInvite.screenshot)).toBe(true);
 
       const currentRecap = await capturePendingState(
         current.page,
         `/trips/${tripId}/recap`,
         'main[data-krew-story-page="recap"]',
         viewport,
+        '[role="status"]',
       );
       const beforeRecap = await capturePendingState(
         before.page,
         `/trips/${tripId}/recap`,
         'main[data-krew-story-page="recap"]',
         viewport,
+        '[role="status"]',
       );
       await testInfo.attach(`after-d7-${viewport.name}-recap-loading`, {
         body: currentRecap.screenshot,
@@ -165,8 +190,9 @@ test("D7 records the approved Invite and Recap pending-state geometry", async ({
       });
 
       expect(currentRecap.geometry.paddingTop).toBe(viewport.name === "mobile" ? 32 : 48);
-      expect(beforeRecap.geometry.paddingTop).toBe(40);
-      expect(currentRecap.screenshot.equals(beforeRecap.screenshot)).toBe(false);
+      // Baseline rebased after PR #387: main already contains the approved D7 Recap spacing.
+      expect(beforeRecap.geometry.paddingTop).toBe(viewport.name === "mobile" ? 32 : 48);
+      expect(currentRecap.screenshot.equals(beforeRecap.screenshot)).toBe(true);
     }
   } finally {
     await current.context.close();

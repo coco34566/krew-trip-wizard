@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -95,7 +96,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
   }
 
   const data = detailQuery.data as any;
-  const trip = data.trip as any;
+  const trip = data.trip as Tables<"trips">;
   const logistics = (trip.group_logistics ?? {}) as any;
   const hotels = (logistics.hotels ?? []) as any[];
   const votes = (logistics.hotelVotes ?? []) as any[];
@@ -103,7 +104,7 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
   const canManageBooking = Boolean(
     isOwner ||
       (data.userId &&
-        (trip.co_organizer_id === data.userId || trip.coOrganizerId === data.userId)),
+        trip.co_organizer_id === data.userId),
   );
   const selectedDestination = (data.recommendations ?? []).find(
     (recommendation: any) => recommendation.is_selected,

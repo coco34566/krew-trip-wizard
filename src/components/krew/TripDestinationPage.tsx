@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -126,7 +127,7 @@ export function TripDestinationPage({ tripId }: { tripId: string }) {
   }
 
   const data = detailQuery.data as any;
-  const trip = data.trip as any;
+  const trip = data.trip as Tables<"trips">;
   const readiness = readinessQuery.data as any;
   const profile = data.profile as any;
   const recommendations = (data.recommendations ?? []) as any[];
@@ -135,7 +136,12 @@ export function TripDestinationPage({ tripId }: { tripId: string }) {
   const isAdmin = Boolean(data.isOwner);
   const destinationSelected = recommendations.some((recommendation) => recommendation.is_selected);
   const selectedRecommendation = recommendations.find((recommendation) => recommendation.is_selected);
-  const noAdmissibleProposals = trip?.group_logistics?.destinationGenerationState === "no_admissible_proposals";
+  const rawLogistics = trip.group_logistics;
+  const logistics =
+    rawLogistics && typeof rawLogistics === "object" && !Array.isArray(rawLogistics)
+      ? rawLogistics
+      : {};
+  const noAdmissibleProposals = logistics["destinationGenerationState"] === "no_admissible_proposals";
 
   return (
     <KrewPageShell size="standard" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">

@@ -74,55 +74,57 @@ test("D8 establishes the approved page-section title scale", async ({ browser },
   const current = await openAuthenticatedPage(browser, CURRENT_URL);
   const tripId = await firstTripId(current.page);
   const before = await openAuthenticatedPage(browser, BEFORE_URL);
+  // Baseline rebased after PR #387: D8 is now part of main, so the reference
+  // uses the approved 24px mobile / 26px tablet+desktop scale for every surface.
   const surfaces = [
     {
       name: "availability",
       path: `/trips/${tripId}/availability`,
       selector: "[data-krew-availability-page] > section:not([data-krew-journey-status]) h2",
-      mobileBefore: 25,
-      desktopBefore: 28,
+      mobileBefore: 24,
+      desktopBefore: 26,
     },
     {
       name: "questionnaire",
       path: `/trips/${tripId}/questionnaire`,
       selector: "[data-krew-preferences-page] > div > section h2",
-      mobileBefore: 28,
-      desktopBefore: 30,
+      mobileBefore: 24,
+      desktopBefore: 26,
     },
     {
       name: "star",
       path: `/trips/${tripId}/star`,
       selector: "[data-krew-preferences-page] > div > section h2",
-      mobileBefore: 28,
-      desktopBefore: 30,
+      mobileBefore: 24,
+      desktopBefore: 26,
     },
     {
       name: "planning",
       path: `/trips/${tripId}/planning`,
       selector: "main article h2",
       mobileBefore: 24,
-      desktopBefore: 24,
+      desktopBefore: 26,
     },
     {
       name: "destination",
       path: `/trips/${tripId}/destination`,
       selector: "main h2",
       mobileBefore: 24,
-      desktopBefore: 24,
+      desktopBefore: 26,
     },
     {
       name: "invite",
       path: `/trips/${tripId}/invite`,
       selector: "main h2",
       mobileBefore: 24,
-      desktopBefore: 24,
+      desktopBefore: 26,
     },
     {
       name: "recap",
       path: `/trips/${tripId}/recap`,
       selector: "main section.space-y-4.pt-4 > h2",
       mobileBefore: 24,
-      desktopBefore: 24,
+      desktopBefore: 26,
     },
   ] as const;
 

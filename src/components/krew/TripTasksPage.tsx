@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -162,11 +163,11 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
   }
 
   const data = detailQuery.data as any;
-  const trip = data.trip as any;
+  const trip = data.trip as Tables<"trips">;
   const isAdmin = Boolean(data.isOwner);
   const completedTrip =
     getTripLifecycleState({
-      datesLocked: Boolean(trip.dates_locked ?? trip.datesLocked),
+      datesLocked: Boolean(trip.dates_locked),
       startDate: trip.start_date ?? null,
       endDate: trip.end_date ?? null,
     }) === "completed";
@@ -179,7 +180,12 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
       participant.status !== "refuse",
   );
   const tasks = tasksQuery.data ?? [];
-  const hasItinerary = Boolean(trip.group_itinerary?.days?.length);
+  const rawItinerary = trip.group_itinerary;
+  const itinerary =
+    rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
+      ? rawItinerary
+      : {};
+  const hasItinerary = Array.isArray(itinerary["days"]) && itinerary["days"].length > 0;
   const completed = tasks.filter((task) => task.status === "done").length;
   const identifiedActiveCount = participants.length;
   const missingParticipants = Math.max(

@@ -1,3 +1,4 @@
+import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -26,6 +27,12 @@ import {
   getTripDetail,
   regenerateItinerarySlot,
 } from "@/lib/trips.functions.entry";
+
+type PlanningItineraryDay = {
+  day: number;
+  date?: string;
+  slots?: any[];
+};
 
 export function planningTypeLabel(type: string | null | undefined) {
   const normalized = String(type ?? "").trim().toLowerCase();
@@ -132,18 +139,26 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
   }
 
   const data = detailQuery.data as any;
-  const trip = data.trip as any;
+  const trip = data.trip as Tables<"trips">;
   const isAdmin = Boolean(data.isOwner);
   const completedTrip =
     getTripLifecycleState({
-      datesLocked: Boolean(trip.dates_locked ?? trip.datesLocked),
+      datesLocked: Boolean(trip.dates_locked),
       startDate: trip.start_date ?? null,
       endDate: trip.end_date ?? null,
     }) === "completed";
-  const days = (trip.group_itinerary?.days ?? []) as any[];
-  const destination = String(
-    trip.group_itinerary?.destination || trip.group_logistics?.destination || "",
-  ).trim();
+  const rawItinerary = trip.group_itinerary;
+  const itinerary =
+    rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
+      ? rawItinerary
+      : {};
+  const rawLogistics = trip.group_logistics;
+  const logistics =
+    rawLogistics && typeof rawLogistics === "object" && !Array.isArray(rawLogistics)
+      ? rawLogistics
+      : {};
+  const days = Array.isArray(itinerary["days"]) ? (itinerary["days"] as unknown as PlanningItineraryDay[]) : [];
+  const destination = String(itinerary["destination"] || logistics["destination"] || "").trim();
   const activityCost = computeItineraryActivitiesCost(days);
   const priceStatusLabel =
     activityCost.priceStatus === "verified"
