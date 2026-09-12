@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/one-shot-memories-phase5-final.yml
       - .github/scripts/memories-phase5.sh
+      - .github/scripts/memories-phase5-fix.py
 
 permissions:
   contents: write
@@ -25,4 +26,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Apply and validate Phase 5
-        run: bash <(curl -fsSL https://raw.githubusercontent.com/coco34566/krew-trip-wizard/automation/memories-phase5-final/.github/scripts/memories-phase5.sh)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/coco34566/krew-trip-wizard/automation/memories-phase5-final/.github/scripts/memories-phase5.sh -o /tmp/memories-phase5.sh
+          curl -fsSL https://raw.githubusercontent.com/coco34566/krew-trip-wizard/automation/memories-phase5-final/.github/scripts/memories-phase5-fix.py -o /tmp/memories-phase5-fix.py
+          python3 /tmp/memories-phase5-fix.py
+          bash /tmp/memories-phase5.sh
