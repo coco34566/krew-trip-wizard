@@ -1,11 +1,11 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Crown, Shield } from "lucide-react";
 import { toast } from "sonner";
 
-import { KrewAvatar, KrewAvatarStack } from "@/components/krew/KrewAvatar";
+import { KrewAvatar } from "@/components/krew/KrewAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,7 @@ export function responseMissingCopy(availabilityMissing: number, preferencesMiss
 }
 
 export function TripInvitePage({ tripId }: { tripId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const fetchInviteLink = useServerFn(getTripInviteLink);
@@ -108,7 +109,10 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
           inviteStepCompleted: true,
         },
       }),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      await refresh();
+      await navigate({ to: "/trips/$tripId/questionnaire", params: { tripId } });
+    },
     onError: () => toast.error("Impossible d’enregistrer les invitations pour le moment."),
   });
 
@@ -172,13 +176,7 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
     }),
   );
   const displayedParticipants = [...rawParticipants, ...placeholders];
-  const currentMembers = rawParticipants.filter((participant) => participant.status !== "refuse");
   const avatarMap = avatarQuery.data ?? new Map<string, string | null>();
-  const stackMembers = currentMembers.map((participant) => ({
-    id: participant.id,
-    name: participant.display_name || participant.email || "Participant",
-    avatarUrl: participant.user_id ? avatarMap.get(participant.user_id) ?? null : null,
-  }));
 
   return (
     <KrewPageShell data-krew-invite-page size="form" gutter="narrow" className="space-y-8 py-8 sm:py-10">
@@ -191,23 +189,11 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       </Link>
 
       <header>
-        <h1 className="font-display text-[32px] font-normal text-foreground sm:text-[38px]">Inviter le groupe</h1>
+        <h1 className="font-display text-[32px] font-normal text-foreground sm:text-[38px]">Inviter la Krew</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
           Partage l’invitation à la team. Chacun pourra rejoindre le voyage et répondre ensuite à son rythme.
         </p>
       </header>
-
-      {currentMembers.length > 0 ? (
-        <div className="flex items-center gap-3">
-          <KrewAvatarStack members={stackMembers} max={5} size="sm" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">Déjà dans la Krew</p>
-            <p className="text-xs text-muted-foreground">
-              {currentMembers.length} membre{currentMembers.length > 1 ? "s" : ""} dans le voyage
-            </p>
-          </div>
-        </div>
-      ) : null}
 
       {data.isOwner ? (
         <section className="space-y-4 border-b border-border/50 pb-6">
@@ -294,9 +280,9 @@ export function TripInvitePage({ tripId }: { tripId: string }) {
       {data.isOwner ? (
         <section className="border-t border-border/50 pt-6">
           <KrewStatefulButton
-            idleLabel="Enregistrer les invitations"
+            idleLabel="Invit’ lancées ? Passe à la suite"
             loadingLabel="Enregistrement…"
-            successLabel="Invitations enregistrées"
+            successLabel="C’est parti"
             errorLabel="Réessayer"
             onAction={() => finalizeMutation.mutateAsync()}
           />
