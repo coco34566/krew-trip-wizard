@@ -7,7 +7,7 @@ const read = (path: string) => readFileSync(path, "utf8");
 
 describe("approved D8 page-section title consumers", () => {
   it.each([
-    ["availability", "src/routes/_authenticated/trips.$tripId.availability.tsx", 2],
+    ["availability", "src/components/krew/ParticipantAvailabilityStep.tsx", 1],
     ["questionnaire", "src/routes/_authenticated/trips.$tripId.questionnaire.tsx", 1],
     ["star", "src/routes/_authenticated/trips.$tripId.star.tsx", 1],
     ["planning", "src/components/krew/TripPlanningPage.tsx", 1],
