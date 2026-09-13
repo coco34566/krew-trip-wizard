@@ -1,5 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Heart } from "lucide-react";
@@ -54,6 +54,7 @@ function destinationPhotoUrl(name?: string | null, imageUrl?: string | null) {
 }
 
 export function TripDestinationPage({ tripId }: { tripId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const fetchReadiness = useServerFn(getGenerationReadiness);
@@ -90,7 +91,13 @@ export function TripDestinationPage({ tripId }: { tripId: string }) {
 
   const selectMutation = useMutation({
     mutationFn: (recommendationId: string) => select({ data: { tripId, recommendationId } }),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["trip", tripId] }),
+        queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] }),
+      ]);
+      navigate({ to: "/trips/$tripId", params: { tripId } });
+    },
     onError: (error) => {
       console.error("Impossible de choisir la destination:", error);
       toast.error("Impossible de choisir cette destination pour le moment.");

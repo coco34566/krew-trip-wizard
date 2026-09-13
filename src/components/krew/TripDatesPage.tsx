@@ -1,5 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -37,6 +37,7 @@ function formatDate(value: string | null | undefined, options?: Intl.DateTimeFor
 }
 
 export function TripDatesPage({ tripId }: { tripId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const fetchAvailability = useServerFn(getTripAvailability);
@@ -63,7 +64,14 @@ export function TripDatesPage({ tripId }: { tripId: string }) {
   const chooseMutation = useMutation({
     mutationFn: ({ start, end }: { start: string; end: string }) =>
       chooseDates({ data: { tripId, startDate: start, endDate: end } } as any),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["trip", tripId] }),
+        queryClient.invalidateQueries({ queryKey: ["trip-availability", tripId] }),
+        queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] }),
+      ]);
+      navigate({ to: "/trips/$tripId", params: { tripId } });
+    },
     onError: (error) => {
       console.error("Impossible de confirmer les dates:", error);
       toast.error("Impossible de confirmer ces dates pour le moment.");
