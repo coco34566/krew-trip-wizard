@@ -73,7 +73,17 @@ function monthLabel(d: Date) {
   return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
-function SelectableOption({ active, onClick, children, className }: { active: boolean; onClick: () => void; children: React.ReactNode; className?: string }) {
+function SelectableOption({
+  active,
+  onClick,
+  children,
+  className,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <button
       type="button"
@@ -91,11 +101,21 @@ function SelectableOption({ active, onClick, children, className }: { active: bo
   );
 }
 
-function Section({ title, hint, bgClass, children }: { title: string; hint?: string; bgClass?: string; children: React.ReactNode }) {
+function Section({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className={cn("mb-6 space-y-4 pb-6", bgClass ? `${bgClass} rounded-[20px] p-5 sm:p-6` : "border-b border-border/50")}>
+    <section className="mb-6 space-y-4 border-b border-border/50 pb-6">
       <div>
-        <h2 className="font-display text-[length:var(--krew-title-section)] leading-8 font-normal text-foreground sm:leading-9">{title}</h2>
+        <h2 className="font-display text-[length:var(--krew-title-section)] leading-8 font-normal text-foreground sm:leading-9">
+          {title}
+        </h2>
         {hint ? <p className="mt-1 text-sm text-muted-foreground">{hint}</p> : null}
       </div>
       {children}
@@ -103,7 +123,15 @@ function Section({ title, hint, bgClass, children }: { title: string; hint?: str
   );
 }
 
-function MonthGrid({ month, selection, onToggle }: { month: Date; selection: Map<string, DayMode>; onToggle: (iso: string) => void }) {
+function MonthGrid({
+  month,
+  selection,
+  onToggle,
+}: {
+  month: Date;
+  selection: Map<string, DayMode>;
+  onToggle: (iso: string) => void;
+}) {
   const first = startOfMonth(month);
   const startWeekday = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
@@ -115,7 +143,10 @@ function MonthGrid({ month, selection, onToggle }: { month: Date; selection: Map
   return (
     <div className="rounded-[16px] border border-border/45 bg-background p-3.5">
       <p className="mb-2 text-center text-sm font-semibold capitalize">{monthLabel(month)}</p>
-      <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[12px] font-medium uppercase text-muted-foreground" aria-hidden="true">
+      <div
+        className="mb-1 grid grid-cols-7 gap-1 text-center text-[12px] font-medium uppercase text-muted-foreground"
+        aria-hidden="true"
+      >
         {["L", "M", "M", "J", "V", "S", "D"].map((d, i) => <span key={i}>{d}</span>)}
       </div>
       <div className="grid grid-cols-7 gap-1">
@@ -218,8 +249,14 @@ function StarQuestionnaire() {
     setHydrated(true);
   }, [data, hydrated]);
 
-  const availableDates = useMemo(() => [...selection.entries()].filter(([, v]) => v === "available").map(([k]) => k).sort(), [selection]);
-  const blockedDates = useMemo(() => [...selection.entries()].filter(([, v]) => v === "blocked").map(([k]) => k).sort(), [selection]);
+  const availableDates = useMemo(
+    () => [...selection.entries()].filter(([, v]) => v === "available").map(([k]) => k).sort(),
+    [selection],
+  );
+  const blockedDates = useMemo(
+    () => [...selection.entries()].filter(([, v]) => v === "blocked").map(([k]) => k).sort(),
+    [selection],
+  );
   const baseMonth = startOfMonth(new Date());
   const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
 
@@ -296,6 +333,17 @@ function StarQuestionnaire() {
     },
   });
 
+  async function saveQuestionnaire() {
+    if (data.trip.isOwner) {
+      await setupMutation.mutateAsync();
+    }
+    if (starMode === "secret") {
+      await mutation.mutateAsync();
+      return;
+    }
+    await navigate({ to: "/trips/$tripId", params: { tripId } });
+  }
+
   if (isLoading) {
     return (
       <KrewJourneyLoadingState
@@ -322,7 +370,13 @@ function StarQuestionnaire() {
   if (!data.trip.hasStar) {
     return (
       <KrewPageShell data-krew-preferences-page size="form" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
-        <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
+        <Link
+          to="/trips/$tripId"
+          params={{ tripId }}
+          className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
+        >
+          <ArrowLeft className="size-4" /> Retour au voyage
+        </Link>
         <KrewJourneyStatusPanel title="Aucune Star pour ce voyage" icon="attention" tone="info">
           <p>Cette étape n’est pas nécessaire pour ce voyage.</p>
         </KrewJourneyStatusPanel>
@@ -335,10 +389,22 @@ function StarQuestionnaire() {
 
   return (
     <KrewPageShell data-krew-preferences-page size="form" className="space-y-[var(--krew-journey-content-gap)] py-8 sm:py-10">
-      <Link to="/trips/$tripId" params={{ tripId }} className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour au voyage</Link>
+      <Link
+        to="/trips/$tripId"
+        params={{ tripId }}
+        className="inline-flex min-h-10 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors hover:text-primary"
+      >
+        <ArrowLeft className="size-4" /> Retour au voyage
+      </Link>
 
-      <KrewJourneyPageHeader tripName={data.trip.name ?? "Voyage"} title={`Préférences de ${starName}`} otterSrc="/brand/otter-states/preferences.png">
-        <p>Complète les réponses au nom de <strong>{starName}</strong>. Toutes les options ci-dessous décrivent ce qui lui ferait envie, à lui ou à elle.</p>
+      <KrewJourneyPageHeader
+        tripName={data.trip.name ?? "Voyage"}
+        title={`Préférences de ${starName}`}
+        otterSrc="/brand/otter-states/preferences.png"
+      >
+        <p>
+          Complète les réponses au nom de <strong>{starName}</strong>. Toutes les options ci-dessous décrivent ce qui lui ferait envie, à lui ou à elle.
+        </p>
       </KrewJourneyPageHeader>
 
       {data.preferences ? (
@@ -357,18 +423,41 @@ function StarQuestionnaire() {
             <div className="space-y-3">
               <p className="text-base font-semibold text-foreground">Comment {starName} participe à l’organisation ?</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <SelectableOption active={starMode === "secret"} onClick={() => !disabledSetup && setStarMode("secret")} className={disabledSetup ? "pointer-events-none opacity-60" : undefined}>Mode secret · tu renseignes ses réponses</SelectableOption>
-                <SelectableOption active={starMode === "participant"} onClick={() => !disabledSetup && setStarMode("participant")} className={disabledSetup ? "pointer-events-none opacity-60" : undefined}>Mode participant · la Star répond elle-même</SelectableOption>
+                <SelectableOption
+                  active={starMode === "secret"}
+                  onClick={() => !disabledSetup && setStarMode("secret")}
+                  className={disabledSetup ? "pointer-events-none opacity-60" : undefined}
+                >
+                  Mode secret · tu renseignes ses réponses
+                </SelectableOption>
+                <SelectableOption
+                  active={starMode === "participant"}
+                  onClick={() => !disabledSetup && setStarMode("participant")}
+                  className={disabledSetup ? "pointer-events-none opacity-60" : undefined}
+                >
+                  Mode participant · la Star répond elle-même
+                </SelectableOption>
               </div>
             </div>
             <div className="space-y-3">
               <p className="text-base font-semibold text-foreground">La Star participe-t-elle aux frais ?</p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <SelectableOption active={starPaysShare} onClick={() => !disabledSetup && setStarPaysShare(true)} className={disabledSetup ? "pointer-events-none opacity-60" : undefined}>Oui, sa part reste incluse</SelectableOption>
-                <SelectableOption active={!starPaysShare} onClick={() => !disabledSetup && setStarPaysShare(false)} className={disabledSetup ? "pointer-events-none opacity-60" : undefined}>Non, sa part est répartie</SelectableOption>
+                <SelectableOption
+                  active={starPaysShare}
+                  onClick={() => !disabledSetup && setStarPaysShare(true)}
+                  className={disabledSetup ? "pointer-events-none opacity-60" : undefined}
+                >
+                  Oui, sa part reste incluse
+                </SelectableOption>
+                <SelectableOption
+                  active={!starPaysShare}
+                  onClick={() => !disabledSetup && setStarPaysShare(false)}
+                  className={disabledSetup ? "pointer-events-none opacity-60" : undefined}
+                >
+                  Non, sa part est répartie
+                </SelectableOption>
               </div>
             </div>
-            {data.trip.isOwner ? <KrewStatefulButton variant="outline" className="w-full sm:w-auto" idleLabel="Enregistrer ces choix" loadingLabel="Enregistrement…" successLabel="Choix enregistrés" errorLabel="Réessayer" onAction={() => setupMutation.mutateAsync()} /> : null}
           </div>
         </Section>
 
@@ -377,19 +466,34 @@ function StarQuestionnaire() {
             <div className="space-y-3">
               <Label className="block text-base font-semibold text-foreground">Quelles activités lui plairaient ?</Label>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {STAR_WANTED_ACTIVITIES.map((a) => <SelectableOption key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}><span className="mr-1.5">{STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"}</span>{capitalizeFirst(a)}</SelectableOption>)}
+                {STAR_WANTED_ACTIVITIES.map((a) => (
+                  <SelectableOption key={a} active={wanted.includes(a)} onClick={() => toggle(wanted, setWanted, a)}>
+                    <span className="mr-1.5">{STAR_WANTED_ACTIVITIES_EMOJIS[a] || "✨"}</span>
+                    {capitalizeFirst(a)}
+                  </SelectableOption>
+                ))}
               </div>
             </div>
             <div className="space-y-3">
               <Label className="block text-base font-semibold text-foreground">Quelle ambiance lui conviendrait le mieux ?</Label>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {AMBIANCES.map((a) => <SelectableOption key={a.value} active={ambiances.includes(a.value)} onClick={() => toggle(ambiances, setAmbiances, a.value)}><span className="mr-1.5">{a.emoji}</span>{capitalizeFirst(a.label)}</SelectableOption>)}
+                {AMBIANCES.map((a) => (
+                  <SelectableOption key={a.value} active={ambiances.includes(a.value)} onClick={() => toggle(ambiances, setAmbiances, a.value)}>
+                    <span className="mr-1.5">{a.emoji}</span>
+                    {capitalizeFirst(a.label)}
+                  </SelectableOption>
+                ))}
               </div>
             </div>
             <div className="space-y-3">
               <Label className="block text-base font-semibold text-foreground">Qu’est-ce qu’il ou elle voudrait absolument éviter ?</Label>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {STAR_DEAL_BREAKERS.map((a) => <SelectableOption key={a} active={breakers.includes(a)} onClick={() => toggle(breakers, setBreakers, a)}><span className="mr-1.5">{STAR_DEAL_BREAKERS_EMOJIS[a] || "🚫"}</span>{capitalizeFirst(a)}</SelectableOption>)}
+                {STAR_DEAL_BREAKERS.map((a) => (
+                  <SelectableOption key={a} active={breakers.includes(a)} onClick={() => toggle(breakers, setBreakers, a)}>
+                    <span className="mr-1.5">{STAR_DEAL_BREAKERS_EMOJIS[a] || "🚫"}</span>
+                    {capitalizeFirst(a)}
+                  </SelectableOption>
+                ))}
               </div>
             </div>
           </div>
@@ -397,8 +501,14 @@ function StarQuestionnaire() {
 
         <Section title="Destination et cadre">
           <div className="space-y-5">
-            <div className="space-y-2"><Label htmlFor="destination" className="block text-base font-semibold text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label><Input id="destination" value={desiredDestination} onChange={(e) => setDesiredDestination(e.target.value)} placeholder="Ex. Lisbonne, Barcelone…" className="h-12 rounded-xl border-border text-base focus-visible:ring-primary" /></div>
-            <div className="space-y-2"><Label htmlFor="excluded" className="block text-base font-semibold text-foreground">Quelles destinations voudrait-il ou elle éviter ? (optionnel)</Label><Input id="excluded" value={excludedDestinations} onChange={(e) => setExcludedDestinations(e.target.value)} placeholder="Ex. Ibiza, Marrakech (séparées par des virgules)" className="h-12 rounded-xl border-border text-base focus-visible:ring-primary" /></div>
+            <div className="space-y-2">
+              <Label htmlFor="destination" className="block text-base font-semibold text-foreground">Quelle serait sa destination rêvée ? (optionnel)</Label>
+              <Input id="destination" value={desiredDestination} onChange={(e) => setDesiredDestination(e.target.value)} placeholder="Ex. Lisbonne, Barcelone…" className="h-12 rounded-xl border-border text-base focus-visible:ring-primary" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="excluded" className="block text-base font-semibold text-foreground">Quelles destinations voudrait-il ou elle éviter ? (optionnel)</Label>
+              <Input id="excluded" value={excludedDestinations} onChange={(e) => setExcludedDestinations(e.target.value)} placeholder="Ex. Ibiza, Marrakech (séparées par des virgules)" className="h-12 rounded-xl border-border text-base focus-visible:ring-primary" />
+            </div>
             <div className="space-y-3">
               <Label className="block text-base font-semibold text-foreground">Quel type de lieu lui plairait le plus ?</Label>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -410,7 +520,11 @@ function StarQuestionnaire() {
                   { v: "Village de charme", label: "🏡 Village de charme" },
                   { v: "Montagne", label: "🏔️ Montagne" },
                   { v: "Lac / rivière", label: "🚣 Lac / rivière" },
-                ].map((env) => <SelectableOption key={env.v} active={wantedEnvTypes.includes(env.v)} onClick={() => toggle(wantedEnvTypes, setWantedEnvTypes, env.v)}>{env.label}</SelectableOption>)}
+                ].map((env) => (
+                  <SelectableOption key={env.v} active={wantedEnvTypes.includes(env.v)} onClick={() => toggle(wantedEnvTypes, setWantedEnvTypes, env.v)}>
+                    {env.label}
+                  </SelectableOption>
+                ))}
               </div>
             </div>
             <div className="space-y-3">
@@ -420,13 +534,17 @@ function StarQuestionnaire() {
                   { v: 2, label: "☀️ Le beau temps compte beaucoup pour lui ou elle" },
                   { v: 1, label: "🌤️ C’est un plus pour lui ou elle, sans être déterminant" },
                   { v: 0, label: "🌍 La météo n’est pas un critère important pour lui ou elle" },
-                ].map((opt) => <SelectableOption key={opt.v} active={weatherPreference === opt.v} onClick={() => setWeatherPreference(opt.v)}>{opt.label}</SelectableOption>)}
+                ].map((opt) => (
+                  <SelectableOption key={opt.v} active={weatherPreference === opt.v} onClick={() => setWeatherPreference(opt.v)}>
+                    {opt.label}
+                  </SelectableOption>
+                ))}
               </div>
             </div>
           </div>
         </Section>
 
-        <Section title="Hébergement" bgClass="bg-surface/50">
+        <Section title="Hébergement">
           <div className="space-y-3">
             <Label className="block text-base font-semibold text-foreground">Pour lui ou elle, l’hébergement serait plutôt…</Label>
             <div className="grid gap-3">
@@ -434,7 +552,11 @@ function StarQuestionnaire() {
                 ["base_only", "Un point de chute"],
                 ["part_of_stay", "Un lieu où le groupe aime aussi passer du temps"],
                 ["centerpiece", "Une vraie partie du voyage"],
-              ].map(([value, label]) => <SelectableOption key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>{label}</SelectableOption>)}
+              ].map(([value, label]) => (
+                <SelectableOption key={value} active={accommodationRole === value} onClick={() => setAccommodationRole(value as typeof accommodationRole)}>
+                  {label}
+                </SelectableOption>
+              ))}
             </div>
           </div>
         </Section>
@@ -443,7 +565,16 @@ function StarQuestionnaire() {
           <div className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="departure" className="block text-base font-semibold text-foreground">D’où partirait {starName} ? (ville ou code postal)</Label>
-              <CityAutocomplete id="departure" value={departureCity} onChange={setDepartureCity} onSelect={(sel) => { setDepartureCity(sel.city); setDepartureAirportOrStation(sel.airportIata || ""); }} placeholder="Ex. Lyon, 69001, Paris…" />
+              <CityAutocomplete
+                id="departure"
+                value={departureCity}
+                onChange={setDepartureCity}
+                onSelect={(sel) => {
+                  setDepartureCity(sel.city);
+                  setDepartureAirportOrStation(sel.airportIata || "");
+                }}
+                placeholder="Ex. Lyon, 69001, Paris…"
+              />
             </div>
             <div className="space-y-3">
               <Label className="block text-base font-semibold text-foreground">Sur place, qu’est-ce qui lui conviendrait le mieux ?</Label>
@@ -452,7 +583,14 @@ function StarQuestionnaire() {
                   ["walk_transit", "Tout faire à pied / en transports"],
                   ["car_if_worth_it", "Prendre une voiture si ça vaut vraiment le coup"],
                   ["car_ok", "Se déplacer en voiture ne lui pose aucun problème"],
-                ].map(([value, label]) => <SelectableOption key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}><span className="flex items-center gap-2"><KrewIcon name={value === "walk_transit" ? "walk" : "car"} tone={localMobility === value ? "plum" : "muted"} size="sm" className="size-4 shrink-0" />{label}</span></SelectableOption>)}
+                ].map(([value, label]) => (
+                  <SelectableOption key={value} active={localMobility === value} onClick={() => setLocalMobility(value as typeof localMobility)}>
+                    <span className="flex items-center gap-2">
+                      <KrewIcon name={value === "walk_transit" ? "walk" : "car"} tone={localMobility === value ? "plum" : "muted"} size="sm" className="size-4 shrink-0" />
+                      {label}
+                    </span>
+                  </SelectableOption>
+                ))}
               </div>
             </div>
           </div>
@@ -461,22 +599,80 @@ function StarQuestionnaire() {
         <Section title={`Disponibilités de ${starName}`} hint={`Indique les dates où ${starName} serait disponible ou indisponible.`}>
           <div className="space-y-5">
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => setPaintMode("available")} aria-pressed={paintMode === "available"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium", paintMode === "available" ? "border-sage/40 bg-sage/20 font-semibold text-primary" : "border-border bg-background text-muted-foreground")}><span className="size-2.5 rounded-full bg-current" /> Disponible</button>
-              <button type="button" onClick={() => setPaintMode("blocked")} aria-pressed={paintMode === "blocked"} className={cn("inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium", paintMode === "blocked" ? "border-destructive bg-destructive font-semibold text-white" : "border-border bg-background text-muted-foreground")}><span className="size-2.5 rounded-full bg-current" /> Impossible</button>
+              <button
+                type="button"
+                onClick={() => setPaintMode("available")}
+                aria-pressed={paintMode === "available"}
+                className={cn(
+                  "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium",
+                  paintMode === "available" ? "border-sage/40 bg-sage/20 font-semibold text-primary" : "border-border bg-background text-muted-foreground",
+                )}
+              >
+                <span className="size-2.5 rounded-full bg-current" /> Disponible
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaintMode("blocked")}
+                aria-pressed={paintMode === "blocked"}
+                className={cn(
+                  "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium",
+                  paintMode === "blocked" ? "border-destructive bg-destructive font-semibold text-white" : "border-border bg-background text-muted-foreground",
+                )}
+              >
+                <span className="size-2.5 rounded-full bg-current" /> Impossible
+              </button>
             </div>
-            <div className="flex items-center justify-between"><Button type="button" variant="ghost" size="icon" aria-label="Mois précédents" onClick={() => setMonthOffset((o) => Math.max(0, o - 1))} disabled={monthOffset <= 0}><ChevronLeft className="size-4" /></Button><p className="text-[13px] text-muted-foreground">Fais défiler les mois →</p><Button type="button" variant="ghost" size="icon" aria-label="Mois suivants" onClick={() => setMonthOffset((o) => o + 1)}><ChevronRight className="size-4" /></Button></div>
-            <div className="grid gap-3 sm:grid-cols-2">{months.map((m) => <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />)}</div>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1"><button type="button" onClick={selectWeekendsInView} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">Sélectionner tous les week-ends affichés</button><button type="button" onClick={() => setSelection(new Map())} className="inline-flex min-h-10 items-center text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Tout effacer</button></div>
+            <div className="flex items-center justify-between">
+              <Button type="button" variant="ghost" size="icon" aria-label="Mois précédents" onClick={() => setMonthOffset((o) => Math.max(0, o - 1))} disabled={monthOffset <= 0}>
+                <ChevronLeft className="size-4" />
+              </Button>
+              <p className="text-[13px] text-muted-foreground">Fais défiler les mois →</p>
+              <Button type="button" variant="ghost" size="icon" aria-label="Mois suivants" onClick={() => setMonthOffset((o) => o + 1)}>
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {months.map((m) => <MonthGrid key={toISO(m)} month={m} selection={selection} onToggle={toggleDay} />)}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+              <button type="button" onClick={selectWeekendsInView} className="inline-flex min-h-10 items-center text-sm font-semibold text-primary underline-offset-4 hover:underline">
+                Sélectionner tous les week-ends affichés
+              </button>
+              <button type="button" onClick={() => setSelection(new Map())} className="inline-flex min-h-10 items-center text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+                Tout effacer
+              </button>
+            </div>
           </div>
         </Section>
 
         <section className="mb-6 space-y-2 pb-6">
-          <Label className="flex items-center gap-2 text-base font-semibold text-foreground"><KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />Autres précisions utiles sur ses préférences</Label>
-          <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Précisions utiles pour le groupe…" className="min-h-[120px] rounded-xl border-border text-base focus-visible:ring-primary" />
+          <Label className="flex items-center gap-2 text-base font-semibold text-foreground">
+            <KrewIcon name="message" tone="plum" size="sm" className="size-4 shrink-0" />
+            Autres précisions utiles sur ses préférences
+          </Label>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Précisions utiles pour le groupe…"
+            className="min-h-[120px] rounded-xl border-border text-base focus-visible:ring-primary"
+          />
         </section>
 
         <div className="pb-12 pt-2">
-          <KrewStatefulButton className="max-w-full" idleLabel={starMode !== "secret" ? "La Star répond elle-même en mode participant" : data.preferences ? "Enregistrer les modifications" : "Enregistrer les préférences de la Star"} loadingLabel="Enregistrement…" successLabel="Préférences enregistrées" errorLabel="Réessayer" disabled={starMode !== "secret"} onAction={() => mutation.mutateAsync()} />
+          <KrewStatefulButton
+            className="max-w-full"
+            idleLabel={
+              starMode === "participant"
+                ? "Valider les choix de la Star"
+                : data.preferences
+                  ? "Enregistrer les modifications"
+                  : "Enregistrer les préférences de la Star"
+            }
+            loadingLabel="Enregistrement…"
+            successLabel="Questionnaire enregistré"
+            errorLabel="Réessayer"
+            onAction={saveQuestionnaire}
+          />
         </div>
       </div>
     </KrewPageShell>
