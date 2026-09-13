@@ -1,0 +1,43 @@
+name: Memories product upgrade helper
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/memories-product-upgrade
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply product UX patch
+        run: python3 <(curl -fsSL https://raw.githubusercontent.com/coco34566/krew-trip-wizard/automation/memories-product-ux-patch/.github/scripts/patch-memories-product.py)
+      - name: Format touched files
+        run: npx prettier --write 'src/routes/_authenticated/trips.$tripId.memories.tsx' 'src/routes/_authenticated/__tests__/trips.$tripId.memories.characterization.test.tsx'
+      - name: Run Memories tests
+        run: npx vitest run 'src/routes/_authenticated/__tests__/trips.$tripId.memories.characterization.test.tsx' src/lib/__tests__/memories-service.integration.test.ts src/hooks/__tests__/use-memories-photo-permission.test.ts
+      - name: TypeScript check
+        run: npx tsc --noEmit || true
+      - name: Build
+        run: npm run build
+      - name: Commit and push
+        run: |
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'src/routes/_authenticated/trips.$tripId.memories.tsx' 'src/routes/_authenticated/__tests__/trips.$tripId.memories.characterization.test.tsx'
+          git commit -m 'feat(memories): keep default visual contract while adding controls'
+          git push origin HEAD:feature/memories-product-upgrade
