@@ -1,6 +1,9 @@
 name: Memories product upgrade helper
 
 on:
+  push:
+    branches:
+      - automation/memories-product-ux-patch
   workflow_dispatch:
 
 permissions:
