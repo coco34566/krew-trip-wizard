@@ -1,5 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Heart } from "lucide-react";
@@ -36,6 +36,7 @@ const ACCOMMODATION_CONCEPT_LABELS: Record<string, string> = {
 };
 
 export function TripAccommodationPage({ tripId }: { tripId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const proposeLogistics = useServerFn(proposeStayAndTransport);
@@ -72,7 +73,13 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
 
   const bookingMutation = useMutation({
     mutationFn: () => setBooking({ data: { tripId, type: "hotel", status: "réservé" } }),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["trip", tripId] }),
+        queryClient.invalidateQueries({ queryKey: ["cost-split", tripId] }),
+      ]);
+      navigate({ to: "/trips/$tripId", params: { tripId } });
+    },
     onError: (error) => {
       console.error("Impossible de marquer l’hébergement comme réservé:", error);
       toast.error("Impossible de mettre à jour le statut de l’hébergement pour le moment.");

@@ -232,15 +232,17 @@ function AccountPage() {
             <h2 className="font-display text-xl sm:text-2xl font-normal text-foreground">Mes informations</h2>
           </div>
           <div className="divide-y divide-border/40 text-sm">
-            <div className="py-3.5 flex items-center justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-3">
+            <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+              <div className="flex min-w-0 items-center gap-3.5">
                 <KrewAvatar name={avatarName} avatarUrl={avatarUrl} size="md" decorative={false} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">Photo de profil</p>
-                  <p className="text-xs text-muted-foreground">Facultative · visible par les membres de tes voyages</p>
+                  <p className="mt-0.5 max-w-[30rem] text-xs leading-relaxed text-muted-foreground">
+                    Facultative · visible par les membres de tes voyages
+                  </p>
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap sm:justify-end">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -252,7 +254,7 @@ function AccountPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="rounded-xl"
+                  className="w-full justify-center rounded-xl sm:w-auto"
                   disabled={avatarBusy}
                   onClick={() => fileInputRef.current?.click()}
                 >
@@ -264,7 +266,7 @@ function AccountPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="rounded-xl text-muted-foreground"
+                    className="w-full justify-center rounded-xl text-muted-foreground sm:w-auto"
                     disabled={avatarBusy}
                     onClick={() => void handleRemoveAvatar()}
                   >

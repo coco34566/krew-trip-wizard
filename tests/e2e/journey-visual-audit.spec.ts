@@ -88,7 +88,7 @@ async function waitForRenderedChapter(page: Page, name: string) {
 
   const required: Record<string, () => ReturnType<Page["locator"]>> = {
     journey: () => page.locator('[data-krew-dashboard-root="true"]'),
-    invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
+    invite: () => page.getByRole("heading", { name: "Inviter la Krew", exact: true }),
     questionnaire: () => page.getByRole("heading", { name: "Tes disponibilités", exact: true }),
     dates: () => page.getByRole("heading", { name: "Dates du groupe", exact: true }),
     profile: () => page.getByRole("heading", { name: "Profil du voyage", exact: true }),

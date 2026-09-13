@@ -50,7 +50,8 @@ test("D8 establishes the approved page-section title scale", async ({ browser },
   const tripId = await firstTripId(current.page);
   const before = await openAuthenticatedPage(browser, BEFORE_URL);
   // Availability is now the first chapter of /questionnaire rather than a separate customer surface.
-  // Keep one D8 contract for the unified questionnaire while preserving the approved 24/26px scale.
+  // Invite is intentionally changing content/wording in this PR, so its visual contract is covered
+  // by the dedicated invite/reference audit rather than a before/after title-count comparison here.
   const surfaces = [
     {
       name: "questionnaire",
@@ -85,14 +86,6 @@ test("D8 establishes the approved page-section title scale", async ({ browser },
       desktopBefore: 26,
     },
     {
-      name: "invite",
-      path: `/trips/${tripId}/invite`,
-      currentSelector: "main h2",
-      beforeSelector: "main h2",
-      mobileBefore: 24,
-      desktopBefore: 26,
-    },
-    {
       name: "recap",
       path: `/trips/${tripId}/recap`,
       currentSelector: "main section.space-y-4.pt-4 > h2",
@@ -105,18 +98,8 @@ test("D8 establishes the approved page-section title scale", async ({ browser },
   try {
     for (const viewport of VIEWPORTS) {
       for (const surface of surfaces) {
-        const currentScreenshot = await capture(
-          current.page,
-          surface.path,
-          viewport.width,
-          viewport.height,
-        );
-        const beforeScreenshot = await capture(
-          before.page,
-          surface.path,
-          viewport.width,
-          viewport.height,
-        );
+        const currentScreenshot = await capture(current.page, surface.path, viewport.width, viewport.height);
+        const beforeScreenshot = await capture(before.page, surface.path, viewport.width, viewport.height);
         await testInfo.attach(`after-d8-${viewport.name}-${surface.name}`, {
           body: currentScreenshot,
           contentType: "image/png",
@@ -140,8 +123,7 @@ test("D8 establishes the approved page-section title scale", async ({ browser },
           viewport.name === "mobile" ? surface.mobileBefore : surface.desktopBefore,
         );
         const expectedCurrentSize = viewport.name === "mobile" ? 24 : 26;
-        const expectedBeforeSize =
-          viewport.name === "mobile" ? surface.mobileBefore : surface.desktopBefore;
+        const expectedBeforeSize = viewport.name === "mobile" ? surface.mobileBefore : surface.desktopBefore;
         if (expectedCurrentSize !== expectedBeforeSize) {
           expect(currentScreenshot.equals(beforeScreenshot)).toBe(false);
         }

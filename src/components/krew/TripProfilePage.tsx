@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -90,6 +90,7 @@ export function ProfileConceptCard({
 }
 
 export function TripProfilePage({ tripId }: { tripId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const fetchReadiness = useServerFn(getGenerationReadiness);
@@ -127,10 +128,13 @@ export function TripProfilePage({ tripId }: { tripId: string }) {
 
   const validateMutation = useMutation({
     mutationFn: () => validateProfile({ data: { tripId, selectedConceptIds } }),
-    onSuccess: () => {
+    onSuccess: async () => {
       setEditingValidatedProfile(false);
-      queryClient.invalidateQueries({ queryKey: ["trip", tripId] });
-      queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["trip", tripId] }),
+        queryClient.invalidateQueries({ queryKey: ["generation-readiness", tripId] }),
+      ]);
+      navigate({ to: "/trips/$tripId", params: { tripId } });
     },
     onError: (error) => {
       console.error("Impossible d’enregistrer le Profil du voyage:", error);

@@ -1,5 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, Clock, Plane } from "lucide-react";
@@ -31,6 +31,7 @@ function normalizeCity(value: unknown) {
 }
 
 export function TripTransportPage({ tripId }: { tripId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchDetail = useServerFn(getTripDetail);
   const fetchProgress = useServerFn(getParticipantsProgress);
@@ -73,8 +74,14 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
 
   const pickMutation = useMutation({
     mutationFn: (payload: any) => chooseTransport({ data: { tripId, ...payload } }),
-    onSuccess: () => {
-      refresh();
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["trip", tripId] }),
+        queryClient.invalidateQueries({ queryKey: ["trip-progress", tripId] }),
+        queryClient.invalidateQueries({ queryKey: ["cost-split", tripId] }),
+        queryClient.invalidateQueries({ queryKey: ["group-time-window", tripId] }),
+      ]);
+      navigate({ to: "/trips/$tripId", params: { tripId } });
     },
     onError: (error) => {
       console.error("Impossible d’enregistrer le trajet:", error);
