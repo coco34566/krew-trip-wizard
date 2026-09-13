@@ -123,9 +123,9 @@ test("join invitation visual states use a real invite token", async ({ page }, t
   expect(token).toMatch(/^[0-9a-f-]{36}$/i);
 
   // A recognized organizer/member must never remain on Join. A brand-new audit trip
-  // has no answers yet, so the canonical redirect is the availability chapter.
+  // has no answers yet, so the canonical redirect is now the unified questionnaire.
   await page.goto(invitePath);
-  await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/availability(?:\\?|$)`), { timeout: 20_000 });
+  await expect(page).toHaveURL(new RegExp(`/trips/${tripId}/questionnaire(?:\\?|$)`), { timeout: 20_000 });
 
   await clearAuthentication(page);
 
