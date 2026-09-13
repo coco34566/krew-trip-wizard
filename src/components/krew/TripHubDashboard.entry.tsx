@@ -177,8 +177,6 @@ export function TripHubDashboard(props: Props) {
   const rawPreferencesAnswered = centralized?.answered ?? 0;
   const centralizedAvailabilityExpected = centralized?.availabilityExpected ?? 0;
   const rawAvailabilityAnswered = centralized?.availabilityAnswered ?? 0;
-  const centralizedQuestionnaireExpected = centralized?.questionnaireExpected ?? centralizedPreferencesExpected;
-  const centralizedQuestionnaireAnswered = centralized?.questionnaireAnswered ?? 0;
   const trip = props.trip as any;
   const logistics = (trip?.group_logistics ?? {}) as any;
   const organizationRefresh = getOrganizationRefreshState(logistics);
@@ -217,10 +215,9 @@ export function TripHubDashboard(props: Props) {
   });
   const responseReady = responseState.state === "ready";
   const preferencesExpected = responseReady ? responseState.preferencesExpected : 0;
+  const preferencesAnswered = responseReady ? responseState.preferencesAnswered : 0;
   const availabilityExpected = responseReady ? responseState.availabilityExpected : 0;
   const availabilityAnswered = responseReady ? responseState.availabilityAnswered : 0;
-  const questionnaireExpected = responseReady ? centralizedQuestionnaireExpected : 0;
-  const questionnaireAnswered = responseReady ? centralizedQuestionnaireAnswered : 0;
   const questionnaireDone = Boolean(props.myAvailabilityDone && props.myPreferencesDone);
 
   const tripForDashboard = maskStaleOrganizationDataForDashboard({
@@ -355,9 +352,9 @@ export function TripHubDashboard(props: Props) {
             myAvailabilityDone={true}
             myPreferencesDone={datesLocked || completed ? true : questionnaireDone}
             starDone={completed ? true : props.starDone}
-            participantsCount={responseReady ? questionnaireExpected : props.participantsCount}
-            progressAnswered={questionnaireAnswered}
-            progressTotal={questionnaireExpected}
+            participantsCount={responseReady ? preferencesExpected : props.participantsCount}
+            progressAnswered={responseReady ? preferencesAnswered : 0}
+            progressTotal={responseReady ? preferencesExpected : 0}
             availabilityAnswered={responseReady ? availabilityAnswered : 0}
             availabilityExpected={responseReady ? availabilityExpected : 0}
             destinationSelected={completed ? false : props.destinationSelected}
