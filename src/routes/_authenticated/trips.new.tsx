@@ -383,7 +383,7 @@ function NewTripPage() {
           <SectionHeading
             step="03"
             icon="calendar"
-            title="Le rythme"
+            title="La durée"
             description="Une durée suffit pour commencer. Les dates exactes seront trouvées avec le groupe."
           />
 
