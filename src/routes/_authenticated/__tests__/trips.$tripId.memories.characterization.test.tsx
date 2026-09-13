@@ -13,7 +13,9 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastInfo: vi.fn(),
   authGetUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } }),
-  participantMaybeSingle: vi.fn().mockResolvedValue({ data: { display_name: "Alice" }, error: null }),
+  participantMaybeSingle: vi
+    .fn()
+    .mockResolvedValue({ data: { display_name: "Alice" }, error: null }),
   duplicateMaybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
   photoInsert: vi.fn().mockResolvedValue({ error: null }),
   photoUpdateEq: vi.fn().mockResolvedValue({ error: null }),
@@ -125,7 +127,9 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, asChild: _asChild, ...props }: any) => <button {...props}>{children}</button>,
+  Button: ({ children, asChild: _asChild, ...props }: any) => (
+    <button {...props}>{children}</button>
+  ),
 }));
 vi.mock("@/components/krew/KrewRecapCard", () => ({ KrewRecapCard: () => null }));
 vi.mock("@/components/krew/KrewThinkingState", () => ({
@@ -154,7 +158,10 @@ describe("Memories route characterization", () => {
     localStorage.clear();
     mocks.sha256File.mockResolvedValue("hash-123");
     mocks.authGetUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    mocks.participantMaybeSingle.mockResolvedValue({ data: { display_name: "Alice" }, error: null });
+    mocks.participantMaybeSingle.mockResolvedValue({
+      data: { display_name: "Alice" },
+      error: null,
+    });
     mocks.duplicateMaybeSingle.mockResolvedValue({ data: null, error: null });
     mocks.photoInsert.mockResolvedValue({ error: null });
     mocks.photoUpdateEq.mockResolvedValue({ error: null });
@@ -215,11 +222,10 @@ describe("Memories route characterization", () => {
 
     await waitFor(() => expect(mocks.sha256File).toHaveBeenCalledWith(file));
     await waitFor(() =>
-      expect(mocks.storageUpload).toHaveBeenCalledWith(
-        "trip-123/user-1/new-photo-id.png",
-        file,
-        { contentType: "image/png", upsert: false },
-      ),
+      expect(mocks.storageUpload).toHaveBeenCalledWith("trip-123/user-1/new-photo-id.png", file, {
+        contentType: "image/png",
+        upsert: false,
+      }),
     );
     await waitFor(() =>
       expect(mocks.toastSuccess).toHaveBeenCalledWith("1 ajoutée · 0 doublon · 0 erreur"),
@@ -265,16 +271,21 @@ describe("Memories route characterization", () => {
     await waitFor(() => expect(mocks.photoUpdateEq).toHaveBeenCalledWith("id", "photo-1"));
   });
 
-  it("lets the viewer remove an automatic photo from their personal KREW selection", async () => {
+  it("lets the viewer personalize their KREW selection from the album", async () => {
     const user = userEvent.setup();
     renderMemories();
 
-    expect(screen.getByText("1 souvenir dans ta sélection")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Retirer" }));
+    expect(screen.getByText("1 souvenir sélectionné")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Album" }));
+    await user.click(screen.getByRole("button", { name: "Personnaliser" }));
+    expect(screen.getByLabelText("Personnaliser la sélection KREW")).toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "Retirer" }));
     expect(screen.getByText("Pas dans la sélection actuelle")).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem("krew_memories_selection:trip-123") || "{}"))
-      .toEqual({ included: [], excluded: ["photo-1"] });
+    expect(JSON.parse(localStorage.getItem("krew_memories_selection:trip-123") || "{}")).toEqual({
+      included: [],
+      excluded: ["photo-1"],
+    });
   });
 
   it("opens the editorial album as chapters", async () => {
