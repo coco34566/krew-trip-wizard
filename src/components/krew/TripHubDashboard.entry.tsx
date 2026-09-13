@@ -218,6 +218,7 @@ export function TripHubDashboard(props: Props) {
   const preferencesAnswered = responseReady ? responseState.preferencesAnswered : 0;
   const availabilityExpected = responseReady ? responseState.availabilityExpected : 0;
   const availabilityAnswered = responseReady ? responseState.availabilityAnswered : 0;
+  const questionnaireDone = Boolean(props.myAvailabilityDone && props.myPreferencesDone);
 
   const tripForDashboard = maskStaleOrganizationDataForDashboard({
     ...props.trip,
@@ -348,8 +349,8 @@ export function TripHubDashboard(props: Props) {
           <TripHubDashboardLegacy
             {...props}
             isOwner={props.isOwner}
-            myAvailabilityDone={datesLocked || completed ? true : props.myAvailabilityDone}
-            myPreferencesDone={datesLocked || completed ? true : props.myPreferencesDone}
+            myAvailabilityDone={true}
+            myPreferencesDone={datesLocked || completed ? true : questionnaireDone}
             starDone={completed ? true : props.starDone}
             participantsCount={responseReady ? preferencesExpected : props.participantsCount}
             progressAnswered={responseReady ? preferencesAnswered : 0}
