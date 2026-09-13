@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     .mockResolvedValue({ data: { display_name: "Alice" }, error: null }),
   duplicateMaybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
   photoInsert: vi.fn().mockResolvedValue({ error: null }),
+  photoUpdatePayload: vi.fn(),
   photoUpdateEq: vi.fn().mockResolvedValue({ error: null }),
   storageUpload: vi.fn().mockResolvedValue({ error: null }),
   storageRemove: vi.fn().mockResolvedValue({ error: null }),
@@ -87,7 +88,10 @@ vi.mock("@/integrations/supabase/client", () => {
     is: vi.fn(() => duplicateChain),
     maybeSingle: mocks.duplicateMaybeSingle,
     insert: mocks.photoInsert,
-    update: vi.fn(() => ({ eq: mocks.photoUpdateEq })),
+    update: vi.fn((payload: unknown) => {
+      mocks.photoUpdatePayload(payload);
+      return { eq: mocks.photoUpdateEq };
+    }),
   };
   const genericChain: any = {
     select: vi.fn(() => genericChain),
@@ -186,7 +190,7 @@ describe("Memories route characterization", () => {
     );
   });
 
-  it("persists the current photo-import permission choice in localStorage", async () => {
+  it("persists and resets the current photo-import permission choice in localStorage", async () => {
     const user = userEvent.setup();
     renderMemories();
 
@@ -200,6 +204,11 @@ describe("Memories route characterization", () => {
     expect(
       screen.queryByRole("dialog", { name: /Autoriser l’import de photos/i }),
     ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Réinitialiser l’autorisation d’import de photos/i }),
+    );
+    expect(localStorage.getItem("krew_photo_permission")).toBeNull();
   });
 
   it("keeps the page shell and primary actions visible while photos load progressively", () => {
@@ -211,7 +220,7 @@ describe("Memories route characterization", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Chargement des souvenirs…");
   });
 
-  it("uploads an accepted image and reports the batch summary", async () => {
+  it("uploads an accepted image and preserves the Storage + trip_photos payload contract", async () => {
     const { container } = renderMemories();
     await waitFor(() => expect(mocks.authGetUser).toHaveBeenCalled());
     await waitFor(() => expect(mocks.participantMaybeSingle).toHaveBeenCalled());
@@ -226,6 +235,21 @@ describe("Memories route characterization", () => {
         contentType: "image/png",
         upsert: false,
       }),
+    );
+    await waitFor(() =>
+      expect(mocks.photoInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "new-photo-id",
+          trip_id: "trip-123",
+          owner_user_id: "user-1",
+          storage_path: "trip-123/user-1/new-photo-id.png",
+          author: "Alice",
+          content_hash: "hash-123",
+          original_filename: "weekend.png",
+          mime_type: "image/png",
+          file_size_bytes: file.size,
+        }),
+      ),
     );
     await waitFor(() =>
       expect(mocks.toastSuccess).toHaveBeenCalledWith("1 ajoutée · 0 doublon · 0 erreur"),
@@ -253,7 +277,7 @@ describe("Memories route characterization", () => {
     expect(screen.getByText(/À vérifier : two.png/i)).toBeInTheDocument();
   });
 
-  it("requires confirmation before deleting an owned photo", async () => {
+  it("requires confirmation before deleting an owned photo and preserves soft-delete", async () => {
     const user = userEvent.setup();
     renderMemories();
     await waitFor(() =>
@@ -267,6 +291,9 @@ describe("Memories route characterization", () => {
     await user.click(screen.getByRole("button", { name: /^Supprimer$/ }));
     await waitFor(() =>
       expect(mocks.storageRemove).toHaveBeenCalledWith(["trip-123/user-1/photo-1.jpg"]),
+    );
+    expect(mocks.photoUpdatePayload).toHaveBeenCalledWith(
+      expect.objectContaining({ deleted_at: expect.any(String) }),
     );
     await waitFor(() => expect(mocks.photoUpdateEq).toHaveBeenCalledWith("id", "photo-1"));
   });
@@ -310,6 +337,8 @@ describe("Memories route characterization", () => {
       ]),
     );
     await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalled());
+    await waitFor(() => expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled());
+    await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:memories"));
     await waitFor(() =>
       expect(mocks.toastSuccess).toHaveBeenCalledWith("1 photo prête à télécharger"),
     );
