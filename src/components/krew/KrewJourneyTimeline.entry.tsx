@@ -28,8 +28,10 @@ const DEDICATED_JOURNEY_ROUTES: Partial<Record<string, string>> = {
   packing: "packing",
 };
 
-function pendingStatus(step: TimelineStep) {
-  return step.status === "next_action" ? ("next_action" as const) : ("available" as const);
+function pendingStatus(step: TimelineStep, availabilityWasNext: boolean) {
+  return step.status === "next_action" || availabilityWasNext
+    ? ("next_action" as const)
+    : ("available" as const);
 }
 
 function enableJourneyMotion(root: HTMLElement) {
@@ -143,6 +145,9 @@ export function KrewJourneyTimeline(props: Props) {
   const progress = responseQuery.data?.progress;
   const datesLocked = responseQuery.data?.datesLocked ?? false;
   const progressReady = responseQuery.isSuccess && Boolean(progress);
+  const availabilityWasNext = props.steps.some(
+    (step) => step.id === "availability" && step.status === "next_action",
+  );
 
   const steps = props.steps
     .filter((step) => step.id !== "availability")
@@ -152,21 +157,20 @@ export function KrewJourneyTimeline(props: Props) {
           ...step,
           title: "Questionnaire",
           subtitle: "Chargement des réponses…",
+          status: pendingStatus(step, availabilityWasNext),
           href: `/trips/${props.tripId}/questionnaire`,
         };
       }
 
       if (step.id === "preferences" && progress) {
-        const expected = progress.preferencesExpected ?? progress.total ?? 0;
-        const answered = (progress.participants ?? []).filter(
-          (participant: any) => participant.hasAnswered && participant.hasAnsweredAvailability,
-        ).length;
+        const expected = progress.questionnaireExpected ?? progress.preferencesExpected ?? progress.total ?? 0;
+        const answered = progress.questionnaireAnswered ?? 0;
         const complete = datesLocked || (expected > 0 && answered >= expected);
         return {
           ...step,
           title: "Questionnaire",
           subtitle: datesLocked ? "Réponses clôturées" : `${answered}/${expected} réponses complètes`,
-          status: complete ? "done" : pendingStatus(step),
+          status: complete ? "done" : pendingStatus(step, availabilityWasNext),
           href: `/trips/${props.tripId}/questionnaire`,
         };
       }
