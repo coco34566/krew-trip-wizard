@@ -136,7 +136,16 @@ jobs:
         run: npm run test:e2e:visual
       - name: Capture and compare approved design reference screenshots
         if: always()
-        run: npx playwright test design-system-migration-visual.spec.ts design-harmonization-d7-visual.spec.ts design-harmonization-d8-visual.spec.ts --project=desktop-chromium
+        # The unified questionnaire intentionally removes the standalone Availability surface and
+        # changes the TripHub/questionnaire raster. Their current contracts are covered by the
+        # journey visual audit + D8 unified-questionnaire check above; retain every other migration baseline.
+        run: >-
+          npx playwright test
+          design-system-migration-visual.spec.ts
+          design-harmonization-d7-visual.spec.ts
+          design-harmonization-d8-visual.spec.ts
+          --project=desktop-chromium
+          --grep-invert "TripHub matches the approved D1 hero-title scale|Availability matches the approved chapter-title contract|Questionnaire matches the approved chapter-title contract"
       - name: Upload Playwright report
         if: always()
         continue-on-error: true
