@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-r
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { KrewJourneyErrorState, KrewJourneyLoadingState } from "@/components/krew/KrewJourneyAsyncState";
 import {
@@ -13,6 +13,7 @@ import {
   KrewJourneyStatusOverrideProvider,
   KrewJourneyStatusPanel,
 } from "@/components/krew/KrewJourneyStatusPanel";
+import { ParticipantAvailabilityStep } from "@/components/krew/ParticipantAvailabilityStep";
 import { PlanningMapSection } from "@/components/krew/PlanningMapSection";
 import { KrewPageShell, type KrewPageShellGutter, type KrewPageShellSize } from "@/components/krew/KrewPageShell";
 import { TripAccommodationPage } from "@/components/krew/TripAccommodationPage";
@@ -231,6 +232,32 @@ function PreferencesResponseGate({ tripId, children }: { tripId: string; childre
   );
 }
 
+function QuestionnaireResponseFlow({ tripId, children }: { tripId: string; children: ReactNode }) {
+  const fetchAvailability = useServerFn(getTripAvailability);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+    queryKey: ["trip-availability", tripId],
+    queryFn: () => fetchAvailability({ data: { tripId } }),
+    retry: false,
+  });
+
+  if (isLoading) return <ResponseGateLoading maxWidthClassName="max-w-[820px]" />;
+  if (isError || !data) {
+    return (
+      <ResponseGateError
+        tripId={tripId}
+        maxWidthClassName="max-w-[820px]"
+        onRetry={() => void refetch()}
+        isFetching={isFetching}
+      />
+    );
+  }
+
+  if (data.trip.datesLocked || showPreferences) return <>{children}</>;
+
+  return <ParticipantAvailabilityStep tripId={tripId} onComplete={() => setShowPreferences(true)} />;
+}
+
 function CompletedPreparationGate({
   tripId,
   children,
@@ -365,7 +392,9 @@ function TripLayout() {
     </AvailabilityResponseGate>
   ) : showQuestionnairePage ? (
     <PreferencesResponseGate tripId={tripId}>
-      <Outlet />
+      <QuestionnaireResponseFlow tripId={tripId}>
+        <Outlet />
+      </QuestionnaireResponseFlow>
     </PreferencesResponseGate>
   ) : showGatedDedicatedPage ? (
     <CompletedPreparationGate tripId={tripId}>
