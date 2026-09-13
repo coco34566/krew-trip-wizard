@@ -89,8 +89,7 @@ async function waitForRenderedChapter(page: Page, name: string) {
   const required: Record<string, () => ReturnType<Page["locator"]>> = {
     journey: () => page.locator('[data-krew-dashboard-root="true"]'),
     invite: () => page.getByRole("heading", { name: "Inviter le groupe", exact: true }),
-    availability: () => page.locator('main img[src*="/brand/otter-states/availability.png"]'),
-    preferences: () => page.getByRole("heading", { name: "Envies et ambiance", exact: true }),
+    questionnaire: () => page.getByRole("heading", { name: "Tes disponibilités", exact: true }),
     dates: () => page.getByRole("heading", { name: "Dates du groupe", exact: true }),
     profile: () => page.getByRole("heading", { name: "Profil du voyage", exact: true }),
     destination: () => page.getByRole("heading", { name: "Destination", exact: true }),
@@ -141,10 +140,10 @@ async function capture(page: Page, testInfo: TestInfo, metrics: VisualMetric[], 
 
 async function captureJourney(page: Page, testInfo: TestInfo, metrics: VisualMetric[], viewport: (typeof VIEWPORTS)[number], tripId: string) {
   const pages = [
-    ["journey", `/trips/${tripId}`], ["invite", `/trips/${tripId}/invite`], ["availability", `/trips/${tripId}/availability`],
-    ["preferences", `/trips/${tripId}/questionnaire`], ["dates", `/trips/${tripId}/dates`], ["profile", `/trips/${tripId}/profile`],
-    ["destination", `/trips/${tripId}/destination`], ["accommodation", `/trips/${tripId}/accommodation`], ["transport", `/trips/${tripId}/transport`],
-    ["planning", `/trips/${tripId}/planning`], ["tasks", `/trips/${tripId}/tasks`], ["packing", `/trips/${tripId}/packing`],
+    ["journey", `/trips/${tripId}`], ["invite", `/trips/${tripId}/invite`], ["questionnaire", `/trips/${tripId}/questionnaire`],
+    ["dates", `/trips/${tripId}/dates`], ["profile", `/trips/${tripId}/profile`], ["destination", `/trips/${tripId}/destination`],
+    ["accommodation", `/trips/${tripId}/accommodation`], ["transport", `/trips/${tripId}/transport`], ["planning", `/trips/${tripId}/planning`],
+    ["tasks", `/trips/${tripId}/tasks`], ["packing", `/trips/${tripId}/packing`],
   ] as const;
   for (const [name, path] of pages) await capture(page, testInfo, metrics, viewport.name, name, path, viewport.screenshot);
 

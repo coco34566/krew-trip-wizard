@@ -21,6 +21,8 @@ export const getMyTripsProgress = createServerFn({ method: "POST" })
               joined: progress.joined,
               participantsExpected: progress.participantsExpected,
               participantsActive: progress.preferencesExpected,
+              questionnaireExpected: progress.questionnaireExpected,
+              questionnaireAnswered: progress.questionnaireAnswered,
               preferencesExpected: progress.preferencesExpected,
               preferencesAnswered: progress.answered,
               availabilityExpected: progress.availabilityExpected,

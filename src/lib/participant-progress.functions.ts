@@ -154,6 +154,10 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     });
   }
 
+  const questionnaireAnswered = partsList.filter(
+    (participant: any) => participant.hasAnswered && participant.hasAnsweredAvailability,
+  ).length;
+
   return {
     joined,
     participantsExpected,
@@ -161,10 +165,13 @@ export async function getParticipantsProgressHelper(supabase: any, tripId: strin
     total: preferencesExpected,
     answered: counts.preferencesAnswered,
     availabilityAnswered: counts.availabilityAnswered,
+    questionnaireAnswered,
     preferencesExpected,
     availabilityExpected,
+    questionnaireExpected: participantsExpected,
     pendingPrefs: Math.max(preferencesExpected - counts.preferencesAnswered, 0),
     pendingAvailability: Math.max(availabilityExpected - counts.availabilityAnswered, 0),
+    pendingQuestionnaire: Math.max(participantsExpected - questionnaireAnswered, 0),
     pendingJoin: Math.max(participantsExpected - counts.preferencesExpected, 0),
     participants: partsList,
   };

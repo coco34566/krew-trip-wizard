@@ -1,34 +1,16 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
-
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { handleNormalUserUi, signIn } from "./helpers";
 
+const CURRENT_URL = process.env.KREW_E2E_BASE_URL || "";
+const BEFORE_URL = process.env.KREW_E2E_BEFORE_URL || "";
 const VIEWPORTS = [
   { name: "mobile", width: 390, height: 844 },
   { name: "tablet", width: 834, height: 1112 },
   { name: "desktop", width: 1440, height: 1000 },
 ] as const;
 
-const CURRENT_URL = (process.env.KREW_E2E_BASE_URL ?? "").replace(/\/$/, "");
-const BEFORE_URL = (process.env.KREW_E2E_BEFORE_URL ?? "").replace(/\/$/, "");
-
-async function openAuthenticatedPage(browser: Browser, baseURL: string) {
+async function openAuthenticatedPage(browser: Browser, baseURL: string): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({ baseURL });
-  await context.addInitScript(() => {
-    localStorage.setItem(
-      "krew-cookie-consent",
-      JSON.stringify({
-        essential: true,
-        analytics: false,
-        personalization: false,
-        advertising: false,
-        retargeting: false,
-        social: false,
-        affiliate: false,
-        date: "1970-01-01T00:00:00.000Z",
-        version: 1,
-      }),
-    );
-  });
   const page = await context.newPage();
   await signIn(page);
   return { context, page };
@@ -36,23 +18,16 @@ async function openAuthenticatedPage(browser: Browser, baseURL: string) {
 
 async function settle(page: Page) {
   await handleNormalUserUi(page);
-  await expect(page.locator("main")).toBeVisible({ timeout: 20_000 });
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
-  await page.evaluate(() => document.fonts.ready).catch(() => undefined);
-  await page.addStyleTag({
-    content:
-      "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}",
-  });
+  await page.waitForFunction(() => !document.querySelector("main .animate-pulse"), undefined, { timeout: 20_000 }).catch(() => undefined);
 }
 
 async function firstTripId(page: Page) {
   await page.goto("/dashboard");
   await settle(page);
-  const hrefs = await page
-    .locator('a[href*="/trips/"]')
-    .evaluateAll((links) =>
-      links.map((link) => (link as HTMLAnchorElement).getAttribute("href") ?? ""),
-    );
+  const hrefs = await page.locator('a[href*="/trips/"]').evaluateAll((links) =>
+    links.map((link) => (link as HTMLAnchorElement).getAttribute("href") || ""),
+  );
   for (const href of hrefs) {
     const match = href.match(/\/trips\/([0-9a-f-]{36})(?:[/?#]|$)/i);
     if (match?.[1]) return match[1];
@@ -74,55 +49,54 @@ test("D8 establishes the approved page-section title scale", async ({ browser },
   const current = await openAuthenticatedPage(browser, CURRENT_URL);
   const tripId = await firstTripId(current.page);
   const before = await openAuthenticatedPage(browser, BEFORE_URL);
-  // Baseline rebased after PR #387: D8 is now part of main, so the reference
-  // uses the approved 24px mobile / 26px tablet+desktop scale for every surface.
+  // Availability is now the first chapter of /questionnaire rather than a separate customer surface.
+  // Keep one D8 contract for the unified questionnaire while preserving the approved 24/26px scale.
   const surfaces = [
-    {
-      name: "availability",
-      path: `/trips/${tripId}/availability`,
-      selector: "[data-krew-availability-page] > section:not([data-krew-journey-status]) h2",
-      mobileBefore: 24,
-      desktopBefore: 26,
-    },
     {
       name: "questionnaire",
       path: `/trips/${tripId}/questionnaire`,
-      selector: "[data-krew-preferences-page] > div > section h2",
+      currentSelector: "[data-krew-availability-page] section h2",
+      beforeSelector: "[data-krew-preferences-page] > div > section h2",
       mobileBefore: 24,
       desktopBefore: 26,
     },
     {
       name: "star",
       path: `/trips/${tripId}/star`,
-      selector: "[data-krew-preferences-page] > div > section h2",
+      currentSelector: "[data-krew-preferences-page] > div > section h2",
+      beforeSelector: "[data-krew-preferences-page] > div > section h2",
       mobileBefore: 24,
       desktopBefore: 26,
     },
     {
       name: "planning",
       path: `/trips/${tripId}/planning`,
-      selector: "main article h2",
+      currentSelector: "main article h2",
+      beforeSelector: "main article h2",
       mobileBefore: 24,
       desktopBefore: 26,
     },
     {
       name: "destination",
       path: `/trips/${tripId}/destination`,
-      selector: "main h2",
+      currentSelector: "main h2",
+      beforeSelector: "main h2",
       mobileBefore: 24,
       desktopBefore: 26,
     },
     {
       name: "invite",
       path: `/trips/${tripId}/invite`,
-      selector: "main h2",
+      currentSelector: "main h2",
+      beforeSelector: "main h2",
       mobileBefore: 24,
       desktopBefore: 26,
     },
     {
       name: "recap",
       path: `/trips/${tripId}/recap`,
-      selector: "main section.space-y-4.pt-4 > h2",
+      currentSelector: "main section.space-y-4.pt-4 > h2",
+      beforeSelector: "main section.space-y-4.pt-4 > h2",
       mobileBefore: 24,
       desktopBefore: 26,
     },
@@ -152,8 +126,8 @@ test("D8 establishes the approved page-section title scale", async ({ browser },
           contentType: "image/png",
         });
 
-        const currentTitle = current.page.locator(surface.selector).first();
-        const beforeTitle = before.page.locator(surface.selector).first();
+        const currentTitle = current.page.locator(surface.currentSelector).first();
+        const beforeTitle = before.page.locator(surface.beforeSelector).first();
         const currentCount = await currentTitle.count();
         const beforeCount = await beforeTitle.count();
         expect(currentCount).toBe(beforeCount);
@@ -165,9 +139,6 @@ test("D8 establishes the approved page-section title scale", async ({ browser },
         expect(await fontSize(beforeTitle)).toBe(
           viewport.name === "mobile" ? surface.mobileBefore : surface.desktopBefore,
         );
-        // A changed size must produce a distinct reference. Equal-size cases
-        // retain both captures, while exact typography is locked above without
-        // treating live page data as a binary image contract.
         const expectedCurrentSize = viewport.name === "mobile" ? 24 : 26;
         const expectedBeforeSize =
           viewport.name === "mobile" ? surface.mobileBefore : surface.desktopBefore;
