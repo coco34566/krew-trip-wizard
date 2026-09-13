@@ -99,9 +99,9 @@ function enableJourneyMotion(root: HTMLElement) {
 }
 
 /**
- * Recomputes the two questionnaire steps from the shared response selector.
- * Once dates are locked, the response phase is closed for both steps: a late
- * participant must never reopen an earlier journey step or make it look pending.
+ * The journey exposes one participant questionnaire step even though availability
+ * and preferences stay separate internally. A questionnaire counts as complete
+ * only when the same expected participant has answered both parts.
  */
 export function KrewJourneyTimeline(props: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -144,38 +144,35 @@ export function KrewJourneyTimeline(props: Props) {
   const datesLocked = responseQuery.data?.datesLocked ?? false;
   const progressReady = responseQuery.isSuccess && Boolean(progress);
 
-  const steps = props.steps.map((step): TimelineStep => {
-    if ((step.id === "availability" || step.id === "preferences") && !progressReady) {
-      return {
-        ...step,
-        subtitle: "Chargement des réponses…",
-      };
-    }
+  const steps = props.steps
+    .filter((step) => step.id !== "availability")
+    .map((step): TimelineStep => {
+      if (step.id === "preferences" && !progressReady) {
+        return {
+          ...step,
+          title: "Questionnaire",
+          subtitle: "Chargement des réponses…",
+          href: `/trips/${props.tripId}/questionnaire`,
+        };
+      }
 
-    if (step.id === "availability" && progress) {
-      const expected = progress.availabilityExpected ?? 0;
-      const answered = progress.availabilityAnswered ?? 0;
-      const complete = datesLocked || (expected > 0 && answered >= expected);
-      return {
-        ...step,
-        subtitle: datesLocked ? "Dates confirmées" : `${answered}/${expected} indiquées`,
-        status: complete ? "done" : pendingStatus(step),
-      };
-    }
+      if (step.id === "preferences" && progress) {
+        const expected = progress.preferencesExpected ?? progress.total ?? 0;
+        const answered = (progress.participants ?? []).filter(
+          (participant: any) => participant.hasAnswered && participant.hasAnsweredAvailability,
+        ).length;
+        const complete = datesLocked || (expected > 0 && answered >= expected);
+        return {
+          ...step,
+          title: "Questionnaire",
+          subtitle: datesLocked ? "Réponses clôturées" : `${answered}/${expected} réponses complètes`,
+          status: complete ? "done" : pendingStatus(step),
+          href: `/trips/${props.tripId}/questionnaire`,
+        };
+      }
 
-    if (step.id === "preferences" && progress) {
-      const expected = progress.preferencesExpected ?? progress.total ?? 0;
-      const answered = progress.answered ?? 0;
-      const complete = datesLocked || (expected > 0 && answered >= expected);
-      return {
-        ...step,
-        subtitle: datesLocked ? "Réponses clôturées" : `${answered}/${expected} réponses`,
-        status: complete ? "done" : pendingStatus(step),
-      };
-    }
-
-    return step;
-  });
+      return step;
+    });
 
   useEffect(() => {
     const root = rootRef.current;
