@@ -30,7 +30,11 @@ describe("approved D8 page-section title consumers", () => {
 
     expect(recap).toContain("text-[28px] sm:text-[32px]");
     expect(recap).toContain("font-display text-xl font-normal");
-    expect(memories).toContain("text-2xl sm:text-3xl");
-    expect(memories).toContain("text-3xl sm:text-5xl");
+    expect(memories).toMatch(
+      /id="photo-album-title"[\s\S]*?className="[^"]*\btext-2xl\b[^"]*\bsm:text-3xl\b[^"]*"/,
+    );
+    expect(memories).toMatch(
+      /<h3 className="[^"]*\btext-3xl\b[^"]*\bsm:text-5xl\b[^"]*">[\s\S]*?recapSource\?\.trip\?\.name/,
+    );
   });
 });
