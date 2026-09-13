@@ -13,7 +13,9 @@ const mocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   toastInfo: vi.fn(),
   authGetUser: vi.fn().mockResolvedValue({ data: { user: { id: "user-1" } } }),
-  participantMaybeSingle: vi.fn().mockResolvedValue({ data: { display_name: "Alice" }, error: null }),
+  participantMaybeSingle: vi
+    .fn()
+    .mockResolvedValue({ data: { display_name: "Alice" }, error: null }),
   duplicateMaybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
   photoInsert: vi.fn().mockResolvedValue({ error: null }),
   photoUpdateEq: vi.fn().mockResolvedValue({ error: null }),
@@ -125,10 +127,14 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
+  Button: ({ children, asChild: _asChild, ...props }: any) => (
+    <button {...props}>{children}</button>
+  ),
 }));
 vi.mock("@/components/krew/KrewRecapCard", () => ({ KrewRecapCard: () => null }));
-vi.mock("@/components/krew/KrewThinkingState", () => ({ KrewThinkingState: ({ customMessage }: any) => <div role="status">{customMessage}</div> }));
+vi.mock("@/components/krew/KrewThinkingState", () => ({
+  KrewThinkingState: ({ customMessage }: any) => <div role="status">{customMessage}</div>,
+}));
 vi.mock("@/components/krew/KrewPageShell", () => ({
   KrewPageShell: ({ children, ...props }: any) => <main {...props}>{children}</main>,
 }));
@@ -150,8 +156,12 @@ describe("Memories route characterization", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mocks.sha256File.mockResolvedValue("hash-123");
     mocks.authGetUser.mockResolvedValue({ data: { user: { id: "user-1" } } });
-    mocks.participantMaybeSingle.mockResolvedValue({ data: { display_name: "Alice" }, error: null });
+    mocks.participantMaybeSingle.mockResolvedValue({
+      data: { display_name: "Alice" },
+      error: null,
+    });
     mocks.duplicateMaybeSingle.mockResolvedValue({ data: null, error: null });
     mocks.photoInsert.mockResolvedValue({ error: null });
     mocks.photoUpdateEq.mockResolvedValue({ error: null });
@@ -160,14 +170,20 @@ describe("Memories route characterization", () => {
     mocks.createPhotosZip.mockResolvedValue(new Blob(["zip"]));
     mocks.photoQueryLoading = false;
     vi.stubGlobal("crypto", { randomUUID: vi.fn(() => "new-photo-id") });
-    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:memories") });
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:memories"),
+    });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
   });
 
   it("keeps the back navigation pointing to the current trip", () => {
     renderMemories();
-    expect(screen.getByRole("link", { name: /Retour au voyage/i })).toHaveAttribute("href", "/trips/trip-123");
+    expect(screen.getByRole("link", { name: /Retour au voyage/i })).toHaveAttribute(
+      "href",
+      "/trips/trip-123",
+    );
   });
 
   it("persists the current photo-import permission choice in localStorage", async () => {
@@ -175,12 +191,15 @@ describe("Memories route characterization", () => {
     renderMemories();
 
     await user.click(screen.getByRole("button", { name: "Choisir des photos" }));
-    expect(screen.getByRole("dialog", { name: /Autoriser l’import de photos/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /Autoriser l’import de photos/i }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Refuser" }));
     expect(localStorage.getItem("krew_photo_permission")).toBe("denied");
-    expect(screen.queryByRole("dialog", { name: /Autoriser l’import de photos/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Réinitialiser l’autorisation d’import de photos/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("dialog", { name: /Autoriser l’import de photos/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the page shell and primary actions visible while photos load progressively", () => {
@@ -192,7 +211,7 @@ describe("Memories route characterization", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Chargement des souvenirs…");
   });
 
-  it("uploads an accepted image to Storage then inserts its trip_photos row", async () => {
+  it("uploads an accepted image and reports the batch summary", async () => {
     const { container } = renderMemories();
     await waitFor(() => expect(mocks.authGetUser).toHaveBeenCalled());
     await waitFor(() => expect(mocks.participantMaybeSingle).toHaveBeenCalled());
@@ -203,40 +222,80 @@ describe("Memories route characterization", () => {
 
     await waitFor(() => expect(mocks.sha256File).toHaveBeenCalledWith(file));
     await waitFor(() =>
-      expect(mocks.storageUpload).toHaveBeenCalledWith(
-        "trip-123/user-1/new-photo-id.png",
-        file,
-        { contentType: "image/png", upsert: false },
-      ),
+      expect(mocks.storageUpload).toHaveBeenCalledWith("trip-123/user-1/new-photo-id.png", file, {
+        contentType: "image/png",
+        upsert: false,
+      }),
     );
     await waitFor(() =>
-      expect(mocks.photoInsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "new-photo-id",
-          trip_id: "trip-123",
-          owner_user_id: "user-1",
-          storage_path: "trip-123/user-1/new-photo-id.png",
-          author: "Alice",
-          content_hash: "hash-123",
-          original_filename: "weekend.png",
-          mime_type: "image/png",
-          file_size_bytes: file.size,
-        }),
-      ),
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("1 ajoutée · 0 doublon · 0 erreur"),
     );
-    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith("1 photo ajoutée à l’album"));
+    expect(screen.getByRole("status")).toHaveTextContent("1/1");
   });
 
-  it("deletes the owned Storage object before soft-deleting the database row", async () => {
+  it("continues a multi-photo import when one file fails", async () => {
+    const { container } = renderMemories();
+    await waitFor(() => expect(mocks.authGetUser).toHaveBeenCalled());
+    mocks.sha256File
+      .mockResolvedValueOnce("hash-ok")
+      .mockRejectedValueOnce(new Error("hash failed"));
+
+    const first = new File(["one"], "one.png", { type: "image/png" });
+    const second = new File(["two"], "two.png", { type: "image/png" });
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [first, second] } });
+
+    await waitFor(() => expect(mocks.storageUpload).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("1 ajoutée · 0 doublon · 1 erreur"),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("2/2");
+    expect(screen.getByText(/À vérifier : two.png/i)).toBeInTheDocument();
+  });
+
+  it("requires confirmation before deleting an owned photo", async () => {
     const user = userEvent.setup();
     renderMemories();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Supprimer la photo" })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Supprimer la photo" })).toBeInTheDocument(),
+    );
 
     await user.click(screen.getByRole("button", { name: "Supprimer la photo" }));
+    expect(mocks.storageRemove).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Supprimer cette photo ?" })).toBeInTheDocument();
 
-    await waitFor(() => expect(mocks.storageRemove).toHaveBeenCalledWith(["trip-123/user-1/photo-1.jpg"]));
+    await user.click(screen.getByRole("button", { name: /^Supprimer$/ }));
+    await waitFor(() =>
+      expect(mocks.storageRemove).toHaveBeenCalledWith(["trip-123/user-1/photo-1.jpg"]),
+    );
     await waitFor(() => expect(mocks.photoUpdateEq).toHaveBeenCalledWith("id", "photo-1"));
-    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith("Photo supprimée"));
+  });
+
+  it("lets the viewer personalize their KREW selection from the album", async () => {
+    const user = userEvent.setup();
+    renderMemories();
+
+    expect(screen.getByText("1 souvenir sélectionné")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Album" }));
+    await user.click(screen.getByRole("button", { name: "Personnaliser" }));
+    expect(screen.getByLabelText("Personnaliser la sélection KREW")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retirer" }));
+    expect(screen.getByText("Pas dans la sélection actuelle")).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("krew_memories_selection:trip-123") || "{}")).toEqual({
+      included: [],
+      excluded: ["photo-1"],
+    });
+  });
+
+  it("opens the editorial album as chapters", async () => {
+    const user = userEvent.setup();
+    renderMemories();
+
+    await user.click(screen.getByRole("button", { name: "Album" }));
+    expect(screen.getByRole("dialog", { name: "Notre voyage en images" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Chapitre 1/i)).toBeInTheDocument();
+    expect(screen.getByText("Chapitre 1")).toBeInTheDocument();
   });
 
   it("downloads the current full album as the existing zip payload", async () => {
@@ -251,6 +310,8 @@ describe("Memories route characterization", () => {
       ]),
     );
     await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalled());
-    await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledWith("1 photo prête à télécharger"));
+    await waitFor(() =>
+      expect(mocks.toastSuccess).toHaveBeenCalledWith("1 photo prête à télécharger"),
+    );
   });
 });

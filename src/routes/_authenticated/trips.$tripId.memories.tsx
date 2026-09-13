@@ -1,20 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  Download,
-  X,
-  Settings,
-  Loader2,
-  Trash2,
   BookOpen,
+  Download,
   ExternalLink,
+  Loader2,
+  Settings,
+  Trash2,
+  X,
 } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { sha256File } from "@/lib/souvenirs-photo-upload";
-import { createPhotosZip } from "@/lib/souvenirs-download";
+import { Button } from "@/components/ui/button";
+import { KrewPageShell } from "@/components/krew/KrewPageShell";
+import { KrewRecapCard } from "@/components/krew/KrewRecapCard";
+import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
+import { KrewIcon, KrewMark, KrewNote, KrewOrganicBlob } from "@/components/krew/visual-language";
+import { useMemoriesPhotoPermission } from "@/hooks/use-memories-photo-permission";
+import { buildTripRecap } from "@/lib/krew/trip-recap";
 import {
   getMemoriesRecapSource,
   getMemoriesViewer,
@@ -24,13 +28,9 @@ import {
   uploadTripPhoto,
   type Photo,
 } from "@/lib/memories-service";
-import { KrewIcon, KrewMark, KrewNote, KrewOrganicBlob } from "@/components/krew/visual-language";
-import { KrewRecapCard } from "@/components/krew/KrewRecapCard";
-import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
-import { KrewPageShell } from "@/components/krew/KrewPageShell";
-import { buildTripRecap } from "@/lib/krew/trip-recap";
+import { createPhotosZip } from "@/lib/souvenirs-download";
+import { sha256File } from "@/lib/souvenirs-photo-upload";
 import { cn } from "@/lib/utils";
-import { useMemoriesPhotoPermission } from "@/hooks/use-memories-photo-permission";
 
 const MAX_PHOTO_SIZE_BYTES = 20 * 1024 * 1024;
 const PHOTO_BOOK_PARTNER = {
@@ -39,46 +39,114 @@ const PHOTO_BOOK_PARTNER = {
   affiliateDisclosure:
     "KREW peut percevoir une rémunération si tu effectues un achat via un lien partenaire. Cela ne modifie pas le prix payé.",
 };
+
+type SelectionOverrides = { included: string[]; excluded: string[] };
+type UploadProgress = {
+  total: number;
+  processed: number;
+  added: number;
+  duplicates: number;
+  errors: number;
+};
+
 export const Route = createFileRoute("/_authenticated/trips/$tripId/memories")({
   head: () => ({ meta: [{ title: "Souvenirs du voyage — KREW" }] }),
   component: MemoriesPage,
 });
-function fileName(p: Photo, i: number) {
-  return (p.original_filename?.trim() || `photo-${String(i + 1).padStart(3, "0")}.jpg`).replace(
-    /[\\/:*?"<>|]/g,
-    "-",
-  );
+
+function fileName(photo: Photo, index: number) {
+  return (
+    photo.original_filename?.trim() || `photo-${String(index + 1).padStart(3, "0")}.jpg`
+  ).replace(/[\\/:*?"<>|]/g, "-");
 }
-function photoAlt(p: Photo) {
-  return p.original_filename?.trim()
-    ? `Souvenir : ${p.original_filename.trim()}`
-    : `Souvenir partagé par ${p.author || "le groupe"}`;
+
+function photoAlt(photo: Photo) {
+  return photo.original_filename?.trim()
+    ? `Souvenir : ${photo.original_filename.trim()}`
+    : `Souvenir partagé par ${photo.author || "le groupe"}`;
 }
+
+function photoDay(photo: Photo) {
+  return new Date(photo.created_at).toISOString().slice(0, 10);
+}
+
 function buildKrewSelection(photos: Photo[]) {
-  if (photos.length <= 12) return [...photos];
+  if (photos.length <= 12)
+    return [...photos].sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
+
   const target = Math.min(120, Math.max(12, Math.round(photos.length * 0.14)));
+  const maxPerAuthor = Math.max(2, Math.ceil(target * 0.4));
   const buckets = new Map<string, Photo[]>();
-  for (const p of [...photos].sort((a, b) => b.likes - a.likes)) {
-    const d = new Date(p.created_at).toISOString().slice(0, 10);
-    const b = buckets.get(d) || [];
-    b.push(p);
-    buckets.set(d, b);
+  const authorCounts = new Map<string, number>();
+
+  for (const photo of [...photos].sort(
+    (a, b) => b.likes - a.likes || +new Date(a.created_at) - +new Date(b.created_at),
+  )) {
+    const day = photoDay(photo);
+    const bucket = buckets.get(day) || [];
+    bucket.push(photo);
+    buckets.set(day, bucket);
   }
+
   const days = [...buckets.keys()].sort();
-  const out: Photo[] = [];
-  let i = 0;
-  while (out.length < target && days.length) {
-    const d = days[i % days.length],
-      b = buckets.get(d)!;
-    const p = b.shift();
-    if (p) out.push(p);
-    if (!b.length) {
-      buckets.delete(d);
-      days.splice(i % days.length, 1);
-      i = 0;
-    } else i++;
+  const selected: Photo[] = [];
+  let cursor = 0;
+
+  while (selected.length < target && days.length) {
+    const dayIndex = cursor % days.length;
+    const day = days[dayIndex];
+    const bucket = buckets.get(day)!;
+    const preferredIndex = bucket.findIndex(
+      (photo) => (authorCounts.get(photo.author || "") || 0) < maxPerAuthor,
+    );
+    const [photo] = bucket.splice(preferredIndex >= 0 ? preferredIndex : 0, 1);
+
+    if (photo) {
+      selected.push(photo);
+      const author = photo.author || "";
+      authorCounts.set(author, (authorCounts.get(author) || 0) + 1);
+    }
+
+    if (!bucket.length) {
+      buckets.delete(day);
+      days.splice(dayIndex, 1);
+      cursor = 0;
+    } else {
+      cursor += 1;
+    }
   }
-  return out.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
+
+  return selected.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
+}
+
+function selectionStorageKey(tripId: string) {
+  return `krew_memories_selection:${tripId}`;
+}
+
+function readSelectionOverrides(tripId: string): SelectionOverrides {
+  try {
+    const raw = localStorage.getItem(selectionStorageKey(tripId));
+    if (!raw) return { included: [], excluded: [] };
+    const parsed = JSON.parse(raw) as Partial<SelectionOverrides>;
+    return {
+      included: Array.isArray(parsed.included)
+        ? parsed.included.filter((id): id is string => typeof id === "string")
+        : [],
+      excluded: Array.isArray(parsed.excluded)
+        ? parsed.excluded.filter((id): id is string => typeof id === "string")
+        : [],
+    };
+  } catch {
+    return { included: [], excluded: [] };
+  }
+}
+
+function writeSelectionOverrides(tripId: string, overrides: SelectionOverrides) {
+  try {
+    localStorage.setItem(selectionStorageKey(tripId), JSON.stringify(overrides));
+  } catch {
+    // Personal selection overrides are optional; Memories remains usable if storage is unavailable.
+  }
 }
 
 function MemoriesPage() {
@@ -88,11 +156,24 @@ function MemoriesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState("Moi");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [uploadFailures, setUploadFailures] = useState<string[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [showAlbum, setShowAlbum] = useState(false);
+  const [editSelection, setEditSelection] = useState(false);
   const [showPartner, setShowPartner] = useState(false);
-  const { permission, grantPermission, denyPermission, resetPermission } = useMemoriesPhotoPermission();
-  const [showModal, setShowModal] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
+  const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null);
+  const [selectionOverrides, setSelectionOverrides] = useState<SelectionOverrides>(() =>
+    readSelectionOverrides(tripId),
+  );
+  const { permission, grantPermission, denyPermission, resetPermission } =
+    useMemoriesPhotoPermission();
+
+  useEffect(() => {
+    setSelectionOverrides(readSelectionOverrides(tripId));
+  }, [tripId]);
+
   useEffect(() => {
     getMemoriesViewer(tripId).then((viewer) => {
       if (!viewer) return;
@@ -100,6 +181,7 @@ function MemoriesPage() {
       if (viewer.userName !== "Moi") setUserName(viewer.userName);
     });
   }, [tripId]);
+
   const {
     data: photos = [],
     isLoading,
@@ -109,7 +191,26 @@ function MemoriesPage() {
     queryKey: ["trip-photos", tripId],
     queryFn: () => listTripPhotos(tripId),
   });
-  const selection = buildKrewSelection(photos);
+
+  const automaticSelection = useMemo(() => buildKrewSelection(photos), [photos]);
+  const automaticIds = useMemo(
+    () => new Set(automaticSelection.map((photo) => photo.id)),
+    [automaticSelection],
+  );
+  const selection = useMemo(() => {
+    const included = new Set(selectionOverrides.included);
+    const excluded = new Set(selectionOverrides.excluded);
+    return photos
+      .filter(
+        (photo) =>
+          (automaticIds.has(photo.id) && !excluded.has(photo.id)) || included.has(photo.id),
+      )
+      .sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
+  }, [automaticIds, photos, selectionOverrides]);
+  const selectionIds = useMemo(() => new Set(selection.map((photo) => photo.id)), [selection]);
+  const hasSelectionOverrides =
+    selectionOverrides.included.length > 0 || selectionOverrides.excluded.length > 0;
+
   const { data: recapSource } = useQuery({
     queryKey: ["trip-recap-source", tripId],
     queryFn: () => getMemoriesRecapSource(tripId),
@@ -123,36 +224,74 @@ function MemoriesPage() {
         photoCount: photos.length,
       })
     : null;
-  const daysMap = new Map<string, Photo[]>();
-  for (const p of selection) {
-    const key = new Date(p.created_at).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    const list = daysMap.get(key) || [];
-    list.push(p);
-    daysMap.set(key, list);
-  }
+
+  const daysMap = useMemo(() => {
+    const map = new Map<string, Photo[]>();
+    for (const photo of selection) {
+      const key = new Date(photo.created_at).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      const list = map.get(key) || [];
+      list.push(photo);
+      map.set(key, list);
+    }
+    return map;
+  }, [selection]);
+
   const like = useMutation({
     mutationFn: (id: string) => toggleTripPhotoLike(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["trip-photos", tripId] }),
-    onError: (e) => {
-      console.error("Impossible d'enregistrer l'appréciation:", e);
+    onError: (error) => {
+      console.error("Impossible d'enregistrer l'appréciation:", error);
       toast.error("Impossible d’enregistrer ton choix pour le moment.");
     },
   });
+
   const remove = useMutation({
-    mutationFn: (p: Photo) => removeTripPhoto(p),
+    mutationFn: (photo: Photo) => removeTripPhoto(photo),
     onSuccess: () => {
+      setPhotoToDelete(null);
       qc.invalidateQueries({ queryKey: ["trip-photos", tripId] });
       toast.success("Photo supprimée");
     },
-    onError: (e) => {
-      console.error("Impossible de supprimer la photo:", e);
+    onError: (error) => {
+      console.error("Impossible de supprimer la photo:", error);
       toast.error("Impossible de supprimer cette photo pour le moment.");
     },
   });
+
+  const updateSelectionOverrides = (next: SelectionOverrides) => {
+    setSelectionOverrides(next);
+    writeSelectionOverrides(tripId, next);
+  };
+
+  const toggleSelection = (photo: Photo) => {
+    const included = new Set(selectionOverrides.included);
+    const excluded = new Set(selectionOverrides.excluded);
+    const isSelected = selectionIds.has(photo.id);
+    const isAutomatic = automaticIds.has(photo.id);
+
+    if (isSelected) {
+      included.delete(photo.id);
+      if (isAutomatic) excluded.add(photo.id);
+    } else {
+      excluded.delete(photo.id);
+      if (!isAutomatic) included.add(photo.id);
+    }
+
+    updateSelectionOverrides({ included: [...included], excluded: [...excluded] });
+  };
+
+  const resetSelection = () => updateSelectionOverrides({ included: [], excluded: [] });
+
+  const selectionReason = (photo: Photo) => {
+    if (selectionOverrides.included.includes(photo.id)) return "Ajoutée par toi";
+    if (photo.likes > 0) return `${photo.likes} appréciation${photo.likes > 1 ? "s" : ""}`;
+    return "Équilibre les moments du voyage";
+  };
+
   const download = async (isSelection = false) => {
     const source = isSelection ? selection : photos;
     if (!source.length || downloading) return;
@@ -160,75 +299,79 @@ function MemoriesPage() {
     try {
       const used = new Set<string>();
       const files = source
-        .filter((p, i) => {
-          const n = fileName(p, i);
-          if (used.has(n)) return false;
-          used.add(n);
+        .filter((photo, index) => {
+          const name = fileName(photo, index);
+          if (used.has(name)) return false;
+          used.add(name);
           return true;
         })
-        .map((p, i) => ({ name: fileName(p, i), url: p.url }));
+        .map((photo, index) => ({ name: fileName(photo, index), url: photo.url }));
       const blob = await createPhotosZip(files);
-      const u = URL.createObjectURL(blob),
-        a = document.createElement("a");
-      a.href = u;
-      a.download = `krew-${isSelection ? "selection" : "photos"}-${tripId}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(u);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `krew-${isSelection ? "selection" : "photos"}-${tripId}.zip`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
       toast.success(
         `${files.length} photo${files.length > 1 ? "s" : ""} prête${files.length > 1 ? "s" : ""} à télécharger`,
       );
-    } catch (e) {
-      console.error("Impossible de préparer le téléchargement:", e);
+    } catch (error) {
+      console.error("Impossible de préparer le téléchargement:", error);
       toast.error("Impossible de préparer le téléchargement pour le moment.");
     } finally {
       setDownloading(false);
     }
   };
-  const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    e.target.value = "";
+
+  const upload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
     if (!userId || !files.length) {
       if (!userId && files.length) toast.error("Tu dois être connecté pour importer une photo.");
       return;
     }
+
     setUploading(true);
-    let added = 0,
-      duplicates = 0;
-    try {
-      for (const file of files) {
-        if (!file.type.startsWith("image/")) {
-          toast.error(`${file.name} n'est pas une image prise en charge.`);
-          continue;
-        }
-        if (file.size > MAX_PHOTO_SIZE_BYTES) {
-          toast.error(`${file.name} dépasse la limite de 20 Mo.`);
-          continue;
-        }
+    setUploadFailures([]);
+    let added = 0;
+    let duplicates = 0;
+    let errors = 0;
+    setUploadProgress({ total: files.length, processed: 0, added: 0, duplicates: 0, errors: 0 });
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      try {
+        if (!file.type.startsWith("image/")) throw new Error("Format non pris en charge");
+        if (file.size > MAX_PHOTO_SIZE_BYTES) throw new Error("Fichier supérieur à 20 Mo");
+
         const hash = await sha256File(file);
         const result = await uploadTripPhoto({ tripId, userId, userName, file, hash });
-        if (result.duplicate) {
-          duplicates++;
-          continue;
-        }
-        added++;
+        if (result.duplicate) duplicates += 1;
+        else added += 1;
+      } catch (error) {
+        errors += 1;
+        setUploadFailures((current) => [...current, file.name]);
+        console.error(`Impossible d'importer ${file.name}:`, error);
+      } finally {
+        setUploadProgress({
+          total: files.length,
+          processed: index + 1,
+          added,
+          duplicates,
+          errors,
+        });
       }
-      await qc.invalidateQueries({ queryKey: ["trip-photos", tripId] });
-      if (added)
-        toast.success(
-          `${added} photo${added > 1 ? "s" : ""} ajoutée${added > 1 ? "s" : ""} à l’album`,
-        );
-      if (duplicates)
-        toast.info(
-          `${duplicates} doublon${duplicates > 1 ? "s" : ""} ignoré${duplicates > 1 ? "s" : ""}`,
-        );
-    } catch (e) {
-      console.error("Impossible d'importer les photos:", e);
-      toast.error("Impossible d’importer les photos pour le moment.");
-    } finally {
-      setUploading(false);
     }
+
+    if (added) await qc.invalidateQueries({ queryKey: ["trip-photos", tripId] });
+    const summary = `${added} ajoutée${added > 1 ? "s" : ""} · ${duplicates} doublon${duplicates > 1 ? "s" : ""} · ${errors} erreur${errors > 1 ? "s" : ""}`;
+    if (added) toast.success(summary);
+    else if (errors) toast.error(summary);
+    else toast.info(summary);
+    setUploading(false);
   };
 
   if (isError) {
@@ -274,7 +417,7 @@ function MemoriesPage() {
       <Link
         to="/trips/$tripId"
         params={{ tripId }}
-        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        className="inline-flex min-h-10 items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
       >
         <ArrowLeft className="size-4" /> Retour au voyage
       </Link>
@@ -289,31 +432,31 @@ function MemoriesPage() {
         />
       ) : null}
 
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 relative">
-        <div className="space-y-2 relative">
+      <header className="relative flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="relative space-y-2">
           <KrewOrganicBlob
             tone="sage"
             variant="soft"
-            className="absolute -top-4 -left-4 w-[160px] h-[60px] opacity-40 pointer-events-none z-0"
+            className="pointer-events-none absolute -left-4 -top-4 z-0 h-[60px] w-[160px] opacity-40"
           />
-          <div className="flex items-center gap-2 text-primary relative z-10">
+          <div className="relative z-10 flex items-center gap-2 text-primary">
             <KrewIcon name="camera" tone="plum" size="sm" className="size-5" />
-            <span className="text-xs font-semibold uppercase tracking-wider font-mono">
+            <span className="font-mono text-xs font-semibold uppercase tracking-wider">
               Souvenirs
             </span>
           </div>
-          <div className="relative inline-block z-10">
-            <h1 className="font-display text-[36px] sm:text-[48px] font-normal leading-tight text-foreground">
+          <div className="relative z-10 inline-block">
+            <h1 className="font-display text-[36px] font-normal leading-tight text-foreground sm:text-[48px]">
               L&apos;album du voyage
             </h1>
             <KrewMark
               type="underline-wave"
               tone="sage"
               size="md"
-              className="absolute left-0 -bottom-1.5 w-[140px] pointer-events-none"
+              className="pointer-events-none absolute -bottom-1.5 left-0 w-[140px]"
             />
           </div>
-          <p className="text-sm text-muted-foreground font-sans">
+          <p className="font-sans text-sm text-muted-foreground">
             Retrouve les moments partagés avec le groupe.
           </p>
           {selection.length > 0 ? (
@@ -327,7 +470,7 @@ function MemoriesPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {photos.length > 0 && (
+          {photos.length > 0 ? (
             <>
               <Button
                 variant="outline"
@@ -348,7 +491,7 @@ function MemoriesPage() {
                 size="sm"
                 className="min-h-10 rounded-xl text-xs font-medium"
                 onClick={() => download(true)}
-                disabled={downloading}
+                disabled={downloading || selection.length === 0}
                 aria-busy={downloading}
               >
                 {downloading ? (
@@ -363,22 +506,22 @@ function MemoriesPage() {
                 size="sm"
                 className="min-h-10 rounded-xl text-xs font-medium"
                 onClick={() => setShowAlbum(true)}
+                disabled={selection.length === 0}
               >
                 <BookOpen className="size-3.5 shrink-0" /> Album
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-10 rounded-xl text-xs font-medium"
+                onClick={() => setShowPartner(true)}
+                disabled={selection.length === 0}
+              >
+                <ExternalLink className="size-3.5 shrink-0" /> Imprimer
+              </Button>
             </>
-          )}
-          {photos.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="min-h-10 rounded-xl text-xs font-medium"
-              onClick={() => setShowPartner(true)}
-            >
-              <ExternalLink className="size-3.5 shrink-0" /> Imprimer
-            </Button>
-          )}
-          {permission !== "prompt" && (
+          ) : null}
+          {permission !== "prompt" ? (
             <Button
               variant="ghost"
               size="icon"
@@ -388,7 +531,7 @@ function MemoriesPage() {
             >
               <Settings className="size-3.5 shrink-0" />
             </Button>
-          )}
+          ) : null}
         </div>
       </header>
 
@@ -400,7 +543,7 @@ function MemoriesPage() {
         </div>
       )}
 
-      <section className="rounded-[24px] border border-dashed border-border bg-surface/30 p-8 text-center space-y-3">
+      <section className="space-y-3 rounded-[24px] border border-dashed border-border bg-surface/30 p-8 text-center">
         <input
           type="file"
           multiple
@@ -410,11 +553,11 @@ function MemoriesPage() {
           className="hidden"
         />
         {!isLoading && !photos.length ? (
-          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center sm:h-20 sm:w-20">
             <img
               src="/brand/otter-states/trip-progress.png"
               alt=""
-              className="w-[72px] sm:w-[80px] h-auto object-contain"
+              className="h-auto w-[72px] object-contain sm:w-[80px]"
             />
           </div>
         ) : (
@@ -428,12 +571,36 @@ function MemoriesPage() {
               ? "L'album est encore vide"
               : "Ajoute tes photos de voyage"}
           </p>
-          <p className="text-[13px] text-muted-foreground font-sans mt-1 max-w-sm mx-auto">
+          <p className="mx-auto mt-1 max-w-sm font-sans text-[13px] text-muted-foreground">
             {!isLoading && !photos.length
               ? "Importe les premières photos pour constituer l'album du voyage. Elles restent privées et accessibles uniquement aux participants autorisés."
               : "Les photos restent privées et accessibles uniquement aux participants autorisés."}
           </p>
         </div>
+        {uploadProgress ? (
+          <div className="mx-auto max-w-sm space-y-2" role="status" aria-live="polite">
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{
+                  width: `${uploadProgress.total ? Math.round((uploadProgress.processed / uploadProgress.total) * 100) : 0}%`,
+                }}
+              />
+            </div>
+            <p className="font-mono text-xs text-muted-foreground">
+              {uploadProgress.processed}/{uploadProgress.total} · {uploadProgress.added} ajoutée
+              {uploadProgress.added > 1 ? "s" : ""} · {uploadProgress.duplicates} doublon
+              {uploadProgress.duplicates > 1 ? "s" : ""} · {uploadProgress.errors} erreur
+              {uploadProgress.errors > 1 ? "s" : ""}
+            </p>
+            {uploadFailures.length > 0 ? (
+              <p className="text-xs text-destructive">
+                À vérifier : {uploadFailures.slice(0, 3).join(", ")}
+                {uploadFailures.length > 3 ? ` +${uploadFailures.length - 3}` : ""}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <div className="pt-1">
           <Button
             size="sm"
@@ -441,12 +608,14 @@ function MemoriesPage() {
             disabled={uploading}
             aria-busy={uploading}
             onClick={() =>
-              permission === "granted" ? fileInputRef.current?.click() : setShowModal(true)
+              permission === "granted"
+                ? fileInputRef.current?.click()
+                : setShowPermissionModal(true)
             }
           >
             {uploading ? (
               <>
-                <Loader2 className="size-3.5 animate-spin shrink-0" /> Importation…
+                <Loader2 className="size-3.5 shrink-0 animate-spin" /> Importation…
               </>
             ) : (
               "Choisir des photos"
@@ -465,12 +634,12 @@ function MemoriesPage() {
         </div>
       ) : !photos.length ? null : (
         <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-          {photos.map((p, idx) => {
+          {photos.map((photo, index) => {
             const hasRotation =
-              idx % 5 === 1 ? "rotate-[1deg]" : idx % 5 === 3 ? "-rotate-[1deg]" : "";
+              index % 5 === 1 ? "rotate-[1deg]" : index % 5 === 3 ? "-rotate-[1deg]" : "";
             return (
               <article
-                key={p.id}
+                key={photo.id}
                 className={cn(
                   "group overflow-hidden rounded-[18px] border border-border/40 bg-background transition-transform duration-200 hover:-translate-y-0.5 shadow-2xs",
                   hasRotation,
@@ -478,12 +647,12 @@ function MemoriesPage() {
               >
                 <div className="aspect-[4/3] bg-muted relative overflow-hidden">
                   <img
-                    src={p.url}
-                    alt={photoAlt(p)}
+                    src={photo.url}
+                    alt={photoAlt(photo)}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                     loading="lazy"
                   />
-                  {p.likes > 0 ? (
+                  {photo.likes > 0 ? (
                     <div className="absolute top-2.5 right-2.5 z-10">
                       <KrewMark type="heart" tone="plum" size="sm" className="size-5" />
                     </div>
@@ -491,29 +660,31 @@ function MemoriesPage() {
                 </div>
                 <div className="p-3.5 flex items-center justify-between text-[13px] sm:text-sm text-muted-foreground font-sans">
                   <span>
-                    Par <strong className="text-foreground font-semibold">{p.author}</strong>
+                    Par <strong className="text-foreground font-semibold">{photo.author}</strong>
                   </span>
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => like.mutate(p.id)}
+                      onClick={() => like.mutate(photo.id)}
                       disabled={like.isPending}
                       aria-busy={like.isPending}
                       className="inline-flex min-h-10 min-w-10 items-center justify-center gap-1 rounded-lg px-2 hover:text-primary transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-60"
-                      aria-label={p.likedByMe ? "Retirer mon appréciation" : "J’aime cette photo"}
+                      aria-label={
+                        photo.likedByMe ? "Retirer mon appréciation" : "J’aime cette photo"
+                      }
                     >
                       <KrewIcon
                         name="favorite"
-                        tone={p.likedByMe ? "plum" : "muted"}
+                        tone={photo.likedByMe ? "plum" : "muted"}
                         size="sm"
                         className="size-3.5"
                       />
-                      <span className="font-mono text-xs font-semibold">{p.likes}</span>
+                      <span className="font-mono text-xs font-semibold">{photo.likes}</span>
                     </button>
-                    {p.owner_user_id === userId && (
+                    {photo.owner_user_id === userId && (
                       <button
                         type="button"
-                        onClick={() => remove.mutate(p)}
+                        onClick={() => setPhotoToDelete(photo)}
                         disabled={remove.isPending}
                         aria-busy={remove.isPending}
                         className="inline-flex size-10 items-center justify-center rounded-lg hover:text-destructive transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-60"
@@ -530,14 +701,14 @@ function MemoriesPage() {
         </div>
       )}
 
-      {showModal && (
+      {showPermissionModal ? (
         <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="photo-permission-title"
         >
-          <div className="bg-card border border-border/60 rounded-2xl p-6 max-w-md space-y-4 shadow-sm">
+          <div className="max-w-md space-y-4 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h3
                 id="photo-permission-title"
@@ -547,24 +718,24 @@ function MemoriesPage() {
               </h3>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={() => setShowPermissionModal(false)}
                 aria-label="Fermer"
                 className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg"
               >
                 <X className="size-4" />
               </button>
             </div>
-            <p className="text-[13px] text-muted-foreground font-sans leading-relaxed">
+            <p className="font-sans text-[13px] leading-relaxed text-muted-foreground">
               Les photos sont stockées dans un espace privé et accessibles uniquement aux
               participants autorisés.
             </p>
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
-                className="min-h-10 rounded-xl font-medium w-full"
+                className="min-h-10 w-full rounded-xl font-medium"
                 onClick={() => {
                   grantPermission();
-                  setShowModal(false);
+                  setShowPermissionModal(false);
                   setTimeout(() => fileInputRef.current?.click(), 150);
                 }}
               >
@@ -573,10 +744,10 @@ function MemoriesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="min-h-10 rounded-xl font-medium w-full"
+                className="min-h-10 w-full rounded-xl font-medium"
                 onClick={() => {
                   denyPermission();
-                  setShowModal(false);
+                  setShowPermissionModal(false);
                 }}
               >
                 Refuser
@@ -584,88 +755,300 @@ function MemoriesPage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {showAlbum && (
+      {photoToDelete ? (
         <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 overflow-y-auto p-4 sm:p-8"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="photo-album-title"
+          aria-labelledby="delete-photo-title"
         >
-          <div className="mx-auto max-w-5xl rounded-[28px] bg-card border border-border/60 shadow-xl overflow-hidden">
-            <div className="p-5 sm:p-7 flex items-center justify-between border-b border-border/50 gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
-                  Souvenirs KREW
-                </p>
-                <h2
-                  id="photo-album-title"
-                  className="font-display text-2xl sm:text-3xl font-normal text-foreground"
-                >
-                  Notre voyage en images
-                </h2>
-                <p className="text-[13px] text-muted-foreground font-sans mt-0.5">
-                  {selection.length} moments sélectionnés · {daysMap.size} journée(s)
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAlbum(false)}
-                aria-label="Fermer"
-                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg"
+          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+            <div>
+              <p className="font-mono text-xs font-semibold uppercase tracking-wider text-destructive">
+                Suppression
+              </p>
+              <h2
+                id="delete-photo-title"
+                className="font-display text-2xl font-normal text-foreground"
               >
-                <X className="size-5" />
-              </button>
+                Supprimer cette photo ?
+              </h2>
             </div>
-            <div className="p-5 sm:p-8 space-y-10">
-              <div className="rounded-[24px] overflow-hidden border border-border/50 bg-muted aspect-[16/8] relative">
-                {selection[0] && (
-                  <img
-                    src={selection[0].url}
-                    alt={photoAlt(selection[0])}
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex items-end p-6 sm:p-10">
-                  <div className="text-white">
-                    <p className="text-xs uppercase tracking-[0.2em] font-mono">KREW</p>
-                    <h3 className="font-display text-3xl sm:text-5xl font-normal">Notre voyage</h3>
-                    <p className="text-xs mt-1 opacity-90 font-sans">
-                      Une sélection de {selection.length} souvenirs
-                    </p>
-                  </div>
-                </div>
-              </div>
-              {[...daysMap.entries()].map(([day, items]) => (
-                <section key={day} className="space-y-3">
-                  <h4 className="font-display text-xl font-normal text-foreground">{day}</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                    {items.map((p, i) => (
-                      <figure key={p.id} className="space-y-1">
-                        <div className="aspect-[4/3] rounded-xl overflow-hidden bg-muted border border-border/40">
-                          <img
-                            src={p.url}
-                            alt={photoAlt(p)}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                          />
-                        </div>
-                        <figcaption className="text-xs text-muted-foreground truncate font-sans">
-                          {p.original_filename || `Souvenir ${i + 1}`}
-                        </figcaption>
-                      </figure>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-            <div className="p-5 sm:p-7 border-t border-border/50 flex flex-wrap justify-end gap-2">
+            <p className="font-sans text-[13px] leading-relaxed text-muted-foreground">
+              Elle sera retirée de l’album du groupe et de ta sélection KREW. Cette action ne peut
+              pas être annulée.
+            </p>
+            <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 className="min-h-10 rounded-xl"
-                onClick={() => setShowAlbum(false)}
+                onClick={() => setPhotoToDelete(null)}
+                disabled={remove.isPending}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="min-h-10 rounded-xl"
+                onClick={() => remove.mutate(photoToDelete)}
+                disabled={remove.isPending}
+                aria-busy={remove.isPending}
+              >
+                {remove.isPending ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="size-3.5" />
+                )}{" "}
+                Supprimer
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showAlbum ? (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-background/85 p-4 backdrop-blur-md sm:p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="photo-album-title"
+        >
+          <div className="mx-auto max-w-5xl overflow-hidden rounded-[28px] border border-border/60 bg-card shadow-xl">
+            <div className="flex items-center justify-between gap-3 border-b border-border/50 p-5 sm:p-7">
+              <div>
+                <p className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                  Souvenirs KREW
+                </p>
+                <h2
+                  id="photo-album-title"
+                  className="font-display text-2xl font-normal text-foreground sm:text-3xl"
+                >
+                  Notre voyage en images
+                </h2>
+                <p className="mt-0.5 font-sans text-[13px] text-muted-foreground">
+                  {selection.length} moments · {daysMap.size} chapitre{daysMap.size > 1 ? "s" : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-9 rounded-xl text-xs"
+                  onClick={() => setEditSelection((current) => !current)}
+                >
+                  {editSelection ? "Voir l’album" : "Personnaliser"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditSelection(false);
+                    setShowAlbum(false);
+                  }}
+                  aria-label="Fermer"
+                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-12 p-5 sm:p-8">
+              {editSelection ? (
+                <section
+                  className="space-y-4 rounded-[24px] border border-primary/20 bg-primary/5 p-4 sm:p-5"
+                  aria-label="Personnaliser la sélection KREW"
+                >
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+                        Ta sélection
+                      </p>
+                      <h3 className="font-display text-2xl font-normal text-foreground">
+                        Choisis les moments à garder
+                      </h3>
+                      <p className="mt-1 max-w-2xl font-sans text-[13px] leading-relaxed text-muted-foreground">
+                        KREW équilibre automatiquement les journées, les auteurs et les
+                        appréciations. Tes ajustements restent personnels sur cet appareil et ne
+                        changent pas la sélection des autres participants.
+                      </p>
+                    </div>
+                    {hasSelectionOverrides ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="min-h-9 shrink-0 rounded-xl text-xs"
+                        onClick={resetSelection}
+                      >
+                        Revenir à la sélection KREW
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                    {photos.map((photo) => {
+                      const isSelected = selectionIds.has(photo.id);
+                      return (
+                        <article
+                          key={photo.id}
+                          className={cn(
+                            "overflow-hidden rounded-2xl border bg-background",
+                            isSelected
+                              ? "border-primary/40 ring-1 ring-primary/15"
+                              : "border-border/40",
+                          )}
+                        >
+                          <div className="aspect-[4/3] overflow-hidden bg-muted">
+                            <img
+                              src={photo.url}
+                              alt={photoAlt(photo)}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div className="space-y-2 p-2.5">
+                            <p className="truncate font-sans text-xs font-medium text-foreground">
+                              {photo.original_filename || `Photo de ${photo.author}`}
+                            </p>
+                            <p className="min-h-8 font-sans text-[10px] leading-tight text-muted-foreground">
+                              {isSelected
+                                ? selectionReason(photo)
+                                : "Pas dans la sélection actuelle"}
+                            </p>
+                            <Button
+                              variant={isSelected ? "outline" : "default"}
+                              size="sm"
+                              className="min-h-8 w-full rounded-lg text-[11px]"
+                              onClick={() => toggleSelection(photo)}
+                            >
+                              {isSelected ? "Retirer" : "Ajouter"}
+                            </Button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+              <div className="relative aspect-[16/9] overflow-hidden rounded-[26px] border border-border/50 bg-muted sm:aspect-[16/8]">
+                {selection[0] ? (
+                  <img
+                    src={selection[0].url}
+                    alt={photoAlt(selection[0])}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : null}
+                <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/75 via-black/20 to-transparent p-6 sm:p-10">
+                  <div className="max-w-xl text-white">
+                    <p className="font-mono text-xs uppercase tracking-[0.2em]">
+                      KREW · {recapSource?.destination?.name || "Notre voyage"}
+                    </p>
+                    <h3 className="font-display text-3xl font-normal sm:text-5xl">
+                      {recapSource?.trip?.name || "Notre voyage"}
+                    </h3>
+                    <p className="mt-2 max-w-lg font-sans text-sm text-white/90">
+                      Les moments que la Krew a retenus, équilibrés entre les journées, les
+                      personnes et les coups de cœur du groupe.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {[...daysMap.entries()].map(([day, items], dayIndex) => {
+                const [hero, ...rest] = items;
+                const authors = new Set(items.map((photo) => photo.author).filter(Boolean)).size;
+                return (
+                  <section
+                    key={day}
+                    className="space-y-4"
+                    aria-label={`Chapitre ${dayIndex + 1} — ${day}`}
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <KrewNote
+                          variant="label"
+                          tone="cream"
+                          rotation={dayIndex % 2 === 0 ? -1 : 1}
+                        >
+                          Chapitre {dayIndex + 1}
+                        </KrewNote>
+                        <h4 className="mt-2 font-display text-2xl font-normal text-foreground sm:text-3xl">
+                          {day}
+                        </h4>
+                      </div>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {items.length} moment{items.length > 1 ? "s" : ""} · {authors} photographe
+                        {authors > 1 ? "s" : ""}
+                      </p>
+                    </div>
+
+                    {hero ? (
+                      <figure className="overflow-hidden rounded-[22px] border border-border/40 bg-background">
+                        <div className="aspect-[16/9] overflow-hidden bg-muted sm:aspect-[16/7]">
+                          <img
+                            src={hero.url}
+                            alt={photoAlt(hero)}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                        <figcaption className="flex flex-wrap items-center justify-between gap-2 p-3.5 font-sans text-xs text-muted-foreground">
+                          <span>
+                            Par <strong className="text-foreground">{hero.author}</strong>
+                          </span>
+                          <span>
+                            {hero.likes > 0
+                              ? `${hero.likes} appréciation${hero.likes > 1 ? "s" : ""}`
+                              : selectionReason(hero)}
+                          </span>
+                        </figcaption>
+                      </figure>
+                    ) : null}
+
+                    {rest.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {rest.map((photo) => (
+                          <figure
+                            key={photo.id}
+                            className="overflow-hidden rounded-2xl border border-border/40 bg-background"
+                          >
+                            <div className="aspect-[4/3] overflow-hidden bg-muted">
+                              <img
+                                src={photo.url}
+                                alt={photoAlt(photo)}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            </div>
+                            <figcaption className="space-y-0.5 p-2.5 font-sans text-[11px] text-muted-foreground">
+                              <p className="truncate font-medium text-foreground">
+                                {photo.original_filename || "Souvenir KREW"}
+                              </p>
+                              <p>
+                                Par {photo.author}
+                                {photo.likes > 0 ? ` · ${photo.likes} ♥` : ""}
+                              </p>
+                            </figcaption>
+                          </figure>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap justify-end gap-2 border-t border-border/50 p-5 sm:p-7">
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-10 rounded-xl"
+                onClick={() => {
+                  setEditSelection(false);
+                  setShowAlbum(false);
+                }}
               >
                 Fermer
               </Button>
@@ -686,19 +1069,19 @@ function MemoriesPage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {showPartner && (
+      {showPartner ? (
         <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="photo-partner-title"
         >
-          <div className="w-full max-w-md rounded-2xl bg-card border border-border/60 p-6 space-y-5 shadow-sm">
+          <div className="w-full max-w-md space-y-5 rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary font-mono">
+                <p className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
                   Prestataire externe
                 </p>
                 <h2
@@ -717,25 +1100,25 @@ function MemoriesPage() {
                 <X className="size-4" />
               </button>
             </div>
-            <p className="text-[13px] text-muted-foreground font-sans leading-relaxed">
+            <p className="font-sans text-[13px] leading-relaxed text-muted-foreground">
               KREW ne vend ni n&apos;imprime l&apos;album. Tu vas être redirigé·e vers{" "}
               <strong>{PHOTO_BOOK_PARTNER.name}</strong>, un prestataire externe, pour créer et
               commander ton album.
             </p>
-            <div className="rounded-2xl border border-border/60 bg-muted/40 p-4 text-[13px] font-sans space-y-1">
+            <div className="space-y-1 rounded-2xl border border-border/60 bg-muted/40 p-4 font-sans text-[13px]">
               <p className="font-semibold text-foreground">
                 Ta sélection KREW : {selection.length} photos
               </p>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="leading-relaxed text-muted-foreground">
                 Pour des raisons de confidentialité, KREW ne transmet pas automatiquement tes photos
                 au prestataire. Télécharge d&apos;abord la sélection puis importe-la chez le
                 prestataire.
               </p>
             </div>
-            <p className="text-[11px] sm:text-xs text-muted-foreground leading-relaxed font-sans">
+            <p className="font-sans text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
               {PHOTO_BOOK_PARTNER.affiliateDisclosure}
             </p>
-            <div className="flex gap-2 justify-end pt-1">
+            <div className="flex justify-end gap-2 pt-1">
               <Button
                 variant="outline"
                 size="sm"
@@ -746,13 +1129,13 @@ function MemoriesPage() {
               </Button>
               <Button size="sm" className="min-h-10 rounded-xl font-medium" asChild>
                 <a href={PHOTO_BOOK_PARTNER.url} target="_blank" rel="noopener noreferrer">
-                  Ouvrir {PHOTO_BOOK_PARTNER.name} <ExternalLink className="size-3.5 ml-1" />
+                  Ouvrir {PHOTO_BOOK_PARTNER.name} <ExternalLink className="ml-1 size-3.5" />
                 </a>
               </Button>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </KrewPageShell>
   );
 }
