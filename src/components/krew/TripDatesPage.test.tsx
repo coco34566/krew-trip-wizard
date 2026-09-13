@@ -28,6 +28,7 @@ const queryState = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: React.ReactNode }) => <a href="#">{children}</a>,
+  useNavigate: () => vi.fn(),
 }));
 
 vi.mock("@tanstack/react-start", () => ({
