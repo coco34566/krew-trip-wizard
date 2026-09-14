@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import {
+  buildAccommodationMatchReasons,
   buildCanonicalAccommodationExternalId,
   computeAccommodationRequestHash,
   mergeAccommodationLogistics,
@@ -45,6 +46,46 @@ const payload = (property: any) => ({
 afterEach(() => {
   vi.unstubAllGlobals();
   delete process.env["GEMINI_API_KEY"];
+});
+
+it("transforme les résultats en atouts utiles liés aux envies du groupe", () => {
+  const strategy = {
+    ...spec.searchStrategies[0]!,
+    propertyTypes: ["villa"],
+    preferred: ["jacuzzi", "terrasse"],
+  };
+  expect(
+    buildAccommodationMatchReasons(spec, strategy, {
+      blob: "Villa avec jacuzzi, terrasse et 8 chambres à Lisbonne",
+      capacity: 8,
+      bedrooms: 8,
+      amenities: ["wifi", "jacuzzi", "terrasse"],
+      propertyType: "villa",
+    }),
+  ).toEqual(["Chacun sa chambre", "Jacuzzi disponible", "Terrasse pour la Krew"]);
+});
+
+it("n'affiche jamais les détails techniques du moteur de recherche", () => {
+  const candidates = normalizeTavilyAccommodationResults(
+    {
+      results: [{
+        title: "Villa Lisbonne - jacuzzi 8 personnes 5 chambres",
+        url: "https://stay.example/villa",
+        content: "Villa avec jacuzzi pour 8 personnes, 5 chambres et note 4.5/5 à Lisbonne",
+        score: 0.9,
+      }],
+    },
+    {
+      ...spec,
+      searchStrategies: [{
+        ...spec.searchStrategies[0]!,
+        propertyTypes: ["villa"],
+        preferred: ["jacuzzi"],
+      }],
+    },
+  );
+  expect(candidates[0]?.matchReasons).toContain("Jacuzzi disponible");
+  expect(candidates[0]?.matchReasons.join(" ")).not.toMatch(/Tavily|Recherche web|Concept/);
 });
 it("valide source, contraintes et photo grounded", () => {
   const candidate = {
