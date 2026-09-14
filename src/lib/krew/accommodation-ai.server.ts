@@ -213,6 +213,7 @@ function normalizeText(value: string): string {
 
 function accommodationHighlightLabel(term: string): string {
   const normalized = normalizeText(term);
+  if (/^(wifi|wi-fi|internet)$/.test(normalized.trim())) return "";
   if (/jacuzzi|hot tub|spa priv/.test(normalized)) return "Jacuzzi disponible";
   if (/piscine|swimming pool/.test(normalized)) return "Piscine disponible";
   if (/sauna/.test(normalized)) return "Sauna disponible";
