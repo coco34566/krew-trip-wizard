@@ -97,7 +97,7 @@ export function computeAccommodationRequestHash(tripId: string, specification: A
     searchStrategies: specification.searchStrategies.map((s) => ({ concept: s.concept, propertyTypes: s.propertyTypes })),
     locationIntent: specification.locationIntent,
     minimumRating: specification.minimumRating,
-    requiredAmenities: specification.requiredAmenities.slice().sort(),
+    requiredAmenities: meaningfulRequiredAmenities(specification.requiredAmenities).slice().sort(),
     accessibilityRequired: specification.accessibilityRequired,
   };
   const str = JSON.stringify(payload);
@@ -172,7 +172,7 @@ export function normalizeAccommodationCandidates(payload: any, specification: Ac
     if (rating != null && specification.minimumRating != null && rating < specification.minimumRating) return [];
     if (pricePerPerson != null && priceStatus !== "unknown" && specification.budget.hardMaxPerPersonStay != null && pricePerPerson > specification.budget.hardMaxPerPersonStay) return [];
     const amenities = Array.isArray(raw.amenities) ? raw.amenities.map(String) : [];
-    if (specification.requiredAmenities.some((required) => !amenities.some((item) => item.toLowerCase().includes(required.toLowerCase())))) return [];
+    if (meaningfulRequiredAmenities(specification.requiredAmenities).some((required) => !amenities.some((item) => item.toLowerCase().includes(required.toLowerCase())))) return [];
     return [{
       id: String(raw.id || `${concept}-${seen.size}`),
       name,
@@ -209,6 +209,12 @@ function normalizeText(value: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function meaningfulRequiredAmenities(amenities: string[]): string[] {
+  return amenities.filter(
+    (amenity) => !/^(wifi|wi-fi|internet)$/i.test(normalizeText(amenity).trim()),
+  );
 }
 
 function accommodationHighlightLabel(term: string): string {
@@ -255,7 +261,7 @@ export function buildAccommodationMatchReasons(
   }
 
   const matchedGroupWishes = [
-    ...specification.requiredAmenities,
+    ...meaningfulRequiredAmenities(specification.requiredAmenities),
     ...strategy.mustHave,
     ...strategy.preferred,
   ].filter((term) => words(term).some((word) => words(details.blob).includes(word)));
@@ -349,7 +355,7 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
       const capacity = parseCapacity(blob);
       const bedrooms = parseBedrooms(blob);
       const rating = parseRating(blob);
-      const explicitAmenities = [...new Set([...specification.requiredAmenities, ...strategy.mustHave, ...strategy.preferred])]
+      const explicitAmenities = [...new Set([...meaningfulRequiredAmenities(specification.requiredAmenities), ...strategy.mustHave, ...strategy.preferred])]
         .filter((term) => words(term).some((w) => words(blob).includes(w)));
       if (capacity != null && capacity < specification.group.size) return [];
       if (bedrooms != null && bedrooms < specification.group.targetBedrooms) return [];
@@ -357,7 +363,7 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
         const normalizedRating = rating <= 5 ? rating : rating / 2;
         if (normalizedRating < specification.minimumRating) return [];
       }
-      if (specification.requiredAmenities.some((required) => !explicitAmenities.some((found) => words(found).some((w) => words(required).includes(w) || words(required).some((rw) => rw === w))))) return [];
+      if (meaningfulRequiredAmenities(specification.requiredAmenities).some((required) => !explicitAmenities.some((found) => words(found).some((w) => words(required).includes(w) || words(required).some((rw) => rw === w))))) return [];
       const propertyType = strategy.propertyTypes.find((type) => words(type).some((w) => words(blob).includes(w))) ?? strategy.propertyTypes[0] ?? "unknown";
       return [{
         id: buildCanonicalAccommodationExternalId(specification.destination.name, { name, url, source: host }),
@@ -459,7 +465,7 @@ export async function searchAccommodationsWithGemini(specification: Accommodatio
     budget: specification.budget,
     locationIntent: specification.locationIntent,
     minimumRating: specification.minimumRating,
-    requiredAmenities: specification.requiredAmenities,
+    requiredAmenities: meaningfulRequiredAmenities(specification.requiredAmenities),
     accessibilityRequired: specification.accessibilityRequired,
     searchStrategies: specification.searchStrategies.map((strategy) => ({
       concept: strategy.concept,
