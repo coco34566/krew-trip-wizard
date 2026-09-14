@@ -211,6 +211,69 @@ function normalizeText(value: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+function accommodationHighlightLabel(term: string): string {
+  const normalized = normalizeText(term);
+  if (/jacuzzi|hot tub|spa priv/.test(normalized)) return "Jacuzzi disponible";
+  if (/piscine|swimming pool/.test(normalized)) return "Piscine disponible";
+  if (/sauna/.test(normalized)) return "Sauna disponible";
+  if (/hammam|steam room/.test(normalized)) return "Hammam disponible";
+  if (/terrasse|terrace/.test(normalized)) return "Terrasse pour la Krew";
+  if (/jardin|garden/.test(normalized)) return "Jardin disponible";
+  if (/vue mer|sea view|ocean view/.test(normalized)) return "Vue sur la mer";
+  if (/vue montagne|mountain view/.test(normalized)) return "Vue montagne";
+  if (/centre|central|downtown/.test(normalized)) return "En plein centre";
+  if (/calme|quiet|peaceful/.test(normalized)) return "Au calme";
+  if (/parking/.test(normalized)) return "Parking disponible";
+  if (/petit.?dejeuner|breakfast/.test(normalized)) return "Petit-déjeuner disponible";
+  return term.trim().replace(/^./, (letter) => letter.toUpperCase());
+}
+
+export function buildAccommodationMatchReasons(
+  specification: AccommodationSearchSpecification,
+  strategy: AccommodationSearchSpecification["searchStrategies"][number],
+  details: {
+    blob: string;
+    capacity: number | null;
+    bedrooms: number | null;
+    amenities: string[];
+    propertyType: string;
+  },
+): string[] {
+  const highlights: string[] = [];
+  const add = (label: string | null) => {
+    if (label && !highlights.includes(label)) highlights.push(label);
+  };
+
+  if (details.bedrooms != null && details.bedrooms >= specification.group.size) {
+    add("Chacun sa chambre");
+  } else if (
+    details.bedrooms != null &&
+    details.bedrooms >= specification.group.targetBedrooms
+  ) {
+    add(`${details.bedrooms} chambres pour la Krew`);
+  }
+
+  const matchedGroupWishes = [
+    ...specification.requiredAmenities,
+    ...strategy.mustHave,
+    ...strategy.preferred,
+  ].filter((term) => words(term).some((word) => words(details.blob).includes(word)));
+
+  for (const term of [...details.amenities, ...matchedGroupWishes]) {
+    add(accommodationHighlightLabel(term));
+  }
+
+  const normalizedPropertyType = normalizeText(details.propertyType);
+  if (/maison|villa|chalet|house|home/.test(normalizedPropertyType)) {
+    add("Logement rien que pour vous");
+  }
+  if (details.capacity != null && details.capacity >= specification.group.size) {
+    add(`Adapté à ${specification.group.size} personnes`);
+  }
+
+  return highlights.slice(0, 3);
+}
+
 function isExplicitlyOutsideDestination(
   blob: string,
   specification: AccommodationSearchSpecification,
@@ -315,11 +378,13 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
         source: host,
         imageUrl: null,
         imageSource: null,
-        matchReasons: [
-          `Recherche web Tavily ${(Number(result.score ?? 0) * 100).toFixed(0)}%`,
-          `Concept ${strategy.concept}`,
-          ...strategy.preferred.filter((term) => words(term).some((w) => words(blob).includes(w))).slice(0, 1),
-        ].slice(0, 3),
+        matchReasons: buildAccommodationMatchReasons(specification, strategy, {
+          blob,
+          capacity,
+          bedrooms,
+          amenities: explicitAmenities,
+          propertyType,
+        }),
       }];
     })
     .slice(0, 6);
