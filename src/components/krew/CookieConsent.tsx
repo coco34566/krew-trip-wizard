@@ -65,38 +65,39 @@ export function CookieConsent() {
   const [consent, setConsent] = useState(emptyOptionalConsent);
 
   useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      setIsOpen(true);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(raw) as Partial<CookieConsentState>;
-      const consentDate = typeof parsed.date === "string" ? Date.parse(parsed.date) : Number.NaN;
-      if (!Number.isFinite(consentDate) || Date.now() - consentDate > CONSENT_MAX_AGE_MS) {
-        localStorage.removeItem(STORAGE_KEY);
-        setIsOpen(true);
-        return;
-      }
-      const next = OPTIONAL_CATEGORIES.reduce(
-        (result, category) => {
-          result[category] = parsed[category] === true;
-          return result;
-        },
-        {} as Pick<CookieConsentState, ConsentCategory>,
-      );
-      setConsent(next);
-      applyConsent(next);
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-      setIsOpen(true);
-    }
     const openSettings = () => {
       setShowCustomize(true);
       setIsOpen(true);
     };
     window.addEventListener(OPEN_CONSENT_EVENT, openSettings);
+
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      setIsOpen(true);
+    } else {
+      try {
+        const parsed = JSON.parse(raw) as Partial<CookieConsentState>;
+        const consentDate = typeof parsed.date === "string" ? Date.parse(parsed.date) : Number.NaN;
+        if (!Number.isFinite(consentDate) || Date.now() - consentDate > CONSENT_MAX_AGE_MS) {
+          localStorage.removeItem(STORAGE_KEY);
+          setIsOpen(true);
+        } else {
+          const next = OPTIONAL_CATEGORIES.reduce(
+            (result, category) => {
+              result[category] = parsed[category] === true;
+              return result;
+            },
+            {} as Pick<CookieConsentState, ConsentCategory>,
+          );
+          setConsent(next);
+          applyConsent(next);
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+        setIsOpen(true);
+      }
+    }
+
     return () => window.removeEventListener(OPEN_CONSENT_EVENT, openSettings);
   }, []);
 
