@@ -22,6 +22,7 @@ export const Route = createFileRoute("/auth")({
       { property: "og:description", content: "Retrouve tes voyages de groupe sur KREW." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
   component: AuthPage,

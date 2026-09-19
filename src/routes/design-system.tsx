@@ -1,8 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { KrewCallout,KrewIcon,KrewMark,KrewNote,KrewProgressRing,type KrewIconName,type KrewMarkType } from "@/components/krew/visual-language";
 import { KrewNoteConcept } from "@/components/krew/visual-language/KrewNoteConcept";
 
-export const Route=createFileRoute("/design-system")({component:DesignSystemPage});
+export const Route=createFileRoute("/design-system")({
+  beforeLoad: () => {
+    if (import.meta.env.PROD) throw notFound();
+  },
+  head: () => ({
+    meta: [{ name: "robots", content: "noindex, nofollow" }],
+  }),
+  component:DesignSystemPage,
+});
 
 const marks:KrewMarkType[]=["circle","circle-loose","underline","underline-wave","underline-double","arrow-right","arrow-left","arrow-up","arrow-down","arrow-up-right","arrow-up-left","arrow-down-right","arrow-down-left","arrow-curved-right","arrow-curved-left","arrow-curved-down","arrow-loop","sparkle","heart","check","connector","connector-curve","connector-dotted","highlight","bracket","corner","cross","plus","burst","scribble","tape","stamp-circle","route","pin-line"];
 const icons:KrewIconName[]=["invite","availability","preferences","profile","destination","accommodation","transport","planning","tasks","packing","budget","calendar","group","map","camera","food","drink","plane","train","car","walk","boat","nature","beach","party","time","vote","favorite","booked","attention","check","message","search","plus"];

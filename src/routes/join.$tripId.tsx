@@ -48,6 +48,10 @@ export const Route = createFileRoute("/join/$tripId")({
 const JOIN_INPUT_CLASS =
   "h-11 rounded-[10px] border-border/70 bg-background px-3 text-[15px] shadow-none transition-colors focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
 
+function joinFirstNameStorageKey(tripId: string) {
+  return `krew:join-firstname:${tripId}`;
+}
+
 function normalizeTripId(raw: string): string {
   return decodeURIComponent(String(raw || ""))
     .split("?")[0]!
@@ -83,6 +87,16 @@ function JoinTripPage() {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!tripId || firstName) return;
+    try {
+      const storedFirstName = sessionStorage.getItem(joinFirstNameStorageKey(tripId));
+      if (storedFirstName) setFirstName(storedFirstName);
+    } catch {
+      // sessionStorage can be unavailable in restricted browser contexts.
+    }
+  }, [tripId, firstName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,6 +168,11 @@ function JoinTripPage() {
 
   async function handleJoin() {
     if (!isAuthenticated) {
+      try {
+        sessionStorage.setItem(joinFirstNameStorageKey(tripId), firstName);
+      } catch {
+        // The auth redirect must still work when storage is unavailable.
+      }
       navigate({ to: "/auth", search: { next: authNext } as any });
       return;
     }
@@ -164,6 +183,11 @@ function JoinTripPage() {
     setJoining(true);
     try {
       const res = await doJoin({ data: { tripId, token, firstName: firstName.trim() } });
+      try {
+        sessionStorage.removeItem(joinFirstNameStorageKey(tripId));
+      } catch {
+        // Joining succeeded; storage cleanup must not block navigation.
+      }
       if (res?.alreadyMember && res?.myAvailabilityDone && res?.myPreferencesDone) {
         window.location.assign(`/trips/${tripId}`);
       } else {
