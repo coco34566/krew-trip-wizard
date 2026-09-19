@@ -1457,6 +1457,7 @@ function TripDetail() {
                           min={2}
                           max={25}
                           value={countInput}
+                          onFocus={(e) => e.currentTarget.select()}
                           onChange={(e) => setCountInput(Number(e.target.value))}
                           className="w-16 h-7 text-xs font-mono"
                         />
@@ -1492,7 +1493,7 @@ function TripDetail() {
             </div>
 
             {/* ACTION UNIQUE : RELANCER LE GROUPE */}
-            {data.isOwner ? <div className="pt-4 border-t border-border/40"><Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={() => shareOnWhatsApp(buildWhatsAppRemindMessage())}><KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" /><span>Relancer le groupe</span></Button></div> : null}
+            {data.isOwner ? <div className="pt-4 border-t border-border/40"><Button type="button" variant="ghost" className="w-auto justify-start" onClick={() => shareOnWhatsApp(buildWhatsAppRemindMessage())}><KrewIcon name="group" tone="plum" size="sm" className="size-4 shrink-0" /><span>Relancer le groupe</span></Button></div> : null}
           </section>
 
           {costSplitData?.split ? (
