@@ -92,7 +92,7 @@ function SectionHeading({
   );
 }
 
-function NewTripPage() {
+export function NewTripPage() {
   const navigate = useNavigate();
   const create = useServerFn(createTrip);
   const queryClient = useQueryClient();
@@ -170,7 +170,7 @@ function NewTripPage() {
       firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
       if ("focus" in firstInvalid) (firstInvalid as HTMLElement).focus();
       submitGuardRef.current = false;
-      return;
+      throw new Error("validation");
     }
 
     setSubmitting(true);
@@ -254,7 +254,7 @@ function NewTripPage() {
         </div>
       </header>
 
-      <form onSubmit={(event) => void onSubmit(event).catch(() => undefined)} className="mt-8 sm:mt-9">
+      <form noValidate onSubmit={(event) => void onSubmit(event).catch(() => undefined)} className="mt-8 sm:mt-9">
         <section className="border-b border-border/70 pb-8 sm:pb-9">
           <SectionHeading
             step="01"

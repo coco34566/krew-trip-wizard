@@ -32,6 +32,16 @@ describe("new trip creation hardening", () => {
     expect(route).toContain('role="alert"');
     expect(route).toContain('role="group"');
     expect(route).toContain('aria-labelledby="group-age-label"');
+    expect(route).toContain("<form noValidate");
+  });
+
+  it("rejects invalid submission so the stateful button cannot show success", () => {
+    const validationIndex = route.indexOf('throw new Error("validation")');
+    const createIndex = route.indexOf("const trip = await create({");
+    expect(validationIndex).toBeGreaterThan(-1);
+    expect(createIndex).toBeGreaterThan(validationIndex);
+    expect(route).toContain("submitGuardRef.current = false;\n      throw new Error(\"validation\");");
+    expect(route).toContain("onAction={() => onSubmit()}");
   });
 
   it("prefills organizer name without overwriting edits", () => {
