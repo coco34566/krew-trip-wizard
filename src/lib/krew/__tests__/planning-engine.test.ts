@@ -240,8 +240,8 @@ describe("PR 107 — Tests Mandatory Needs", () => {
     expect(brief.mandatoryNeeds.find((n) => n.type === "event_signature")?.targetDay).toBe(1);
   });
 
-  // L. Gemini oublie event -> réparation dynamique réelle
-  it("L. Gemini oublie EVJF -> réinjecté réellement post-Gemini", () => {
+  // L. Gemini oublie event -> réparation neutre, sans cliché imposé
+  it("L. Gemini oublie EVJF -> réinjecte un moment signature neutre", () => {
     const brief = buildPlanningBrief(baseInput({ eventType: "evjf", latestGroupArrival: "12:00" }));
     const skeletonWithoutEvjf = {
       destination: "Beaune",
@@ -250,8 +250,11 @@ describe("PR 107 — Tests Mandatory Needs", () => {
     };
 
     const repaired = ensureMandatoryNeeds(skeletonWithoutEvjf, brief);
-    const hasEvjf = repaired.days.flatMap((d) => d.slots).some((s) => s.label.includes("mariée"));
-    expect(hasEvjf).toBe(true);
+    const signature = repaired.days
+      .flatMap((d) => d.slots)
+      .find((s) => s.category === "evenement");
+    expect(signature?.label).toBe("Moment signature de l’événement");
+    expect(signature?.label).not.toMatch(/mariée|marié|défis/i);
   });
 
   // M. Gemini oublie meal obligatoire -> bon subtype de meal ajouté
