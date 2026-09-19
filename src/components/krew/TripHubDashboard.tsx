@@ -6,6 +6,7 @@ import { formatEuro, getTripTypeImage } from "@/lib/krew/constants";
 import { Logo } from "@/components/krew/Logo";
 import { TripWeatherBadge } from "@/components/krew/TripWeatherBadge";
 import { TripLiveModePanel, isTripLiveMode } from "@/components/krew/TripLiveModePanel";
+import { TransportGroupsSummary } from "@/components/krew/TransportGroupsSummary";
 import { getTripWeather } from "@/lib/trip-weather.functions";
 import { getKrewPulse, getTripCountdown, type KrewPulse, type TripCountdown } from "@/lib/krew/trip-dashboard-pulse";
 import {
@@ -479,7 +480,9 @@ export function TripHubDashboard({
   const hotelSelected = Boolean(logistics.selectedHotelId);
   const transportOffersReady = Boolean(logistics.transports?.length);
   const transportPickedCount = new Set(
-    (logistics.transportPicks ?? []).map((pick: any) => pick?.userId).filter(Boolean),
+    (logistics.transportPicks ?? [])
+      .map((pick: any) => pick?.participantId || pick?.userId)
+      .filter(Boolean),
   ).size;
   const transportExpectedCount = progressTotal || availabilityExpected || participantsCount || trip.participants_count || 0;
 
@@ -650,6 +653,15 @@ export function TripHubDashboard({
           destinationName={destinationName}
           weather={weatherQuery.data ?? null}
           isOwner={isOwner}
+        />
+      ) : null}
+
+      {destinationSelected ? (
+        <TransportGroupsSummary
+          tripId={tripId}
+          participants={Array.isArray((trip as any).participants) ? ((trip as any).participants as any[]) : []}
+          picks={Array.isArray(logistics.transportPicks) ? logistics.transportPicks : []}
+          expectedCount={transportExpectedCount}
         />
       ) : null}
 
