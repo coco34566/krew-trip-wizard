@@ -485,6 +485,21 @@ export function TripHubDashboard({
       .filter(Boolean),
   ).size;
   const transportExpectedCount = progressTotal || availabilityExpected || participantsCount || trip.participants_count || 0;
+  const dashboardTransportParticipants = Array.isArray((trip as any).participants)
+    ? [...((trip as any).participants as any[])]
+    : [];
+  if (
+    logistics.star_mode === "secret" &&
+    trip.celebrated_person &&
+    !dashboardTransportParticipants.some((participant: any) => participant?.user_id === trip.star_user_id)
+  ) {
+    dashboardTransportParticipants.push({
+      id: `star:${tripId}`,
+      user_id: null,
+      display_name: trip.celebrated_person,
+      status: "accepte",
+    });
+  }
 
   const pulse = getKrewPulse({
     availabilityAnswered,
@@ -659,7 +674,7 @@ export function TripHubDashboard({
       {destinationSelected ? (
         <TransportGroupsSummary
           tripId={tripId}
-          participants={Array.isArray((trip as any).participants) ? ((trip as any).participants as any[]) : []}
+          participants={dashboardTransportParticipants}
           picks={Array.isArray(logistics.transportPicks) ? logistics.transportPicks : []}
           expectedCount={transportExpectedCount}
         />
