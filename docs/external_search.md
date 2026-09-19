@@ -57,7 +57,9 @@ Le builder affilié Kiwi est centralisé dans `src/lib/krew/deep-links.ts`. Le f
 
 ### Train
 
-SNCF Connect / Trainline restent des options de recherche train selon la route. Ne pas proposer le train lorsqu'il est incompatible avec les contraintes du voyage.
+Navitia (clé serveur `SNCF_KEY_API`) est la source horaire/itinéraire prioritaire lorsqu’elle est configurée. KREW résout les villes, recherche les journeys aller/retour, conserve les gares réellement utilisées et applique les créneaux ainsi que la durée maximale du sous-groupe avant de proposer le train. Les tarifs SNCF Open Data restent une source tarifaire publique indicative distincte : un horaire Navitia vérifié ne transforme pas ce tarif en prix de réservation vérifié.
+
+SNCF Connect / Trainline restent les actions de recherche/réservation selon la route. En cas d’absence de journey compatible, KREW ne doit pas fabriquer un train réel. Une panne Navitia peut conserver le fallback de recherche externe uniquement si aucune contrainte horaire/durée impérative n’a besoin d’être vérifiée.
 
 ### Voiture / covoiturage
 

@@ -314,15 +314,28 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                                   label: transport.label,
                                   pricePerPerson: transport.pricePerPerson,
                                   url: transport.url,
-                                  arrivalTime: transport.providerOffer?.outboundArrivalTime || undefined,
-                                  departureTime: transport.providerOffer?.returnDepartureTime || undefined,
+                                  arrivalTime:
+                                    transport.providerOffer?.outboundArrivalTime ||
+                                    transport.trainJourney?.outbound?.arrivalTime ||
+                                    undefined,
+                                  departureTime:
+                                    transport.providerOffer?.returnDepartureTime ||
+                                    transport.trainJourney?.return?.departureTime ||
+                                    undefined,
                                   durationHours: transport.durationHours,
-                                  outboundDepartureTime: transport.providerOffer?.outboundTime || undefined,
+                                  outboundDepartureTime:
+                                    transport.providerOffer?.outboundTime ||
+                                    transport.trainJourney?.outbound?.departureTime ||
+                                    undefined,
                                   returnArrivalTime:
                                     transport.providerOffer?.returnArrivalTime ||
                                     transport.providerOffer?.returnTime ||
+                                    transport.trainJourney?.return?.arrivalTime ||
                                     undefined,
-                                  time: transport.providerOffer?.outboundArrivalTime || undefined,
+                                  time:
+                                    transport.providerOffer?.outboundArrivalTime ||
+                                    transport.trainJourney?.outbound?.arrivalTime ||
+                                    undefined,
                                 })
                               }
                             />
