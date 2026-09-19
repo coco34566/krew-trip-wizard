@@ -1,4 +1,3 @@
-// src/routes/_authenticated/trips.$tripId.tsx
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
