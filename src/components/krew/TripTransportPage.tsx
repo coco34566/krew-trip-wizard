@@ -14,14 +14,13 @@ import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { TransportTimePrefsCard } from "@/components/krew/TransportTimePrefsCard";
 import { KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
-import { getStarTransportContext } from "@/lib/trips-logistics-atomic.functions";
+import { getStarTransportContext, setTransportPickStatusAtomic } from "@/lib/trips-logistics-atomic.functions";
 import { groupTransportPicks, isCarMode, transportShareKey } from "@/lib/krew/transport-groups";
 import {
   getGroupTransportTimeWindow,
   getTripDetail,
   pickTransport,
   proposeStayAndTransport,
-  setBookingStatus,
 } from "@/lib/trips.functions";
 import { formatEuro } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
@@ -80,7 +79,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   const fetchStarContext = useServerFn(getStarTransportContext);
   const proposeTransport = useServerFn(proposeStayAndTransport);
   const chooseTransport = useServerFn(pickTransport);
-  const setBooking = useServerFn(setBookingStatus);
+  const setTransportStatus = useServerFn(setTransportPickStatusAtomic);
 
   const detailQuery = useQuery({
     queryKey: ["trip", tripId],
@@ -137,8 +136,8 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
   });
 
   const bookingMutation = useMutation({
-    mutationFn: (userId: string) =>
-      setBooking({ data: { tripId, type: "transport", status: "réservé", userId } }),
+    mutationFn: (participantId: string) =>
+      setTransportStatus({ data: { tripId, participantId, status: "réservé" } }),
     onSuccess: () => {
       refresh();
     },
@@ -312,7 +311,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                     {cityPicks.map((pick: any) => {
                       const reserved = pick.status === "réservé";
                       return (
-                        <li key={pick.userId} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                        <li key={pick.participantId || pick.userId} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <span className="font-medium text-foreground">{pick.displayName}</span>
                             {" · "}{pick.modeLabel || pick.mode}
@@ -320,7 +319,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                             {pick.departureTime ? ` · retour ${pick.departureTime}` : ""}
                             <span className="ml-1 italic text-[10px] font-semibold">({pick.status || "estimé"})</span>
                           </div>
-                          {isAdmin && !reserved ? (
+                          {(isAdmin || pick.userId === userId) && !reserved && pick.participantId ? (
                             <KrewStatefulButton
                               size="sm"
                               variant="ghost"
@@ -329,7 +328,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                               loadingLabel="Enregistrement…"
                               successLabel="Réservé"
                               errorLabel="Réessayer"
-                              onAction={() => bookingMutation.mutateAsync(pick.userId)}
+                              onAction={() => bookingMutation.mutateAsync(pick.participantId)}
                             />
                           ) : null}
                         </li>
