@@ -87,6 +87,9 @@ function AccountPage() {
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ownedTrips, setOwnedTrips] = useState<Array<{ id: string; name: string; co_organizer_id: string | null }>>([]);
+  const [ownedTripsLoading, setOwnedTripsLoading] = useState(false);
+  const [understandsTripDeletion, setUnderstandsTripDeletion] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -183,9 +186,64 @@ function AccountPage() {
     }
   }
 
+  useEffect(() => {
+    if (!open || !user?.id) return;
+    let cancelled = false;
+    setOwnedTripsLoading(true);
+    setUnderstandsTripDeletion(false);
+
+    supabase
+      .from("trips")
+      .select("id, name, co_organizer_id")
+      .eq("owner_id", user.id)
+      .then(({ data, error: tripsError }) => {
+        if (cancelled) return;
+        if (tripsError) {
+          console.error("Impossible de charger les voyages organisés avant suppression:", tripsError);
+          setOwnedTrips([]);
+        } else {
+          setOwnedTrips((data ?? []) as Array<{ id: string; name: string; co_organizer_id: string | null }>);
+        }
+        setOwnedTripsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user?.id]);
+
+  const tripsDeletedWithAccount = ownedTrips.filter((trip) => !trip.co_organizer_id);
+  const tripsTransferredWithAccount = ownedTrips.filter((trip) => Boolean(trip.co_organizer_id));
+
+  async function cleanupAvatarFilesBestEffort() {
+    if (!user?.id) return;
+    try {
+      const bucket = supabase.storage.from("avatars");
+      const paths: string[] = [];
+      let offset = 0;
+      while (true) {
+        const { data, error: listError } = await bucket.list(user.id, { limit: 100, offset });
+        if (listError) throw listError;
+        const page = data ?? [];
+        paths.push(...page.filter((item) => item.name && item.name !== ".emptyFolderPlaceholder").map((item) => `${user.id}/${item.name}`));
+        if (page.length < 100) break;
+        offset += page.length;
+      }
+      if (paths.length) {
+        const { error: removeError } = await bucket.remove(paths);
+        if (removeError) throw removeError;
+      }
+    } catch (avatarCleanupError) {
+      console.error("Nettoyage best-effort des avatars avant suppression du compte:", avatarCleanupError);
+    }
+  }
+
   async function handleDeleteAccount() {
+    if (tripsDeletedWithAccount.length > 0 && !understandsTripDeletion) return;
     setDeleting(true);
     setError(null);
+
+    await cleanupAvatarFilesBestEffort();
 
     const { error: deleteError } = await supabase.rpc("delete_my_account");
 
@@ -332,11 +390,43 @@ function AccountPage() {
               Cette action supprimera ton compte et les données personnelles qui n'ont plus de raison légale d'être conservées. Certaines données peuvent être conservées lorsque la loi l'exige.
             </DialogDescription>
           </DialogHeader>
+          {ownedTripsLoading ? (
+            <p className="text-sm text-muted-foreground">Vérification de tes voyages organisés…</p>
+          ) : (
+            <div className="space-y-3 text-sm">
+              {tripsDeletedWithAccount.length > 0 ? (
+                <div className="space-y-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3">
+                  <p className="leading-relaxed text-foreground">
+                    Tu organises {tripsDeletedWithAccount.length} voyage(s) sans co-organisateur : {tripsDeletedWithAccount.map((trip) => trip.name).join(", ")}. Ils seront supprimés pour tous les participants. Désigne un co-organisateur avant de supprimer ton compte si tu veux les conserver.
+                  </p>
+                  <label className="flex items-start gap-2.5 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 size-4 accent-primary"
+                      checked={understandsTripDeletion}
+                      onChange={(event) => setUnderstandsTripDeletion(event.target.checked)}
+                    />
+                    <span>Je comprends que ces voyages seront supprimés pour tous les participants</span>
+                  </label>
+                </div>
+              ) : null}
+              {tripsTransferredWithAccount.length > 0 ? (
+                <p className="leading-relaxed text-muted-foreground">
+                  {tripsTransferredWithAccount.length} voyage(s) avec co-organisateur seront transférés.
+                </p>
+              ) : null}
+            </div>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={deleting}>
               Annuler
             </Button>
-            <Button type="button" variant="destructive" onClick={handleDeleteAccount} disabled={deleting}>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deleting || ownedTripsLoading || (tripsDeletedWithAccount.length > 0 && !understandsTripDeletion)}
+            >
               {deleting ? <Loader2 className="size-4 animate-spin shrink-0" /> : <Trash2 className="size-4 shrink-0" />}
               {deleting ? "Suppression…" : "Supprimer définitivement"}
             </Button>
