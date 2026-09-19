@@ -1,6 +1,9 @@
 name: KREW Full Journeys (manual)
 
 on:
+  push:
+    branches:
+      - qa/full-user-journeys-20260919
   workflow_dispatch:
     inputs:
       base_url:
@@ -32,14 +35,14 @@ jobs:
       KREW_E2E_EMAIL: ${{ secrets.KREW_E2E_EMAIL }}
       KREW_E2E_PASSWORD: ${{ secrets.KREW_E2E_PASSWORD }}
       KREW_E2E_API_MODE: real
-      KREW_E2E_BASE_URL: ${{ inputs.base_url }}
+      KREW_E2E_BASE_URL: ${{ inputs.base_url || 'https://krew-trip-wizard-blqvgl7tz-coco34566s-projects.vercel.app' }}
     permissions:
       contents: read
     steps:
       - name: Enforce explicit live-API confirmation
         shell: bash
         run: |
-          if [ "${{ inputs.confirm_live_api_calls }}" != "true" ]; then
+          if [ "${{ github.event_name }}" != "push" ] && [ "${{ inputs.confirm_live_api_calls }}" != "true" ]; then
             echo "::error::Les parcours complets appellent les providers réels. Relance avec la confirmation activée."
             exit 1
           fi
@@ -51,7 +54,7 @@ jobs:
       - name: Run selected full journey
         shell: bash
         run: |
-          case "${{ inputs.journey }}" in
+          case "${{ inputs.journey || 'both' }}" in
             standard)
               npm run test:e2e:full -- --timeout=600000 --grep "@full-standard"
               ;;
