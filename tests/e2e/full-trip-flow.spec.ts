@@ -161,7 +161,7 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     await page.locator("#durationDays").fill(String(profile.durationDays));
     await Promise.all([
       page.waitForURL(/\/trips\/[^/]+\/invite/, { timeout: 30_000 }),
-      userClick(page, page.getByRole("button", { name: /Créer et inviter le groupe/ }), "create trip"),
+      userClick(page, page.getByRole("button", { name: /Créer et inviter (?:la Krew|le groupe)/ }), "create trip"),
     ]);
     tripId = page.url().match(/\/trips\/([^/]+)\/invite/)?.[1];
     expect(tripId).toBeTruthy();
