@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/krew/SiteHeader";
 import { Logo } from "@/components/krew/Logo";
+import { CookieSettingsLink } from "@/components/krew/CookieSettingsLink";
 import { Button } from "@/components/ui/button";
 import { KrewIcon, KrewMark, KrewHighlight } from "@/components/krew/visual-language";
 
@@ -103,6 +104,7 @@ function PricingPage() {
       <footer className="border-t border-border bg-card/30 py-8">
         <div className="mx-auto flex max-w-3xl flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-6 text-sm text-muted-foreground">
           <Logo size="sm" />
+          <CookieSettingsLink className="text-sm text-muted-foreground" />
           <p className="text-center sm:text-right">© {new Date().getFullYear()} KREW — voyages de groupe simples</p>
         </div>
       </footer>

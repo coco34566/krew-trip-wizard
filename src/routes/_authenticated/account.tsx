@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 
 import { KrewAvatar } from "@/components/krew/KrewAvatar";
+import { CookieSettingsLink } from "@/components/krew/CookieSettingsLink";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -353,6 +354,14 @@ function AccountPage() {
               <span className="font-medium text-foreground">{createdAt}</span>
             </div>
           </div>
+        </section>
+
+        <section className="border-t border-border/60 pt-6 space-y-3">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-foreground">Cookies</h2>
+            <p className="text-sm text-muted-foreground">Tu peux modifier ton choix à tout moment.</p>
+          </div>
+          <CookieSettingsLink className="text-sm font-medium text-primary" />
         </section>
 
         <section className="border-t border-border/60 pt-6 space-y-3">

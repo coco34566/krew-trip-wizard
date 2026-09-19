@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SiteHeader } from "@/components/krew/SiteHeader";
 import { Logo } from "@/components/krew/Logo";
+import { CookieSettingsLink } from "@/components/krew/CookieSettingsLink";
 import { KrewIcon, type KrewIconName } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { KrewHighlight, KrewOrganicBlob } from "@/components/krew/visual-language";
@@ -233,7 +234,7 @@ function Landing() {
         </section>
       </main>
       <footer className="border-t border-border bg-background py-8">
-        <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between"><Logo size="sm" withTagline /><nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-muted-foreground"><Link to="/mentions-legales" className="transition hover:text-foreground">Mentions légales</Link><Link to="/cgu" className="transition hover:text-foreground">CGU</Link><Link to="/confidentialite" className="transition hover:text-foreground">Confidentialité</Link></nav><p className="max-w-xs text-center text-xs text-muted-foreground sm:text-right">© {new Date().getFullYear()} KREW</p></div>
+        <div className="max-w-[1280px] mx-auto px-5 sm:px-6 lg:px-10 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between"><Logo size="sm" withTagline /><nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-muted-foreground"><Link to="/mentions-legales" className="transition hover:text-foreground">Mentions légales</Link><Link to="/cgu" className="transition hover:text-foreground">CGU</Link><Link to="/confidentialite" className="transition hover:text-foreground">Confidentialité</Link><CookieSettingsLink /></nav><p className="max-w-xs text-center text-xs text-muted-foreground sm:text-right">© {new Date().getFullYear()} KREW</p></div>
       </footer>
     </div>
   );
