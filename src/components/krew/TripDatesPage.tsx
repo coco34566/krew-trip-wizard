@@ -1,4 +1,5 @@
 import type { Tables } from "@/integrations/supabase/types";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -165,11 +166,11 @@ export function TripDatesPage({ tripId }: { tripId: string }) {
         </DialogHeader>
         <div className="grid gap-2">
           <Button type="button" variant="outline" onClick={downloadIcs}>Apple / calendrier mobile (.ics)</Button>
-          {calendarUrls ? (
+          {calendarUrls && safeExternalUrl(calendarUrls.google) && safeExternalUrl(calendarUrls.outlook) && safeExternalUrl(calendarUrls.office365) ? (
             <>
-              <Button asChild variant="outline"><a href={calendarUrls.google} target="_blank" rel="noreferrer">Google Calendar</a></Button>
-              <Button asChild variant="outline"><a href={calendarUrls.outlook} target="_blank" rel="noreferrer">Outlook</a></Button>
-              <Button asChild variant="outline"><a href={calendarUrls.office365} target="_blank" rel="noreferrer">Microsoft 365</a></Button>
+              <Button asChild variant="outline"><a href={safeExternalUrl(calendarUrls.google)!} target="_blank" rel="noreferrer">Google Calendar</a></Button>
+              <Button asChild variant="outline"><a href={safeExternalUrl(calendarUrls.outlook)!} target="_blank" rel="noreferrer">Outlook</a></Button>
+              <Button asChild variant="outline"><a href={safeExternalUrl(calendarUrls.office365)!} target="_blank" rel="noreferrer">Microsoft 365</a></Button>
             </>
           ) : null}
         </div>
