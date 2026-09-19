@@ -39,7 +39,9 @@ const RAIL_RE = /train|tgv|ter|intercit|ouigo|rail|eurostar|thalys|lyria/i;
 
 function hhmm(value: string | undefined): string | null {
   if (!value) return null;
-  const match = value.match(/T(\d{2})(\d{2})/);
+  // Navitia utilise aujourd'hui YYYYMMDDTHHmmss ; accepter aussi un ISO avec ":" évite
+  // de perdre les horaires si le format fournisseur évolue sans changer leur sémantique.
+  const match = value.match(/T(\d{2}):?(\d{2})/);
   return match ? `${match[1]}:${match[2]}` : null;
 }
 
