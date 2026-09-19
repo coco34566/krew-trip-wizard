@@ -664,6 +664,37 @@ Une préférence minoritaire peut être intégrée lorsqu'elle complète naturel
 
 Les contraintes alimentaires sont principalement une information d'organisation. Ne rejette pas une bonne idée de restaurant simplement parce que tu ne peux pas vérifier toi-même son offre alimentaire.
 
+## 2B. HIÉRARCHIE DE DÉCISION ET ÉVÉNEMENTS
+
+Applique cet ordre de décision :
+1. contraintes dures et deal-breakers ;
+2. envies explicites ;
+3. consensus du groupe ;
+4. préférences explicites de la Star, avec un poids fort mais sans écraser systématiquement tout le groupe ;
+5. type d'événement ;
+6. ambiances ;
+7. idées KREW découvertes grâce à la destination ;
+8. faisabilité réelle : budget, horaires, distances, saison, taille du groupe et rythme ;
+9. diversité du programme.
+
+Règles absolues :
+- un type d'événement donne du contexte, jamais une recette automatique ;
+- EVJF ne signifie pas automatiquement spa, jeu de la mariée ou strip-tease ;
+- EVG ne signifie pas automatiquement défis, karting ou club ;
+- l'absence d'un refus ne signifie JAMAIS que l'activité est souhaitée ;
+- une envie Star explicite est un signal fort ; un refus Star est une exclusion dure ;
+- `event_adult_show` signifie show adulte / strip-tease et ne doit être priorisé que s'il est explicitement souhaité ;
+- `event_costumes` signifie déguisements / dress code décalé ;
+- `event_star_challenges` signifie jeux ou défis autour de la Star ;
+- `event_big_surprise` signifie surprise organisée importante ;
+- `event_photo_moment` signifie shooting ou mise en scène souvenir ;
+- `event_symbolic_moment` signifie moment symbolique / souvenirs / hommage ;
+- `event_special_evening` signifie soirée particulièrement marquante ;
+- si un mandatoryNeed `event_signature` existe, résous-le comme UN moment mémorable adapté à CE groupe. Il peut être un jeu, une sortie, une expérience locale, un repas spécial, un moment au logement ou autre chose ; ne force pas un cliché ;
+- une ambiance est un modificateur, pas une activité. En particulier, `insolite` doit transformer les catégories réellement souhaitées : insolite + gastronomie, insolite + sport et insolite + fête doivent produire des idées différentes ;
+- KREW peut proposer une idée non cochée si elle est très cohérente avec la destination et le groupe, mais jamais au détriment d'un deal-breaker ;
+- évite plusieurs activités du même format ou du même niveau d'énergie ; les backups doivent changer réellement de concept.
+
 ## 3. CE QU'EST UN EXCELLENT PLANNING KREW
 
 Construis le séjour comme un ensemble.
@@ -1236,6 +1267,38 @@ const norm = (v: unknown) =>
     .toLowerCase()
     .trim();
 
+const ACTIVITY_EXCLUSION_PATTERNS: Record<string, RegExp[]> = {
+  event_adult_show: [/strip.?tease|show adulte|adult show|sexy show|lap dance|erotic|erotique/],
+  "strip-tease": [/strip.?tease|show adulte|adult show|sexy show|lap dance|erotic|erotique/],
+  event_costumes: [/deguis|costume|dress code decal|tenue ridicule/],
+  "déguisement": [/deguis|costume|dress code decal|tenue ridicule/],
+  "activités extrêmes": [/saut a l elastique|bungee|parachut|base jump|canyoning extreme|rafting extreme/],
+  "musée": [/musee|museum/],
+  camping: [/camping|bivouac/],
+  "sport intense": [/crossfit|marathon|trail intens|bootcamp|sport intens/],
+  pas_de_boite: [/discotheque|boite de nuit|nightclub|club jusqu/],
+};
+
+export function isActivityExcludedBySignals(input: ActivityAiInput, text: string): boolean {
+  const haystack = norm(text);
+  if (!haystack) return false;
+
+  for (const breaker of input.starDealBreakers ?? []) {
+    const key = String(breaker);
+    const patterns = ACTIVITY_EXCLUSION_PATTERNS[key] ?? ACTIVITY_EXCLUSION_PATTERNS[norm(key)];
+    if (patterns?.some((pattern) => pattern.test(haystack))) return true;
+  }
+
+  for (const ambiance of input.dealBreakerAmbiances ?? []) {
+    const a = norm(ambiance);
+    if ((a === "fete" || a.includes("soiree_arrosee")) && /nightclub|discotheque|boite de nuit|club festif/.test(haystack)) return true;
+    if (a === "sportif" && /sport intens|crossfit|marathon|trail|rafting|canyoning/.test(haystack)) return true;
+    if (a === "culturel" && /musee|museum|visite culturelle/.test(haystack)) return true;
+  }
+
+  return false;
+}
+
 const addDays = (iso: string, days: number) => {
   const d = new Date(`${iso}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -1535,7 +1598,13 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
 
   // Event signature: deterministically choose best available dayWindow where BOTH boundaries are known and allow >= 60 min
   const eventNorm = norm(input.eventType);
-  if (eventNorm.includes("evjf") || eventNorm.includes("evg") || eventNorm.includes("anniversaire") || eventNorm.includes("evenement")) {
+  if (
+    eventNorm.includes("evjf") ||
+    eventNorm.includes("evg") ||
+    eventNorm.includes("anniversaire") ||
+    eventNorm.includes("retraite") ||
+    eventNorm.includes("evenement")
+  ) {
     // Helper to calculate total known minutes for a DayWindow
     const getWindowDetails = (dw: DayWindow) => {
       if (dw.availableFrom === null || dw.availableUntil === null) return null;
@@ -1571,8 +1640,14 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
     }
 
     if (targetDayWindow) {
-      const subType = eventNorm.includes("evjf") ? "evjf" : eventNorm.includes("evg") ? "evg" : "anniversaire";
-      const label = subType === "evjf" ? "Jeu de la mariée" : subType === "evg" ? "Défis du marié" : "Surprise anniversaire";
+      const subType = eventNorm.includes("evjf")
+        ? "evjf"
+        : eventNorm.includes("evg")
+          ? "evg"
+          : eventNorm.includes("anniversaire")
+            ? "anniversaire"
+            : "event";
+      const label = "Moment signature de l’événement";
       mandatoryNeeds.push({
         id: `need_${needIdCount++}`,
         type: "event_signature",
@@ -1636,11 +1711,12 @@ export function buildPlanningBrief(input: ActivityAiInput): PlanningBrief {
   }
 
   const paceRaw = norm(input.travelPace);
-  const travelPace = paceRaw.includes("leger")
-    ? "leger"
-    : paceRaw.includes("intense")
-      ? "intense"
-      : "equilibre";
+  const travelPace =
+    paceRaw.includes("leger") || paceRaw.includes("chill")
+      ? "leger"
+      : paceRaw.includes("intense") || paceRaw.includes("plein_programme") || paceRaw.includes("plein programme")
+        ? "intense"
+        : "equilibre";
 
   const maxActivitiesPerDay = travelPace === "leger" ? 1 : travelPace === "intense" ? 3 : 2;
 
@@ -2026,11 +2102,11 @@ export function ensureMandatoryNeeds(skeleton: KrewSkeleton, brief: PlanningBrie
             durationMinutes: need.durationMinutes,
             kind: isInternal ? "internal" : "place_required",
             type: need.type === "meal" ? "resto" : "libre",
-            category: need.type === "meal" ? "repas" : need.type === "event_signature" ? "jeu_groupe" : "moment_maison",
+            category: need.type === "meal" ? "repas" : need.type === "event_signature" ? "evenement" : "moment_maison",
             label: need.label,
             importance: "high",
             flexibility: "flexible",
-            locationContext: isInternal ? "lodging" : "external",
+            locationContext: need.type === "event_signature" ? "flexible" : isInternal ? "lodging" : "external",
             venueFamily: isInternal ? undefined : need.subType === "breakfast" ? "cafe" : need.type === "meal" ? "restaurant" : "culture",
             searchIntent: isInternal ? undefined : `${need.label} à ${brief.destination}`,
           });
@@ -2276,6 +2352,12 @@ export async function geminiEnrichSkeleton(
       const slots: KrewSkeletonSlot[] = [];
       for (const rawSlot of rawDay.slots ?? []) {
         if (!rawSlot || typeof rawSlot !== "object") continue;
+        if (
+          isActivityExcludedBySignals(
+            input,
+            [rawSlot.label, rawSlot.detail, rawSlot.searchIntent, rawSlot.suggestedPlace].filter(Boolean).join(" "),
+          )
+        ) continue;
 
         // Strict kind validation
         let kind: SkeletonSlotKind | null = null;
@@ -2548,6 +2630,14 @@ export function normalizeSlot(
   const candidate = candidates.find(
     (item) => item.id === raw.candidateId || norm(item.name) === norm(raw.label),
   );
+  if (
+    isActivityExcludedBySignals(
+      input,
+      [raw.label, raw.detail, raw.searchIntent, raw.suggestedPlace, candidate?.name, candidate?.description]
+        .filter(Boolean)
+        .join(" "),
+    )
+  ) return null;
   const requestedType = norm(raw.type);
   const type: ActivitySlotType = ["resto", "activite", "bar", "transport", "libre"].includes(
     requestedType,
@@ -3121,6 +3211,16 @@ export async function regenerateSlotWithAi(
         accessibilityRequired: Boolean(input.accessibilityRequired),
       });
     }
+  }
+
+  if (
+    selectedPlace &&
+    isActivityExcludedBySignals(
+      input,
+      [selectedPlace.name, selectedPlace.address, existing.searchIntent, existing.detail].filter(Boolean).join(" "),
+    )
+  ) {
+    selectedPlace = null;
   }
 
   if (selectedPlace) {
