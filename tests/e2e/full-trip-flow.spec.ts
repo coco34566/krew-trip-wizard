@@ -64,10 +64,10 @@ async function fillAvailability(page: Page, tripId: string) {
   await page.goto(`/trips/${tripId}/availability`);
   await handleNormalUserUi(page);
   await userClick(page, page.getByRole("button", { name: /Tous les week-ends affichés/ }), "select all displayed weekends");
-  const saveAvailability = page.getByRole("button", { name: /Enregistrer mes disponibilités/ });
+  const saveAvailability = page.getByRole("button", { name: /(?:Enregistrer et continuer|Continuer vers mes préférences)/ });
   await expect(saveAvailability).toBeEnabled();
   await userClick(page, saveAvailability, "save availability");
-  await waitForTripHub(page, tripId);
+  await page.waitForURL(new RegExp(`/trips/${tripId}/questionnaire`), { timeout: 30_000 });
 }
 
 async function fillTransportTimePrefs(page: Page, tripId: string, earliest: string, latest: string) {
