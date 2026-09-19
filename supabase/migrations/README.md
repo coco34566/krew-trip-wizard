@@ -1,66 +1,49 @@
-# Supabase Migrations — Exécution et exemples
+# Migrations Supabase KREW
 
-Ce répertoire contient la migration SQL initiale pour créer le schéma Krew (supabase/migrations/001_create_schema.sql).
+Ce dossier contient l’historique SQL versionné du projet. Les migrations sont appliquées **dans l’ordre lexicographique de leur nom**.
 
-Ce fichier README explique comment exécuter la migration et fournit des exemples d'INSERT/SELECT pour tester rapidement.
+## Convention de nommage
 
----
+Utiliser le format :
 
-## 1) Exécuter la migration (Supabase)
+```
+YYYYMMDDHHMMSS_description.sql
+```
 
-- Ouvrir le projet dans Supabase
-- Aller dans SQL Editor
-- Ouvrir `supabase/migrations/001_create_schema.sql` (ou coller le contenu)
-- Cliquer sur "Run"
+Le timestamp doit être unique. Si deux migrations sont créées la même seconde, incrémenter la seconde de la migration qui doit s’exécuter ensuite après avoir vérifié leurs dépendances SQL.
 
-Assure-toi que l'utilisateur de la base a le droit d'activer l'extension pgcrypto (CREATE EXTENSION IF NOT EXISTS "pgcrypto"). Si Supabase bloque l'activation d'extension (rare), contacte le support Supabase ou supprime la ligne d'extension et génère les UUIDs autrement.
+## Créer une migration
 
-## 2) Exécuter la migration en local (psql)
+Créer un nouveau fichier horodaté. Ne jamais réutiliser le timestamp d’une migration existante.
 
-- Récupère l'URL de connexion Postgres depuis Supabase (Settings → Database → Connection string)
-- Exécute depuis ton poste :
+Une migration déjà appliquée sur un environnement partagé est immuable : **ne jamais modifier, renommer ou supprimer son SQL après application**. Toute correction fonctionnelle doit passer par une nouvelle migration.
 
-psql "host=<HOST> port=<PORT> dbname=<DB> user=<USER> password=<PASSWORD> sslmode=require" -f supabase/migrations/001_create_schema.sql
+## Appliquer en local
 
-Remplace les valeurs par celles fournies par Supabase.
+Utiliser un projet Supabase local ou une base PostgreSQL locale isolée. Par exemple avec la CLI Supabase :
 
-## 3) Tests rapides (exemples SQL)
+```sh
+supabase start
+supabase db reset
+```
 
-Ci‑dessous des requêtes d'insertion et de vérification pour valider que les tables fonctionnent correctement. Remplace `<owner_id>` et `<trip_id>` par les valeurs retournées lors des INSERTs.
+Ces commandes doivent viser uniquement l’environnement local. Ne jamais lancer `supabase db push`, `supabase db reset` ou du SQL ad hoc contre la base de production depuis un chantier de développement.
 
--- Insérer un utilisateur de test
-INSERT INTO users (email, name) VALUES ('alice@example.com', 'Alice') RETURNING id;
+## Vérifier l’ordre
 
--- Insérer un voyage de test (copier l'id retourné pour owner_id)
-INSERT INTO trips (owner_id, name, type, start_date, end_date, budget_per_person) VALUES ('<owner_id>', 'EVG Barcelone', 'EVG', '2026-09-10', '2026-09-12', 350) RETURNING id;
+Avant merge :
 
--- Inviter un participant
-INSERT INTO participants (trip_id, email, name, accepted) VALUES ('<trip_id>', 'bob@example.com', 'Bob', true) RETURNING id;
+1. vérifier l’unicité des timestamps ;
+2. relire les dépendances entre tables, fonctions, policies et triggers ;
+3. rejouer les migrations sur une base locale vierge ;
+4. si le rejeu échoue sur un problème historique, documenter précisément la première migration fautive et proposer une correction séparée au lieu de réécrire silencieusement l’historique.
 
--- Enregistrer une réponse individuelle
-INSERT INTO responses (trip_id, participant_id, answers) VALUES ('<trip_id>', '<participant_id>', '{"availability":["2026-09-10","2026-09-11"], "ambiance":"fête", "activities":["bars","plage"], "budget_max":400}'::jsonb) RETURNING id;
+## Fichier historique `001_create_schema.sql`
 
--- Vérifier les données
-SELECT * FROM users LIMIT 10;
-SELECT * FROM trips WHERE id = '<trip_id>';
-SELECT answers FROM responses WHERE trip_id = '<trip_id>';
+`001_create_schema.sql` est un ancien prototype antérieur au schéma Supabase actuel. Le code applicatif et les migrations modernes n’utilisent plus ses tables `users`, `participants` ou `responses`. Il reste conservé pour traçabilité historique tant qu’une décision explicite de nettoyage n’est pas prise.
 
-## 4) Exemple d'agrégation simple (prototype pour scoring)
+Attention : il crée aussi une table `trips` incompatible avec la migration Supabase réelle `20260806083946_09b1e5fe-2b7c-4f88-8fb0-16f6bd744520.sql`. Un rejeu naïf de tous les fichiers du dossier depuis `001_create_schema.sql` échoue donc sur cet historique ancien ; ne pas contourner ce point en modifiant une migration déjà appliquée.
 
--- Calcule budget moyen et liste des activités choisies
-SELECT
-  t.id as trip_id,
-  AVG((r.answers ->> 'budget_max')::numeric) AS avg_budget_max,
-  jsonb_agg(DISTINCT elem) AS activities
-FROM trips t
-LEFT JOIN responses r ON r.trip_id = t.id
-LEFT JOIN LATERAL jsonb_array_elements_text(coalesce(r.answers -> 'activities','[]'::jsonb)) AS elem ON true
-WHERE t.id = '<trip_id>'
-GROUP BY t.id;
+## `examples.sql`
 
----
-
-Si tu veux, je peux aussi :
-- créer une Pull Request automatique vers `main` (pré‑remplie) — il te restera à la vérifier et merger ;
-- ajouter un script Node/TS pour exécuter la migration via psql ou via l'API Supabase ;
-- ajouter une page d'exemples dans le repo (docs/).
+`examples.sql` est un exemple historique basé sur le prototype et ne décrit plus le schéma courant. Ne pas l’utiliser pour valider l’application actuelle.
