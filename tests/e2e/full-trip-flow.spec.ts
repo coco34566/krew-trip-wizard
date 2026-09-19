@@ -38,21 +38,21 @@ async function respectLiveProviderCooldown(page: Page, testInfo: TestInfo, nextS
 
 async function fillPreferences(page: Page, profile: "city" | "outdoor") {
   if (profile === "outdoor") {
-    await userClick(page, page.getByRole("button", { name: "🏄 Sportif", exact: true }), "choose Sportif");
+    await userClick(page, page.getByRole("button", { name: "🏄 Sportif", exact: true }).first(), "choose Sportif");
     await userClick(page, page.getByRole("button", { name: "⚽ Sport & outdoor", exact: true }), "choose outdoor activities");
     await userClick(page, page.getByRole("button", { name: "🌳 Nature / pleine nature", exact: true }), "choose nature environment");
     await page.locator("#departure").fill("Lyon");
     const cityChoice = page.getByRole("button", { name: /Lyon France/ }).first();
     if (await cityChoice.isVisible().catch(() => false)) await userClick(page, cityChoice, "choose Lyon autocomplete");
   } else {
-    await userClick(page, page.getByRole("button", { name: "🧖 Détente", exact: true }), "choose Détente");
+    await userClick(page, page.getByRole("button", { name: "🧖 Détente", exact: true }).first(), "choose Détente");
     await userClick(page, page.getByRole("button", { name: "🏛️ Musées & culture", exact: true }), "choose culture");
     await userClick(page, page.getByRole("button", { name: "🏢 Centre-ville / urbain", exact: true }), "choose urban");
     await page.locator("#departure").fill("Paris");
     const cityChoice = page.getByRole("button", { name: /Paris France/ }).first();
     if (await cityChoice.isVisible().catch(() => false)) await userClick(page, cityChoice, "choose Paris autocomplete");
   }
-  await userClick(page, page.getByRole("button", { name: /Envoyer mes réponses/ }), "submit preferences");
+  await userClick(page, page.getByRole("button", { name: /Enregistrer mes réponses/ }), "submit preferences");
 }
 
 async function waitForTripHub(page: Page, tripId: string) {
@@ -60,13 +60,22 @@ async function waitForTripHub(page: Page, tripId: string) {
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }
 
-async function fillAvailability(page: Page, tripId: string) {
-  await page.goto(`/trips/${tripId}/availability`);
+async function fillQuestionnaire(page: Page, tripId: string, profile: "city" | "outdoor") {
+  await page.goto(`/trips/${tripId}/questionnaire`);
   await handleNormalUserUi(page);
-  await userClick(page, page.getByRole("button", { name: /Tous les week-ends affichés/ }), "select all displayed weekends");
-  const saveAvailability = page.getByRole("button", { name: /Enregistrer mes disponibilités/ });
-  await expect(saveAvailability).toBeEnabled();
-  await userClick(page, saveAvailability, "save availability");
+
+  const availabilityHeading = page.getByRole("heading", { name: "Tes disponibilités", exact: true });
+  const preferencesHeading = page.getByRole("heading", { name: "Préférences", exact: true });
+  await expect(availabilityHeading.or(preferencesHeading).first()).toBeVisible({ timeout: 30_000 });
+  if (await availabilityHeading.isVisible()) {
+    await userClick(page, page.getByRole("button", { name: "Appliquer aux week-ends affichés", exact: true }), "select displayed weekends");
+    const continueButton = page.getByRole("button", { name: /Continuer vers mes préférences|Enregistrer et continuer/ });
+    await expect(continueButton).toBeEnabled();
+    await userClick(page, continueButton, "save availability and continue");
+    await expect(page.getByRole("heading", { name: "Préférences", exact: true })).toBeVisible({ timeout: 30_000 });
+  }
+
+  await fillPreferences(page, profile);
   await waitForTripHub(page, tripId);
 }
 
@@ -85,8 +94,8 @@ async function fillTransportTimePrefs(page: Page, tripId: string, earliest: stri
   await expect(transports.getByRole("button", { name: "Enregistré", exact: true })).toBeVisible({ timeout: 30_000 });
 }
 
-async function authenticateSecondParticipant(page: Page, tripId: string, email: string, password: string) {
-  const authUrl = `/auth?next=${encodeURIComponent(`/join/${tripId}`)}`;
+async function authenticateSecondParticipant(page: Page, invitePath: string, tripId: string, email: string, password: string) {
+  const authUrl = `/auth?next=${encodeURIComponent(invitePath)}`;
   const joinUrl = new RegExp(`/join/${tripId}(?:\\?|$)`);
   await page.goto(authUrl);
   await handleNormalUserUi(page);
@@ -104,7 +113,14 @@ async function authenticateSecondParticipant(page: Page, tripId: string, email: 
   ]).catch(() => "timeout" as const);
 
   if (outcome === "join") return;
-  if (outcome === "timeout") throw new Error(`TEST_SETUP: second participant authentication did not reach /join/${tripId}`);
+  if (outcome === "timeout") {
+    const current = new URL(page.url());
+    if (current.pathname === `/join/${tripId}`) return;
+    await page.goto(invitePath);
+    await handleNormalUserUi(page);
+    if (new URL(page.url()).pathname === `/join/${tripId}`) return;
+    throw new Error(`TEST_SETUP: second participant authentication did not reach /join/${tripId}; current=${page.url()}`);
+  }
 
   await page.goto(authUrl);
   await handleNormalUserUi(page);
@@ -148,6 +164,18 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
   });
 
   try {
+    await page.addInitScript(() => {
+      (window as any).__krewCopiedInvite = "";
+      const original = navigator.clipboard?.writeText?.bind(navigator.clipboard);
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText = async (value: string) => {
+          (window as any).__krewCopiedInvite = value;
+          if (original) {
+            try { await original(value); } catch { /* test capture is enough */ }
+          }
+        };
+      }
+    });
     await signIn(page);
 
     stage = "create-trip";
@@ -161,57 +189,58 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     await page.locator("#durationDays").fill(String(profile.durationDays));
     await Promise.all([
       page.waitForURL(/\/trips\/[^/]+\/invite/, { timeout: 30_000 }),
-      userClick(page, page.getByRole("button", { name: /Créer et inviter le groupe/ }), "create trip"),
+      userClick(page, page.getByRole("button", { name: /Créer et inviter la Krew/ }), "create trip"),
     ]);
     tripId = page.url().match(/\/trips\/([^/]+)\/invite/)?.[1];
     expect(tripId).toBeTruthy();
 
-    stage = "organizer-availability";
-    await fillAvailability(page, tripId!);
-    stage = "organizer-preferences";
-    await page.goto(`/trips/${tripId}/questionnaire`);
-    await handleNormalUserUi(page);
-    await fillPreferences(page, profile.organizer);
-    await waitForTripHub(page, tripId!);
+    stage = "capture-invite-link";
+    const copyInvite = page.getByRole("button", { name: "Copier le lien d’invitation", exact: true });
+    await expect(copyInvite).toBeEnabled({ timeout: 30_000 });
+    await userClick(page, copyInvite, "copy current invite link");
+    const inviteUrl = await page.evaluate(() => (window as any).__krewCopiedInvite as string);
+    expect(inviteUrl).toContain(`/join/${tripId}?token=`);
+    const invitePath = new URL(inviteUrl).pathname + new URL(inviteUrl).search;
+
+    stage = "organizer-questionnaire";
+    await fillQuestionnaire(page, tripId!, profile.organizer);
 
     stage = "participant-auth";
     const password = process.env.KREW_E2E_PASSWORD;
     if (!password) throw new Error("TEST_SETUP: KREW_E2E_PASSWORD is required");
     participantContext = await browser.newContext({ ...testInfo.project.use, baseURL: process.env.KREW_E2E_BASE_URL } as any);
     const participantPage = await participantContext.newPage();
-    await authenticateSecondParticipant(participantPage, tripId!, "krew.qa.participant@gmail.com", password);
+    await authenticateSecondParticipant(participantPage, invitePath, tripId!, "krew.qa.participant@gmail.com", password);
     stage = "participant-join";
     await handleNormalUserUi(participantPage);
     await participantPage.locator("#join-firstname").fill(profile.kind === "complex" ? "QA Outdoor" : "QA2");
-    await userClick(participantPage, participantPage.getByRole("button", { name: "Rejoindre et indiquer mes dispos", exact: true }), "join trip");
-    await participantPage.waitForURL(new RegExp(`/trips/${tripId}/availability`), { timeout: 30_000 });
-    stage = "participant-availability";
-    await fillAvailability(participantPage, tripId!);
-    stage = "participant-preferences";
-    await participantPage.goto(`/trips/${tripId}/questionnaire`);
-    await handleNormalUserUi(participantPage);
-    await fillPreferences(participantPage, profile.participant);
-    await waitForTripHub(participantPage, tripId!);
+    await userClick(participantPage, participantPage.getByRole("button", { name: "Rejoindre le voyage", exact: true }), "join trip");
+    await participantPage.waitForURL(new RegExp(`/trips/${tripId}/(?:availability|questionnaire)`), { timeout: 30_000 });
+    stage = "participant-questionnaire";
+    await fillQuestionnaire(participantPage, tripId!, profile.participant);
 
     stage = "lock-dates";
     await page.goto(`/trips/${tripId}?view=voyage&section=dates`);
     await handleNormalUserUi(page);
-    const dates = page.locator("#hub-dates");
-    await expect(dates).toBeVisible();
-    const proposed = dates.getByRole("button", { name: "Valider ces dates", exact: true }).first();
+    const datesHeading = page.getByRole("heading", { name: "Dates du groupe", exact: true });
+    await expect(datesHeading).toBeVisible({ timeout: 30_000 });
+    const proposed = page.getByRole("button", { name: "Choisir ces dates", exact: true }).first();
     if (await proposed.isVisible().catch(() => false)) {
       await userClick(page, proposed, "validate proposed dates");
     } else {
-      await userClick(page, dates.getByRole("button", { name: "Choisir d’autres dates", exact: true }), "open organizer date override");
+      await userClick(page, page.getByRole("button", { name: "Choisir d’autres dates", exact: true }), "open organizer date override");
       const manualStart = page.locator("#manual-start-date");
       await expect(manualStart).toBeVisible();
       const dateValue = await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 21); return d.toISOString().slice(0, 10); });
       await manualStart.fill(dateValue);
-      const validate = page.getByRole("dialog").getByRole("button", { name: "Valider ces dates", exact: true });
+      const validate = page.getByRole("dialog").getByRole("button", { name: "Choisir ces dates", exact: true });
       await expect(validate).toBeEnabled();
       await userClick(page, validate, "validate organizer dates");
     }
-    await expect(dates.getByText("Dates validées", { exact: true })).toBeVisible({ timeout: 30_000 });
+    await waitForTripHub(page, tripId!);
+    await page.goto(`/trips/${tripId}?view=voyage&section=dates`);
+    await handleNormalUserUi(page);
+    await expect(page.getByText("Dates confirmées", { exact: true })).toBeVisible({ timeout: 30_000 });
 
     stage = "stay-profile";
     await page.goto(`/trips/${tripId}?view=voyage&section=profile`);
