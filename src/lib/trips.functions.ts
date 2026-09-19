@@ -3850,16 +3850,33 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
       earliestReturnDepartureTime?: string | null;
       latestReturnTime?: string | null;
       respectedConstraints?: string[];
-      dataKind?: "provider_offer" | "public_fare" | "external_search" | "krew_estimate";
-      providerOffer?: import("@/integrations/external/transport.server").TransportQuote | null;
+      dataKind?:
+        | "provider_offer"
+        | "provider_schedule"
+        | "public_fare"
+        | "external_search"
+        | "krew_estimate";
+      providerOffer?: {
+        outboundTime?: string | null;
+        outboundArrivalTime?: string | null;
+        returnDepartureTime?: string | null;
+        returnTime?: string | null;
+        returnArrivalTime?: string | null;
+      } | null;
       score?: number;
       matchReasons?: string[];
     };
 
+    const navitiaConfigured = Boolean(process.env["SNCF_KEY_API"]?.trim());
     const modeMeta: { mode: string; modeLabel: string; enabled: boolean }[] = [
       { mode: "flight", modeLabel: "Avion", enabled: !planeRefused && distanceKm >= 250 },
-      // Providers futurs : ne pas matérialiser une estimation de distance comme une offre réelle.
-      { mode: "train", modeLabel: "Train", enabled: distanceKm <= 700 },
+      // Avec Navitia, l'existence et la durée réelles du trajet ferroviaire deviennent le filtre.
+      // Sans clé, on conserve le garde-fou historique pour ne pas élargir les estimations.
+      {
+        mode: "train",
+        modeLabel: "Train",
+        enabled: navitiaConfigured ? distanceKm <= 1500 : distanceKm <= 700,
+      },
       { mode: "car", modeLabel: "Voiture", enabled: distanceKm <= 1000 },
       { mode: "covoiturage", modeLabel: "Covoiturage", enabled: distanceKm <= 800 },
       { mode: "ferry", modeLabel: "Ferry", enabled: false },
@@ -3876,6 +3893,10 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         null;
       let trainFare: import("@/integrations/external/sncf-fares.server").SncfRoundTripFares | null =
         null;
+      let trainJourney: import("@/integrations/external/navitia-trains.server").NavitiaTrainRoundTrip | null =
+        null;
+      let trainScheduleChecked = false;
+      let trainScheduleFailed = false;
       const isFlightAllowed =
         !planeRefused &&
         (!hasModeFilter || acceptedModes.some((m) => m.includes("avion") || m.includes("flight")));
@@ -3908,10 +3929,32 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           providerErrors.push(`transport ${from}: ${String(e).slice(0, 80)}`);
         }
       }
-      if (
-        (!hasModeFilter || acceptedModes.some((m) => m.includes("train"))) &&
-        distanceKm <= 700
-      ) {
+      const isTrainAllowed =
+        !hasModeFilter || acceptedModes.some((m) => m.includes("train"));
+
+      if (isTrainAllowed && navitiaConfigured && distanceKm <= 1500) {
+        try {
+          const { searchNavitiaTrainRoundTrip } =
+            await import("@/integrations/external/navitia-trains.server");
+          trainJourney = await searchNavitiaTrainRoundTrip({
+            originCity: from,
+            destinationCity: destName,
+            departDate: checkin,
+            returnDate: checkout,
+            earliestDepartureTime: group.earliestDepartureTime,
+            latestArrivalTime: group.latestArrivalTime,
+            earliestReturnDepartureTime: group.earliestReturnDepartureTime,
+            latestReturnTime: group.latestReturnTime,
+            maxTravelDurationHours: group.maxTravelDurationHours,
+          });
+          trainScheduleChecked = true;
+        } catch (e) {
+          trainScheduleFailed = true;
+          providerErrors.push(`SNCF/Navitia ${from}: ${String(e).slice(0, 100)}`);
+        }
+      }
+
+      if (isTrainAllowed && (trainJourney || distanceKm <= 700)) {
         try {
           const { searchSncfRoundTripFares } =
             await import("@/integrations/external/sncf-fares.server");
@@ -3923,6 +3966,15 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
 
       for (const m of modeMeta) {
         if (!m.enabled) continue;
+
+        if (m.mode === "train") {
+          // Un résultat Navitia vide signifie qu'aucun aller/retour ferroviaire compatible
+          // n'a été trouvé pour les dates/créneaux demandés : on ne fabrique pas de train.
+          if (navitiaConfigured && trainScheduleChecked && !trainJourney) continue;
+          // En cas de panne/429 Navitia, on reste fail-soft uniquement dans l'ancien
+          // périmètre de pertinence au lieu d'inventer de longues liaisons ferroviaires.
+          if (navitiaConfigured && trainScheduleFailed && distanceKm > 700) continue;
+        }
 
         if (hasModeFilter) {
           const matched = acceptedModes.some((am) => {
@@ -3940,7 +3992,16 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
         const duration =
           m.mode === "flight" && flightApiQuote?.outboundDurationMinutes
             ? Math.round((flightApiQuote.outboundDurationMinutes / 60) * 10) / 10
-            : estimateDurationForMode(m.mode, distanceKm);
+            : m.mode === "train" && trainJourney
+              ? Math.round(
+                  (Math.max(
+                    trainJourney.outbound.durationMinutes,
+                    trainJourney.return.durationMinutes,
+                  ) /
+                    60) *
+                    10,
+                ) / 10
+              : estimateDurationForMode(m.mode, distanceKm);
 
         if (group.maxTravelDurationHours != null && group.maxTravelDurationHours > 0) {
           if (duration > group.maxTravelDurationHours) {
@@ -3961,11 +4022,14 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           providerName = flightApiQuote.provider ?? "kayak";
           flightOutsideWindow = !!flightApiQuote.outsideTimeWindow;
         }
-        if (m.mode === "train" && trainFare) {
-          price = Math.round(
-            (trainFare.roundTripFareRange.min + trainFare.roundTripFareRange.max) / 2,
-          );
-          providerName = "SNCF Open Data";
+        if (m.mode === "train") {
+          if (trainFare) {
+            price = Math.round(
+              (trainFare.roundTripFareRange.min + trainFare.roundTripFareRange.max) / 2,
+            );
+          }
+          if (trainJourney) providerName = "SNCF / Navitia";
+          else if (trainFare) providerName = "SNCF Open Data";
         }
 
         const modeLinks = linksForMode(m.mode, from, destName, group.participants.length);
@@ -4033,27 +4097,60 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           );
         }
 
+        if (m.mode === "train" && trainJourney) {
+          if (trainJourney.outbound.transfers === 0 && trainJourney.return.transfers === 0) {
+            matchReasonsList.push("Train direct à l’aller et au retour");
+          }
+          const stations = [
+            trainJourney.outbound.departureStation,
+            trainJourney.outbound.arrivalStation,
+          ].filter(Boolean);
+          if (stations.length === 2) {
+            matchReasonsList.push(`${stations[0]} → ${stations[1]}`);
+          }
+        }
+
         transports.push({
           city: from,
           count: group.participants.length,
           pricePerPerson: price,
           mode: m.mode,
           modeLabel: m.modeLabel,
-          label: `A/R ${m.modeLabel.toLowerCase()} ${from} → ${destName}`,
+          label:
+            m.mode === "train" && trainJourney
+              ? `A/R train ${trainJourney.outbound.departureStation || from} → ${trainJourney.outbound.arrivalStation || destName}`
+              : `A/R ${m.modeLabel.toLowerCase()} ${from} → ${destName}`,
           url: primaryUrl,
           searchUrl: exactSearchUrl,
           provider: providerName,
           dataKind:
-            m.mode === "train" && trainFare
-              ? "public_fare"
-              : m.mode === "flight" && flightApiQuote
-                ? (flightApiQuote.dataKind ?? "provider_offer")
-                : "krew_estimate",
-          providerOffer: m.mode === "flight" ? flightApiQuote : null,
+            m.mode === "train" && trainJourney
+              ? "provider_schedule"
+              : m.mode === "train" && trainFare
+                ? "public_fare"
+                : m.mode === "flight" && flightApiQuote
+                  ? (flightApiQuote.dataKind ?? "provider_offer")
+                  : "krew_estimate",
+          providerOffer:
+            m.mode === "flight"
+              ? flightApiQuote
+              : m.mode === "train" && trainJourney
+                ? {
+                    outboundTime: trainJourney.outbound.departureTime,
+                    outboundArrivalTime: trainJourney.outbound.arrivalTime,
+                    returnDepartureTime: trainJourney.return.departureTime,
+                    returnTime: trainJourney.return.arrivalTime,
+                    returnArrivalTime: trainJourney.return.arrivalTime,
+                  }
+                : null,
           note:
-            m.mode === "train" && trainFare
-              ? "tarif public indicatif A/R — horaires inconnus"
-              : m.mode === "flight" && flightApiQuote
+            m.mode === "train" && trainJourney
+              ? trainFare
+                ? "horaires ferroviaires Navitia · tarif public SNCF indicatif"
+                : "horaires ferroviaires Navitia · prix indicatif KREW"
+              : m.mode === "train" && trainFare
+                ? "tarif public indicatif A/R — horaires indisponibles"
+                : m.mode === "flight" && flightApiQuote
                 ? flightApiQuote.dataKind === "krew_estimate"
                   ? "estimation KREW — aucun tarif fournisseur vérifié"
                   : providerName
