@@ -15,6 +15,7 @@ import { KrewMark } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
 import { getTripLifecycleState } from "@/lib/krew/trip-lifecycle";
 import { transportTaskLabel } from "@/lib/krew/transport-groups";
+import { SafeExternalLink } from "@/components/krew/SafeExternalLink";
 import {
   reassignTaskSecure,
   sanitizeTaskAssignments,
@@ -441,14 +442,14 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
                   <div>{renderStatus(task)}</div>
                 </div>
                 {task.booking_url ? (
-                  <a
+                  <SafeExternalLink
                     href={task.booking_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex min-h-10 items-center text-sm font-semibold text-primary hover:underline"
                   >
                     Voir / réserver →
-                  </a>
+                  </SafeExternalLink>
                 ) : null}
               </article>
             ))}
@@ -476,14 +477,14 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
                     <td className="py-3 pr-3">{renderStatus(task)}</td>
                     <td className="py-3 text-right">
                       {task.booking_url ? (
-                        <a
+                        <SafeExternalLink
                           href={task.booking_url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs font-semibold text-primary hover:underline"
                         >
                           Voir / réserver →
-                        </a>
+                        </SafeExternalLink>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}

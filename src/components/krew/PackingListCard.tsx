@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink } from "lucide-react";
+import { SafeExternalLink } from "@/components/krew/SafeExternalLink";
 import {
   buildTripPreparation,
   type PackingItem,
@@ -216,7 +217,7 @@ export function PackingListCard({
                   </select>
                 )}
                 {link ? (
-                  <a
+                  <SafeExternalLink
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -225,7 +226,7 @@ export function PackingListCard({
                     className="inline-flex items-center gap-1.5 self-start py-1 text-sm font-medium text-primary underline-offset-4 hover:underline sm:self-auto"
                   >
                     Voir des options <ExternalLink className="size-3.5" />
-                  </a>
+                  </SafeExternalLink>
                 ) : null}
               </div>
             ) : null}
@@ -380,14 +381,14 @@ export function PackingListCard({
                     {recommendation.name}
                   </p>
                 </div>
-                <a
+                <SafeExternalLink
                   href={recommendation.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-h-11 shrink-0 items-center gap-1.5 self-start rounded-xl px-0 text-sm font-semibold text-primary underline-offset-4 hover:underline sm:self-auto"
                 >
                   Écouter sur Spotify <ExternalLink className="size-3.5" />
-                </a>
+                </SafeExternalLink>
               </div>
             ))}
           </div>

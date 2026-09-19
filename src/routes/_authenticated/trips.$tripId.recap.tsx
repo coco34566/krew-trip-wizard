@@ -19,6 +19,7 @@ import { KrewPageShell } from "@/components/krew/KrewPageShell";
 import { formatEuro } from "@/lib/krew/constants";
 import type { BudgetBreakdown } from "@/lib/krew/engine";
 import { KrewIcon, KrewMark, KrewHighlight, KrewSectionWave } from "@/components/krew/visual-language";
+import { safeExternalUrl } from "@/lib/safe-url";
 
 const RECAP_LOAD_TIMEOUT_MS = 15_000;
 
@@ -56,9 +57,11 @@ function ExternalLinkButton({
   children: React.ReactNode;
   variant?: "outline" | "default" | "secondary";
 }) {
+  const safeHref = safeExternalUrl(href);
+  if (!safeHref) return null;
   return (
     <Button asChild variant={variant} size="sm" className="gap-1.5 rounded-xl font-medium min-h-9 h-auto">
-      <a href={href} target="_blank" rel="noopener noreferrer">
+      <a href={safeHref} target="_blank" rel="noopener noreferrer">
         {children}
         <ExternalLink className="size-3.5 opacity-70" />
       </a>
@@ -522,9 +525,9 @@ function TripRecapPage() {
               errorLabel="Réessayer"
               onAction={async () => handleDownloadIcs()}
             />
-            {googleCalendarUrl && (
+            {safeExternalUrl(googleCalendarUrl) && (
               <Button asChild variant="outline" size="sm" className="rounded-xl gap-1.5 font-medium min-h-9 h-auto">
-                <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
+                <a href={safeExternalUrl(googleCalendarUrl)!} target="_blank" rel="noopener noreferrer">
                   Ajouter à Google Calendar
                 </a>
               </Button>

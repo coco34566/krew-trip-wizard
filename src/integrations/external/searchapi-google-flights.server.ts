@@ -2,6 +2,7 @@
 import { checkTransportTimeCompatibility, type TransportQuote } from "./transport.server";
 import { CITY_IATA, normalizeCityKey } from "@/lib/krew/deep-links";
 import { fetchExternal } from "./fetch-timeout.server";
+import { safeExternalUrl } from "@/lib/safe-url";
 
 const SEARCH_ENDPOINT = "https://www.searchapi.io/api/v1/search";
 
@@ -142,7 +143,7 @@ export function normalizeGoogleFlightOffer(item: any, adults: number): Transport
     provider: "searchapi/google_flights",
     mode: "flight",
     label: airline,
-    url: item?.booking_url ?? item?.link ?? null,
+    url: safeExternalUrl(item?.booking_url ?? item?.link),
     searchUrl: null,
     rawError: null,
     dataKind: "provider_offer",

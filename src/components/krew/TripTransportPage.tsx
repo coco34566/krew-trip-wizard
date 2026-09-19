@@ -16,6 +16,7 @@ import { KrewMark, KrewNote } from "@/components/krew/visual-language";
 import { getParticipantsProgress } from "@/lib/participant-preferences.functions";
 import { getStarTransportContext, setTransportPickStatusAtomic } from "@/lib/trips-logistics-atomic.functions";
 import { groupTransportPicks, isCarMode, transportShareKey } from "@/lib/krew/transport-groups";
+import { SafeExternalLink } from "@/components/krew/SafeExternalLink";
 import {
   getGroupTransportTimeWindow,
   getTripDetail,
@@ -470,7 +471,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                             </div>
                           ) : null}
                           {(transport.links ?? []).slice(0, 1).map((link: any) => (
-                            <a
+                            <SafeExternalLink
                               key={link.url}
                               href={link.url}
                               target="_blank"
@@ -478,7 +479,7 @@ export function TripTransportPage({ tripId }: { tripId: string }) {
                               className="inline-flex min-h-9 items-center text-xs font-semibold text-primary hover:underline"
                             >
                               {link.label} →
-                            </a>
+                            </SafeExternalLink>
                           ))}
                         </div>
                       </li>
