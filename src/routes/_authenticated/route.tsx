@@ -6,10 +6,12 @@ import { AffiliateClickTracker } from "@/components/krew/AffiliateClickTracker";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth", search: {} });
-    return { user: data.user };
+  beforeLoad: async ({ location }) => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session?.user) {
+      throw redirect({ to: "/auth", search: { next: location.href } });
+    }
+    return { user: data.session.user };
   },
   component: () => (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20">
