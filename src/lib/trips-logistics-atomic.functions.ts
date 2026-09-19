@@ -293,3 +293,39 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
       transportPicks: Array.isArray(result.transportPicks) ? result.transportPicks : [entry],
     };
   });
+
+
+export const getStarTransportContext = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ tripId: z.string().uuid() }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("id, owner_id, co_organizer_id, celebrated_person, star_user_id, group_logistics")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+
+    const isAdmin = isTripAdmin(trip.data, userId);
+    if (!isAdmin) return { canManage: false, name: null, departureCity: null, isSecret: false };
+
+    const prefs = await supabase
+      .from("trip_star_preferences")
+      .select("user_id, departure_city")
+      .eq("trip_id", data.tripId)
+      .maybeSingle();
+    if (prefs.error) throw prefs.error;
+
+    const logistics = ((trip.data as any).group_logistics || {}) as any;
+    const isSecret = logistics.star_mode === "secret" || !(trip.data as any).star_user_id;
+    return {
+      canManage: isSecret,
+      name: (trip.data as any).celebrated_person || "Star",
+      departureCity: String((prefs.data as any)?.departure_city || "").trim() || null,
+      isSecret,
+    };
+  });
