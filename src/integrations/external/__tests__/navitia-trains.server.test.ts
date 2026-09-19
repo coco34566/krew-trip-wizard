@@ -21,6 +21,7 @@ function journey(params: {
   fromStation: string;
   toStation: string;
   mode?: string;
+  physicalMode?: string;
 }) {
   return {
     duration: params.duration,
@@ -38,7 +39,7 @@ function journey(params: {
           commercial_mode: params.mode ?? "TGV INOUI",
           network: "SNCF",
         },
-        links: [{ type: "physical_mode", id: "physical_mode:LongDistanceTrain" }],
+        links: [{ type: "physical_mode", id: params.physicalMode ?? "physical_mode:LongDistanceTrain" }],
       },
     ],
   };
@@ -192,6 +193,7 @@ describe("searchNavitiaTrainRoundTrip", () => {
             fromStation: "A",
             toStation: "B",
             mode: "Bus",
+            physicalMode: "physical_mode:Bus",
           }),
         ],
       });
