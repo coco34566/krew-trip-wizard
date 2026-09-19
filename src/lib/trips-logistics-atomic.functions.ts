@@ -72,9 +72,9 @@ export const voteHotelAtomic = createServerFn({ method: "POST" })
   });
 
 /**
- * Atomic replacement for the legacy personal transport selection handler.
- * A participant can only update their own pick and only from the departure city
- * explicitly stored in their questionnaire preferences.
+ * Atomic personal/shared transport selection.
+ * Legacy userId picks remain readable; new entries also carry participantId so
+ * Star-without-account and shared journey groups do not depend on an auth uid.
  */
 export const pickTransportAtomic = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -82,6 +82,7 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
     z
       .object({
         tripId: z.string().uuid(),
+        target: z.enum(["self", "star"]).default("self"),
         city: z.string().min(1).max(80),
         mode: z.string().min(1).max(40),
         modeLabel: z.string().optional(),
@@ -94,6 +95,11 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
         returnArrivalTime: z.string().max(10).optional().nullable(),
         pricePerPerson: z.number().optional(),
         url: z.string().url().optional().nullable(),
+        sharedGroupId: z.string().max(180).optional().nullable(),
+        driverParticipantId: z.string().max(180).optional().nullable(),
+        driverDisplayName: z.string().max(120).optional().nullable(),
+        isDriver: z.boolean().optional(),
+        passengerCapacity: z.number().int().min(1).max(8).optional().nullable(),
       })
       .parse(data),
   )
@@ -101,16 +107,22 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const tripRes = await supabase
       .from("trips")
-      .select("id, owner_id, co_organizer_id")
+      .select("id, owner_id, co_organizer_id, celebrated_person, star_user_id, group_logistics")
       .eq("id", data.tripId)
       .maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
 
-    const [participant, preferences] = await Promise.all([
+    const isAdmin = isTripAdmin(tripRes.data, userId);
+    const selectingStar = data.target === "star";
+    if (selectingStar && !isAdmin) {
+      throw new Error("403 Forbidden: seul l’organisateur ou co-organisateur peut choisir pour la Star");
+    }
+
+    const [participant, preferences, starPreferences] = await Promise.all([
       supabase
         .from("trip_participants")
-        .select("display_name, email, status")
+        .select("id, display_name, email, status")
         .eq("trip_id", data.tripId)
         .eq("user_id", userId)
         .maybeSingle(),
@@ -120,37 +132,134 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
         .eq("trip_id", data.tripId)
         .eq("user_id", userId)
         .maybeSingle(),
+      selectingStar
+        ? supabase
+            .from("trip_star_preferences")
+            .select("user_id, departure_city")
+            .eq("trip_id", data.tripId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null } as any),
     ]);
 
     if (participant.error) throw participant.error;
     if (preferences.error) throw preferences.error;
+    if (starPreferences.error) throw starPreferences.error;
+
     if (
-      !isTripAdmin(tripRes.data, userId) &&
+      !selectingStar &&
+      !isAdmin &&
       (!participant.data || participant.data.status === "absent" || participant.data.status === "refuse")
     ) {
       throw new Error("403 Forbidden: seuls les membres actifs du voyage peuvent choisir un transport");
     }
 
-    const departureCity = String(preferences.data?.departure_city ?? "").trim();
+    const logistics = ((tripRes.data as any).group_logistics || {}) as any;
+    const existingPicks = Array.isArray(logistics.transportPicks) ? logistics.transportPicks : [];
+
+    let targetParticipantId: string;
+    let targetUserId: string | null;
+    let displayName: string;
+    let departureCity: string;
+
+    if (selectingStar) {
+      const connectedStarUid =
+        (starPreferences.data as any)?.user_id || (tripRes.data as any).star_user_id || null;
+      targetParticipantId = `star:${data.tripId}`;
+      targetUserId = connectedStarUid;
+      displayName = String((tripRes.data as any).celebrated_person || "Star");
+      departureCity = String((starPreferences.data as any)?.departure_city || "").trim();
+      if (!departureCity && connectedStarUid) {
+        const connectedStarPrefs = await supabase
+          .from("trip_participant_preferences")
+          .select("departure_city")
+          .eq("trip_id", data.tripId)
+          .eq("user_id", connectedStarUid)
+          .maybeSingle();
+        if (connectedStarPrefs.error) throw connectedStarPrefs.error;
+        departureCity = String(connectedStarPrefs.data?.departure_city || "").trim();
+      }
+    } else {
+      if (!participant.data?.id) {
+        throw new Error("Participant introuvable");
+      }
+      targetParticipantId = participant.data.id;
+      targetUserId = userId;
+      displayName =
+        participant.data.display_name ||
+        String(participant.data.email || "").split("@")[0] ||
+        "Participant";
+      departureCity = String(preferences.data?.departure_city ?? "").trim();
+    }
+
     if (!departureCity) {
-      throw new Error("Renseigne ta ville de départ dans tes préférences avant de choisir un trajet");
+      throw new Error(
+        selectingStar
+          ? "Renseigne la ville de départ de la Star avant de choisir son trajet"
+          : "Renseigne ta ville de départ dans tes préférences avant de choisir un trajet",
+      );
     }
     if (normalizeCity(departureCity) !== normalizeCity(data.city)) {
-      throw new Error("Tu peux choisir uniquement un trajet depuis ta ville de départ");
+      throw new Error(
+        selectingStar
+          ? "Choisis un trajet depuis la ville de départ de la Star"
+          : "Tu peux choisir uniquement un trajet depuis ta ville de départ",
+      );
     }
 
-    const displayName =
-      participant.data?.display_name ||
-      String(participant.data?.email || "").split("@")[0] ||
-      "Participant";
+    let sharedGroupId = data.sharedGroupId || null;
+    let driverParticipantId = data.driverParticipantId || null;
+    let driverDisplayName = data.driverDisplayName || null;
+    let label = data.label;
+    let mode = data.mode;
+    let modeLabel = data.modeLabel || data.mode;
+    let passengerCapacity = data.passengerCapacity ?? null;
+    let isDriver = Boolean(data.isDriver);
+
+    if (driverParticipantId) {
+      const driver = existingPicks.find(
+        (pick: any) => pick?.participantId === driverParticipantId && pick?.isDriver && pick?.sharedGroupId,
+      );
+      if (!driver) throw new Error("Cette voiture n’est plus disponible");
+      if (normalizeCity(driver.city) !== normalizeCity(departureCity)) {
+        throw new Error("Cette voiture ne part pas de ta ville de départ");
+      }
+      const groupMembers = existingPicks.filter(
+        (pick: any) => pick?.sharedGroupId === driver.sharedGroupId && !pick?.stale,
+      );
+      const capacity = Math.max(0, Number(driver.passengerCapacity || 0));
+      const passengers = Math.max(0, groupMembers.length - 1);
+      const alreadyInGroup = groupMembers.some(
+        (pick: any) =>
+          pick?.participantId === targetParticipantId ||
+          (targetUserId && pick?.userId === targetUserId),
+      );
+      if (!alreadyInGroup && passengers >= capacity) {
+        throw new Error("Cette voiture est complète");
+      }
+
+      sharedGroupId = driver.sharedGroupId;
+      driverDisplayName = driver.displayName || driver.driverDisplayName || null;
+      label = driver.label;
+      mode = driver.mode;
+      modeLabel = driver.modeLabel || driver.mode;
+      passengerCapacity = null;
+      isDriver = false;
+    } else if (isDriver) {
+      sharedGroupId = `car:${targetParticipantId}`;
+      driverParticipantId = targetParticipantId;
+      driverDisplayName = displayName;
+      label = `Voiture de ${displayName}`;
+      passengerCapacity = passengerCapacity ?? 3;
+    }
 
     const entry = {
-      userId,
+      participantId: targetParticipantId,
+      userId: targetUserId,
       displayName,
       city: departureCity,
-      mode: data.mode,
-      modeLabel: data.modeLabel || data.mode,
-      label: data.label,
+      mode,
+      modeLabel,
+      label,
       time: data.time || data.arrivalTime || null,
       arrivalTime: data.arrivalTime || data.time || null,
       departureTime: data.departureTime || null,
@@ -159,26 +268,28 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
       returnArrivalTime: data.returnArrivalTime || null,
       pricePerPerson: data.pricePerPerson ?? null,
       url: data.url || null,
+      sharedGroupId,
+      driverParticipantId,
+      driverDisplayName,
+      isDriver,
+      passengerCapacity,
+      status: "sélectionné",
+      selectedByUserId: userId,
       at: new Date().toISOString(),
     };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const rpc = await admin.rpc("krew_pick_transport_atomic", {
+    const rpc = await admin.rpc("krew_upsert_transport_picks_atomic", {
       p_trip_id: data.tripId,
-      p_user_id: userId,
-      p_entry: entry,
+      p_entries: [entry],
     });
     if (rpc.error) throw rpc.error;
 
-    const result = (rpc.data ?? {}) as {
-      pick?: typeof entry;
-      transportPicks?: (typeof entry)[];
-    };
-
+    const result = (rpc.data ?? {}) as { transportPicks?: (typeof entry)[] };
     return {
       ok: true,
-      pick: result.pick ?? entry,
+      pick: entry,
       transportPicks: Array.isArray(result.transportPicks) ? result.transportPicks : [entry],
     };
   });
