@@ -522,6 +522,10 @@ function mergeUnique(values: Array<string[] | null | undefined>): string[] {
   return [...new Set(values.flatMap((value) => value ?? []))];
 }
 
+function withoutEventSpecificSignals(values: string[] | null | undefined): string[] {
+  return (values ?? []).filter((value) => !String(value).startsWith("event_"));
+}
+
 function getExistingStarRowIndex(
   rows: ParticipantPrefRow[],
   trip: { star_user_id?: string | null; owner_id?: string | null; co_organizer_id?: string | null },
@@ -682,7 +686,7 @@ export async function aggregateParticipantPreferences(
           ambiances: mergeUnique([existing.ambiances, starData.ambiances]),
           activity_categories: mergeUnique([
             existing.activity_categories,
-            starData.wanted_activities,
+            withoutEventSpecificSignals(starData.wanted_activities),
           ]),
           excluded_destinations: mergeUnique([
             existing.excluded_destinations,
@@ -690,7 +694,7 @@ export async function aggregateParticipantPreferences(
           ]),
           deal_breaker_ambiances: mergeUnique([
             existing.deal_breaker_ambiances,
-            starData.deal_breakers,
+            withoutEventSpecificSignals(starData.deal_breakers),
           ]),
           desired_destination: starData.desired_destination ?? existing.desired_destination,
           wanted_env_type: starData.wanted_env_type ?? existing.wanted_env_type,
@@ -702,7 +706,7 @@ export async function aggregateParticipantPreferences(
           __isStar: true,
           user_id: tripMeta.data?.star_user_id ?? STAR_VIRTUAL_USER_ID,
           ambiances: starData.ambiances ?? [],
-          activity_categories: starData.wanted_activities ?? [],
+          activity_categories: withoutEventSpecificSignals(starData.wanted_activities),
           budget_max: null,
           budget_priority: "nice_to_have",
           date_flex_days: 0,
@@ -714,7 +718,7 @@ export async function aggregateParticipantPreferences(
           desired_destination: starData.desired_destination ?? null,
           departure_city: starData.departure_city ?? null,
           excluded_destinations: starData.excluded_destinations ?? [],
-          deal_breaker_ambiances: starData.deal_breakers ?? [],
+          deal_breaker_ambiances: withoutEventSpecificSignals(starData.deal_breakers),
           accepts_shared_room: true,
           room_type_preference: "peu_importe",
           preferred_time_slots: [],
