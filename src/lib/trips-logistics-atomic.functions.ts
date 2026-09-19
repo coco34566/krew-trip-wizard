@@ -326,3 +326,45 @@ export const getStarTransportContext = createServerFn({ method: "GET" })
       isSecret,
     };
   });
+
+
+export const setTransportPickStatusAtomic = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({
+      tripId: z.string().uuid(),
+      participantId: z.string().min(1).max(180),
+      status: z.enum(["sélectionné", "réservé"]),
+    }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const trip = await supabase
+      .from("trips")
+      .select("id, owner_id, co_organizer_id, group_logistics")
+      .eq("id", data.tripId)
+      .maybeSingle();
+    if (trip.error) throw trip.error;
+    if (!trip.data) throw new Error("Voyage introuvable");
+
+    const picks = Array.isArray((trip.data as any).group_logistics?.transportPicks)
+      ? (trip.data as any).group_logistics.transportPicks
+      : [];
+    const pick = picks.find((item: any) => item?.participantId === data.participantId);
+    if (!pick) throw new Error("Trajet introuvable");
+
+    const isAdmin = isTripAdmin(trip.data, userId);
+    if (!isAdmin && pick.userId !== userId) {
+      throw new Error("403 Forbidden: tu peux confirmer uniquement ton propre trajet");
+    }
+
+    const next = { ...pick, status: data.status, updatedByUserId: userId, at: new Date().toISOString() };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const rpc = await admin.rpc("krew_upsert_transport_picks_atomic", {
+      p_trip_id: data.tripId,
+      p_entries: [next],
+    });
+    if (rpc.error) throw rpc.error;
+    return { ok: true, pick: next };
+  });
