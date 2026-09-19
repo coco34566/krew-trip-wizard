@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { isSafeExternalUrl } from "@/lib/safe-url";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -4291,7 +4292,7 @@ export const pickTransport = createServerFn({ method: "POST" })
         outboundDepartureTime: z.string().max(10).optional().nullable(),
         returnArrivalTime: z.string().max(10).optional().nullable(),
         pricePerPerson: z.number().optional(),
-        url: z.string().url().optional().nullable(),
+        url: z.string().url().refine(isSafeExternalUrl, "URL externe invalide").optional().nullable(),
       })
       .parse(data),
   )

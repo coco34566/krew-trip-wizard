@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { isSafeExternalUrl } from "@/lib/safe-url";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -7,7 +8,7 @@ const affiliateClickSchema = z.object({
   tripId: z.string().uuid(),
   provider: z.enum(["kiwi", "getyourguide", "booking", "kayak", "omio"]),
   source: z.string().trim().min(1).max(64),
-  targetUrl: z.string().url().max(4096).refine((value) => /^https?:\/\//i.test(value), "URL externe invalide"),
+  targetUrl: z.string().url().max(2048).refine(isSafeExternalUrl, "URL externe invalide"),
   offerId: z.string().trim().max(200).optional(),
 });
 
