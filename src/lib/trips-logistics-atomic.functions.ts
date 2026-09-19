@@ -179,10 +179,7 @@ export const pickTransportAtomic = createServerFn({ method: "POST" })
         departureCity = String(connectedStarPrefs.data?.departure_city || "").trim();
       }
     } else {
-      if (!participant.data?.id) {
-        throw new Error("Participant introuvable");
-      }
-      targetParticipantId = participant.data.id;
+      targetParticipantId = participant.data?.id || `user:${userId}`;
       targetUserId = userId;
       displayName =
         participant.data.display_name ||
