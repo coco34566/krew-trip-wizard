@@ -193,8 +193,31 @@ export function TripTasksPage({ tripId }: { tripId: string }) {
       pick,
       title: transportTaskLabel(pick),
       done: pick?.status === "réservé",
+      managedByOrganizer: false,
     };
   });
+  const logistics = ((trip as any).group_logistics || {}) as any;
+  const secretStarPick = transportPicks.find(
+    (item: any) => item?.participantId === `star:${tripId}`,
+  );
+  if (logistics.star_mode === "secret" && trip.celebrated_person) {
+    transportTasks.push({
+      participant: {
+        id: `star:${tripId}`,
+        display_name: trip.celebrated_person,
+        email: null,
+        user_id: null,
+      } as any,
+      pick: secretStarPick,
+      title: secretStarPick?.status === "réservé"
+        ? null
+        : secretStarPick
+          ? `Réserver le transport de ${trip.celebrated_person}`
+          : `Organiser le transport de ${trip.celebrated_person}`,
+      done: secretStarPick?.status === "réservé",
+      managedByOrganizer: true,
+    });
+  }
   const rawItinerary = trip.group_itinerary;
   const itinerary =
     rawItinerary && typeof rawItinerary === "object" && !Array.isArray(rawItinerary)
