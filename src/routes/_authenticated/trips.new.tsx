@@ -123,7 +123,7 @@ function NewTripPage() {
     let cancelled = false;
     const metadataName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
     const provider = String(user.app_metadata?.provider ?? "email");
-    const fallbackName = provider === "email" ? metadataName : metadataName.split(/\\s+/)[0] ?? "";
+    const fallbackName = provider === "email" ? metadataName : metadataName.split(/\s+/)[0] ?? "";
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle().then(({ data }) => {
       if (cancelled || organizerTouchedRef.current || organizerFirstName) return;
       const profileName = typeof data?.full_name === "string" ? data.full_name.trim() : "";
