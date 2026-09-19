@@ -1,5 +1,6 @@
 // src/routes/_authenticated/trips.$tripId.tsx
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -1913,23 +1914,23 @@ function TripDetail() {
                     errorLabel="Réessayer"
                     onAction={async () => handleDownloadIcs()}
                   />
-                  {googleCalendarUrl ? (
+                  {safeExternalUrl(googleCalendarUrl) ? (
                     <Button asChild variant="outline">
-                      <a href={googleCalendarUrl} target="_blank" rel="noreferrer">
+                      <a href={safeExternalUrl(googleCalendarUrl)!} target="_blank" rel="noreferrer">
                         Google Calendar
                       </a>
                     </Button>
                   ) : null}
-                  {outlookCalendarUrl ? (
+                  {safeExternalUrl(outlookCalendarUrl) ? (
                     <Button asChild variant="outline">
-                      <a href={outlookCalendarUrl} target="_blank" rel="noreferrer">
+                      <a href={safeExternalUrl(outlookCalendarUrl)!} target="_blank" rel="noreferrer">
                         Outlook
                       </a>
                     </Button>
                   ) : null}
-                  {office365CalendarUrl ? (
+                  {safeExternalUrl(office365CalendarUrl) ? (
                     <Button asChild variant="outline">
-                      <a href={office365CalendarUrl} target="_blank" rel="noreferrer">
+                      <a href={safeExternalUrl(office365CalendarUrl)!} target="_blank" rel="noreferrer">
                         Microsoft 365
                       </a>
                     </Button>
@@ -2677,12 +2678,12 @@ function TripDetail() {
                         <Heart className={cn("size-3.5", iVoted && "fill-current")} />
                         {iVoted ? "Mon vote" : "Voter"} · {n}
                       </Button>
-                      {(h.url ? [{ label: "Voir l’hébergement", url: h.url }] : [])
+                      {(safeExternalUrl(h.url) ? [{ label: "Voir l’hébergement", url: safeExternalUrl(h.url)! }] : [])
                         .slice(0, 1)
                         .map((l: any) => (
                           <a
                             key={l.label + l.url}
-                            href={l.url}
+                            href={safeExternalUrl(l.url)!}
                             target="_blank"
                             rel="noreferrer"
                             className="text-xs font-medium text-primary hover:underline"
@@ -2955,7 +2956,7 @@ function TripDetail() {
                                   } as any)
                                 }
                               />
-                              {(tr.links ?? []).slice(0, 1).map((l: any) => (
+                              {(tr.links ?? []).filter((l: any) => Boolean(safeExternalUrl(l.url))).slice(0, 1).map((l: any) => (
                                 <a
                                   key={l.label}
                                   href={l.url}
@@ -3159,9 +3160,9 @@ function TripDetail() {
                                   )}
                                 </p>
                               ) : null}
-                              {slot.booking && slot.booking.provider === "getyourguide" ? (
+                              {slot.booking && slot.booking.provider === "getyourguide" && safeExternalUrl(slot.booking.url) ? (
                                 <a
-                                  href={slot.booking.url}
+                                  href={safeExternalUrl(slot.booking.url)!}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="mt-1 block text-xs font-medium text-primary hover:underline"
@@ -3170,9 +3171,9 @@ function TripDetail() {
                                     ? "Voir les disponibilités sur GetYourGuide →"
                                     : "Voir les activités sur GetYourGuide →"}
                                 </a>
-                              ) : slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
+                              ) : safeExternalUrl(slot.url) && slot.type !== "transport" && slot.type !== "hotel" ? (
                                 <a
-                                  href={slot.url}
+                                  href={safeExternalUrl(slot.url)!}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="mt-1 inline-block text-xs font-medium text-primary hover:underline"
@@ -3406,14 +3407,14 @@ function TripDetail() {
                           </select>
                         </td>
                         <td className="py-3.5 text-right">
-                          {task.booking_url ? (
+                          {safeExternalUrl(task.booking_url) ? (
                             <Button
                               asChild
                               variant="outline"
                               size="sm"
                               className="h-7 px-2 gap-1 text-[11px]"
                             >
-                              <a href={task.booking_url} target="_blank" rel="noopener noreferrer">
+                              <a href={safeExternalUrl(task.booking_url)!} target="_blank" rel="noopener noreferrer">
                                 Réserver
                               </a>
                             </Button>

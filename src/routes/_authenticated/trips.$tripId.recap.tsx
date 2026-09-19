@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,9 +57,11 @@ function ExternalLinkButton({
   children: React.ReactNode;
   variant?: "outline" | "default" | "secondary";
 }) {
+  const safeHref = safeExternalUrl(href);
+  if (!safeHref) return null;
   return (
     <Button asChild variant={variant} size="sm" className="gap-1.5 rounded-xl font-medium min-h-9 h-auto">
-      <a href={href} target="_blank" rel="noopener noreferrer">
+      <a href={safeHref} target="_blank" rel="noopener noreferrer">
         {children}
         <ExternalLink className="size-3.5 opacity-70" />
       </a>
@@ -522,9 +525,9 @@ function TripRecapPage() {
               errorLabel="Réessayer"
               onAction={async () => handleDownloadIcs()}
             />
-            {googleCalendarUrl && (
+            {safeExternalUrl(googleCalendarUrl) && (
               <Button asChild variant="outline" size="sm" className="rounded-xl gap-1.5 font-medium min-h-9 h-auto">
-                <a href={googleCalendarUrl} target="_blank" rel="noopener noreferrer">
+                <a href={safeExternalUrl(googleCalendarUrl)!} target="_blank" rel="noopener noreferrer">
                   Ajouter à Google Calendar
                 </a>
               </Button>
