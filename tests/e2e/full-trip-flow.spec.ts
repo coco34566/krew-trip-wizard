@@ -85,8 +85,8 @@ async function fillTransportTimePrefs(page: Page, tripId: string, earliest: stri
   await expect(transports.getByRole("button", { name: "Enregistré", exact: true })).toBeVisible({ timeout: 30_000 });
 }
 
-async function authenticateSecondParticipant(page: Page, tripId: string, email: string, password: string) {
-  const authUrl = `/auth?next=${encodeURIComponent(`/join/${tripId}`)}`;
+async function authenticateSecondParticipant(page: Page, tripId: string, invitePath: string, email: string, password: string) {
+  const authUrl = `/auth?next=${encodeURIComponent(invitePath)}`;
   const joinUrl = new RegExp(`/join/${tripId}(?:\\?|$)`);
   await page.goto(authUrl);
   await handleNormalUserUi(page);
@@ -166,6 +166,22 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     tripId = page.url().match(/\/trips\/([^/]+)\/invite/)?.[1];
     expect(tripId).toBeTruthy();
 
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: {
+          writeText: async (value: string) => {
+            window.sessionStorage.setItem("krew-e2e-invite-link", value);
+          },
+        },
+      });
+    });
+    await userClick(page, page.getByRole("button", { name: /Copier le lien d’invitation/ }), "copy secure invite link");
+    const inviteLink = await page.evaluate(() => window.sessionStorage.getItem("krew-e2e-invite-link"));
+    expect(inviteLink, "Secure invite link should be copied").toBeTruthy();
+    const inviteUrl = new URL(inviteLink!);
+    const invitePath = `${inviteUrl.pathname}${inviteUrl.search}`;
+
     stage = "organizer-availability";
     await fillAvailability(page, tripId!);
     stage = "organizer-preferences";
@@ -177,11 +193,11 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     if (!password) throw new Error("TEST_SETUP: KREW_E2E_PASSWORD is required");
     participantContext = await browser.newContext({ ...testInfo.project.use, baseURL: process.env.KREW_E2E_BASE_URL } as any);
     const participantPage = await participantContext.newPage();
-    await authenticateSecondParticipant(participantPage, tripId!, "krew.qa.participant@gmail.com", password);
+    await authenticateSecondParticipant(participantPage, tripId!, invitePath, "krew.qa.participant@gmail.com", password);
     stage = "participant-join";
     await handleNormalUserUi(participantPage);
     await participantPage.locator("#join-firstname").fill(profile.kind === "complex" ? "QA Outdoor" : "QA2");
-    await userClick(participantPage, participantPage.getByRole("button", { name: "Rejoindre et indiquer mes dispos", exact: true }), "join trip");
+    await userClick(participantPage, participantPage.getByRole("button", { name: "Rejoindre le voyage", exact: true }), "join trip");
     await participantPage.waitForURL(new RegExp(`/trips/${tripId}/availability`), { timeout: 30_000 });
     stage = "participant-availability";
     await fillAvailability(participantPage, tripId!);
