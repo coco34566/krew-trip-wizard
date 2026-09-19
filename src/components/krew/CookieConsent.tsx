@@ -24,6 +24,12 @@ type CookieConsentState = {
 
 const STORAGE_KEY = "krew-cookie-consent";
 const CONSENT_EVENT = "krew:cookie-consent-changed";
+const OPEN_CONSENT_EVENT = "krew:cookie-consent-open";
+const CONSENT_MAX_AGE_MS = 183 * 24 * 60 * 60 * 1000;
+
+export function openCookieSettings() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(OPEN_CONSENT_EVENT));
+}
 
 const OPTIONAL_CATEGORIES: ConsentCategory[] = [
   "analytics",
@@ -67,6 +73,12 @@ export function CookieConsent() {
 
     try {
       const parsed = JSON.parse(raw) as Partial<CookieConsentState>;
+      const consentDate = typeof parsed.date === "string" ? Date.parse(parsed.date) : Number.NaN;
+      if (!Number.isFinite(consentDate) || Date.now() - consentDate > CONSENT_MAX_AGE_MS) {
+        localStorage.removeItem(STORAGE_KEY);
+        setIsOpen(true);
+        return;
+      }
       const next = OPTIONAL_CATEGORIES.reduce(
         (result, category) => {
           result[category] = parsed[category] === true;
@@ -80,6 +92,12 @@ export function CookieConsent() {
       localStorage.removeItem(STORAGE_KEY);
       setIsOpen(true);
     }
+    const openSettings = () => {
+      setShowCustomize(true);
+      setIsOpen(true);
+    };
+    window.addEventListener(OPEN_CONSENT_EVENT, openSettings);
+    return () => window.removeEventListener(OPEN_CONSENT_EVENT, openSettings);
   }, []);
 
   function saveConsent(next: Pick<CookieConsentState, ConsentCategory>) {
@@ -104,7 +122,7 @@ export function CookieConsent() {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300 md:left-auto md:right-4 md:max-w-md">
-      <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-5 shadow-2xs">
+      <div role="region" aria-label="Choix de cookies" className="space-y-4 rounded-2xl border border-border/60 bg-card p-5 shadow-2xs">
         <header className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Shield className="size-4" />
@@ -113,7 +131,7 @@ export function CookieConsent() {
             <h3 className="text-sm font-semibold">Tes choix de cookies</h3>
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               KREW utilise des cookies nécessaires au fonctionnement du service et, avec ton accord,
-              des cookies pour mesurer et améliorer ton expérience.
+              mesure les clics vers ses partenaires et liens d’affiliation.
             </p>
           </div>
         </header>
@@ -126,32 +144,11 @@ export function CookieConsent() {
               alwaysOn
             />
             <CategoryRow
-              title="Mesure & amélioration"
-              description="Mesure d’audience et performance pour comprendre l'utilisation de KREW et améliorer le service."
-              checked={consent.analytics}
-              onChange={(value) => updateCategory("analytics", value)}
-            />
-            <CategoryRow
-              title="Personnalisation & publicité"
-              description="Personnalisation de l'expérience, publicité et mesure des campagnes lorsque ces services sont activés."
-              checked={consent.personalization || consent.advertising}
-              onChange={(value) => {
-                setConsent((current) => ({
-                  ...current,
-                  personalization: value,
-                  advertising: value,
-                }));
-              }}
-            />
-            <CategoryRow
               title="Partenaires & affiliation"
               description="Mesure des clics et conversions liés aux partenaires, à l'affiliation et à certains services externes."
               checked={consent.affiliate}
               onChange={(value) => updateCategory("affiliate", value)}
             />
-            <p className="pt-1 text-xs leading-relaxed text-muted-foreground">
-              Les cookies liés à la personnalisation publicitaire et aux réseaux sociaux suivent le même choix.
-            </p>
           </div>
         ) : null}
 
@@ -173,14 +170,7 @@ export function CookieConsent() {
                 </Button>
                 <Button
                   className="w-1/2 text-xs font-medium"
-                  onClick={() => saveConsent({
-                    analytics: true,
-                    personalization: true,
-                    advertising: true,
-                    retargeting: true,
-                    social: true,
-                    affiliate: true,
-                  })}
+                  onClick={() => saveConsent({ ...emptyOptionalConsent(), affiliate: true })}
                 >
                   Tout accepter
                 </Button>

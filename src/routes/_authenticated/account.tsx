@@ -15,6 +15,7 @@ import {
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { CookieSettingsLink } from "@/components/krew/CookieSettingsLink";
 
 export const Route = createFileRoute("/_authenticated/account")({
   component: AccountPage,
@@ -353,6 +354,14 @@ function AccountPage() {
               <span className="font-medium text-foreground">{createdAt}</span>
             </div>
           </div>
+        </section>
+
+        <section className="border-t border-border/60 pt-6 space-y-2">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-foreground">Cookies</h2>
+            <p className="text-sm text-muted-foreground">Tu peux modifier ton choix de cookies à tout moment.</p>
+          </div>
+          <CookieSettingsLink className="text-sm font-semibold text-primary" />
         </section>
 
         <section className="border-t border-border/60 pt-6 space-y-3">
