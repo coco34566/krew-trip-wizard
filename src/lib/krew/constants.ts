@@ -241,3 +241,8 @@ export const BUDGET_PRESETS = [
 export const PARTICIPANTS_MIN = 2;
 export const PARTICIPANTS_MAX = 25;
 export const PARTICIPANTS_DEFAULT = 6;
+
+export const DEFAULT_TRIP_BUDGET_PER_PERSON = 400;
+export const DEFAULT_TRIP_MAX_DISTANCE_KM = 2000;
+export const DEFAULT_TRIP_NEEDS_CITY_CENTER = true;
+export const DEFAULT_TRIP_LET_KREW_DECIDE = true;

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,12 +15,18 @@ import {
   PARTICIPANTS_DEFAULT,
   PARTICIPANTS_MAX,
   PARTICIPANTS_MIN,
+  DEFAULT_TRIP_BUDGET_PER_PERSON,
+  DEFAULT_TRIP_LET_KREW_DECIDE,
+  DEFAULT_TRIP_MAX_DISTANCE_KM,
+  DEFAULT_TRIP_NEEDS_CITY_CENTER,
   STAR_EVENT_TYPES,
   getTripTypeImage,
 } from "@/lib/krew/constants";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const CREATE_TRIP_INPUT_CLASS =
   "h-12 rounded-xl border-border/70 bg-background text-base shadow-none transition-colors focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
@@ -31,6 +37,12 @@ const SELECTABLE_FRAME_SELECTED_CLASS = "border-primary/55 bg-primary/5 ring-2 r
 const TRIP_TYPE_SELECTED_CLASS = "border-primary ring-2 ring-primary/10";
 const SELECTABLE_FRAME_IDLE_CLASS =
   "border-border/70 bg-background hover:border-primary/35 hover:bg-primary/[0.02]";
+
+function clampDurationDays(raw: string): number {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return 3;
+  return Math.min(31, Math.max(2, n));
+}
 
 function clampParticipants(raw: string): number {
   const n = Number.parseInt(raw, 10);
@@ -84,6 +96,8 @@ function NewTripPage() {
   const navigate = useNavigate();
   const create = useServerFn(createTrip);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const submitLockRef = useRef(false);
   const [name, setName] = useState("");
   const [eventType, setEventType] = useState("weekend");
   const [participantsInput, setParticipantsInput] = useState(String(PARTICIPANTS_DEFAULT));
@@ -93,6 +107,8 @@ function NewTripPage() {
   const [durationDaysInput, setDurationDaysInput] = useState("3");
   const [groupAgeRange, setGroupAgeRange] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const organizerTouchedRef = useRef(false);
 
   const activeEventTypes = EVENT_TYPES.filter((t) =>
     ["evg", "evjf", "anniversaire", "weekend"].includes(t.value),
@@ -102,28 +118,42 @@ function NewTripPage() {
   );
   const needsStar = STAR_EVENT_TYPES.has(eventType as any);
 
+  useEffect(() => {
+    if (!user?.id || organizerTouchedRef.current || organizerFirstName) return;
+    let cancelled = false;
+    const metadataName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
+    const provider = String(user.app_metadata?.provider ?? "email");
+    const fallbackName = provider === "email" ? metadataName : metadataName.split(/\\s+/)[0] ?? "";
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle().then(({ data }) => {
+      if (cancelled || organizerTouchedRef.current || organizerFirstName) return;
+      const profileName = typeof data?.full_name === "string" ? data.full_name.trim() : "";
+      setOrganizerFirstName(profileName || fallbackName);
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, user?.user_metadata?.full_name, user?.app_metadata?.provider, organizerFirstName]);
+
   async function onSubmit(e?: React.FormEvent) {
     e?.preventDefault();
-    if (name.trim().length < 2) {
-      toast.error("Donne un nom au voyage (2 caractères minimum).");
-      throw new Error("Nom de voyage manquant");
-    }
-    if (!organizerFirstName.trim()) {
-      toast.error("Indique ton prénom.");
-      throw new Error("Prénom organisateur manquant");
-    }
-    if (needsStar && !celebratedPerson.trim()) {
-      toast.error("Indique le prénom de la Star.");
-      throw new Error("Prénom de la Star manquant");
-    }
-    if (!groupAgeRange) {
-      toast.error("Indique la tranche d’âge du groupe.");
-      throw new Error("Tranche d’âge manquante");
+    if (submitLockRef.current) return;
+    const errors: Record<string, string> = {};
+    if (name.trim().length < 2) errors.name = "Donne un nom au voyage (2 caractères minimum).";
+    if (!organizerFirstName.trim()) errors.orga = "Indique ton prénom.";
+    if (needsStar && !celebratedPerson.trim()) errors.star = "Indique le prénom de la Star.";
+    if (!groupAgeRange) errors.age = "Indique la tranche d’âge du groupe.";
+    setFieldErrors(errors);
+    const firstInvalidId = ["name", "orga", "star", "age-group"].find((id) => errors[id === "age-group" ? "age" : id]);
+    if (firstInvalidId) {
+      const element = document.getElementById(firstInvalidId);
+      element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      element?.focus();
+      throw new Error("Formulaire incomplet");
     }
 
+    submitLockRef.current = true;
     setSubmitting(true);
     try {
-      const days = Math.max(2, Number(durationDaysInput) || 3);
+      const days = clampDurationDays(durationDaysInput);
+      setDurationDaysInput(String(days));
       const durationNights = Math.max(1, days - 1);
       const trip = await create({
         data: {
@@ -132,15 +162,15 @@ function NewTripPage() {
           participants,
           organizerFirstName: organizerFirstName.trim(),
           celebratedPerson: celebratedPerson.trim() || undefined,
-          budgetPerPerson: 400,
+          budgetPerPerson: DEFAULT_TRIP_BUDGET_PER_PERSON,
           groupAgeRange: groupAgeRange as "18-25" | "25-35" | "35-45" | "45-60" | "60+",
           ambiances: [],
           activityCategories: [],
-          letKrewDecide: true,
-          maxDistanceKm: 2000,
+          letKrewDecide: DEFAULT_TRIP_LET_KREW_DECIDE,
+          maxDistanceKm: DEFAULT_TRIP_MAX_DISTANCE_KM,
           excludedCountries: [],
           durationNights,
-          needsCityCenter: true,
+          needsCityCenter: DEFAULT_TRIP_NEEDS_CITY_CENTER,
           dietaryConstraints: [],
         },
       });
@@ -156,6 +186,7 @@ function NewTripPage() {
       throw err;
     } finally {
       setSubmitting(false);
+      submitLockRef.current = false;
     }
   }
 
@@ -211,16 +242,19 @@ function NewTripPage() {
 
           <div className="mt-6 max-w-[560px] space-y-2 sm:mt-7">
             <Label htmlFor="name" className="text-[15px] font-semibold text-foreground">
-              Comment vous l’appelez ?
+              Comment vous l’appelez ? <span className="text-destructive" aria-hidden="true">*</span>
             </Label>
             <Input
               id="name"
               className={CREATE_TRIP_INPUT_CLASS}
               placeholder="Ex. Week-end à 8 / EVG de Jules"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setFieldErrors((current) => ({ ...current, name: "" })); }}
+              aria-invalid={Boolean(fieldErrors.name)}
+              aria-describedby={fieldErrors.name ? "name-error" : undefined}
               autoFocus
             />
+            {fieldErrors.name ? <p id="name-error" className="text-xs text-destructive" role="alert">{fieldErrors.name}</p> : null}
           </div>
 
           <div className="mt-7 sm:mt-8">
@@ -290,15 +324,18 @@ function NewTripPage() {
             <div className="mt-6 max-w-[420px] space-y-2 sm:mt-7">
               <Label htmlFor="star" className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
                 <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
-                Qui est la Star ?
+                Qui est la Star ? <span className="text-destructive" aria-hidden="true">*</span>
               </Label>
               <Input
                 id="star"
                 className={CREATE_TRIP_INPUT_CLASS}
                 placeholder="Son prénom"
                 value={celebratedPerson}
-                onChange={(e) => setCelebratedPerson(e.target.value)}
+                onChange={(e) => { setCelebratedPerson(e.target.value); setFieldErrors((current) => ({ ...current, star: "" })); }}
+                aria-invalid={Boolean(fieldErrors.star)}
+                aria-describedby={fieldErrors.star ? "star-error" : undefined}
               />
+              {fieldErrors.star ? <p id="star-error" className="text-xs text-destructive" role="alert">{fieldErrors.star}</p> : null}
               <p className="text-xs leading-[1.4] text-muted-foreground">
                 Ses préférences compteront davantage dans les recommandations.
               </p>
@@ -315,11 +352,13 @@ function NewTripPage() {
                 className={CREATE_TRIP_INPUT_CLASS}
                 placeholder="Ex. Camille"
                 value={organizerFirstName}
-                onChange={(e) => setOrganizerFirstName(e.target.value)}
+                onChange={(e) => { organizerTouchedRef.current = true; setOrganizerFirstName(e.target.value); setFieldErrors((current) => ({ ...current, orga: "" })); }}
                 required
                 aria-required="true"
-                aria-describedby="orga-help"
+                aria-invalid={Boolean(fieldErrors.orga)}
+                aria-describedby={fieldErrors.orga ? "orga-error orga-help" : "orga-help"}
               />
+              {fieldErrors.orga ? <p id="orga-error" className="text-xs text-destructive" role="alert">{fieldErrors.orga}</p> : null}
               <p id="orga-help" className="text-xs leading-[1.4] text-muted-foreground">
                 Pour que le groupe sache qui organise et te reconnaisse dans les réponses.
               </p>
@@ -353,8 +392,8 @@ function NewTripPage() {
           </div>
 
           <div className="mt-7 sm:mt-8">
-            <Label className="mb-2 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
+            <Label id="age-label" className="mb-2 block text-[15px] font-semibold text-foreground">Et côté âge ? <span className="text-destructive" aria-hidden="true">*</span></Label>
+            <div id="age-group" tabIndex={-1} role="group" aria-labelledby="age-label" aria-invalid={Boolean(fieldErrors.age)} aria-describedby={fieldErrors.age ? "age-error" : undefined} className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
               {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => {
                 const selected = groupAgeRange === age;
                 return (
@@ -362,7 +401,7 @@ function NewTripPage() {
                     key={age}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => setGroupAgeRange(age)}
+                    onClick={() => { setGroupAgeRange(age); setFieldErrors((current) => ({ ...current, age: "" })); }}
                     className={cn(
                       "min-h-11 rounded-[14px] px-3 py-2.5 text-center text-sm font-medium",
                       SELECTABLE_FRAME_CLASS,
@@ -376,6 +415,7 @@ function NewTripPage() {
                 );
               })}
             </div>
+            {fieldErrors.age ? <p id="age-error" className="mt-2 text-xs text-destructive" role="alert">{fieldErrors.age}</p> : null}
           </div>
         </section>
 
@@ -402,8 +442,7 @@ function NewTripPage() {
                   value={durationDaysInput}
                   onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))}
                   onBlur={() => {
-                    const val = Math.max(2, Number(durationDaysInput) || 3);
-                    setDurationDaysInput(String(val));
+                    setDurationDaysInput(String(clampDurationDays(durationDaysInput)));
                   }}
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs text-muted-foreground">
