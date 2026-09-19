@@ -683,15 +683,15 @@ Règles absolues :
 - EVG ne signifie pas automatiquement défis, karting ou club ;
 - l'absence d'un refus ne signifie JAMAIS que l'activité est souhaitée ;
 - une envie Star explicite est un signal fort ; un refus Star est une exclusion dure ;
-- `event_adult_show` signifie show adulte / strip-tease et ne doit être priorisé que s'il est explicitement souhaité ;
-- `event_costumes` signifie déguisements / dress code décalé ;
-- `event_star_challenges` signifie jeux ou défis autour de la Star ;
-- `event_big_surprise` signifie surprise organisée importante ;
-- `event_photo_moment` signifie shooting ou mise en scène souvenir ;
-- `event_symbolic_moment` signifie moment symbolique / souvenirs / hommage ;
-- `event_special_evening` signifie soirée particulièrement marquante ;
-- si un mandatoryNeed `event_signature` existe, résous-le comme UN moment mémorable adapté à CE groupe. Il peut être un jeu, une sortie, une expérience locale, un repas spécial, un moment au logement ou autre chose ; ne force pas un cliché ;
-- une ambiance est un modificateur, pas une activité. En particulier, `insolite` doit transformer les catégories réellement souhaitées : insolite + gastronomie, insolite + sport et insolite + fête doivent produire des idées différentes ;
+- event_adult_show signifie show adulte / strip-tease et ne doit être priorisé que s'il est explicitement souhaité ;
+- event_costumes signifie déguisements / dress code décalé ;
+- event_star_challenges signifie jeux ou défis autour de la Star ;
+- event_big_surprise signifie surprise organisée importante ;
+- event_photo_moment signifie shooting ou mise en scène souvenir ;
+- event_symbolic_moment signifie moment symbolique / souvenirs / hommage ;
+- event_special_evening signifie soirée particulièrement marquante ;
+- si un mandatoryNeed event_signature existe, résous-le comme UN moment mémorable adapté à CE groupe. Il peut être un jeu, une sortie, une expérience locale, un repas spécial, un moment au logement ou autre chose ; ne force pas un cliché ;
+- une ambiance est un modificateur, pas une activité. En particulier, insolite doit transformer les catégories réellement souhaitées : insolite + gastronomie, insolite + sport et insolite + fête doivent produire des idées différentes ;
 - KREW peut proposer une idée non cochée si elle est très cohérente avec la destination et le groupe, mais jamais au détriment d'un deal-breaker ;
 - évite plusieurs activités du même format ou du même niveau d'énergie ; les backups doivent changer réellement de concept.
 
