@@ -176,7 +176,7 @@ function NextActionsPanel({
         key: "hotel",
         title: "Voter pour un hébergement",
         description: "Un vote par personne — l’organisateur·rice finalise le choix.",
-        href: `/trips/${tripId}?view=voyage&section=accommodation`,
+        href: `/trips/${tripId}/accommodation`,
         iconName: "accommodation",
       });
     }
@@ -185,7 +185,7 @@ function NextActionsPanel({
         key: "transport",
         title: "Choisir mon trajet",
         description: "Selon la ville de départ et les contraintes horaires.",
-        href: `/trips/${tripId}?view=voyage&section=transport`,
+        href: `/trips/${tripId}/transport`,
         iconName: "transport",
       });
     }
@@ -197,7 +197,7 @@ function NextActionsPanel({
         key: "lock-dates",
         title: "Choisir les dates du groupe",
         description: "Ce choix débloque la suite du voyage.",
-        href: `/trips/${tripId}?view=voyage&section=dates`,
+        href: `/trips/${tripId}/dates`,
         iconName: "calendar",
       });
     }
@@ -206,7 +206,7 @@ function NextActionsPanel({
         key: "choose-profile",
         title: "Choisir le profil du voyage",
         description: "Choisis 1 à 3 options pour définir le Profil du voyage.",
-        href: `/trips/${tripId}?view=voyage&section=profile`,
+        href: `/trips/${tripId}/profile`,
         iconName: "profile",
       });
     }
@@ -216,7 +216,7 @@ function NextActionsPanel({
           key: "gen",
           title: "Trouver des destinations",
           description: "Des propositions adaptées aux préférences du groupe.",
-          href: `/trips/${tripId}?view=voyage&section=destination`,
+          href: `/trips/${tripId}/destination`,
           iconName: "destination",
         });
       } else {
@@ -224,7 +224,7 @@ function NextActionsPanel({
           key: "pick-dest",
           title: "Choisir la destination",
           description: "Ce choix débloque les hébergements, les trajets et le planning.",
-          href: `/trips/${tripId}?view=voyage&section=destination`,
+          href: `/trips/${tripId}/destination`,
           iconName: "destination",
         });
       }
@@ -234,7 +234,7 @@ function NextActionsPanel({
         key: "search-hotels",
         title: "Rechercher des hébergements",
         description: "Proposer des hébergements au groupe pour le vote.",
-        href: `/trips/${tripId}?view=voyage&section=accommodation`,
+        href: `/trips/${tripId}/accommodation`,
         iconName: "accommodation",
       });
     }
@@ -243,7 +243,7 @@ function NextActionsPanel({
         key: "search-transport",
         title: "Proposer des trajets A/R",
         description: "Des options adaptées aux villes de départ du groupe.",
-        href: `/trips/${tripId}?view=voyage&section=transport`,
+        href: `/trips/${tripId}/transport`,
         iconName: "transport",
       });
     }
@@ -257,7 +257,7 @@ function NextActionsPanel({
         key: "plan",
         title: "Créer le planning",
         description: "Construire le séjour jour par jour en tenant compte des horaires d’arrivée et de départ.",
-        href: `/trips/${tripId}?view=voyage&section=planning`,
+        href: `/trips/${tripId}/planning`,
         iconName: "planning",
       });
     }
@@ -266,7 +266,7 @@ function NextActionsPanel({
         key: "refine",
         title: "Affiner l’organisation",
         description: "Ajuster un créneau, vérifier les choix du groupe ou partager le résumé.",
-        href: `/trips/${tripId}?view=voyage&section=planning`,
+        href: `/trips/${tripId}/planning`,
         iconName: "tasks",
       });
     }

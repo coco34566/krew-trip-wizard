@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -213,6 +213,28 @@ export const Route = createFileRoute("/_authenticated/trips/$tripId/")({
     view: (search.view as string) || "todo",
     section: (search.section as string) || undefined,
   }),
+  beforeLoad: ({ params, search }) => {
+    switch (search.section) {
+      case "dates":
+        throw redirect({ to: "/trips/$tripId/dates", params: { tripId: params.tripId } });
+      case "profile":
+        throw redirect({ to: "/trips/$tripId/profile", params: { tripId: params.tripId } });
+      case "destination":
+        throw redirect({ to: "/trips/$tripId/destination", params: { tripId: params.tripId } });
+      case "accommodation":
+        throw redirect({ to: "/trips/$tripId/accommodation", params: { tripId: params.tripId } });
+      case "transport":
+        throw redirect({ to: "/trips/$tripId/transport", params: { tripId: params.tripId } });
+      case "planning":
+        throw redirect({ to: "/trips/$tripId/planning", params: { tripId: params.tripId } });
+      case "tasks":
+        throw redirect({ to: "/trips/$tripId/tasks", params: { tripId: params.tripId } });
+      case "packing":
+        throw redirect({ to: "/trips/$tripId/packing", params: { tripId: params.tripId } });
+      default:
+        return;
+    }
+  },
   head: () => ({
     meta: [
       { title: "Voyage — KREW" },
@@ -1780,7 +1802,7 @@ function TripDetail() {
                 iconName: "calendar",
                 status: getStepStatus("dates", datesReady),
                 category: "prepare",
-                href: `/trips/${tripId}?view=voyage&section=dates`,
+                href: `/trips/${tripId}/dates`,
               },
               {
                 id: "profile",
@@ -1793,7 +1815,7 @@ function TripDetail() {
                 iconName: "profile",
                 status: getStepStatus("profile", profileDone),
                 category: "prepare",
-                href: isStepAvailable("profile") ? `/trips/${tripId}?view=voyage&section=profile` : null,
+                href: isStepAvailable("profile") ? `/trips/${tripId}/profile` : null,
               },
               {
                 id: "destination",
@@ -1802,7 +1824,7 @@ function TripDetail() {
                 iconName: "destination",
                 status: getStepStatus("destination", destDone),
                 category: "prepare",
-                href: isStepAvailable("destination") ? `/trips/${tripId}?view=voyage&section=destination` : null,
+                href: isStepAvailable("destination") ? `/trips/${tripId}/destination` : null,
               },
               {
                 id: "accommodation",
@@ -1811,7 +1833,7 @@ function TripDetail() {
                 iconName: "accommodation",
                 status: getStepStatus("accommodation", hotelDone),
                 category: "prepare",
-                href: isStepAvailable("accommodation") ? `/trips/${tripId}?view=voyage&section=accommodation` : null,
+                href: isStepAvailable("accommodation") ? `/trips/${tripId}/accommodation` : null,
               },
               {
                 id: "transport",
@@ -1820,7 +1842,7 @@ function TripDetail() {
                 iconName: "transport",
                 status: getStepStatus("transport", transportDone),
                 category: "prepare",
-                href: isStepAvailable("transport") ? `/trips/${tripId}?view=voyage&section=transport` : null,
+                href: isStepAvailable("transport") ? `/trips/${tripId}/transport` : null,
               },
               {
                 id: "planning",
@@ -1829,7 +1851,7 @@ function TripDetail() {
                 iconName: "planning",
                 status: getStepStatus("planning", planDone),
                 category: "organisation",
-                href: isStepAvailable("planning") ? `/trips/${tripId}?view=voyage&section=planning` : null,
+                href: isStepAvailable("planning") ? `/trips/${tripId}/planning` : null,
               },
               {
                 id: "tasks",
@@ -1838,7 +1860,7 @@ function TripDetail() {
                 iconName: "tasks",
                 status: getStepStatus("tasks", Boolean(tasksData?.length && planDone)),
                 category: "organisation",
-                href: isStepAvailable("tasks") ? `/trips/${tripId}?view=voyage&section=tasks` : null,
+                href: isStepAvailable("tasks") ? `/trips/${tripId}/tasks` : null,
               },
               {
                 id: "packing",
@@ -1847,7 +1869,7 @@ function TripDetail() {
                 iconName: "packing",
                 status: getStepStatus("packing", false),
                 category: "organisation",
-                href: isStepAvailable("packing") ? `/trips/${tripId}?view=voyage&section=packing` : null,
+                href: isStepAvailable("packing") ? `/trips/${tripId}/packing` : null,
               },
             );
 
