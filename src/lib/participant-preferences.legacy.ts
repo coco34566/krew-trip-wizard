@@ -11,6 +11,9 @@ export const participantPreferencesSchema = z.object({
   accommodationRole: z.enum(["base_only", "part_of_stay", "centerpiece"]).optional().nullable(),
   ambiances: z.array(z.string()).default([]),
   activityCategories: z.array(z.string()).default([]),
+  // Uniquement utilisé quand l'utilisateur authentifié est la Star en mode participant.
+  starEventWanted: z.array(z.string()).default([]),
+  starEventDealBreakers: z.array(z.string()).default([]),
   budgetMax: z.number().min(0).max(20000).optional(),
   budgetPriority: z
     .enum(["must_have", "high_priority", "preference", "nice_to_have", "irrelevant", "veto"])
@@ -148,7 +151,29 @@ export const getMyParticipantPreferences = createServerFn({ method: "GET" })
       throw prefs.error;
     }
 
-    return { trip: trip.data, preferences: prefs.data ?? null, isSecretStar };
+    let starEventPreferences: { wantedActivities: string[]; dealBreakers: string[] } | null = null;
+    if (isStar && starMode === "participant") {
+      const starPrefs = await supabase
+        .from("trip_star_preferences")
+        .select("wanted_activities, deal_breakers")
+        .eq("trip_id", data.tripId)
+        .maybeSingle();
+      if (!starPrefs.error && starPrefs.data) {
+        starEventPreferences = {
+          wantedActivities: starPrefs.data.wanted_activities ?? [],
+          dealBreakers: starPrefs.data.deal_breakers ?? [],
+        };
+      }
+    }
+
+    return {
+      trip: trip.data,
+      preferences: prefs.data ?? null,
+      isSecretStar,
+      isStar,
+      starMode,
+      starEventPreferences,
+    };
   });
 
 export async function attachParticipantToTrip(
@@ -265,7 +290,7 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
 
     // Authorization: ensure the user is trip admin (owner/co-organizer) or listed participant (by user_id or email)
-    const tripRes = await supabase.from("trips").select("id, owner_id, co_organizer_id, group_logistics").eq("id", data.tripId).maybeSingle();
+    const tripRes = await supabase.from("trips").select("id, owner_id, co_organizer_id, group_logistics, star_user_id").eq("id", data.tripId).maybeSingle();
     if (tripRes.error) throw tripRes.error;
     if (!tripRes.data) throw new Error("Voyage introuvable");
     const isTripAdmin =
@@ -421,6 +446,48 @@ export const submitParticipantPreferences = createServerFn({ method: "POST" })
       } else {
         throw new Error(`Enregistrement préférences impossible: ${msg}`);
       }
+    }
+
+    const starMode = (tripRes.data.group_logistics as any)?.star_mode ?? "secret";
+    const isParticipatingStar =
+      starMode === "participant" &&
+      Boolean(tripRes.data.star_user_id) &&
+      tripRes.data.star_user_id === userId;
+
+    if (isParticipatingStar) {
+      const existingStar = await supabase
+        .from("trip_star_preferences")
+        .select("id, wanted_activities, deal_breakers, ambiances, submitted_at")
+        .eq("trip_id", data.tripId)
+        .maybeSingle();
+      if (existingStar.error && !String(existingStar.error.message).includes("does not exist")) {
+        throw existingStar.error;
+      }
+      const eventIds = new Set([
+        "event_star_challenges",
+        "event_costumes",
+        "event_adult_show",
+        "event_big_surprise",
+        "event_photo_moment",
+        "event_symbolic_moment",
+        "event_special_evening",
+      ]);
+      const preservedWanted = (existingStar.data?.wanted_activities ?? []).filter((value: string) => !eventIds.has(value));
+      const preservedBreakers = (existingStar.data?.deal_breakers ?? []).filter((value: string) => !eventIds.has(value));
+      const starPayload = {
+        trip_id: data.tripId,
+        user_id: userId,
+        filled_by: userId,
+        wanted_activities: [...new Set([...preservedWanted, ...(data.starEventWanted ?? [])])],
+        deal_breakers: [...new Set([...preservedBreakers, ...(data.starEventDealBreakers ?? [])])],
+        ambiances: existingStar.data?.ambiances ?? [],
+        submitted_at: existingStar.data?.submitted_at ?? now,
+        updated_at: now,
+      };
+      const starUpsert = await supabase
+        .from("trip_star_preferences")
+        .upsert(starPayload, { onConflict: "trip_id" });
+      if (starUpsert.error) throw starUpsert.error;
     }
 
     const [participants, preferences] = await Promise.all([

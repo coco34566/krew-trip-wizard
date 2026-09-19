@@ -18,7 +18,7 @@ import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewIcon } from "@/components/krew/visual-language";
 import { getStarPreferences, submitStarPreferences } from "@/lib/star-preferences.functions";
 import { finalizeInvitationStep } from "@/lib/trips.functions";
-import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES } from "@/lib/krew/constants";
+import { AMBIANCES, STAR_DEAL_BREAKERS, STAR_WANTED_ACTIVITIES, getEventSpecificPreferences } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 
 type DayMode = "available" | "blocked" | null;
@@ -257,6 +257,15 @@ function StarQuestionnaire() {
     () => [...selection.entries()].filter(([, v]) => v === "blocked").map(([k]) => k).sort(),
     [selection],
   );
+  const eventSpecificPreferences = useMemo(
+    () => getEventSpecificPreferences(data?.trip?.eventType),
+    [data?.trip?.eventType],
+  );
+
+  function setEventPreference(id: string, state: "wanted" | "neutral" | "avoid") {
+    setWanted((prev) => state === "wanted" ? [...new Set([...prev, id])] : prev.filter((x) => x !== id));
+    setBreakers((prev) => state === "avoid" ? [...new Set([...prev, id])] : prev.filter((x) => x !== id));
+  }
   const baseMonth = startOfMonth(new Date());
   const months = [0, 1].map((i) => addMonths(baseMonth, monthOffset + i));
 
@@ -474,6 +483,39 @@ function StarQuestionnaire() {
                 ))}
               </div>
             </div>
+            {starMode === "secret" && eventSpecificPreferences.length > 0 ? (
+              <div className="space-y-3">
+                <div>
+                  <Label className="block text-base font-semibold text-foreground">Pour cet événement</Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Seulement les choix spécifiques à ce type de voyage. “Pourquoi pas” reste neutre : KREW peut s’en inspirer sans le prioriser.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  {eventSpecificPreferences.map((item) => {
+                    const state = wanted.includes(item.id) ? "wanted" : breakers.includes(item.id) ? "avoid" : "neutral";
+                    return (
+                      <div key={item.id} className="rounded-[14px] border border-border/50 bg-background p-4">
+                        <div className="mb-3 text-sm font-semibold text-foreground sm:text-base">
+                          <span className="mr-1.5">{item.emoji}</span>{item.label}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button type="button" variant={state === "wanted" ? "default" : "outline"} size="sm" onClick={() => setEventPreference(item.id, "wanted")}>
+                            Envie
+                          </Button>
+                          <Button type="button" variant={state === "neutral" ? "secondary" : "outline"} size="sm" onClick={() => setEventPreference(item.id, "neutral")}>
+                            Pourquoi pas
+                          </Button>
+                          <Button type="button" variant={state === "avoid" ? "destructive" : "outline"} size="sm" onClick={() => setEventPreference(item.id, "avoid")}>
+                            À éviter
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
             <div className="space-y-3">
               <Label className="block text-base font-semibold text-foreground">Quelle ambiance lui conviendrait le mieux ?</Label>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

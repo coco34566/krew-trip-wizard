@@ -26,6 +26,7 @@ import {
   TIME_SLOTS,
   TRAVEL_PACE,
   formatEuro,
+  getEventSpecificPreferences,
 } from "@/lib/krew/constants";
 import { cn } from "@/lib/utils";
 import { CityAutocomplete } from "@/components/krew/CityAutocomplete";
@@ -116,6 +117,10 @@ function ParticipantQuestionnaire() {
   const [isEditing, setIsEditing] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [tripName, setTripName] = useState("");
+  const [eventType, setEventType] = useState<string | null>(null);
+  const [isParticipatingStar, setIsParticipatingStar] = useState(false);
+  const [starEventWanted, setStarEventWanted] = useState<string[]>([]);
+  const [starEventDealBreakers, setStarEventDealBreakers] = useState<string[]>([]);
   const [defaultDeparture, setDefaultDeparture] = useState("");
 
   const [ambiances, setAmbiances] = useState<string[]>([]);
@@ -158,9 +163,13 @@ function ParticipantQuestionnaire() {
     setLoadError(null);
 
     fetchMine({ data: { tripId } })
-      .then(({ trip, preferences }: any) => {
+      .then(({ trip, preferences, isStar, starMode, starEventPreferences }: any) => {
         if (cancelled) return;
         setTripName(trip.name);
+        setEventType(trip.event_type ?? null);
+        setIsParticipatingStar(Boolean(isStar && starMode === "participant"));
+        setStarEventWanted(starEventPreferences?.wantedActivities ?? []);
+        setStarEventDealBreakers(starEventPreferences?.dealBreakers ?? []);
         const dep = trip.departure_city || "";
         setDefaultDeparture(dep);
         if (preferences) {
@@ -253,6 +262,13 @@ function ParticipantQuestionnaire() {
     setList(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
   }
 
+  const eventSpecificPreferences = getEventSpecificPreferences(eventType);
+
+  function setStarEventPreference(id: string, state: "wanted" | "neutral" | "avoid") {
+    setStarEventWanted((prev) => state === "wanted" ? [...new Set([...prev, id])] : prev.filter((x) => x !== id));
+    setStarEventDealBreakers((prev) => state === "avoid" ? [...new Set([...prev, id])] : prev.filter((x) => x !== id));
+  }
+
   function validate(): string | null {
     if (ambiances.length === 0) return "Choisis au moins une ambiance.";
     if (activityCategories.length === 0) return "Choisis au moins une catégorie d'activités.";
@@ -285,6 +301,8 @@ function ParticipantQuestionnaire() {
           accessibilityNeeds,
           budgetPriority,
           activityCategories,
+          starEventWanted,
+          starEventDealBreakers,
           budgetMax,
           desiredDestination: desiredDestination.trim() || undefined,
           excludedDestinations: excluded,
@@ -456,6 +474,44 @@ function ParticipantQuestionnaire() {
               ))}
             </div>
           </div>
+
+          {isParticipatingStar && eventSpecificPreferences.length > 0 ? (
+            <div className="space-y-3 pt-4">
+              <div>
+                <Label className="font-semibold block text-base text-foreground">Pour ton événement</Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ces quelques choix sont propres à ton rôle de Star et complètent les activités générales sans les répéter.
+                </p>
+              </div>
+              <div className="space-y-3">
+                {eventSpecificPreferences.map((item) => {
+                  const state = starEventWanted.includes(item.id)
+                    ? "wanted"
+                    : starEventDealBreakers.includes(item.id)
+                      ? "avoid"
+                      : "neutral";
+                  return (
+                    <div key={item.id} className="rounded-[14px] border border-border/50 bg-background p-4">
+                      <div className="mb-3 text-sm font-semibold text-foreground sm:text-base">
+                        <span className="mr-1.5">{item.emoji}</span>{item.label}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Button type="button" variant={state === "wanted" ? "default" : "outline"} size="sm" onClick={() => setStarEventPreference(item.id, "wanted")}>
+                          Envie
+                        </Button>
+                        <Button type="button" variant={state === "neutral" ? "secondary" : "outline"} size="sm" onClick={() => setStarEventPreference(item.id, "neutral")}>
+                          Pourquoi pas
+                        </Button>
+                        <Button type="button" variant={state === "avoid" ? "destructive" : "outline"} size="sm" onClick={() => setStarEventPreference(item.id, "avoid")}>
+                          À éviter
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-2 pt-4">
             <Label className="font-semibold block text-base text-foreground">Rythme du séjour</Label>

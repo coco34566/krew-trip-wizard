@@ -1308,18 +1308,19 @@ describe("personnalisation du fallback et de la discovery", () => {
     expect(slots.every((slot) => slot.verified === false || slot.type === "transport")).toBe(true);
   });
 
-  it.each([
-    ["evjf", "Jeu de la mariée"],
-    ["evg", "Défis du marié"],
-    ["anniversaire", "Surprise anniversaire"],
-  ])("ajoute un moment fort pour %s", (eventType, label) => {
-    const itinerary = buildLocalItinerary(input({ eventType, latestGroupArrival: "10:00" }), [
-      candidate,
-    ]);
-    expect(itinerary.days.flatMap((day) => day.slots).some((slot) => slot.label === label)).toBe(
-      true,
-    );
-  });
+  it.each(["evjf", "evg", "anniversaire", "retraite"])(
+    "ajoute un moment signature contextuel pour %s sans cliché imposé",
+    (eventType) => {
+      const itinerary = buildLocalItinerary(input({ eventType, latestGroupArrival: "10:00" }), [
+        candidate,
+      ]);
+      const signature = itinerary.days
+        .flatMap((day) => day.slots)
+        .find((slot) => slot.label === "Moment signature de l’événement");
+      expect(signature).toBeDefined();
+      expect(signature?.label).not.toMatch(/mariée|marié|défis|strip|surprise anniversaire/i);
+    },
+  );
 
   it("n'injecte jamais l'ancienne arrivée arbitraire à 11:00", () => {
     const itinerary = buildLocalItinerary(

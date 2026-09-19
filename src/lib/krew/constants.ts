@@ -39,8 +39,6 @@ export const STAR_WANTED_ACTIVITIES = [
 ] as const;
 
 export const STAR_DEAL_BREAKERS = [
-  "déguisement",
-  "strip-tease",
   "activités extrêmes",
   "musée",
   "camping",
@@ -50,6 +48,52 @@ export const STAR_DEAL_BREAKERS = [
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number]["value"];
+
+export type EventSpecificPreference = {
+  id: string;
+  label: string;
+  emoji: string;
+  sensitive?: boolean;
+};
+
+/**
+ * Compléments vraiment propres au type d'événement.
+ * Les envies déjà couvertes par ACTIVITY_CATEGORIES (spa, soirée, bateau, gastronomie...)
+ * restent dans le questionnaire commun pour éviter les doublons.
+ */
+export const EVENT_SPECIFIC_PREFERENCES: Partial<Record<EventType, EventSpecificPreference[]>> = {
+  evjf: [
+    { id: "event_star_challenges", label: "Jeux & défis autour de la mariée", emoji: "🎲" },
+    { id: "event_costumes", label: "Déguisements / dress code décalé", emoji: "🎭" },
+    { id: "event_adult_show", label: "Show adulte / strip-tease", emoji: "🔞", sensitive: true },
+    { id: "event_big_surprise", label: "Grosse surprise organisée", emoji: "🎁" },
+    { id: "event_photo_moment", label: "Shooting / mise en scène souvenir", emoji: "📸" },
+  ],
+  evg: [
+    { id: "event_star_challenges", label: "Jeux & défis autour du marié", emoji: "🎲" },
+    { id: "event_costumes", label: "Déguisements / dress code décalé", emoji: "🎭" },
+    { id: "event_adult_show", label: "Show adulte / strip-tease", emoji: "🔞", sensitive: true },
+    { id: "event_big_surprise", label: "Grosse surprise organisée", emoji: "🎁" },
+    { id: "event_photo_moment", label: "Shooting / mise en scène souvenir", emoji: "📸" },
+  ],
+  anniversaire: [
+    { id: "event_big_surprise", label: "Grosse surprise organisée", emoji: "🎁" },
+    { id: "event_symbolic_moment", label: "Moment symbolique / souvenirs", emoji: "💛" },
+    { id: "event_special_evening", label: "Soirée vraiment spéciale", emoji: "✨" },
+    { id: "event_photo_moment", label: "Shooting / mise en scène souvenir", emoji: "📸" },
+  ],
+  retraite: [
+    { id: "event_big_surprise", label: "Grosse surprise organisée", emoji: "🎁" },
+    { id: "event_symbolic_moment", label: "Moment souvenirs / hommage", emoji: "💛" },
+    { id: "event_special_evening", label: "Soirée vraiment spéciale", emoji: "✨" },
+    { id: "event_photo_moment", label: "Shooting / mise en scène souvenir", emoji: "📸" },
+  ],
+};
+
+export function getEventSpecificPreferences(eventType?: string | null): EventSpecificPreference[] {
+  const normalized = String(eventType ?? "").toLowerCase() as EventType;
+  return EVENT_SPECIFIC_PREFERENCES[normalized] ?? [];
+}
 
 export const AMBIANCES = [
   { value: "fete", label: "Fête", emoji: "🎉" },
