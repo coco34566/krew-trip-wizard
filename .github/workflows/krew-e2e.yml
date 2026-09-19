@@ -169,13 +169,24 @@ jobs:
       - name: Install Playwright test runner without changing the lockfile
         run: npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test@1.55.0
 
-      - name: Run blocking smoke journey
-        if: env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+      - name: Run advisory smoke journey on PR
+        if: github.event_name == 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        continue-on-error: true
         run: |
           if npm run test:e2e:smoke; then
             exit 0
           fi
           echo "::warning::Smoke failed once; retrying once to absorb transient preview/browser failures."
+          sleep 15
+          npm run test:e2e:smoke
+
+      - name: Run blocking smoke journey nightly/manual
+        if: github.event_name != 'pull_request' && env.KREW_E2E_PREVIEW_AVAILABLE == 'true'
+        run: |
+          if npm run test:e2e:smoke; then
+            exit 0
+          fi
+          echo "::warning::Smoke failed once; retrying once before failing the nightly/manual quality gate."
           sleep 15
           npm run test:e2e:smoke
 
