@@ -4097,11 +4097,13 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
           searchUrl: exactSearchUrl,
           provider: providerName,
           dataKind:
-            m.mode === "train" && trainFare
-              ? "public_fare"
-              : m.mode === "flight" && flightApiQuote
-                ? (flightApiQuote.dataKind ?? "provider_offer")
-                : "krew_estimate",
+            m.mode === "train" && trainJourney
+              ? "provider_offer"
+              : m.mode === "train" && trainFare
+                ? "public_fare"
+                : m.mode === "flight" && flightApiQuote
+                  ? (flightApiQuote.dataKind ?? "provider_offer")
+                  : "krew_estimate",
           providerOffer: m.mode === "flight" ? flightApiQuote : null,
           trainJourney: m.mode === "train" ? trainJourney : null,
           note:
