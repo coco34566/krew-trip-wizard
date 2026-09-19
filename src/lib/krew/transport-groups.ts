@@ -69,8 +69,9 @@ export function pickIdentity(pick: Partial<TransportPickLike>) {
 
 export function groupTransportPicks(picks: TransportPickLike[]) {
   const groups = new Map<string, TransportPickLike[]>();
+  let fallbackIndex = 0;
   for (const pick of picks.filter((item) => !item?.stale)) {
-    const key = transportShareKey(pick) || `solo:${pickIdentity(pick) || Math.random()}`;
+    const key = transportShareKey(pick) || `solo:${pickIdentity(pick) || fallbackIndex++}`;
     const list = groups.get(key) ?? [];
     list.push(pick);
     groups.set(key, list);
