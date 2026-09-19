@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { checkTransportTimeCompatibility, type TransportQuote } from "./transport.server";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { CITY_IATA, normalizeCityKey } from "@/lib/krew/deep-links";
 import { fetchExternal } from "./fetch-timeout.server";
 
@@ -142,7 +143,7 @@ export function normalizeGoogleFlightOffer(item: any, adults: number): Transport
     provider: "searchapi/google_flights",
     mode: "flight",
     label: airline,
-    url: item?.booking_url ?? item?.link ?? null,
+    url: safeExternalUrl(item?.booking_url ?? item?.link),
     searchUrl: null,
     rawError: null,
     dataKind: "provider_offer",

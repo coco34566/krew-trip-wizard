@@ -1,5 +1,6 @@
 // src/lib/external/search-hotels.functions.ts
 import { createServerFn } from "@tanstack/react-start";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { resolveDesiredDestination } from "@/lib/krew/trip-service";
@@ -108,7 +109,7 @@ export async function refreshExternalCatalogForTrip(
         duration_hours: activity.durationHours,
         rating: activity.rating,
         image_url: activity.imageUrl,
-        booking_url: activity.bookingUrl,
+        booking_url: safeExternalUrl(activity.bookingUrl),
         source: activity.provider,
         external_id: activity.externalId,
       }));
@@ -150,7 +151,7 @@ export async function refreshExternalCatalogForTrip(
         image_url: h.imageUrl,
         price_offers: h.offers,
         best_provider: best?.provider ?? null,
-        booking_url: best?.url ?? null,
+        booking_url: safeExternalUrl(best?.url),
         source: best?.provider ?? "stayapi",
         external_id: h.externalId,
         price_verified: priceVerified,

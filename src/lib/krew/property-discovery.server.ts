@@ -1,4 +1,5 @@
 import type { StayConcept } from "./stay-profiles";
+import { safeExternalUrl } from "@/lib/safe-url";
 
 export type VerificationState = "confirmed" | "inferred" | "unknown";
 
@@ -209,7 +210,7 @@ export function propertyToAccommodationRow(
     rating: 0,
     distance_center_km: 0,
     image_url: property.imageUrl ?? null,
-    booking_url: property.sourceUrl,
+    booking_url: safeExternalUrl(property.sourceUrl),
     amenities: [...new Set(property.amenities.map((item) => item.value))],
     onsite_activity_categories: onsiteActivityCategories(property.onsiteActivities),
     source: `property_web:${property.source}`,

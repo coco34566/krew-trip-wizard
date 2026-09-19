@@ -1,4 +1,5 @@
 import type { HotelOffer, SearchParams } from "./travel-providers.server";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { lookupStayApiDestination } from "./stayapi-destination.server";
 import { fetchExternal } from "./fetch-timeout.server";
 
@@ -79,7 +80,7 @@ function normalizeHotel(raw: any, params: SearchParams): HotelOffer | null {
       provider: "stayapi/booking",
       pricePerNight: Math.round(groupStayTotal / nights),
       currency: String(raw?.price?.currency ?? raw?.currency_code ?? "EUR"),
-      url: raw?.url ?? raw?.booking_url ?? raw?.deeplink ?? null,
+      url: safeExternalUrl(raw?.url ?? raw?.booking_url ?? raw?.deeplink),
       rawAmount: amount,
       rawBasis,
       groupStayTotal: Math.round(groupStayTotal),

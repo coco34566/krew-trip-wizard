@@ -5,6 +5,7 @@
  * et le provider des activités existant.
  */
 import { reportServerError } from "@/lib/server-error-reporting.server";
+import { safeExternalUrl } from "@/lib/safe-url";
 
 export type ProviderConfig = {
   rapidApiKey: string;
@@ -163,7 +164,7 @@ function normalizeHotel(raw: any, provider: string): HotelOffer | null {
       provider,
       pricePerNight: Math.round(price),
       currency: String(raw?.currency ?? raw?.currency_code ?? raw?.currencycode ?? "EUR"),
-      url: raw?.url ?? raw?.commerceInfo?.externalUrl ?? raw?.deeplink ?? raw?.booking_url ?? null,
+      url: safeExternalUrl(raw?.url ?? raw?.commerceInfo?.externalUrl ?? raw?.deeplink ?? raw?.booking_url),
     }],
     capacity: null,
     unitsCount: 1,
@@ -306,7 +307,7 @@ export async function searchActivitiesAllProviders(cfg: ProviderConfig, params: 
         durationHours: num(raw?.duration ?? raw?.length ?? 3) || 3,
         rating: num(raw?.rating ?? raw?.reviewScore ?? raw?.bubbleRating?.rating ?? 0),
         imageUrl: raw?.photo?.images?.large?.url ?? raw?.image ?? raw?.imageUrl ?? raw?.thumbnail ?? null,
-        bookingUrl: raw?.web_url ?? raw?.url ?? raw?.webUrl ?? null,
+        bookingUrl: safeExternalUrl(raw?.web_url ?? raw?.url ?? raw?.webUrl),
         provider: "tripadvisor",
       };
     };
