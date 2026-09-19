@@ -1,3 +1,6 @@
+-- OBSOLÈTE : exemples du prototype initial. Ne pas exécuter sur le schéma KREW courant.
+-- Conservé uniquement comme archive historique.
+
 -- Examples for testing the Krew schema (insert + aggregation)
 
 -- 1) Insert test user
