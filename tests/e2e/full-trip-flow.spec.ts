@@ -38,16 +38,16 @@ async function respectLiveProviderCooldown(page: Page, testInfo: TestInfo, nextS
 
 async function fillPreferences(page: Page, profile: "city" | "outdoor") {
   if (profile === "outdoor") {
-    await userClick(page, page.getByRole("button", { name: "🏄 Sportif", exact: true }), "choose Sportif");
-    await userClick(page, page.getByRole("button", { name: "⚽ Sport & outdoor", exact: true }), "choose outdoor activities");
-    await userClick(page, page.getByRole("button", { name: "🌳 Nature / pleine nature", exact: true }), "choose nature environment");
+    await userClick(page, page.getByRole("button", { name: /Sportif$/ }).first(), "choose Sportif");
+    await userClick(page, page.getByRole("button", { name: /Sport & outdoor$/ }).first(), "choose outdoor activities");
+    await userClick(page, page.getByRole("button", { name: /Nature \/ pleine nature$/ }).first(), "choose nature environment");
     await page.locator("#departure").fill("Lyon");
     const cityChoice = page.getByRole("button", { name: /Lyon France/ }).first();
     if (await cityChoice.isVisible().catch(() => false)) await userClick(page, cityChoice, "choose Lyon autocomplete");
   } else {
-    await userClick(page, page.getByRole("button", { name: "🧖 Détente", exact: true }), "choose Détente");
-    await userClick(page, page.getByRole("button", { name: "🏛️ Musées & culture", exact: true }), "choose culture");
-    await userClick(page, page.getByRole("button", { name: "🏢 Centre-ville / urbain", exact: true }), "choose urban");
+    await userClick(page, page.getByRole("button", { name: /Détente$/ }).first(), "choose Détente");
+    await userClick(page, page.getByRole("button", { name: /Musées & culture$/ }).first(), "choose culture");
+    await userClick(page, page.getByRole("button", { name: /Centre-ville \/ urbain$/ }).first(), "choose urban");
     await page.locator("#departure").fill("Paris");
     const cityChoice = page.getByRole("button", { name: /Paris France/ }).first();
     if (await cityChoice.isVisible().catch(() => false)) await userClick(page, cityChoice, "choose Paris autocomplete");
