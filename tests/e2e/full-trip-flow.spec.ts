@@ -169,8 +169,6 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     stage = "organizer-availability";
     await fillAvailability(page, tripId!);
     stage = "organizer-preferences";
-    await page.goto(`/trips/${tripId}/questionnaire`);
-    await handleNormalUserUi(page);
     await fillPreferences(page, profile.organizer);
     await waitForTripHub(page, tripId!);
 
@@ -188,8 +186,6 @@ async function runJourney(page: Page, browser: Browser, testInfo: TestInfo, prof
     stage = "participant-availability";
     await fillAvailability(participantPage, tripId!);
     stage = "participant-preferences";
-    await participantPage.goto(`/trips/${tripId}/questionnaire`);
-    await handleNormalUserUi(participantPage);
     await fillPreferences(participantPage, profile.participant);
     await waitForTripHub(participantPage, tripId!);
 
