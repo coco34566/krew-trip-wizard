@@ -90,6 +90,8 @@ function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [ownedTrips, setOwnedTrips] = useState<Array<{ id: string; name: string; co_organizer_id: string | null }>>([]);
   const [ownedTripsLoading, setOwnedTripsLoading] = useState(false);
+  const [ownedTripsError, setOwnedTripsError] = useState(false);
+  const [ownedTripsReloadKey, setOwnedTripsReloadKey] = useState(0);
   const [understandsTripDeletion, setUnderstandsTripDeletion] = useState(false);
 
   useEffect(() => {
@@ -191,6 +193,7 @@ function AccountPage() {
     if (!open || !user?.id) return;
     let cancelled = false;
     setOwnedTripsLoading(true);
+    setOwnedTripsError(false);
     setUnderstandsTripDeletion(false);
 
     supabase
@@ -202,8 +205,10 @@ function AccountPage() {
         if (tripsError) {
           console.error("Impossible de charger les voyages organisés avant suppression:", tripsError);
           setOwnedTrips([]);
+          setOwnedTripsError(true);
         } else {
           setOwnedTrips((data ?? []) as Array<{ id: string; name: string; co_organizer_id: string | null }>);
+          setOwnedTripsError(false);
         }
         setOwnedTripsLoading(false);
       });
@@ -211,7 +216,7 @@ function AccountPage() {
     return () => {
       cancelled = true;
     };
-  }, [open, user?.id]);
+  }, [open, user?.id, ownedTripsReloadKey]);
 
   const tripsDeletedWithAccount = ownedTrips.filter((trip) => !trip.co_organizer_id);
   const tripsTransferredWithAccount = ownedTrips.filter((trip) => Boolean(trip.co_organizer_id));
@@ -240,7 +245,7 @@ function AccountPage() {
   }
 
   async function handleDeleteAccount() {
-    if (tripsDeletedWithAccount.length > 0 && !understandsTripDeletion) return;
+    if ((ownedTripsError || tripsDeletedWithAccount.length > 0) && !understandsTripDeletion) return;
     setDeleting(true);
     setError(null);
 
@@ -403,6 +408,29 @@ function AccountPage() {
             <p className="text-sm text-muted-foreground">Vérification de tes voyages organisés…</p>
           ) : (
             <div className="space-y-3 text-sm">
+              {ownedTripsError ? (
+                <div className="space-y-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3">
+                  <p className="leading-relaxed text-foreground">
+                    Impossible de vérifier tes voyages organisés. Si tu organises des voyages sans co-organisateur, ils seront supprimés pour tous les participants.
+                  </p>
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-primary hover:underline"
+                    onClick={() => setOwnedTripsReloadKey((value) => value + 1)}
+                  >
+                    Réessayer
+                  </button>
+                  <label className="flex items-start gap-2.5 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 size-4 accent-primary"
+                      checked={understandsTripDeletion}
+                      onChange={(event) => setUnderstandsTripDeletion(event.target.checked)}
+                    />
+                    <span>Je comprends que ces voyages seront supprimés pour tous les participants</span>
+                  </label>
+                </div>
+              ) : null}
               {tripsDeletedWithAccount.length > 0 ? (
                 <div className="space-y-2 rounded-xl border border-destructive/20 bg-destructive/5 p-3">
                   <p className="leading-relaxed text-foreground">
@@ -434,7 +462,7 @@ function AccountPage() {
               type="button"
               variant="destructive"
               onClick={handleDeleteAccount}
-              disabled={deleting || ownedTripsLoading || (tripsDeletedWithAccount.length > 0 && !understandsTripDeletion)}
+              disabled={deleting || ownedTripsLoading || ((ownedTripsError || tripsDeletedWithAccount.length > 0) && !understandsTripDeletion)}
             >
               {deleting ? <Loader2 className="size-4 animate-spin shrink-0" /> : <Trash2 className="size-4 shrink-0" />}
               {deleting ? "Suppression…" : "Supprimer définitivement"}
