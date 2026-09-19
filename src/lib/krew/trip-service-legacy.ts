@@ -72,7 +72,7 @@ export const tripInputSchema = z.object({
   letKrewDecide: z.boolean().default(true),
   maxDistanceKm: z.number().int().min(100).max(15000).default(2000),
   excludedCountries: z.array(z.string()).default([]),
-  durationNights: z.number().int().min(1).max(21).default(2),
+  durationNights: z.number().int().min(1).max(30).default(2),
   maxBudget: z.number().optional(),
   needsCityCenter: z.boolean().default(true),
   mobilityNotes: z.string().max(500).optional(),
