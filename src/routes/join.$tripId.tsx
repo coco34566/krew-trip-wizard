@@ -67,9 +67,9 @@ function JoinTripPage() {
   const invitePath = token
     ? `/join/${tripId}?token=${encodeURIComponent(token)}`
     : `/join/${tripId}`;
-  const authNext = encodeURIComponent(invitePath);
+  const authNext = invitePath;
   const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   const fetchPreview = useServerFn(getJoinPreview);
   const doJoin = useServerFn(joinTrip);
   const checkStatus = useServerFn(checkJoinStatus);
@@ -92,11 +92,21 @@ function JoinTripPage() {
     if (!tripId || firstName) return;
     try {
       const storedFirstName = sessionStorage.getItem(joinFirstNameStorageKey(tripId));
-      if (storedFirstName) setFirstName(storedFirstName);
+      if (storedFirstName) {
+        setFirstName(storedFirstName);
+        return;
+      }
     } catch {
       // sessionStorage can be unavailable in restricted browser contexts.
     }
-  }, [tripId, firstName]);
+
+    const accountName = typeof user?.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name.trim()
+      : "";
+    if (!accountName) return;
+    const provider = String(user?.app_metadata?.provider ?? "email");
+    setFirstName(provider === "email" ? accountName : accountName.split(/\s+/)[0] ?? "");
+  }, [tripId, firstName, user]);
 
   useEffect(() => {
     let cancelled = false;

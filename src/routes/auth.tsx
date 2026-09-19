@@ -8,9 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Logo } from "@/components/krew/Logo";
 import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
+import { Button } from "@/components/ui/button";
 import { KrewIcon, KrewMark, KrewOrganicBlob } from "@/components/krew/visual-language";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { GOOGLE_AUTH_ENABLED } from "@/lib/auth-config";
+import { safeInternalPath } from "@/lib/safe-redirect";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): Record<string, any> => search,
@@ -44,20 +47,34 @@ function AuthPage() {
   const [resending, setResending] = useState(false);
   const [resetBusy, setResetBusy] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const { next, mode } = Route.useSearch();
 
-  const safeNext = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const safeNext = safeInternalPath(next);
   const isRecovery = mode === "recovery";
   const returnUrl = () => typeof window === "undefined" ? undefined : safeNext ? `${window.location.origin}${safeNext}` : window.location.origin;
 
   function goAfterAuth() {
-    if (safeNext) navigate({ to: safeNext as any, replace: true });
-    else navigate({ to: "/dashboard", replace: true });
+    if (safeNext && typeof window !== "undefined") {
+      window.location.replace(safeNext);
+      return;
+    }
+    navigate({ to: "/dashboard", replace: true });
   }
 
   useEffect(() => {
     if (!isRecovery && !loading && isAuthenticated) goAfterAuth();
   }, [isAuthenticated, isRecovery, loading, safeNext]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
 
   async function signIn(e?: React.FormEvent) {
     e?.preventDefault();
@@ -69,7 +86,10 @@ function AuthPage() {
       let userMessage = "Impossible de se connecter. Une erreur est survenue.";
       const msg = error.message.toLowerCase();
       if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials") || msg.includes("credentials")) userMessage = "Identifiants incorrects. Vérifie ton adresse e-mail et ton mot de passe.";
-      else if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) userMessage = "Ton adresse e-mail n'a pas encore été confirmée. Confirme ton inscription avec le lien reçu.";
+      else if (msg.includes("email not confirmed") || msg.includes("email_not_confirmed")) {
+        userMessage = "Ton adresse e-mail n'a pas encore été confirmée. Confirme ton inscription avec le lien reçu.";
+        setEmailNotConfirmed(true);
+      }
       toast.error(userMessage);
       throw error;
     }
@@ -104,8 +124,8 @@ function AuthPage() {
 
   async function updateRecoveredPassword(e?: React.FormEvent) {
     e?.preventDefault();
-    if (password.length < 6) {
-      toast.error("Choisis un mot de passe d’au moins 6 caractères.");
+    if (password.length < 8) {
+      toast.error("Choisis un mot de passe d’au moins 8 caractères.");
       throw new Error("Mot de passe trop court");
     }
     if (password !== confirmPassword) {
@@ -139,7 +159,7 @@ function AuthPage() {
       let userMessage = "Impossible de créer le compte. Une erreur est survenue.";
       const msg = error.message.toLowerCase();
       if (msg.includes("already registered") || msg.includes("already_registered") || msg.includes("email already") || msg.includes("user already exists")) userMessage = "Cette adresse e-mail est déjà utilisée pour un autre compte.";
-      else if (msg.includes("password should be") || msg.includes("weak_password") || msg.includes("password is too weak")) userMessage = "Le mot de passe choisi est trop simple ou trop court (minimum 6 caractères).";
+      else if (msg.includes("password should be") || msg.includes("weak_password") || msg.includes("password is too weak")) userMessage = "Le mot de passe choisi est trop simple ou trop court (minimum 8 caractères).";
       toast.error(userMessage);
       throw error;
     }
@@ -154,6 +174,7 @@ function AuthPage() {
   }
 
   async function resendConfirmationEmail() {
+    if (resendCooldown > 0) return;
     setResending(true);
     const resendOptions: { emailRedirectTo?: string } = {};
     const rUrl = returnUrl();
@@ -168,9 +189,47 @@ function AuthPage() {
 
     if (error) {
       console.error("Erreur d'envoi d'email de confirmation:", error);
-      toast.error("Impossible de renvoyer l'e-mail de confirmation pour le moment.");
+      toast.error("Impossible de renvoyer l’e-mail de confirmation pour le moment. Réessaie plus tard.");
       throw error;
     }
+    setResendCooldown(60);
+    toast.success("E-mail envoyé, vérifie aussi tes spams");
+  }
+
+  async function signInWithGoogle() {
+    if (typeof window === "undefined") return;
+    setGoogleBusy(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin + (safeNext ?? "/dashboard") },
+    });
+    if (error) {
+      console.error("Erreur de connexion Google Supabase:", error);
+      toast.error("Impossible de continuer avec Google pour le moment.");
+      setGoogleBusy(false);
+    }
+  }
+
+  function GoogleAuthButton() {
+    if (!GOOGLE_AUTH_ENABLED) return null;
+    return (
+      <div className="mt-5 space-y-4">
+        <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
+          <span className="h-px flex-1 bg-border/60" />
+          <span>ou</span>
+          <span className="h-px flex-1 bg-border/60" />
+        </div>
+        <Button type="button" variant="outline" className="h-11 w-full rounded-[10px]" disabled={googleBusy} onClick={() => void signInWithGoogle()}>
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4" focusable="false">
+            <path fill="currentColor" d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.5a4.7 4.7 0 0 1-2 3.1v2.6h3.2c1.9-1.7 3.1-4.3 3.1-7.5Z"/>
+            <path fill="currentColor" d="M12 22c2.7 0 5-.9 6.7-2.3l-3.2-2.6c-.9.6-2 1-3.5 1-2.6 0-4.8-1.8-5.6-4.2H3.1v2.6A10 10 0 0 0 12 22Z"/>
+            <path fill="currentColor" d="M6.4 13.9A6 6 0 0 1 6 12c0-.7.1-1.3.3-1.9V7.5H3.1A10 10 0 0 0 2 12c0 1.6.4 3.1 1.1 4.5l3.3-2.6Z"/>
+            <path fill="currentColor" d="M12 5.9c1.5 0 2.8.5 3.8 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2a10 10 0 0 0-8.9 5.5l3.3 2.6C7.2 7.7 9.4 5.9 12 5.9Z"/>
+          </svg>
+          {googleBusy ? "Connexion…" : "Continuer avec Google"}
+        </Button>
+      </div>
+    );
   }
 
   if (isRecovery) {
@@ -188,7 +247,7 @@ function AuthPage() {
               <div className="space-y-2">
                 <Label htmlFor="recovery-password" className="text-[13px] font-medium text-foreground">Nouveau mot de passe</Label>
                 <div className="relative">
-                  <Input id="recovery-password" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" className={`${AUTH_INPUT_CLASS} pr-11`} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <Input id="recovery-password" type={showPassword ? "text" : "password"} required minLength={8} autoComplete="new-password" className={`${AUTH_INPUT_CLASS} pr-11`} value={password} onChange={(e) => setPassword(e.target.value)} />
                   <button type="button" aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)} className="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
@@ -196,7 +255,7 @@ function AuthPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="recovery-password-confirm" className="text-[13px] font-medium text-foreground">Confirmer le mot de passe</Label>
-                <Input id="recovery-password-confirm" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" className={AUTH_INPUT_CLASS} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                <Input id="recovery-password-confirm" type={showPassword ? "text" : "password"} required minLength={8} autoComplete="new-password" className={AUTH_INPUT_CLASS} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
               </div>
               <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Enregistrer mon mot de passe" loadingLabel="Enregistrement…" successLabel="Mot de passe enregistré" errorLabel="Réessayer" onAction={() => updateRecoveredPassword()} />
             </form>
@@ -284,7 +343,7 @@ function AuthPage() {
             <p className="text-[14px] text-muted-foreground sm:text-[15px]">Choisis simplement si tu veux te connecter ou créer ton compte.</p>
           </div>
 
-          <Tabs defaultValue="signin">
+          <Tabs defaultValue={safeNext?.startsWith("/join/") ? "signup" : "signin"}>
             <TabsList className="mb-5 flex h-auto w-full justify-start gap-7 rounded-none border-b border-border/55 bg-transparent p-0 sm:mb-6 lg:mb-7">
               <TabsTrigger
                 value="signin"
@@ -304,7 +363,7 @@ function AuthPage() {
               <form onSubmit={(event) => void signIn(event).catch(() => undefined)} className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
-                  <Input id="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => { setEmail(e.target.value); setResetEmailSent(false); }} />
+                  <Input id="email" type="email" required autoComplete="email" className={AUTH_INPUT_CLASS} value={email} onChange={(e) => { setEmail(e.target.value); setResetEmailSent(false); setEmailNotConfirmed(false); }} />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
@@ -326,16 +385,25 @@ function AuthPage() {
                     </button>
                   </div>
                   {resetEmailSent ? <p className="text-[12px] leading-relaxed text-muted-foreground">Si un compte existe pour cette adresse, un lien de réinitialisation vient d’être envoyé.</p> : null}
+                  {emailNotConfirmed ? (
+                    <div className="space-y-1.5 text-[12px] leading-relaxed text-muted-foreground">
+                      <p>Ton adresse n&apos;est pas encore confirmée.</p>
+                      <button type="button" onClick={() => void resendConfirmationEmail().catch(() => undefined)} disabled={resending || resendCooldown > 0} className="font-semibold text-primary hover:underline disabled:opacity-60">
+                        {resendCooldown > 0 ? `Renvoyer l'e-mail de confirmation (${resendCooldown}s)` : resending ? "Envoi…" : "Renvoyer l'e-mail de confirmation"}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
                 <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Se connecter" loadingLabel="Connexion…" successLabel="Connecté" errorLabel="Réessayer" onAction={() => signIn()} />
               </form>
+              <GoogleAuthButton />
             </TabsContent>
 
             <TabsContent value="signup" className="mt-0">
               <form onSubmit={(event) => void signUp(event).catch(() => undefined)} className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-[13px] font-medium text-foreground">Prénom / pseudo</Label>
-                  <Input id="name" autoComplete="name" className={AUTH_INPUT_CLASS} value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                  <Input id="name" autoComplete="given-name" className={AUTH_INPUT_CLASS} value={fullName} onChange={(e) => setFullName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email2" className="text-[13px] font-medium text-foreground">Adresse e-mail</Label>
@@ -344,7 +412,7 @@ function AuthPage() {
                 <div className="space-y-2">
                   <Label htmlFor="password2" className="text-[13px] font-medium text-foreground">Mot de passe</Label>
                   <div className="relative">
-                    <Input id="password2" type={showPassword ? "text" : "password"} required minLength={6} autoComplete="new-password" className={`${AUTH_INPUT_CLASS} pr-11`} value={password} onChange={(e) => setPassword(e.target.value)} />
+                    <Input id="password2" type={showPassword ? "text" : "password"} required minLength={8} autoComplete="new-password" className={`${AUTH_INPUT_CLASS} pr-11`} value={password} onChange={(e) => setPassword(e.target.value)} />
                     <button
                       type="button"
                       aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
@@ -355,10 +423,11 @@ function AuthPage() {
                       {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
-                  <p className="text-[13px] leading-relaxed text-muted-foreground">6 caractères minimum.</p>
+                  <p className="text-[13px] leading-relaxed text-muted-foreground">8 caractères minimum.</p>
                 </div>
                 <KrewStatefulButton className="w-full" disabled={busy} idleLabel="Créer mon compte" loadingLabel="Création…" successLabel="Compte créé" errorLabel="Réessayer" onAction={() => signUp()} />
               </form>
+              <GoogleAuthButton />
             </TabsContent>
           </Tabs>
 

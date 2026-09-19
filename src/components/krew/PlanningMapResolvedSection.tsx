@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink, Home, LocateFixed, MapPin, Minus, Plus, X } from "lucide-react";
 
 import { getPlanningMapPayload } from "@/lib/krew/planning-map.functions";
+import { SafeExternalLink } from "@/components/krew/SafeExternalLink";
 import {
   buildPlanningMapModel,
   findPlanningMapGeographicOutlierIds,
@@ -118,9 +119,9 @@ function PointCard({ point, onClose }: { point: PlanningMapPoint; onClose: () =>
           <p className="mt-0.5 text-sm font-semibold leading-snug text-foreground">{point.label}</p>
           {point.address ? <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{point.address}</p> : null}
           {point.mapsUrl ? (
-            <a href={point.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline">
+            <SafeExternalLink href={point.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline">
               Ouvrir dans Maps <ExternalLink className="size-3" />
-            </a>
+            </SafeExternalLink>
           ) : null}
         </div>
       </div>

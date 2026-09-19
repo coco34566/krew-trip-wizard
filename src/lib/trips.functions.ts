@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { safeExternalUrl, isSafeExternalUrl } from "@/lib/safe-url";
 import {
   aggregateParticipantPreferences,
   generateRecommendationsForTrip,
@@ -1789,7 +1790,7 @@ export const getTripRecap = createServerFn({ method: "GET" })
                   id: acc.id as string,
                   name: acc.name as string,
                   type: acc.type as string,
-                  bookingUrl: (directUrl || exactDeepLink) as string | null,
+                  bookingUrl: safeExternalUrl(directUrl || exactDeepLink),
                 };
               })()
             : null,
@@ -3573,7 +3574,7 @@ export const proposeStayAndTransport = createServerFn({ method: "POST" })
                   rating: hotel.rating,
                   review_count: hotel.reviewCount,
                   price_per_night: hotel.pricePerPerson,
-                  booking_url: hotel.url,
+                  booking_url: safeExternalUrl(hotel.url),
                   image_url: hotel.imageUrl,
                   krew_concept: hotel.krewConcept,
                   source: hotel.source || "gemini_grounded",
@@ -4291,7 +4292,7 @@ export const pickTransport = createServerFn({ method: "POST" })
         outboundDepartureTime: z.string().max(10).optional().nullable(),
         returnArrivalTime: z.string().max(10).optional().nullable(),
         pricePerPerson: z.number().optional(),
-        url: z.string().url().optional().nullable(),
+        url: z.string().refine(isSafeExternalUrl, { message: "URL externe invalide" }).optional().nullable(),
       })
       .parse(data),
   )
@@ -4340,7 +4341,7 @@ export const pickTransport = createServerFn({ method: "POST" })
       outboundDepartureTime: data.outboundDepartureTime || null,
       returnArrivalTime: data.returnArrivalTime || null,
       pricePerPerson: data.pricePerPerson ?? null,
-      url: data.url || null,
+      url: safeExternalUrl(data.url),
       at: new Date().toISOString(),
     };
     if (idx >= 0) picks[idx] = entry;
@@ -4649,7 +4650,7 @@ export const generateTasksForTrip = createServerFn({ method: "POST" })
             type: slotInfo.taskType,
             assigned_participant_id: assignedId,
             status: taskStatus,
-            booking_url: slot.url || null,
+            booking_url: safeExternalUrl(slot.url),
             start_time: slot.time || null,
             day_date: day.date || null,
             price: slot.priceHint != null ? String(slot.priceHint) : null,

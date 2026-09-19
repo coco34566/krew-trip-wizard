@@ -16,6 +16,7 @@ import { KrewStatefulButton } from "@/components/krew/KrewStatefulButton";
 import { KrewThinkingState } from "@/components/krew/KrewThinkingState";
 import { KrewNote } from "@/components/krew/visual-language";
 import { formatEuro } from "@/lib/krew/constants";
+import { SafeExternalLink } from "@/components/krew/SafeExternalLink";
 import {
   getTripDetail,
   proposeStayAndTransport,
@@ -322,14 +323,14 @@ export function TripAccommodationPage({ tripId }: { tripId: string }) {
                         {iVoted ? "Mon vote" : "Voter"} · {hotelVotes.length}
                       </Button>
                       {hotel.url ? (
-                        <a
+                        <SafeExternalLink
                           href={hotel.url}
                           target="_blank"
                           rel="noreferrer"
                           className="inline-flex min-h-10 items-center text-xs font-medium text-primary hover:underline"
                         >
                           Voir l’hébergement →
-                        </a>
+                        </SafeExternalLink>
                       ) : null}
                     </div>
 

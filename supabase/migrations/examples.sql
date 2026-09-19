@@ -1,3 +1,4 @@
+-- OBSOLÈTE : exemple historique du prototype KREW, ne correspond plus au schéma Supabase courant.
 -- Examples for testing the Krew schema (insert + aggregation)
 
 -- 1) Insert test user

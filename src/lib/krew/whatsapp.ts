@@ -1,9 +1,11 @@
+import { safeExternalUrl } from "@/lib/safe-url";
 export function buildWhatsAppUrl(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
 export function shareOnWhatsApp(text: string): void {
-  window.location.assign(buildWhatsAppUrl(text));
+  const url = safeExternalUrl(buildWhatsAppUrl(text));
+  if (url) window.location.assign(url);
 }
 
 export function buildTripStatusWhatsApp(input: {

@@ -2,6 +2,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 
 import { KrewIcon, KrewMark } from "@/components/krew/visual-language";
+import { SafeExternalLink } from "@/components/krew/SafeExternalLink";
 import {
   buildPlanningMapModel,
   buildPlanningMapsUrl,
@@ -175,10 +176,10 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
                       <p className="mt-1 text-xs leading-snug text-muted-foreground">{String(state.slot.address)}</p>
                     ) : null}
                     {mapsUrl ? (
-                      <a href={mapsUrl} target="_blank" rel="noreferrer" className="mt-1.5 inline-flex min-h-8 items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
+                      <SafeExternalLink href={mapsUrl} target="_blank" rel="noreferrer" className="mt-1.5 inline-flex min-h-8 items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
                         <KrewIcon name="destination" tone="plum" size="sm" className="size-3.5" />
                         Ouvrir dans Maps
-                      </a>
+                      </SafeExternalLink>
                     ) : null}
                   </div>
                 </div>
@@ -210,10 +211,10 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
                 ) : null}
               </div>
               {featuredMapsUrl ? (
-                <a href={featuredMapsUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">
+                <SafeExternalLink href={featuredMapsUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">
                   <KrewIcon name="destination" tone="cream" size="sm" className="size-4" />
                   Maps
-                </a>
+                </SafeExternalLink>
               ) : null}
             </div>
           </div>
@@ -264,7 +265,7 @@ export function TripLiveModePanel({ tripId, trip, destinationName = null, weathe
               {lodgingAddress ? <p className="truncate text-xs text-muted-foreground">{lodgingAddress}</p> : null}
             </div>
             {lodgingMapsUrl ? (
-              <a href={lodgingMapsUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 shrink-0 items-center px-2 text-xs font-semibold text-primary hover:underline">Maps</a>
+              <SafeExternalLink href={lodgingMapsUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 shrink-0 items-center px-2 text-xs font-semibold text-primary hover:underline">Maps</SafeExternalLink>
             ) : null}
           </div>
         ) : null}

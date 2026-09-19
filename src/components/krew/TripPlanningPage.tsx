@@ -2,6 +2,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { SafeExternalLink } from "@/components/krew/SafeExternalLink";
 import {
   ArrowLeft,
   CalendarDays,
@@ -300,14 +301,14 @@ export function TripPlanningPage({ tripId }: { tripId: string }) {
                           ) : null}
 
                           {slotLink ? (
-                            <a
+                            <SafeExternalLink
                               href={slotLink.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="mt-1 inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline"
                             >
                               {slotLink.label}
-                            </a>
+                            </SafeExternalLink>
                           ) : null}
                         </div>
                       </div>

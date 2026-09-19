@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,12 +15,18 @@ import {
   PARTICIPANTS_DEFAULT,
   PARTICIPANTS_MAX,
   PARTICIPANTS_MIN,
+  DEFAULT_TRIP_BUDGET_PER_PERSON,
+  DEFAULT_TRIP_MAX_DISTANCE_KM,
+  DEFAULT_TRIP_NEEDS_CITY_CENTER,
+  DEFAULT_TRIP_LET_KREW_DECIDE,
   STAR_EVENT_TYPES,
   getTripTypeImage,
 } from "@/lib/krew/constants";
 import { KrewIcon } from "@/components/krew/visual-language/KrewIcon";
 import { KrewMark } from "@/components/krew/visual-language/KrewMark";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const CREATE_TRIP_INPUT_CLASS =
   "h-12 rounded-xl border-border/70 bg-background text-base shadow-none transition-colors focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/10";
@@ -36,6 +42,12 @@ function clampParticipants(raw: string): number {
   const n = Number.parseInt(raw, 10);
   if (!Number.isFinite(n)) return PARTICIPANTS_DEFAULT;
   return Math.min(PARTICIPANTS_MAX, Math.max(PARTICIPANTS_MIN, n));
+}
+
+function clampDurationDays(raw: string): number {
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return 3;
+  return Math.min(31, Math.max(2, n));
 }
 
 export const Route = createFileRoute("/_authenticated/trips/new")({
@@ -80,10 +92,11 @@ function SectionHeading({
   );
 }
 
-function NewTripPage() {
+export function NewTripPage() {
   const navigate = useNavigate();
   const create = useServerFn(createTrip);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [eventType, setEventType] = useState("weekend");
   const [participantsInput, setParticipantsInput] = useState(String(PARTICIPANTS_DEFAULT));
@@ -93,6 +106,37 @@ function NewTripPage() {
   const [durationDaysInput, setDurationDaysInput] = useState("3");
   const [groupAgeRange, setGroupAgeRange] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<"name" | "organizerFirstName" | "celebratedPerson" | "groupAgeRange", string | null>>({
+    name: null,
+    organizerFirstName: null,
+    celebratedPerson: null,
+    groupAgeRange: null,
+  });
+  const submitGuardRef = useRef(false);
+  const organizerDirtyRef = useRef(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const organizerRef = useRef<HTMLInputElement>(null);
+  const starRef = useRef<HTMLInputElement>(null);
+  const ageGroupRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function prefillOrganizer() {
+      if (!user?.id || organizerDirtyRef.current || organizerFirstName.trim()) return;
+      const { data } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+      if (cancelled || organizerDirtyRef.current || organizerFirstName.trim()) return;
+      const profileName = data?.full_name?.trim();
+      const metadataName = typeof user.user_metadata?.full_name === "string" ? user.user_metadata.full_name.trim() : "";
+      const raw = profileName || metadataName;
+      if (!raw) return;
+      const provider = user.app_metadata?.provider;
+      setOrganizerFirstName(provider && provider !== "email" ? raw.split(/\s+/)[0] ?? raw : raw);
+    }
+    void prefillOrganizer();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, organizerFirstName]);
 
   const activeEventTypes = EVENT_TYPES.filter((t) =>
     ["evg", "evjf", "anniversaire", "weekend"].includes(t.value),
@@ -104,27 +148,36 @@ function NewTripPage() {
 
   async function onSubmit(e?: React.FormEvent) {
     e?.preventDefault();
-    if (name.trim().length < 2) {
-      toast.error("Donne un nom au voyage (2 caractères minimum).");
-      throw new Error("Nom de voyage manquant");
-    }
-    if (!organizerFirstName.trim()) {
-      toast.error("Indique ton prénom.");
-      throw new Error("Prénom organisateur manquant");
-    }
-    if (needsStar && !celebratedPerson.trim()) {
-      toast.error("Indique le prénom de la Star.");
-      throw new Error("Prénom de la Star manquant");
-    }
-    if (!groupAgeRange) {
-      toast.error("Indique la tranche d’âge du groupe.");
-      throw new Error("Tranche d’âge manquante");
+    if (submitGuardRef.current) return;
+    submitGuardRef.current = true;
+
+    const nextErrors = {
+      name: name.trim().length < 2 ? "Donne un nom au voyage (2 caractères minimum)." : null,
+      organizerFirstName: !organizerFirstName.trim() ? "Indique ton prénom." : null,
+      celebratedPerson: needsStar && !celebratedPerson.trim() ? "Indique le prénom de la Star." : null,
+      groupAgeRange: !groupAgeRange ? "Indique la tranche d’âge du groupe." : null,
+    };
+    setFieldErrors(nextErrors);
+
+    const firstInvalid =
+      nextErrors.name ? nameRef.current :
+      nextErrors.organizerFirstName ? organizerRef.current :
+      nextErrors.celebratedPerson ? starRef.current :
+      nextErrors.groupAgeRange ? ageGroupRef.current :
+      null;
+
+    if (firstInvalid) {
+      firstInvalid.scrollIntoView({ behavior: "smooth", block: "center" });
+      if ("focus" in firstInvalid) (firstInvalid as HTMLElement).focus();
+      submitGuardRef.current = false;
+      throw new Error("validation");
     }
 
     setSubmitting(true);
     try {
-      const days = Math.max(2, Number(durationDaysInput) || 3);
-      const durationNights = Math.max(1, days - 1);
+      const days = clampDurationDays(durationDaysInput);
+      setDurationDaysInput(String(days));
+      const durationNights = days - 1;
       const trip = await create({
         data: {
           name: name.trim(),
@@ -132,15 +185,15 @@ function NewTripPage() {
           participants,
           organizerFirstName: organizerFirstName.trim(),
           celebratedPerson: celebratedPerson.trim() || undefined,
-          budgetPerPerson: 400,
+          budgetPerPerson: DEFAULT_TRIP_BUDGET_PER_PERSON,
           groupAgeRange: groupAgeRange as "18-25" | "25-35" | "35-45" | "45-60" | "60+",
           ambiances: [],
           activityCategories: [],
-          letKrewDecide: true,
-          maxDistanceKm: 2000,
+          letKrewDecide: DEFAULT_TRIP_LET_KREW_DECIDE,
+          maxDistanceKm: DEFAULT_TRIP_MAX_DISTANCE_KM,
           excludedCountries: [],
           durationNights,
-          needsCityCenter: true,
+          needsCityCenter: DEFAULT_TRIP_NEEDS_CITY_CENTER,
           dietaryConstraints: [],
         },
       });
@@ -156,6 +209,7 @@ function NewTripPage() {
       throw err;
     } finally {
       setSubmitting(false);
+      submitGuardRef.current = false;
     }
   }
 
@@ -200,7 +254,7 @@ function NewTripPage() {
         </div>
       </header>
 
-      <form onSubmit={(event) => void onSubmit(event).catch(() => undefined)} className="mt-8 sm:mt-9">
+      <form noValidate onSubmit={(event) => void onSubmit(event).catch(() => undefined)} className="mt-8 sm:mt-9">
         <section className="border-b border-border/70 pb-8 sm:pb-9">
           <SectionHeading
             step="01"
@@ -211,16 +265,21 @@ function NewTripPage() {
 
           <div className="mt-6 max-w-[560px] space-y-2 sm:mt-7">
             <Label htmlFor="name" className="text-[15px] font-semibold text-foreground">
-              Comment vous l’appelez ?
+              Comment vous l’appelez ? <span className="text-destructive" aria-hidden="true">*</span>
             </Label>
             <Input
+              ref={nameRef}
               id="name"
               className={CREATE_TRIP_INPUT_CLASS}
               placeholder="Ex. Week-end à 8 / EVG de Jules"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); if (fieldErrors.name) setFieldErrors((current) => ({ ...current, name: null })); }}
+              aria-invalid={fieldErrors.name ? true : undefined}
+              aria-describedby={fieldErrors.name ? "name-error" : undefined}
+              required
               autoFocus
             />
+            {fieldErrors.name ? <p id="name-error" role="alert" className="text-xs text-destructive">{fieldErrors.name}</p> : null}
           </div>
 
           <div className="mt-7 sm:mt-8">
@@ -290,15 +349,20 @@ function NewTripPage() {
             <div className="mt-6 max-w-[420px] space-y-2 sm:mt-7">
               <Label htmlFor="star" className="flex items-center gap-2 text-[15px] font-semibold text-foreground">
                 <KrewIcon name="favorite" tone="plum" size="sm" className="size-4 shrink-0" />
-                Qui est la Star ?
+                Qui est la Star ? <span className="text-destructive" aria-hidden="true">*</span>
               </Label>
               <Input
+                ref={starRef}
                 id="star"
                 className={CREATE_TRIP_INPUT_CLASS}
                 placeholder="Son prénom"
                 value={celebratedPerson}
-                onChange={(e) => setCelebratedPerson(e.target.value)}
+                onChange={(e) => { setCelebratedPerson(e.target.value); if (fieldErrors.celebratedPerson) setFieldErrors((current) => ({ ...current, celebratedPerson: null })); }}
+                aria-invalid={fieldErrors.celebratedPerson ? true : undefined}
+                aria-describedby={fieldErrors.celebratedPerson ? "star-error" : undefined}
+                required={needsStar}
               />
+              {fieldErrors.celebratedPerson ? <p id="star-error" role="alert" className="text-xs text-destructive">{fieldErrors.celebratedPerson}</p> : null}
               <p className="text-xs leading-[1.4] text-muted-foreground">
                 Ses préférences compteront davantage dans les recommandations.
               </p>
@@ -311,15 +375,18 @@ function NewTripPage() {
                 Ton prénom <span className="text-destructive" aria-hidden="true">*</span>
               </Label>
               <Input
+                ref={organizerRef}
                 id="orga"
                 className={CREATE_TRIP_INPUT_CLASS}
                 placeholder="Ex. Camille"
                 value={organizerFirstName}
-                onChange={(e) => setOrganizerFirstName(e.target.value)}
+                onChange={(e) => { organizerDirtyRef.current = true; setOrganizerFirstName(e.target.value); if (fieldErrors.organizerFirstName) setFieldErrors((current) => ({ ...current, organizerFirstName: null })); }}
                 required
                 aria-required="true"
-                aria-describedby="orga-help"
+                aria-invalid={fieldErrors.organizerFirstName ? true : undefined}
+                aria-describedby={fieldErrors.organizerFirstName ? "orga-help orga-error" : "orga-help"}
               />
+              {fieldErrors.organizerFirstName ? <p id="orga-error" role="alert" className="text-xs text-destructive">{fieldErrors.organizerFirstName}</p> : null}
               <p id="orga-help" className="text-xs leading-[1.4] text-muted-foreground">
                 Pour que le groupe sache qui organise et te reconnaisse dans les réponses.
               </p>
@@ -353,8 +420,8 @@ function NewTripPage() {
           </div>
 
           <div className="mt-7 sm:mt-8">
-            <Label className="mb-2 block text-[15px] font-semibold text-foreground">Et côté âge ?</Label>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
+            <Label id="group-age-label" className="mb-2 block text-[15px] font-semibold text-foreground">Et côté âge ? <span className="text-destructive" aria-hidden="true">*</span></Label>
+            <div ref={ageGroupRef} role="group" aria-labelledby="group-age-label" aria-invalid={fieldErrors.groupAgeRange ? true : undefined} aria-describedby={fieldErrors.groupAgeRange ? "group-age-error" : undefined} tabIndex={fieldErrors.groupAgeRange ? -1 : undefined} className="grid grid-cols-2 gap-2.5 sm:grid-cols-5 sm:gap-3">
               {["18-25", "25-35", "35-45", "45-60", "60+"].map((age) => {
                 const selected = groupAgeRange === age;
                 return (
@@ -362,7 +429,7 @@ function NewTripPage() {
                     key={age}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => setGroupAgeRange(age)}
+                    onClick={() => { setGroupAgeRange(age); if (fieldErrors.groupAgeRange) setFieldErrors((current) => ({ ...current, groupAgeRange: null })); }}
                     className={cn(
                       "min-h-11 rounded-[14px] px-3 py-2.5 text-center text-sm font-medium",
                       SELECTABLE_FRAME_CLASS,
@@ -376,6 +443,7 @@ function NewTripPage() {
                 );
               })}
             </div>
+            {fieldErrors.groupAgeRange ? <p id="group-age-error" role="alert" className="mt-2 text-xs text-destructive">{fieldErrors.groupAgeRange}</p> : null}
           </div>
         </section>
 
@@ -401,10 +469,7 @@ function NewTripPage() {
                   className={CREATE_TRIP_NUMBER_INPUT_CLASS}
                   value={durationDaysInput}
                   onChange={(e) => setDurationDaysInput(e.target.value.replace(/[^\d]/g, ""))}
-                  onBlur={() => {
-                    const val = Math.max(2, Number(durationDaysInput) || 3);
-                    setDurationDaysInput(String(val));
-                  }}
+                  onBlur={() => setDurationDaysInput(String(clampDurationDays(durationDaysInput)))}
                 />
                 <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-xs text-muted-foreground">
                   jours
@@ -428,6 +493,7 @@ function NewTripPage() {
             loadingLabel="Création…"
             successLabel="Voyage créé"
             errorLabel="Réessayer"
+            disabled={submitting}
             onAction={() => onSubmit()}
           />
         </div>

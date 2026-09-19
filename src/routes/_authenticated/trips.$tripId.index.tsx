@@ -3,6 +3,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { SafeExternalLink } from "@/components/krew/SafeExternalLink";
+import { safeExternalUrl } from "@/lib/safe-url";
 import {
   CheckCircle2,
   Heart,
@@ -1913,23 +1915,23 @@ function TripDetail() {
                     errorLabel="Réessayer"
                     onAction={async () => handleDownloadIcs()}
                   />
-                  {googleCalendarUrl ? (
+                  {safeExternalUrl(googleCalendarUrl) ? (
                     <Button asChild variant="outline">
-                      <a href={googleCalendarUrl} target="_blank" rel="noreferrer">
+                      <a href={safeExternalUrl(googleCalendarUrl)!} target="_blank" rel="noreferrer">
                         Google Calendar
                       </a>
                     </Button>
                   ) : null}
-                  {outlookCalendarUrl ? (
+                  {safeExternalUrl(outlookCalendarUrl) ? (
                     <Button asChild variant="outline">
-                      <a href={outlookCalendarUrl} target="_blank" rel="noreferrer">
+                      <a href={safeExternalUrl(outlookCalendarUrl)!} target="_blank" rel="noreferrer">
                         Outlook
                       </a>
                     </Button>
                   ) : null}
-                  {office365CalendarUrl ? (
+                  {safeExternalUrl(office365CalendarUrl) ? (
                     <Button asChild variant="outline">
-                      <a href={office365CalendarUrl} target="_blank" rel="noreferrer">
+                      <a href={safeExternalUrl(office365CalendarUrl)!} target="_blank" rel="noreferrer">
                         Microsoft 365
                       </a>
                     </Button>
@@ -2680,7 +2682,7 @@ function TripDetail() {
                       {(h.url ? [{ label: "Voir l’hébergement", url: h.url }] : [])
                         .slice(0, 1)
                         .map((l: any) => (
-                          <a
+                          <SafeExternalLink
                             key={l.label + l.url}
                             href={l.url}
                             target="_blank"
@@ -2688,7 +2690,7 @@ function TripDetail() {
                             className="text-xs font-medium text-primary hover:underline"
                           >
                             {l.label} →
-                          </a>
+                          </SafeExternalLink>
                         ))}
                     </div>
                     {h.configs && h.configs.length > 0 && (
@@ -2956,7 +2958,7 @@ function TripDetail() {
                                 }
                               />
                               {(tr.links ?? []).slice(0, 1).map((l: any) => (
-                                <a
+                                <SafeExternalLink
                                   key={l.label}
                                   href={l.url}
                                   target="_blank"
@@ -2964,7 +2966,7 @@ function TripDetail() {
                                   className="text-xs text-primary hover:underline"
                                 >
                                   {l.label} →
-                                </a>
+                                </SafeExternalLink>
                               ))}
                             </div>
                           </li>
@@ -3160,7 +3162,7 @@ function TripDetail() {
                                 </p>
                               ) : null}
                               {slot.booking && slot.booking.provider === "getyourguide" ? (
-                                <a
+                                <SafeExternalLink
                                   href={slot.booking.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -3169,9 +3171,9 @@ function TripDetail() {
                                   {slot.booking.type === "exact_product"
                                     ? "Voir les disponibilités sur GetYourGuide →"
                                     : "Voir les activités sur GetYourGuide →"}
-                                </a>
+                                </SafeExternalLink>
                               ) : slot.url && slot.type !== "transport" && slot.type !== "hotel" ? (
-                                <a
+                                <SafeExternalLink
                                   href={slot.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
@@ -3182,7 +3184,7 @@ function TripDetail() {
                                     : slot.resourceKind === "ideas"
                                       ? "Voir les idées →"
                                       : "Voir le lieu →"}
-                                </a>
+                                </SafeExternalLink>
                               ) : null}
                             </div>
                           </div>
@@ -3406,14 +3408,14 @@ function TripDetail() {
                           </select>
                         </td>
                         <td className="py-3.5 text-right">
-                          {task.booking_url ? (
+                          {safeExternalUrl(task.booking_url) ? (
                             <Button
                               asChild
                               variant="outline"
                               size="sm"
                               className="h-7 px-2 gap-1 text-[11px]"
                             >
-                              <a href={task.booking_url} target="_blank" rel="noopener noreferrer">
+                              <a href={safeExternalUrl(task.booking_url)!} target="_blank" rel="noopener noreferrer">
                                 Réserver
                               </a>
                             </Button>

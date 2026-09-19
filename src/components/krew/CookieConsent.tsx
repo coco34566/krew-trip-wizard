@@ -24,6 +24,12 @@ type CookieConsentState = {
 
 const STORAGE_KEY = "krew-cookie-consent";
 const CONSENT_EVENT = "krew:cookie-consent-changed";
+const OPEN_SETTINGS_EVENT = "krew:cookie-consent-open";
+const CONSENT_MAX_AGE_MS = 183 * 24 * 60 * 60 * 1000;
+
+export function openCookieSettings() {
+  window.dispatchEvent(new CustomEvent(OPEN_SETTINGS_EVENT));
+}
 
 const OPTIONAL_CATEGORIES: ConsentCategory[] = [
   "analytics",
@@ -59,14 +65,26 @@ export function CookieConsent() {
   const [consent, setConsent] = useState(emptyOptionalConsent);
 
   useEffect(() => {
+    const openSettings = () => {
+      setShowCustomize(true);
+      setIsOpen(true);
+    };
+    window.addEventListener(OPEN_SETTINGS_EVENT, openSettings);
+
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       setIsOpen(true);
-      return;
+      return () => window.removeEventListener(OPEN_SETTINGS_EVENT, openSettings);
     }
 
     try {
       const parsed = JSON.parse(raw) as Partial<CookieConsentState>;
+      const consentDate = parsed.date ? new Date(parsed.date).getTime() : Number.NaN;
+      if (!Number.isFinite(consentDate) || Date.now() - consentDate > CONSENT_MAX_AGE_MS) {
+        localStorage.removeItem(STORAGE_KEY);
+        setIsOpen(true);
+        return () => window.removeEventListener(OPEN_SETTINGS_EVENT, openSettings);
+      }
       const next = OPTIONAL_CATEGORIES.reduce(
         (result, category) => {
           result[category] = parsed[category] === true;
@@ -80,6 +98,8 @@ export function CookieConsent() {
       localStorage.removeItem(STORAGE_KEY);
       setIsOpen(true);
     }
+
+    return () => window.removeEventListener(OPEN_SETTINGS_EVENT, openSettings);
   }, []);
 
   function saveConsent(next: Pick<CookieConsentState, ConsentCategory>) {
@@ -103,7 +123,7 @@ export function CookieConsent() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300 md:left-auto md:right-4 md:max-w-md">
+    <div role="region" aria-label="Choix de cookies" className="fixed bottom-4 left-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300 md:left-auto md:right-4 md:max-w-md">
       <div className="space-y-4 rounded-2xl border border-border/60 bg-card p-5 shadow-2xs">
         <header className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -113,7 +133,7 @@ export function CookieConsent() {
             <h3 className="text-sm font-semibold">Tes choix de cookies</h3>
             <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               KREW utilise des cookies nécessaires au fonctionnement du service et, avec ton accord,
-              des cookies pour mesurer et améliorer ton expérience.
+              mesure les clics vers ses partenaires et liens d’affiliation.
             </p>
           </div>
         </header>
@@ -126,32 +146,11 @@ export function CookieConsent() {
               alwaysOn
             />
             <CategoryRow
-              title="Mesure & amélioration"
-              description="Mesure d’audience et performance pour comprendre l'utilisation de KREW et améliorer le service."
-              checked={consent.analytics}
-              onChange={(value) => updateCategory("analytics", value)}
-            />
-            <CategoryRow
-              title="Personnalisation & publicité"
-              description="Personnalisation de l'expérience, publicité et mesure des campagnes lorsque ces services sont activés."
-              checked={consent.personalization || consent.advertising}
-              onChange={(value) => {
-                setConsent((current) => ({
-                  ...current,
-                  personalization: value,
-                  advertising: value,
-                }));
-              }}
-            />
-            <CategoryRow
               title="Partenaires & affiliation"
               description="Mesure des clics et conversions liés aux partenaires, à l'affiliation et à certains services externes."
               checked={consent.affiliate}
               onChange={(value) => updateCategory("affiliate", value)}
             />
-            <p className="pt-1 text-xs leading-relaxed text-muted-foreground">
-              Les cookies liés à la personnalisation publicitaire et aux réseaux sociaux suivent le même choix.
-            </p>
           </div>
         ) : null}
 
@@ -174,11 +173,7 @@ export function CookieConsent() {
                 <Button
                   className="w-1/2 text-xs font-medium"
                   onClick={() => saveConsent({
-                    analytics: true,
-                    personalization: true,
-                    advertising: true,
-                    retargeting: true,
-                    social: true,
+                    ...emptyOptionalConsent(),
                     affiliate: true,
                   })}
                 >
