@@ -97,7 +97,7 @@ export function computeAccommodationRequestHash(tripId: string, specification: A
     searchStrategies: specification.searchStrategies.map((s) => ({ concept: s.concept, propertyTypes: s.propertyTypes })),
     locationIntent: specification.locationIntent,
     minimumRating: specification.minimumRating,
-    requiredAmenities: specification.requiredAmenities.slice().sort(),
+    requiredAmenities: meaningfulRequiredAmenities(specification.requiredAmenities).slice().sort(),
     accessibilityRequired: specification.accessibilityRequired,
   };
   const str = JSON.stringify(payload);
@@ -172,7 +172,7 @@ export function normalizeAccommodationCandidates(payload: any, specification: Ac
     if (rating != null && specification.minimumRating != null && rating < specification.minimumRating) return [];
     if (pricePerPerson != null && priceStatus !== "unknown" && specification.budget.hardMaxPerPersonStay != null && pricePerPerson > specification.budget.hardMaxPerPersonStay) return [];
     const amenities = Array.isArray(raw.amenities) ? raw.amenities.map(String) : [];
-    if (specification.requiredAmenities.some((required) => !amenities.some((item) => item.toLowerCase().includes(required.toLowerCase())))) return [];
+    if (meaningfulRequiredAmenities(specification.requiredAmenities).some((required) => !amenities.some((item) => item.toLowerCase().includes(required.toLowerCase())))) return [];
     return [{
       id: String(raw.id || `${concept}-${seen.size}`),
       name,
@@ -209,6 +209,76 @@ function normalizeText(value: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function meaningfulRequiredAmenities(amenities: string[]): string[] {
+  return amenities.filter(
+    (amenity) => !/^(wifi|wi-fi|internet)$/i.test(normalizeText(amenity).trim()),
+  );
+}
+
+function accommodationHighlightLabel(term: string): string {
+  const normalized = normalizeText(term);
+  if (/^(wifi|wi-fi|internet)$/.test(normalized.trim())) return "";
+  if (/jacuzzi|hot tub|spa priv/.test(normalized)) return "Jacuzzi disponible";
+  if (/piscine|swimming pool/.test(normalized)) return "Piscine disponible";
+  if (/sauna/.test(normalized)) return "Sauna disponible";
+  if (/hammam|steam room/.test(normalized)) return "Hammam disponible";
+  if (/terrasse|terrace/.test(normalized)) return "Terrasse pour la Krew";
+  if (/jardin|garden/.test(normalized)) return "Jardin disponible";
+  if (/vue mer|sea view|ocean view/.test(normalized)) return "Vue sur la mer";
+  if (/vue montagne|mountain view/.test(normalized)) return "Vue montagne";
+  if (/centre|central|downtown/.test(normalized)) return "En plein centre";
+  if (/calme|quiet|peaceful/.test(normalized)) return "Au calme";
+  if (/parking/.test(normalized)) return "Parking disponible";
+  if (/petit.?dejeuner|breakfast/.test(normalized)) return "Petit-déjeuner disponible";
+  return term.trim().replace(/^./, (letter) => letter.toUpperCase());
+}
+
+export function buildAccommodationMatchReasons(
+  specification: AccommodationSearchSpecification,
+  strategy: AccommodationSearchSpecification["searchStrategies"][number],
+  details: {
+    blob: string;
+    capacity: number | null;
+    bedrooms: number | null;
+    amenities: string[];
+    propertyType: string;
+  },
+): string[] {
+  const highlights: string[] = [];
+  const add = (label: string | null) => {
+    if (label && !highlights.includes(label)) highlights.push(label);
+  };
+
+  if (details.bedrooms != null && details.bedrooms >= specification.group.size) {
+    add("Chacun sa chambre");
+  } else if (
+    details.bedrooms != null &&
+    details.bedrooms >= specification.group.targetBedrooms
+  ) {
+    add(`${details.bedrooms} chambres pour la Krew`);
+  }
+
+  const matchedGroupWishes = [
+    ...meaningfulRequiredAmenities(specification.requiredAmenities),
+    ...strategy.mustHave,
+    ...strategy.preferred,
+  ].filter((term) => words(term).some((word) => words(details.blob).includes(word)));
+
+  for (const term of [...details.amenities, ...matchedGroupWishes]) {
+    add(accommodationHighlightLabel(term));
+  }
+
+  const normalizedPropertyType = normalizeText(details.propertyType);
+  if (/maison|villa|chalet|house|home/.test(normalizedPropertyType)) {
+    add("Logement rien que pour vous");
+  }
+  if (details.capacity != null && details.capacity >= specification.group.size) {
+    add(`Adapté à ${specification.group.size} personnes`);
+  }
+
+  return highlights.slice(0, 3);
 }
 
 function isExplicitlyOutsideDestination(
@@ -285,7 +355,7 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
       const capacity = parseCapacity(blob);
       const bedrooms = parseBedrooms(blob);
       const rating = parseRating(blob);
-      const explicitAmenities = [...new Set([...specification.requiredAmenities, ...strategy.mustHave, ...strategy.preferred])]
+      const explicitAmenities = [...new Set([...meaningfulRequiredAmenities(specification.requiredAmenities), ...strategy.mustHave, ...strategy.preferred])]
         .filter((term) => words(term).some((w) => words(blob).includes(w)));
       if (capacity != null && capacity < specification.group.size) return [];
       if (bedrooms != null && bedrooms < specification.group.targetBedrooms) return [];
@@ -293,7 +363,7 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
         const normalizedRating = rating <= 5 ? rating : rating / 2;
         if (normalizedRating < specification.minimumRating) return [];
       }
-      if (specification.requiredAmenities.some((required) => !explicitAmenities.some((found) => words(found).some((w) => words(required).includes(w) || words(required).some((rw) => rw === w))))) return [];
+      if (meaningfulRequiredAmenities(specification.requiredAmenities).some((required) => !explicitAmenities.some((found) => words(found).some((w) => words(required).includes(w) || words(required).some((rw) => rw === w))))) return [];
       const propertyType = strategy.propertyTypes.find((type) => words(type).some((w) => words(blob).includes(w))) ?? strategy.propertyTypes[0] ?? "unknown";
       return [{
         id: buildCanonicalAccommodationExternalId(specification.destination.name, { name, url, source: host }),
@@ -315,11 +385,13 @@ export function normalizeTavilyAccommodationResults(payload: any, specification:
         source: host,
         imageUrl: null,
         imageSource: null,
-        matchReasons: [
-          `Recherche web Tavily ${(Number(result.score ?? 0) * 100).toFixed(0)}%`,
-          `Concept ${strategy.concept}`,
-          ...strategy.preferred.filter((term) => words(term).some((w) => words(blob).includes(w))).slice(0, 1),
-        ].slice(0, 3),
+        matchReasons: buildAccommodationMatchReasons(specification, strategy, {
+          blob,
+          capacity,
+          bedrooms,
+          amenities: explicitAmenities,
+          propertyType,
+        }),
       }];
     })
     .slice(0, 6);
@@ -393,7 +465,7 @@ export async function searchAccommodationsWithGemini(specification: Accommodatio
     budget: specification.budget,
     locationIntent: specification.locationIntent,
     minimumRating: specification.minimumRating,
-    requiredAmenities: specification.requiredAmenities,
+    requiredAmenities: meaningfulRequiredAmenities(specification.requiredAmenities),
     accessibilityRequired: specification.accessibilityRequired,
     searchStrategies: specification.searchStrategies.map((strategy) => ({
       concept: strategy.concept,
