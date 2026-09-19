@@ -13,6 +13,7 @@ import { KrewIcon, KrewMark, KrewOrganicBlob } from "@/components/krew/visual-la
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { GOOGLE_AUTH_ENABLED } from "@/lib/auth-config";
+import { safeInternalPath } from "@/lib/safe-redirect";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): Record<string, any> => search,
@@ -51,7 +52,7 @@ function AuthPage() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const { next, mode } = Route.useSearch();
 
-  const safeNext = typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const safeNext = safeInternalPath(next);
   const isRecovery = mode === "recovery";
   const returnUrl = () => typeof window === "undefined" ? undefined : safeNext ? `${window.location.origin}${safeNext}` : window.location.origin;
 

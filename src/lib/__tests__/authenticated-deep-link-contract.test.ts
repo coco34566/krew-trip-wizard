@@ -13,6 +13,6 @@ describe("authenticated deep links", () => {
 
   it("restaure safeNext sans perdre sa query", () => {
     expect(auth).toContain("window.location.replace(safeNext)");
-    expect(auth).toContain('next.startsWith("/") && !next.startsWith("//")');
+    expect(auth).toContain("const safeNext = safeInternalPath(next);");
   });
 });
