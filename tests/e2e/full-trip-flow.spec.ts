@@ -52,7 +52,7 @@ async function fillPreferences(page: Page, profile: "city" | "outdoor") {
     const cityChoice = page.getByRole("button", { name: /Paris France/ }).first();
     if (await cityChoice.isVisible().catch(() => false)) await userClick(page, cityChoice, "choose Paris autocomplete");
   }
-  await userClick(page, page.getByRole("button", { name: /Envoyer mes réponses/ }), "submit preferences");
+  await userClick(page, page.getByRole("button", { name: /(?:Enregistrer mes réponses|Enregistrer mes modifications)/ }), "submit preferences");
 }
 
 async function waitForTripHub(page: Page, tripId: string) {
